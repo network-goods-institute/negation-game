@@ -3,7 +3,7 @@
 import { getUserId } from "@/actions/getUserId";
 import { PositionData } from "@/schemas/PositionSchema";
 import { dbTransaction } from "@/services/database.service";
-import { PositionId } from "@/types/entities/Position";
+import { PositionId } from "@/types/Ids";
 import { MongoPledge } from "@/types/mongodb/MongoPledge";
 import { MongoPosition } from "@/types/mongodb/MongoPosition";
 

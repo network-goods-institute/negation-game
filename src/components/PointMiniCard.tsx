@@ -74,9 +74,9 @@ export const PointMiniCard: FC<PointMiniCardProps> = ({
               {amountCounterpoints}
             </>,
           ].flatMap((value, i) => [
-            ...(i > 0 ? [<p>•</p>] : []),
+            ...(i > 0 ? [<p key={`divider-${i}`}>•</p>] : []),
 
-            <p>{value}</p>,
+            <p key={`value-${i}`}>{value}</p>,
           ])}
           {viewerContext?.pledged && (
             <PledgeBadge

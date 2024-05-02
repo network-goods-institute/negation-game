@@ -3,7 +3,7 @@
 import { getUserId } from "@/actions/getUserId";
 import { db } from "@/services/database.service";
 import { MongoPosition } from "@/types/mongodb/MongoPosition";
-import { Timestamp } from "@/types/utils/Timestamp";
+import { Timestamp } from "@/types/Timestamp";
 
 export interface FeedPosition {
   id: string;

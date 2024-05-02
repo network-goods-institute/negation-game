@@ -1,4 +1,4 @@
-import { UserId } from "@/types/entities/User";
+import { UserId } from "@/types/Ids";
 import { Document, ObjectId } from "mongodb";
 
 export interface MongoPledge extends Document {
