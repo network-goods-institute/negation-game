@@ -99,7 +99,11 @@ export const PointCard = forwardRef<HTMLDivElement, PointCardProps>(
             onClick={onEndorse}
           >
             <CheckIcon className="size-5" />{" "}
-            {endorsedByViewer && `${viewerContext.viewerCred} cred`}
+            {endorsedByViewer && (
+              <span>
+                <strong>{viewerContext.viewerCred}</strong> cred
+              </span>
+            )}
           </Button>
         </div>
       </motion.div>

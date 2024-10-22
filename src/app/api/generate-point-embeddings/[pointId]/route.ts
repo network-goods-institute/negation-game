@@ -7,10 +7,13 @@ import { eq } from "drizzle-orm";
 
 export const maxDuration = 30;
 
-export async function GET(
-  req: Request,
-  { params: { pointId } }: { params: { pointId: string } }
-) {
+export async function GET(req: Request, props: { params: Promise<{ pointId: string }> }) {
+  const params = await props.params;
+
+  const {
+    pointId
+  } = params;
+
   if (!pointId) throw new Error("No pointId provided");
 
   const point = await db.query.points.findFirst({

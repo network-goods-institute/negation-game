@@ -22,8 +22,6 @@ export default function Home() {
     },
   });
 
-  console.log(points);
-
   const [negatedPoint, setNegatedPoint] = useState<
     { id: number; content: string; createdAt: Date } | undefined
   >(undefined);

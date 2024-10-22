@@ -1,7 +1,13 @@
 import { addCounterpoint } from "@/actions/addCounterpoint";
 import { AutosizeTextarea } from "@/components/ui/autosize-textarea";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { POINT_MAX_LENGHT, POINT_MIN_LENGHT } from "@/constants/config";
@@ -29,6 +35,10 @@ export const NegateDialog: FC<NegateDialogProps> = ({
     <Dialog {...props} onOpenChange={onOpenChange}>
       <DialogContent className="sm:top-xl flex flex-col overflow-auto sm:translate-y-0 h-screen rounded-none sm:rounded-md sm:h-fit gap-0  bg-background  p-4 sm:p-8 shadow-sm w-full max-w-xl">
         <div className="w-full flex items-center justify-between mb-xl">
+          <DialogTitle hidden>Add a negation</DialogTitle>
+          <DialogDescription hidden>
+            Add a negation to the Point, or endorse an existing one
+          </DialogDescription>
           <DialogClose className="text-primary">
             <ArrowLeftIcon />
           </DialogClose>

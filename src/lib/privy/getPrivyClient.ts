@@ -2,7 +2,7 @@
 
 import { PrivyClient } from "@privy-io/server-auth";
 
-export const getPrivyClient = () => {
+export const getPrivyClient = async () => {
   if (!process.env.NEXT_PUBLIC_PRIVY_APP_ID)
     throw new Error("NEXT_PUBLIC_PRIVY_APP_ID is not set.");
   if (!process.env.PRIVY_APP_SECRET)
