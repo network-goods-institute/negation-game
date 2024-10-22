@@ -1,23 +1,32 @@
+import fluid, { extract, fontSize, screens } from "fluid-tailwind";
 import type { Config } from "tailwindcss";
 
 const config = {
   darkMode: ["class"],
-  content: [
-    "./pages/**/*.{ts,tsx}",
-    "./components/**/*.{ts,tsx}",
-    "./app/**/*.{ts,tsx}",
-    "./src/**/*.{ts,tsx}",
-  ],
+  content: {
+    files: [
+      "./pages/**/*.{ts,tsx}",
+      "./components/**/*.{ts,tsx}",
+      "./app/**/*.{ts,tsx}",
+      "./src/**/*.{ts,tsx}",
+    ],
+    extract,
+  },
   prefix: "",
   theme: {
+    screens,
+    fontSize,
     container: {
       center: true,
       padding: "2rem",
       screens: {
-        "2xl": "1400px",
+        "2xl": "90rem",
       },
     },
     extend: {
+      aria: {
+        invalid: 'invalid="true"',
+      },
       spacing: {
         "3xs": "0.0625rem",
         "2xs": "0.125rem",
@@ -45,8 +54,10 @@ const config = {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
-          ally: "hsl(var(--primary-ally))",
-          enemy: "hsl(var(--primary-enemy))",
+        },
+        endorsed: {
+          DEFAULT: "hsl(var(--endorsed))",
+          foreground: "hsl(var(--endorsed-foreground))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -97,6 +108,7 @@ const config = {
   plugins: [
     require("tailwindcss-animate"),
     require("@tailwindcss/container-queries"),
+    fluid,
   ],
 } satisfies Config;
 

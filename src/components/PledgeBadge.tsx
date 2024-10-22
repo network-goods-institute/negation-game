@@ -14,10 +14,11 @@ export const PledgeBadge: FC<PledgeBadgeProps> = ({
   <Badge
     {...props}
     className={cn(
-      "px-xs py-3xs leading-none rounded-md hover:bg-primary-ally bg-primary-ally",
+      "px-xs py-3xs leading-none rounded-md hover:bg-primary bg-primary font-normal",
       className
     )}
   >
-    ⧩{pledged}
+    <span className="text-[0.8rem] align-text-bottom mr-0.5 ">ℂ</span>
+    {pledged}
   </Badge>
 );

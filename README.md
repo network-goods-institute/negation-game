@@ -1,4 +1,4 @@
-# Anagogic
+# Negation Game 
 
 ## Getting Started
 

@@ -1,7 +1,11 @@
-export const formatShortNumber = (favor: number): string => {
-  const order = Math.floor(Math.log10(favor) / 3);
+export interface FormatShortNumberOptions {}
+
+export const formatShortNumber = (n: number): string => {
+  if (n === 0) return "0";
+
+  const order = Math.floor(Math.log10(n) / 3);
   const suffixes = ["", "k", "M", "B", "T"];
   const suffix = suffixes[order];
-  const shortValue = favor / Math.pow(10, order * 3);
+  const shortValue = n / Math.pow(10, order * 3);
   return shortValue.toFixed(1).replace(/[.]0$/, "") + suffix;
 };

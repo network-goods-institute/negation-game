@@ -1,159 +1,110 @@
-import { PledgeBadge } from "@/components/PledgeBadge";
-import { WavePattern } from "@/components/WavePattern";
 import { cn } from "@/lib/cn";
 import { formatShortNumber } from "@/lib/formatShortNumber";
-import { HeartHandshake, Share, Sword, UserRound } from "lucide-react";
-import { FC, HTMLAttributes } from "react";
+import { motion } from "framer-motion";
+import { ComponentPropsWithoutRef, forwardRef, MouseEventHandler } from "react";
 import { Button } from "./ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
 
-export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
-  pointId: string;
-  title: string;
-  body: string;
+import { CheckIcon, XIcon } from "lucide-react";
+
+export interface PointCardProps
+  extends ComponentPropsWithoutRef<typeof motion.div> {
+  pointId: number;
+  content: string;
   createdAt: number;
-  pledged: number;
+  totalCred: number;
   favor: number;
   amountSupporters: number;
-  counterpointIds: string[];
+  amountNegations: number;
   viewerContext?: {
-    pledged?: number;
-    ally?: boolean;
-    enemy?: boolean;
+    viewerCred?: number;
   };
-  initiallyExpanded?: boolean;
+  onEndorse?: MouseEventHandler<HTMLButtonElement>;
+  onNegate?: MouseEventHandler<HTMLButtonElement>;
+  leftSlot?: React.ReactNode;
+  bottomSlot?: React.ReactNode;
 }
 
-export const PointCard: FC<PointCardProps> = ({
-  pointId,
-  title,
-  body,
-  createdAt,
-  className,
-  pledged,
-  favor,
-  amountSupporters,
-  counterpointIds,
-  viewerContext,
-  initiallyExpanded = true,
-  ...props
-}) => {
-  // const [isExpanded, setIsExpanded] = useState(initiallyExpanded);
-  const amountCounterpoints = counterpointIds?.length || 0;
-  return (
-    <Card
-      className={cn(
-        "@container/point relative rounded-lg shadow-md max-w-xl",
-        className
-      )}
-      {...props}
-    >
-      {/* <Accordion type="single" collapsible>
-        <AccordionItem value="description" className="border-none"> */}
-      <CardHeader className="relative px-lg pt-sm pb-md">
-        <WavePattern
-          className={cn(
-            "absolute right-5 top-0 h-full text-muted",
-            viewerContext?.ally && "text-primary-ally/20",
-            viewerContext?.enemy && "text-primary-enemy/20"
-          )}
-        />
-        <CardTitle className=" !leading-5 text-sm @xs/point:text-md @sm/point:text-lg mb-md">
-          {title}
-        </CardTitle>
+export const PointCard = forwardRef<HTMLDivElement, PointCardProps>(
+  (
+    {
+      pointId,
+      content,
+      createdAt,
+      className,
+      totalCred,
+      favor,
+      amountSupporters: amountSupporters,
+      amountNegations,
+      viewerContext,
+      onEndorse,
+      onNegate,
+      ...props
+    },
+    ref
+  ) => {
+    const endorsedByViewer =
+      viewerContext?.viewerCred !== undefined && viewerContext.viewerCred > 0;
+    return (
+      <motion.div
+        ref={ref}
+        layout
+        className={cn(
+          "@container/point flex flex-col bg-background gap-0 px-8 py-6 relative rounded-sm  shadow-sm",
+          className
+        )}
+        {...props}
+      >
+        <p className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg mb-xs -mt-0.5">
+          {content}
+        </p>
 
-        <div className="w-full flex gap-xs  text-xs text-muted-foreground/70 items-center">
+        <div className="w-full flex gap-xs items-center  text-xs text-muted-foreground mb-md">
           {[
-            // eslint-disable-next-line react/jsx-key
-            [<strong>{formatShortNumber(favor)}✦</strong>, "favor"],
-            [<>⧩{formatShortNumber(pledged)}</>, "pledged"],
+            [favor, "favor"],
+            [amountNegations, amountNegations === 1 ? "negation" : "negations"],
             [
-              <>
-                <UserRound size={10} className="inline align-[-5%] " />
-                {formatShortNumber(amountSupporters)}
-              </>,
-              "backers",
+              formatShortNumber(amountSupporters),
+              amountSupporters === 1 ? "supporter" : "supporters",
             ],
-            [
-              <>
-                <Sword size={10} className="inline align-[-5%] " />
-                {amountCounterpoints}
-              </>,
-              "attacks",
-            ],
+            [formatShortNumber(totalCred), "cred"],
           ].flatMap(([value, label], i) => [
-            ...(i > 0 ? [<p key={`divider-${i}`}>•</p>] : []),
-            <div
-              className="flex flex-col @xs/point:flex-row gap-0 leading-none @xs/point:gap-xs items-center"
-              key={`stat-${i}`}
-            >
-              <p>{value}</p>
-              <p className="hidden @sm/point:block">{label}</p>
-            </div>,
+            ...(i > 0
+              ? [
+                  <span className="text-xs" key={`divider-${i}`}>
+                    ·
+                  </span>,
+                ]
+              : []),
+
+            <span key={`stat-${i}`} className="leading-none">
+              <strong className="font-semibold">{value}</strong> {label}
+            </span>,
           ])}
-          {viewerContext?.pledged && (
-            <PledgeBadge
-              pledged={viewerContext.pledged}
-              className="absolute right-md"
-            />
-          )}
         </div>
-        {/* <AccordionTrigger className="absolute bottom-[-2px] left-1/2 -translate-x-1/2 scale-x-150 text-border hover:text-muted-foreground py-0 px-xl">
-              <span className="sr-only">Toggle</span>
-            </AccordionTrigger> */}
-      </CardHeader>
 
-      {/* <Separator /> */}
-      {/* <AccordionContent className="pt-md pb-md bg-accent/30"> */}
-      <CardContent className="py-2">
-        <p>{body}</p>
-      </CardContent>
-      {/* </AccordionContent> */}
-
-      {/* <Separator className="mb-sm -mt-[1px]" /> */}
-      <CardFooter className="relative flex flex-col items-start mt-xs py-xs px-md">
-        {/* <AccordionTrigger className="absolute top-[-10px] left-1/2 -translate-x-1/2 rotate-180 scale-x-150 text-border hover:text-muted-foreground py-0 px-xl" /> */}
-
-        <div className="flex w-full justify-between">
-          <div className="flex gap-sm">
-            <Button
-              variant="ghost"
-              className="text-muted-foreground/30"
-              size="icon"
-            >
-              <Sword size={20} />
-            </Button>
-            <Button
-              size="icon"
-              className={cn(
-                viewerContext?.pledged
-                  ? "text-primary-ally"
-                  : "text-muted-foreground/30"
-              )}
-              variant={"ghost"}
-            >
-              <HeartHandshake className="inline" size={20} />
-            </Button>
-          </div>
-          <div className="flex gap-xs">
-            <Button
-              variant="ghost"
-              className="text-muted-foreground/30"
-              size="icon"
-            >
-              <Share size={20} />
-            </Button>
-          </div>
+        <div className="flex gap-sm w-full text-muted-foreground">
+          <Button
+            variant="ghost"
+            className="p-2 -ml-3 -mb-2 rounded-full size-fit"
+            onClick={onNegate}
+          >
+            <XIcon className="size-5" />
+          </Button>
+          <Button
+            className={cn(
+              "p-2 rounded-full -mb-2 size-fit gap-sm",
+              endorsedByViewer && "text-endorsed hover:bg-endorsed/90 pr-3"
+            )}
+            variant={"ghost"}
+            onClick={onEndorse}
+          >
+            <CheckIcon className="size-5" />{" "}
+            {endorsedByViewer && `${viewerContext.viewerCred} cred`}
+          </Button>
         </div>
-      </CardFooter>
-      {/* </AccordionItem>
-      </Accordion> */}
-    </Card>
-  );
-};
+      </motion.div>
+    );
+
+    PointCard.displayName = "PointCard";
+  }
+);

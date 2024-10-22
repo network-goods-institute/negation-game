@@ -1,40 +1,94 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { OnboardingDialog } from "@/components/OnboardingDialog";
+import { AnimatedButton } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { useUser } from "@/hooks/useUser";
 import { usePrivy } from "@privy-io/react-auth";
-import { DropdownMenuContent } from "@radix-ui/react-dropdown-menu";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import {
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@radix-ui/react-dropdown-menu";
+import { AnimatePresence } from "framer-motion";
+import { LoaderCircleIcon } from "lucide-react";
 
 export const ConnectButton = () => {
-  const { ready, authenticated, login, logout, user } = usePrivy();
+  const { login, logout, user: privyUser } = usePrivy();
 
-  const { push } = useRouter();
+  const { data: user, isLoading } = useUser();
 
-  //   if (user) return <Button variant={"outline"}>{user.id}</Button>;
-
-  if (authenticated) {
+  if (!privyUser)
     return (
-      <DropdownMenu>
+      <AnimatedButton
+        key="connect"
+        layoutId="connect"
+        className="w-36 rounded-full"
+        size={"sm"}
+        onClick={login}
+        disabled={privyUser !== null}
+      >
+        <AnimatePresence>
+          <p className="overflow-clip max-w-full">
+            {privyUser ? (
+              <LoaderCircleIcon className="animate-spin" />
+            ) : (
+              "Connect"
+            )}
+          </p>
+        </AnimatePresence>
+      </AnimatedButton>
+    );
+
+  if (!user)
+    return (
+      <>
+        <OnboardingDialog open={!isLoading} />
+        <AnimatedButton
+          key="connect"
+          layoutId="connect"
+          className="w-36 rounded-full"
+          size={"sm"}
+          disabled
+        >
+          <AnimatePresence>
+            <LoaderCircleIcon className="animate-spin" />
+          </AnimatePresence>
+        </AnimatedButton>
+      </>
+    );
+
+  if (user)
+    return (
+      <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
-          <Button className="max-w-36">
-            <p className="overflow-clip max-w-full">{user?.id}</p>
-          </Button>
+          <AnimatedButton
+            variant={"outline"}
+            layoutId="connect"
+            key="connect"
+            className="w-36"
+          >
+            <AnimatePresence>
+              <p className="overflow-clip max-w-full">{user.username}</p>
+            </AnimatePresence>
+          </AnimatedButton>
         </DropdownMenuTrigger>
-        <DropdownMenuContent>
-          <DropdownMenuItem asChild>
-            <Link href="/profile">Profile</Link>
-          </DropdownMenuItem>
+        <DropdownMenuContent
+          align="end"
+          sideOffset={8}
+          className="bg-background border rounded-sm p-md text-sm w-48 shadow-md"
+        >
+          <DropdownMenuLabel>My Account</DropdownMenuLabel>
+          <DropdownMenuLabel className="font-normal text-muted-foreground">
+            {user.cred} cred
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
           <DropdownMenuItem onClick={logout}>Sign out</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     );
-  }
-
-  return <Button onClick={login}>Sign in</Button>;
 };

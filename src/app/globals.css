@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@500;700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -10,10 +12,10 @@
     --card-foreground: 224 71.4% 4.1%;
     --popover: 0 0% 100%;
     --popover-foreground: 224 71.4% 4.1%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-ally: 221.2 83.2% 53.3%;
-    --primary-enemy: 0 72.2% 50.6%;
+    --primary: 262.1 83.3% 57.8%;
     --primary-foreground: 210 20% 98%;
+    --endorsed: 193 100% 51%;
+    --endorsed-foreground: 210 20% 98%;
     --secondary: 220 14.3% 95.9%;
     --secondary-foreground: 220.9 39.3% 11%;
     --muted: 220 14.3% 95.9%;
@@ -25,7 +27,7 @@
     --border: 220 13% 91%;
     --input: 220 13% 91%;
     --ring: 262.1 83.3% 57.8%;
-    --radius: 0.3rem;
+    --radius: 0.8rem;
   }
 
   .dark {
@@ -35,9 +37,7 @@
     --card-foreground: 210 20% 98%;
     --popover: 224 71.4% 4.1%;
     --popover-foreground: 210 20% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-ally: 217.2 91.2% 59.8%;
-    --primary-enemy: 0 72.2% 50.6%;
+    --primary: 263.4 70% 50.4%;
     --primary-foreground: 210 20% 98%;
     --secondary: 215 27.9% 16.9%;
     --secondary-foreground: 210 20% 98%;
@@ -59,6 +59,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: "Inter";
   }
 }
 
@@ -87,5 +88,19 @@
 
   .container-grid {
     @apply grid grid-cols-4 sm:grid-cols-8 lg:grid-cols-12 gap-xs md:gap-sm xl:gap-md;
+  }
+
+  .no-scaling-stroke > * {
+    vector-effect: non-scaling-stroke;
+  }
+
+  .circle-dashed-1 > circle {
+    stroke-dasharray: 1;
+  }
+  .circle-dashed-2 > circle {
+    stroke-dasharray: 2;
+  }
+  .circle-dashed-3 > circle {
+    stroke-dasharray: 3;
   }
 }

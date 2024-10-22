@@ -3,6 +3,7 @@
 import { PrivyProvider } from "@privy-io/react-auth";
 import { useTheme } from "next-themes";
 import { PropsWithChildren } from "react";
+import { mainnet } from "viem/chains";
 
 export const ThemedPrivyProvider = ({ children }: PropsWithChildren) => {
   const { resolvedTheme } = useTheme();
@@ -12,12 +13,15 @@ export const ThemedPrivyProvider = ({ children }: PropsWithChildren) => {
       config={{
         appearance: {
           theme: (resolvedTheme as "light" | "dark" | undefined) || "light",
-          accentColor: "#2563eb",
+          accentColor: "#7c3aed",
           logo: "/img/anagogic.png",
         },
         embeddedWallets: {
           createOnLogin: "off",
         },
+
+        defaultChain: mainnet,
+        supportedChains: [mainnet],
       }}
     >
       {children}
