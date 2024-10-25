@@ -1,13 +1,26 @@
 import { cn } from "@/lib/cn";
-import { formatShortNumber } from "@/lib/formatShortNumber";
-import { motion } from "framer-motion";
-import { ComponentPropsWithoutRef, forwardRef, MouseEventHandler } from "react";
+import { HTMLAttributes, MouseEventHandler, useEffect, useState } from "react";
 import { Button } from "./ui/button";
 
-import { CheckIcon, XIcon } from "lucide-react";
+import { endorse } from "@/actions/endorse";
+import { CredInput } from "@/components/CredInput";
+import { PointStats } from "@/components/PointStats";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { useUser } from "@/hooks/useUser";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToggle } from "@uidotdev/usehooks";
+import {
+  CircleCheckBigIcon,
+  CircleDotIcon,
+  CircleSlash2Icon,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
 
-export interface PointCardProps
-  extends ComponentPropsWithoutRef<typeof motion.div> {
+export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
   content: string;
   createdAt: number;
@@ -18,97 +31,115 @@ export interface PointCardProps
   viewerContext?: {
     viewerCred?: number;
   };
-  onEndorse?: MouseEventHandler<HTMLButtonElement>;
   onNegate?: MouseEventHandler<HTMLButtonElement>;
   leftSlot?: React.ReactNode;
   bottomSlot?: React.ReactNode;
 }
 
-export const PointCard = forwardRef<HTMLDivElement, PointCardProps>(
-  (
-    {
-      pointId,
-      content,
-      createdAt,
-      className,
-      totalCred,
-      favor,
-      amountSupporters: amountSupporters,
-      amountNegations,
-      viewerContext,
-      onEndorse,
-      onNegate,
-      ...props
-    },
-    ref
-  ) => {
-    const endorsedByViewer =
-      viewerContext?.viewerCred !== undefined && viewerContext.viewerCred > 0;
-    return (
-      <motion.div
-        ref={ref}
-        layout
-        className={cn(
-          "@container/point flex flex-col bg-background gap-0 px-8 py-6 relative rounded-sm  shadow-sm",
-          className
-        )}
-        {...props}
-      >
-        <p className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg mb-xs -mt-0.5">
+export const PointCard = ({
+  pointId,
+  content,
+  createdAt,
+  className,
+  totalCred,
+  favor,
+  amountSupporters: amountSupporters,
+  amountNegations,
+  viewerContext,
+  onNegate,
+  ...props
+}: PointCardProps) => {
+  const endorsedByViewer =
+    viewerContext?.viewerCred !== undefined && viewerContext.viewerCred > 0;
+
+  const [cred, setCred] = useState(0);
+  const { data: user } = useUser();
+  const notEnoughCred = !!user && user.cred < cred;
+  const queryClient = useQueryClient();
+  const [endorsePopoverOpen, toggleEndorsePopoverOpen] = useToggle(false);
+  useEffect(() => {
+    if (!endorsePopoverOpen) setCred(0);
+  }, [endorsePopoverOpen]);
+  const { push } = useRouter();
+
+  return (
+    <div
+      className={cn(
+        "@container/point flex bg-background gap-3 pt-4 pb-3 px-4 relative rounded-none",
+        className
+      )}
+      {...props}
+    >
+      <CircleDotIcon className="shrink-0 size-6  text-muted-foreground" />
+      <div className="flex flex-col">
+        <p className="tracking-tight text-md  @xs/point:text-md @sm/point:text-lg mb-xs -mt-1">
           {content}
         </p>
 
-        <div className="w-full flex gap-xs items-center  text-xs text-muted-foreground mb-md">
-          {[
-            [favor, "favor"],
-            [amountNegations, amountNegations === 1 ? "negation" : "negations"],
-            [
-              formatShortNumber(amountSupporters),
-              amountSupporters === 1 ? "supporter" : "supporters",
-            ],
-            [formatShortNumber(totalCred), "cred"],
-          ].flatMap(([value, label], i) => [
-            ...(i > 0
-              ? [
-                  <span className="text-xs" key={`divider-${i}`}>
-                    ·
-                  </span>,
-                ]
-              : []),
-
-            <span key={`stat-${i}`} className="leading-none">
-              <strong className="font-semibold">{value}</strong> {label}
-            </span>,
-          ])}
-        </div>
+        <PointStats
+          amountNegations={amountNegations}
+          amountSupporters={amountSupporters}
+          favor={favor}
+          cred={totalCred}
+        />
 
         <div className="flex gap-sm w-full text-muted-foreground">
           <Button
             variant="ghost"
-            className="p-2 -ml-3 -mb-2 rounded-full size-fit"
-            onClick={onNegate}
+            className="p-2 -ml-3 -mb-2 rounded-full size-fit hover:bg-negated/30"
+            onClick={(e) => {
+              e.stopPropagation();
+              onNegate?.(e);
+            }}
           >
-            <XIcon className="size-5" />
+            <CircleSlash2Icon className="size-5" />
           </Button>
-          <Button
-            className={cn(
-              "p-2 rounded-full -mb-2 size-fit gap-sm",
-              endorsedByViewer && "text-endorsed hover:bg-endorsed/90 pr-3"
-            )}
-            variant={"ghost"}
-            onClick={onEndorse}
+          <Popover
+            open={endorsePopoverOpen}
+            onOpenChange={toggleEndorsePopoverOpen}
           >
-            <CheckIcon className="size-5" />{" "}
-            {endorsedByViewer && (
-              <span>
-                <strong>{viewerContext.viewerCred}</strong> cred
-              </span>
-            )}
-          </Button>
+            <PopoverTrigger asChild>
+              <Button
+                onClick={(e) => e.stopPropagation()}
+                className={cn(
+                  "p-2 rounded-full -mb-2 size-fit gap-sm hover:bg-endorsed/30",
+                  endorsedByViewer && "text-endorsed pr-3"
+                )}
+                variant={"ghost"}
+              >
+                <CircleCheckBigIcon className="size-5" />{" "}
+                {endorsedByViewer && (
+                  <span>{viewerContext.viewerCred} cred</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="flex flex-col items-start w-96"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-full flex justify-between">
+                <CredInput cred={cred} setCred={setCred} />
+                <Button
+                  disabled={cred === 0 || notEnoughCred}
+                  onClick={() => {
+                    endorse({ pointId, cred }).then(() => {
+                      queryClient.invalidateQueries({ queryKey: ["feed"] });
+                      toggleEndorsePopoverOpen(false);
+                    });
+                  }}
+                >
+                  Endorse
+                </Button>
+              </div>
+              {notEnoughCred && (
+                <span className="ml-md text-destructive text-sm h-fit">
+                  not enough cred
+                </span>
+              )}
+            </PopoverContent>
+          </Popover>
         </div>
-      </motion.div>
-    );
-
-    PointCard.displayName = "PointCard";
-  }
-);
+      </div>
+    </div>
+  );
+};

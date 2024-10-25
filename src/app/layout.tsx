@@ -25,8 +25,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+    <html lang="en" suppressHydrationWarning className="h-full">
+      <body
+        className={cn(inter.className, "h-full flex flex-col overflow-clip")}
+      >
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -36,7 +38,7 @@ export default function RootLayout({
           <ThemedPrivyProvider>
             <QueryClientProvider>
               <TooltipProvider>
-                <header className="sticky top-0 z-10 shadow-sm flex justify-between container-padding items-center w-full bg-background h-2xl">
+                <header className="sticky top-0 z-10 border-b py-sm flex justify-between container-padding items-center w-full bg-background h-2xl">
                   <p className={cn("font-bold")}>Negation Game</p>
                   {/* <Navigation className="hidden sm:block" /> */}
                   <div className="flex gap-sm">

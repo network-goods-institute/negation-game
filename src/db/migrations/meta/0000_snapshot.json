@@ -1,6 +1,6 @@
 {
-  "id": "696fcdb2-bd28-420d-92a8-7cc7cec7ba3f",
-  "prevId": "09cb2e78-b679-4051-89a7-b9b3d412a9c8",
+  "id": "c16a39d8-7c25-4289-b959-914ce416422e",
+  "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -33,12 +33,13 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "public.endorsements": {
       "name": "endorsements",
@@ -58,7 +59,7 @@
         },
         "point_id": {
           "name": "point_id",
-          "type": "serial",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
@@ -119,12 +120,26 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "endorsements_user_id_users_id_fk": {
+          "name": "endorsements_user_id_users_id_fk",
+          "tableFrom": "endorsements",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "public.negations": {
       "name": "negations",
@@ -205,7 +220,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "negations_newer_point_id_points_id_fk": {
@@ -218,7 +233,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -231,6 +246,12 @@
             "older_point_id",
             "newer_point_id"
           ]
+        }
+      },
+      "checkConstraints": {
+        "olderPointFirst": {
+          "name": "olderPointFirst",
+          "value": "\"negations\".\"older_point_id\" < \"negations\".\"newer_point_id\""
         }
       }
     },
@@ -267,7 +288,8 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "public.users": {
       "name": "users",
@@ -312,12 +334,85 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "noNegativeCred": {
+          "name": "noNegativeCred",
+          "value": "\"users\".\"cred\" >= 0"
+        },
+        "usernameFormat": {
+          "name": "usernameFormat",
+          "value": "LENGTH(\"users\".\"username\") BETWEEN 4 AND 15\n          AND \"users\".\"username\" ~ '^[a-zA-Z0-9][_a-zA-Z0-9]*[a-zA-Z0-9]$'"
+        }
+      }
     }
   },
   "enums": {},
   "schemas": {},
   "sequences": {},
+  "views": {
+    "public.point_endorsements_per_user_view": {
+      "columns": {
+        "point_id": {
+          "name": "point_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "select sum(\"cred\") as \"cred\", \"point_id\", \"user_id\" from \"endorsements\" group by \"endorsements\".\"point_id\", \"endorsements\".\"user_id\"",
+      "name": "point_endorsements_per_user_view",
+      "schema": "public",
+      "isExisting": false,
+      "materialized": false
+    },
+    "public.point_negations_view": {
+      "columns": {
+        "newer_point_id": {
+          "name": "newer_point_id",
+          "type": "serial",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "older_point_id": {
+          "name": "older_point_id",
+          "type": "serial",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "definition": "(select \"newer_point_id\", \"older_point_id\", \"id\", \"created_by\", \"created_at\" from \"negations\") union (select \"older_point_id\", \"newer_point_id\", \"id\", \"created_by\", \"created_at\" from \"negations\")",
+      "name": "point_negations_view",
+      "schema": "public",
+      "isExisting": false,
+      "materialized": false
+    }
+  },
   "_meta": {
     "columns": {},
     "schemas": {},

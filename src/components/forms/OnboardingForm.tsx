@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { USERNAME_MAX_LENGHT } from "@/constants/config";
-import { InsertUser, insertUserSchema } from "@/db/schema";
+import { InsertUser, insertUserSchema } from "@/db/tables/usersTable";
 import { cn } from "@/lib/cn";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FC, HTMLAttributes } from "react";

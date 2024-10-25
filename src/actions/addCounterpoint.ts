@@ -3,16 +3,17 @@
 import { getUserId } from "@/actions/getUserId";
 import {
   endorsementsTable,
-  InsertEndorsement,
-  InsertNegation,
-  InsertPoint,
   negationsTable,
-  Point,
   pointsTable,
   usersTable,
 } from "@/db/schema";
 import { db } from "@/services/db";
 import { eq, sql } from "drizzle-orm";
+import { waitUntil } from "@vercel/functions";
+import { addEmbedding } from "@/actions/addEmbedding";
+import { InsertPoint, Point } from "@/db/tables/pointsTable";
+import { InsertNegation } from "@/db/tables/negationsTable";
+import { InsertEndorsement } from "@/db/tables/endorsementsTable";
 
 export const addCounterpoint = async ({
   content,
@@ -54,6 +55,8 @@ export const addCounterpoint = async ({
       newerPointId: newPointId,
       createdBy: userId,
     });
+
+    waitUntil(addEmbedding({ content, id: newPointId }));
 
     return newPointId;
   });

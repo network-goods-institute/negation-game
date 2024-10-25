@@ -1,18 +1,16 @@
 "use server";
 
 import { getUserId } from "@/actions/getUserId";
-import {
-  endorsementsTable,
-  InsertEndorsement,
-  InsertPoint,
-  Point,
-  pointsTable,
-  usersTable,
-} from "@/db/schema";
+import { endorsementsTable, pointsTable, usersTable } from "@/db/schema";
 import { db } from "@/services/db";
 import { eq, sql } from "drizzle-orm";
 
-export const addPoint = async ({
+import { addEmbedding } from "@/actions/addEmbedding";
+import { waitUntil } from "@vercel/functions";
+import { InsertEndorsement } from "@/db/tables/endorsementsTable";
+import { InsertPoint, Point } from "@/db/tables/pointsTable";
+
+export const makePoint = async ({
   content,
   cred = 0,
 }: Omit<InsertPoint, "createdBy"> & Pick<InsertEndorsement, "cred">): Promise<
@@ -45,6 +43,8 @@ export const addPoint = async ({
         userId,
       });
     }
+
+    waitUntil(addEmbedding({ content, id: newPointId }));
 
     return newPointId;
   });

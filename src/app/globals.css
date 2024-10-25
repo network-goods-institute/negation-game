@@ -16,6 +16,8 @@
     --primary-foreground: 210 20% 98%;
     --endorsed: 193 100% 51%;
     --endorsed-foreground: 210 20% 98%;
+    --negated: 0 84.2% 60.2%;
+    --negated-foreground: 210 20% 98%;
     --secondary: 220 14.3% 95.9%;
     --secondary-foreground: 220.9 39.3% 11%;
     --muted: 220 14.3% 95.9%;
@@ -39,6 +41,10 @@
     --popover-foreground: 210 20% 98%;
     --primary: 263.4 70% 50.4%;
     --primary-foreground: 210 20% 98%;
+    --endorsed: 193 100% 51%;
+    --endorsed-foreground: 210 20% 98%;
+    --negated: 0 84.2% 60.2%;
+    --negated-foreground: 210 20% 98%;
     --secondary: 215 27.9% 16.9%;
     --secondary-foreground: 210 20% 98%;
     --muted: 215 27.9% 16.9%;

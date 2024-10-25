@@ -1,10 +1,11 @@
 "use server";
 
-import { embeddingsTable, Point, pointsTable } from "@/db/schema";
+import { embeddingsTable, pointsTable } from "@/db/schema";
+import { Point } from "@/db/tables/pointsTable";
 import { db } from "@/services/db";
 import { openai } from "@ai-sdk/openai";
 import { embed } from "ai";
-import { desc, eq, gt, innerProduct, sql } from "drizzle-orm";
+import { cosineDistance, desc, eq, gt, sql } from "drizzle-orm";
 
 export const fetchSimilarPoints = async ({
   query,
@@ -18,7 +19,7 @@ export const fetchSimilarPoints = async ({
     })
   ).embedding;
 
-  const similarity = sql<number>`1 - (${innerProduct(embeddingsTable.embedding, embedding)})`;
+  const similarity = sql<number>`1 - (${cosineDistance(embeddingsTable.embedding, embedding)})`;
 
   return await db
     .select({

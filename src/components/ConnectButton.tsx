@@ -1,7 +1,7 @@
 "use client";
 
 import { OnboardingDialog } from "@/components/OnboardingDialog";
-import { AnimatedButton } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuItem,
@@ -14,7 +14,6 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@radix-ui/react-dropdown-menu";
-import { AnimatePresence } from "framer-motion";
 import { LoaderCircleIcon } from "lucide-react";
 
 export const ConnectButton = () => {
@@ -24,41 +23,35 @@ export const ConnectButton = () => {
 
   if (!privyUser)
     return (
-      <AnimatedButton
+      <Button
         key="connect"
-        layoutId="connect"
         className="w-36 rounded-full"
         size={"sm"}
         onClick={login}
         disabled={privyUser !== null}
       >
-        <AnimatePresence>
-          <p className="overflow-clip max-w-full">
-            {privyUser ? (
-              <LoaderCircleIcon className="animate-spin" />
-            ) : (
-              "Connect"
-            )}
-          </p>
-        </AnimatePresence>
-      </AnimatedButton>
+        <p className="overflow-clip max-w-full">
+          {privyUser ? (
+            <LoaderCircleIcon className="animate-spin" />
+          ) : (
+            "Connect"
+          )}
+        </p>
+      </Button>
     );
 
   if (!user)
     return (
       <>
         <OnboardingDialog open={!isLoading} />
-        <AnimatedButton
+        <Button
           key="connect"
-          layoutId="connect"
           className="w-36 rounded-full"
           size={"sm"}
           disabled
         >
-          <AnimatePresence>
-            <LoaderCircleIcon className="animate-spin" />
-          </AnimatePresence>
-        </AnimatedButton>
+          <LoaderCircleIcon className="animate-spin" />
+        </Button>
       </>
     );
 
@@ -66,16 +59,9 @@ export const ConnectButton = () => {
     return (
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
-          <AnimatedButton
-            variant={"outline"}
-            layoutId="connect"
-            key="connect"
-            className="w-36"
-          >
-            <AnimatePresence>
-              <p className="overflow-clip max-w-full">{user.username}</p>
-            </AnimatePresence>
-          </AnimatedButton>
+          <Button variant={"outline"} key="connect" className="w-36">
+            <p className="overflow-clip max-w-full">{user.username}</p>
+          </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="end"

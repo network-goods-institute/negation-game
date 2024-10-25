@@ -59,6 +59,10 @@ const config = {
           DEFAULT: "hsl(var(--endorsed))",
           foreground: "hsl(var(--endorsed-foreground))",
         },
+        negated: {
+          DEFAULT: "hsl(var(--negated))",
+          foreground: "hsl(var(--negated-foreground))",
+        },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",

@@ -1,6 +1,5 @@
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
-import { motion } from "framer-motion";
 import * as React from "react";
 
 import { cn } from "@/lib/cn";
@@ -55,5 +54,3 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 Button.displayName = "Button";
 
 export { Button, buttonVariants };
-
-export const AnimatedButton = motion.create(Button);

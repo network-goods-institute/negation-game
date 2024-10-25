@@ -1,6 +1,6 @@
 {
-  "id": "09cb2e78-b679-4051-89a7-b9b3d412a9c8",
-  "prevId": "474feeeb-b6ee-45d7-aef2-a62bab0de2a3",
+  "id": "6a8ae042-45ed-4306-ab5e-dbd4172bfd83",
+  "prevId": "c16a39d8-7c25-4289-b959-914ce416422e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -33,12 +33,113 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "public.endorsements": {
+      "name": "endorsements",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "cred": {
+          "name": "cred",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "point_id": {
+          "name": "point_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "endorsements_user_id_index": {
+          "name": "endorsements_user_id_index",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "endorsements_point_id_index": {
+          "name": "endorsements_point_id_index",
+          "columns": [
+            {
+              "expression": "point_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "endorsements_point_id_points_id_fk": {
+          "name": "endorsements_point_id_points_id_fk",
+          "tableFrom": "endorsements",
+          "tableTo": "points",
+          "columnsFrom": [
+            "point_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "endorsements_user_id_users_id_fk": {
+          "name": "endorsements_user_id_users_id_fk",
+          "tableFrom": "endorsements",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "public.negations": {
       "name": "negations",
@@ -119,7 +220,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "negations_newer_point_id_points_id_fk": {
@@ -132,7 +233,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -145,6 +246,12 @@
             "older_point_id",
             "newer_point_id"
           ]
+        }
+      },
+      "checkConstraints": {
+        "olderPointFirst": {
+          "name": "olderPointFirst",
+          "value": "\"negations\".\"older_point_id\" < \"negations\".\"newer_point_id\""
         }
       }
     },
@@ -181,7 +288,8 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "public.users": {
       "name": "users",
@@ -192,17 +300,57 @@
           "type": "varchar",
           "primaryKey": true,
           "notNull": true
+        },
+        "username": {
+          "name": "username",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cred": {
+          "name": "cred",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         }
       },
-      "indexes": {},
+      "indexes": {
+        "usernameUniqueIndex": {
+          "name": "usernameUniqueIndex",
+          "columns": [
+            {
+              "expression": "lower(\"username\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "noNegativeCred": {
+          "name": "noNegativeCred",
+          "value": "\"users\".\"cred\" >= 0"
+        },
+        "usernameFormat": {
+          "name": "usernameFormat",
+          "value": "LENGTH(\"users\".\"username\") BETWEEN 4 AND 15\n          AND \"users\".\"username\" ~ '^[a-zA-Z0-9][_a-zA-Z0-9]*[a-zA-Z0-9]$'"
+        }
+      }
     }
   },
   "enums": {},
   "schemas": {},
   "sequences": {},
+  "views": {},
   "_meta": {
     "columns": {},
     "schemas": {},
