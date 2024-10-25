@@ -67,7 +67,7 @@ export default function PointPage({
         {isLoading && <Loader />}
 
         {point && (
-          <div className="@container/point relative border border-t-0 bg-background">
+          <div className="@container/point relative flex-grow  border border-t-0 bg-background">
             <div className="sticky top-0 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
               <div className="flex items-center gap-3">
                 <Button
