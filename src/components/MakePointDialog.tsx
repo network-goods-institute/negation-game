@@ -12,6 +12,7 @@ import {
 import { Popover, PopoverContent } from "@/components/ui/popover";
 import { POINT_MAX_LENGHT, POINT_MIN_LENGHT } from "@/constants/config";
 import { useUser } from "@/hooks/useUser";
+import { encodeId } from "@/lib/encodeId";
 import { DialogProps } from "@radix-ui/react-dialog";
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -51,7 +52,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
 
   const [popoverOpen, setPopoverOpen] = useState(false);
   useEffect(() => {
-    if (similarPoints?.length) {
+    if (similarPoints?.length && similarPoints.length > 0) {
       setPopoverOpen(true);
     }
   }, [similarPoints]);
@@ -90,7 +91,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
           <CircleDotIcon className="size-8 text-muted-foreground" />
 
           <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-            <PopoverAnchor asChild>
+            <PopoverAnchor className="w-full">
               <PointEditor
                 className="w-full"
                 content={content}
@@ -99,7 +100,10 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
                 setCred={setCred}
               />
             </PopoverAnchor>
-            <PopoverContent className="flex flex-col">
+            <PopoverContent
+              onOpenAutoFocus={(e) => e.preventDefault()}
+              className="flex flex-col items-center divide-y p-0 overflow-clip"
+            >
               {isLoading && <Loader />}
               {similarPoints?.length === 0 && (
                 <div className="p-4 text-muted-foreground">
@@ -107,10 +111,14 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
                 </div>
               )}
               {similarPoints?.map((point) => (
-                <div key={point.id} className="flex p-4 gap-4">
+                <a
+                  key={point.id}
+                  className="flex p-4 gap-4 hover:bg-accent w-full"
+                  href={`/${encodeId(point.id)}`}
+                >
                   <CircleEqualIcon className="size-6  text-muted-foreground " />
                   <span>{point.content}</span>
-                </div>
+                </a>
               ))}
             </PopoverContent>
           </Popover>
