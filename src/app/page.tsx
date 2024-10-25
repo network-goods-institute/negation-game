@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function Home() {
-  const { user } = usePrivy();
+  const { user, login } = usePrivy();
 
   const { data: points, isLoading } = useQuery({
     queryKey: ["feed", user?.id],
@@ -48,13 +48,15 @@ export default function Home() {
             amountNegations={point.amountNegations}
             content={point.content}
             viewerContext={{ viewerCred: point.viewerCred }}
-            onNegate={() => setNegatedPoint(point)}
+            onNegate={() => (user !== null ? setNegatedPoint(point) : login())}
           />
         ))}
       </div>
       <Button
         className="fixed bottom-md right-sm sm:right-md rounded-full p-3 h-fit sm:px-4"
-        onClick={() => onMakePointOpenChange(true)}
+        onClick={() => {
+          user !== null ? onMakePointOpenChange(true) : login();
+        }}
       >
         <PlusIcon className="inline align-baseline" />
         <span className="hidden  sm:block ml-sm">Make a Point</span>

@@ -16,6 +16,7 @@ import {
 import { useUser } from "@/hooks/useUser";
 import { cn } from "@/lib/cn";
 import { decodeId } from "@/lib/decodeId";
+import { usePrivy } from "@privy-io/react-auth";
 import { useQuery } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
 import {
@@ -44,6 +45,8 @@ export default function PointPage({
       return fetchPoint(pointId);
     },
   });
+
+  const { user: privyUser, login } = usePrivy();
 
   const endorsedByViewer =
     point?.viewerCred !== undefined && point.viewerCred > 0;
@@ -98,6 +101,12 @@ export default function PointPage({
                         endorsedByViewer && "text-endorsed",
                         "@md/point:border @md/point:px-4"
                       )}
+                      onClick={(e) => {
+                        if (privyUser === null) {
+                          e.preventDefault();
+                          login();
+                        }
+                      }}
                       variant={"ghost"}
                     >
                       <CircleCheckBigIcon className="size-5 @md/point:hidden" />
@@ -135,7 +144,9 @@ export default function PointPage({
                     "p-2  rounded-full size-fit hover:bg-primary/30",
                     "@md/point:border @md/point:px-4"
                   )}
-                  onClick={() => setNegatedPoint(point)}
+                  onClick={() =>
+                    privyUser !== null ? setNegatedPoint(point) : login()
+                  }
                 >
                   <CircleSlash2Icon className="size-5 @md/point:hidden" />
                   <span className="hidden @md/point:inline">Negate</span>

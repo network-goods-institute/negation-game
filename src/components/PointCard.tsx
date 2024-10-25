@@ -11,6 +11,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useUser } from "@/hooks/useUser";
+import { usePrivy } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
 import {
@@ -51,6 +52,8 @@ export const PointCard = ({
 }: PointCardProps) => {
   const endorsedByViewer =
     viewerContext?.viewerCred !== undefined && viewerContext.viewerCred > 0;
+
+  const { user: privyUser, login } = usePrivy();
 
   const [cred, setCred] = useState(0);
   const { data: user } = useUser();
@@ -100,7 +103,13 @@ export const PointCard = ({
           >
             <PopoverTrigger asChild>
               <Button
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (privyUser === null) {
+                    e.preventDefault();
+                    login();
+                  }
+                }}
                 className={cn(
                   "p-2 rounded-full -mb-2 size-fit gap-sm hover:bg-endorsed/30",
                   endorsedByViewer && "text-endorsed pr-3"
