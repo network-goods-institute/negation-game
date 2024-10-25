@@ -32,24 +32,27 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
       FROM ${endorsementsTable}
       GROUP BY 
           point_id
-  ) e ON points.id = e.point_id
-  ${
-    viewerId !== null &&
-    sql`
-  LEFT JOIN (
-      SELECT 
-          ${endorsementsTable.pointId},
-          COALESCE(SUM(${endorsementsTable.cred}), 0) AS viewer_cred
-      FROM ${endorsementsTable}
-      WHERE ${eq(endorsementsTable.userId, viewerId)}
-      GROUP BY 
-          point_id
-  ) v ON points.id = v.point_id
-  `
-  } 
+  ) e ON points.id = e.point_id`;
+
+  if (viewerId !== null)
+    query.append(sql`
+    LEFT JOIN (
+        SELECT 
+            ${endorsementsTable.pointId},
+            COALESCE(SUM(${endorsementsTable.cred}), 0) AS viewer_cred
+        FROM ${endorsementsTable}
+        WHERE ${eq(endorsementsTable.userId, viewerId)}
+        GROUP BY 
+            point_id
+    ) v ON points.id = v.point_id
+    `).append;
+
+  query.append(sql`
   ORDER BY ${desc(pointsTable.id)}
   LIMIT 10
-  `.inlineParams();
+  `);
+
+  query.inlineParams();
 
   return await db.execute(query).then((points) =>
     points.map(

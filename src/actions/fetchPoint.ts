@@ -8,50 +8,53 @@ import { eq, sql } from "drizzle-orm";
 export const fetchPoint = async (id: number) => {
   const viewerId = await getUserId();
 
+  const query = sql`
+  SELECT *
+  FROM ${pointsTable}
+  LEFT JOIN (
+      SELECT 
+          point_id,
+          COUNT(*) AS negation_count
+      FROM (
+          SELECT older_point_id AS point_id FROM negations
+          UNION ALL
+          SELECT newer_point_id AS point_id FROM negations
+      ) sub
+      GROUP BY 
+          point_id
+  ) n ON points.id = n.point_id
+  LEFT JOIN (
+      SELECT 
+          ${endorsementsTable.pointId},
+          COUNT(DISTINCT ${endorsementsTable.userId}) AS amount_suporters,
+          COALESCE(SUM(${endorsementsTable.cred}), 0) AS cred
+      FROM ${endorsementsTable}
+      GROUP BY 
+          point_id
+  ) e ON points.id = e.point_id`;
+
+  if (viewerId !== null)
+    query.append(sql`
+    LEFT JOIN (
+        SELECT 
+            ${endorsementsTable.pointId},
+            COALESCE(SUM(${endorsementsTable.cred}), 0) AS viewer_cred
+        FROM ${endorsementsTable}
+        WHERE ${eq(endorsementsTable.userId, viewerId)}
+        GROUP BY 
+            point_id
+    ) v ON points.id = v.point_id
+    `).append;
+
+  query.append(sql`
+  WHERE ${eq(pointsTable.id, id)}
+  LIMIT 1
+  `);
+
+  query.inlineParams();
+
   return await db
-    .execute(
-      sql`
-        SELECT *
-        FROM ${pointsTable}
-        LEFT JOIN (
-            SELECT 
-                point_id,
-                COUNT(*) AS negation_count
-            FROM (
-                SELECT older_point_id AS point_id FROM negations
-                UNION ALL
-                SELECT newer_point_id AS point_id FROM negations
-            ) sub
-            GROUP BY 
-                point_id
-        ) n ON points.id = n.point_id
-        LEFT JOIN (
-            SELECT 
-                ${endorsementsTable.pointId},
-                COUNT(DISTINCT ${endorsementsTable.userId}) AS amount_suporters,
-                COALESCE(SUM(${endorsementsTable.cred}), 0) AS cred
-            FROM ${endorsementsTable}
-            GROUP BY 
-                point_id
-        ) e ON points.id = e.point_id
-        ${
-          viewerId !== null &&
-          sql`
-        LEFT JOIN (
-            SELECT 
-                ${endorsementsTable.pointId},
-                COALESCE(SUM(${endorsementsTable.cred}), 0) AS viewer_cred
-            FROM ${endorsementsTable}
-            WHERE ${eq(endorsementsTable.userId, viewerId)}
-            GROUP BY 
-                point_id
-        ) v ON points.id = v.point_id
-        `
-        } 
-        WHERE ${eq(pointsTable.id, id)}
-        LIMIT 1
-        `
-    )
+    .execute(query)
     .then(
       ([
         {
