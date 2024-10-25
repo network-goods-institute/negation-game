@@ -14,7 +14,7 @@ export const ThemedPrivyProvider = ({ children }: PropsWithChildren) => {
         appearance: {
           theme: (resolvedTheme as "light" | "dark" | undefined) || "light",
           accentColor: "#7c3aed",
-          logo: "/img/anagogic.png",
+          logo: "/img/negation-game.png",
         },
         embeddedWallets: {
           createOnLogin: "off",
