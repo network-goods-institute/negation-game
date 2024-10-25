@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { POINT_MAX_LENGHT } from "@/constants/config";
-import { InsertPoint, insertPointSchema } from "@/db/schema";
+import { InsertPoint, insertPointSchema } from "@/db/tables/pointsTable";
 import { cn } from "@/lib/cn";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FC, HTMLAttributes } from "react";

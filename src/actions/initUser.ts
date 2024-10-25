@@ -1,7 +1,8 @@
 "use server";
 
 import { getUserId } from "@/actions/getUserId";
-import { InsertUser, usersTable } from "@/db/schema";
+import { usersTable } from "@/db/schema";
+import { InsertUser } from "@/db/tables/usersTable";
 import { db } from "@/services/db";
 
 export const initUser = async ({ username }: Pick<InsertUser, "username">) => {
