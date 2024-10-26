@@ -35,18 +35,17 @@ export default function PointPage({
 }) {
   const encodedPointId = use(params).encodedPointId;
   const pointId = decodeId(encodedPointId);
+  const { user: privyUser, login } = usePrivy();
   const {
     data: point,
     refetch,
     isLoading,
   } = useQuery({
-    queryKey: ["point", pointId],
+    queryKey: ["point", pointId, privyUser?.id],
     queryFn: () => {
       return fetchPoint(pointId);
     },
   });
-
-  const { user: privyUser, login } = usePrivy();
 
   const endorsedByViewer =
     point?.viewerCred !== undefined && point.viewerCred > 0;
