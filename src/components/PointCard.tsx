@@ -14,17 +14,13 @@ import { useUser } from "@/hooks/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
-import {
-  CircleCheckBigIcon,
-  CircleDotIcon,
-  CircleSlash2Icon,
-} from "lucide-react";
+import { CircleCheckBigIcon, CircleSlash2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
   content: string;
-  createdAt: number;
+  createdAt: Date;
   totalCred: number;
   favor: number;
   amountSupporters: number;
@@ -68,12 +64,12 @@ export const PointCard = ({
   return (
     <div
       className={cn(
-        "@container/point flex bg-background gap-3 pt-4 pb-3 px-4 relative rounded-none",
+        "@container/point flex gap-3 pt-4 pb-3 px-4 relative rounded-none",
         className
       )}
       {...props}
     >
-      <CircleDotIcon className="shrink-0 size-6  text-muted-foreground" />
+      {/* <CircleDotIcon className="shrink-0 size-6  text-muted-foreground" /> */}
       <div className="flex flex-col">
         <p className="tracking-tight text-md  @xs/point:text-md @sm/point:text-lg mb-xs -mt-1">
           {content}

@@ -1,0 +1,394 @@
+{
+  "id": "74b164f8-6907-45f7-bbba-10e95535b99c",
+  "prevId": "503aa76a-6977-40b6-9e0b-fa25b0cd439f",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.embeddings": {
+      "name": "embeddings",
+      "schema": "",
+      "columns": {
+        "point_id": {
+          "name": "point_id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "embedding": {
+          "name": "embedding",
+          "type": "vector(384)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "embeddings_point_id_points_id_fk": {
+          "name": "embeddings_point_id_points_id_fk",
+          "tableFrom": "embeddings",
+          "tableTo": "points",
+          "columnsFrom": [
+            "point_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "public.endorsements": {
+      "name": "endorsements",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "cred": {
+          "name": "cred",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "point_id": {
+          "name": "point_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "endorsements_user_id_index": {
+          "name": "endorsements_user_id_index",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "endorsements_point_id_index": {
+          "name": "endorsements_point_id_index",
+          "columns": [
+            {
+              "expression": "point_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "endorsements_point_id_points_id_fk": {
+          "name": "endorsements_point_id_points_id_fk",
+          "tableFrom": "endorsements",
+          "tableTo": "points",
+          "columnsFrom": [
+            "point_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "endorsements_user_id_users_id_fk": {
+          "name": "endorsements_user_id_users_id_fk",
+          "tableFrom": "endorsements",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "public.negations": {
+      "name": "negations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "older_point_id": {
+          "name": "older_point_id",
+          "type": "serial",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "newer_point_id": {
+          "name": "newer_point_id",
+          "type": "serial",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "olderPointIndex": {
+          "name": "olderPointIndex",
+          "columns": [
+            {
+              "expression": "older_point_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "newerPointIndex": {
+          "name": "newerPointIndex",
+          "columns": [
+            {
+              "expression": "newer_point_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "negations_older_point_id_points_id_fk": {
+          "name": "negations_older_point_id_points_id_fk",
+          "tableFrom": "negations",
+          "tableTo": "points",
+          "columnsFrom": [
+            "older_point_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "negations_newer_point_id_points_id_fk": {
+          "name": "negations_newer_point_id_points_id_fk",
+          "tableFrom": "negations",
+          "tableTo": "points",
+          "columnsFrom": [
+            "newer_point_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "negations_created_by_users_id_fk": {
+          "name": "negations_created_by_users_id_fk",
+          "tableFrom": "negations",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uniqueNegation": {
+          "name": "uniqueNegation",
+          "nullsNotDistinct": false,
+          "columns": [
+            "older_point_id",
+            "newer_point_id"
+          ]
+        }
+      },
+      "checkConstraints": {
+        "olderPointFirst": {
+          "name": "olderPointFirst",
+          "value": "\"negations\".\"older_point_id\" < \"negations\".\"newer_point_id\""
+        }
+      }
+    },
+    "public.points": {
+      "name": "points",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "username": {
+          "name": "username",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cred": {
+          "name": "cred",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "usernameUniqueIndex": {
+          "name": "usernameUniqueIndex",
+          "columns": [
+            {
+              "expression": "lower(\"username\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "noNegativeCred": {
+          "name": "noNegativeCred",
+          "value": "\"users\".\"cred\" >= 0"
+        },
+        "usernameFormat": {
+          "name": "usernameFormat",
+          "value": "LENGTH(\"users\".\"username\") BETWEEN 4 AND 15\n          AND \"users\".\"username\" ~ '^[a-zA-Z0-9][_a-zA-Z0-9]*[a-zA-Z0-9]$'"
+        }
+      }
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "views": {
+    "public.point_counterpoints_join_view": {
+      "columns": {
+        "newer_point_id": {
+          "name": "newer_point_id",
+          "type": "serial",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "older_point_id": {
+          "name": "older_point_id",
+          "type": "serial",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "(select \"newer_point_id\", \"older_point_id\" from \"negations\") union (select \"older_point_id\", \"newer_point_id\" from \"negations\")",
+      "name": "point_counterpoints_join_view",
+      "schema": "public",
+      "isExisting": false,
+      "materialized": false
+    }
+  },
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

@@ -67,18 +67,18 @@ export const NegateDialog: FC<NegateDialogProps> = ({
 
         <div className="flex w-full gap-md">
           <div className="flex flex-col  items-center">
-            <CircleDotIcon className="shrink-0 size-8 no-scaling-stroke text-muted-foreground stroke-1" />
+            <CircleDotIcon className="shrink-0 size-6 stroke-1 text-muted-foreground " />
             <div className="w-px my-[-2px]  flex-grow bg-muted-foreground" />
           </div>
           <div className="@container/point flex-grow flex flex-col mb-md pt-1">
-            <p className="tracking-tight text-md  @sm/point:text-lg mb-lg">
+            <p className="tracking-tight text-md  @sm/point:text-lg mb-lg -mt-2">
               {negatedPoint?.content}
             </p>
           </div>
         </div>
         <div className="flex w-full gap-md">
           <div className="flex flex-col  items-center">
-            <CircleXIcon className="shrink-0 size-8 no-scaling-stroke text-muted-foreground stroke-1" />
+            <CircleXIcon className="shrink-0 size-6 stroke-1 text-muted-foreground " />
             {/* <div className="w-px my-[-2px] flex-grow bg-muted-foreground" />
             <CircleXIcon className="shrink-0 size-6 no-scaling-stroke circle-dashed-3 text-muted-foreground stroke-2" /> */}
           </div>

@@ -10,6 +10,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
+import Link from "next/link";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -39,7 +40,9 @@ export default function RootLayout({
             <QueryClientProvider>
               <TooltipProvider>
                 <header className="sticky top-0 z-10 border-b py-sm flex justify-between container-padding items-center w-full bg-background h-2xl">
-                  <p className={cn("font-bold")}>Negation Game</p>
+                  <Link href="/" className="font-bold">
+                    Negation Game
+                  </Link>
                   {/* <Navigation className="hidden sm:block" /> */}
                   <div className="flex gap-sm">
                     <Dynamic>

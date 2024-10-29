@@ -15,6 +15,34 @@
       "when": 1729800761923,
       "tag": "0001_workable_solo",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1730222874447,
+      "tag": "0002_loose_sleepwalker",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1730223203294,
+      "tag": "0003_serious_jimmy_woo",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1730223609169,
+      "tag": "0004_married_old_lace",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1730223639930,
+      "tag": "0005_orange_lake",
+      "breakpoints": true
     }
   ]
 }

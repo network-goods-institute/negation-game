@@ -1,0 +1,1 @@
+ALTER VIEW "public"."point_counterpoints_view" RENAME TO "point_counterpoints_join_view";

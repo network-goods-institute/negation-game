@@ -3,8 +3,10 @@ import { format } from "date-fns";
 
 import { endorse } from "@/actions/endorse";
 import { fetchPoint } from "@/actions/fetchPoint";
+import { fetchPointNegations } from "@/actions/fetchPointNegations";
 import { CredInput } from "@/components/CredInput";
 import { NegateDialog } from "@/components/NegateDialog";
+import { PointCard } from "@/components/PointCard";
 import { PointStats } from "@/components/PointStats";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
@@ -16,14 +18,16 @@ import {
 import { useUser } from "@/hooks/useUser";
 import { cn } from "@/lib/cn";
 import { decodeId } from "@/lib/decodeId";
+import { encodeId } from "@/lib/encodeId";
 import { usePrivy } from "@privy-io/react-auth";
 import { useQuery } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
 import {
   ArrowLeftIcon,
   CircleCheckBigIcon,
-  CircleDotIcon,
   CircleSlash2Icon,
+  CircleXIcon,
+  DiscIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
@@ -38,14 +42,21 @@ export default function PointPage({
   const { user: privyUser, login } = usePrivy();
   const {
     data: point,
-    refetch,
-    isLoading,
+    refetch: refetchPoint,
+    isLoading: isLoadingPoint,
   } = useQuery({
     queryKey: ["point", pointId, privyUser?.id],
     queryFn: () => {
       return fetchPoint(pointId);
     },
   });
+
+  const { data: negations, isLoading: isLoadingNegations } = useQuery({
+    queryKey: ["point-negations", pointId, privyUser?.id],
+    queryFn: () => fetchPointNegations(pointId),
+  });
+
+  const { push } = useRouter();
 
   const endorsedByViewer =
     point?.viewerCred !== undefined && point.viewerCred > 0;
@@ -66,7 +77,7 @@ export default function PointPage({
   return (
     <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow min-h-screen gap-md  bg-background overflow-auto">
       <div className="w-full sm:col-[2] flex flex-col">
-        {isLoading && <Loader />}
+        {isLoadingPoint && <Loader />}
 
         {point && (
           <div className="@container/point relative flex-grow  border border-t-0 bg-background">
@@ -80,7 +91,7 @@ export default function PointPage({
                 >
                   <ArrowLeftIcon />
                 </Button>
-                <CircleDotIcon className="shrink-0 size-6 text-muted-foreground" />
+                <DiscIcon className="shrink-0 size-6 text-muted-foreground stroke-1" />
                 <h1 className="text-xl font-medium">Point</h1>
               </div>
               <div className="flex gap-sm items-center text-muted-foreground">
@@ -122,7 +133,7 @@ export default function PointPage({
                         disabled={cred === 0 || notEnoughCred}
                         onClick={() => {
                           endorse({ pointId, cred }).then(() => {
-                            refetch();
+                            refetchPoint();
                             toggleEndorsePopoverOpen(false);
                           });
                         }}
@@ -153,7 +164,7 @@ export default function PointPage({
               </div>
             </div>
 
-            <div className="bg-background px-4 pb-3">
+            <div className="bg-background px-4 pb-3 border-b">
               <p className="tracking-tight text-md  @xs/point:text-md @sm/point:text-lg mb-sm">
                 {point.content}
               </p>
@@ -166,6 +177,44 @@ export default function PointPage({
               <span className="text-muted-foreground text-sm">
                 {format(point.createdAt, "h':'mm a '·' MMM d',' yyyy")}
               </span>
+            </div>
+            <div className="relative flex flex-col">
+              {isLoadingNegations && (
+                <Loader className="absolute left-0 right-0 mx-auto top-[20px] bottom-auto" />
+              )}
+              {!isLoadingNegations && negations?.length === 0 && (
+                <p className="w-full text-center py-md border-b text-muted-foreground">
+                  No negations yet
+                </p>
+              )}
+              {negations &&
+                negations.map((negation, i) => (
+                  <div
+                    key={negation.id}
+                    className={cn(
+                      "flex cursor-pointer hover:bg-accent px-4 pt-3"
+                    )}
+                  >
+                    <div className="flex flex-col  items-center">
+                      <CircleXIcon className="shrink-0 size-6 no-scaling-stroke stroke-1 text-muted-foreground " />
+                      {i < negations.length - 1 && (
+                        <div className="w-px mt-[-2px] mb-[-14px] z-10  flex-grow bg-muted-foreground" />
+                      )}
+                    </div>
+                    <PointCard
+                      onClick={() => push(`/${encodeId(negation.id)}`)}
+                      className="flex-grow -mt-3.5 pb-3"
+                      favor={100}
+                      content={negation.content}
+                      createdAt={negation.createdAt}
+                      amountSupporters={negation.amountSupporters}
+                      amountNegations={negation.amountNegations}
+                      pointId={negation.id}
+                      totalCred={negation.cred}
+                      viewerContext={{ viewerCred: negation.viewerCred }}
+                    />
+                  </div>
+                ))}
             </div>
           </div>
         )}

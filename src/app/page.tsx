@@ -10,7 +10,7 @@ import { encodeId } from "@/lib/encodeId";
 import { usePrivy } from "@privy-io/react-auth";
 import { useQuery } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
-import { PlusIcon } from "lucide-react";
+import { DiscIcon, PlusIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -36,20 +36,27 @@ export default function Home() {
       <div className="w-full sm:col-[2] flex flex-col gap-0 border border-t-0">
         {isLoading && <Loader />}
         {points?.map((point, i) => (
-          <PointCard
-            className="w-full cursor-pointer hover:bg-accent border-b"
+          <div
+            className="flex border-b cursor-pointer hover:bg-accent py-2"
             onClick={() => push(`/${encodeId(point.id)}`)}
             key={point.id}
-            amountSupporters={point.amountSupporters}
-            createdAt={point.createdAt.getTime()}
-            totalCred={point.cred}
-            pointId={point.id}
-            favor={100}
-            amountNegations={point.amountNegations}
-            content={point.content}
-            viewerContext={{ viewerCred: point.viewerCred }}
-            onNegate={() => (user !== null ? setNegatedPoint(point) : login())}
-          />
+          >
+            <DiscIcon className="ml-4 mt-3 shrink-0 size-6 text-muted-foreground stroke-1" />
+            <PointCard
+              className="flex-grow -mt-0.5 pl-3"
+              amountSupporters={point.amountSupporters}
+              createdAt={point.createdAt}
+              totalCred={point.cred}
+              pointId={point.id}
+              favor={100}
+              amountNegations={point.amountNegations}
+              content={point.content}
+              viewerContext={{ viewerCred: point.viewerCred }}
+              onNegate={() =>
+                user !== null ? setNegatedPoint(point) : login()
+              }
+            />
+          </div>
         ))}
       </div>
       <Button
