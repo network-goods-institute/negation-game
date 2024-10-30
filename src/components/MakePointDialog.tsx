@@ -100,7 +100,8 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
             </PopoverAnchor>
             <PopoverContent
               onOpenAutoFocus={(e) => e.preventDefault()}
-              className="flex flex-col items-center divide-y p-0 overflow-clip"
+              className="flex flex-col items-center divide-y p-0 overflow-clip "
+              style={{ width: "var(--radix-popover-trigger-width)" }}
             >
               {isLoading && <Loader className="my-3" />}
               {similarPoints?.length === 0 && (
