@@ -34,7 +34,9 @@ export default function Home() {
   return (
     <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow gap-md  bg-background overflow-auto">
       <div className="w-full sm:col-[2] flex flex-col gap-0 border border-t-0">
-        {isLoading && <Loader />}
+        {isLoading && (
+          <Loader className="absolute self-center my-auto top-0 bottom-0" />
+        )}
         {points?.map((point, i) => (
           <div
             className="flex border-b cursor-pointer hover:bg-accent py-2"

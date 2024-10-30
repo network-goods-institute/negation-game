@@ -106,6 +106,9 @@ importers:
       eslint-plugin-drizzle:
         specifier: ^0.2.3
         version: 0.2.3(eslint@8.56.0)
+      jotai:
+        specifier: ^2.10.1
+        version: 2.10.1(react@19.0.0-rc-65a56d0e-20241020)(types-react@19.0.0-rc.1)
       lucide-react:
         specifier: ^0.452.0
         version: 0.452.0(react@19.0.0-rc-65a56d0e-20241020)
@@ -4568,6 +4571,18 @@ packages:
 
   jose@4.15.5:
     resolution: {integrity: sha512-jc7BFxgKPKi94uOvEmzlSWFFe2+vASyXaKUpdQKatWAESU2MWjDfFf0fdfc83CDKcA5QecabZeNLyfhe3yKNkg==}
+
+  jotai@2.10.1:
+    resolution: {integrity: sha512-4FycO+BOTl2auLyF2Chvi6KTDqdsdDDtpaL/WHQMs8f3KS1E3loiUShQzAzFA/sMU5cJ0hz/RT1xum9YbG/zaA==}
+    engines: {node: '>=12.20.0'}
+    peerDependencies:
+      '@types/react': npm:types-react@19.0.0-rc.1
+      react: '>=17.0.0'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      react:
+        optional: true
 
   joycon@3.1.1:
     resolution: {integrity: sha512-34wB/Y7MW7bzjKRjUKTa46I2Z7eV62Rkhva+KkopW7Qvv/OSWBqvkSY7vusOPrNuZcUG3tApvdVgNB8POj3SPw==}
@@ -11682,6 +11697,11 @@ snapshots:
   jiti@1.21.0: {}
 
   jose@4.15.5: {}
+
+  jotai@2.10.1(react@19.0.0-rc-65a56d0e-20241020)(types-react@19.0.0-rc.1):
+    optionalDependencies:
+      '@types/react': types-react@19.0.0-rc.1
+      react: 19.0.0-rc-65a56d0e-20241020
 
   joycon@3.1.1: {}
 

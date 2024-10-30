@@ -1,17 +1,12 @@
 "use server";
 
 import { embeddingsTable, pointsTable } from "@/db/schema";
-import { Point } from "@/db/tables/pointsTable";
 import { db } from "@/services/db";
 import { openai } from "@ai-sdk/openai";
 import { embed } from "ai";
 import { cosineDistance, desc, eq, gt, sql } from "drizzle-orm";
 
-export const fetchSimilarPoints = async ({
-  query,
-}: {
-  query: string;
-}): Promise<Point[]> => {
+export const fetchSimilarPoints = async ({ query }: { query: string }) => {
   const embedding = (
     await embed({
       model: openai.embedding("text-embedding-3-small", { dimensions: 384 }),

@@ -1,5 +1,7 @@
 "use server";
 
+import { addEmbedding } from "@/actions/addEmbedding";
+import { addKeywords } from "@/actions/addKeywords";
 import { getUserId } from "@/actions/getUserId";
 import {
   endorsementsTable,
@@ -7,13 +9,12 @@ import {
   pointsTable,
   usersTable,
 } from "@/db/schema";
-import { db } from "@/services/db";
-import { eq, sql } from "drizzle-orm";
-import { waitUntil } from "@vercel/functions";
-import { addEmbedding } from "@/actions/addEmbedding";
-import { InsertPoint, Point } from "@/db/tables/pointsTable";
-import { InsertNegation } from "@/db/tables/negationsTable";
 import { InsertEndorsement } from "@/db/tables/endorsementsTable";
+import { InsertNegation } from "@/db/tables/negationsTable";
+import { InsertPoint, Point } from "@/db/tables/pointsTable";
+import { db } from "@/services/db";
+import { waitUntil } from "@vercel/functions";
+import { eq, sql } from "drizzle-orm";
 
 export const addCounterpoint = async ({
   content,
@@ -57,6 +58,7 @@ export const addCounterpoint = async ({
     });
 
     waitUntil(addEmbedding({ content, id: newPointId }));
+    waitUntil(addKeywords({ content, id: newPointId }));
 
     return newPointId;
   });

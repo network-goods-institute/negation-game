@@ -1,3 +1,4 @@
+export { definitionsTable } from "@/db/tables/definitionsTable";
 export { embeddingsTable } from "@/db/tables/embeddingsTable";
 export { endorsementsTable } from "@/db/tables/endorsementsTable";
 export { negationsTable } from "@/db/tables/negationsTable";

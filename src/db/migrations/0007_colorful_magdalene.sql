@@ -1,0 +1,1 @@
+ALTER TABLE "points" ADD COLUMN "keywords" text[] DEFAULT ARRAY[]::text[] NOT NULL;

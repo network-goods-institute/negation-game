@@ -1,4 +1,4 @@
-import { InferColumnsDataTypes } from "drizzle-orm";
+import { InferColumnsDataTypes, sql } from "drizzle-orm";
 import { pgTable, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 
@@ -7,6 +7,10 @@ export const pointsTable = pgTable("points", {
   content: text("content").notNull(),
   createdBy: varchar("created_by").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  keywords: text("keywords")
+    .array()
+    .notNull()
+    .default(sql`ARRAY[]::text[]`),
 });
 
 export type InsertPoint = Omit<

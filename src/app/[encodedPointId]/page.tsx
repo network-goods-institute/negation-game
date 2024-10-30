@@ -4,8 +4,9 @@ import { format } from "date-fns";
 import { endorse } from "@/actions/endorse";
 import { fetchPoint } from "@/actions/fetchPoint";
 import { fetchPointNegations } from "@/actions/fetchPointNegations";
+import { getCounterpointSuggestions } from "@/actions/getCounterpointSuggestions";
 import { CredInput } from "@/components/CredInput";
-import { NegateDialog } from "@/components/NegateDialog";
+import { NegateDialog, negationContentAtom } from "@/components/NegateDialog";
 import { PointCard } from "@/components/PointCard";
 import { PointStats } from "@/components/PointStats";
 import { Button } from "@/components/ui/button";
@@ -22,12 +23,14 @@ import { encodeId } from "@/lib/encodeId";
 import { usePrivy } from "@privy-io/react-auth";
 import { useQuery } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
+import { useSetAtom } from "jotai";
 import {
   ArrowLeftIcon,
   CircleCheckBigIcon,
   CircleSlash2Icon,
   CircleXIcon,
   DiscIcon,
+  SparklesIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
@@ -40,6 +43,7 @@ export default function PointPage({
   const encodedPointId = use(params).encodedPointId;
   const pointId = decodeId(encodedPointId);
   const { user: privyUser, login } = usePrivy();
+  const setNegationContent = useSetAtom(negationContentAtom);
   const {
     data: point,
     refetch: refetchPoint,
@@ -74,10 +78,45 @@ export default function PointPage({
     { id: number; content: string; createdAt: Date } | undefined
   >(undefined);
 
+  const { data: counterpointSuggestionsStream } = useQuery({
+    queryKey: ["counterpoint-suggestions", point?.id],
+    queryFn: ({ queryKey: [, pointId] }) =>
+      getCounterpointSuggestions(pointId as number),
+    enabled: !!point?.id && negations && negations.length === 0,
+    staleTime: Infinity,
+  });
+
+  const [counterpointSuggestions, setCounterpointSuggestions] = useState<
+    string[]
+  >([]);
+
+  useEffect(() => {
+    if (!counterpointSuggestionsStream) return;
+
+    setCounterpointSuggestions([]);
+    let isCancelled = false;
+
+    const consumeStream = async () => {
+      for await (const suggestion of counterpointSuggestionsStream) {
+        setCounterpointSuggestions((prev) => [...prev, suggestion]);
+
+        if (isCancelled) break;
+      }
+    };
+
+    consumeStream();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [counterpointSuggestionsStream]);
+
   return (
     <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow min-h-screen gap-md  bg-background overflow-auto">
       <div className="w-full sm:col-[2] flex flex-col border border-t-0">
-        {isLoadingPoint && <Loader />}
+        {isLoadingPoint && (
+          <Loader className="absolute self-center my-auto top-0 bottom-0" />
+        )}
 
         {point && (
           <div className="@container/point relative flex-grow  border-b bg-background">
@@ -183,9 +222,36 @@ export default function PointPage({
                 <Loader className="absolute left-0 right-0 mx-auto top-[20px] bottom-auto" />
               )}
               {!isLoadingNegations && negations?.length === 0 && (
-                <p className="w-full text-center py-md border-b text-muted-foreground">
-                  No negations yet
-                </p>
+                <>
+                  <p className="w-full text-center py-md border-b text-muted-foreground">
+                    No negations yet
+                  </p>
+                  {counterpointSuggestions.length > 0 && (
+                    <>
+                      <p className="w-full text-center pt-sm text-muted-foreground text-xs animate-fade-in">
+                        Try one of these AI-generated negations
+                      </p>
+                      {counterpointSuggestions.map((suggestion, i) => (
+                        <div
+                          key={`suggestion-${i}`}
+                          className="flex gap-3 mt-2 mx-2 px-3 py-4 rounded-md border hover:bg-muted cursor-pointer animate-fade-in"
+                          onClick={() => {
+                            setNegationContent(suggestion);
+                            setNegatedPoint(point);
+                          }}
+                        >
+                          <div className="relative grid text-muted-foreground">
+                            <CircleXIcon className="shrink-0 size-6 no-scaling-stroke circle-dashed-3 stroke-1 text-muted-foreground col-start-1 row-start-1" />
+                          </div>
+                          <p className="tracking-tighter text-md  @sm/point:text-lg text-muted-foreground -mt-1">
+                            <SparklesIcon className="size-[14px] inline-block align-baseline" />{" "}
+                            {suggestion}
+                          </p>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </>
               )}
               {negations &&
                 negations.map((negation, i) => (

@@ -4,5 +4,8 @@
     "plugin:@tanstack/eslint-plugin-query/recommended",
     "plugin:drizzle/recommended"
   ],
-  "plugins": ["drizzle"]
+  "plugins": ["drizzle"],
+  "rules": {
+    "@tanstack/query/exhaustive-deps": "warn"
+  }
 }

@@ -6,9 +6,10 @@ import { db } from "@/services/db";
 import { eq, sql } from "drizzle-orm";
 
 import { addEmbedding } from "@/actions/addEmbedding";
-import { waitUntil } from "@vercel/functions";
+import { addKeywords } from "@/actions/addKeywords";
 import { InsertEndorsement } from "@/db/tables/endorsementsTable";
 import { InsertPoint, Point } from "@/db/tables/pointsTable";
+import { waitUntil } from "@vercel/functions";
 
 export const makePoint = async ({
   content,
@@ -45,6 +46,7 @@ export const makePoint = async ({
     }
 
     waitUntil(addEmbedding({ content, id: newPointId }));
+    waitUntil(addKeywords({ content, id: newPointId }));
 
     return newPointId;
   });

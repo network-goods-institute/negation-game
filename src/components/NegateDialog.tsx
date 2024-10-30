@@ -11,9 +11,11 @@ import {
 import { POINT_MAX_LENGHT, POINT_MIN_LENGHT } from "@/constants/config";
 import { DialogProps } from "@radix-ui/react-dialog";
 import { useQueryClient } from "@tanstack/react-query";
+import { atom, useAtom } from "jotai";
 import { ArrowLeftIcon, CircleDotIcon, CircleXIcon } from "lucide-react";
 import { FC, useEffect, useState } from "react";
 
+export const negationContentAtom = atom<string>("");
 export interface NegateDialogProps extends DialogProps {
   negatedPoint?: { id: number; content: string; createdAt: Date };
 }
@@ -24,7 +26,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({
   onOpenChange,
   ...props
 }) => {
-  const [content, setContent] = useState("");
+  const [content, setContent] = useAtom(negationContentAtom);
   const [cred, setCred] = useState<number>(0);
   const charactersLeft = POINT_MAX_LENGHT - content.length;
   const canSubmit = charactersLeft >= 0 && content.length >= POINT_MIN_LENGHT;
@@ -35,7 +37,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({
       setContent("");
       setCred(0);
     }
-  }, [open]);
+  }, [open, setContent]);
   return (
     <Dialog {...props} open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:top-xl flex flex-col overflow-auto sm:translate-y-0 h-screen rounded-none sm:rounded-md sm:h-fit gap-0  bg-background  p-4 sm:p-8 shadow-sm w-full max-w-xl">

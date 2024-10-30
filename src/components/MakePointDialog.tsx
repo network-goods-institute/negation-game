@@ -9,6 +9,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Loader } from "@/components/ui/loader";
 import { Popover, PopoverContent } from "@/components/ui/popover";
 import { POINT_MAX_LENGHT, POINT_MIN_LENGHT } from "@/constants/config";
 import { useUser } from "@/hooks/useUser";
@@ -17,12 +18,7 @@ import { DialogProps } from "@radix-ui/react-dialog";
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDebounce } from "@uidotdev/usehooks";
-import {
-  ArrowLeftIcon,
-  CircleDotIcon,
-  CircleEqualIcon,
-  Loader,
-} from "lucide-react";
+import { ArrowLeftIcon, CircleEqualIcon, DiscIcon } from "lucide-react";
 import { FC, useEffect, useState } from "react";
 
 export interface MakePointDialogProps extends DialogProps {}
@@ -90,12 +86,12 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
         </div>
 
         <div className="flex w-full gap-md">
-          <CircleDotIcon className="size-8 text-muted-foreground" />
+          <DiscIcon className="size-6 text-muted-foreground stroke-1" />
 
           <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
             <PopoverAnchor className="w-full">
               <PointEditor
-                className="w-full"
+                className="w-full -mt-1"
                 content={content}
                 setContent={setContent}
                 cred={cred}
@@ -106,7 +102,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
               onOpenAutoFocus={(e) => e.preventDefault()}
               className="flex flex-col items-center divide-y p-0 overflow-clip"
             >
-              {isLoading && <Loader />}
+              {isLoading && <Loader className="my-3" />}
               {similarPoints?.length === 0 && (
                 <div className="p-4 text-muted-foreground">
                   No similar points found
@@ -115,11 +111,11 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
               {similarPoints?.map((point) => (
                 <a
                   key={point.id}
-                  className="flex p-4 gap-4 hover:bg-accent w-full"
+                  className="flex p-4 gap-2 hover:bg-accent w-full"
                   href={`/${encodeId(point.id)}`}
                 >
-                  <CircleEqualIcon className="size-6  text-muted-foreground " />
-                  <span>{point.content}</span>
+                  <CircleEqualIcon className="size-6 shrink-0 text-muted-foreground stroke-1" />
+                  <span className="flex-grow">{point.content}</span>
                 </a>
               ))}
             </PopoverContent>
