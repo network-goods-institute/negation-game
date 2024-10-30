@@ -76,11 +76,11 @@ export default function PointPage({
 
   return (
     <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow min-h-screen gap-md  bg-background overflow-auto">
-      <div className="w-full sm:col-[2] flex flex-col">
+      <div className="w-full sm:col-[2] flex flex-col border border-t-0">
         {isLoadingPoint && <Loader />}
 
         {point && (
-          <div className="@container/point relative flex-grow  border border-t-0 bg-background">
+          <div className="@container/point relative flex-grow  border-b bg-background">
             <div className="sticky top-0 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
               <div className="flex items-center gap-3">
                 <Button
