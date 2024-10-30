@@ -80,6 +80,8 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
                   exact: false,
                 });
                 onOpenChange?.(false);
+                setContent("");
+                setCred(0);
               })
             }
           >

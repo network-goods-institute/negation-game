@@ -58,6 +58,8 @@ export const NegateDialog: FC<NegateDialogProps> = ({
               }).then(() => {
                 queryClient.invalidateQueries({ queryKey: ["feed"] });
                 onOpenChange?.(false);
+                setContent("");
+                setCred(0);
               })
             }
           >
