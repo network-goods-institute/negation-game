@@ -50,7 +50,6 @@ export const fetchPointNegations = async (id: number) => {
 
   query.append(sql`
   WHERE ${eq(pointCounterpointsJoinView.pointId, id)}
-  LIMIT 10
   `);
 
   query.inlineParams();

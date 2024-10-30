@@ -16,6 +16,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
 import { useUser } from "@/hooks/useUser";
 import { cn } from "@/lib/cn";
 import { decodeId } from "@/lib/decodeId";
@@ -207,69 +208,36 @@ export default function PointPage({
               <p className="tracking-tight text-md  @xs/point:text-md @sm/point:text-lg mb-sm">
                 {point.content}
               </p>
+              <span className="text-muted-foreground text-sm">
+                {format(point.createdAt, "h':'mm a '·' MMM d',' yyyy")}
+              </span>
+              <Separator className="my-md" />
               <PointStats
+                className="justify-evenly ~@/lg:~text-xs/sm mb-sm"
                 favor={100}
                 amountNegations={point.amountNegations}
                 amountSupporters={point.amountSupporters}
                 cred={point.cred}
               />
-              <span className="text-muted-foreground text-sm">
-                {format(point.createdAt, "h':'mm a '·' MMM d',' yyyy")}
-              </span>
             </div>
             <div className="relative flex flex-col">
               {isLoadingNegations && (
                 <Loader className="absolute left-0 right-0 mx-auto top-[20px] bottom-auto" />
-              )}
-              {!isLoadingNegations && negations?.length === 0 && (
-                <>
-                  <p className="w-full text-center py-md border-b text-muted-foreground">
-                    No negations yet
-                  </p>
-                  {counterpointSuggestions.length > 0 && (
-                    <>
-                      <p className="w-full text-center pt-sm text-muted-foreground text-xs animate-fade-in">
-                        Try one of these AI-generated negations
-                      </p>
-                      {counterpointSuggestions.map((suggestion, i) => (
-                        <div
-                          key={`suggestion-${i}`}
-                          className="flex gap-3 mt-2 mx-2 px-3 py-4 rounded-md border hover:bg-muted cursor-pointer animate-fade-in"
-                          onClick={() => {
-                            setNegationContent(suggestion);
-                            setNegatedPoint(point);
-                          }}
-                        >
-                          <div className="relative grid text-muted-foreground">
-                            <CircleXIcon className="shrink-0 size-6 no-scaling-stroke circle-dashed-3 stroke-1 text-muted-foreground col-start-1 row-start-1" />
-                          </div>
-                          <p className="tracking-tighter text-md  @sm/point:text-lg text-muted-foreground -mt-1">
-                            <SparklesIcon className="size-[14px] inline-block align-baseline" />{" "}
-                            {suggestion}
-                          </p>
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </>
               )}
               {negations &&
                 negations.map((negation, i) => (
                   <div
                     key={negation.id}
                     className={cn(
-                      "flex cursor-pointer hover:bg-accent px-4 pt-3"
+                      "flex cursor-pointer hover:bg-accent px-4 pt-3 border-b"
                     )}
                   >
                     <div className="flex flex-col  items-center">
                       <CircleXIcon className="shrink-0 size-6 no-scaling-stroke stroke-1 text-muted-foreground " />
-                      {i < negations.length - 1 && (
-                        <div className="w-px mt-[-2px] mb-[-14px] z-10  flex-grow bg-muted-foreground" />
-                      )}
                     </div>
                     <PointCard
                       onClick={() => push(`/${encodeId(negation.id)}`)}
-                      className="flex-grow -mt-3.5 pb-3"
+                      className="flex-grow -mt-4 pb-3"
                       favor={100}
                       content={negation.content}
                       createdAt={negation.createdAt}
@@ -281,6 +249,41 @@ export default function PointPage({
                     />
                   </div>
                 ))}
+              {!isLoadingNegations && negations?.length === 0 && (
+                <p className="w-full text-center py-md border-b text-muted-foreground">
+                  No negations yet
+                </p>
+              )}
+
+              {counterpointSuggestions.length > 0 && (
+                <>
+                  <p className="w-full text-center pt-sm text-muted-foreground text-xs animate-fade-in">
+                    Try one of these AI-generated negations
+                  </p>
+                  {counterpointSuggestions.map((suggestion, i) => (
+                    <div
+                      key={`suggestion-${i}`}
+                      className="flex gap-3 mt-2 mx-2 px-3 py-4 rounded-md border hover:bg-muted cursor-pointer animate-fade-in"
+                      onClick={() => {
+                        if (privyUser === null) {
+                          login();
+                          return;
+                        }
+                        setNegationContent(suggestion);
+                        setNegatedPoint(point);
+                      }}
+                    >
+                      <div className="relative grid text-muted-foreground">
+                        <CircleXIcon className="shrink-0 size-6 no-scaling-stroke circle-dashed-3 stroke-1 text-muted-foreground col-start-1 row-start-1" />
+                      </div>
+                      <p className="tracking-tighter text-md  @sm/point:text-lg text-muted-foreground -mt-1">
+                        <SparklesIcon className="size-[14px] inline-block align-baseline" />{" "}
+                        {suggestion}
+                      </p>
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
           </div>
         )}

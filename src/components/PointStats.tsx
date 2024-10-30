@@ -7,6 +7,7 @@ export interface PointStatsProps extends HTMLAttributes<HTMLDivElement> {
   amountNegations: number;
   amountSupporters: number;
   cred: number;
+  divider?: string;
 }
 
 export const PointStats = ({
@@ -15,12 +16,13 @@ export const PointStats = ({
   amountNegations,
   amountSupporters,
   cred,
+  divider = "·",
   ...props
 }: PointStatsProps) => {
   return (
     <div
       className={cn(
-        "w-full flex gap-xs items-center  text-xs text-muted-foreground mb-md",
+        "w-full flex gap-xs items-center text-xs text-muted-foreground mb-md",
         className
       )}
       {...props}
@@ -34,16 +36,15 @@ export const PointStats = ({
         ],
         [formatShortNumber(cred), "cred"],
       ].flatMap(([value, label], i) => [
-        ...(i > 0
-          ? [
-              <span className="text-xs" key={`divider-${i}`}>
-                ·
-              </span>,
-            ]
+        ...(i > 0 && divider
+          ? [<span key={`divider-${i}`}>{divider}</span>]
           : []),
 
-        <span key={`stat-${i}`} className="leading-none">
-          <strong className="font-semibold">{value}</strong> {label}
+        <span
+          key={`stat-${i}`}
+          className={cn("leading-none", label === "favor" && "font-bold")}
+        >
+          {value} {label}
         </span>,
       ])}
     </div>

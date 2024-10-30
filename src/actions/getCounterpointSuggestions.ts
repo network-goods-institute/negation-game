@@ -1,5 +1,6 @@
 "use server";
 
+import { fetchPointNegations } from "@/actions/fetchPointNegations";
 import { POINT_MAX_LENGHT } from "@/constants/config";
 import { definitionsTable, pointsTable } from "@/db/schema";
 import { db } from "@/services/db";
@@ -16,16 +17,21 @@ export const getCounterpointSuggestions = async (pointId: number) => {
     .limit(1)
     .then(([point]) => point);
 
-  const definitions = await db
-    .select()
-    .from(definitionsTable)
-    .where(sql`lower(${definitionsTable.term}) IN ${point.keywords}`)
-    .execute();
+  const [negations, definitions] = await Promise.all([
+    fetchPointNegations(pointId),
+    db
+      .select()
+      .from(definitionsTable)
+      .where(sql`lower(${definitionsTable.term}) IN ${point.keywords}`)
+      .execute(),
+  ]);
 
   const prompt = `Here are some definitions that might be useful:
     ${definitions.map(({ term, definition }) => `${term}: ${definition}`).join("\n")}
 
-    Generate 3 short (max ${POINT_MAX_LENGHT} characters) counterpoints to the following statement: ${point.content}`;
+    ${negations.length > 0 ? "Here are the existing counterpoints to the statement:]\n" + negations.map((negation) => negation.content).join("\n") : ""}
+
+    Generate 3 short (max ${POINT_MAX_LENGHT} characters) different counterpoints to the following statement: ${point.content}`;
 
   const { elementStream } = await streamObject({
     model: openai("gpt-4o-mini"),
