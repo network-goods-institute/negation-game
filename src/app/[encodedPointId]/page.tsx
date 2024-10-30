@@ -121,7 +121,7 @@ export default function PointPage({
 
         {point && (
           <div className="@container/point relative flex-grow  border-b bg-background">
-            <div className="sticky top-0 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
+            <div className="sticky top-0 z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
               <div className="flex items-center gap-3">
                 <Button
                   variant={"link"}
