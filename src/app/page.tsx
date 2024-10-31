@@ -11,6 +11,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useQuery } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
 import { DiscIcon, PlusIcon } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -38,9 +39,9 @@ export default function Home() {
           <Loader className="absolute self-center my-auto top-0 bottom-0" />
         )}
         {points?.map((point, i) => (
-          <div
+          <Link
+            href={`/${encodeId(point.id)}`}
             className="flex border-b cursor-pointer hover:bg-accent py-2"
-            onClick={() => push(`/${encodeId(point.id)}`)}
             key={point.id}
           >
             <DiscIcon className="ml-4 mt-3 shrink-0 size-6 text-muted-foreground stroke-1" />
@@ -58,7 +59,7 @@ export default function Home() {
                 user !== null ? setNegatedPoint(point) : login()
               }
             />
-          </div>
+          </Link>
         ))}
       </div>
       <Button

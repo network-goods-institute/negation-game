@@ -33,6 +33,7 @@ import {
   DiscIcon,
   SparklesIcon,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 
@@ -226,7 +227,8 @@ export default function PointPage({
               )}
               {negations &&
                 negations.map((negation, i) => (
-                  <div
+                  <Link
+                    href={`/${encodeId(negation.id)}`}
                     key={negation.id}
                     className={cn(
                       "flex cursor-pointer hover:bg-accent px-4 pt-5 pb-2 border-b"
@@ -236,7 +238,9 @@ export default function PointPage({
                       <CircleXIcon className="shrink-0 size-6 no-scaling-stroke stroke-1 text-muted-foreground " />
                     </div>
                     <PointCard
-                      onClick={() => push(`/${encodeId(negation.id)}`)}
+                      onNegate={() => {
+                        setNegatedPoint(negation);
+                      }}
                       className="flex-grow -mt-3.5 pb-3"
                       favor={100}
                       content={negation.content}
@@ -247,7 +251,7 @@ export default function PointPage({
                       totalCred={negation.cred}
                       viewerContext={{ viewerCred: negation.viewerCred }}
                     />
-                  </div>
+                  </Link>
                 ))}
               {!isLoadingNegations && negations?.length === 0 && (
                 <p className="w-full text-center py-md border-b text-muted-foreground">
