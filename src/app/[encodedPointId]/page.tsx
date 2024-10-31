@@ -113,14 +113,14 @@ export default function PointPage({
   }, [counterpointSuggestionsStream]);
 
   return (
-    <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow min-h-screen gap-md  bg-background overflow-auto">
-      <div className="w-full sm:col-[2] flex flex-col border border-t-0">
+    <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow  gap-md pb-10  bg-background overflow-auto">
+      <div className="w-full sm:col-[2] flex flex-col border-x ">
         {isLoadingPoint && (
           <Loader className="absolute self-center my-auto top-0 bottom-0" />
         )}
 
         {point && (
-          <div className="@container/point relative flex-grow  border-b bg-background">
+          <div className="@container/point relative flex-grow   bg-background">
             <div className="sticky top-0 z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
               <div className="flex items-center gap-3">
                 <Button
@@ -229,7 +229,7 @@ export default function PointPage({
                   <div
                     key={negation.id}
                     className={cn(
-                      "flex cursor-pointer hover:bg-accent px-4 pt-3 border-b"
+                      "flex cursor-pointer hover:bg-accent px-4 pt-5 pb-2 border-b"
                     )}
                   >
                     <div className="flex flex-col  items-center">
@@ -237,7 +237,7 @@ export default function PointPage({
                     </div>
                     <PointCard
                       onClick={() => push(`/${encodeId(negation.id)}`)}
-                      className="flex-grow -mt-4 pb-3"
+                      className="flex-grow -mt-3.5 pb-3"
                       favor={100}
                       content={negation.content}
                       createdAt={negation.createdAt}
@@ -263,7 +263,7 @@ export default function PointPage({
                   {counterpointSuggestions.map((suggestion, i) => (
                     <div
                       key={`suggestion-${i}`}
-                      className="flex gap-3 mt-2 mx-2 px-3 py-4 rounded-md border hover:bg-muted cursor-pointer animate-fade-in"
+                      className="flex gap-3 mt-3 mx-2 px-3 py-4 rounded-md border hover:bg-muted cursor-pointer animate-fade-in"
                       onClick={() => {
                         if (privyUser === null) {
                           login();
