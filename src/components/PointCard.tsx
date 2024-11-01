@@ -76,6 +76,7 @@ export const PointCard = ({
         </p>
 
         <PointStats
+          className="mb-md"
           amountNegations={amountNegations}
           amountSupporters={amountSupporters}
           favor={favor}

@@ -7,6 +7,7 @@ import { PointCard } from "@/components/PointCard";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import { encodeId } from "@/lib/encodeId";
+import { favor } from "@/lib/negation-game/favor";
 import { usePrivy } from "@privy-io/react-auth";
 import { useQuery } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
@@ -51,7 +52,7 @@ export default function Home() {
               createdAt={point.createdAt}
               totalCred={point.cred}
               pointId={point.id}
-              favor={100}
+              favor={favor({ ...point })}
               amountNegations={point.amountNegations}
               content={point.content}
               viewerContext={{ viewerCred: point.viewerCred }}

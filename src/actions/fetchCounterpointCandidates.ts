@@ -1,6 +1,11 @@
 "use server";
 
-import { embeddingsTable, negationsTable, pointsTable } from "@/db/schema";
+import {
+  embeddingsTable,
+  endorsementsTable,
+  negationsTable,
+  pointsTable,
+} from "@/db/schema";
 import { Point } from "@/db/tables/pointsTable";
 import { db } from "@/services/db";
 import { openai } from "@ai-sdk/openai";
@@ -55,6 +60,46 @@ export const fetchCounterpointCandidates = async ({
       createdAt: pointsTable.createdAt,
       createdBy: pointsTable.createdBy,
       isCounterpoint,
+      amountNegations: sql<number>`
+      COALESCE((
+        SELECT COUNT(*)
+        FROM (
+          SELECT older_point_id AS point_id FROM ${negationsTable}
+          UNION ALL
+          SELECT newer_point_id AS point_id FROM ${negationsTable}
+        ) sub
+        WHERE point_id = ${pointsTable.id}
+      ), 0)
+    `.mapWith(Number),
+      amountSupporters: sql<number>`
+      COALESCE((
+        SELECT COUNT(DISTINCT ${endorsementsTable.userId})
+        FROM ${endorsementsTable}
+        WHERE ${endorsementsTable.pointId} = ${pointsTable.id}
+      ), 0)
+    `.mapWith(Number),
+      cred: sql<number>`
+      COALESCE((
+        SELECT SUM(${endorsementsTable.cred})
+        FROM ${endorsementsTable}
+        WHERE ${endorsementsTable.pointId} = ${pointsTable.id}
+      ), 0)
+    `.mapWith(Number),
+    negationsCred: sql<number>`
+      COALESCE((
+        SELECT SUM(${endorsementsTable.cred})
+        FROM ${endorsementsTable}
+        WHERE ${endorsementsTable.pointId} IN (
+          SELECT newer_point_id
+          FROM ${negationsTable}
+          WHERE older_point_id = ${pointsTable.id}
+          UNION
+          SELECT older_point_id
+          FROM ${negationsTable}
+          WHERE newer_point_id = ${pointsTable.id}
+        )
+      ), 0)
+    `.mapWith(Number),
     })
     .from(embeddingsTable)
     .innerJoin(pointsTable, eq(pointsTable.id, embeddingsTable.id))

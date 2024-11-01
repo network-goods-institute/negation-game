@@ -64,6 +64,20 @@
       "when": 1730312942052,
       "tag": "0008_special_corsair",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1730485330783,
+      "tag": "0009_overconfident_kang",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1730487145266,
+      "tag": "0010_nappy_impossible_man",
+      "breakpoints": true
     }
   ]
 }

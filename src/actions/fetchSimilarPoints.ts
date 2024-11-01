@@ -1,6 +1,7 @@
 "use server";
 
-import { embeddingsTable, pointsTable } from "@/db/schema";
+import { embeddingsTable, pointsWithStatsView } from "@/db/schema";
+import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
 import { openai } from "@ai-sdk/openai";
 import { embed } from "ai";
@@ -19,13 +20,13 @@ export const fetchSimilarPoints = async ({ query }: { query: string }) => {
   return await db
     .select({
       similarity,
-      id: pointsTable.id,
-      content: pointsTable.content,
-      createdAt: pointsTable.createdAt,
-      createdBy: pointsTable.createdBy,
+      ...getColumns(pointsWithStatsView),
     })
     .from(embeddingsTable)
-    .innerJoin(pointsTable, eq(pointsTable.id, embeddingsTable.id))
+    .innerJoin(
+      pointsWithStatsView,
+      eq(pointsWithStatsView.id, embeddingsTable.id)
+    )
     .where(gt(similarity, 0.5))
     .orderBy((t) => desc(t.similarity))
     .limit(5);

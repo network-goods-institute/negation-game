@@ -5,8 +5,9 @@ import { endorse } from "@/actions/endorse";
 import { fetchPoint } from "@/actions/fetchPoint";
 import { fetchPointNegations } from "@/actions/fetchPointNegations";
 import { getCounterpointSuggestions } from "@/actions/getCounterpointSuggestions";
+import { negationContentAtom } from "@/atoms/negationContentAtom";
 import { CredInput } from "@/components/CredInput";
-import { NegateDialog, negationContentAtom } from "@/components/NegateDialog";
+import { NegateDialog } from "@/components/NegateDialog";
 import { PointCard } from "@/components/PointCard";
 import { PointStats } from "@/components/PointStats";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import { useUser } from "@/hooks/useUser";
 import { cn } from "@/lib/cn";
 import { decodeId } from "@/lib/decodeId";
 import { encodeId } from "@/lib/encodeId";
+import { favor } from "@/lib/negation-game/favor";
 import { usePrivy } from "@privy-io/react-auth";
 import { useQuery } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
@@ -222,7 +224,7 @@ export default function PointPage({
               <Separator className="my-md" />
               <PointStats
                 className="justify-evenly ~@/lg:~text-xs/sm mb-sm"
-                favor={100}
+                favor={favor({ ...point })}
                 amountNegations={point.amountNegations}
                 amountSupporters={point.amountSupporters}
                 cred={point.cred}
@@ -250,7 +252,7 @@ export default function PointPage({
                         user !== null ? setNegatedPoint(negation) : login();
                       }}
                       className="flex-grow -mt-3.5 pb-3"
-                      favor={100}
+                      favor={favor({ ...negation })}
                       content={negation.content}
                       createdAt={negation.createdAt}
                       amountSupporters={negation.amountSupporters}

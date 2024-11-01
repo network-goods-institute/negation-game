@@ -22,7 +22,7 @@ export const PointStats = ({
   return (
     <div
       className={cn(
-        "w-full flex gap-xs items-center text-xs text-muted-foreground mb-md",
+        "w-full flex gap-xs items-center text-xs text-muted-foreground",
         className
       )}
       {...props}
