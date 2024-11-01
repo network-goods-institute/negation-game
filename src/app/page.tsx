@@ -55,9 +55,10 @@ export default function Home() {
               amountNegations={point.amountNegations}
               content={point.content}
               viewerContext={{ viewerCred: point.viewerCred }}
-              onNegate={() =>
-                user !== null ? setNegatedPoint(point) : login()
-              }
+              onNegate={(e) => {
+                e.preventDefault();
+                user !== null ? setNegatedPoint(point) : login();
+              }}
             />
           </Link>
         ))}

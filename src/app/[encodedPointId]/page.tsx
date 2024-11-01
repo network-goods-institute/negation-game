@@ -62,8 +62,6 @@ export default function PointPage({
     queryFn: () => fetchPointNegations(pointId),
   });
 
-  const { push } = useRouter();
-
   const endorsedByViewer =
     point?.viewerCred !== undefined && point.viewerCred > 0;
 
@@ -75,7 +73,7 @@ export default function PointPage({
     if (!endorsePopoverOpen) setCred(0);
   }, [endorsePopoverOpen]);
 
-  const { back } = useRouter();
+  const { back, push } = useRouter();
   const [negatedPoint, setNegatedPoint] = useState<
     { id: number; content: string; createdAt: Date } | undefined
   >(undefined);
@@ -114,8 +112,8 @@ export default function PointPage({
   }, [counterpointSuggestionsStream]);
 
   return (
-    <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow  gap-md pb-10  bg-background overflow-auto">
-      <div className="w-full sm:col-[2] flex flex-col border-x ">
+    <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow  gap-md bg-background overflow-auto">
+      <div className="w-full sm:col-[2] flex flex-col border-x pb-10">
         {isLoadingPoint && (
           <Loader className="absolute self-center my-auto top-0 bottom-0" />
         )}
@@ -128,7 +126,14 @@ export default function PointPage({
                   variant={"link"}
                   size={"icon"}
                   className="text-foreground -ml-3"
-                  onClick={back}
+                  onClick={() => {
+                    if (window.history.state?.idx > 0) {
+                      back();
+                      return;
+                    }
+
+                    push("/");
+                  }}
                 >
                   <ArrowLeftIcon />
                 </Button>
@@ -156,7 +161,9 @@ export default function PointPage({
                         if (privyUser === null) {
                           e.preventDefault();
                           login();
+                          return;
                         }
+                        toggleEndorsePopoverOpen();
                       }}
                       variant={"ghost"}
                     >
@@ -238,8 +245,9 @@ export default function PointPage({
                       <CircleXIcon className="shrink-0 size-6 no-scaling-stroke stroke-1 text-muted-foreground " />
                     </div>
                     <PointCard
-                      onNegate={() => {
-                        setNegatedPoint(negation);
+                      onNegate={(e) => {
+                        e.preventDefault();
+                        user !== null ? setNegatedPoint(negation) : login();
                       }}
                       className="flex-grow -mt-3.5 pb-3"
                       favor={100}

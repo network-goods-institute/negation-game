@@ -100,11 +100,12 @@ export const PointCard = ({
             <PopoverTrigger asChild>
               <Button
                 onClick={(e) => {
-                  e.stopPropagation();
+                  e.preventDefault();
                   if (privyUser === null) {
-                    e.preventDefault();
                     login();
+                    return;
                   }
+                  toggleEndorsePopoverOpen();
                 }}
                 className={cn(
                   "p-2 rounded-full -mb-2 size-fit gap-sm hover:bg-endorsed/30",
