@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
 import Dynamic from "@/components/utils/Dynamic";
 import { cn } from "@/lib/cn";
+import { Analytics } from "@vercel/analytics/react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
@@ -55,6 +56,7 @@ export default function RootLayout({
                 {children}
 
                 <Toaster />
+                <Analytics />
                 {/* <footer className="sm:hidden sticky bottom-0 border-t border-border bg-background h-2xl content-center">
                   <Navigation className="sm:hidden" />
                 </footer> */}
