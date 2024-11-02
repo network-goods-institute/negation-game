@@ -14,7 +14,7 @@ export const usersTable = pgTable(
   {
     id: varchar("id").primaryKey(),
     username: varchar("username").notNull(),
-    cred: integer("cred").notNull().default(0),
+    cred: integer("cred").notNull().default(200),
   },
   (table) => ({
     noNegativeCred: check("noNegativeCred", sql`${table.cred} >= 0`),
