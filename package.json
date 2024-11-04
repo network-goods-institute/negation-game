@@ -69,19 +69,19 @@
     "@fluid-tailwind/tailwind-merge": "^0.0.3",
     "@tanstack/eslint-plugin-query": "^5.32.1",
     "@tanstack/react-query-devtools": "^5.32.1",
-    "@types/node": "^20",
+    "@types/node": "^20.11.19",
     "@types/react": "npm:types-react@19.0.0-rc.1",
     "@types/react-dom": "npm:types-react-dom@19.0.0-rc.1",
-    "autoprefixer": "^10.0.1",
+    "autoprefixer": "^10.4.17",
     "drizzle-kit": "^0.26.2",
-    "eslint": "^8",
+    "eslint": "^8.56.0",
     "eslint-config-next": "15.0.0",
     "eslint-plugin-storybook": "^0.8.0",
     "fluid-tailwind": "^1.0.3",
-    "postcss": "^8",
+    "postcss": "^8.4.35",
     "storybook": "^8.2.9",
     "tailwindcss": "^3.4.3",
     "type-fest": "^4.26.1",
-    "typescript": "^5"
+    "typescript": "^5.3.3"
   }
 }
