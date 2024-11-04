@@ -41,7 +41,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({
   ...props
 }) => {
   const [content, setContent] = useAtom(negationContentAtom);
-  const [cred, setCred] = useState<number>(0);
+  const [cred, setCred] = useState<number>(1);
   const [selectedCounterpointCandidate, selectCounterpointCandidate] = useState<
     Awaited<ReturnType<typeof fetchCounterpointCandidates>>[number] | undefined
   >(undefined);
@@ -70,7 +70,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({
   useEffect(() => {
     if (!open) {
       setContent("");
-      setCred(0);
+      setCred(1);
       selectCounterpointCandidate(undefined);
     }
   }, [open, setContent]);
@@ -233,7 +233,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({
               queryClient.invalidateQueries({ queryKey: ["feed"] });
               onOpenChange?.(false);
               setContent("");
-              setCred(0);
+              setCred(1);
             })
           }
         >

@@ -67,12 +67,12 @@ export default function PointPage({
   const endorsedByViewer =
     point?.viewerCred !== undefined && point.viewerCred > 0;
 
-  const [cred, setCred] = useState(0);
+  const [cred, setCred] = useState(1);
   const { data: user } = useUser();
   const notEnoughCred = !!user && user.cred < cred;
   const [endorsePopoverOpen, toggleEndorsePopoverOpen] = useToggle(false);
   useEffect(() => {
-    if (!endorsePopoverOpen) setCred(0);
+    if (!endorsePopoverOpen) setCred(1);
   }, [endorsePopoverOpen]);
 
   const { back, push } = useRouter();

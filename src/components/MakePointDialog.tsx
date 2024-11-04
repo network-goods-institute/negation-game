@@ -30,7 +30,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
   ...props
 }) => {
   const [content, setContent] = useState("");
-  const [cred, setCred] = useState<number>(0);
+  const [cred, setCred] = useState<number>(1);
   const [selectedPoint, selectPoint] = useState<
     IterableElement<typeof similarPoints> | undefined
   >(undefined);
@@ -167,7 +167,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
               onOpenChange?.(false);
               setContent("");
               selectPoint(undefined);
-              setCred(0);
+              setCred(1);
             });
           }}
         >
