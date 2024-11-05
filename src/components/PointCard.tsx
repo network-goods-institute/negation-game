@@ -1,5 +1,5 @@
 import { cn } from "@/lib/cn";
-import { HTMLAttributes, MouseEventHandler, useEffect, useState } from "react";
+import { HTMLAttributes, MouseEventHandler } from "react";
 import { Button } from "./ui/button";
 
 import { endorse } from "@/actions/endorse";
@@ -10,7 +10,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useUser } from "@/hooks/useUser";
+import { useCredInput } from "@/hooks/useCredInput";
 import { usePrivy } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
@@ -51,14 +51,11 @@ export const PointCard = ({
 
   const { user: privyUser, login } = usePrivy();
 
-  const [cred, setCred] = useState(1);
-  const { data: user } = useUser();
-  const notEnoughCred = !!user && user.cred < cred;
   const queryClient = useQueryClient();
   const [endorsePopoverOpen, toggleEndorsePopoverOpen] = useToggle(false);
-  useEffect(() => {
-    if (!endorsePopoverOpen) setCred(1);
-  }, [endorsePopoverOpen]);
+  const { cred, setCred, notEnoughCred } = useCredInput({
+    resetWhen: !endorsePopoverOpen,
+  });
   const { push } = useRouter();
 
   return (
@@ -125,7 +122,11 @@ export const PointCard = ({
               onClick={(e) => e.stopPropagation()}
             >
               <div className="w-full flex justify-between">
-                <CredInput cred={cred} setCred={setCred} />
+                <CredInput
+                  cred={cred}
+                  setCred={setCred}
+                  notEnoughCred={notEnoughCred}
+                />
                 <Button
                   disabled={cred === 0 || notEnoughCred}
                   onClick={() => {

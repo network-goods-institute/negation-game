@@ -2,7 +2,7 @@ import { CredInput } from "@/components/CredInput";
 import { AutosizeTextarea } from "@/components/ui/autosize-textarea";
 import { Separator } from "@/components/ui/separator";
 import { POINT_MAX_LENGHT, POINT_MIN_LENGHT } from "@/constants/config";
-import { useUser } from "@/hooks/useUser";
+import { useCredInput } from "@/hooks/useCredInput";
 import { cn } from "@/lib/cn";
 import { FC, HTMLAttributes } from "react";
 
@@ -23,8 +23,7 @@ export const PointEditor: FC<PointEditorProps> = ({
   placeholder = "Make your point",
 }) => {
   const charactersLeft = POINT_MAX_LENGHT - content.length;
-  const { data: user } = useUser();
-  const notEnoughCred = user && user.cred < cred;
+  const { notEnoughCred } = useCredInput({ cred, setCred });
 
   return (
     <div className={cn("flex-grow flex flex-col gap-2 pt-1", className)}>
@@ -39,7 +38,11 @@ export const PointEditor: FC<PointEditorProps> = ({
       <Separator className="w-full" />
 
       <div className="flex w-full items-center justify-between  gap-sm">
-        <CredInput cred={cred} setCred={setCred} />
+        <CredInput
+          cred={cred}
+          setCred={setCred}
+          notEnoughCred={notEnoughCred}
+        />
 
         <div className="flex gap-sm items-center">
           <span

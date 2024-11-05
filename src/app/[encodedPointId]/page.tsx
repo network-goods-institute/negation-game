@@ -18,6 +18,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import { useCredInput } from "@/hooks/useCredInput";
 import { useUser } from "@/hooks/useUser";
 import { cn } from "@/lib/cn";
 import { decodeId } from "@/lib/decodeId";
@@ -67,13 +68,11 @@ export default function PointPage({
   const endorsedByViewer =
     point?.viewerCred !== undefined && point.viewerCred > 0;
 
-  const [cred, setCred] = useState(1);
   const { data: user } = useUser();
-  const notEnoughCred = !!user && user.cred < cred;
   const [endorsePopoverOpen, toggleEndorsePopoverOpen] = useToggle(false);
-  useEffect(() => {
-    if (!endorsePopoverOpen) setCred(1);
-  }, [endorsePopoverOpen]);
+  const { cred, setCred, notEnoughCred } = useCredInput({
+    resetWhen: !endorsePopoverOpen,
+  });
 
   const { back, push } = useRouter();
   const [negatedPoint, setNegatedPoint] = useState<
@@ -93,16 +92,17 @@ export default function PointPage({
   >([]);
 
   useEffect(() => {
-    if (!counterpointSuggestionsStream) return;
+    if (counterpointSuggestionsStream === undefined) return;
 
     setCounterpointSuggestions([]);
     let isCancelled = false;
 
     const consumeStream = async () => {
-      for await (const suggestion of counterpointSuggestionsStream) {
-        setCounterpointSuggestions((prev) => [...prev, suggestion]);
-
-        if (isCancelled) break;
+      const reader = counterpointSuggestionsStream.getReader();
+      while (!isCancelled) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        setCounterpointSuggestions((prev) => [...prev, value]);
       }
     };
 
@@ -178,7 +178,11 @@ export default function PointPage({
 
                   <PopoverContent className="flex flex-col items-start w-96">
                     <div className="w-full flex justify-between">
-                      <CredInput cred={cred} setCred={setCred} />
+                      <CredInput
+                        cred={cred}
+                        setCred={setCred}
+                        notEnoughCred={notEnoughCred}
+                      />
                       <Button
                         disabled={cred === 0 || notEnoughCred}
                         onClick={() => {
@@ -248,6 +252,7 @@ export default function PointPage({
                     </div>
                     <PointCard
                       onNegate={(e) => {
+                        //prevent the link from navigating
                         e.preventDefault();
                         user !== null ? setNegatedPoint(negation) : login();
                       }}

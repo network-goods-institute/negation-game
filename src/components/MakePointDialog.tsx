@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { POINT_MAX_LENGHT, POINT_MIN_LENGHT } from "@/constants/config";
+import { useCredInput } from "@/hooks/useCredInput";
 import { useUser } from "@/hooks/useUser";
 import { cn } from "@/lib/cn";
 import { favor } from "@/lib/negation-game/favor";
@@ -26,11 +27,14 @@ import { IterableElement } from "type-fest";
 export interface MakePointDialogProps extends DialogProps {}
 
 export const MakePointDialog: FC<MakePointDialogProps> = ({
+  open,
   onOpenChange,
   ...props
 }) => {
+  const { cred, setCred, notEnoughCred, resetCred } = useCredInput({
+    resetWhen: !open,
+  });
   const [content, setContent] = useState("");
-  const [cred, setCred] = useState<number>(1);
   const [selectedPoint, selectPoint] = useState<
     IterableElement<typeof similarPoints> | undefined
   >(undefined);
@@ -97,7 +101,11 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
                 />
               </div>
               <div className="flex justify-between">
-                <CredInput cred={cred} setCred={setCred} />
+                <CredInput
+                  cred={cred}
+                  setCred={setCred}
+                  notEnoughCred={notEnoughCred}
+                />
                 <Button
                   variant={"link"}
                   size={"icon"}
@@ -167,7 +175,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
               onOpenChange?.(false);
               setContent("");
               selectPoint(undefined);
-              setCred(1);
+              resetCred();
             });
           }}
         >

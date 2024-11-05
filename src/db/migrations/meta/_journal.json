@@ -85,6 +85,20 @@
       "when": 1730544473617,
       "tag": "0011_petite_northstar",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1730748947558,
+      "tag": "0012_late_magik",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1730807891005,
+      "tag": "0013_old_vampiro",
+      "breakpoints": true
     }
   ]
 }

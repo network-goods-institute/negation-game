@@ -1,24 +1,29 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { useUser } from "@/hooks/useUser";
+import { useCredInput } from "@/hooks/useCredInput";
 import { cn } from "@/lib/cn";
 import { ToggleGroupSingleProps } from "@radix-ui/react-toggle-group";
 import { useToggle } from "@uidotdev/usehooks";
 import { TextCursorInputIcon, XIcon } from "lucide-react";
 import { FC } from "react";
 
-export interface CredInputProps extends Omit<ToggleGroupSingleProps, "type"> {
-  cred: number;
-  setCred: (cred: number) => void;
-}
+export interface CredInputProps
+  extends Omit<ToggleGroupSingleProps, "type">,
+    Pick<
+      ReturnType<typeof useCredInput>,
+      "cred" | "setCred" | "notEnoughCred"
+    > {}
 
 const DEFAULT_CRED_OPTIONS = [1, 5, 10];
 
-export const CredInput: FC<CredInputProps> = ({ cred, setCred, ...props }) => {
+export const CredInput: FC<CredInputProps> = ({
+  cred,
+  setCred,
+  notEnoughCred,
+  ...props
+}) => {
   const [usingCustomCredAmount, toggleUsingCustomCredAmount] = useToggle(false);
-  const { data: user } = useUser();
-  const notEnoughCred = user && user.cred < cred;
 
   return (
     <ToggleGroup

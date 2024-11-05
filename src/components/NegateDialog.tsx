@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { POINT_MAX_LENGHT, POINT_MIN_LENGHT } from "@/constants/config";
+import { useCredInput } from "@/hooks/useCredInput";
 import { cn } from "@/lib/cn";
 import { favor } from "@/lib/negation-game/favor";
 import { DialogProps } from "@radix-ui/react-dialog";
@@ -41,7 +42,9 @@ export const NegateDialog: FC<NegateDialogProps> = ({
   ...props
 }) => {
   const [content, setContent] = useAtom(negationContentAtom);
-  const [cred, setCred] = useState<number>(1);
+  const { cred, setCred, notEnoughCred, resetCred } = useCredInput({
+    resetWhen: !open,
+  });
   const [selectedCounterpointCandidate, selectCounterpointCandidate] = useState<
     Awaited<ReturnType<typeof fetchCounterpointCandidates>>[number] | undefined
   >(undefined);
@@ -70,7 +73,6 @@ export const NegateDialog: FC<NegateDialogProps> = ({
   useEffect(() => {
     if (!open) {
       setContent("");
-      setCred(1);
       selectCounterpointCandidate(undefined);
     }
   }, [open, setContent]);
@@ -142,7 +144,11 @@ export const NegateDialog: FC<NegateDialogProps> = ({
                 />
               </div>
               <div className="flex justify-between">
-                <CredInput cred={cred} setCred={setCred} />
+                <CredInput
+                  cred={cred}
+                  setCred={setCred}
+                  notEnoughCred={notEnoughCred}
+                />
                 <Button
                   variant={"link"}
                   size={"icon"}
@@ -231,9 +237,12 @@ export const NegateDialog: FC<NegateDialogProps> = ({
                   })
             ).then(() => {
               queryClient.invalidateQueries({ queryKey: ["feed"] });
+              queryClient.invalidateQueries({
+                queryKey: ["point-negations", negatedPoint?.id],
+              });
               onOpenChange?.(false);
               setContent("");
-              setCred(1);
+              resetCred();
             })
           }
         >
