@@ -57,7 +57,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
   });
 
   return (
-    <Dialog {...props} onOpenChange={onOpenChange}>
+    <Dialog {...props} open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:top-xl flex flex-col overflow-auto sm:translate-y-0 h-full rounded-none sm:rounded-md sm:h-fit gap-0  bg-background p-4 sm:p-8 shadow-sm w-full max-w-xl">
         <div className="w-full flex items-center justify-between mb-xl">
           <DialogTitle hidden>Make a Point</DialogTitle>
