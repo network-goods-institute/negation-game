@@ -5,7 +5,7 @@ import { endorsementsTable, pointsWithStatsView } from "@/db/schema";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
 import { Timestamp } from "@/types/Timestamp";
-import { sql } from "drizzle-orm";
+import { desc, sql } from "drizzle-orm";
 
 export const fetchFeedPage = async (olderThan?: Timestamp) => {
   const viewerId = await getUserId();
@@ -26,5 +26,6 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
           }
         : {}),
     })
-    .from(pointsWithStatsView);
+    .from(pointsWithStatsView)
+    .orderBy(desc(pointsWithStatsView.createdAt));
 };
