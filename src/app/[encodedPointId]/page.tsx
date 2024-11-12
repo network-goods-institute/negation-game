@@ -42,7 +42,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { use, useEffect, useState } from "react";
+import { Fragment, use, useEffect, useState } from "react";
 import {
   Dot,
   Line,
@@ -284,23 +284,22 @@ export default function PointPage({
                       dataKey="favor"
                       type="stepAfter"
                       className="overflow-visible text-endorsed"
-                      dot={(dot) =>
+                      dot={({ key, ...dot }) =>
                         favorHistory &&
                         dot.index === favorHistory.length - 1 ? (
-                          <>
+                          <Fragment key={key}>
                             <Dot
                               {...dot}
-                              key={`${dot.key}-ping`}
                               fill={dot.stroke}
                               className="animate-ping"
                               style={{
                                 transformOrigin: `${dot.cx}px ${dot.cy}px`,
                               }}
                             />
-                            <Dot {...dot} key={dot.key} fill={dot.stroke} />
-                          </>
+                            <Dot {...dot} fill={dot.stroke} />
+                          </Fragment>
                         ) : (
-                          <></>
+                          <Fragment key={key} />
                         )
                       }
                       stroke={"currentColor"}
