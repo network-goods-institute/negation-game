@@ -8,6 +8,8 @@ import { fetchPointNegations } from "@/actions/fetchPointNegations";
 import { getCounterpointSuggestions } from "@/actions/getCounterpointSuggestions";
 import { negationContentAtom } from "@/atoms/negationContentAtom";
 import { CredInput } from "@/components/CredInput";
+import { EndorseIcon } from "@/components/icons/EndorseIcon";
+import { NegateIcon } from "@/components/icons/NegateIcon";
 import { NegateDialog } from "@/components/NegateDialog";
 import { PointCard } from "@/components/PointCard";
 import { PointStats } from "@/components/PointStats";
@@ -34,8 +36,6 @@ import { useToggle } from "@uidotdev/usehooks";
 import { useSetAtom } from "jotai";
 import {
   ArrowLeftIcon,
-  CircleCheckBigIcon,
-  CircleSlash2Icon,
   CircleXIcon,
   DiscIcon,
   SparklesIcon,
@@ -198,7 +198,12 @@ export default function PointPage({
                       }}
                       variant={"ghost"}
                     >
-                      <CircleCheckBigIcon className="size-5 @md/point:hidden" />
+                      <EndorseIcon
+                        className={cn(
+                          "@md/point:hidden",
+                          endorsedByViewer && "fill-current"
+                        )}
+                      />
                       <span className="hidden @md/point:inline">
                         {point.viewerCred ? "Endorsed" : "Endorse"}
                       </span>
@@ -242,7 +247,7 @@ export default function PointPage({
                     privyUser !== null ? setNegatedPoint(point) : login()
                   }
                 >
-                  <CircleSlash2Icon className="size-5 @md/point:hidden" />
+                  <NegateIcon className="@md/point:hidden" />
                   <span className="hidden @md/point:inline">Negate</span>
                 </Button>
               </div>

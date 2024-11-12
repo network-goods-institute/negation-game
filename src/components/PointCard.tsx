@@ -4,6 +4,8 @@ import { Button } from "./ui/button";
 
 import { endorse } from "@/actions/endorse";
 import { CredInput } from "@/components/CredInput";
+import { EndorseIcon } from "@/components/icons/EndorseIcon";
+import { NegateIcon } from "@/components/icons/NegateIcon";
 import { PointStats } from "@/components/PointStats";
 import {
   Popover,
@@ -14,7 +16,6 @@ import { useCredInput } from "@/hooks/useCredInput";
 import { usePrivy } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
-import { CircleCheckBigIcon, CircleSlash2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
@@ -83,13 +84,13 @@ export const PointCard = ({
         <div className="flex gap-sm w-full text-muted-foreground">
           <Button
             variant="ghost"
-            className="p-2 -ml-3 -mb-2 rounded-full size-fit hover:bg-negated/30"
+            className="p-1 -ml-3 -mb-2 rounded-full size-fit hover:bg-negated/30"
             onClick={(e) => {
               e.stopPropagation();
               onNegate?.(e);
             }}
           >
-            <CircleSlash2Icon className="size-5" />
+            <NegateIcon />
           </Button>
           <Popover
             open={endorsePopoverOpen}
@@ -106,12 +107,14 @@ export const PointCard = ({
                   toggleEndorsePopoverOpen();
                 }}
                 className={cn(
-                  "p-2 rounded-full -mb-2 size-fit gap-sm hover:bg-endorsed/30",
+                  "p-1 rounded-full -mb-2 size-fit gap-sm hover:bg-endorsed/30",
                   endorsedByViewer && "text-endorsed pr-3"
                 )}
                 variant={"ghost"}
               >
-                <CircleCheckBigIcon className="size-5" />{" "}
+                <EndorseIcon
+                  className={cn(endorsedByViewer && "fill-current")}
+                />{" "}
                 {endorsedByViewer && (
                   <span>{viewerContext.viewerCred} cred</span>
                 )}
