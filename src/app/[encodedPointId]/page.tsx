@@ -280,6 +280,7 @@ export default function PointPage({
                       className="[&>line]:stroke-muted"
                     ></ReferenceLine>
                     <Line
+                      animationDuration={300}
                       dataKey="favor"
                       type="stepAfter"
                       className="overflow-visible text-endorsed"
