@@ -240,6 +240,10 @@ export const NegateDialog: FC<NegateDialogProps> = ({
               queryClient.invalidateQueries({
                 queryKey: ["point-negations", negatedPoint?.id],
               });
+              queryClient.invalidateQueries({
+                queryKey: ["favor-history", negatedPoint?.id],
+              });
+
               onOpenChange?.(false);
               setContent("");
               resetCred();

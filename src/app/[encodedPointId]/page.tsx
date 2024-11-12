@@ -2,6 +2,7 @@
 import { format } from "date-fns";
 
 import { endorse } from "@/actions/endorse";
+import { fetchFavorHistory } from "@/actions/fetchFavorHistory";
 import { fetchPoint } from "@/actions/fetchPoint";
 import { fetchPointNegations } from "@/actions/fetchPointNegations";
 import { getCounterpointSuggestions } from "@/actions/getCounterpointSuggestions";
@@ -18,14 +19,17 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { DEFAULT_TIMESCALE } from "@/constants/config";
 import { useCredInput } from "@/hooks/useCredInput";
 import { useUser } from "@/hooks/useUser";
 import { cn } from "@/lib/cn";
 import { decodeId } from "@/lib/decodeId";
 import { encodeId } from "@/lib/encodeId";
 import { favor } from "@/lib/negation-game/favor";
+import { TimelineScale, timelineScales } from "@/lib/timelineScale";
 import { usePrivy } from "@privy-io/react-auth";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
 import { useSetAtom } from "jotai";
 import {
@@ -39,6 +43,16 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
+import {
+  Dot,
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 export default function PointPage({
   params,
@@ -58,6 +72,21 @@ export default function PointPage({
     queryFn: () => {
       return fetchPoint(pointId);
     },
+  });
+
+  const [timelineScale, setTimelineScale] =
+    useState<TimelineScale>(DEFAULT_TIMESCALE);
+  const {
+    data: favorHistory,
+    refetch: refetchFavorHistory,
+    isFetching: isFetchingFavorHistory,
+  } = useQuery({
+    queryKey: ["favor-history", pointId, timelineScale],
+    queryFn: () => {
+      return fetchFavorHistory({ pointId, scale: timelineScale });
+    },
+    placeholderData: keepPreviousData,
+    refetchInterval: 60000,
   });
 
   const { data: negations, isLoading: isLoadingNegations } = useQuery({
@@ -188,6 +217,7 @@ export default function PointPage({
                         onClick={() => {
                           endorse({ pointId, cred }).then(() => {
                             refetchPoint();
+                            refetchFavorHistory();
                             toggleEndorsePopoverOpen(false);
                           });
                         }}
@@ -225,6 +255,90 @@ export default function PointPage({
               <span className="text-muted-foreground text-sm">
                 {format(point.createdAt, "h':'mm a '·' MMM d',' yyyy")}
               </span>
+
+              <>
+                <ResponsiveContainer
+                  width="100%"
+                  height={100}
+                  className={"mt-md"}
+                >
+                  <LineChart
+                    width={300}
+                    height={100}
+                    data={favorHistory}
+                    className="[&>.recharts-surface]:overflow-visible"
+                  >
+                    <XAxis dataKey="timestamp" hide />
+                    <YAxis domain={[0, 100]} hide />
+                    <ReferenceLine
+                      y={50}
+                      className="[&>line]:stroke-muted"
+                    ></ReferenceLine>
+                    <Line
+                      dataKey="favor"
+                      type="stepAfter"
+                      className="overflow-visible text-endorsed"
+                      dot={(dot) =>
+                        favorHistory &&
+                        dot.index === favorHistory.length - 1 ? (
+                          <>
+                            <Dot
+                              {...dot}
+                              key={`${dot.key}-ping`}
+                              fill={dot.stroke}
+                              className="animate-ping"
+                              style={{
+                                transformOrigin: `${dot.cx}px ${dot.cy}px`,
+                              }}
+                            />
+                            <Dot {...dot} key={dot.key} fill={dot.stroke} />
+                          </>
+                        ) : (
+                          <></>
+                        )
+                      }
+                      stroke={"currentColor"}
+                      strokeWidth={2}
+                    />
+
+                    <Tooltip
+                      wrapperClassName="backdrop-blur-sm !bg-transparent !pb-0 rounded-sm"
+                      labelClassName=" -top-3 text-muted-foreground text-xs"
+                      formatter={(value: number) => value.toFixed(2)}
+                      labelFormatter={(timestamp: Date) =>
+                        timestamp.toLocaleString()
+                      }
+                      // position={{ y: 0 }}
+                      // offset={0}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+                <ToggleGroup
+                  type="single"
+                  value={timelineScale}
+                  onValueChange={(v) =>
+                    v && setTimelineScale(v as TimelineScale)
+                  }
+                  className="flex gap-px w-fit"
+                >
+                  {timelineScales.map((scale) => (
+                    <ToggleGroupItem
+                      value={scale}
+                      className="w-10 h-6 text-sm text-muted-foreground"
+                      key={scale}
+                    >
+                      {scale}
+                    </ToggleGroupItem>
+                  ))}
+                  <Loader
+                    className="text-muted-foreground size-4 ml-2"
+                    style={{
+                      display: isFetchingFavorHistory ? "block" : "none",
+                    }}
+                  />
+                </ToggleGroup>
+              </>
+
               <Separator className="my-md" />
               <PointStats
                 className="justify-evenly ~@/lg:~text-xs/sm mb-sm"

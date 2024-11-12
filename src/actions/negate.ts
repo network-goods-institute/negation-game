@@ -26,7 +26,7 @@ export const negate = async ({
   const newerPointId = Math.max(negatedPointId, counterpointId);
   const olderPointId = Math.min(negatedPointId, counterpointId);
 
-  return await db.transaction(async (tx) => {
+  const negationId = await db.transaction(async (tx) => {
     if (cred > 0) {
       await tx
         .update(usersTable)
@@ -45,6 +45,9 @@ export const negate = async ({
     return await tx
       .insert(negationsTable)
       .values({ createdBy: userId, newerPointId, olderPointId })
-      .returning({ negationId: negationsTable.id });
+      .returning({ negationId: negationsTable.id })
+      .then(([{ negationId }]) => negationId);
   });
+
+  return negationId;
 };

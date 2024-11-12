@@ -99,6 +99,90 @@
       "when": 1730807891005,
       "tag": "0013_old_vampiro",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1730830973828,
+      "tag": "0014_peaceful_scarlet_spider",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1730911066282,
+      "tag": "0015_boring_barracuda",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1730985699776,
+      "tag": "0016_square_nuke",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1730985816482,
+      "tag": "0017_faithful_spyke",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1730985872464,
+      "tag": "0018_chief_nextwave",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1730987700455,
+      "tag": "0019_jittery_frank_castle",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1730989130114,
+      "tag": "0020_amusing_maddog",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1730989569211,
+      "tag": "0021_happy_doctor_spectrum",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1730989753723,
+      "tag": "0022_clumsy_shocker",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1731006091175,
+      "tag": "0023_foamy_mysterio",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1731006098444,
+      "tag": "0024_melted_nextwave",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1731075954398,
+      "tag": "0025_serious_spyke",
+      "breakpoints": true
     }
   ]
 }

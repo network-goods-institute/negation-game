@@ -5,5 +5,5 @@ export { negationsTable } from "@/db/tables/negationsTable";
 export { pointsTable } from "@/db/tables/pointsTable";
 export { usersTable } from "@/db/tables/usersTable";
 
-export { pointCounterpointsJoinView as pointNegationsView } from "@/db/views/pointCounterpointsJoinView";
+export { pointFavorHistoryView } from "@/db/views/pointFavorHistoryView";
 export { pointsWithStatsView } from "@/db/views/pointsWithStatsView";

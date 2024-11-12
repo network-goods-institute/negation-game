@@ -21,7 +21,7 @@ export const endorse = async ({
     throw new Error("Must be authenticated to add a point");
   }
 
-  return await db.transaction(async (tx) => {
+  const endorsementId = await db.transaction(async (tx) => {
     await tx
       .update(usersTable)
       .set({
@@ -35,4 +35,6 @@ export const endorse = async ({
       .returning({ id: endorsementsTable.id })
       .then(([{ id }]) => id);
   });
+
+  return endorsementId;
 };

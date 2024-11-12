@@ -49,6 +49,7 @@
     "react": "19.0.0-rc-65a56d0e-20241020",
     "react-dom": "19.0.0-rc-65a56d0e-20241020",
     "react-hook-form": "^7.53.0",
+    "recharts": "^2.13.3",
     "remeda": "^2.16.0",
     "sonner": "^1.4.41",
     "sqids": "^0.3.0",
