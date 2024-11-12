@@ -18,7 +18,7 @@ export const fetchPoint = async (id: number) => {
               COALESCE((
                 SELECT SUM(${endorsementsTable.cred})
                 FROM ${endorsementsTable}
-                WHERE ${endorsementsTable.pointId} = ${pointsWithStatsView.id}
+                WHERE ${endorsementsTable.pointId} = ${id}
                   AND ${endorsementsTable.userId} = ${viewerId}
               ), 0)
             `.mapWith(Number),
