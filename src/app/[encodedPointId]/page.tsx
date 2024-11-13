@@ -133,6 +133,7 @@ export default function PointPage({
         if (done) break;
         setCounterpointSuggestions((prev) => [...prev, value]);
       }
+      reader.releaseLock();
     };
 
     consumeStream();
