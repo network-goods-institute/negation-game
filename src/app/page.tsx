@@ -8,12 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import { encodeId } from "@/lib/encodeId";
 import { favor } from "@/lib/negation-game/favor";
+import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
 import { usePrivy } from "@privy-io/react-auth";
 import { useQuery } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
 import { DiscIcon, PlusIcon } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function Home() {
@@ -31,7 +31,6 @@ export default function Home() {
   >(undefined);
 
   const [makePointOpen, onMakePointOpenChange] = useToggle(false);
-  const { push } = useRouter();
 
   return (
     <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow gap-md  bg-background overflow-auto">
@@ -41,6 +40,8 @@ export default function Home() {
         )}
         {points?.map((point, i) => (
           <Link
+            draggable={false}
+            onClick={preventDefaultIfContainsSelection}
             href={`/${encodeId(point.id)}`}
             className="flex border-b cursor-pointer hover:bg-accent py-2"
             key={point.id}

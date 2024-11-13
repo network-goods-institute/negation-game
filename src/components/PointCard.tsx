@@ -69,12 +69,12 @@ export const PointCard = ({
     >
       {/* <CircleDotIcon className="shrink-0 size-6  text-muted-foreground" /> */}
       <div className="flex flex-col">
-        <p className="tracking-tight text-md  @xs/point:text-md @sm/point:text-lg mb-xs -mt-1">
+        <p className="tracking-tight text-md  @xs/point:text-md @sm/point:text-lg mb-xs -mt-1 select-text">
           {content}
         </p>
 
         <PointStats
-          className="mb-md"
+          className="mb-md select-text"
           amountNegations={amountNegations}
           amountSupporters={amountSupporters}
           favor={favor}

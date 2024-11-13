@@ -53,6 +53,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
 
 export default function PointPage({
   params,
@@ -361,6 +362,8 @@ export default function PointPage({
               {negations &&
                 negations.map((negation, i) => (
                   <Link
+                    draggable={false}
+                    onClick={preventDefaultIfContainsSelection}
                     href={`/${encodeId(negation.id)}`}
                     key={negation.id}
                     className={cn(
