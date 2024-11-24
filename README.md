@@ -67,11 +67,13 @@ pnpm install
 2. Create a `.env.local` file in the root directory with the following content:
 ```bash
 NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id_here
+NEXT_PUBLIC_PRIVY_APP_SECRET=your_privy_app_secret_here
 POSTGRES_URL=postgres://postgres:your_password@localhost:5432/negation_game
 ```
 
 Replace:
 - `your_privy_app_id_here` with your Privy App ID (from https://privy.io/)
+- `your_privy_app_secret_here` with your Privy App Secret (from https://privy.io/)
 - `postgres` with your PostgreSQL username if you changed it from the default
 - `your_password` with your PostgreSQL password
 - `negation_game` with your database name if you used a different one
