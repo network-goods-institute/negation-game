@@ -109,6 +109,7 @@ pnpm install
 NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id_here
 NEXT_PUBLIC_PRIVY_APP_SECRET=your_privy_app_secret_here
 POSTGRES_URL=postgres://postgres:your_password@localhost:5432/negation_game
+OPENAI_API_KEY=your_openai_api_key_here
 ```
 
 Replace:
@@ -117,7 +118,7 @@ Replace:
 - `postgres` with your PostgreSQL username if you changed it from the default
 - `your_password` with your PostgreSQL password
 - `negation_game` with your database name if you used a different one
-
+- `your_openai_api_key_here` with your OpenAI API key (from https://platform.openai.com/api-keys)
 3. Run the database migrations:
 ```bash
 pnpm drizzle-kit push

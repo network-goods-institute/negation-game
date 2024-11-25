@@ -1,5 +1,6 @@
 import { endorse } from "@/actions/endorse";
 import { fetchSimilarPoints } from "@/actions/fetchSimilarPoints";
+import { improvePoint } from "@/actions/improvePoint";
 import { makePoint } from "@/actions/makePoint";
 import { CredInput } from "@/components/CredInput";
 import { PointEditor } from "@/components/PointEditor";
@@ -21,7 +22,7 @@ import { DialogProps } from "@radix-ui/react-dialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDebounce } from "@uidotdev/usehooks";
 import { ArrowLeftIcon, BlendIcon, DiscIcon, Undo2Icon } from "lucide-react";
-import { FC, useState } from "react";
+import { FC, useEffect, useState } from "react";
 import { IterableElement } from "type-fest";
 
 export interface MakePointDialogProps extends DialogProps {}
@@ -48,6 +49,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
       (charactersLeft >= 0 && content.length >= POINT_MIN_LENGHT));
   const queryClient = useQueryClient();
   const debouncedContent = useDebounce(content, 500);
+
   const { data: similarPoints } = useQuery({
     queryKey: ["similarPoints", debouncedContent],
     queryFn: ({ queryKey: [, query] }) =>
@@ -55,6 +57,25 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
         ? fetchSimilarPoints({ query })
         : [],
   });
+
+  const { data: improvementSuggestionsStream } = useQuery({
+    queryKey: ["improvementSuggestions", debouncedContent],
+    queryFn: ({ queryKey: [, query] }) =>
+      debouncedContent.length >= POINT_MIN_LENGHT ? improvePoint(query) : null,
+    enabled: !selectedPoint && debouncedContent.length >= POINT_MIN_LENGHT,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false
+  });
+
+  const [improvementSuggestions, setImprovementSuggestions] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!improvementSuggestionsStream) return;
+    const suggestions = improvementSuggestionsStream.split('\n').filter(Boolean);
+    setImprovementSuggestions(suggestions);
+  }, [improvementSuggestionsStream]);
 
   return (
     <Dialog {...props} open={open} onOpenChange={onOpenChange}>
@@ -157,6 +178,26 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
             ))}
           </>
         )}
+
+        {!selectedPoint && improvementSuggestions.length > 0 && (
+          <>
+            <p className="text-xs text-muted-foreground mb-md">
+              Consider these improved phrasings of your point:
+            </p>
+
+            {improvementSuggestions.map((suggestion, index) => (
+              <div
+                key={index}
+                onClick={() => setContent(suggestion)}
+                className="flex p-4 gap-2 hover:bg-accent w-full cursor-pointer border rounded-md mb-2"
+              >
+                <BlendIcon className="size-5 shrink-0 text-muted-foreground stroke-1" />
+                <span className="flex-grow text-sm">{suggestion}</span>
+              </div>
+            ))}
+          </>
+        )}
+
         <Button
           className="self-end mt-md"
           disabled={!canSubmit}
