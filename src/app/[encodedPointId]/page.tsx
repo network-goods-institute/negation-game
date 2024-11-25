@@ -375,7 +375,6 @@ export default function PointPage({
                     </div>
                     <PointCard
                       onNegate={(e) => {
-                        //prevent the link from navigating
                         e.preventDefault();
                         user !== null ? setNegatedPoint(negation) : login();
                       }}
@@ -389,6 +388,7 @@ export default function PointPage({
                       totalCred={negation.cred}
                       viewerContext={{ viewerCred: negation.viewerCred }}
                       isNegation={true}
+                      parentPoint={point}
                     />
                   </Link>
                 ))}

@@ -18,6 +18,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
 import { useRouter } from "next/navigation";
 import { Repeat2Icon } from "lucide-react";
+import { RestakeDialog } from "@/components/RestakeDialog";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -34,6 +35,11 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   leftSlot?: React.ReactNode;
   bottomSlot?: React.ReactNode;
   isNegation?: boolean;
+  parentPoint?: {
+    id: number;
+    content: string;
+    createdAt: Date;
+  };
 }
 
 export const PointCard = ({
@@ -48,6 +54,7 @@ export const PointCard = ({
   viewerContext,
   onNegate,
   isNegation,
+  parentPoint,
   ...props
 }: PointCardProps) => {
   const endorsedByViewer =
@@ -61,110 +68,128 @@ export const PointCard = ({
     resetWhen: !endorsePopoverOpen,
   });
   const { push } = useRouter();
+  const [restakeDialogOpen, toggleRestakeDialog] = useToggle(false);
 
   return (
-    <div
-      className={cn(
-        "@container/point flex gap-3 pt-4 pb-3 px-4 relative rounded-none",
-        className
-      )}
-      {...props}
-    >
-      <div className="flex flex-col">
-        <p className="tracking-tight text-md  @xs/point:text-md @sm/point:text-lg mb-xs -mt-1 select-text">
-          {content}
-        </p>
+    <>
+      <div
+        className={cn(
+          "@container/point flex gap-3 pt-4 pb-3 px-4 relative rounded-none",
+          className
+        )}
+        {...props}
+      >
+        <div className="flex flex-col">
+          <p className="tracking-tight text-md  @xs/point:text-md @sm/point:text-lg mb-xs -mt-1 select-text">
+            {content}
+          </p>
 
-        <PointStats
-          className="mb-md select-text"
-          amountNegations={amountNegations}
-          amountSupporters={amountSupporters}
-          favor={favor}
-          cred={totalCred}
-        />
+          <PointStats
+            className="mb-md select-text"
+            amountNegations={amountNegations}
+            amountSupporters={amountSupporters}
+            favor={favor}
+            cred={totalCred}
+          />
 
-        <div className="flex gap-sm w-full text-muted-foreground">
-          {isNegation && (
-            <Button
-              variant="ghost"
-              className="p-1 -ml-3 -mb-2 rounded-full size-fit hover:bg-muted/30"
-              onClick={(e) => {
-                e.stopPropagation();
-                // restake functionality will be added later
-              }}
-            >
-              <Repeat2Icon className="size-6 stroke-1" />
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            className="p-1 -mb-2 rounded-full size-fit hover:bg-negated/30"
-            onClick={(e) => {
-              e.stopPropagation();
-              onNegate?.(e);
-            }}
-          >
-            <NegateIcon />
-          </Button>
-          <Popover
-            open={endorsePopoverOpen}
-            onOpenChange={toggleEndorsePopoverOpen}
-          >
-            <PopoverTrigger asChild>
+          <div className="flex gap-sm w-full text-muted-foreground">
+            {isNegation && (
               <Button
+                variant="ghost"
+                className="p-1 -ml-3 -mb-2 rounded-full size-fit hover:bg-muted/30"
                 onClick={(e) => {
                   e.preventDefault();
-                  if (privyUser === null) {
-                    login();
-                    return;
-                  }
-                  toggleEndorsePopoverOpen();
+                  e.stopPropagation();
+                  console.log('Restake clicked', { isNegation, parentPoint });
+                  toggleRestakeDialog(true);
                 }}
-                className={cn(
-                  "p-1 rounded-full -mb-2 size-fit gap-sm hover:bg-endorsed/30",
-                  endorsedByViewer && "text-endorsed pr-3"
-                )}
-                variant={"ghost"}
               >
-                <EndorseIcon
-                  className={cn(endorsedByViewer && "fill-current")}
-                />{" "}
-                {endorsedByViewer && (
-                  <span>{viewerContext.viewerCred} cred</span>
-                )}
+                <Repeat2Icon className="size-6 stroke-1" />
               </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              className="flex flex-col items-start w-96"
-              onClick={(e) => e.stopPropagation()}
+            )}
+            <Button
+              variant="ghost"
+              className="p-1 -mb-2 rounded-full size-fit hover:bg-negated/30"
+              onClick={(e) => {
+                e.stopPropagation();
+                onNegate?.(e);
+              }}
             >
-              <div className="w-full flex justify-between">
-                <CredInput
-                  cred={cred}
-                  setCred={setCred}
-                  notEnoughCred={notEnoughCred}
-                />
+              <NegateIcon />
+            </Button>
+            <Popover
+              open={endorsePopoverOpen}
+              onOpenChange={toggleEndorsePopoverOpen}
+            >
+              <PopoverTrigger asChild>
                 <Button
-                  disabled={cred === 0 || notEnoughCred}
-                  onClick={() => {
-                    endorse({ pointId, cred }).then(() => {
-                      queryClient.invalidateQueries({ queryKey: ["feed"] });
-                      toggleEndorsePopoverOpen(false);
-                    });
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (privyUser === null) {
+                      login();
+                      return;
+                    }
+                    toggleEndorsePopoverOpen();
                   }}
+                  className={cn(
+                    "p-1 rounded-full -mb-2 size-fit gap-sm hover:bg-endorsed/30",
+                    endorsedByViewer && "text-endorsed pr-3"
+                  )}
+                  variant={"ghost"}
                 >
-                  Endorse
+                  <EndorseIcon
+                    className={cn(endorsedByViewer && "fill-current")}
+                  />{" "}
+                  {endorsedByViewer && (
+                    <span>{viewerContext.viewerCred} cred</span>
+                  )}
                 </Button>
-              </div>
-              {notEnoughCred && (
-                <span className="ml-md text-destructive text-sm h-fit">
-                  not enough cred
-                </span>
-              )}
-            </PopoverContent>
-          </Popover>
+              </PopoverTrigger>
+              <PopoverContent
+                className="flex flex-col items-start w-96"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="w-full flex justify-between">
+                  <CredInput
+                    cred={cred}
+                    setCred={setCred}
+                    notEnoughCred={notEnoughCred}
+                  />
+                  <Button
+                    disabled={cred === 0 || notEnoughCred}
+                    onClick={() => {
+                      endorse({ pointId, cred }).then(() => {
+                        queryClient.invalidateQueries({ queryKey: ["feed"] });
+                        toggleEndorsePopoverOpen(false);
+                      });
+                    }}
+                  >
+                    Endorse
+                  </Button>
+                </div>
+                {notEnoughCred && (
+                  <span className="ml-md text-destructive text-sm h-fit">
+                    not enough cred
+                  </span>
+                )}
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
       </div>
-    </div>
+
+      {parentPoint && (
+        <RestakeDialog
+          open={restakeDialogOpen}
+          onOpenChange={toggleRestakeDialog}
+          originalPoint={parentPoint}
+          counterPoint={{
+            id: pointId,
+            content,
+            createdAt,
+          }}
+        />
+      )}
+    </>
   );
 };
