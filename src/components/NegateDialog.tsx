@@ -74,7 +74,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({
         : [],
   });
 
-  const { data: improvementSuggestionsStream } = useQuery({
+  const { data: improvementSuggestionsStream, isLoading: isLoadingImprovements } = useQuery({
     queryKey: ["improvementSuggestions", debouncedContent, negatedPoint?.content],
     queryFn: ({ queryKey: [, query, parentPoint] }: { queryKey: [string, string, string | undefined] }) =>
       debouncedContent.length >= POINT_MIN_LENGHT && parentPoint ? improveNegation(query, parentPoint) : null,
@@ -249,6 +249,12 @@ export const NegateDialog: FC<NegateDialogProps> = ({
               ))}
             </>
           )}
+        {!selectedCounterpointCandidate && content.length >= POINT_MIN_LENGHT && isLoadingImprovements && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
+            <span className="size-2 bg-muted-foreground rounded-full animate-bounce" />
+            <span>Crafting other phrasings...</span>
+          </div>
+        )}
         {!selectedCounterpointCandidate && improvementSuggestions.length > 0 && (
           <>
             <p className="text-xs text-muted-foreground mb-md">

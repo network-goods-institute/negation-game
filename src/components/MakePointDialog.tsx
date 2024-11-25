@@ -61,7 +61,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
         : [],
   });
 
-  const { data: improvementSuggestionsStream } = useQuery({
+  const { data: improvementSuggestionsStream, isLoading: isLoadingImprovements } = useQuery({
     queryKey: ["improvementSuggestions", debouncedContent],
     queryFn: ({ queryKey: [, query] }) =>
       debouncedContent.length >= POINT_MIN_LENGHT ? improvePoint(query) : null,
@@ -184,6 +184,13 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
               </div>
             ))}
           </>
+        )}
+
+        {!selectedPoint && content.length >= POINT_MIN_LENGHT && isLoadingImprovements && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
+            <span className="size-2 bg-muted-foreground rounded-full animate-bounce" />
+            <span>Crafting other phrasings...</span>
+          </div>
         )}
 
         {!selectedPoint && improvementSuggestions.length > 0 && (
