@@ -4,6 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { POINT_MAX_LENGHT, POINT_MIN_LENGHT } from "@/constants/config";
 import { useCredInput } from "@/hooks/useCredInput";
 import { cn } from "@/lib/cn";
+import { CircleCheckBigIcon } from "lucide-react";
 import { FC, HTMLAttributes } from "react";
 
 export interface PointEditorProps extends HTMLAttributes<HTMLDivElement> {
@@ -36,6 +37,10 @@ export const PointEditor: FC<PointEditorProps> = ({
         placeholder={placeholder}
       />
       <Separator className="w-full" />
+      <p className="text-muted-foreground/70 text-xs -mt-1">
+        <CircleCheckBigIcon className="size-3 align-[-1.5px] inline-block " />{" "}
+        Good Points express a single idea and make sense on their own
+      </p>
 
       <div className="flex w-full items-center justify-between  gap-sm">
         <CredInput
