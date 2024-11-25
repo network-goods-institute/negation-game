@@ -388,6 +388,7 @@ export default function PointPage({
                       pointId={negation.id}
                       totalCred={negation.cred}
                       viewerContext={{ viewerCred: negation.viewerCred }}
+                      isNegation={true}
                     />
                   </Link>
                 ))}

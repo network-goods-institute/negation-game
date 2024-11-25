@@ -17,6 +17,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
 import { useRouter } from "next/navigation";
+import { Repeat2Icon } from "lucide-react";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -32,6 +33,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   onNegate?: MouseEventHandler<HTMLButtonElement>;
   leftSlot?: React.ReactNode;
   bottomSlot?: React.ReactNode;
+  isNegation?: boolean;
 }
 
 export const PointCard = ({
@@ -45,6 +47,7 @@ export const PointCard = ({
   amountNegations,
   viewerContext,
   onNegate,
+  isNegation,
   ...props
 }: PointCardProps) => {
   const endorsedByViewer =
@@ -67,7 +70,6 @@ export const PointCard = ({
       )}
       {...props}
     >
-      {/* <CircleDotIcon className="shrink-0 size-6  text-muted-foreground" /> */}
       <div className="flex flex-col">
         <p className="tracking-tight text-md  @xs/point:text-md @sm/point:text-lg mb-xs -mt-1 select-text">
           {content}
@@ -82,9 +84,21 @@ export const PointCard = ({
         />
 
         <div className="flex gap-sm w-full text-muted-foreground">
+          {isNegation && (
+            <Button
+              variant="ghost"
+              className="p-1 -ml-3 -mb-2 rounded-full size-fit hover:bg-muted/30"
+              onClick={(e) => {
+                e.stopPropagation();
+                // restake functionality will be added later
+              }}
+            >
+              <Repeat2Icon className="size-6 stroke-1" />
+            </Button>
+          )}
           <Button
             variant="ghost"
-            className="p-1 -ml-3 -mb-2 rounded-full size-fit hover:bg-negated/30"
+            className="p-1 -mb-2 rounded-full size-fit hover:bg-negated/30"
             onClick={(e) => {
               e.stopPropagation();
               onNegate?.(e);
