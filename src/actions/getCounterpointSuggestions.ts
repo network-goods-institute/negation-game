@@ -31,7 +31,7 @@ export const getCounterpointSuggestions = async (pointId: number) => {
 
     ${negations.length > 0 ? "Here are the existing counterpoints to the statement:]\n" + negations.map((negation) => negation.content).join("\n") : ""}
 
-    Generate 3 short (max ${POINT_MAX_LENGHT} characters) different counterpoints to the following statement: ${point.content}`;
+    Generate 3 short (max ${POINT_MAX_LENGHT} characters) statements that are opposite and mutually exclusive to the following statement: ${point.content}. Make sure they are not redundant and that their underlying ideas are not already expressed in the list of counterpoints above.`;
 
   const { elementStream } = await streamObject({
     model: openai("gpt-4o-mini"),
