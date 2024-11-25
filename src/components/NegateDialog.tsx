@@ -1,6 +1,7 @@
 import { addCounterpoint } from "@/actions/addCounterpoint";
 import { endorse } from "@/actions/endorse";
 import { fetchCounterpointCandidates } from "@/actions/fetchCounterpointCandidates";
+import { improveNegation } from "@/actions/improvePoint";
 import { negate } from "@/actions/negate";
 import { negationContentAtom } from "@/atoms/negationContentAtom";
 import { CredInput } from "@/components/CredInput";
@@ -48,6 +49,9 @@ export const NegateDialog: FC<NegateDialogProps> = ({
   const [selectedCounterpointCandidate, selectCounterpointCandidate] = useState<
     Awaited<ReturnType<typeof fetchCounterpointCandidates>>[number] | undefined
   >(undefined);
+  const [editingSuggestion, setEditingSuggestion] = useState<string | null>(null);
+  const [editedContents, setEditedContents] = useState<Map<string, string>>(new Map());
+  const [suggestionSelected, setSuggestionSelected] = useState(false);
   const charactersLeft = POINT_MAX_LENGHT - content.length;
   const canSubmit = selectedCounterpointCandidate
     ? cred > 0
@@ -70,12 +74,39 @@ export const NegateDialog: FC<NegateDialogProps> = ({
         : [],
   });
 
+  const { data: improvementSuggestionsStream } = useQuery({
+    queryKey: ["improvementSuggestions", debouncedContent, negatedPoint?.content],
+    queryFn: ({ queryKey: [, query, parentPoint] }: { queryKey: [string, string, string | undefined] }) =>
+      debouncedContent.length >= POINT_MIN_LENGHT && parentPoint ? improveNegation(query, parentPoint) : null,
+    enabled: !selectedCounterpointCandidate && !suggestionSelected && debouncedContent.length >= POINT_MIN_LENGHT && !!negatedPoint?.content,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    gcTime: 0
+  });
+
+  const [improvementSuggestions, setImprovementSuggestions] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!improvementSuggestionsStream) {
+      setImprovementSuggestions([]);
+      return;
+    }
+    const suggestions = improvementSuggestionsStream.split('\n').filter(Boolean);
+    setImprovementSuggestions(suggestions);
+  }, [improvementSuggestionsStream]);
+
   useEffect(() => {
     if (!open) {
       setContent("");
       selectCounterpointCandidate(undefined);
+      setEditingSuggestion(null);
+      setEditedContents(new Map());
+      setSuggestionSelected(false);
     }
   }, [open, setContent]);
+
   return (
     <Dialog {...props} open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:top-xl flex flex-col overflow-auto sm:translate-y-0 h-full rounded-none sm:rounded-md sm:h-fit gap-0  bg-background  p-4 sm:p-8 shadow-sm w-full max-w-xl">
@@ -218,6 +249,72 @@ export const NegateDialog: FC<NegateDialogProps> = ({
               ))}
             </>
           )}
+        {!selectedCounterpointCandidate && improvementSuggestions.length > 0 && (
+          <>
+            <p className="text-xs text-muted-foreground mb-md">
+              Consider these improved phrasings of your counterpoint:
+            </p>
+
+            {improvementSuggestions.map((suggestion, index) => (
+              <div key={index} className="flex flex-col w-full mb-2">
+                {editingSuggestion === suggestion ? (
+                  <div className="flex flex-col gap-2 p-4 border rounded-md">
+                    <textarea
+                      className="w-full min-h-[60px] bg-transparent resize-none outline-none"
+                      value={editedContents.get(suggestion) ?? suggestion}
+                      onChange={(e) => {
+                        const newMap = new Map(editedContents);
+                        newMap.set(suggestion, e.target.value);
+                        setEditedContents(newMap);
+                      }}
+                      autoFocus
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditingSuggestion(null);
+                          const newMap = new Map(editedContents);
+                          newMap.delete(suggestion);
+                          setEditedContents(newMap);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setContent(editedContents.get(suggestion) ?? suggestion);
+                          setSuggestionSelected(true);
+                          setEditingSuggestion(null);
+                          setEditedContents(new Map());
+                        }}
+                      >
+                        Use
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => {
+                      if (!editedContents.has(suggestion)) {
+                        const newMap = new Map(editedContents);
+                        newMap.set(suggestion, suggestion);
+                        setEditedContents(newMap);
+                      }
+                      setEditingSuggestion(suggestion);
+                    }}
+                    className="flex p-4 gap-2 hover:bg-accent w-full cursor-pointer border rounded-md"
+                  >
+                    <BlendIcon className="size-5 shrink-0 text-muted-foreground stroke-1" />
+                    <span className="flex-grow text-sm">{editedContents.get(suggestion) ?? suggestion}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </>
+        )}
         <Button
           className="mt-md self-end w-28"
           disabled={!canSubmit}
