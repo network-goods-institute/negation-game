@@ -1,5 +1,8 @@
 import { CredInput } from "@/components/CredInput";
-import { AutosizeTextarea } from "@/components/ui/autosize-textarea";
+import {
+  AutosizeTextarea,
+  AutosizeTextAreaProps,
+} from "@/components/ui/autosize-textarea";
 import { Separator } from "@/components/ui/separator";
 import { POINT_MAX_LENGHT, POINT_MIN_LENGHT } from "@/constants/config";
 import { useCredInput } from "@/hooks/useCredInput";
@@ -13,6 +16,7 @@ export interface PointEditorProps extends HTMLAttributes<HTMLDivElement> {
   cred: number;
   setCred: (cred: number) => void;
   placeholder?: string;
+  textareaProps?: Partial<AutosizeTextAreaProps>;
 }
 
 export const PointEditor: FC<PointEditorProps> = ({
@@ -21,6 +25,7 @@ export const PointEditor: FC<PointEditorProps> = ({
   setContent,
   cred,
   setCred,
+  textareaProps,
   placeholder = "Make your point",
 }) => {
   const charactersLeft = POINT_MAX_LENGHT - content.length;
@@ -35,6 +40,7 @@ export const PointEditor: FC<PointEditorProps> = ({
         autoFocus
         className="w-full rounded-none !ring-0 tracking-tight text-md border-none @sm/point:text-lg p-2 -ml-2 -mt-2 "
         placeholder={placeholder}
+        {...textareaProps}
       />
       <Separator className="w-full" />
       <p className="text-muted-foreground/70 text-xs -mt-1">
