@@ -2,6 +2,7 @@ import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import * as React from "react";
 
+import { Loader } from "@/components/ui/loader";
 import { cn } from "@/lib/cn";
 
 const buttonVariants = cva(
@@ -37,17 +38,57 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean;
+  leftSlot?: React.ReactNode;
+  leftLoading?: boolean;
+  rightLoading?: boolean;
+  rightSlot?: React.ReactNode;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  (
+    {
+      className,
+      variant,
+      size,
+      leftSlot,
+      leftLoading,
+      rightSlot,
+      rightLoading,
+      asChild = false,
+      children,
+      ...props
+    },
+    ref
+  ) => {
     const Comp = asChild ? Slot : "button";
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
         {...props}
-      />
+      >
+        {leftSlot ||
+          (leftLoading && (
+            <span className="mr-2">
+              {leftLoading ? (
+                <Loader className="text-inherit size-4" />
+              ) : (
+                leftSlot
+              )}
+            </span>
+          ))}
+        {children}
+        {rightSlot ||
+          (rightLoading && (
+            <span className="ml-2">
+              {rightLoading ? (
+                <Loader className="text-inherit size-4" />
+              ) : (
+                rightSlot
+              )}
+            </span>
+          ))}
+      </Comp>
     );
   }
 );
