@@ -39,6 +39,9 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
   const [selectedPoint, selectPoint] = useState<
     IterableElement<typeof similarPoints> | undefined
   >(undefined);
+  const [editingSuggestion, setEditingSuggestion] = useState<string | null>(null);
+  const [editedContents, setEditedContents] = useState<Map<string, string>>(new Map());
+  const [suggestionSelected, setSuggestionSelected] = useState(false);
   const charactersLeft = POINT_MAX_LENGHT - content.length;
   const { data: user } = useUser();
   const canSubmit =
@@ -62,17 +65,21 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
     queryKey: ["improvementSuggestions", debouncedContent],
     queryFn: ({ queryKey: [, query] }) =>
       debouncedContent.length >= POINT_MIN_LENGHT ? improvePoint(query) : null,
-    enabled: !selectedPoint && debouncedContent.length >= POINT_MIN_LENGHT,
+    enabled: !selectedPoint && !suggestionSelected && debouncedContent.length >= POINT_MIN_LENGHT,
     staleTime: Infinity,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-    refetchOnReconnect: false
+    refetchOnReconnect: false,
+    gcTime: 0
   });
 
   const [improvementSuggestions, setImprovementSuggestions] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!improvementSuggestionsStream) return;
+    if (!improvementSuggestionsStream) {
+      setImprovementSuggestions([]);
+      return;
+    }
     const suggestions = improvementSuggestionsStream.split('\n').filter(Boolean);
     setImprovementSuggestions(suggestions);
   }, [improvementSuggestionsStream]);
@@ -186,13 +193,61 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
             </p>
 
             {improvementSuggestions.map((suggestion, index) => (
-              <div
-                key={index}
-                onClick={() => setContent(suggestion)}
-                className="flex p-4 gap-2 hover:bg-accent w-full cursor-pointer border rounded-md mb-2"
-              >
-                <BlendIcon className="size-5 shrink-0 text-muted-foreground stroke-1" />
-                <span className="flex-grow text-sm">{suggestion}</span>
+              <div key={index} className="flex flex-col w-full mb-2">
+                {editingSuggestion === suggestion ? (
+                  <div className="flex flex-col gap-2 p-4 border rounded-md">
+                    <textarea
+                      className="w-full min-h-[60px] bg-transparent resize-none outline-none"
+                      value={editedContents.get(suggestion) ?? suggestion}
+                      onChange={(e) => {
+                        const newMap = new Map(editedContents);
+                        newMap.set(suggestion, e.target.value);
+                        setEditedContents(newMap);
+                      }}
+                      autoFocus
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditingSuggestion(null);
+                          const newMap = new Map(editedContents);
+                          newMap.delete(suggestion);
+                          setEditedContents(newMap);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setContent(editedContents.get(suggestion) ?? suggestion);
+                          setSuggestionSelected(true);
+                          setEditingSuggestion(null);
+                          setEditedContents(new Map());
+                        }}
+                      >
+                        Use
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => {
+                      if (!editedContents.has(suggestion)) {
+                        const newMap = new Map(editedContents);
+                        newMap.set(suggestion, suggestion);
+                        setEditedContents(newMap);
+                      }
+                      setEditingSuggestion(suggestion);
+                    }}
+                    className="flex p-4 gap-2 hover:bg-accent w-full cursor-pointer border rounded-md"
+                  >
+                    <BlendIcon className="size-5 shrink-0 text-muted-foreground stroke-1" />
+                    <span className="flex-grow text-sm">{editedContents.get(suggestion) ?? suggestion}</span>
+                  </div>
+                )}
               </div>
             ))}
           </>
@@ -216,6 +271,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
               onOpenChange?.(false);
               setContent("");
               selectPoint(undefined);
+              setSuggestionSelected(false);
               resetCred();
             });
           }}
