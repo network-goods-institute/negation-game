@@ -43,17 +43,17 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     }
   }, [open]);
 
-  const handleClose = () => {
-    onOpenChange?.(false);
-  };
-
   const handleSliderChange = useCallback((values: number[]) => {
     setLocalCredAmount(values[0]);
   }, []);
 
   return (
-    <Dialog {...props} open={open} onOpenChange={handleClose}>
-      <DialogContent className="flex flex-col gap-6 p-4 sm:p-6 max-w-xl">
+    <Dialog {...props} open={open} onOpenChange={onOpenChange}>
+      <DialogContent 
+        className="flex flex-col gap-6 p-4 sm:p-6 max-w-xl"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center gap-2">
           <DialogClose asChild>
             <Button variant="ghost" size="icon" className="text-primary">
@@ -138,7 +138,13 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
         </div>
 
         {/* Slider Section */}
-        <div className="space-y-4">
+        <div 
+          className="space-y-4"
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+          onMouseUp={(e) => e.stopPropagation()}
+        >
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium">Credibility Stake</span>
             <span className="text-sm text-muted-foreground">
@@ -164,10 +170,10 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
         {/* Action Buttons */}
         <div className="flex gap-3 justify-end">
-          <Button variant="outline" onClick={handleClose}>
+          <Button variant="outline" onClick={() => onOpenChange?.(false)}>
             Cancel
           </Button>
-          <Button variant="default" onClick={handleClose}>
+          <Button variant="default" onClick={() => onOpenChange?.(false)}>
             Submit
           </Button>
         </div>

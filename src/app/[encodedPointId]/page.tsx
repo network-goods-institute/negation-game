@@ -109,40 +109,13 @@ export default function PointPage({
     { id: number; content: string; createdAt: Date } | undefined
   >(undefined);
 
-  const { data: counterpointSuggestionsStream } = useQuery({
+  const { data: counterpointSuggestions = [] } = useQuery({
     queryKey: ["counterpoint-suggestions", point?.id],
     queryFn: ({ queryKey: [, pointId] }) =>
       getCounterpointSuggestions(pointId as number),
     enabled: !!point?.id && negations && negations.length === 0,
     staleTime: Infinity,
   });
-
-  const [counterpointSuggestions, setCounterpointSuggestions] = useState<
-    string[]
-  >([]);
-
-  useEffect(() => {
-    if (counterpointSuggestionsStream === undefined) return;
-
-    setCounterpointSuggestions([]);
-    let isCancelled = false;
-
-    const consumeStream = async () => {
-      const reader = counterpointSuggestionsStream.getReader();
-      while (!isCancelled) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        setCounterpointSuggestions((prev) => [...prev, value]);
-      }
-      reader.releaseLock();
-    };
-
-    consumeStream();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [counterpointSuggestionsStream]);
 
   return (
     <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow  gap-md bg-background overflow-auto">
