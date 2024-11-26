@@ -2,7 +2,7 @@
 
 import { Point, pointsTable } from "@/db/tables/pointsTable";
 import { db } from "@/services/db";
-import { openai } from "@ai-sdk/openai";
+import { google } from "@ai-sdk/google";
 import { generateObject } from "ai";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -13,7 +13,7 @@ export const addKeywords = async ({
 }: Pick<Point, "content" | "id">) => {
   const keywords = (
     await generateObject({
-      model: openai("gpt-4o-mini"),
+      model: google("gemini-1.5-flash"),
       output: "array",
       schema: z.string().describe("Keyword present in the content"),
       prompt: `Extract only the most relevant keywords from the following statement: ${content}`,

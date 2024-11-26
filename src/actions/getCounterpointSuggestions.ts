@@ -4,7 +4,7 @@ import { fetchPointNegations } from "@/actions/fetchPointNegations";
 import { POINT_MAX_LENGHT } from "@/constants/config";
 import { definitionsTable, pointsTable } from "@/db/schema";
 import { db } from "@/services/db";
-import { openai } from "@ai-sdk/openai";
+import { google } from "@ai-sdk/google";
 import { streamObject } from "ai";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -34,7 +34,7 @@ export const getCounterpointSuggestions = async (pointId: number) => {
     Generate 3 short (max ${POINT_MAX_LENGHT} characters) statements that are opposite and mutually exclusive to the following statement: ${point.content}. Make sure they are not redundant and that their underlying ideas are not already expressed in the list of counterpoints above.`;
 
   const { elementStream } = await streamObject({
-    model: openai("gpt-4o-mini"),
+    model: google("gemini-1.5-flash"),
     output: "array",
     schema: z.string().describe("Content of the counterpoint"),
     prompt,
