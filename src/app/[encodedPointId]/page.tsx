@@ -399,8 +399,10 @@ export default function PointPage({
 
               {counterpointSuggestions.length > 0 && (
                 <>
-                  <p className="w-full text-center pt-sm text-muted-foreground text-xs animate-fade-in">
-                    Try adding one of these AI-generated negations
+                  <p className="w-full text-center text-muted-foreground text-xs p-4 animate-fade-in">
+                    Want to add a negation? Try starting with one of these
+                    AI-generated ones{" "}
+                    <SparklesIcon className="size-3 inline-block align-baseline" />
                   </p>
                   {counterpointSuggestions.map((suggestion, i) => (
                     <div
@@ -416,10 +418,9 @@ export default function PointPage({
                       }}
                     >
                       <div className="relative grid text-muted-foreground">
-                        <CircleXIcon className="shrink-0 size-6 no-scaling-stroke circle-dashed-3 stroke-1 text-muted-foreground col-start-1 row-start-1" />
+                        <CircleXIcon className="shrink-0 size-6 stroke-1 text-muted-foreground col-start-1 row-start-1" />
                       </div>
-                      <p className="tracking-tighter text-md  @sm/point:text-lg text-muted-foreground -mt-1">
-                        <SparklesIcon className="size-[14px] inline-block align-baseline" />{" "}
+                      <p className="tracking-tighter text-sm  @sm/point:text-base  -mt-0.5">
                         {suggestion}
                       </p>
                     </div>
