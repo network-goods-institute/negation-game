@@ -246,10 +246,10 @@ export const NegateDialog: FC<NegateDialogProps> = ({
           </div>
 
           {counterpointWasReviewed && !reviewIsStale ? (
-            <div className="self-end mt-md flex gap-2">
+            <div className="items-end mt-md flex flex-col w-full xs:flex-row justify-end gap-2">
               <Button
                 variant="outline"
-                className={"min-w-28"}
+                className="min-w-28 w-full xs:w-fit"
                 rightLoading={
                   isReviewingCounterpoint ||
                   isNegating ||
@@ -299,7 +299,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({
               </Button>
 
               <PopoverTrigger asChild>
-                <Button>
+                <Button className="min-w-28 w-full xs:w-fit">
                   Review suggestions{" "}
                   <Badge className="bg-white text-primary ml-2 px-1.5">
                     {reviewResults.existingSimilarCounterpoints.length +

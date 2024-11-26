@@ -23,7 +23,7 @@ const config = {
       ({
         defaultScreens: ["0rem", theme("screens.lg")],
       }) satisfies FluidThemeConfig,
-    screens,
+    screens: { ...screens, xs: "28rem" },
     fontSize,
     container: {
       center: true,
