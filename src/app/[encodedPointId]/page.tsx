@@ -106,7 +106,7 @@ export default function PointPage({
 
   const { back, push } = useRouter();
   const [negatedPoint, setNegatedPoint] = useState<
-    { id: number; content: string; createdAt: Date } | undefined
+    { id: number; content: string; createdAt: Date; cred: number } | undefined
   >(undefined);
 
   const { data: counterpointSuggestionsStream } = useQuery({
