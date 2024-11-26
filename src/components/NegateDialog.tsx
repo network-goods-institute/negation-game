@@ -282,7 +282,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({
                         onClick={() => {
                           setEditingSuggestion(null);
                           const newMap = new Map(editedContents);
-                          newMap.delete(suggestion);
+                          newMap.delete(suggestion); // eslint-disable-line drizzle/enforce-delete-with-where
                           setEditedContents(newMap);
                         }}
                       >
