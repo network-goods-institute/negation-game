@@ -29,6 +29,7 @@ import { cn } from "@/lib/cn";
 import { decodeId } from "@/lib/decodeId";
 import { encodeId } from "@/lib/encodeId";
 import { favor } from "@/lib/negation-game/favor";
+import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
 import { TimelineScale, timelineScales } from "@/lib/timelineScale";
 import { usePrivy } from "@privy-io/react-auth";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
@@ -53,7 +54,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
 
 export default function PointPage({
   params,
@@ -400,12 +400,12 @@ export default function PointPage({
               {counterpointSuggestions.length > 0 && (
                 <>
                   <p className="w-full text-center pt-sm text-muted-foreground text-xs animate-fade-in">
-                    Try one of these AI-generated negations
+                    Try adding one of these AI-generated negations
                   </p>
                   {counterpointSuggestions.map((suggestion, i) => (
                     <div
                       key={`suggestion-${i}`}
-                      className="flex gap-3 mt-3 mx-2 px-3 py-4 rounded-md border hover:bg-muted cursor-pointer animate-fade-in"
+                      className="flex gap-3 mt-3 mx-2 px-3 py-4 rounded-md border border-dashed hover:bg-muted cursor-pointer animate-fade-in"
                       onClick={() => {
                         if (privyUser === null) {
                           login();
