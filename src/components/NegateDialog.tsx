@@ -38,12 +38,14 @@ import { useAtom } from "jotai";
 import {
   AlertTriangleIcon,
   ArrowLeftIcon,
+  CircleCheckBigIcon,
   CircleXIcon,
   DiscIcon,
   SparklesIcon,
+  SquarePenIcon,
   TrashIcon,
 } from "lucide-react";
-import { FC, useEffect, useState } from "react";
+import { FC, ReactNode, useEffect, useState } from "react";
 
 export interface NegateDialogProps extends DialogProps {
   negatedPoint?: { id: number; content: string; cred: number; createdAt: Date };
@@ -71,6 +73,10 @@ export const NegateDialog: FC<NegateDialogProps> = ({
   const { mutateAsync: endorse, isPending: isEndorsing } = useMutation({
     mutationFn: endorseAction,
   });
+
+  const [guidanceNotes, setGuidanceNotes] = useState<ReactNode | undefined>(
+    undefined
+  );
 
   const isSubmitting = isNegating || isEndorsing || isAddingCounterpoint;
 
@@ -104,15 +110,16 @@ export const NegateDialog: FC<NegateDialogProps> = ({
         counterpointContent,
       });
 
+      setGuidanceNotes(undefined);
+
       //set the review results cache for rephrasings so that the user is not forced to review again right away if he picks one
-      reviewResults.rephrasings.forEach((selectedRephrasing) =>
+      reviewResults.suggestions.forEach((selectedSuggestion) =>
         queryClient.setQueryData<typeof reviewResults>(
-          ["counterpoint-review", negatedPoint, selectedRephrasing] as const,
+          ["counterpoint-review", negatedPoint, selectedSuggestion] as const,
           produce(reviewResults, (draft) => {
             draft.rating = 10;
-            draft.rephrasings = draft.rephrasings.filter(
-              (suggestedRephrasing) =>
-                suggestedRephrasing !== selectedRephrasing
+            draft.suggestions = draft.suggestions.filter(
+              (suggestion) => suggestion !== selectedSuggestion
             );
           })
         )
@@ -241,6 +248,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({
                 cred={cred}
                 setCred={setCred}
                 placeholder="Make your counterpoint"
+                guidanceNotes={guidanceNotes}
               />
             )}
           </div>
@@ -283,7 +291,6 @@ export const NegateDialog: FC<NegateDialogProps> = ({
                       queryKey: ["favor-history", negatedPoint?.id],
                     });
 
-                    onOpenChange?.(false);
                     setCounterpointContent("");
                     resetCred();
                   })
@@ -303,17 +310,17 @@ export const NegateDialog: FC<NegateDialogProps> = ({
                   Review suggestions{" "}
                   <Badge className="bg-white text-primary ml-2 px-1.5">
                     {reviewResults.existingSimilarCounterpoints.length +
-                      reviewResults.rephrasings.length}
+                      reviewResults.suggestions.length}
                   </Badge>
                 </Button>
               </PopoverTrigger>
 
               <PopoverContent
                 autoFocus
-                className="flex flex-col w-[var(--radix-popper-anchor-width)] max-h-[var(--radix-popper-available-height)] sm:max-h-96  pt-4 p-2 overflow-clip -mt-lg"
+                className="flex flex-col w-[calc(100vw-1rem)] xs:w-[var(--radix-popper-anchor-width)] max-h-[var(--radix-popper-available-height)]  pt-4 p-2 overflow-clip -mt-lg"
               >
                 <p className="text-sm font-semibold text-muted-foreground mb-sm text-center">
-                  Review suggestions
+                  Review counterpoint suggestions
                 </p>
                 <div className="flex flex-col overflow-scroll  gap-sm shadow-inner border rounded-md p-2 bg-muted">
                   {reviewResults.existingSimilarCounterpoints.length > 0 && (
@@ -363,105 +370,69 @@ export const NegateDialog: FC<NegateDialogProps> = ({
                     </>
                   )}
 
-                  {reviewResults.rating >= GOOD_ENOUGH_POINT_RATING && (
-                    <>
-                      <span className="text-xs text-muted-foreground text-center">
-                        Stick with your Point
-                      </span>
-                      <div
-                        key={"player-counterpoint"}
-                        onClick={() => {
-                          selectCounterpointCandidate(undefined);
-                          toggleReviewPopoverOpen(false);
-                        }}
-                        className="relative flex flex-col gap-2 p-4 w-full  bg-background   hover:border-muted-foreground cursor-pointer border border-dashed  rounded-md"
-                      >
-                        <span className="flex-grow text-sm">
-                          {counterpointContent}
-                        </span>
-                        <PointStats
-                          favor={favor({
-                            cred,
-                            negationsCred: negatedPoint?.cred ?? 0,
-                          })}
-                          amountNegations={1}
-                          amountSupporters={1}
-                          cred={cred}
-                        />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="h-px border-b flex-grow" />{" "}
-                        <span className="text-xs text-muted-foreground">
-                          or
-                        </span>
-                        <div className="h-px border-b flex-grow" />
-                      </div>
-                    </>
-                  )}
                   <span className="text-xs text-muted-foreground text-center">
-                    Pick one of the AI suggested rephrasings{" "}
+                    Pick one of these AI suggestions{" "}
                     <SparklesIcon className="size-3 inline-block" />
                   </span>
-                  {reviewResults.rephrasings.map((rephrasing, i) => (
+                  {reviewResults.suggestions.map((suggestion, i) => (
                     <div
                       key={`rephrasing-${i}`}
                       onClick={() => {
-                        setCounterpointContent(rephrasing);
+                        setGuidanceNotes(
+                          <>
+                            <SquarePenIcon className="size-3 align-[-1.5px] inline-block" />{" "}
+                            {counterpointContent}
+                          </>
+                        );
+                        setCounterpointContent(suggestion);
                         toggleReviewPopoverOpen(false);
                       }}
                       className="relative flex flex-col gap-2 p-4 w-full  bg-background   hover:border-muted-foreground cursor-pointer border border-dashed  rounded-md"
                     >
-                      <span className="flex-grow text-sm">{rephrasing}</span>
-                      <PointStats
-                        favor={favor({
-                          cred,
-                          negationsCred: negatedPoint?.cred ?? 0,
-                        })}
-                        amountNegations={1}
-                        amountSupporters={1}
-                        cred={cred}
-                      />
+                      <span className="flex-grow text-sm">{suggestion}</span>
                     </div>
                   ))}
-                  {reviewResults.rating < GOOD_ENOUGH_POINT_RATING && (
-                    <>
-                      <div className="flex items-center gap-2">
-                        <div className="h-px border-b flex-grow" />{" "}
-                        <span className="text-xs text-muted-foreground">
-                          or
-                        </span>
-                        <div className="h-px border-b flex-grow" />
-                      </div>
-                      <span className="text-xs text-muted-foreground text-center">
-                        Stick with your counterpoint
-                      </span>
-                      <div
-                        key={"player-counterpoint"}
-                        onClick={() => {
-                          selectCounterpointCandidate(undefined);
-                          toggleReviewPopoverOpen(false);
-                        }}
-                        className="relative flex flex-col gap-2 p-4 w-full  bg-background   hover:border-muted-foreground  cursor-pointer border border-dashed  rounded-md"
-                      >
-                        <span className="flex-grow text-sm">
-                          {counterpointContent}
-                        </span>
-                        <PointStats
-                          favor={favor({
-                            cred,
-                            negationsCred: negatedPoint?.cred ?? 0,
-                          })}
-                          amountNegations={1}
-                          amountSupporters={1}
-                          cred={cred}
-                        />
-                      </div>
-                      <span className="text-xs text-muted-foreground text-center">
-                        <AlertTriangleIcon className="size-3 align-[-2px] inline-block mr-1" />
-                        {reviewResults.suggestions}
-                      </span>
-                    </>
-                  )}
+                  <span className="text-xs text-muted-foreground text-center">
+                    (You can edit them and we'll keep your words as reference)
+                  </span>
+                </div>
+                <p className="text-sm font-semibold text-muted-foreground mt-sm text-center">
+                  Or stick with your counterpoint
+                </p>
+                <div className="flex flex-col p-sm ">
+                  <div
+                    key={"player-counterpoint"}
+                    onClick={() => {
+                      setGuidanceNotes(
+                        reviewResults.rating < GOOD_ENOUGH_POINT_RATING ? (
+                          <>
+                            <AlertTriangleIcon className="size-3 align-[-1.5px] inline-block" />{" "}
+                            {reviewResults.feedback}
+                          </>
+                        ) : undefined
+                      );
+                      selectCounterpointCandidate(undefined);
+                      toggleReviewPopoverOpen(false);
+                    }}
+                    className="relative flex flex-col gap-2 p-4 w-full shadow-sm  mb-sm  bg-background   hover:border-muted-foreground  cursor-pointer border border-dashed rounded-md"
+                  >
+                    <span className="flex-grow text-sm">
+                      {counterpointContent}
+                    </span>
+                  </div>
+                  <span className="text-xs text-muted-foreground mx-md">
+                    {reviewResults.rating < GOOD_ENOUGH_POINT_RATING ? (
+                      <>
+                        <AlertTriangleIcon className="size-3 align-[-1.5px] inline-block" />{" "}
+                        But it needs work. You'll have some feedback.
+                      </>
+                    ) : (
+                      <>
+                        <CircleCheckBigIcon className="size-3 align-[-1.5px] inline-block" />{" "}
+                        That's a good Point
+                      </>
+                    )}
+                  </span>
                 </div>
               </PopoverContent>
             </div>

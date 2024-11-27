@@ -1,7 +1,7 @@
 "use server";
 
 import { findCounterpointCandidatesAction } from "@/actions/findCounterpointCandidatesAction";
-import { rateAndRefineCounterpointAction as rateAndRephraseCounterpointAction } from "@/actions/rateAndRephraseCounterpointAction";
+import { rateAndRefineCounterpointAction } from "@/actions/rateAndRefineCounterpointAction";
 import { Point } from "@/db/tables/pointsTable";
 
 export interface ReviewProposedCounterpointArgs {
@@ -21,7 +21,7 @@ export const reviewProposedCounterpointAction = async ({
     negatedPointId,
   });
 
-  const ratingAndRephrasings = rateAndRephraseCounterpointAction({
+  const ratingAndRephrasings = rateAndRefineCounterpointAction({
     counterpointContent,
     negatedPointContent,
   });
