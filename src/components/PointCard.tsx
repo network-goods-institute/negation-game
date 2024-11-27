@@ -17,7 +17,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
 import { useRouter } from "next/navigation";
-import { Repeat2Icon } from "lucide-react";
+import { Scale } from "lucide-react";
 import { RestakeDialog } from "@/components/RestakeDialog";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
@@ -39,6 +39,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
     id: number;
     content: string;
     createdAt: Date;
+    cred: number;
   };
 }
 
@@ -93,87 +94,89 @@ export const PointCard = ({
           />
 
           <div className="flex gap-sm w-full text-muted-foreground">
-            {isNegation && (
+            <div className="flex gap-sm">
               <Button
                 variant="ghost"
-                className="p-1 -ml-3 -mb-2 rounded-full size-fit hover:bg-muted/30"
+                className="p-1 -mb-2 rounded-full size-fit hover:bg-negated/30"
                 onClick={(e) => {
-                  e.preventDefault();
                   e.stopPropagation();
-                  console.log('Restake clicked', { isNegation, parentPoint });
-                  toggleRestakeDialog(true);
+                  onNegate?.(e);
                 }}
               >
-                <Repeat2Icon className="size-6 stroke-1" />
+                <NegateIcon />
               </Button>
-            )}
-            <Button
-              variant="ghost"
-              className="p-1 -mb-2 rounded-full size-fit hover:bg-negated/30"
-              onClick={(e) => {
-                e.stopPropagation();
-                onNegate?.(e);
-              }}
-            >
-              <NegateIcon />
-            </Button>
-            <Popover
-              open={endorsePopoverOpen}
-              onOpenChange={toggleEndorsePopoverOpen}
-            >
-              <PopoverTrigger asChild>
+              <Popover
+                open={endorsePopoverOpen}
+                onOpenChange={toggleEndorsePopoverOpen}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (privyUser === null) {
+                        login();
+                        return;
+                      }
+                      toggleEndorsePopoverOpen();
+                    }}
+                    className={cn(
+                      "p-1 rounded-full -mb-2 size-fit gap-sm hover:bg-endorsed/30",
+                      endorsedByViewer && "text-endorsed pr-3"
+                    )}
+                    variant={"ghost"}
+                  >
+                    <EndorseIcon
+                      className={cn(endorsedByViewer && "fill-current")}
+                    />{" "}
+                    {endorsedByViewer && (
+                      <span>{viewerContext.viewerCred} cred</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="flex flex-col items-start w-96"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="w-full flex justify-between">
+                    <CredInput
+                      cred={cred}
+                      setCred={setCred}
+                      notEnoughCred={notEnoughCred}
+                    />
+                    <Button
+                      disabled={cred === 0 || notEnoughCred}
+                      onClick={() => {
+                        endorse({ pointId, cred }).then(() => {
+                          queryClient.invalidateQueries({ queryKey: ["feed"] });
+                          toggleEndorsePopoverOpen(false);
+                        });
+                      }}
+                    >
+                      Endorse
+                    </Button>
+                  </div>
+                  {notEnoughCred && (
+                    <span className="ml-md text-destructive text-sm h-fit">
+                      not enough cred
+                    </span>
+                  )}
+                </PopoverContent>
+              </Popover>
+              {isNegation && parentPoint?.cred && parentPoint.cred > 0 && (
                 <Button
+                  variant="ghost"
+                  className="p-1 -mb-2 rounded-full size-fit hover:bg-muted/30"
                   onClick={(e) => {
                     e.preventDefault();
-                    if (privyUser === null) {
-                      login();
-                      return;
-                    }
-                    toggleEndorsePopoverOpen();
+                    e.stopPropagation();
+                    console.log('Restake clicked', { isNegation, parentPoint });
+                    toggleRestakeDialog(true);
                   }}
-                  className={cn(
-                    "p-1 rounded-full -mb-2 size-fit gap-sm hover:bg-endorsed/30",
-                    endorsedByViewer && "text-endorsed pr-3"
-                  )}
-                  variant={"ghost"}
                 >
-                  <EndorseIcon
-                    className={cn(endorsedByViewer && "fill-current")}
-                  />{" "}
-                  {endorsedByViewer && (
-                    <span>{viewerContext.viewerCred} cred</span>
-                  )}
+                  <Scale className="size-6 stroke-1" />
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="flex flex-col items-start w-96"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="w-full flex justify-between">
-                  <CredInput
-                    cred={cred}
-                    setCred={setCred}
-                    notEnoughCred={notEnoughCred}
-                  />
-                  <Button
-                    disabled={cred === 0 || notEnoughCred}
-                    onClick={() => {
-                      endorse({ pointId, cred }).then(() => {
-                        queryClient.invalidateQueries({ queryKey: ["feed"] });
-                        toggleEndorsePopoverOpen(false);
-                      });
-                    }}
-                  >
-                    Endorse
-                  </Button>
-                </div>
-                {notEnoughCred && (
-                  <span className="ml-md text-destructive text-sm h-fit">
-                    not enough cred
-                  </span>
-                )}
-              </PopoverContent>
-            </Popover>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -182,7 +185,10 @@ export const PointCard = ({
         <RestakeDialog
           open={restakeDialogOpen}
           onOpenChange={toggleRestakeDialog}
-          originalPoint={parentPoint}
+          originalPoint={{
+            ...parentPoint!,
+            stakedAmount: parentPoint?.cred || 0
+          }}
           counterPoint={{
             id: pointId,
             content,
