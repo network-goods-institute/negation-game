@@ -393,7 +393,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({
                     </div>
                   ))}
                   <span className="text-xs text-muted-foreground text-center">
-                    (You can edit them and we'll keep your words as reference)
+                    {`(You can edit them and we'll keep your words as reference)`}
                   </span>
                 </div>
                 <p className="text-sm font-semibold text-muted-foreground mt-sm text-center">
@@ -423,13 +423,13 @@ export const NegateDialog: FC<NegateDialogProps> = ({
                   <span className="text-xs text-muted-foreground mx-md">
                     {reviewResults.rating < GOOD_ENOUGH_POINT_RATING ? (
                       <>
-                        <AlertTriangleIcon className="size-3 align-[-1.5px] inline-block" />{" "}
-                        But it needs work. You'll have some feedback.
+                        <AlertTriangleIcon className="size-3 align-[-1.5px] inline-block" />
+                        {` But it needs work. You'll have some feedback.`}
                       </>
                     ) : (
                       <>
-                        <CircleCheckBigIcon className="size-3 align-[-1.5px] inline-block" />{" "}
-                        That's a good Point
+                        <CircleCheckBigIcon className="size-3 align-[-1.5px] inline-block" />
+                        {` That's a good Point`}
                       </>
                     )}
                   </span>
