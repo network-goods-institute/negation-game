@@ -9,4 +9,4 @@ export const USERNAME_MAX_LENGHT = 15;
 
 export const DEFAULT_TIMESCALE: TimelineScale = "ALL";
 
-export const GOOD_ENOUGH_POINT_RATING = 8;
+export const GOOD_ENOUGH_POINT_RATING = 7;
