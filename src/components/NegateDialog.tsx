@@ -149,11 +149,11 @@ export const NegateDialog: FC<NegateDialogProps> = ({
     selectCounterpointCandidate(undefined);
     setGuidanceNotes(undefined);
     resetCred();
-  }, []);
+  }, [resetCred, setCounterpointContent]);
 
   useEffect(() => {
     if (!open) resetForm();
-  }, [open, setCounterpointContent]);
+  }, [open, resetForm, setCounterpointContent]);
 
   return (
     <Dialog {...props} open={open} onOpenChange={onOpenChange}>
