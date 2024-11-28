@@ -38,6 +38,7 @@ import {
   ArrowLeftIcon,
   CircleXIcon,
   DiscIcon,
+  Repeat2Icon,
   SparklesIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -54,6 +55,7 @@ import {
   YAxis,
 } from "recharts";
 import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
+import { SelectNegationDialog } from "@/components/SelectNegationDialog";
 
 export default function PointPage({
   params,
@@ -117,6 +119,8 @@ export default function PointPage({
     staleTime: Infinity,
   });
 
+  const [selectNegationDialogOpen, toggleSelectNegationDialog] = useToggle(false);
+
   return (
     <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow  gap-md bg-background overflow-auto">
       <div className="w-full sm:col-[2] flex flex-col border-x pb-10">
@@ -147,6 +151,24 @@ export default function PointPage({
                 <h1 className="text-xl font-medium">Point</h1>
               </div>
               <div className="flex gap-sm items-center text-muted-foreground">
+                <Button
+                  variant="ghost"
+                  className="p-2 rounded-full size-fit hover:bg-muted/30"
+                  onClick={() => toggleSelectNegationDialog(true)}
+                >
+                  <Repeat2Icon className="size-6 stroke-1" />
+                </Button>
+                <SelectNegationDialog
+                  open={selectNegationDialogOpen}
+                  onOpenChange={toggleSelectNegationDialog}
+                  originalPoint={{
+                    id: point.id,
+                    content: point.content,
+                    createdAt: point.createdAt,
+                    stakedAmount: point.cred
+                  }}
+                  negationId={point.id}
+                />
                 <Popover
                   open={endorsePopoverOpen}
                   onOpenChange={toggleEndorsePopoverOpen}
@@ -359,7 +381,7 @@ export default function PointPage({
                       amountNegations={negation.amountNegations}
                       pointId={negation.id}
                       totalCred={negation.cred}
-                      viewerContext={{ viewerCred: negation.viewerCred }}
+                      viewerContext={{ viewerCred: negation.cred }}
                       isNegation={true}
                       parentPoint={point}
                     />

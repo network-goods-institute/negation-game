@@ -163,18 +163,19 @@ export const PointCard = ({
                 </PopoverContent>
               </Popover>
               {isNegation && parentPoint?.cred && parentPoint.cred > 0 && (
-                <Button
-                  variant="ghost"
-                  className="p-1 -mb-2 rounded-full size-fit hover:bg-muted/30"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('Restake clicked', { isNegation, parentPoint });
-                    toggleRestakeDialog(true);
-                  }}
-                >
-                  <Scale className="size-6 stroke-1" />
-                </Button>
+                <>
+                  <Button
+                    variant="ghost"
+                    className="p-1 -mb-2 rounded-full size-fit hover:bg-muted/30"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleRestakeDialog(true);
+                    }}
+                  >
+                    <Scale className="size-6 stroke-1" />
+                  </Button>
+                </>
               )}
             </div>
           </div>
