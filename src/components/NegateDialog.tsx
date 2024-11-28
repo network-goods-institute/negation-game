@@ -384,7 +384,17 @@ export const NegateDialog: FC<NegateDialogProps> = ({
                         setGuidanceNotes(
                           <>
                             <SquarePenIcon className="size-3 align-[-1.5px] inline-block" />{" "}
-                            {counterpointContent}
+                            {counterpointContent}{" "}
+                            <Button
+                              variant={"link"}
+                              className="text-xs size-fit inline-block p-0 font-normal underline underline-offset-1 ml-1"
+                              onClick={() => {
+                                setCounterpointContent(counterpointContent);
+                                setGuidanceNotes(undefined);
+                              }}
+                            >
+                              restore
+                            </Button>
                           </>
                         );
                         setCounterpointContent(suggestion);
