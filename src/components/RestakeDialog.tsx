@@ -45,8 +45,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   });
 
   const actualStakeAmount = (originalPoint.stakedAmount * stakePercentage) / 100;
-  const maxPossibleFavor = Math.round(originalPoint.stakedAmount / 2);
-  const bonusFavor = Math.round((stakePercentage / 100) * maxPossibleFavor);
+  const bonusFavor = Math.round(actualStakeAmount);
 
   // Get the current favor from the last data point
   const currentFavor = favorHistory?.length ? favorHistory[favorHistory.length - 1].favor : 50;
