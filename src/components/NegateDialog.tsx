@@ -45,7 +45,7 @@ import {
   SquarePenIcon,
   TrashIcon,
 } from "lucide-react";
-import { FC, ReactNode, useEffect, useState } from "react";
+import { FC, ReactNode, useCallback, useEffect, useState } from "react";
 
 export interface NegateDialogProps extends DialogProps {
   negatedPoint?: { id: number; content: string; cred: number; createdAt: Date };
@@ -144,11 +144,15 @@ export const NegateDialog: FC<NegateDialogProps> = ({
       counterpointContent.length >= POINT_MIN_LENGHT &&
       cred > 0;
 
+  const resetForm = useCallback(() => {
+    setCounterpointContent("");
+    selectCounterpointCandidate(undefined);
+    setGuidanceNotes(undefined);
+    resetCred();
+  }, []);
+
   useEffect(() => {
-    if (!open) {
-      setCounterpointContent("");
-      selectCounterpointCandidate(undefined);
-    }
+    if (!open) resetForm();
   }, [open, setCounterpointContent]);
 
   return (
@@ -291,8 +295,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({
                       queryKey: ["favor-history", negatedPoint?.id],
                     });
 
-                    setCounterpointContent("");
-                    resetCred();
+                    resetForm();
                   })
                 }
               >
