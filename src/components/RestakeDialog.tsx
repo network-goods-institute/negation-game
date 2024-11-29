@@ -75,9 +75,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   return (
     <Dialog {...props} open={open} onOpenChange={onOpenChange}>
       <DialogContent 
-        className="flex flex-col gap-6 p-4 sm:p-6 max-w-xl"
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={(e) => e.stopPropagation()}
+        className="flex flex-col gap-6 p-4 sm:p-6 max-w-xl overflow-hidden"
       >
         <div className="flex items-center gap-2">
           <DialogClose asChild>
@@ -99,13 +97,16 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
             <Loader className="absolute left-0 right-0 mx-auto top-[20px]" />
           ) : (
             <>
-              <div className="absolute right-[8%] -top-6 text-xs text-muted-foreground">
-                Projected
+              <div className="sticky top-0 flex justify-end w-full">
+                <span className="text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded-sm">
+                  Projected
+                </span>
               </div>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart 
                   data={projectedData} 
                   className="[&>.recharts-surface]:overflow-visible"
+                  margin={{ top: 20, right: 20, bottom: 0, left: 20 }}
                 >
                   <XAxis dataKey="timestamp" hide />
                   <YAxis domain={[0, 100]} hide />
@@ -134,7 +135,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                             y={cy - 10}
                             textAnchor="middle"
                             fill="currentColor"
-                            className="text-xs"
+                            className="text-xs whitespace-nowrap"
                           >
                             +{bonusFavor} favor
                           </text>
