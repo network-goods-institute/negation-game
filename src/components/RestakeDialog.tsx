@@ -76,6 +76,10 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     <Dialog {...props} open={open} onOpenChange={onOpenChange}>
       <DialogContent 
         className="flex flex-col gap-6 p-4 sm:p-6 max-w-xl overflow-hidden"
+        onPointerDown={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onPointerUp={(e) => e.stopPropagation()}
+        onMouseUp={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2">
           <DialogClose asChild>
@@ -83,7 +87,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
               <ArrowLeftIcon className="size-5" />
             </Button>
           </DialogClose>
-          <DialogTitle className="sr-only">Restake Points</DialogTitle>
+          <DialogTitle className="sr-only">Get higher favor</DialogTitle>
         </div>
 
         {/* Original Point */}
@@ -173,10 +177,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
             "space-y-4",
             maxStakeAmount === 0 && "opacity-50"
           )}
-          onPointerDown={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-          onPointerUp={(e) => e.stopPropagation()}
-          onMouseUp={(e) => e.stopPropagation()}
         >
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium">Restake Percentage</span>
