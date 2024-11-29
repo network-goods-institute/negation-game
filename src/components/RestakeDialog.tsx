@@ -77,9 +77,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
       <DialogContent 
         className="flex flex-col gap-6 p-4 sm:p-6 max-w-xl overflow-hidden"
         onPointerDown={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
-        onPointerUp={(e) => e.stopPropagation()}
-        onMouseUp={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2">
           <DialogClose asChild>
