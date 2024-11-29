@@ -179,7 +179,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           )}
         >
           <div className="flex justify-between items-center">
-            <span className="text-sm font-medium">Restake Percentage</span>
+            <span className="text-sm font-medium">Impact</span>
             <span className="text-sm text-muted-foreground">
               {Math.round(actualStakeAmount * 10) / 10} / {maxStakeAmount} cred ({stakePercentage}%)
             </span>
