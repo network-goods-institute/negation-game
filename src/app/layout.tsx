@@ -4,7 +4,7 @@ import { ThemedPrivyProvider } from "@/components/providers/ThemedPrivyProvider"
 import { ModeToggle } from "@/components/ui/ModeToggle";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
-import Dynamic from "@/components/utils/Dynamic";
+import { Dynamic } from "@/components/utils/Dynamic";
 import { cn } from "@/lib/cn";
 import { Analytics } from "@vercel/analytics/react";
 import type { Metadata } from "next";

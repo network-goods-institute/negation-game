@@ -3,10 +3,12 @@
 import dynamic from "next/dynamic";
 import React, { PropsWithChildren } from "react";
 
-export const Dynamic = (props: PropsWithChildren) => (
-  <React.Fragment>{props.children}</React.Fragment>
+export const Dynamic = dynamic(
+  () =>
+    Promise.resolve((props: PropsWithChildren) => (
+      <React.Fragment>{props.children}</React.Fragment>
+    )),
+  {
+    ssr: false,
+  }
 );
-
-export default dynamic(() => Promise.resolve(Dynamic), {
-  ssr: false,
-});
