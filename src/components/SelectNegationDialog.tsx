@@ -57,7 +57,7 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
               Restaking lets you gain additional influence by specifying what would change your mind.
             </p>
             <p>
-              Select a counter-argument below. If you later acknowledge it's correct, you'll lose your original stake. 
+              Select a counter-argument below. If you later acknowledge it&apos;s correct, you&apos;ll lose your original stake. 
               Other players can doubt your commitment to change your mind, creating an incentive for intellectual honesty.
             </p>
           </div>
