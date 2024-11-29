@@ -52,6 +52,13 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
             <DialogTitle>Get higher favor</DialogTitle>
           </div>
 
+          <div className="space-y-2">
+            <p className="text-lg font-medium">{originalPoint.content}</p>
+            <span className="inline-flex px-3 py-1 rounded-full bg-endorsed/10 text-endorsed text-sm">
+              {favor({ cred: originalPoint.stakedAmount, negationsCred: 0 })} favor
+            </span>
+          </div>
+
           <div className="text-sm text-muted-foreground space-y-2 bg-muted/30 p-3 rounded-md">
             <p>
               Select a counterpoint that would change your mind if it were true. Get higher favor for this point.

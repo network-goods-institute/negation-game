@@ -17,7 +17,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
 import { useRouter } from "next/navigation";
-import { Scale } from "lucide-react";
+import { Scale, DiamondIcon } from "lucide-react";
 import { RestakeDialog } from "@/components/RestakeDialog";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
@@ -173,7 +173,7 @@ export const PointCard = ({
                       toggleRestakeDialog(true);
                     }}
                   >
-                    <Scale className="size-6 stroke-1" />
+                    <DiamondIcon className="size-7 stroke-1" />
                   </Button>
                 </>
               )}

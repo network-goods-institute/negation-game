@@ -11,6 +11,12 @@ import { DEFAULT_TIMESCALE } from "@/constants/config";
 import { TimelineScale } from "@/lib/timelineScale";
 import { Loader } from "./ui/loader";
 import { cn } from "@/lib/cn";
+import { endorse } from "@/actions/endorse";
+import { CredInput } from "@/components/CredInput";
+import { useCredInput } from "@/hooks/useCredInput";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToggle } from "@uidotdev/usehooks";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export interface RestakeDialogProps extends DialogProps {
   originalPoint: {
@@ -36,6 +42,11 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 }) => {
   const [stakePercentage, setStakePercentage] = useState(0);
   const [timelineScale, setTimelineScale] = useState<TimelineScale>(DEFAULT_TIMESCALE);
+  const [endorsePopoverOpen, toggleEndorsePopoverOpen] = useToggle(false);
+  const { cred, setCred, notEnoughCred } = useCredInput({
+    resetWhen: !endorsePopoverOpen,
+  });
+  const queryClient = useQueryClient();
 
   const { data: favorHistory, isLoading: isLoadingHistory } = useQuery({
     queryKey: ["favor-history", originalPoint.id, timelineScale],
@@ -79,13 +90,59 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2">
-          <DialogClose asChild>
-            <Button variant="ghost" size="icon" className="text-primary">
-              <ArrowLeftIcon className="size-5" />
-            </Button>
-          </DialogClose>
-          <DialogTitle className="sr-only">Get higher favor</DialogTitle>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <DialogClose asChild>
+              <Button variant="ghost" size="icon" className="text-primary">
+                <ArrowLeftIcon className="size-5" />
+              </Button>
+            </DialogClose>
+            <DialogTitle>Get higher favor</DialogTitle>
+          </div>
+          
+          <Popover open={endorsePopoverOpen} onOpenChange={toggleEndorsePopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button 
+                variant="ghost" 
+                className={cn(
+                  "border px-4",
+                  originalPoint.viewerCred && "text-endorsed"
+                )}
+              >
+                {originalPoint.viewerCred ? "Endorsed" : "Endorse"}
+                {originalPoint.viewerCred && (
+                  <span className="ml-2">{originalPoint.viewerCred} cred</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="flex flex-col items-start w-96">
+              <div className="w-full flex justify-between">
+                <CredInput
+                  cred={cred}
+                  setCred={setCred}
+                  notEnoughCred={notEnoughCred}
+                />
+                <Button
+                  disabled={cred === 0 || notEnoughCred}
+                  onClick={() => {
+                    endorse({ pointId: originalPoint.id, cred }).then(() => {
+                      queryClient.invalidateQueries({ 
+                        queryKey: ["point", originalPoint.id] 
+                      });
+                      toggleEndorsePopoverOpen(false);
+                    });
+                  }}
+                >
+                  Endorse
+                </Button>
+              </div>
+              {notEnoughCred && (
+                <span className="ml-md text-destructive text-sm h-fit">
+                  not enough cred
+                </span>
+              )}
+            </PopoverContent>
+          </Popover>
         </div>
 
         {/* Original Point */}
