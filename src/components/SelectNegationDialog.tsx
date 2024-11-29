@@ -19,6 +19,9 @@ interface SelectNegationDialogProps extends DialogProps {
     createdAt: Date;
     stakedAmount: number;
     viewerCred?: number;
+    amountSupporters: number;
+    amountNegations: number;
+    negationsCred: number;
   };
   negationId: number;
 }
@@ -55,7 +58,10 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
           <div className="space-y-2">
             <p className="text-lg font-medium">{originalPoint.content}</p>
             <span className="inline-flex px-3 py-1 rounded-full bg-endorsed/10 text-endorsed text-sm">
-              {favor({ cred: originalPoint.stakedAmount, negationsCred: 0 })} favor
+              {favor({ 
+                cred: originalPoint.stakedAmount, 
+                negationsCred: originalPoint.negationsCred 
+              })} favor
             </span>
           </div>
 
@@ -114,7 +120,11 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
           }}
           originalPoint={{
             ...originalPoint,
-            viewerCred: originalPoint.viewerCred
+            viewerCred: originalPoint.viewerCred,
+            cred: originalPoint.stakedAmount,
+            negationsCred: originalPoint.negationsCred || 0,
+            amountSupporters: originalPoint.amountSupporters || 0,
+            amountNegations: originalPoint.amountNegations || 0
           }}
           counterPoint={selectedNegation}
         />

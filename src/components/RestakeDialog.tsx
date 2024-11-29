@@ -17,6 +17,11 @@ import { useCredInput } from "@/hooks/useCredInput";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { timelineScales } from "@/lib/timelineScale";
+import { PointStats } from "@/components/PointStats";
+import { favor } from "@/lib/negation-game/favor";
+import { format } from "date-fns";
 
 export interface RestakeDialogProps extends DialogProps {
   originalPoint: {
@@ -25,6 +30,10 @@ export interface RestakeDialogProps extends DialogProps {
     createdAt: Date;
     stakedAmount: number;
     viewerCred?: number;
+    cred: number;
+    negationsCred: number;
+    amountSupporters: number;
+    amountNegations: number;
   };
   counterPoint: {
     id: number;
@@ -86,11 +95,12 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   return (
     <Dialog {...props} open={open} onOpenChange={onOpenChange}>
       <DialogContent 
-        className="flex flex-col gap-6 p-4 sm:p-6 max-w-xl overflow-hidden"
+        className="flex flex-col gap-4 p-4 sm:p-6 max-w-xl overflow-hidden"
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-2">
+        {/* Header */}
+        <div className="flex items-center justify-between gap-2 pb-2 border-b">
           <div className="flex items-center gap-2">
             <DialogClose asChild>
               <Button variant="ghost" size="icon" className="text-primary">
@@ -106,11 +116,11 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                 variant="ghost" 
                 className={cn(
                   "border px-4",
-                  originalPoint.viewerCred && "text-endorsed"
+                  (originalPoint.viewerCred || 0) > 0 && "text-endorsed"
                 )}
               >
-                {originalPoint.viewerCred ? "Endorsed" : "Endorse"}
-                {originalPoint.viewerCred && (
+                {(originalPoint.viewerCred || 0) > 0 ? "Endorsed" : "Endorse"}
+                {(originalPoint.viewerCred || 0) > 0 && (
                   <span className="ml-2">{originalPoint.viewerCred} cred</span>
                 )}
               </Button>
@@ -145,13 +155,47 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           </Popover>
         </div>
 
-        {/* Original Point */}
-        <div>
+        {/* Original Point with Date */}
+        <div className="space-y-2 pb-2">
           <p className="text-lg font-medium">{originalPoint.content}</p>
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground text-sm">
+              {format(originalPoint.createdAt, "h':'mm a '·' MMM d',' yyyy")}
+            </span>
+            <span className="inline-flex px-3 py-1 rounded-full bg-endorsed/10 text-endorsed text-sm">
+              {favor({ cred: originalPoint.cred, negationsCred: originalPoint.negationsCred })} favor
+            </span>
+          </div>
         </div>
 
-        {/* Graph */}
-        <div className="w-full h-32 relative bg-background">
+        {/* Timeline Controls */}
+        <div className="flex justify-between items-center pb-2">
+          <ToggleGroup
+            type="single"
+            value={timelineScale}
+            onValueChange={(v) => v && setTimelineScale(v as TimelineScale)}
+            className="flex gap-px w-fit"
+          >
+            {timelineScales.map((scale) => (
+              <ToggleGroupItem
+                value={scale}
+                className="w-10 h-6 text-sm text-muted-foreground"
+                key={scale}
+              >
+                {scale}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          <Loader
+            className="text-muted-foreground size-4"
+            style={{
+              display: isLoadingHistory ? "block" : "none",
+            }}
+          />
+        </div>
+
+        {/* Graph Section */}
+        <div className="w-full h-32 relative bg-background mb-4">
           {isLoadingHistory ? (
             <Loader className="absolute left-0 right-0 mx-auto top-[20px]" />
           ) : (
@@ -165,7 +209,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                 <LineChart 
                   data={projectedData} 
                   className="[&>.recharts-surface]:overflow-visible"
-                  margin={{ top: 20, right: 20, bottom: 0, left: 20 }}
+                  margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
                 >
                   <XAxis dataKey="timestamp" hide />
                   <YAxis domain={[0, 100]} hide />
@@ -210,33 +254,48 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           )}
         </div>
 
-        {/* Credibility Section */}
-        <div className="space-y-3">
+        {/* Stats */}
+        <PointStats
+          className="justify-evenly ~@/lg:~text-xs/sm border-t pt-2"
+          favor={favor({ 
+            cred: originalPoint.cred,
+            negationsCred: originalPoint.negationsCred
+          })}
+          amountNegations={originalPoint.amountNegations}
+          amountSupporters={originalPoint.amountSupporters}
+          cred={originalPoint.cred}
+        />
+
+        {/* Credibility Section with Date */}
+        <div className="space-y-3 pt-2 border-t">
           <p className="text-sm text-muted-foreground">
             I would relinquish {Math.round(actualStakeAmount * 10) / 10} cred if I learned that...
           </p>
-          <p className="text-base">{counterPoint.content}</p>
+          <div className="space-y-2">
+            <p className="text-base">{counterPoint.content}</p>
+            <span className="text-muted-foreground text-sm">
+              {format(counterPoint.createdAt, "h':'mm a '·' MMM d',' yyyy")}
+            </span>
+          </div>
         </div>
 
-        {/* Add this message when user has no stake */}
+        {/* No Stake Warning */}
         {maxStakeAmount === 0 && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-md p-3">
             <AlertCircle className="size-4 shrink-0" />
-            <p>You need to endorse this point before you can restake it</p>
+            <p>You need to endorse this point before you can restake.</p>
           </div>
         )}
 
         {/* Slider Section */}
-        <div 
-          className={cn(
-            "space-y-4",
-            maxStakeAmount === 0 && "opacity-50"
-          )}
-        >
+        <div className={cn(
+          "space-y-4 pt-2 border-t",
+          maxStakeAmount === 0 && "opacity-50"
+        )}>
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium">Impact</span>
             <span className="text-sm text-muted-foreground">
-              {Math.round(actualStakeAmount * 10) / 10} / {maxStakeAmount} cred ({stakePercentage}%)
+              {Math.round(actualStakeAmount * 10) / 10} / {maxStakeAmount} staked ({stakePercentage}%)
             </span>
           </div>
           
@@ -250,27 +309,27 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           />
         </div>
 
-        {/* Favor Indicator */}
-        <div>
+        {/* Favor Indicator and Actions */}
+        <div className="flex items-center justify-between pt-2 border-t">
           <span className="inline-flex px-3 py-1 rounded-full bg-endorsed/10 text-endorsed text-sm">
             +{bonusFavor} favor
           </span>
+          
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => onOpenChange?.(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="default" 
+              className="bg-endorsed hover:bg-endorsed/90"
+              onClick={() => onOpenChange?.(false)}
+              disabled={maxStakeAmount === 0}
+            >
+              Submit
+            </Button>
+          </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-3 justify-end">
-          <Button variant="outline" onClick={() => onOpenChange?.(false)}>
-            Cancel
-          </Button>
-          <Button 
-            variant="default" 
-            className="bg-endorsed hover:bg-endorsed/90"
-            onClick={() => onOpenChange?.(false)}
-            disabled={maxStakeAmount === 0}
-          >
-            Submit
-          </Button>
-        </div>
       </DialogContent>
     </Dialog>
   );

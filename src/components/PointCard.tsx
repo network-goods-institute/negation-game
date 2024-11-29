@@ -40,6 +40,9 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
     content: string;
     createdAt: Date;
     cred: number;
+    amountSupporters: number;
+    amountNegations: number;
+    negationsCred: number;
   };
 }
 
@@ -187,8 +190,12 @@ export const PointCard = ({
           open={restakeDialogOpen}
           onOpenChange={toggleRestakeDialog}
           originalPoint={{
-            ...parentPoint!,
-            stakedAmount: parentPoint?.cred || 0
+            ...parentPoint,
+            stakedAmount: parentPoint.cred,
+            amountSupporters: parentPoint.amountSupporters,
+            amountNegations: parentPoint.amountNegations,
+            negationsCred: parentPoint.negationsCred,
+            cred: parentPoint.cred
           }}
           counterPoint={{
             id: pointId,
