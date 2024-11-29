@@ -50,11 +50,15 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   // Get the current favor from the last data point
   const currentFavor = favorHistory?.length ? favorHistory[favorHistory.length - 1].favor : 50;
   
+  const handleSliderChange = useCallback((values: number[]) => {
+    setStakePercentage(values[0]);
+  }, []);
+
   const projectedData = favorHistory ? [
     ...favorHistory,
     {
       timestamp: new Date(Date.now() + 8000),
-      favor: currentFavor,
+      favor: currentFavor + bonusFavor,
       isProjection: true
     }
   ] : [];
@@ -64,10 +68,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
       setStakePercentage(0);
     }
   }, [open]);
-
-  const handleSliderChange = useCallback((values: number[]) => {
-    setStakePercentage(values[0]);
-  }, []);
 
   return (
     <Dialog {...props} open={open} onOpenChange={onOpenChange}>
@@ -96,11 +96,14 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
             <Loader className="absolute left-0 right-0 mx-auto top-[20px]" />
           ) : (
             <>
-              <div className="absolute right-[8%] top-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
+              <div className="absolute right-[8%] -top-6 text-xs text-muted-foreground">
                 Projected
               </div>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={projectedData} className="[&>.recharts-surface]:overflow-visible">
+                <LineChart 
+                  data={projectedData} 
+                  className="[&>.recharts-surface]:overflow-visible"
+                >
                   <XAxis dataKey="timestamp" hide />
                   <YAxis domain={[0, 100]} hide />
                   <ReferenceLine y={50} className="[&>line]:stroke-muted" />
@@ -111,45 +114,30 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                     labelFormatter={(timestamp: Date) => timestamp.toLocaleString()}
                   />
                   <Line
-                    animationDuration={300}
+                    animationDuration={0}
                     dataKey="favor"
                     type="stepAfter"
                     className="overflow-visible text-endorsed"
-                    dot={({ key, ...dot }) =>
-                      dot.payload.isProjection ? (
-                        <Fragment key={key}>
-                          <Dot {...dot} fill={dot.stroke} r={4} />
-                          <line
-                            x1={dot.cx}
-                            y1={dot.cy}
-                            x2={dot.cx}
-                            y2={dot.cy - (bonusFavor * 2)}
-                            stroke="currentColor"
-                            strokeWidth={2}
-                            strokeDasharray="4 4"
-                          />
-                          <circle
-                            cx={dot.cx}
-                            cy={dot.cy - (bonusFavor * 2)}
-                            r={4}
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                          />
+                    dot={({ cx, cy, key }: any) => {
+                      const isLastPoint = projectedData.length > 0 && 
+                        key === `dot-${projectedData.length - 1}`;
+                      if (!isLastPoint) return <g key={key}></g>;
+
+                      return (
+                        <g key={key}>
+                          <circle cx={cx} cy={cy} r={4} fill="currentColor" />
                           <text
-                            x={dot.cx}
-                            y={dot.cy - (bonusFavor * 2) - 10}
+                            x={cx}
+                            y={cy - 10}
                             textAnchor="middle"
                             fill="currentColor"
                             className="text-xs"
                           >
                             +{bonusFavor} favor
                           </text>
-                        </Fragment>
-                      ) : (
-                        <Fragment key={key} />
-                      )
-                    }
+                        </g>
+                      );
+                    }}
                     stroke="currentColor"
                     strokeWidth={2}
                   />
