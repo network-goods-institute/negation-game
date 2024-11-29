@@ -146,15 +146,15 @@ export const NegateDialog: FC<NegateDialogProps> = ({
       cred > 0;
 
   const resetForm = useCallback(() => {
-    setCounterpointContent("");
     selectCounterpointCandidate(undefined);
     setGuidanceNotes(undefined);
     resetCred();
+    setCounterpointContent("");
   }, [resetCred, setCounterpointContent]);
 
   useEffect(() => {
     if (!open) resetForm();
-  }, [open, resetForm, setCounterpointContent]);
+  }, [open, resetForm]);
 
   return (
     <Dialog {...props} open={open} onOpenChange={onOpenChange}>
@@ -262,7 +262,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({
             <div className="items-end mt-md flex flex-col w-full xs:flex-row justify-end gap-2">
               <Button
                 variant="outline"
-                className="min-w-28 w-full xs:w-fit"
+                className="min-w-28 w-full xs:w-fit text-primary hover:text-primary hover:bg-accent/20"
                 rightLoading={
                   isReviewingCounterpoint ||
                   isNegating ||
@@ -290,13 +290,15 @@ export const NegateDialog: FC<NegateDialogProps> = ({
                   ).then(() => {
                     queryClient.invalidateQueries({ queryKey: ["feed"] });
                     queryClient.invalidateQueries({
-                      queryKey: ["point-negations", negatedPoint?.id],
+                      queryKey: [negatedPoint?.id],
                     });
-                    queryClient.invalidateQueries({
-                      queryKey: ["favor-history", negatedPoint?.id],
-                    });
+                    if (!!selectedCounterpointCandidate)
+                      queryClient.invalidateQueries({
+                        queryKey: [selectedCounterpointCandidate.id],
+                      });
 
                     resetForm();
+                    onOpenChange?.(false);
                   })
                 }
               >
@@ -453,7 +455,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({
           ) : (
             <Button
               disabled={!canReview || isReviewingCounterpoint}
-              className="min-w-28 mt-md self-end"
+              className="min-w-28 mt-md self-end w-full xs:w-fit"
               rightLoading={isReviewingCounterpoint}
               onClick={() => {
                 reviewCounterpoint();

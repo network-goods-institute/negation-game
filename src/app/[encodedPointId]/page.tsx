@@ -89,16 +89,16 @@ export default function PointPage({
     refetch: refetchFavorHistory,
     isFetching: isFetchingFavorHistory,
   } = useQuery({
-    queryKey: ["favor-history", pointId, timelineScale],
-    queryFn: () => {
-      return fetchFavorHistory({ pointId, scale: timelineScale });
+    queryKey: [pointId, "favor-history", timelineScale] as const,
+    queryFn: ({ queryKey: [id, , scale] }) => {
+      return fetchFavorHistory({ pointId: id, scale });
     },
     placeholderData: keepPreviousData,
     refetchInterval: 60000,
   });
 
   const { data: negations, isLoading: isLoadingNegations } = useQuery({
-    queryKey: ["point-negations", pointId, privyUser?.id],
+    queryKey: [pointId, "point-negations", privyUser?.id],
     queryFn: () => fetchPointNegations(pointId),
   });
 
