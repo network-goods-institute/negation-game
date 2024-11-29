@@ -2,14 +2,15 @@ import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { DialogProps } from "@radix-ui/react-dialog";
-import { FC, useState, useEffect, useCallback, Fragment } from "react";
-import { ArrowLeftIcon, TrendingUpIcon } from "lucide-react";
-import { Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis, Dot } from "recharts";
+import { FC, useState, useEffect, useCallback } from "react";
+import { ArrowLeftIcon, AlertCircle } from "lucide-react";
+import { Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fetchFavorHistory } from "@/actions/fetchFavorHistory";
 import { useQuery } from "@tanstack/react-query";
 import { DEFAULT_TIMESCALE } from "@/constants/config";
 import { TimelineScale } from "@/lib/timelineScale";
 import { Loader } from "./ui/loader";
+import { cn } from "@/lib/cn";
 
 export interface RestakeDialogProps extends DialogProps {
   originalPoint: {
@@ -17,6 +18,7 @@ export interface RestakeDialogProps extends DialogProps {
     content: string;
     createdAt: Date;
     stakedAmount: number;
+    viewerCred?: number;
   };
   counterPoint: {
     id: number;
@@ -44,7 +46,8 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     enabled: open,
   });
 
-  const actualStakeAmount = (originalPoint.stakedAmount * stakePercentage) / 100;
+  const maxStakeAmount = originalPoint.viewerCred || 0;
+  const actualStakeAmount = (maxStakeAmount * stakePercentage) / 100;
   const bonusFavor = Math.round(actualStakeAmount);
 
   // Get the current favor from the last data point
@@ -155,9 +158,20 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           <p className="text-base">{counterPoint.content}</p>
         </div>
 
+        {/* Add this message when user has no stake */}
+        {maxStakeAmount === 0 && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-md p-3">
+            <AlertCircle className="size-4 shrink-0" />
+            <p>You need to endorse this point before you can restake it</p>
+          </div>
+        )}
+
         {/* Slider Section */}
         <div 
-          className="space-y-4"
+          className={cn(
+            "space-y-4",
+            maxStakeAmount === 0 && "opacity-50"
+          )}
           onPointerDown={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
           onPointerUp={(e) => e.stopPropagation()}
@@ -166,7 +180,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium">Restake Percentage</span>
             <span className="text-sm text-muted-foreground">
-              {Math.round(actualStakeAmount * 10) / 10} / {originalPoint.stakedAmount} cred ({stakePercentage}%)
+              {Math.round(actualStakeAmount * 10) / 10} / {maxStakeAmount} cred ({stakePercentage}%)
             </span>
           </div>
           
@@ -176,6 +190,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
             max={100}
             step={1}
             className="w-full"
+            disabled={maxStakeAmount === 0}
           />
         </div>
 
@@ -195,6 +210,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
             variant="default" 
             className="bg-endorsed hover:bg-endorsed/90"
             onClick={() => onOpenChange?.(false)}
+            disabled={maxStakeAmount === 0}
           >
             Submit
           </Button>

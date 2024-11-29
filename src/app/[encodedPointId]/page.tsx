@@ -165,7 +165,8 @@ export default function PointPage({
                     id: point.id,
                     content: point.content,
                     createdAt: point.createdAt,
-                    stakedAmount: point.cred
+                    stakedAmount: point.cred,
+                    viewerCred: point.viewerCred
                   }}
                   negationId={point.id}
                 />

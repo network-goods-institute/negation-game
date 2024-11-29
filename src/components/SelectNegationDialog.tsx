@@ -2,7 +2,7 @@ import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui
 import { Button } from "@/components/ui/button";
 import { DialogProps } from "@radix-ui/react-dialog";
 import { FC, useState } from "react";
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, CircleXIcon } from "lucide-react";
 import { RestakeDialog } from "./RestakeDialog";
 import { useToggle } from "@uidotdev/usehooks";
 import { useQuery } from "@tanstack/react-query";
@@ -18,6 +18,7 @@ interface SelectNegationDialogProps extends DialogProps {
     content: string;
     createdAt: Date;
     stakedAmount: number;
+    viewerCred?: number;
   };
   negationId: number;
 }
@@ -53,6 +54,16 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
 
           {isLoading ? (
             <Loader className="self-center" />
+          ) : negations?.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 py-8 text-muted-foreground">
+              <CircleXIcon className="size-12 stroke-1" />
+              <div className="text-center space-y-1">
+                <p>No negations available</p>
+                <p className="text-sm">
+                  You can restake points after someone creates a negation
+                </p>
+              </div>
+            </div>
           ) : (
             <div className="space-y-3">
               {negations?.map((negation: NegationResult) => (
@@ -88,7 +99,10 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
               setSelectedNegation(null);
             }
           }}
-          originalPoint={originalPoint}
+          originalPoint={{
+            ...originalPoint,
+            viewerCred: originalPoint.viewerCred
+          }}
           counterPoint={selectedNegation}
         />
       )}
