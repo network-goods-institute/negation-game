@@ -114,7 +114,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                     animationDuration={300}
                     dataKey="favor"
                     type="stepAfter"
-                    className="overflow-visible text-primary"
+                    className="overflow-visible text-endorsed"
                     dot={({ key, ...dot }) =>
                       dot.payload.isProjection ? (
                         <Fragment key={key}>
@@ -162,7 +162,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
         {/* Credibility Section */}
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            I would relinquish X cred if I learned that...
+            I would relinquish {Math.round(actualStakeAmount * 10) / 10} cred if I learned that...
           </p>
           <p className="text-base">{counterPoint.content}</p>
         </div>
@@ -193,7 +193,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
         {/* Favor Indicator */}
         <div>
-          <span className="inline-flex px-3 py-1 rounded-full bg-primary/10 text-primary text-sm">
+          <span className="inline-flex px-3 py-1 rounded-full bg-endorsed/10 text-endorsed text-sm">
             +{bonusFavor} favor
           </span>
         </div>
@@ -203,7 +203,11 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           <Button variant="outline" onClick={() => onOpenChange?.(false)}>
             Cancel
           </Button>
-          <Button variant="default" onClick={() => onOpenChange?.(false)}>
+          <Button 
+            variant="default" 
+            className="bg-endorsed hover:bg-endorsed/90"
+            onClick={() => onOpenChange?.(false)}
+          >
             Submit
           </Button>
         </div>
