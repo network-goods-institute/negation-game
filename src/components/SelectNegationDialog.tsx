@@ -49,7 +49,17 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
                 <ArrowLeftIcon className="size-5" />
               </Button>
             </DialogClose>
-            <DialogTitle>Select a negation to restake</DialogTitle>
+            <DialogTitle>Restake your points</DialogTitle>
+          </div>
+
+          <div className="text-sm text-muted-foreground space-y-2 bg-muted/30 p-3 rounded-md">
+            <p>
+              Restaking lets you gain additional influence by specifying what would change your mind.
+            </p>
+            <p>
+              Select a counter-argument below. If you later acknowledge it's correct, you'll lose your original stake. 
+              Other players can doubt your commitment to change your mind, creating an incentive for intellectual honesty.
+            </p>
           </div>
 
           {isLoading ? (
