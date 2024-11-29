@@ -34,7 +34,7 @@ import { TimelineScale, timelineScales } from "@/lib/timelineScale";
 import { usePrivy } from "@privy-io/react-auth";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
-import { useSetAtom } from "jotai";
+import { useAtomCallback } from "jotai/utils";
 import {
   ArrowLeftIcon,
   CircleXIcon,
@@ -63,7 +63,14 @@ export default function PointPage({
   const encodedPointId = use(params).encodedPointId;
   const pointId = decodeId(encodedPointId);
   const { user: privyUser, login } = usePrivy();
-  const setNegationContent = useSetAtom(negationContentAtom);
+  const [negatedPoint, setNegatedPoint] = useState<
+    { id: number; content: string; createdAt: Date; cred: number } | undefined
+  >(undefined);
+  const setNegationContent = useAtomCallback(
+    (_get, set, negatedPointId: number, content: string) => {
+      set(negationContentAtom(negatedPointId), content);
+    }
+  );
   const {
     data: point,
     refetch: refetchPoint,
@@ -105,9 +112,6 @@ export default function PointPage({
   });
 
   const { back, push } = useRouter();
-  const [negatedPoint, setNegatedPoint] = useState<
-    { id: number; content: string; createdAt: Date; cred: number } | undefined
-  >(undefined);
 
   const { data: counterpointSuggestionsStream } = useQuery({
     queryKey: ["counterpoint-suggestions", point?.id],
@@ -413,7 +417,7 @@ export default function PointPage({
                           login();
                           return;
                         }
-                        setNegationContent(suggestion);
+                        setNegationContent(pointId, suggestion);
                         setNegatedPoint(point);
                       }}
                     >

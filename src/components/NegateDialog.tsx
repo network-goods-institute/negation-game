@@ -57,8 +57,9 @@ export const NegateDialog: FC<NegateDialogProps> = ({
   onOpenChange,
   ...props
 }) => {
-  const [counterpointContent, setCounterpointContent] =
-    useAtom(negationContentAtom);
+  const [counterpointContent, setCounterpointContent] = useAtom(
+    negationContentAtom(negatedPoint?.id)
+  );
   const [reviewPopoverOpen, toggleReviewPopoverOpen] = useToggle(false);
   const { cred, setCred, notEnoughCred, resetCred } = useCredInput({
     resetWhen: !open,
