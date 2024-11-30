@@ -56,6 +56,19 @@ import {
 } from "recharts";
 import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
 import { SelectNegationDialog } from "@/components/SelectNegationDialog";
+import { RestakeDialog } from "@/components/RestakeDialog";
+
+type Point = {
+  id: number;
+  content: string;
+  createdAt: Date;
+  cred: number;
+  stakedAmount: number;
+  viewerCred?: number;
+  amountSupporters: number;
+  amountNegations: number;
+  negationsCred: number;
+};
 
 export default function PointPage({
   params,
@@ -120,6 +133,7 @@ export default function PointPage({
   });
 
   const [selectNegationDialogOpen, toggleSelectNegationDialog] = useToggle(false);
+  const [restakePoint, setRestakePoint] = useState<{point: Point, counterPoint: Point} | null>(null);
 
   return (
     <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow  gap-md bg-background overflow-auto">
@@ -388,6 +402,16 @@ export default function PointPage({
                       viewerContext={{ viewerCred: negation.cred }}
                       isNegation={true}
                       parentPoint={point}
+                      onRestake={() => setRestakePoint({
+                        point: {
+                          ...point,
+                          stakedAmount: point.cred
+                        },
+                        counterPoint: {
+                          ...negation,
+                          stakedAmount: negation.cred
+                        }
+                      })}
                     />
                   </Link>
                 ))}
@@ -438,6 +462,14 @@ export default function PointPage({
           !isOpen && setNegatedPoint(undefined)
         }
       />
+      {restakePoint && (
+        <RestakeDialog
+          open={restakePoint !== null}
+          onOpenChange={(open) => !open && setRestakePoint(null)}
+          originalPoint={restakePoint.point}
+          counterPoint={restakePoint.counterPoint}
+        />
+      )}
     </main>
   );
 }

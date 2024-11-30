@@ -18,7 +18,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
 import { useRouter } from "next/navigation";
 import { Scale, DiamondIcon } from "lucide-react";
-import { RestakeDialog } from "@/components/RestakeDialog";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -44,6 +43,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
     amountNegations: number;
     negationsCred: number;
   };
+  onRestake?: () => void;
 }
 
 export const PointCard = ({
@@ -59,6 +59,7 @@ export const PointCard = ({
   onNegate,
   isNegation,
   parentPoint,
+  onRestake,
   ...props
 }: PointCardProps) => {
   const endorsedByViewer =
@@ -72,7 +73,6 @@ export const PointCard = ({
     resetWhen: !endorsePopoverOpen,
   });
   const { push } = useRouter();
-  const [restakeDialogOpen, toggleRestakeDialog] = useToggle(false);
 
   return (
     <>
@@ -166,44 +166,22 @@ export const PointCard = ({
                 </PopoverContent>
               </Popover>
               {isNegation && parentPoint?.cred && parentPoint.cred > 0 && (
-                <>
-                  <Button
-                    variant="ghost"
-                    className="p-1 -mb-2 rounded-full size-fit hover:bg-muted/30"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      toggleRestakeDialog(true);
-                    }}
-                  >
-                    <DiamondIcon className="size-7 stroke-1" />
-                  </Button>
-                </>
+                <Button
+                  variant="ghost"
+                  className="p-1 -mb-2 rounded-full size-fit hover:bg-muted/30"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onRestake?.();
+                  }}
+                >
+                  <DiamondIcon className="size-7 stroke-1" />
+                </Button>
               )}
             </div>
           </div>
         </div>
       </div>
-
-      {parentPoint && (
-        <RestakeDialog
-          open={restakeDialogOpen}
-          onOpenChange={toggleRestakeDialog}
-          originalPoint={{
-            ...parentPoint,
-            stakedAmount: parentPoint.cred,
-            amountSupporters: parentPoint.amountSupporters,
-            amountNegations: parentPoint.amountNegations,
-            negationsCred: parentPoint.negationsCred,
-            cred: parentPoint.cred
-          }}
-          counterPoint={{
-            id: pointId,
-            content,
-            createdAt,
-          }}
-        />
-      )}
     </>
   );
 };
