@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { DialogProps } from "@radix-ui/react-dialog";
 import { FC, useState, useEffect, useCallback } from "react";
-import { ArrowLeftIcon, AlertCircle } from "lucide-react";
+import { ArrowLeftIcon, AlertCircle, Check } from "lucide-react";
 import { Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fetchFavorHistory } from "@/actions/fetchFavorHistory";
 import { useQuery } from "@tanstack/react-query";
@@ -22,6 +22,7 @@ import { timelineScales } from "@/lib/timelineScale";
 import { PointStats } from "@/components/PointStats";
 import { favor } from "@/lib/negation-game/favor";
 import { format } from "date-fns";
+import { SuccessDetails } from './SuccessDetails'
 
 export interface RestakeDialogProps extends DialogProps {
   originalPoint: {
@@ -56,6 +57,15 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     resetWhen: !endorsePopoverOpen,
   });
   const queryClient = useQueryClient();
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false)
+  const [successDetails, setSuccessDetails] = useState<{
+    favorEarned: number
+    restakeAmount: number
+    restakePercentage: number
+    totalStaked: number
+    maxStakeable: number
+  } | null>(null)
 
   const { data: favorHistory, isLoading: isLoadingHistory } = useQuery({
     queryKey: ["favor-history", originalPoint.id, timelineScale],
@@ -86,11 +96,102 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     }
   ] : [];
 
+  // Reset states when dialog closes
   useEffect(() => {
     if (!open) {
       setStakePercentage(0);
+      setShowSuccess(false);
     }
   }, [open]);
+
+  const handleSubmit = () => {
+    const restakeKey = `restake-${originalPoint.id}-${counterPoint.id}`;
+    localStorage.setItem(restakeKey, stakePercentage.toString());
+    
+    // TODO: Add actual restake API call here
+    setShowSuccess(true);
+  };
+
+  const handleRestake = async () => {
+    try {
+      // ... existing restake logic ...
+
+      // After successful restake, set success details
+      setSuccessDetails({
+        favorEarned: 100, // Replace with actual values
+        restakeAmount: 50,
+        restakePercentage: 25,
+        totalStaked: 200,
+        maxStakeable: 400
+      })
+      setIsSuccess(true)
+    } catch (error) {
+      console.error('Failed to restake:', error)
+    }
+  }
+
+  if (showSuccess) {
+    return (
+      <Dialog {...props} open={open} onOpenChange={onOpenChange}>
+        <DialogContent 
+          className="flex flex-col gap-6 p-4 sm:p-6 max-w-xl overflow-hidden"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex flex-col items-center text-center">
+            <div className="rounded-full bg-endorsed/10 p-3 mb-6">
+              <Check className="size-6 text-endorsed" />
+            </div>
+            
+            <div className="space-y-2 mb-6">
+              <DialogTitle className="text-xl">Successfully Restaked!</DialogTitle>
+              <p className="text-muted-foreground">
+                You&apos;ve added <span className="text-endorsed">+{bonusFavor} favor</span> to your point
+              </p>
+            </div>
+
+            <div className="w-full space-y-6">
+              {/* Original point */}
+              <div className="space-y-2 p-4 border rounded-lg">
+                <p className="text-base">{originalPoint.content}</p>
+                <span className="text-sm text-muted-foreground">
+                  {format(originalPoint.createdAt, "h':'mm a '·' MMM d',' yyyy")}
+                </span>
+              </div>
+
+              {/* Restake details */}
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  You would relinquish {Math.round(actualStakeAmount * 10) / 10} cred if you&apos;d learned that...
+                </p>
+                <div className="p-4 border rounded-lg space-y-2">
+                  <p className="text-base">{counterPoint.content}</p>
+                  <span className="text-sm text-muted-foreground">
+                    {format(counterPoint.createdAt, "h':'mm a '·' MMM d',' yyyy")}
+                  </span>
+                </div>
+              </div>
+
+              {/* Stake amount */}
+              <div className="bg-muted/30 rounded-lg px-4 py-3">
+                <p className="text-sm text-muted-foreground">Amount Restaked</p>
+                <p className="text-lg">
+                  {Math.round(actualStakeAmount * 10) / 10} / {maxStakeAmount} cred ({stakePercentage}%)
+                </p>
+              </div>
+            </div>
+
+            <Button 
+              className="w-full mt-6" 
+              onClick={() => onOpenChange?.(false)}
+            >
+              Done
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog {...props} open={open} onOpenChange={onOpenChange}>
@@ -277,7 +378,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
         {/* Credibility Section with Date */}
         <div className="space-y-3 pt-2 border-t">
           <p className="text-sm text-muted-foreground">
-            I would relinquish {Math.round(actualStakeAmount * 10) / 10} cred if I learned that...
+            You would relinquish {Math.round(actualStakeAmount * 10) / 10} cred if you&apos;d learned that...
           </p>
           <div className="space-y-2">
             <p className="text-base">{counterPoint.content}</p>
@@ -292,6 +393,14 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-md p-3">
             <AlertCircle className="size-4 shrink-0" />
             <p>You need to endorse this point before you can restake.</p>
+          </div>
+        )}
+
+        {/* Zero Stake Warning */}
+        {stakePercentage === 0 && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-md p-3">
+            <AlertCircle className="size-4 shrink-0" />
+            <p>You need to stake some cred to continue.</p>
           </div>
         )}
 
@@ -330,8 +439,8 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
             <Button 
               variant="default" 
               className="bg-endorsed hover:bg-endorsed/90"
-              onClick={() => onOpenChange?.(false)}
-              disabled={maxStakeAmount === 0}
+              onClick={handleSubmit}
+              disabled={maxStakeAmount === 0 || stakePercentage === 0}
             >
               Submit
             </Button>

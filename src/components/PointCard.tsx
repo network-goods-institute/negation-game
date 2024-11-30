@@ -44,6 +44,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
     negationsCred: number;
   };
   onRestake?: () => void;
+  negationId?: number;
 }
 
 export const PointCard = ({
@@ -60,6 +61,7 @@ export const PointCard = ({
   isNegation,
   parentPoint,
   onRestake,
+  negationId,
   ...props
 }: PointCardProps) => {
   const endorsedByViewer =
@@ -73,6 +75,10 @@ export const PointCard = ({
     resetWhen: !endorsePopoverOpen,
   });
   const { push } = useRouter();
+
+  const restakePercentage = isNegation && parentPoint 
+    ? Number(localStorage.getItem(`restake-${parentPoint.id}-${pointId}`)) || 0
+    : 0;
 
   return (
     <>
@@ -168,7 +174,10 @@ export const PointCard = ({
               {isNegation && parentPoint?.cred && parentPoint.cred > 0 && (
                 <Button
                   variant="ghost"
-                  className="p-1 -mb-2 rounded-full size-fit hover:bg-muted/30"
+                  className={cn(
+                    "p-1 -mb-2 rounded-full size-fit hover:bg-muted/30",
+                    restakePercentage > 0 && "text-endorsed"
+                  )}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -176,6 +185,9 @@ export const PointCard = ({
                   }}
                 >
                   <DiamondIcon className="size-7 stroke-1" />
+                  {restakePercentage > 0 && (
+                    <span className="ml-1">{restakePercentage}%</span>
+                  )}
                 </Button>
               )}
             </div>
