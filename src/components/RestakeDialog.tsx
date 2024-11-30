@@ -201,7 +201,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           ) : (
             <>
               <div className="sticky top-0 flex justify-end w-full">
-                <span className="text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded-sm">
+                <span className="text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded-sm -translate-x-[-15px]">
                   Projected
                 </span>
               </div>
@@ -225,28 +225,36 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                     dataKey="favor"
                     type="stepAfter"
                     className="overflow-visible text-endorsed"
-                    dot={({ cx, cy, key }: any) => {
-                      const isLastPoint = projectedData.length > 0 && 
-                        key === `dot-${projectedData.length - 1}`;
-                      if (!isLastPoint) return <g key={key}></g>;
+                    dot={({ cx, cy, payload, index }: any) => {
+                      const isLastPoint = index === projectedData.length - 1;
+                      if (!isLastPoint) return <g key={`dot-${index}`} />;
 
                       return (
-                        <g key={key}>
-                          <circle cx={cx} cy={cy} r={4} fill="currentColor" />
-                          <text
-                            x={cx}
-                            y={cy - 10}
-                            textAnchor="middle"
-                            fill="currentColor"
-                            className="text-xs whitespace-nowrap"
-                          >
-                            +{bonusFavor} favor
-                          </text>
+                        <g key={`dot-${index}`}>
+                          <circle 
+                            cx={cx} 
+                            cy={cy} 
+                            r={4} 
+                            fill="currentColor" 
+                            className="animate-none"
+                          />
+                          {bonusFavor > 0 && (
+                            <text
+                              x={cx}
+                              y={cy - 10}
+                              textAnchor="middle"
+                              fill="currentColor"
+                              className="text-xs whitespace-nowrap animate-none"
+                            >
+                              +{bonusFavor} favor
+                            </text>
+                          )}
                         </g>
                       );
                     }}
                     stroke="currentColor"
                     strokeWidth={2}
+                    isAnimationActive={false}
                   />
                 </LineChart>
               </ResponsiveContainer>
