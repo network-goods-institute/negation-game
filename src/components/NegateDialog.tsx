@@ -85,8 +85,13 @@ export const NegateDialog: FC<NegateDialogProps> = ({
     | Awaited<ReturnType<typeof fetchCounterpointCandidatesAction>>[number]
     | undefined
   >(undefined);
+  const [editingSuggestion, setEditingSuggestion] = useState<string | null>(null);
+  const [editedContents, setEditedContents] = useState<Map<string, string>>(new Map());
+  const [suggestionSelected, setSuggestionSelected] = useState(false);
   const charactersLeft = POINT_MAX_LENGHT - counterpointContent.length;
-
+  const canSubmit = selectedCounterpointCandidate
+    ? cred > 0
+    : charactersLeft >= 0 && content.length >= POINT_MIN_LENGHT && cred > 0;
   const queryClient = useQueryClient();
 
   const {
@@ -464,6 +469,112 @@ export const NegateDialog: FC<NegateDialogProps> = ({
               Review & Negate
             </Button>
           )}
+        {!selectedCounterpointCandidate && content.length >= POINT_MIN_LENGHT && isLoadingImprovements && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
+            <span className="size-2 bg-muted-foreground rounded-full animate-bounce" />
+            <span>Crafting other phrasings...</span>
+          </div>
+        )}
+        {!selectedCounterpointCandidate && improvementSuggestions.length > 0 && (
+          <>
+            <p className="text-xs text-muted-foreground mb-md">
+              Consider these improved phrasings of your counterpoint:
+            </p>
+
+            {improvementSuggestions.map((suggestion, index) => (
+              <div key={index} className="flex flex-col w-full mb-2">
+                {editingSuggestion === suggestion ? (
+                  <div className="flex flex-col gap-2 p-4 border rounded-md">
+                    <textarea
+                      className="w-full min-h-[60px] bg-transparent resize-none outline-none"
+                      value={editedContents.get(suggestion) ?? suggestion}
+                      onChange={(e) => {
+                        const newMap = new Map(editedContents);
+                        newMap.set(suggestion, e.target.value);
+                        setEditedContents(newMap);
+                      }}
+                      autoFocus
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditingSuggestion(null);
+                          const newMap = new Map(editedContents);
+                          newMap.delete(suggestion); // eslint-disable-line drizzle/enforce-delete-with-where
+                          setEditedContents(newMap);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setContent(editedContents.get(suggestion) ?? suggestion);
+                          setSuggestionSelected(true);
+                          setEditingSuggestion(null);
+                          setEditedContents(new Map());
+                        }}
+                      >
+                        Use
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => {
+                      if (!editedContents.has(suggestion)) {
+                        const newMap = new Map(editedContents);
+                        newMap.set(suggestion, suggestion);
+                        setEditedContents(newMap);
+                      }
+                      setEditingSuggestion(suggestion);
+                    }}
+                    className="flex p-4 gap-2 hover:bg-accent w-full cursor-pointer border rounded-md"
+                  >
+                    <BlendIcon className="size-5 shrink-0 text-muted-foreground stroke-1" />
+                    <span className="flex-grow text-sm">{editedContents.get(suggestion) ?? suggestion}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </>
+        )}
+        <Button
+          className="mt-md self-end w-28"
+          disabled={!canSubmit}
+          onClick={() =>
+            (selectedCounterpointCandidate === undefined
+              ? addCounterpoint({
+                  content,
+                  cred,
+                  olderPointId: negatedPoint?.id,
+                })
+              : selectedCounterpointCandidate.isCounterpoint
+                ? endorse({ pointId: selectedCounterpointCandidate.id, cred })
+                : negate({
+                    negatedPointId: negatedPoint!.id,
+                    counterpointId: selectedCounterpointCandidate.id,
+                    cred,
+                  })
+            ).then(() => {
+              queryClient.invalidateQueries({ queryKey: ["feed"] });
+              queryClient.invalidateQueries({
+                queryKey: ["point-negations", negatedPoint?.id],
+              });
+              queryClient.invalidateQueries({
+                queryKey: ["favor-history", negatedPoint?.id],
+              });
+
+              onOpenChange?.(false);
+              setContent("");
+              resetCred();
+            })
+          }
+        >
+          {selectedCounterpointCandidate?.isCounterpoint ? "Endorse" : "Negate"}
+        </Button>
         </Popover>
       </DialogContent>
     </Dialog>

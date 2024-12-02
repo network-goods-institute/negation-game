@@ -17,6 +17,8 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
 import { useRouter } from "next/navigation";
+import { Scale, DiamondIcon, Diamond } from "lucide-react";
+import { RestakeIcon } from "@/components/icons/RestakeIcon";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -32,6 +34,18 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   onNegate?: MouseEventHandler<HTMLButtonElement>;
   leftSlot?: React.ReactNode;
   bottomSlot?: React.ReactNode;
+  isNegation?: boolean;
+  parentPoint?: {
+    id: number;
+    content: string;
+    createdAt: Date;
+    cred: number;
+    amountSupporters: number;
+    amountNegations: number;
+    negationsCred: number;
+  };
+  onRestake?: () => void;
+  negationId?: number;
 }
 
 export const PointCard = ({
@@ -45,6 +59,10 @@ export const PointCard = ({
   amountNegations,
   viewerContext,
   onNegate,
+  isNegation,
+  parentPoint,
+  onRestake,
+  negationId,
   ...props
 }: PointCardProps) => {
   const endorsedByViewer =
@@ -59,98 +77,125 @@ export const PointCard = ({
   });
   const { push } = useRouter();
 
+  const restakePercentage = isNegation && parentPoint 
+    ? Number(localStorage.getItem(`restake-${parentPoint.id}-${pointId}`)) || 0
+    : 0;
+
   return (
-    <div
-      className={cn(
-        "@container/point flex gap-3 pt-4 pb-3 px-4 relative rounded-none",
-        className
-      )}
-      {...props}
-    >
-      {/* <CircleDotIcon className="shrink-0 size-6  text-muted-foreground" /> */}
-      <div className="flex flex-col">
-        <p className="tracking-tight text-md  @xs/point:text-md @sm/point:text-lg mb-xs -mt-1 select-text">
-          {content}
-        </p>
+    <>
+      <div
+        className={cn(
+          "@container/point flex gap-3 pt-4 pb-3 px-4 relative rounded-none",
+          className
+        )}
+        {...props}
+      >
+        <div className="flex flex-col">
+          <p className="tracking-tight text-md  @xs/point:text-md @sm/point:text-lg mb-xs -mt-1 select-text">
+            {content}
+          </p>
 
-        <PointStats
-          className="mb-md select-text"
-          amountNegations={amountNegations}
-          amountSupporters={amountSupporters}
-          favor={favor}
-          cred={totalCred}
-        />
+          <PointStats
+            className="mb-md select-text"
+            amountNegations={amountNegations}
+            amountSupporters={amountSupporters}
+            favor={favor}
+            cred={totalCred}
+          />
 
-        <div className="flex gap-sm w-full text-muted-foreground">
-          <Button
-            variant="ghost"
-            className="p-1 -ml-3 -mb-2 rounded-full size-fit hover:bg-negated/30"
-            onClick={(e) => {
-              e.stopPropagation();
-              onNegate?.(e);
-            }}
-          >
-            <NegateIcon />
-          </Button>
-          <Popover
-            open={endorsePopoverOpen}
-            onOpenChange={toggleEndorsePopoverOpen}
-          >
-            <PopoverTrigger asChild>
+          <div className="flex gap-sm w-full text-muted-foreground">
+            <div className="flex gap-sm">
               <Button
+                variant="ghost"
+                className="p-1 -mb-2 rounded-full size-fit hover:bg-negated/30"
                 onClick={(e) => {
-                  e.preventDefault();
-                  if (privyUser === null) {
-                    login();
-                    return;
-                  }
-                  toggleEndorsePopoverOpen();
+                  e.stopPropagation();
+                  onNegate?.(e);
                 }}
-                className={cn(
-                  "p-1 rounded-full -mb-2 size-fit gap-sm hover:bg-endorsed/30",
-                  endorsedByViewer && "text-endorsed pr-3"
-                )}
-                variant={"ghost"}
               >
-                <EndorseIcon
-                  className={cn(endorsedByViewer && "fill-current")}
-                />{" "}
-                {endorsedByViewer && (
-                  <span>{viewerContext.viewerCred} cred</span>
-                )}
+                <NegateIcon />
               </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              className="flex flex-col items-start w-96"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="w-full flex justify-between">
-                <CredInput
-                  cred={cred}
-                  setCred={setCred}
-                  notEnoughCred={notEnoughCred}
-                />
+              <Popover
+                open={endorsePopoverOpen}
+                onOpenChange={toggleEndorsePopoverOpen}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (privyUser === null) {
+                        login();
+                        return;
+                      }
+                      toggleEndorsePopoverOpen();
+                    }}
+                    className={cn(
+                      "p-1 rounded-full -mb-2 size-fit gap-sm hover:bg-endorsed/30",
+                      endorsedByViewer && "text-endorsed pr-3"
+                    )}
+                    variant={"ghost"}
+                  >
+                    <EndorseIcon
+                      className={cn(endorsedByViewer && "fill-current")}
+                    />{" "}
+                    {endorsedByViewer && (
+                      <span>{viewerContext.viewerCred} cred</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="flex flex-col items-start w-96"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="w-full flex justify-between">
+                    <CredInput
+                      cred={cred}
+                      setCred={setCred}
+                      notEnoughCred={notEnoughCred}
+                    />
+                    <Button
+                      disabled={cred === 0 || notEnoughCred}
+                      onClick={() => {
+                        endorse({ pointId, cred }).then(() => {
+                          queryClient.invalidateQueries({ queryKey: ["feed"] });
+                          toggleEndorsePopoverOpen(false);
+                        });
+                      }}
+                    >
+                      Endorse
+                    </Button>
+                  </div>
+                  {notEnoughCred && (
+                    <span className="ml-md text-destructive text-sm h-fit">
+                      not enough cred
+                    </span>
+                  )}
+                </PopoverContent>
+              </Popover>
+              {isNegation && parentPoint?.cred && parentPoint.cred > 0 && (
                 <Button
-                  disabled={cred === 0 || notEnoughCred}
-                  onClick={() => {
-                    endorse({ pointId, cred }).then(() => {
-                      queryClient.invalidateQueries({ queryKey: ["feed"] });
-                      toggleEndorsePopoverOpen(false);
-                    });
+                  variant="ghost"
+                  className={cn(
+                    "p-1 -mb-2 rounded-full size-fit hover:bg-muted/30",
+                    restakePercentage > 0 && "text-endorsed"
+                  )}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onRestake?.();
                   }}
                 >
-                  Endorse
+                  <RestakeIcon 
+                    className={restakePercentage > 0 ? "fill-current" : ""} 
+                    showPercentage={restakePercentage > 0}
+                    percentage={restakePercentage}
+                  />
                 </Button>
-              </div>
-              {notEnoughCred && (
-                <span className="ml-md text-destructive text-sm h-fit">
-                  not enough cred
-                </span>
               )}
-            </PopoverContent>
-          </Popover>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };

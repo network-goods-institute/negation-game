@@ -40,5 +40,15 @@ export const getCounterpointSuggestions = async (pointId: number) => {
     prompt,
   });
 
-  return elementStream;
+  // Consume the stream server-side and return the array to prevent stream conflicts
+  const suggestions: string[] = [];
+  const reader = elementStream.getReader();
+  
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    suggestions.push(value);
+  }
+
+  return suggestions;
 };

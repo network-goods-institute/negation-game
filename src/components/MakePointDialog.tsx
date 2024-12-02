@@ -1,5 +1,6 @@
 import { endorse } from "@/actions/endorse";
 import { fetchSimilarPoints } from "@/actions/fetchSimilarPoints";
+import { improvePoint } from "@/actions/improvePoint";
 import { makePoint } from "@/actions/makePoint";
 import { CredInput } from "@/components/CredInput";
 import { PointEditor } from "@/components/PointEditor";
@@ -21,7 +22,7 @@ import { DialogProps } from "@radix-ui/react-dialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDebounce } from "@uidotdev/usehooks";
 import { ArrowLeftIcon, BlendIcon, DiscIcon, Undo2Icon } from "lucide-react";
-import { FC, useState } from "react";
+import { FC, useEffect, useState } from "react";
 import { IterableElement } from "type-fest";
 
 export interface MakePointDialogProps extends DialogProps {}
@@ -38,6 +39,9 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
   const [selectedPoint, selectPoint] = useState<
     IterableElement<typeof similarPoints> | undefined
   >(undefined);
+  const [editingSuggestion, setEditingSuggestion] = useState<string | null>(null);
+  const [editedContents, setEditedContents] = useState<Map<string, string>>(new Map());
+  const [suggestionSelected, setSuggestionSelected] = useState(false);
   const charactersLeft = POINT_MAX_LENGHT - content.length;
   const { data: user } = useUser();
   const canSubmit =
@@ -48,6 +52,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
       (charactersLeft >= 0 && content.length >= POINT_MIN_LENGHT));
   const queryClient = useQueryClient();
   const debouncedContent = useDebounce(content, 500);
+
   const { data: similarPoints } = useQuery({
     queryKey: ["similarPoints", debouncedContent],
     queryFn: ({ queryKey: [, query] }) =>
@@ -55,6 +60,29 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
         ? fetchSimilarPoints({ query })
         : [],
   });
+
+  const { data: improvementSuggestionsStream, isLoading: isLoadingImprovements } = useQuery({
+    queryKey: ["improvementSuggestions", debouncedContent],
+    queryFn: ({ queryKey: [, query] }) =>
+      debouncedContent.length >= POINT_MIN_LENGHT ? improvePoint(query) : null,
+    enabled: !selectedPoint && !suggestionSelected && debouncedContent.length >= POINT_MIN_LENGHT,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    gcTime: 0
+  });
+
+  const [improvementSuggestions, setImprovementSuggestions] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!improvementSuggestionsStream) {
+      setImprovementSuggestions([]);
+      return;
+    }
+    const suggestions = improvementSuggestionsStream.split('\n').filter(Boolean);
+    setImprovementSuggestions(suggestions);
+  }, [improvementSuggestionsStream]);
 
   return (
     <Dialog {...props} open={open} onOpenChange={onOpenChange}>
@@ -157,6 +185,81 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
             ))}
           </>
         )}
+
+        {!selectedPoint && content.length >= POINT_MIN_LENGHT && isLoadingImprovements && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
+            <span className="size-2 bg-muted-foreground rounded-full animate-bounce" />
+            <span>Crafting other phrasings...</span>
+          </div>
+        )}
+
+        {!selectedPoint && improvementSuggestions.length > 0 && (
+          <>
+            <p className="text-xs text-muted-foreground mb-md">
+              Consider these improved phrasings of your point:
+            </p>
+
+            {improvementSuggestions.map((suggestion, index) => (
+              <div key={index} className="flex flex-col w-full mb-2">
+                {editingSuggestion === suggestion ? (
+                  <div className="flex flex-col gap-2 p-4 border rounded-md">
+                    <textarea
+                      className="w-full min-h-[60px] bg-transparent resize-none outline-none"
+                      value={editedContents.get(suggestion) ?? suggestion}
+                      onChange={(e) => {
+                        const newMap = new Map(editedContents);
+                        newMap.set(suggestion, e.target.value);
+                        setEditedContents(newMap);
+                      }}
+                      autoFocus
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditingSuggestion(null);
+                          const newMap = new Map(editedContents);
+                          newMap.delete(suggestion); // eslint-disable-line drizzle/enforce-delete-with-where
+                          setEditedContents(newMap);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setContent(editedContents.get(suggestion) ?? suggestion);
+                          setSuggestionSelected(true);
+                          setEditingSuggestion(null);
+                          setEditedContents(new Map());
+                        }}
+                      >
+                        Use
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => {
+                      if (!editedContents.has(suggestion)) {
+                        const newMap = new Map(editedContents);
+                        newMap.set(suggestion, suggestion);
+                        setEditedContents(newMap);
+                      }
+                      setEditingSuggestion(suggestion);
+                    }}
+                    className="flex p-4 gap-2 hover:bg-accent w-full cursor-pointer border rounded-md"
+                  >
+                    <BlendIcon className="size-5 shrink-0 text-muted-foreground stroke-1" />
+                    <span className="flex-grow text-sm">{editedContents.get(suggestion) ?? suggestion}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </>
+        )}
+
         <Button
           className="self-end mt-md"
           disabled={!canSubmit}
@@ -175,6 +278,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
               onOpenChange?.(false);
               setContent("");
               selectPoint(undefined);
+              setSuggestionSelected(false);
               resetCred();
             });
           }}
