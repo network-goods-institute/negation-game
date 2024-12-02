@@ -1,10 +1,14 @@
 import { CredInput } from "@/components/CredInput";
-import { AutosizeTextarea } from "@/components/ui/autosize-textarea";
+import {
+  AutosizeTextarea,
+  AutosizeTextAreaProps,
+} from "@/components/ui/autosize-textarea";
 import { Separator } from "@/components/ui/separator";
 import { POINT_MAX_LENGHT, POINT_MIN_LENGHT } from "@/constants/config";
 import { useCredInput } from "@/hooks/useCredInput";
 import { cn } from "@/lib/cn";
-import { FC, HTMLAttributes } from "react";
+import { CircleCheckBigIcon } from "lucide-react";
+import { FC, HTMLAttributes, ReactNode } from "react";
 
 export interface PointEditorProps extends HTMLAttributes<HTMLDivElement> {
   content: string;
@@ -12,6 +16,8 @@ export interface PointEditorProps extends HTMLAttributes<HTMLDivElement> {
   cred: number;
   setCred: (cred: number) => void;
   placeholder?: string;
+  textareaProps?: Partial<AutosizeTextAreaProps>;
+  guidanceNotes?: ReactNode;
 }
 
 export const PointEditor: FC<PointEditorProps> = ({
@@ -20,7 +26,14 @@ export const PointEditor: FC<PointEditorProps> = ({
   setContent,
   cred,
   setCred,
+  textareaProps,
   placeholder = "Make your point",
+  guidanceNotes = (
+    <>
+      <CircleCheckBigIcon className="size-3 align-[-1.5px] inline-block " />{" "}
+      Good Points express a single idea and make sense on their own
+    </>
+  ),
 }) => {
   const charactersLeft = POINT_MAX_LENGHT - content.length;
   const { notEnoughCred } = useCredInput({ cred, setCred });
@@ -34,8 +47,10 @@ export const PointEditor: FC<PointEditorProps> = ({
         autoFocus
         className="w-full rounded-none !ring-0 tracking-tight text-md border-none @sm/point:text-lg p-2 -ml-2 -mt-2 "
         placeholder={placeholder}
+        {...textareaProps}
       />
       <Separator className="w-full" />
+      <p className="text-muted-foreground/70 text-xs -mt-1">{guidanceNotes}</p>
 
       <div className="flex w-full items-center justify-between  gap-sm">
         <CredInput

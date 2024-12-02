@@ -4,14 +4,15 @@ import { ThemedPrivyProvider } from "@/components/providers/ThemedPrivyProvider"
 import { ModeToggle } from "@/components/ui/ModeToggle";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
-import Dynamic from "@/components/utils/Dynamic";
+import { Dynamic } from "@/components/utils/Dynamic";
 import { cn } from "@/lib/cn";
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Analytics } from "@vercel/analytics/react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { DevOnly } from "@/components/utils/DevOnly";
+import { ToggleableReactQueryDevTools } from "@/components/utils/ToggleableReactQueryDevTools";
 import Link from "next/link";
 import "./globals.css";
 
@@ -62,7 +63,9 @@ export default function RootLayout({
                   <Navigation className="sm:hidden" />
                 </footer> */}
               </TooltipProvider>
-              <ReactQueryDevtools initialIsOpen={false} buttonPosition="top-left" />
+              <DevOnly>
+                <ToggleableReactQueryDevTools />
+              </DevOnly>
             </QueryClientProvider>
           </ThemedPrivyProvider>
         </ThemeProvider>

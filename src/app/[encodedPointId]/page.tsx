@@ -29,11 +29,12 @@ import { cn } from "@/lib/cn";
 import { decodeId } from "@/lib/decodeId";
 import { encodeId } from "@/lib/encodeId";
 import { favor } from "@/lib/negation-game/favor";
+import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
 import { TimelineScale, timelineScales } from "@/lib/timelineScale";
 import { usePrivy } from "@privy-io/react-auth";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
-import { useSetAtom } from "jotai";
+import { useAtomCallback } from "jotai/utils";
 import {
   ArrowLeftIcon,
   CircleXIcon,
@@ -78,7 +79,14 @@ export default function PointPage({
   const encodedPointId = use(params).encodedPointId;
   const pointId = decodeId(encodedPointId);
   const { user: privyUser, login } = usePrivy();
-  const setNegationContent = useSetAtom(negationContentAtom);
+  const [negatedPoint, setNegatedPoint] = useState<
+    { id: number; content: string; createdAt: Date; cred: number } | undefined
+  >(undefined);
+  const setNegationContent = useAtomCallback(
+    (_get, set, negatedPointId: number, content: string) => {
+      set(negationContentAtom(negatedPointId), content);
+    }
+  );
   const {
     data: point,
     refetch: refetchPoint,
@@ -97,16 +105,16 @@ export default function PointPage({
     refetch: refetchFavorHistory,
     isFetching: isFetchingFavorHistory,
   } = useQuery({
-    queryKey: ["favor-history", pointId, timelineScale],
-    queryFn: () => {
-      return fetchFavorHistory({ pointId, scale: timelineScale });
+    queryKey: [pointId, "favor-history", timelineScale] as const,
+    queryFn: ({ queryKey: [id, , scale] }) => {
+      return fetchFavorHistory({ pointId: id, scale });
     },
     placeholderData: keepPreviousData,
     refetchInterval: 60000,
   });
 
   const { data: negations, isLoading: isLoadingNegations } = useQuery({
-    queryKey: ["point-negations", pointId, privyUser?.id],
+    queryKey: [pointId, "point-negations", privyUser?.id],
     queryFn: () => fetchPointNegations(pointId),
   });
 
@@ -120,9 +128,6 @@ export default function PointPage({
   });
 
   const { back, push } = useRouter();
-  const [negatedPoint, setNegatedPoint] = useState<
-    { id: number; content: string; createdAt: Date } | undefined
-  >(undefined);
 
   const { data: counterpointSuggestions = [] } = useQuery({
     queryKey: ["counterpoint-suggestions", point?.id],
@@ -423,27 +428,28 @@ export default function PointPage({
 
               {counterpointSuggestions.length > 0 && (
                 <>
-                  <p className="w-full text-center pt-sm text-muted-foreground text-xs animate-fade-in">
-                    Try one of these AI-generated negations
+                  <p className="w-full text-center text-muted-foreground text-xs p-4 animate-fade-in">
+                    Want to add a negation? Try starting with one of these
+                    AI-generated ones{" "}
+                    <SparklesIcon className="size-3 inline-block align-baseline" />
                   </p>
                   {counterpointSuggestions.map((suggestion, i) => (
                     <div
                       key={`suggestion-${i}`}
-                      className="flex gap-3 mt-3 mx-2 px-3 py-4 rounded-md border hover:bg-muted cursor-pointer animate-fade-in"
+                      className="flex gap-3 mt-3 mx-2 px-3 py-4 rounded-md border border-dashed hover:bg-muted cursor-pointer animate-fade-in"
                       onClick={() => {
                         if (privyUser === null) {
                           login();
                           return;
                         }
-                        setNegationContent(suggestion);
+                        setNegationContent(pointId, suggestion);
                         setNegatedPoint(point);
                       }}
                     >
                       <div className="relative grid text-muted-foreground">
-                        <CircleXIcon className="shrink-0 size-6 no-scaling-stroke circle-dashed-3 stroke-1 text-muted-foreground col-start-1 row-start-1" />
+                        <CircleXIcon className="shrink-0 size-6 stroke-1 text-muted-foreground col-start-1 row-start-1" />
                       </div>
-                      <p className="tracking-tighter text-md  @sm/point:text-lg text-muted-foreground -mt-1">
-                        <SparklesIcon className="size-[14px] inline-block align-baseline" />{" "}
+                      <p className="tracking-tighter text-sm  @sm/point:text-base  -mt-0.5">
                         {suggestion}
                       </p>
                     </div>

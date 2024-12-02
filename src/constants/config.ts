@@ -8,3 +8,5 @@ export const USERNAME_MIN_LENGHT = 3;
 export const USERNAME_MAX_LENGHT = 15;
 
 export const DEFAULT_TIMESCALE: TimelineScale = "ALL";
+
+export const GOOD_ENOUGH_POINT_RATING = 7;

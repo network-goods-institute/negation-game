@@ -27,7 +27,7 @@ export default function Home() {
   });
 
   const [negatedPoint, setNegatedPoint] = useState<
-    { id: number; content: string; createdAt: Date } | undefined
+    { id: number; content: string; createdAt: Date; cred: number } | undefined
   >(undefined);
 
   const [makePointOpen, onMakePointOpenChange] = useToggle(false);

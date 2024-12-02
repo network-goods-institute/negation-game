@@ -1,4 +1,9 @@
-import fluid, { extract, fontSize, screens } from "fluid-tailwind";
+import fluid, {
+  extract,
+  FluidThemeConfig,
+  fontSize,
+  screens,
+} from "fluid-tailwind";
 import type { Config } from "tailwindcss";
 
 const config = {
@@ -14,7 +19,11 @@ const config = {
   },
   prefix: "",
   theme: {
-    screens,
+    fluid: ({ theme }: { theme: (key: string) => string }) =>
+      ({
+        defaultScreens: ["0rem", theme("screens.lg")],
+      }) satisfies FluidThemeConfig,
+    screens: { ...screens, xs: "28rem" },
     fontSize,
     container: {
       center: true,

@@ -8,8 +8,9 @@ import {
 } from "@/db/schema";
 import { Point } from "@/db/tables/pointsTable";
 import { db } from "@/services/db";
+import { google } from "@ai-sdk/google";
 import { openai } from "@ai-sdk/openai";
-import { embed } from "ai";
+import { embed, generateObject } from "ai";
 import {
   and,
   cosineDistance,
@@ -21,16 +22,19 @@ import {
   or,
   sql,
 } from "drizzle-orm";
+import { z } from "zod";
 
-export interface FetchNegationCandidatesArgs {
+export interface FindCounterpointCandidatesArgs {
   negatedPointId: Point["id"];
-  counterpointContent: string;
+  negatedPointContent: Point["content"];
+  counterpointContent: Point["content"];
 }
 
-export const fetchCounterpointCandidates = async ({
+export const findCounterpointCandidatesAction = async ({
   negatedPointId,
+  negatedPointContent,
   counterpointContent,
-}: FetchNegationCandidatesArgs) => {
+}: FindCounterpointCandidatesArgs) => {
   const embedding = (
     await embed({
       model: openai.embedding("text-embedding-3-small", { dimensions: 384 }),
@@ -52,7 +56,7 @@ export const fetchCounterpointCandidates = async ({
       )
   ).mapWith(Boolean);
 
-  return await db
+  const similarPoints = await db
     .select({
       similarity,
       id: pointsTable.id,
@@ -85,7 +89,7 @@ export const fetchCounterpointCandidates = async ({
         WHERE ${endorsementsTable.pointId} = ${pointsTable.id}
       ), 0)
     `.mapWith(Number),
-    negationsCred: sql<number>`
+      negationsCred: sql<number>`
       COALESCE((
         SELECT SUM(${endorsementsTable.cred})
         FROM ${endorsementsTable}
@@ -105,5 +109,35 @@ export const fetchCounterpointCandidates = async ({
     .innerJoin(pointsTable, eq(pointsTable.id, embeddingsTable.id))
     .where(and(gt(similarity, 0.5), ne(pointsTable.id, negatedPointId)))
     .orderBy((t) => desc(t.similarity))
-    .limit(5);
+    .limit(10);
+
+  const prompt = `Given these statements, where the preceding number is the id:
+
+${similarPoints.map(({ id, content }) => `${id}: ${content}`).join("\n---\n")}
+
+Using this statement as the COUNTERPOINT CANDIDATE:
+${counterpointContent}
+---
+
+Identify the IDs of statements that are similar in meaning, express the same idea or similar as the COUNTERPOINT CANDIDATE.
+
+return no results if no statements meet the criteria.
+    `;
+
+  console.log(prompt);
+
+  const {
+    object: viableCounterpointIds,
+    toJsonResponse,
+    finishReason,
+  } = await generateObject({
+    model: google("gemini-1.5-flash"),
+    output: "array",
+    schema: z.number().describe("id of the statement"),
+    prompt,
+  });
+
+  console.log("viableCounterpointIds", viableCounterpointIds);
+
+  return similarPoints.filter(({ id }) => viableCounterpointIds.includes(id));
 };
