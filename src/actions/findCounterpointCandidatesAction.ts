@@ -126,8 +126,6 @@ Identify the IDs of statements that are similar in meaning, express the same ide
 return no results if no statements meet the criteria.
     `;
 
-  console.log(prompt);
-
   const {
     object: viableCounterpointIds,
     toJsonResponse,
@@ -138,8 +136,6 @@ return no results if no statements meet the criteria.
     schema: z.number().describe("id of the statement"),
     prompt,
   });
-
-  console.log("viableCounterpointIds", viableCounterpointIds);
 
   return similarPoints.filter(({ id }) => viableCounterpointIds.includes(id));
 };
