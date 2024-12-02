@@ -29,7 +29,6 @@ import { cn } from "@/lib/cn";
 import { decodeId } from "@/lib/decodeId";
 import { encodeId } from "@/lib/encodeId";
 import { favor } from "@/lib/negation-game/favor";
-import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
 import { TimelineScale, timelineScales } from "@/lib/timelineScale";
 import { usePrivy } from "@privy-io/react-auth";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
