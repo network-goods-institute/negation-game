@@ -17,7 +17,8 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
 import { useRouter } from "next/navigation";
-import { Scale, DiamondIcon } from "lucide-react";
+import { Scale, DiamondIcon, Diamond } from "lucide-react";
+import { RestakeIcon } from "@/components/icons/RestakeIcon";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -184,10 +185,11 @@ export const PointCard = ({
                     onRestake?.();
                   }}
                 >
-                  <DiamondIcon className="size-7 stroke-1" />
-                  {restakePercentage > 0 && (
-                    <span className="ml-1">{restakePercentage}%</span>
-                  )}
+                  <RestakeIcon 
+                    className={restakePercentage > 0 ? "fill-current" : ""} 
+                    showPercentage={restakePercentage > 0}
+                    percentage={restakePercentage}
+                  />
                 </Button>
               )}
             </div>

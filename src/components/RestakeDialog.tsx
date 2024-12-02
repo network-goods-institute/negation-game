@@ -50,7 +50,12 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   onOpenChange,
   ...props
 }) => {
-  const [stakePercentage, setStakePercentage] = useState(0);
+  // Get existing restake percentage from localStorage
+  const existingRestakeKey = `restake-${originalPoint.id}-${counterPoint.id}`;
+  const existingRestakePercentage = Number(localStorage.getItem(existingRestakeKey)) || 0;
+  
+  const [stakePercentage, setStakePercentage] = useState(existingRestakePercentage);
+  const [isSlashing, setIsSlashing] = useState(false);
   const [timelineScale, setTimelineScale] = useState<TimelineScale>(DEFAULT_TIMESCALE);
   const [endorsePopoverOpen, toggleEndorsePopoverOpen] = useToggle(false);
   const { cred, setCred, notEnoughCred } = useCredInput({
@@ -66,6 +71,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     totalStaked: number
     maxStakeable: number
   } | null>(null)
+  const [amountGivenUp, setAmountGivenUp] = useState(0);
 
   const { data: favorHistory, isLoading: isLoadingHistory } = useQuery({
     queryKey: ["favor-history", originalPoint.id, timelineScale],
@@ -84,8 +90,10 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   const currentFavor = favorHistory?.length ? favorHistory[favorHistory.length - 1].favor : 50;
   
   const handleSliderChange = useCallback((values: number[]) => {
-    setStakePercentage(values[0]);
-  }, []);
+    const newPercentage = values[0];
+    setStakePercentage(newPercentage);
+    setIsSlashing(newPercentage < existingRestakePercentage);
+  }, [existingRestakePercentage]);
 
   const projectedData = favorHistory ? [
     ...favorHistory,
@@ -99,16 +107,22 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   // Reset states when dialog closes
   useEffect(() => {
     if (!open) {
-      setStakePercentage(0);
+      setStakePercentage(existingRestakePercentage);
       setShowSuccess(false);
+      setIsSlashing(false);
     }
-  }, [open]);
+  }, [open, existingRestakePercentage]);
 
   const handleSubmit = () => {
     const restakeKey = `restake-${originalPoint.id}-${counterPoint.id}`;
     localStorage.setItem(restakeKey, stakePercentage.toString());
     
-    // TODO: Add actual restake API call here
+    // Calculate amount given up if slashing
+    if (isSlashing) {
+      const givenUp = Math.round((existingRestakePercentage - stakePercentage) * maxStakeAmount / 100);
+      setAmountGivenUp(givenUp);
+    }
+    
     setShowSuccess(true);
   };
 
@@ -139,16 +153,37 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex flex-col items-center text-center">
-            <div className="rounded-full bg-endorsed/10 p-3 mb-6">
-              <Check className="size-6 text-endorsed" />
-            </div>
-            
-            <div className="space-y-2 mb-6">
-              <DialogTitle className="text-xl">Successfully Restaked!</DialogTitle>
-              <p className="text-muted-foreground">
-                You&apos;ve added <span className="text-endorsed">+{bonusFavor} favor</span> to your point
-              </p>
-            </div>
+            {isSlashing ? (
+              // Slashing success view
+              <>
+                <div className="rounded-full bg-destructive/10 p-3 mb-6">
+                  <AlertCircle className="size-6 text-destructive" />
+                </div>
+                
+                <div className="space-y-2 mb-6">
+                  <DialogTitle className="text-xl">Stake Reduced</DialogTitle>
+                  <p className="text-muted-foreground">
+                    You&apos;ve given up <span className="text-destructive">
+                      {amountGivenUp} cred
+                    </span> from your original point
+                  </p>
+                </div>
+              </>
+            ) : (
+              // Normal restake success view
+              <>
+                <div className="rounded-full bg-endorsed/10 p-3 mb-6">
+                  <Check className="size-6 text-endorsed" />
+                </div>
+                
+                <div className="space-y-2 mb-6">
+                  <DialogTitle className="text-xl">Successfully Restaked!</DialogTitle>
+                  <p className="text-muted-foreground">
+                    You&apos;ve added <span className="text-endorsed">+{bonusFavor} favor</span> to your point
+                  </p>
+                </div>
+              </>
+            )}
 
             <div className="w-full space-y-6">
               {/* Original point */}
@@ -173,7 +208,10 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
               </div>
 
               {/* Stake amount */}
-              <div className="bg-muted/30 rounded-lg px-4 py-3">
+              <div className={cn(
+                "rounded-lg px-4 py-3",
+                isSlashing ? "bg-destructive/10" : "bg-muted/30"
+              )}>
                 <p className="text-sm text-muted-foreground">Amount Restaked</p>
                 <p className="text-lg">
                   {Math.round(actualStakeAmount * 10) / 10} / {maxStakeAmount} cred ({stakePercentage}%)
@@ -422,9 +460,21 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
             max={100}
             step={1}
             className="w-full"
+            destructive={isSlashing}
             disabled={maxStakeAmount === 0}
           />
         </div>
+
+        {/* Add warning when slashing */}
+        {isSlashing && (
+          <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-md p-3">
+            <AlertCircle className="size-4 shrink-0" />
+            <p>
+              Reducing your stake will slash your restaked cred from the original point. 
+              You&apos;ll give up {Math.round((existingRestakePercentage - stakePercentage) * maxStakeAmount / 100)} cred.
+            </p>
+          </div>
+        )}
 
         {/* Favor Indicator and Actions */}
         <div className="flex items-center justify-between pt-2 border-t">

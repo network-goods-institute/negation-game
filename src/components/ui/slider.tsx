@@ -7,8 +7,10 @@ import { cn } from "@/lib/cn"
 
 const Slider = React.forwardRef<
   React.ElementRef<typeof SliderPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>
->(({ className, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root> & {
+    destructive?: boolean;
+  }
+>(({ className, destructive, ...props }, ref) => (
   <SliderPrimitive.Root
     ref={ref}
     className={cn(
@@ -17,10 +19,19 @@ const Slider = React.forwardRef<
     )}
     {...props}
   >
-    <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-endorsed/10">
-      <SliderPrimitive.Range className="absolute h-full bg-endorsed" />
+    <SliderPrimitive.Track className={cn(
+      "relative h-2 w-full grow overflow-hidden rounded-full",
+      destructive ? "bg-destructive/10" : "bg-endorsed/10"
+    )}>
+      <SliderPrimitive.Range className={cn(
+        "absolute h-full",
+        destructive ? "bg-destructive" : "bg-endorsed"
+      )} />
     </SliderPrimitive.Track>
-    <SliderPrimitive.Thumb className="block h-6 w-6 rounded-full bg-endorsed shadow transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 relative z-10" />
+    <SliderPrimitive.Thumb className={cn(
+      "block h-6 w-6 rounded-full shadow transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 relative z-10",
+      destructive ? "bg-destructive" : "bg-endorsed"
+    )} />
   </SliderPrimitive.Root>
 ))
 Slider.displayName = SliderPrimitive.Root.displayName
