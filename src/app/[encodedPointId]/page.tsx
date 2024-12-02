@@ -38,6 +38,7 @@ import {
   ArrowLeftIcon,
   CircleXIcon,
   DiscIcon,
+  Repeat2Icon,
   SparklesIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -54,6 +55,20 @@ import {
   YAxis,
 } from "recharts";
 import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
+import { SelectNegationDialog } from "@/components/SelectNegationDialog";
+import { RestakeDialog } from "@/components/RestakeDialog";
+
+type Point = {
+  id: number;
+  content: string;
+  createdAt: Date;
+  cred: number;
+  stakedAmount: number;
+  viewerCred?: number;
+  amountSupporters: number;
+  amountNegations: number;
+  negationsCred: number;
+};
 
 export default function PointPage({
   params,
@@ -109,7 +124,7 @@ export default function PointPage({
     { id: number; content: string; createdAt: Date } | undefined
   >(undefined);
 
-  const { data: counterpointSuggestionsStream } = useQuery({
+  const { data: counterpointSuggestions = [] } = useQuery({
     queryKey: ["counterpoint-suggestions", point?.id],
     queryFn: ({ queryKey: [, pointId] }) =>
       getCounterpointSuggestions(pointId as number),
@@ -117,32 +132,8 @@ export default function PointPage({
     staleTime: Infinity,
   });
 
-  const [counterpointSuggestions, setCounterpointSuggestions] = useState<
-    string[]
-  >([]);
-
-  useEffect(() => {
-    if (counterpointSuggestionsStream === undefined) return;
-
-    setCounterpointSuggestions([]);
-    let isCancelled = false;
-
-    const consumeStream = async () => {
-      const reader = counterpointSuggestionsStream.getReader();
-      while (!isCancelled) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        setCounterpointSuggestions((prev) => [...prev, value]);
-      }
-      reader.releaseLock();
-    };
-
-    consumeStream();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [counterpointSuggestionsStream]);
+  const [selectNegationDialogOpen, toggleSelectNegationDialog] = useToggle(false);
+  const [restakePoint, setRestakePoint] = useState<{point: Point, counterPoint: Point} | null>(null);
 
   return (
     <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow  gap-md bg-background overflow-auto">
@@ -174,6 +165,28 @@ export default function PointPage({
                 <h1 className="text-xl font-medium">Point</h1>
               </div>
               <div className="flex gap-sm items-center text-muted-foreground">
+                <Button
+                  variant="ghost"
+                  className="p-2 rounded-full size-fit hover:bg-muted/30"
+                  onClick={() => toggleSelectNegationDialog(true)}
+                >
+                  <Repeat2Icon className="size-6 stroke-1" />
+                </Button>
+                <SelectNegationDialog
+                  open={selectNegationDialogOpen}
+                  onOpenChange={toggleSelectNegationDialog}
+                  originalPoint={{
+                    id: point.id,
+                    content: point.content,
+                    createdAt: point.createdAt,
+                    stakedAmount: point.cred,
+                    viewerCred: point.viewerCred,
+                    amountSupporters: point.amountSupporters,
+                    amountNegations: point.amountNegations,
+                    negationsCred: point.negationsCred
+                  }}
+                  negationId={point.id}
+                />
                 <Popover
                   open={endorsePopoverOpen}
                   onOpenChange={toggleEndorsePopoverOpen}
@@ -375,7 +388,6 @@ export default function PointPage({
                     </div>
                     <PointCard
                       onNegate={(e) => {
-                        //prevent the link from navigating
                         e.preventDefault();
                         user !== null ? setNegatedPoint(negation) : login();
                       }}
@@ -387,7 +399,19 @@ export default function PointPage({
                       amountNegations={negation.amountNegations}
                       pointId={negation.id}
                       totalCred={negation.cred}
-                      viewerContext={{ viewerCred: negation.viewerCred }}
+                      viewerContext={{ viewerCred: negation.cred }}
+                      isNegation={true}
+                      parentPoint={point}
+                      onRestake={() => setRestakePoint({
+                        point: {
+                          ...point,
+                          stakedAmount: point.cred
+                        },
+                        counterPoint: {
+                          ...negation,
+                          stakedAmount: negation.cred
+                        }
+                      })}
                     />
                   </Link>
                 ))}
@@ -438,6 +462,14 @@ export default function PointPage({
           !isOpen && setNegatedPoint(undefined)
         }
       />
+      {restakePoint && (
+        <RestakeDialog
+          open={restakePoint !== null}
+          onOpenChange={(open) => !open && setRestakePoint(null)}
+          originalPoint={restakePoint.point}
+          counterPoint={restakePoint.counterPoint}
+        />
+      )}
     </main>
   );
 }
