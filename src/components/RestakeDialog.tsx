@@ -207,7 +207,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     <Dialog {...props} open={open} onOpenChange={onOpenChange}>
       <DialogContent 
         className={cn(
-          "flex flex-col gap-4 p-4 sm:p-6 max-w-xl overflow-hidden",
+          "flex flex-col gap-4 p-4 sm:p-6 max-w-xl overflow-hidden mt-4 sm:mt-0",
           // Mobile: fixed height with scrolling
           "min-h-[700px] max-h-[min(900px,85vh)]",
           // Desktop: dynamic height based on content with minimum height
@@ -350,7 +350,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                       <YAxis domain={[0, 100]} hide />
                       <ReferenceLine y={50} className="[&>line]:stroke-muted" />
                       <Tooltip
-                        wrapperClassName="backdrop-blur-sm !bg-transparent !pb-0 rounded-sm"
+                        wrapperClassName="backdrop-blur-md !bg-background/15 !pb-2 !pt-1 !px-2 rounded-lg shadow-[0_4px_20px_-2px_rgba(0,0,0,0.2)] border border-border/40"
                         labelClassName="-top-3 text-muted-foreground text-xs"
                         formatter={(value: number) => value.toFixed(2)}
                         labelFormatter={(timestamp: Date) => timestamp.toLocaleString()}
@@ -427,7 +427,8 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
         </div>
 
         {/* Fixed bottom section */}
-        <div className="sm:static fixed bottom-5 left-0 right-0 flex flex-col gap-2 border-t bg-background p-4 sm:p-0">
+        <div className="sm:static fixed bottom-5 left-0 right-0 flex flex-col gap-2 border-t bg-background p-4 sm:p-0 sm:border-t-0 
+          rounded-t-xl shadow-lg sm:shadow-none sm:rounded-none">
           {/* Slider Section */}
           <div className={cn(
             "space-y-4",

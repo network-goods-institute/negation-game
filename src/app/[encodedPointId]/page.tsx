@@ -326,7 +326,7 @@ export default function PointPage({
                     />
 
                     <Tooltip
-                      wrapperClassName="backdrop-blur-sm !bg-transparent !pb-0 rounded-sm"
+                      wrapperClassName="backdrop-blur-md !bg-background/15 !pb-2 !pt-1 !px-2 rounded-lg shadow-[0_4px_20px_-2px_rgba(0,0,0,0.2)] border border-border/40"
                       labelClassName=" -top-3 text-muted-foreground text-xs"
                       formatter={(value: number) => value.toFixed(2)}
                       labelFormatter={(timestamp: Date) =>
