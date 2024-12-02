@@ -4,8 +4,9 @@ import { getUserId } from "@/actions/getUserId";
 import {
   endorsementsTable,
   negationsTable,
-  pointsWithStatsView,
+  pointsWithDetailsView,
 } from "@/db/schema";
+import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
 import { and, desc, eq, ne, or, sql } from "drizzle-orm";
@@ -15,21 +16,21 @@ export const fetchPointNegations = async (id: number) => {
 
   return await db
     .select({
-      ...getColumns(pointsWithStatsView),
+      ...getColumns(pointsWithDetailsView),
       ...(viewerId
         ? {
             viewerCred: sql<number>`
               COALESCE((
                 SELECT SUM(${endorsementsTable.cred})
                 FROM ${endorsementsTable}
-                WHERE ${endorsementsTable.pointId} = ${pointsWithStatsView.id}
+                WHERE ${endorsementsTable.pointId} = ${pointsWithDetailsView.pointId}
                   AND ${endorsementsTable.userId} = ${viewerId}
               ), 0)
             `.mapWith(Number),
           }
         : {}),
     })
-    .from(pointsWithStatsView)
+    .from(pointsWithDetailsView)
     .innerJoin(
       negationsTable,
       or(
@@ -40,11 +41,12 @@ export const fetchPointNegations = async (id: number) => {
     .where(
       and(
         or(
-          eq(pointsWithStatsView.id, negationsTable.olderPointId),
-          eq(pointsWithStatsView.id, negationsTable.newerPointId)
+          eq(pointsWithDetailsView.pointId, negationsTable.olderPointId),
+          eq(pointsWithDetailsView.pointId, negationsTable.newerPointId)
         ),
-        ne(pointsWithStatsView.id, id)
+        ne(pointsWithDetailsView.pointId, id)
       )
     )
-    .orderBy(desc(pointsWithStatsView.cred));
+    .orderBy(desc(pointsWithDetailsView.cred))
+    .then(addFavor);
 };

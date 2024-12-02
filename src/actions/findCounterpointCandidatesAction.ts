@@ -7,6 +7,7 @@ import {
   pointsTable,
 } from "@/db/schema";
 import { Point } from "@/db/tables/pointsTable";
+import { addFavor } from "@/db/utils/addFavor";
 import { db } from "@/services/db";
 import { google } from "@ai-sdk/google";
 import { openai } from "@ai-sdk/openai";
@@ -109,7 +110,8 @@ export const findCounterpointCandidatesAction = async ({
     .innerJoin(pointsTable, eq(pointsTable.id, embeddingsTable.id))
     .where(and(gt(similarity, 0.5), ne(pointsTable.id, negatedPointId)))
     .orderBy((t) => desc(t.similarity))
-    .limit(10);
+    .limit(10)
+    .then(addFavor);
 
   const prompt = `Given these statements, where the preceding number is the id:
 

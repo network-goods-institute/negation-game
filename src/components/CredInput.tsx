@@ -12,14 +12,14 @@ export interface CredInputProps
   extends Omit<ToggleGroupSingleProps, "type">,
     Pick<
       ReturnType<typeof useCredInput>,
-      "cred" | "setCred" | "notEnoughCred"
+      "credInput" | "setCredInput" | "notEnoughCred"
     > {}
 
 const DEFAULT_CRED_OPTIONS = [1, 5, 10];
 
 export const CredInput: FC<CredInputProps> = ({
-  cred,
-  setCred,
+  credInput: cred,
+  setCredInput: setCred,
   notEnoughCred,
   ...props
 }) => {

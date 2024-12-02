@@ -28,7 +28,6 @@ import {
 } from "@/constants/config";
 import { useCredInput } from "@/hooks/useCredInput";
 import { cn } from "@/lib/cn";
-import { favor } from "@/lib/negation-game/favor";
 import { DialogProps } from "@radix-ui/react-dialog";
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -48,7 +47,12 @@ import {
 import { FC, ReactNode, useCallback, useEffect, useState } from "react";
 
 export interface NegateDialogProps extends DialogProps {
-  negatedPoint?: { id: number; content: string; cred: number; createdAt: Date };
+  negatedPoint?: {
+    pointId: number;
+    content: string;
+    cred: number;
+    createdAt: Date;
+  };
 }
 
 export const NegateDialog: FC<NegateDialogProps> = ({
@@ -58,10 +62,15 @@ export const NegateDialog: FC<NegateDialogProps> = ({
   ...props
 }) => {
   const [counterpointContent, setCounterpointContent] = useAtom(
-    negationContentAtom(negatedPoint?.id)
+    negationContentAtom(negatedPoint?.pointId)
   );
   const [reviewPopoverOpen, toggleReviewPopoverOpen] = useToggle(false);
-  const { cred, setCred, notEnoughCred, resetCred } = useCredInput({
+  const {
+    credInput: cred,
+    setCredInput: setCred,
+    notEnoughCred,
+    resetCredInput: resetCred,
+  } = useCredInput({
     resetWhen: !open,
   });
   const { mutateAsync: addCounterpoint, isPending: isAddingCounterpoint } =
@@ -106,7 +115,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({
     ] as const,
     queryFn: async ({ queryKey: [, negatedPoint, counterpointContent] }) => {
       const reviewResults = await reviewProposedCounterpointAction({
-        negatedPointId: negatedPoint!.id,
+        negatedPointId: negatedPoint!.pointId,
         negatedPointContent: negatedPoint!.content,
         counterpointContent,
       });
@@ -226,9 +235,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({
                     {selectedCounterpointCandidate.content}
                   </span>
                   <PointStats
-                    favor={favor({
-                      ...selectedCounterpointCandidate,
-                    })}
+                    favor={selectedCounterpointCandidate.favor}
                     amountNegations={
                       selectedCounterpointCandidate.amountNegations
                     }
@@ -240,8 +247,8 @@ export const NegateDialog: FC<NegateDialogProps> = ({
                 </div>
 
                 <CredInput
-                  cred={cred}
-                  setCred={setCred}
+                  credInput={cred}
+                  setCredInput={setCred}
                   notEnoughCred={notEnoughCred}
                 />
               </div>
@@ -275,7 +282,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({
                     ? addCounterpoint({
                         content: counterpointContent,
                         cred,
-                        olderPointId: negatedPoint?.id,
+                        olderPointId: negatedPoint?.pointId,
                       })
                     : selectedCounterpointCandidate.isCounterpoint
                       ? endorse({
@@ -283,14 +290,14 @@ export const NegateDialog: FC<NegateDialogProps> = ({
                           cred,
                         })
                       : negate({
-                          negatedPointId: negatedPoint!.id,
+                          negatedPointId: negatedPoint!.pointId,
                           counterpointId: selectedCounterpointCandidate.id,
                           cred,
                         })
                   ).then(() => {
                     queryClient.invalidateQueries({ queryKey: ["feed"] });
                     queryClient.invalidateQueries({
-                      queryKey: [negatedPoint?.id],
+                      queryKey: [negatedPoint?.pointId],
                     });
                     if (!!selectedCounterpointCandidate)
                       queryClient.invalidateQueries({
@@ -351,9 +358,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({
                               {counterpointCandidate.content}
                             </span>
                             <PointStats
-                              favor={favor({
-                                ...counterpointCandidate,
-                              })}
+                              favor={counterpointCandidate.favor}
                               amountNegations={
                                 counterpointCandidate.amountNegations
                               }

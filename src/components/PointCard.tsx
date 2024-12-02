@@ -22,7 +22,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
   content: string;
   createdAt: Date;
-  totalCred: number;
+  cred: number;
   favor: number;
   amountSupporters: number;
   amountNegations: number;
@@ -30,8 +30,6 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
     viewerCred?: number;
   };
   onNegate?: MouseEventHandler<HTMLButtonElement>;
-  leftSlot?: React.ReactNode;
-  bottomSlot?: React.ReactNode;
 }
 
 export const PointCard = ({
@@ -39,7 +37,7 @@ export const PointCard = ({
   content,
   createdAt,
   className,
-  totalCred,
+  cred,
   favor,
   amountSupporters: amountSupporters,
   amountNegations,
@@ -54,7 +52,7 @@ export const PointCard = ({
 
   const queryClient = useQueryClient();
   const [endorsePopoverOpen, toggleEndorsePopoverOpen] = useToggle(false);
-  const { cred, setCred, notEnoughCred } = useCredInput({
+  const { credInput, setCredInput, notEnoughCred } = useCredInput({
     resetWhen: !endorsePopoverOpen,
   });
   const { push } = useRouter();
@@ -78,7 +76,7 @@ export const PointCard = ({
           amountNegations={amountNegations}
           amountSupporters={amountSupporters}
           favor={favor}
-          cred={totalCred}
+          cred={cred}
         />
 
         <div className="flex gap-sm w-full text-muted-foreground">
@@ -126,14 +124,14 @@ export const PointCard = ({
             >
               <div className="w-full flex justify-between">
                 <CredInput
-                  cred={cred}
-                  setCred={setCred}
+                  credInput={credInput}
+                  setCredInput={setCredInput}
                   notEnoughCred={notEnoughCred}
                 />
                 <Button
-                  disabled={cred === 0 || notEnoughCred}
+                  disabled={credInput === 0 || notEnoughCred}
                   onClick={() => {
-                    endorse({ pointId, cred }).then(() => {
+                    endorse({ pointId, cred: credInput }).then(() => {
                       queryClient.invalidateQueries({ queryKey: ["feed"] });
                       toggleEndorsePopoverOpen(false);
                     });

@@ -16,23 +16,23 @@ export function useCredInput({
 }: UseCredInputOptions = {}) {
   const [internalCred, setInternalCred] = useState(defaultValue);
   const { data: user } = useUser();
-  const cred = credOverride ?? internalCred;
-  const setCred = setCredOverride ?? setInternalCred;
-  const notEnoughCred = !!user && user.cred < cred;
+  const credInput = credOverride ?? internalCred;
+  const setCredInput = setCredOverride ?? setInternalCred;
+  const notEnoughCred = !!user && user.cred < credInput;
 
   useEffect(() => {
     return () => {
       if (shouldReset) {
-        setCred(defaultValue);
+        setCredInput(defaultValue);
       }
     };
-  }, [shouldReset, defaultValue, setCred]);
+  }, [shouldReset, defaultValue, setCredInput]);
 
   return {
-    cred,
-    setCred,
+    credInput,
+    setCredInput,
     hasEnoughCred: !notEnoughCred,
     notEnoughCred,
-    resetCred: () => setCred(defaultValue),
+    resetCredInput: () => setCredInput(defaultValue),
   };
 }

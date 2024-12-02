@@ -28,7 +28,6 @@ import { useUser } from "@/hooks/useUser";
 import { cn } from "@/lib/cn";
 import { decodeId } from "@/lib/decodeId";
 import { encodeId } from "@/lib/encodeId";
-import { favor } from "@/lib/negation-game/favor";
 import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
 import { TimelineScale, timelineScales } from "@/lib/timelineScale";
 import { usePrivy } from "@privy-io/react-auth";
@@ -64,7 +63,8 @@ export default function PointPage({
   const pointId = decodeId(encodedPointId);
   const { user: privyUser, login } = usePrivy();
   const [negatedPoint, setNegatedPoint] = useState<
-    { id: number; content: string; createdAt: Date; cred: number } | undefined
+    | { pointId: number; content: string; createdAt: Date; cred: number }
+    | undefined
   >(undefined);
   const setNegationContent = useAtomCallback(
     (_get, set, negatedPointId: number, content: string) => {
@@ -107,17 +107,21 @@ export default function PointPage({
 
   const { data: user } = useUser();
   const [endorsePopoverOpen, toggleEndorsePopoverOpen] = useToggle(false);
-  const { cred, setCred, notEnoughCred } = useCredInput({
+  const {
+    credInput: cred,
+    setCredInput: setCred,
+    notEnoughCred,
+  } = useCredInput({
     resetWhen: !endorsePopoverOpen,
   });
 
   const { back, push } = useRouter();
 
   const { data: counterpointSuggestionsStream } = useQuery({
-    queryKey: ["counterpoint-suggestions", point?.id],
+    queryKey: ["counterpoint-suggestions", point?.pointId],
     queryFn: ({ queryKey: [, pointId] }) =>
       getCounterpointSuggestions(pointId as number),
-    enabled: !!point?.id && negations && negations.length === 0,
+    enabled: !!point?.pointId && negations && negations.length === 0,
     staleTime: Infinity,
   });
 
@@ -219,8 +223,8 @@ export default function PointPage({
                   <PopoverContent className="flex flex-col items-start w-96">
                     <div className="w-full flex justify-between">
                       <CredInput
-                        cred={cred}
-                        setCred={setCred}
+                        credInput={cred}
+                        setCredInput={setCred}
                         notEnoughCred={notEnoughCred}
                       />
                       <Button
@@ -353,7 +357,7 @@ export default function PointPage({
               <Separator className="my-md" />
               <PointStats
                 className="justify-evenly ~@/lg:~text-xs/sm mb-sm"
-                favor={favor({ ...point })}
+                favor={point.favor}
                 amountNegations={point.amountNegations}
                 amountSupporters={point.amountSupporters}
                 cred={point.cred}
@@ -368,8 +372,8 @@ export default function PointPage({
                   <Link
                     draggable={false}
                     onClick={preventDefaultIfContainsSelection}
-                    href={`/${encodeId(negation.id)}`}
-                    key={negation.id}
+                    href={`/${encodeId(negation.pointId)}`}
+                    key={negation.pointId}
                     className={cn(
                       "flex cursor-pointer hover:bg-accent px-4 pt-5 pb-2 border-b"
                     )}
@@ -384,13 +388,13 @@ export default function PointPage({
                         user !== null ? setNegatedPoint(negation) : login();
                       }}
                       className="flex-grow -mt-3.5 pb-3"
-                      favor={favor({ ...negation })}
+                      favor={negation.favor}
                       content={negation.content}
                       createdAt={negation.createdAt}
                       amountSupporters={negation.amountSupporters}
                       amountNegations={negation.amountNegations}
-                      pointId={negation.id}
-                      totalCred={negation.cred}
+                      pointId={negation.pointId}
+                      cred={negation.cred}
                       viewerContext={{ viewerCred: negation.viewerCred }}
                     />
                   </Link>

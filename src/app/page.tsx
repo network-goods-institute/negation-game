@@ -27,7 +27,8 @@ export default function Home() {
   });
 
   const [negatedPoint, setNegatedPoint] = useState<
-    { id: number; content: string; createdAt: Date; cred: number } | undefined
+    | { pointId: number; content: string; createdAt: Date; cred: number }
+    | undefined
   >(undefined);
 
   const [makePointOpen, onMakePointOpenChange] = useToggle(false);
@@ -42,18 +43,18 @@ export default function Home() {
           <Link
             draggable={false}
             onClick={preventDefaultIfContainsSelection}
-            href={`/${encodeId(point.id)}`}
+            href={`/${encodeId(point.pointId)}`}
             className="flex border-b cursor-pointer hover:bg-accent py-2"
-            key={point.id}
+            key={point.pointId}
           >
             <DiscIcon className="ml-4 mt-3 shrink-0 size-6 text-muted-foreground stroke-1" />
             <PointCard
               className="flex-grow -mt-0.5 pl-3"
               amountSupporters={point.amountSupporters}
               createdAt={point.createdAt}
-              totalCred={point.cred}
-              pointId={point.id}
-              favor={favor({ ...point })}
+              cred={point.cred}
+              pointId={point.pointId}
+              favor={point.favor}
               amountNegations={point.amountNegations}
               content={point.content}
               viewerContext={{ viewerCred: point.viewerCred }}

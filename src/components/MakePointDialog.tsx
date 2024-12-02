@@ -31,7 +31,12 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
   onOpenChange,
   ...props
 }) => {
-  const { cred, setCred, notEnoughCred, resetCred } = useCredInput({
+  const {
+    credInput: cred,
+    setCredInput: setCred,
+    notEnoughCred,
+    resetCredInput: resetCred,
+  } = useCredInput({
     resetWhen: !open,
   });
   const [content, setContent] = useState("");
@@ -92,9 +97,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
                   {selectedPoint.content}
                 </span>
                 <PointStats
-                  favor={favor({
-                    ...selectedPoint,
-                  })}
+                  favor={selectedPoint.favor}
                   amountNegations={selectedPoint.amountNegations}
                   amountSupporters={selectedPoint.amountSupporters}
                   cred={selectedPoint.cred}
@@ -102,8 +105,8 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
               </div>
               <div className="flex justify-between">
                 <CredInput
-                  cred={cred}
-                  setCred={setCred}
+                  credInput={cred}
+                  setCredInput={setCred}
                   notEnoughCred={notEnoughCred}
                 />
                 <Button
@@ -135,7 +138,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
 
             {similarPoints?.map((similarPoint) => (
               <div
-                key={similarPoint.id}
+                key={similarPoint.pointId}
                 onClick={() => selectPoint(similarPoint)}
                 className="flex p-4 gap-2 hover:bg-accent w-full cursor-pointer border rounded-md mb-2"
               >
@@ -145,9 +148,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
                     {similarPoint.content}
                   </span>
                   <PointStats
-                    favor={favor({
-                      ...similarPoint,
-                    })}
+                    favor={similarPoint.favor}
                     amountNegations={similarPoint.amountNegations}
                     amountSupporters={similarPoint.amountSupporters}
                     cred={similarPoint.cred}
@@ -162,7 +163,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
           disabled={!canSubmit}
           onClick={() => {
             (selectedPoint
-              ? endorse({ pointId: selectedPoint.id, cred })
+              ? endorse({ pointId: selectedPoint.pointId, cred })
               : makePoint({
                   content,
                   cred: cred,

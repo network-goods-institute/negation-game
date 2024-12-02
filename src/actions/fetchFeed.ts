@@ -1,7 +1,8 @@
 "use server";
 
 import { getUserId } from "@/actions/getUserId";
-import { endorsementsTable, pointsWithStatsView } from "@/db/schema";
+import { endorsementsTable, pointsWithDetailsView } from "@/db/schema";
+import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
 import { Timestamp } from "@/types/Timestamp";
@@ -12,20 +13,21 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
 
   return await db
     .select({
-      ...getColumns(pointsWithStatsView),
+      ...getColumns(pointsWithDetailsView),
       ...(viewerId
         ? {
             viewerCred: sql<number>`
               COALESCE((
                 SELECT SUM(${endorsementsTable.cred})
                 FROM ${endorsementsTable}
-                WHERE ${endorsementsTable.pointId} = ${pointsWithStatsView.id}
+                WHERE ${endorsementsTable.pointId} = ${pointsWithDetailsView.pointId}
                   AND ${endorsementsTable.userId} = ${viewerId}
               ), 0)
             `.mapWith(Number),
           }
         : {}),
     })
-    .from(pointsWithStatsView)
-    .orderBy(desc(pointsWithStatsView.createdAt));
+    .from(pointsWithDetailsView)
+    .orderBy(desc(pointsWithDetailsView.createdAt))
+    .then(addFavor);
 };

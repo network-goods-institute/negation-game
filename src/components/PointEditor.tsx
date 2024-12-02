@@ -54,8 +54,8 @@ export const PointEditor: FC<PointEditorProps> = ({
 
       <div className="flex w-full items-center justify-between  gap-sm">
         <CredInput
-          cred={cred}
-          setCred={setCred}
+          credInput={cred}
+          setCredInput={setCred}
           notEnoughCred={notEnoughCred}
         />
 
