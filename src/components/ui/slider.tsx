@@ -21,16 +21,16 @@ const Slider = React.forwardRef<
   >
     <SliderPrimitive.Track className={cn(
       "relative h-2 w-full grow overflow-hidden rounded-full",
-      destructive ? "bg-destructive/10" : "bg-endorsed/10"
+      destructive ? "bg-red-500/10" : "bg-endorsed/10"
     )}>
       <SliderPrimitive.Range className={cn(
         "absolute h-full",
-        destructive ? "bg-destructive" : "bg-endorsed"
+        destructive ? "bg-red-500" : "bg-endorsed"
       )} />
     </SliderPrimitive.Track>
     <SliderPrimitive.Thumb className={cn(
       "block h-6 w-6 rounded-full shadow transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 relative z-10",
-      destructive ? "bg-destructive" : "bg-endorsed"
+      destructive ? "bg-red-500" : "bg-endorsed"
     )} />
   </SliderPrimitive.Root>
 ))

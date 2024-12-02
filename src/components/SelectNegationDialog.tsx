@@ -67,7 +67,7 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
 
           <div className="text-sm text-muted-foreground space-y-2 bg-muted/30 p-3 rounded-md">
             <p>
-              Select a counterpoint that would change your mind if it were true. Get higher favor for this point.
+              Get higher favor for this point. Select a counterpoint that would change your mind if it were true.
             </p>
           </div>
 
@@ -88,7 +88,7 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
               {negations?.map((negation: NegationResult) => (
                 <div
                   key={negation.id}
-                  className="flex flex-col p-4 border rounded-md cursor-pointer hover:bg-accent"
+                  className="flex flex-col p-4 rounded-lg border-2 border-dotted border-border cursor-pointer hover:bg-accent"
                   onClick={() => {
                     setSelectedNegation(negation);
                     toggleRestakeDialog(true);

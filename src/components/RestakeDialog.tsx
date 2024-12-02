@@ -154,23 +154,21 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
         >
           <div className="flex flex-col items-center text-center">
             {isSlashing ? (
-              // Slashing success view
               <>
-                <div className="rounded-full bg-destructive/10 p-3 mb-6">
-                  <AlertCircle className="size-6 text-destructive" />
+                <div className="rounded-full bg-yellow-500 dark:bg-yellow-500/90 p-3 mb-6">
+                  <AlertCircle className="size-6 text-black dark:text-white" />
                 </div>
                 
                 <div className="space-y-2 mb-6">
                   <DialogTitle className="text-xl">Stake Reduced</DialogTitle>
                   <p className="text-muted-foreground">
-                    You&apos;ve given up <span className="text-destructive">
+                    You&apos;ve given up <span className="text-yellow-500">
                       {amountGivenUp} cred
                     </span> from your original point
                   </p>
                 </div>
               </>
             ) : (
-              // Normal restake success view
               <>
                 <div className="rounded-full bg-endorsed/10 p-3 mb-6">
                   <Check className="size-6 text-endorsed" />
@@ -187,7 +185,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
             <div className="w-full space-y-6">
               {/* Original point */}
-              <div className="space-y-2 p-4 border rounded-lg">
+              <div className="space-y-2 p-4 rounded-lg border-2 border-dotted border-border">
                 <p className="text-base">{originalPoint.content}</p>
                 <span className="text-sm text-muted-foreground">
                   {format(originalPoint.createdAt, "h':'mm a '·' MMM d',' yyyy")}
@@ -199,7 +197,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                 <p className="text-sm text-muted-foreground">
                   You would relinquish {Math.round(actualStakeAmount * 10) / 10} cred if you learned...
                 </p>
-                <div className="p-4 border rounded-lg space-y-2">
+                <div className="p-4 rounded-lg border-2 border-dotted border-border space-y-2">
                   <p className="text-base">{counterPoint.content}</p>
                   <span className="text-sm text-muted-foreground">
                     {format(counterPoint.createdAt, "h':'mm a '·' MMM d',' yyyy")}
@@ -234,7 +232,14 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   return (
     <Dialog {...props} open={open} onOpenChange={onOpenChange}>
       <DialogContent 
-        className="flex flex-col gap-4 p-4 sm:p-6 max-w-xl max-h-[min(900px,85vh)] min-h-[700px] overflow-hidden"
+        className={cn(
+          "flex flex-col gap-4 p-4 sm:p-6 max-w-xl overflow-hidden",
+          // Mobile: fixed height with scrolling
+          "min-h-[700px] max-h-[min(900px,85vh)]",
+          // Desktop: dynamic height based on content with minimum height
+          // Absolute nightmare to do this but wtv it looks good
+          "sm:min-h-[850px] sm:max-h-none sm:h-auto"
+        )}
       >
         {/* Header */}
         <div className="flex items-center justify-between gap-2 pb-2 border-b shrink-0">
@@ -292,19 +297,21 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           </Popover>
         </div>
 
-        {/* Scrollable content */}
-        <div className="flex-1 min-h-0 overflow-y-auto sm:overflow-visible">
-          <div className="space-y-4 pb-36 sm:pb-0">  {/* Increased padding bottom for mobile */}
+        {/* Content area */}
+        <div className="flex-1 overflow-y-auto sm:overflow-visible">
+          <div className="space-y-6 pb-36 sm:pb-0">
             {/* Original Point with Date */}
             <div className="space-y-2 pb-2">
-              <p className="text-lg font-medium">{originalPoint.content}</p>
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-sm">
-                  {format(originalPoint.createdAt, "h':'mm a '·' MMM d',' yyyy")}
-                </span>
-                <span className="inline-flex px-3 py-1 rounded-full bg-endorsed/10 text-endorsed text-sm">
-                  {favor({ cred: originalPoint.cred, negationsCred: originalPoint.negationsCred })} favor
-                </span>
+              <div className="p-4 rounded-lg border-2 border-dotted border-border">
+                <p className="text-lg font-medium">{originalPoint.content}</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-muted-foreground text-sm">
+                    {format(originalPoint.createdAt, "h':'mm a '·' MMM d',' yyyy")}
+                  </span>
+                  <span className="inline-flex px-3 py-1 rounded-full bg-endorsed/10 text-endorsed text-sm">
+                    {favor({ cred: originalPoint.cred, negationsCred: originalPoint.negationsCred })} favor
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -331,6 +338,20 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                 style={{
                   display: isLoadingHistory ? "block" : "none",
                 }}
+              />
+            </div>
+
+            {/* Stats */}
+            <div className="border-t pt-2">
+              <PointStats
+                className="flex justify-evenly ~@/lg:~text-xs/sm"
+                favor={favor({ 
+                  cred: originalPoint.cred,
+                  negationsCred: originalPoint.negationsCred
+                })}
+                amountNegations={originalPoint.amountNegations}
+                amountSupporters={originalPoint.amountSupporters}
+                cred={originalPoint.cred}
               />
             </div>
 
@@ -402,63 +423,32 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
               )}
             </div>
 
-            {/* Stats */}
-            <div className="border-t pt-2">
-              <PointStats
-                className="flex justify-evenly ~@/lg:~text-xs/sm"
-                favor={favor({ 
-                  cred: originalPoint.cred,
-                  negationsCred: originalPoint.negationsCred
-                })}
-                amountNegations={originalPoint.amountNegations}
-                amountSupporters={originalPoint.amountSupporters}
-                cred={originalPoint.cred}
-              />
-            </div>
+            {/* Warnings - positioned right before the relinquish text */}
+            {isSlashing && (
+              <div className="flex items-center gap-2 text-sm bg-yellow-500 dark:bg-yellow-500/90 text-black dark:text-white rounded-md p-3">
+                <AlertCircle className="size-4 shrink-0" />
+                <p>
+                  Reducing your stake will slash your restaked cred from the original point. 
+                  You&apos;ll give up {Math.round((existingRestakePercentage - stakePercentage) * maxStakeAmount / 100)} cred.
+                </p>
+              </div>
+            )}
+
+            <p className="text-sm text-muted-foreground">
+              You would relinquish {Math.round(actualStakeAmount * 10) / 10} cred if you learned...
+            </p>
 
             {/* Credibility Section with Date */}
-            <div className="space-y-3 pt-2 border-t">
-              <p className="text-sm text-muted-foreground">
-                You would relinquish {Math.round(actualStakeAmount * 10) / 10} cred if you learned...
-              </p>
-              <div className="space-y-2">
-                <p className="text-base">{counterPoint.content}</p>
-                <span className="text-muted-foreground text-sm">
-                  {format(counterPoint.createdAt, "h':'mm a '·' MMM d',' yyyy")}
-                </span>
-              </div>
-            </div>
-
-            {/* Warnings */}
-            <div className="space-y-2">
-              {maxStakeAmount === 0 && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-md p-3">
-                  <AlertCircle className="size-4 shrink-0" />
-                  <p>You need to endorse this point before you can restake.</p>
-                </div>
-              )}
-
-              {stakePercentage === 0 && !isSlashing && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-md p-3">
-                  <AlertCircle className="size-4 shrink-0" />
-                  <p>You need to stake some cred to continue.</p>
-                </div>
-              )}
-
-              {isSlashing && (
-                <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-md p-3">
-                  <AlertCircle className="size-4 shrink-0" />
-                  <p>
-                    Reducing your stake will slash your restaked cred from the original point. 
-                    You&apos;ll give up {Math.round((existingRestakePercentage - stakePercentage) * maxStakeAmount / 100)} cred.
-                  </p>
-                </div>
-              )}
+            <div className="p-4 rounded-lg border-2 border-dotted border-border">
+              <p className="text-base">{counterPoint.content}</p>
+              <span className="text-muted-foreground text-sm mt-2 block">
+                {format(counterPoint.createdAt, "h':'mm a '·' MMM d',' yyyy")}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Fixed bottom section on mobile */}
+        {/* Fixed bottom section */}
         <div className="sm:static fixed bottom-5 left-0 right-0 flex flex-col gap-2 border-t bg-background p-4 sm:p-0">
           {/* Slider Section */}
           <div className={cn(
