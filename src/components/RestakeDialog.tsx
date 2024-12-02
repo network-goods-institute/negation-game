@@ -22,7 +22,6 @@ import { timelineScales } from "@/lib/timelineScale";
 import { PointStats } from "@/components/PointStats";
 import { favor } from "@/lib/negation-game/favor";
 import { format } from "date-fns";
-import { SuccessDetails } from './SuccessDetails'
 
 export interface RestakeDialogProps extends DialogProps {
   originalPoint: {
@@ -63,14 +62,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   });
   const queryClient = useQueryClient();
   const [showSuccess, setShowSuccess] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false)
-  const [successDetails, setSuccessDetails] = useState<{
-    favorEarned: number
-    restakeAmount: number
-    restakePercentage: number
-    totalStaked: number
-    maxStakeable: number
-  } | null>(null)
   const [amountGivenUp, setAmountGivenUp] = useState(0);
 
   const { data: favorHistory, isLoading: isLoadingHistory } = useQuery({
@@ -83,7 +74,8 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   });
 
   const maxStakeAmount = originalPoint.viewerCred || 0;
-  const actualStakeAmount = (maxStakeAmount * stakePercentage) / 100;
+  const denominator = isSlashing ? (maxStakeAmount * existingRestakePercentage / 100) : maxStakeAmount;
+  const actualStakeAmount = (denominator * stakePercentage) / 100;
   const bonusFavor = Math.round(actualStakeAmount);
 
   // Get the current favor from the last data point
@@ -99,7 +91,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     ...favorHistory,
     {
       timestamp: new Date(Date.now() + 8000),
-      favor: currentFavor + bonusFavor,
+      favor: currentFavor + (isSlashing ? -bonusFavor : bonusFavor),
       isProjection: true
     }
   ] : [];
@@ -125,24 +117,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     
     setShowSuccess(true);
   };
-
-  const handleRestake = async () => {
-    try {
-      // ... existing restake logic ...
-
-      // After successful restake, set success details
-      setSuccessDetails({
-        favorEarned: 100, // Replace with actual values
-        restakeAmount: 50,
-        restakePercentage: 25,
-        totalStaked: 200,
-        maxStakeable: 400
-      })
-      setIsSuccess(true)
-    } catch (error) {
-      console.error('Failed to restake:', error)
-    }
-  }
 
   if (showSuccess) {
     return (
@@ -185,7 +159,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
             <div className="w-full space-y-6">
               {/* Original point */}
-              <div className="space-y-2 p-4 rounded-lg border-2 border-dotted border-border">
+              <div className="space-y-2 p-4 rounded-lg border border-dashed border-border">
                 <p className="text-base">{originalPoint.content}</p>
                 <span className="text-sm text-muted-foreground">
                   {format(originalPoint.createdAt, "h':'mm a '·' MMM d',' yyyy")}
@@ -197,9 +171,9 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                 <p className="text-sm text-muted-foreground">
                   You would relinquish {Math.round(actualStakeAmount * 10) / 10} cred if you learned...
                 </p>
-                <div className="p-4 rounded-lg border-2 border-dotted border-border space-y-2">
+                <div className="p-4 rounded-lg border border-dashed border-border hover:bg-muted cursor-pointer">
                   <p className="text-base">{counterPoint.content}</p>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-muted-foreground text-sm mt-2 block">
                     {format(counterPoint.createdAt, "h':'mm a '·' MMM d',' yyyy")}
                   </span>
                 </div>
@@ -302,7 +276,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           <div className="space-y-6 pb-36 sm:pb-0">
             {/* Original Point with Date */}
             <div className="space-y-2 pb-2">
-              <div className="p-4 rounded-lg border-2 border-dotted border-border">
+              <div className="p-4">
                 <p className="text-lg font-medium">{originalPoint.content}</p>
                 <div className="flex items-center gap-2 mt-2">
                   <span className="text-muted-foreground text-sm">
@@ -397,17 +371,17 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                                 cy={cy} 
                                 r={4} 
                                 fill="currentColor" 
-                                className="animate-none"
+                                className="animate-none text-endorsed"
                               />
                               {bonusFavor > 0 && (
                                 <text
-                                  x={cx - 5}
-                                  y={cy - 10}
-                                  textAnchor="middle"
+                                  x={cx + (isSlashing ? 30 : -35)}
+                                  y={cy - (isSlashing ? -15 : 10)}
+                                  textAnchor={isSlashing ? "end" : "start"}
                                   fill="currentColor"
-                                  className="text-xs whitespace-nowrap animate-none"
+                                  className="text-xs whitespace-nowrap animate-none text-endorsed"
                                 >
-                                  +{bonusFavor} favor
+                                  {isSlashing ? `-${bonusFavor}` : `+${bonusFavor}`} favor
                                 </text>
                               )}
                             </g>
@@ -435,11 +409,15 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
             )}
 
             <p className="text-sm text-muted-foreground">
-              You would relinquish {Math.round(actualStakeAmount * 10) / 10} cred if you learned...
+              {isSlashing ? (
+                "You are losing cred for slashing..."
+              ) : (
+                `You would relinquish ${Math.round(actualStakeAmount * 10) / 10} cred if you learned...`
+              )}
             </p>
 
             {/* Credibility Section with Date */}
-            <div className="p-4 rounded-lg border-2 border-dotted border-border">
+            <div className="p-4 rounded-lg border border-dashed border-border hover:bg-muted cursor-pointer">
               <p className="text-base">{counterPoint.content}</p>
               <span className="text-muted-foreground text-sm mt-2 block">
                 {format(counterPoint.createdAt, "h':'mm a '·' MMM d',' yyyy")}
@@ -458,7 +436,15 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Impact</span>
               <span className="text-sm text-muted-foreground">
-                {Math.round(actualStakeAmount * 10) / 10} / {maxStakeAmount} staked ({stakePercentage}%)
+                {isSlashing ? (
+                  <>
+                    {Math.round((existingRestakePercentage - stakePercentage) * maxStakeAmount / 100 * 10) / 10} / {denominator} removed ({Math.round((stakePercentage / existingRestakePercentage) * 100)}%)
+                  </>
+                ) : (
+                  <>
+                    {Math.round(actualStakeAmount * 10) / 10} / {denominator} staked ({stakePercentage}%)
+                  </>
+                )}
               </span>
             </div>
             
@@ -470,13 +456,18 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
               className="w-full"
               destructive={isSlashing}
               disabled={maxStakeAmount === 0}
+              existingPercentage={existingRestakePercentage}
             />
           </div>
 
           {/* Actions */}
           <div className="flex items-center justify-between pt-2">
             <span className="inline-flex px-3 py-1 rounded-full bg-endorsed/10 text-endorsed text-sm">
-              +{bonusFavor} favor
+              {isSlashing ? (
+                <span className="text-destructive">-{bonusFavor} favor</span>
+              ) : (
+                <>+{bonusFavor} favor</>
+              )}
             </span>
             
             <div className="flex gap-3">

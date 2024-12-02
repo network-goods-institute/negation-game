@@ -88,7 +88,7 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
               {negations?.map((negation: NegationResult) => (
                 <div
                   key={negation.id}
-                  className="flex flex-col p-4 rounded-lg border-2 border-dotted border-border cursor-pointer hover:bg-accent"
+                  className="flex flex-col p-4 rounded-lg border border-dashed border-border hover:bg-muted cursor-pointer"
                   onClick={() => {
                     setSelectedNegation(negation);
                     toggleRestakeDialog(true);
