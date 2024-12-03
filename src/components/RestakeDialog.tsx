@@ -62,7 +62,15 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   });
   const queryClient = useQueryClient();
   const [showSuccess, setShowSuccess] = useState(false);
-  const [amountGivenUp, setAmountGivenUp] = useState(0);
+  const [submittedValues, setSubmittedValues] = useState<{
+    slashAmount: number;
+    stakeAmount: number;
+    currentlyStaked: number;
+    maxStakeAmount: number;
+    stakePercentage: number;
+    bonusFavor: number;
+    isSlashing: boolean;
+  } | null>(null);
 
   const { data: favorHistory, isLoading: isLoadingHistory } = useQuery({
     queryKey: ["favor-history", originalPoint.id, timelineScale],
@@ -73,15 +81,15 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     enabled: open,
   });
 
-  const maxStakeAmount = originalPoint.viewerCred || 0;
-  const currentlyStaked = (maxStakeAmount * existingRestakePercentage) / 100;
-  const denominator = isSlashing ? currentlyStaked : maxStakeAmount;
+  const maxStakeAmount = Math.floor(originalPoint.viewerCred || 0);
+  const currentlyStaked = Math.floor((maxStakeAmount * existingRestakePercentage) / 100);
+  const newStakeAmount = Math.floor((maxStakeAmount * stakePercentage) / 100);
+
+  const slashAmount = isSlashing ? Math.floor(currentlyStaked - newStakeAmount) : 0;
+  const stakeAmount = isSlashing ? 0 : Math.floor(newStakeAmount);
   
-  const actualStakeAmount = isSlashing
-    ? (existingRestakePercentage - stakePercentage) * maxStakeAmount / 100
-    : (stakePercentage * maxStakeAmount) / 100;
-    
-  const bonusFavor = Math.round(actualStakeAmount);
+  const bonusFavor = Math.floor(isSlashing ? slashAmount : stakeAmount);
+
 
   // Get the current favor from the last data point
   const currentFavor = favorHistory?.length ? favorHistory[favorHistory.length - 1].favor : 50;
@@ -114,16 +122,20 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     const restakeKey = `restake-${originalPoint.id}-${counterPoint.id}`;
     localStorage.setItem(restakeKey, stakePercentage.toString());
     
-    // Calculate amount given up if slashing
-    if (isSlashing) {
-      const givenUp = Math.round((existingRestakePercentage - stakePercentage) * maxStakeAmount / 100);
-      setAmountGivenUp(givenUp);
-    }
+    setSubmittedValues({
+      slashAmount,
+      stakeAmount,
+      currentlyStaked,
+      maxStakeAmount,
+      stakePercentage,
+      bonusFavor,
+      isSlashing
+    });
     
     setShowSuccess(true);
   };
 
-  if (showSuccess) {
+  if (showSuccess && submittedValues) {
     return (
       <Dialog {...props} open={open} onOpenChange={onOpenChange}>
         <DialogContent 
@@ -132,17 +144,17 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex flex-col items-center text-center">
-            {isSlashing ? (
+            {submittedValues.isSlashing ? (
               <>
-                <div className="rounded-full bg-yellow-500 dark:bg-yellow-500/90 p-3 mb-6">
-                  <AlertCircle className="size-6 text-black dark:text-white" />
+                <div className="rounded-full bg-destructive/20 dark:bg-destructive/10 p-3 mb-6">
+                  <AlertCircle className="size-6 text-destructive dark:text-red-400" />
                 </div>
                 
                 <div className="space-y-2 mb-6">
-                  <DialogTitle className="text-xl">Stake Reduced</DialogTitle>
+                  <DialogTitle className="text-xl">Stake Slashed</DialogTitle>
                   <p className="text-muted-foreground">
-                    You&apos;ve given up <span className="text-yellow-500">
-                      {amountGivenUp} cred
+                    You&apos;ve lost <span className="text-destructive dark:text-red-400">
+                      -{submittedValues.bonusFavor} favor
                     </span> from your original point
                   </p>
                 </div>
@@ -156,25 +168,26 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                 <div className="space-y-2 mb-6">
                   <DialogTitle className="text-xl">Successfully Restaked!</DialogTitle>
                   <p className="text-muted-foreground">
-                    You&apos;ve added <span className="text-endorsed">+{bonusFavor} favor</span> to your point
+                    You&apos;ve added <span className="text-endorsed">+{submittedValues.bonusFavor} favor</span> to your point
                   </p>
                 </div>
               </>
             )}
 
             <div className="w-full space-y-6">
-              {/* Original point */}
-              <div className="space-y-2 p-4 rounded-lg border border-dashed border-border">
+              <div className="space-y-2 p-4">
                 <p className="text-base">{originalPoint.content}</p>
                 <span className="text-sm text-muted-foreground">
                   {format(originalPoint.createdAt, "h':'mm a '·' MMM d',' yyyy")}
                 </span>
               </div>
 
-              {/* Restake details */}
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  You would relinquish {Math.round(actualStakeAmount * 10) / 10} cred if you learned...
+                  {submittedValues.isSlashing 
+                    ? `You are losing ${submittedValues.slashAmount} cred for slashing...`
+                    : `You would relinquish ${submittedValues.stakeAmount} cred if you learned...`
+                  }
                 </p>
                 <div className="p-4 rounded-lg border border-dashed border-border hover:bg-muted cursor-pointer">
                   <p className="text-base">{counterPoint.content}</p>
@@ -184,14 +197,19 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                 </div>
               </div>
 
-              {/* Stake amount */}
               <div className={cn(
                 "rounded-lg px-4 py-3",
-                isSlashing ? "bg-destructive/10" : "bg-muted/30"
+                submittedValues.isSlashing ? "bg-destructive/10" : "bg-muted/30"
               )}>
-                <p className="text-sm text-muted-foreground">Amount Restaked</p>
+                <p className="text-sm text-muted-foreground">
+                  {submittedValues.isSlashing ? "Amount Slashed" : "Amount Restaked"}
+                </p>
                 <p className="text-lg">
-                  {Math.round(actualStakeAmount * 10) / 10} / {maxStakeAmount} cred ({stakePercentage}%)
+                  {submittedValues.isSlashing ? (
+                    `${submittedValues.slashAmount} / ${submittedValues.currentlyStaked} cred (${Math.round((submittedValues.slashAmount / submittedValues.currentlyStaked) * 100)}%)`
+                  ) : (
+                    `${submittedValues.stakeAmount} / ${submittedValues.maxStakeAmount} cred (${submittedValues.stakePercentage}%)`
+                  )}
                 </p>
               </div>
             </div>
@@ -408,16 +426,16 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                 <AlertCircle className="size-4 shrink-0" />
                 <p>
                   Reducing your stake will slash your restaked cred from the original point. 
-                  You&apos;ll give up {Math.round((existingRestakePercentage - stakePercentage) * maxStakeAmount / 100)} cred.
+                  You&apos;ll give up {Math.floor((existingRestakePercentage - stakePercentage) * maxStakeAmount / 100)} cred.
                 </p>
               </div>
             )}
 
             <p className="text-sm text-muted-foreground">
               {isSlashing ? (
-                "You are losing cred for slashing..."
+                `You are losing ${slashAmount} cred for slashing...`
               ) : (
-                `You would relinquish ${Math.round(actualStakeAmount * 10) / 10} cred if you learned...`
+                `You would relinquish ${stakeAmount} cred if you learned...`
               )}
             </p>
 
@@ -444,11 +462,11 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
               <span className="text-sm text-muted-foreground">
                 {isSlashing ? (
                   <>
-                    {Math.round((existingRestakePercentage - stakePercentage) * maxStakeAmount / 100 * 10) / 10} / {Math.round(currentlyStaked * 10) / 10} removed ({Math.round((stakePercentage / existingRestakePercentage) * 100)}%)
+                    {slashAmount} / {currentlyStaked} slashed ({Math.round((slashAmount / currentlyStaked) * 100)}%)
                   </>
                 ) : (
                   <>
-                    {Math.round(actualStakeAmount * 10) / 10} / {Math.round(denominator * 10) / 10} staked ({stakePercentage}%)
+                    {stakeAmount} / {maxStakeAmount} staked ({stakePercentage}%)
                   </>
                 )}
               </span>

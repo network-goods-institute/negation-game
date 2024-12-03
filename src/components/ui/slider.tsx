@@ -12,10 +12,10 @@ const Slider = React.forwardRef<
     existingPercentage?: number;
   }
 >(({ className, destructive, existingPercentage = 0, value = [0], ...props }, ref) => {
-  const currentValue = value[0];
+  const currentValue = Math.floor(value[0]);
   
   const visualValue = destructive 
-    ? ((currentValue / existingPercentage) * 100)
+    ? Math.floor((currentValue / existingPercentage) * 100)
     : currentValue;
     
   return (
