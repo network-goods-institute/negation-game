@@ -14,6 +14,10 @@ const Slider = React.forwardRef<
 >(({ className, destructive, existingPercentage = 0, value = [0], ...props }, ref) => {
   const currentValue = value[0];
   
+  const visualValue = destructive 
+    ? ((currentValue / existingPercentage) * 100)
+    : currentValue;
+    
   return (
     <SliderPrimitive.Root
       ref={ref}
@@ -26,11 +30,11 @@ const Slider = React.forwardRef<
     >
       <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-endorsed/10">
         {/* Base layer - existing stake (grey) */}
-        {!destructive && existingPercentage > 0 && currentValue >= 0 && (
+        {!destructive && existingPercentage > 0 && (
           <div 
             className="absolute h-full bg-muted-foreground/20 dark:bg-white/20"
             style={{ 
-              width: `${Math.min(currentValue, existingPercentage)}%`
+              width: `${existingPercentage}%`
             }}
           />
         )}
@@ -51,7 +55,8 @@ const Slider = React.forwardRef<
           <div 
             className="absolute h-full bg-red-500"
             style={{ 
-              width: `${currentValue}%`
+              left: `${currentValue}%`,
+              width: `${existingPercentage - currentValue}%`
             }}
           />
         )}
@@ -59,7 +64,9 @@ const Slider = React.forwardRef<
         {/* Hidden Range for proper thumb positioning */}
         <SliderPrimitive.Range 
           className="absolute h-full opacity-0"
-          style={{ width: `${currentValue}%` }}
+          style={{ 
+            width: `${visualValue}%`
+          }}
         />
       </SliderPrimitive.Track>
       <SliderPrimitive.Thumb className={cn(

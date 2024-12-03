@@ -74,8 +74,13 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   });
 
   const maxStakeAmount = originalPoint.viewerCred || 0;
-  const denominator = isSlashing ? (maxStakeAmount * existingRestakePercentage / 100) : maxStakeAmount;
-  const actualStakeAmount = (denominator * stakePercentage) / 100;
+  const currentlyStaked = (maxStakeAmount * existingRestakePercentage) / 100;
+  const denominator = isSlashing ? currentlyStaked : maxStakeAmount;
+  
+  const actualStakeAmount = isSlashing
+    ? (existingRestakePercentage - stakePercentage) * maxStakeAmount / 100
+    : (stakePercentage * maxStakeAmount) / 100;
+    
   const bonusFavor = Math.round(actualStakeAmount);
 
   // Get the current favor from the last data point
@@ -439,11 +444,11 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
               <span className="text-sm text-muted-foreground">
                 {isSlashing ? (
                   <>
-                    {Math.round((existingRestakePercentage - stakePercentage) * maxStakeAmount / 100 * 10) / 10} / {denominator} removed ({Math.round((stakePercentage / existingRestakePercentage) * 100)}%)
+                    {Math.round((existingRestakePercentage - stakePercentage) * maxStakeAmount / 100 * 10) / 10} / {Math.round(currentlyStaked * 10) / 10} removed ({Math.round((stakePercentage / existingRestakePercentage) * 100)}%)
                   </>
                 ) : (
                   <>
-                    {Math.round(actualStakeAmount * 10) / 10} / {denominator} staked ({stakePercentage}%)
+                    {Math.round(actualStakeAmount * 10) / 10} / {Math.round(denominator * 10) / 10} staked ({stakePercentage}%)
                   </>
                 )}
               </span>
@@ -463,9 +468,14 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
           {/* Actions */}
           <div className="flex items-center justify-between pt-2">
-            <span className="inline-flex px-3 py-1 rounded-full bg-endorsed/10 text-endorsed text-sm">
+            <span className={cn(
+              "inline-flex px-3 py-1 rounded-full text-sm",
+              isSlashing 
+                ? "bg-destructive/10 text-destructive dark:text-red-400"
+                : "bg-endorsed/10 text-endorsed"
+            )}>
               {isSlashing ? (
-                <span className="text-destructive">-{bonusFavor} favor</span>
+                <>-{bonusFavor} favor</>
               ) : (
                 <>+{bonusFavor} favor</>
               )}
