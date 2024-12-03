@@ -40,6 +40,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
     content: string;
     createdAt: Date;
     cred: number;
+    viewerCred?: number;
     amountSupporters: number;
     amountNegations: number;
     negationsCred: number;
@@ -78,7 +79,7 @@ export const PointCard = ({
   const { push } = useRouter();
 
   const restakePercentage = isNegation && parentPoint 
-    ? Number(localStorage.getItem(`restake-${parentPoint.id}-${pointId}`)) || 0
+    ? Math.floor((Number(localStorage.getItem(`restake-${parentPoint.id}-${pointId}`)) || 0) / (parentPoint.viewerCred || 1) * 100)
     : 0;
 
   return (

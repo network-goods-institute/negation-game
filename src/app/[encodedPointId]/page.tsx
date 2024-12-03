@@ -471,8 +471,9 @@ export default function PointPage({
         <RestakeDialog
           open={restakePoint !== null}
           onOpenChange={(open) => !open && setRestakePoint(null)}
-          originalPoint={restakePoint.point}
-          counterPoint={restakePoint.counterPoint}
+          originalPoint={restakePoint?.point}
+          counterPoint={restakePoint?.counterPoint}
+          onEndorseClick={() => toggleEndorsePopoverOpen(true)}
         />
       )}
     </main>

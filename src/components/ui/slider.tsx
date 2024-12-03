@@ -9,15 +9,15 @@ const Slider = React.forwardRef<
   React.ElementRef<typeof SliderPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root> & {
     destructive?: boolean;
-    existingPercentage?: number;
+    existingCred?: number;
   }
->(({ className, destructive, existingPercentage = 0, value = [0], ...props }, ref) => {
-  const currentValue = Math.floor(value[0]);
+>(({ className, destructive, existingCred = 0, value = [0], max = 100, ...props }, ref) => {
+  const currentValue = value[0];
   
-  const visualValue = destructive 
-    ? Math.floor((currentValue / existingPercentage) * 100)
-    : currentValue;
-    
+  // Convert to percentages only for visual display as dealing with percentages is awful
+  const existingPercentage = (existingCred / max) * 100;
+  const currentPercentage = (currentValue / max) * 100;
+  
   return (
     <SliderPrimitive.Root
       ref={ref}
@@ -26,11 +26,13 @@ const Slider = React.forwardRef<
         className
       )}
       value={value}
+      step={1}
+      max={max}
       {...props}
     >
       <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-endorsed/10">
         {/* Base layer - existing stake (grey) */}
-        {!destructive && existingPercentage > 0 && (
+        {!destructive && existingCred > 0 && (
           <div 
             className="absolute h-full bg-muted-foreground/20 dark:bg-white/20"
             style={{ 
@@ -40,12 +42,12 @@ const Slider = React.forwardRef<
         )}
         
         {/* Increase layer - blue portion */}
-        {!destructive && currentValue > existingPercentage && (
+        {!destructive && currentValue > existingCred && (
           <div 
             className="absolute h-full bg-endorsed"
             style={{ 
               left: `${existingPercentage}%`,
-              width: `${currentValue - existingPercentage}%`
+              width: `${currentPercentage - existingPercentage}%`
             }}
           />
         )}
@@ -55,8 +57,8 @@ const Slider = React.forwardRef<
           <div 
             className="absolute h-full bg-red-500"
             style={{ 
-              left: `${currentValue}%`,
-              width: `${existingPercentage - currentValue}%`
+              left: `${currentPercentage}%`,
+              width: `${existingPercentage - currentPercentage}%`
             }}
           />
         )}
@@ -65,7 +67,7 @@ const Slider = React.forwardRef<
         <SliderPrimitive.Range 
           className="absolute h-full opacity-0"
           style={{ 
-            width: `${visualValue}%`
+            width: `${currentPercentage}%`
           }}
         />
       </SliderPrimitive.Track>
