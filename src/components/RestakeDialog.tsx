@@ -338,22 +338,8 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
               />
             </div>
 
-            {/* Stats */}
-            <div className="border-t pt-2">
-              <PointStats
-                className="flex justify-evenly ~@/lg:~text-xs/sm"
-                favor={favor({ 
-                  cred: originalPoint.cred,
-                  negationsCred: originalPoint.negationsCred
-                })}
-                amountNegations={originalPoint.amountNegations}
-                amountSupporters={originalPoint.amountSupporters}
-                cred={originalPoint.cred}
-              />
-            </div>
-
             {/* Graph Section */}
-            <div className="w-full h-32 relative bg-background mb-4">
+            <div className="w-full h-32 relative bg-background">
               {isLoadingHistory ? (
                 <Loader className="absolute left-0 right-0 mx-auto top-[20px]" />
               ) : (
@@ -420,7 +406,21 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
               )}
             </div>
 
-            {/* Warnings - positioned right before the relinquish text */}
+            {/* Point Stats - after the graph */}
+            <div className="border-t pt-2">
+              <PointStats
+                className="justify-evenly ~@/lg:~text-xs/sm"
+                favor={favor({ 
+                  cred: originalPoint.cred,
+                  negationsCred: originalPoint.negationsCred
+                })}
+                amountNegations={originalPoint.amountNegations}
+                amountSupporters={originalPoint.amountSupporters}
+                cred={originalPoint.cred}
+              />
+            </div>
+
+            {/* Warnings */}
             {isSlashing && (
               <div className="flex items-center gap-2 text-sm bg-yellow-500 dark:bg-yellow-500/90 text-black dark:text-white rounded-md p-3">
                 <AlertCircle className="size-4 shrink-0" />
