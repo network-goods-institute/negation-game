@@ -60,6 +60,7 @@ import { RestakeDialog } from "@/components/RestakeDialog";
 
 type Point = {
   id: number;
+  pointId: number;
   content: string;
   createdAt: Date;
   cred: number;
@@ -129,10 +130,10 @@ export default function PointPage({
   const { back, push } = useRouter();
 
   const { data: counterpointSuggestions = [] } = useQuery({
-    queryKey: ["counterpoint-suggestions", point?.id],
+    queryKey: ["counterpoint-suggestions", point?.pointId],
     queryFn: ({ queryKey: [, pointId] }) =>
       getCounterpointSuggestions(pointId as number),
-    enabled: !!point?.id && negations && negations.length === 0,
+    enabled: !!point?.pointId && negations && negations.length === 0,
     staleTime: Infinity,
   });
 
@@ -180,7 +181,7 @@ export default function PointPage({
                   open={selectNegationDialogOpen}
                   onOpenChange={toggleSelectNegationDialog}
                   originalPoint={{
-                    id: point.id,
+                    id: point.pointId,
                     content: point.content,
                     createdAt: point.createdAt,
                     stakedAmount: point.cred,
@@ -189,7 +190,7 @@ export default function PointPage({
                     amountNegations: point.amountNegations,
                     negationsCred: point.negationsCred
                   }}
-                  negationId={point.id}
+                  negationId={point.pointId}
                 />
                 <Popover
                   open={endorsePopoverOpen}
@@ -263,7 +264,12 @@ export default function PointPage({
                     "@md/point:border @md/point:px-4"
                   )}
                   onClick={() =>
-                    privyUser !== null ? setNegatedPoint(point) : login()
+                    privyUser !== null ? setNegatedPoint({
+                      id: point.pointId,
+                      content: point.content,
+                      createdAt: point.createdAt,
+                      cred: point.cred
+                    }) : login()
                   }
                 >
                   <NegateIcon className="@md/point:hidden" />
@@ -393,7 +399,12 @@ export default function PointPage({
                     <PointCard
                       onNegate={(e) => {
                         e.preventDefault();
-                        user !== null ? setNegatedPoint(negation) : login();
+                        user !== null ? setNegatedPoint({
+                          id: negation.id,
+                          content: negation.content,
+                          createdAt: negation.createdAt,
+                          cred: negation.cred
+                        }) : login();
                       }}
                       className="flex-grow -mt-3.5 pb-3"
                       favor={favor({ ...negation })}
@@ -405,15 +416,22 @@ export default function PointPage({
                       totalCred={negation.cred}
                       viewerContext={{ viewerCred: negation.cred }}
                       isNegation={true}
-                      parentPoint={point}
+                      parentPoint={{
+                        ...point,
+                        id: point.pointId
+                      }}
                       onRestake={() => setRestakePoint({
                         point: {
                           ...point,
-                          stakedAmount: point.cred
+                          stakedAmount: point.cred,
+                          pointId: point.pointId,
+                          id: point.pointId
                         },
                         counterPoint: {
                           ...negation,
-                          stakedAmount: negation.cred
+                          stakedAmount: negation.cred,
+                          pointId: negation.id,
+                          id: negation.id
                         }
                       })}
                     />
@@ -441,8 +459,13 @@ export default function PointPage({
                           login();
                           return;
                         }
-                        setNegationContent(pointId, suggestion);
-                        setNegatedPoint(point);
+                        setNegationContent(point.pointId, suggestion);
+                        setNegatedPoint({
+                          id: point.pointId,
+                          content: point.content,
+                          createdAt: point.createdAt,
+                          cred: point.cred
+                        });
                       }}
                     >
                       <div className="relative grid text-muted-foreground">

@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/services/db";
-import { pointsWithStatsView } from "@/db/schema";
+import { pointsWithDetailsView } from "@/db/schema";
 import { eq, or, and, ne } from "drizzle-orm";
 import { negationsTable } from "@/db/tables/negationsTable";
 
@@ -18,20 +18,20 @@ export type NegationResult = {
 export const fetchPointNegations = async (pointId: number): Promise<NegationResult[]> => {
   const results = await db
     .selectDistinct({
-      id: pointsWithStatsView.id,
-      content: pointsWithStatsView.content,
-      createdAt: pointsWithStatsView.createdAt,
-      cred: pointsWithStatsView.cred,
-      amountSupporters: pointsWithStatsView.amountSupporters,
-      amountNegations: pointsWithStatsView.amountNegations,
-      negationsCred: pointsWithStatsView.negationsCred,
+      id: pointsWithDetailsView.pointId,
+      content: pointsWithDetailsView.content,
+      createdAt: pointsWithDetailsView.createdAt,
+      cred: pointsWithDetailsView.cred,
+      amountSupporters: pointsWithDetailsView.amountSupporters,
+      amountNegations: pointsWithDetailsView.amountNegations,
+      negationsCred: pointsWithDetailsView.negationsCred,
     })
-    .from(pointsWithStatsView)
+    .from(pointsWithDetailsView)
     .innerJoin(
       negationsTable,
       or(
-        eq(negationsTable.newerPointId, pointsWithStatsView.id),
-        eq(negationsTable.olderPointId, pointsWithStatsView.id)
+        eq(negationsTable.newerPointId, pointsWithDetailsView.pointId),
+        eq(negationsTable.olderPointId, pointsWithDetailsView.pointId)
       )
     )
     .where(
@@ -40,7 +40,7 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
           eq(negationsTable.olderPointId, pointId),
           eq(negationsTable.newerPointId, pointId)
         ),
-        ne(pointsWithStatsView.id, pointId)
+        ne(pointsWithDetailsView.pointId, pointId)
       )
     );
 

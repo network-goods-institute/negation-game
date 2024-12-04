@@ -42,9 +42,9 @@ export default function Home() {
           <Link
             draggable={false}
             onClick={preventDefaultIfContainsSelection}
-            href={`/${encodeId(point.id)}`}
+            href={`/${encodeId(point.pointId)}`}
             className="flex border-b cursor-pointer hover:bg-accent py-2"
-            key={point.id}
+            key={point.pointId}
           >
             <DiscIcon className="ml-4 mt-3 shrink-0 size-6 text-muted-foreground stroke-1" />
             <PointCard
@@ -52,14 +52,19 @@ export default function Home() {
               amountSupporters={point.amountSupporters}
               createdAt={point.createdAt}
               totalCred={point.cred}
-              pointId={point.id}
+              pointId={point.pointId}
               favor={favor({ ...point })}
               amountNegations={point.amountNegations}
               content={point.content}
               viewerContext={{ viewerCred: point.viewerCred }}
               onNegate={(e) => {
                 e.preventDefault();
-                user !== null ? setNegatedPoint(point) : login();
+                user !== null ? setNegatedPoint({
+                  id: point.pointId,
+                  content: point.content,
+                  createdAt: point.createdAt,
+                  cred: point.cred
+                }) : login();
               }}
             />
           </Link>

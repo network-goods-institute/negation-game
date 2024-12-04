@@ -6,4 +6,4 @@ export { pointsTable } from "@/db/tables/pointsTable";
 export { usersTable } from "@/db/tables/usersTable";
 
 export { pointFavorHistoryView } from "@/db/views/pointFavorHistoryView";
-export { pointsWithStatsView } from "@/db/views/pointsWithStatsView";
+export { pointsWithDetailsView } from "@/db/views/pointsWithDetailsView";

@@ -163,7 +163,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
 
             {similarPoints?.map((similarPoint) => (
               <div
-                key={similarPoint.id}
+                key={similarPoint.pointId}
                 onClick={() => selectPoint(similarPoint)}
                 className="flex p-4 gap-2 hover:bg-accent w-full cursor-pointer border rounded-md mb-2"
               >
@@ -175,6 +175,8 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
                   <PointStats
                     favor={favor({
                       ...similarPoint,
+                      cred: similarPoint.cred,
+                      negationsCred: similarPoint.negationsCred
                     })}
                     amountNegations={similarPoint.amountNegations}
                     amountSupporters={similarPoint.amountSupporters}
@@ -265,7 +267,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
           disabled={!canSubmit}
           onClick={() => {
             (selectedPoint
-              ? endorse({ pointId: selectedPoint.id, cred })
+              ? endorse({ pointId: selectedPoint.pointId, cred })
               : makePoint({
                   content,
                   cred: cred,
