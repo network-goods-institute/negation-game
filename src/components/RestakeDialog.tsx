@@ -42,6 +42,7 @@ export interface RestakeDialogProps extends DialogProps {
     createdAt: Date;
   };
   onEndorseClick?: () => void;
+  openedFromSlashedIcon?: boolean;
 }
 
 export const RestakeDialog: FC<RestakeDialogProps> = ({
@@ -50,6 +51,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   open,
   onOpenChange,
   onEndorseClick,
+  openedFromSlashedIcon,
   ...props
 }) => {
   // Get existing restake amount from localStorage (in cred)
@@ -312,7 +314,11 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                 <ArrowLeftIcon className="size-5" />
               </Button>
             </DialogClose>
-            <DialogTitle>Get higher favor</DialogTitle>
+            <DialogTitle>
+              {openedFromSlashedIcon 
+                ? "COMPLETELY OBVIOUS CHANGE SO WE CAN TEST" 
+                : "Get higher favor"}
+            </DialogTitle>
           </div>
           
           <Popover open={endorsePopoverOpen} onOpenChange={toggleEndorsePopoverOpen}>

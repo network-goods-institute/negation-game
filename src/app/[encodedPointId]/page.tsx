@@ -138,7 +138,11 @@ export default function PointPage({
   });
 
   const [selectNegationDialogOpen, toggleSelectNegationDialog] = useToggle(false);
-  const [restakePoint, setRestakePoint] = useState<{point: Point, counterPoint: Point} | null>(null);
+  const [restakePoint, setRestakePoint] = useState<{
+    point: Point;
+    counterPoint: Point;
+    openedFromSlashedIcon?: boolean;
+  } | null>(null);
 
   return (
     <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow  gap-md bg-background overflow-auto">
@@ -420,7 +424,7 @@ export default function PointPage({
                         ...point,
                         id: point.pointId
                       }}
-                      onRestake={() => setRestakePoint({
+                      onRestake={({openedFromSlashedIcon}) => setRestakePoint({
                         point: {
                           ...point,
                           stakedAmount: point.cred,
@@ -432,7 +436,8 @@ export default function PointPage({
                           stakedAmount: negation.cred,
                           pointId: negation.id,
                           id: negation.id
-                        }
+                        },
+                        openedFromSlashedIcon
                       })}
                     />
                   </Link>
@@ -497,6 +502,7 @@ export default function PointPage({
           originalPoint={restakePoint?.point}
           counterPoint={restakePoint?.counterPoint}
           onEndorseClick={() => toggleEndorsePopoverOpen(true)}
+          openedFromSlashedIcon={restakePoint.openedFromSlashedIcon}
         />
       )}
     </main>

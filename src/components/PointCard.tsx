@@ -17,8 +17,8 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
 import { useRouter } from "next/navigation";
-import { Scale, DiamondIcon, Diamond } from "lucide-react";
 import { RestakeIcon } from "@/components/icons/RestakeIcon";
+import { DoubtIcon } from "@/components/icons/DoubtIcon";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -45,7 +45,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
     amountNegations: number;
     negationsCred: number;
   };
-  onRestake?: () => void;
+  onRestake?: (options: { openedFromSlashedIcon: boolean }) => void;
   negationId?: number;
 }
 
@@ -174,24 +174,41 @@ export const PointCard = ({
                 </PopoverContent>
               </Popover>
               {isNegation && parentPoint?.cred && parentPoint.cred > 0 && (
-                <Button
-                  variant="ghost"
-                  className={cn(
-                    "p-1 -mb-2 rounded-full size-fit hover:bg-muted/30",
-                    restakePercentage > 0 && "text-endorsed"
+                <>
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "p-1 -mb-2 rounded-full size-fit hover:bg-muted/30",
+                      restakePercentage > 0 && "text-endorsed"
+                    )}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onRestake?.({openedFromSlashedIcon: false});
+                    }}
+                  >
+                    <RestakeIcon 
+                      className={restakePercentage > 0 ? "fill-current" : ""} 
+                      showPercentage={restakePercentage > 0}
+                      percentage={restakePercentage}
+                    />
+                  </Button>
+                  {restakePercentage > 0 && (
+                    <Button
+                      variant="ghost"
+                      className="p-1 -mb-2 rounded-full size-fit text-muted-foreground hover:bg-muted/30"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onRestake?.({openedFromSlashedIcon: true});
+                      }}
+                    >
+                      <div className="flex items-center translate-y-[5px]">
+                        <DoubtIcon className="size-5 stroke-1" />
+                      </div>
+                    </Button>
                   )}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onRestake?.();
-                  }}
-                >
-                  <RestakeIcon 
-                    className={restakePercentage > 0 ? "fill-current" : ""} 
-                    showPercentage={restakePercentage > 0}
-                    percentage={restakePercentage}
-                  />
-                </Button>
+                </>
               )}
             </div>
           </div>
