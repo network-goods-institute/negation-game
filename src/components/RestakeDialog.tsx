@@ -2,7 +2,7 @@ import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { DialogProps } from "@radix-ui/react-dialog";
-import { FC, useState, useEffect, useCallback } from "react";
+import { FC, useState, useEffect, useCallback, useMemo } from "react";
 import { ArrowLeftIcon, AlertCircle, Check } from "lucide-react";
 import { Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fetchFavorHistory } from "@/actions/fetchFavorHistory";
@@ -58,7 +58,10 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   const existingRestakeKey = `restake-${originalPoint.id}-${counterPoint.id}`;
   const existingStakedCred = Number(localStorage.getItem(existingRestakeKey)) || 0;
   
-  const maxStakeAmount = Math.floor(originalPoint.viewerCred || 0);
+  const maxStakeAmount = Math.floor(openedFromSlashedIcon 
+    ? Math.min(originalPoint.viewerCred || 0, originalPoint.cred)  // Cap by total stake when doubting
+    : (originalPoint.viewerCred || 0)
+  );
 
   const [stakedCred, setStakedCred] = useState(existingStakedCred);
   const [isSlashing, setIsSlashing] = useState(false);
@@ -102,14 +105,14 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   const handleSliderChange = useCallback((values: number[]) => {
     const newStakedCred = Math.floor(values[0]);
     setStakedCred(newStakedCred);
-    setIsSlashing(newStakedCred < existingStakedCred);
-  }, [existingStakedCred]);
+    setIsSlashing(openedFromSlashedIcon ? false : newStakedCred < existingStakedCred);
+  }, [existingStakedCred, openedFromSlashedIcon]);
 
   const projectedData = favorHistory ? [
     ...favorHistory,
     {
       timestamp: new Date(Date.now() + 8000),
-      favor: currentFavor + (isSlashing ? -bonusFavor : bonusFavor),
+      favor: currentFavor + (openedFromSlashedIcon ? -bonusFavor : (isSlashing ? -bonusFavor : bonusFavor)),
       isProjection: true
     }
   ] : [];
@@ -140,6 +143,14 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     setShowSuccess(true);
   };
 
+  // Add new calculation for doubt APY
+  const doubtApy = useMemo(() => {
+    if (!openedFromSlashedIcon) return 0;
+    // Calculate APY based on staked amount
+    // This is a placeholder calculation - we need to implement actual APY logic
+    return Math.floor((stakedCred / maxStakeAmount) * 100);
+  }, [openedFromSlashedIcon, stakedCred, maxStakeAmount]);
+
   if (maxStakeAmount === 0) {
     return (
       <Dialog {...props} open={open} onOpenChange={onOpenChange}>
@@ -155,7 +166,9 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                   <ArrowLeftIcon className="size-5" />
                 </Button>
               </DialogClose>
-              <DialogTitle>Cannot Restake</DialogTitle>
+              <DialogTitle>
+                {openedFromSlashedIcon ? "Cannot Doubt" : "Cannot Restake"}
+              </DialogTitle>
             </div>
           </div>
 
@@ -212,18 +225,19 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex flex-col items-center text-center">
-            {submittedValues.isSlashing ? (
+            {openedFromSlashedIcon ? (
               <>
                 <div className="rounded-full bg-destructive/20 dark:bg-destructive/10 p-3 mb-6">
                   <AlertCircle className="size-6 text-destructive dark:text-red-400" />
                 </div>
                 
                 <div className="space-y-2 mb-6">
-                  <DialogTitle className="text-xl">Stake Slashed</DialogTitle>
+                  <DialogTitle className="text-xl">Doubt Placed</DialogTitle>
                   <p className="text-muted-foreground">
-                    You&apos;ve lost <span className="text-destructive dark:text-red-400">
-                      -{submittedValues.bonusFavor} favor
-                    </span> from your original point
+                    You&apos;ve reduced the original point&apos;s favor by{" "}
+                    <span className="text-destructive dark:text-red-400">
+                      {submittedValues.bonusFavor}
+                    </span>
                   </p>
                 </div>
               </>
@@ -315,9 +329,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
               </Button>
             </DialogClose>
             <DialogTitle>
-              {openedFromSlashedIcon 
-                ? "COMPLETELY OBVIOUS CHANGE SO WE CAN TEST" 
-                : "Get higher favor"}
+              {openedFromSlashedIcon ? "Place doubt" : "Get higher favor"}
             </DialogTitle>
           </div>
           
@@ -384,6 +396,17 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
               </div>
             </div>
 
+            {openedFromSlashedIcon && (
+              <div className="flex flex-col gap-2 p-4 bg-muted/30 rounded-lg">
+                <h3 className="font-medium">Doubt Information</h3>
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <p>• Current APY: {doubtApy}% in cred</p>
+                  <p>• Maximum loss if self-slashed: {maxStakeAmount} cred</p>
+                  <p>• Reduces original point favor by: {stakedCred}</p>
+                </div>
+              </div>
+            )}
+
             {/* Timeline Controls */}
             <div className="flex justify-between items-center pb-2">
               <ToggleGroup
@@ -445,6 +468,8 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                           const isLastPoint = index === projectedData.length - 1;
                           if (!isLastPoint) return <g key={`dot-${index}`} />;
 
+                          const textY = isSlashing ? cy + 15 : cy - 10;
+
                           return (
                             <g key={`dot-${index}`}>
                               <circle 
@@ -456,13 +481,16 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                               />
                               {bonusFavor > 0 && (
                                 <text
-                                  x={cx + (isSlashing ? 30 : -35)}
-                                  y={cy - (isSlashing ? -15 : 10)}
-                                  textAnchor={isSlashing ? "end" : "start"}
+                                  x={cx + (openedFromSlashedIcon ? -35 : (isSlashing ? 30 : -35))}
+                                  y={textY}
+                                  textAnchor={openedFromSlashedIcon ? "start" : (isSlashing ? "end" : "start")}
                                   fill="currentColor"
-                                  className="text-xs whitespace-nowrap animate-none text-endorsed"
+                                  className={cn(
+                                    "text-xs whitespace-nowrap animate-none",
+                                    openedFromSlashedIcon ? "text-endorsed" : (isSlashing ? "text-destructive" : "text-endorsed")
+                                  )}
                                 >
-                                  {isSlashing ? `-${bonusFavor}` : `+${bonusFavor}`} favor
+                                  {openedFromSlashedIcon ? `-${bonusFavor}` : (isSlashing ? `-${bonusFavor}` : `+${bonusFavor}`)} favor
                                 </text>
                               )}
                             </g>
@@ -494,7 +522,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
             </div>
 
             {/* Warnings */}
-            {isSlashing && (
+            {!openedFromSlashedIcon && isSlashing && (
               <div className="flex items-center gap-2 text-sm bg-yellow-500 dark:bg-yellow-500/90 text-black dark:text-white rounded-md p-3">
                 <AlertCircle className="size-4 shrink-0" />
                 <p>
@@ -505,7 +533,9 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
             )}
 
             <p className="text-sm text-muted-foreground">
-              {isSlashing ? (
+              {openedFromSlashedIcon ? (
+                `You are placing ${stakeAmount} cred in doubt of...`
+              ) : isSlashing ? (
                 `You are losing ${slashAmount} cred for slashing...`
               ) : (
                 `You would relinquish ${stakeAmount} cred if you learned...`
@@ -531,16 +561,16 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
             maxStakeAmount === 0 && "opacity-50"
           )}>
             <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Impact</span>
+              <span className="text-sm font-medium">
+                {openedFromSlashedIcon ? "Doubt Amount" : "Impact"}
+              </span>
               <span className="text-sm text-muted-foreground">
-                {isSlashing ? (
-                  <>
-                    {slashAmount} / {currentlyStaked} slashed ({currentlyStaked > 0 ? Math.round((slashAmount / currentlyStaked) * 100) : 0}%)
-                  </>
+                {openedFromSlashedIcon ? (
+                  <>{stakeAmount} / {maxStakeAmount} cred ({Math.round((stakedCred / maxStakeAmount) * 100)}%)</>
+                ) : isSlashing ? (
+                  <>{slashAmount} / {currentlyStaked} slashed ({currentlyStaked > 0 ? Math.round((slashAmount / currentlyStaked) * 100) : 0}%)</>
                 ) : (
-                  <>
-                    {stakeAmount} / {maxStakeAmount} staked ({maxStakeAmount > 0 ? Math.round((stakedCred / maxStakeAmount) * 100) : 0}%)
-                  </>
+                  <>{stakeAmount} / {maxStakeAmount} staked ({maxStakeAmount > 0 ? Math.round((stakedCred / maxStakeAmount) * 100) : 0}%)</>
                 )}
               </span>
             </div>
@@ -551,9 +581,10 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
               max={maxStakeAmount}
               step={1}
               className="w-full"
-              destructive={isSlashing}
+              destructive={!openedFromSlashedIcon && isSlashing}
               disabled={maxStakeAmount === 0}
-              existingCred={existingStakedCred}
+              existingCred={openedFromSlashedIcon ? 0 : existingStakedCred}
+              isDoubtMode={openedFromSlashedIcon}
             />
           </div>
 
@@ -561,11 +592,15 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           <div className="flex items-center justify-between pt-2">
             <span className={cn(
               "inline-flex px-3 py-1 rounded-full text-sm",
-              isSlashing 
-                ? "bg-destructive/10 text-destructive dark:text-red-400"
-                : "bg-endorsed/10 text-endorsed"
+              openedFromSlashedIcon 
+                ? "bg-endorsed/10 text-endorsed"
+                : isSlashing 
+                  ? "bg-destructive/10 text-destructive dark:text-red-400"
+                  : "bg-endorsed/10 text-endorsed"
             )}>
-              {isSlashing ? (
+              {openedFromSlashedIcon ? (
+                <>-{bonusFavor} favor</>
+              ) : isSlashing ? (
                 <>-{bonusFavor} favor</>
               ) : (
                 <>+{bonusFavor} favor</>
