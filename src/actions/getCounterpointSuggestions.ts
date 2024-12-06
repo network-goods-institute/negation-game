@@ -26,10 +26,13 @@ export const getCounterpointSuggestions = async (pointId: number) => {
       .execute(),
   ]);
 
-  const prompt = `Here are some definitions that might be useful:
-    ${definitions.map(({ term, definition }) => `${term}: ${definition}`).join("\n")}
+  const prompt = `${
+    definitions.length > 0 &&
+    `Here are some definitions that might be useful:
+    ${definitions.map(({ term, definition }) => `${term}: ${definition}`).join("\n")}`
+  }
 
-    ${negations.length > 0 ? "Here are the existing counterpoints to the statement:]\n" + negations.map((negation) => negation.content).join("\n") : ""}
+    ${negations.length > 0 ? "Here are the existing counterpoints to the statement:\n" + negations.map((negation) => negation.content).join("\n") : ""}
 
     Generate 3 short (max ${POINT_MAX_LENGHT} characters) statements that are opposite and mutually exclusive to the following statement: ${point.content}. Make sure they are not redundant and that their underlying ideas are not already expressed in the list of counterpoints above.`;
 
