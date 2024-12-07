@@ -448,7 +448,7 @@ export default function PointPage({
                 </p>
               )}
 
-              {counterpointSuggestions.length > 0 && (
+              {Array.isArray(counterpointSuggestions) && counterpointSuggestions.length > 0 && (
                 <>
                   <p className="w-full text-center text-muted-foreground text-xs p-4 animate-fade-in">
                     Want to add a negation? Try starting with one of these
