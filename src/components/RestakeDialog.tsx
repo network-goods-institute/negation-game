@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { DialogProps } from "@radix-ui/react-dialog";
 import { FC, useState, useEffect, useCallback, useMemo } from "react";
-import { ArrowLeftIcon, AlertCircle, Check } from "lucide-react";
+import { ArrowLeftIcon, AlertCircle, Check, InfoIcon } from "lucide-react";
 import { Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fetchFavorHistory } from "@/actions/fetchFavorHistory";
 import { useQuery } from "@tanstack/react-query";
@@ -23,6 +23,7 @@ import { PointStats } from "@/components/PointStats";
 import { favor } from "@/lib/negation-game/favor";
 import { format } from "date-fns";
 import { Separator } from "@/components/ui/separator";
+import { ReputationAnalysisDialog } from "./ReputationAnalysisDialog";
 
 export interface RestakeDialogProps extends DialogProps {
   originalPoint: {
@@ -45,6 +46,12 @@ export interface RestakeDialogProps extends DialogProps {
   openedFromSlashedIcon?: boolean;
 }
 
+type RestakerInfo = {
+  address: string;
+  amount: number;
+  reputation: number;
+};
+
 export const RestakeDialog: FC<RestakeDialogProps> = ({
   originalPoint,
   counterPoint,
@@ -58,12 +65,29 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   const existingRestakeKey = `restake-${originalPoint.id}-${counterPoint.id}`;
   const existingStakedCred = Number(localStorage.getItem(existingRestakeKey)) || 0;
   
+  // Get total restaked amount from all restakers (sum of all localStorage entries)
+  const totalRestaked = useMemo(() => {
+    // In reality this would come from the database
+    // For now simulate with localStorage
+    return existingStakedCred; // This is just one restaker's amount for now
+  }, [existingStakedCred]);
+
+  // Update maxStakeAmount to be capped by total restaked amount
   const maxStakeAmount = Math.floor(openedFromSlashedIcon 
-    ? Math.min(originalPoint.viewerCred || 0, originalPoint.cred)  // Cap by total stake when doubting
+    ? Math.min(originalPoint.viewerCred || 0, totalRestaked)  // Cap by total restaked when doubting
     : (originalPoint.viewerCred || 0)
   );
 
-  const [stakedCred, setStakedCred] = useState(existingStakedCred);
+  // Get favor from restaking from localStorage
+  const favorFromRestaking = useMemo(() => {
+    // In reality this would come from the database
+    // For now simulate with localStorage - assume 1:1 ratio for demo
+    return existingStakedCred;
+  }, [existingStakedCred]);
+
+  const [stakedCred, setStakedCred] = useState(
+    openedFromSlashedIcon ? 0 : existingStakedCred
+  );
   const [isSlashing, setIsSlashing] = useState(false);
   const [timelineScale, setTimelineScale] = useState<TimelineScale>(DEFAULT_TIMESCALE);
   const [endorsePopoverOpen, toggleEndorsePopoverOpen] = useToggle(false);
@@ -81,6 +105,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     bonusFavor: number;
     isSlashing: boolean;
   } | null>(null);
+  const [showReputationAnalysis, setShowReputationAnalysis] = useState(false);
 
   const { data: favorHistory, isLoading: isLoadingHistory } = useQuery({
     queryKey: ["favor-history", originalPoint.id, timelineScale],
@@ -150,6 +175,46 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     // This is a placeholder calculation - we need to implement actual APY logic
     return Math.floor((stakedCred / maxStakeAmount) * 100);
   }, [openedFromSlashedIcon, stakedCred, maxStakeAmount]);
+
+  const mockRestakers: RestakerInfo[] = [
+    { address: "0x1234...5678", amount: 100, reputation: 85 },
+    { address: "0x8765...4321", amount: 50, reputation: 92 },
+    { address: "0x2468...1357", amount: 75, reputation: 78 },
+  ];
+
+  const aggregateReputation = useMemo(() => {
+    if (!openedFromSlashedIcon) return 0;
+    
+    const totalStaked = mockRestakers.reduce((sum, r) => sum + r.amount, 0);
+    const weightedRep = mockRestakers.reduce((sum, r) => 
+      sum + (r.reputation * r.amount / totalStaked), 0);
+    
+    return Math.round(weightedRep);
+  }, [openedFromSlashedIcon]);
+  const totalFavorFromRestaking = favorFromRestaking;
+  const totalCredRestaked = totalRestaked;
+  const totalDoubt = stakedCred;
+
+  // Recalculate daily earnings and APY
+  const dailyEarnings = useMemo(() => {
+    if (!openedFromSlashedIcon || stakedCred === 0) return 0;
+    
+    // Base rate of 0.1 cred per day per cred doubted
+    // Decreases as you doubt more (diminishing returns)
+    const baseRate = 0.1;
+    const diminishingFactor = 1 - (stakedCred / maxStakeAmount) * 0.5; // 50% reduction at max doubt
+    return Math.floor(stakedCred * baseRate * diminishingFactor * 100) / 100;
+  }, [stakedCred, maxStakeAmount, openedFromSlashedIcon]);
+
+  // Calculate APY based on daily earnings
+  const apy = useMemo(() => {
+    if (stakedCred === 0) return 0;
+    return Math.floor((dailyEarnings * 365 / stakedCred) * 100);
+  }, [dailyEarnings, stakedCred]);
+
+  // Calculate favor impact
+  const favorReduced = stakedCred;
+  const resultingFavor = Math.max(0, totalFavorFromRestaking - favorReduced);
 
   if (maxStakeAmount === 0) {
     return (
@@ -312,12 +377,13 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     <Dialog {...props} open={open} onOpenChange={onOpenChange}>
       <DialogContent 
         className={cn(
-          "flex flex-col gap-4 p-4 sm:p-6 max-w-xl overflow-hidden mt-4 sm:mt-0",
+          "flex flex-col gap-4 p-4 sm:p-6 max-w-xl overflow-hidden",
           // Mobile: fixed height with scrolling
           "min-h-[700px] max-h-[min(900px,85vh)]",
-          // Desktop: dynamic height based on content with minimum height
-          // Absolute nightmare to do this but wtv it looks good
-          "sm:min-h-[850px] sm:max-h-none sm:h-auto"
+          // Desktop: taller fixed height with scrolling only for doubt mode due to long dialogue
+          openedFromSlashedIcon 
+            ? "sm:h-[800px]" 
+            : "sm:min-h-[850px] sm:max-h-none sm:h-auto"
         )}
       >
         {/* Header */}
@@ -379,8 +445,20 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
         </div>
 
         {/* Content area */}
-        <div className="flex-1 overflow-y-auto sm:overflow-visible">
-          <div className="space-y-6 pb-36 sm:pb-0">
+        <div className={cn(
+          "flex-1",
+          // Only enable scrolling in doubt mode on desktop
+          openedFromSlashedIcon 
+            ? "overflow-y-auto" 
+            : "overflow-y-auto sm:overflow-visible"
+        )}>
+          <div className={cn(
+            "space-y-6",
+            // Adjust padding based on mode
+            openedFromSlashedIcon
+              ? "pb-36"
+              : "pb-36 sm:pb-0"
+          )}>
             {/* Original Point with Date */}
             <div className="space-y-2 pb-2">
               <div className="p-4">
@@ -397,13 +475,94 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
             </div>
 
             {openedFromSlashedIcon && (
-              <div className="flex flex-col gap-2 p-4 bg-muted/30 rounded-lg">
-                <h3 className="font-medium">Doubt Information</h3>
-                <div className="space-y-1 text-sm text-muted-foreground">
-                  <p>• Current APY: {doubtApy}% in cred</p>
-                  <p>• Maximum loss if self-slashed: {maxStakeAmount} cred</p>
-                  <p>• Reduces original point favor by: {stakedCred}</p>
+              <div className="flex flex-col gap-4 p-4 bg-muted/30 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium">Doubt Information</h3>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-5 w-5">
+                        <InfoIcon className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                      <p className="text-sm text-muted-foreground">
+                        Reputation scores and APY calculations shown here are for demonstration purposes only.
+                      </p>
+                    </PopoverContent>
+                  </Popover>
                 </div>
+
+                <div className="space-y-2">
+                  {/* First Row - 3 items */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="flex flex-col p-2 bg-muted/40 rounded-lg">
+                      <span className="text-[10px] text-muted-foreground">Total cred restaked</span>
+                      <span className="text-sm text-muted-foreground mt-1">{totalCredRestaked}</span>
+                    </div>
+
+                    <div className="flex flex-col p-2 bg-muted/40 rounded-lg">
+                      <span className="text-[10px] text-muted-foreground">Total favor from restaking</span>
+                      <span className="text-sm text-muted-foreground mt-1">{totalFavorFromRestaking}</span>
+                    </div>
+
+                    <div className="flex flex-col p-2 bg-muted/40 rounded-lg">
+                      <span className="text-[10px] text-muted-foreground">Restaker Reputation</span>
+                      <div className="mt-1">
+                        <span className="text-sm text-muted-foreground">{aggregateReputation}%</span>
+                        <div className="text-[10px] text-muted-foreground">on average</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Second Row - 3 items */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="flex flex-col p-3 bg-muted/40 rounded-lg">
+                      <span className="text-xs font-medium">Earnings</span>
+                      <div className="mt-2 space-y-0.5">
+                        <div className="text-lg">{dailyEarnings}</div>
+                        <div className="text-sm text-muted-foreground">cred</div>
+                        <div className="text-sm text-muted-foreground">/ day</div>
+                        <div className="text-sm text-muted-foreground">({apy}%</div>
+                        <div className="text-sm text-muted-foreground">APY)</div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col p-3 bg-muted/40 rounded-lg">
+                      <span className="text-xs font-medium">Favor Reduced</span>
+                      <div className="mt-2 space-y-0.5">
+                        <div className="text-lg text-endorsed">-{favorReduced}</div>
+                        <div className="text-lg text-endorsed">favor</div>
+                        <div className="text-xs text-muted-foreground">{resultingFavor} favor</div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col p-3 bg-muted/40 rounded-lg">
+                      <span className="text-xs font-medium">Total doubt</span>
+                      <div className="mt-2 space-y-0.5">
+                        <div className="text-2xl">{totalDoubt}</div>
+                        <div className="text-sm text-muted-foreground">/ {maxStakeAmount}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="w-full text-muted-foreground"
+                  onClick={() => setShowReputationAnalysis(true)}
+                >
+                  View reputation analysis →
+                </Button>
+
+                {stakedCred > 0 && (
+                  <div className="flex items-center gap-2 text-sm bg-muted/40 rounded-md p-3">
+                    <InfoIcon className="size-4 shrink-0" />
+                    <p>
+                      For every cred relinquished by these restakers, you lose 2 cred
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -482,13 +641,10 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                               {bonusFavor > 0 && (
                                 <text
                                   x={cx + (openedFromSlashedIcon ? -35 : (isSlashing ? 30 : -35))}
-                                  y={textY}
+                                  y={openedFromSlashedIcon ? cy + 20 : textY}
                                   textAnchor={openedFromSlashedIcon ? "start" : (isSlashing ? "end" : "start")}
                                   fill="currentColor"
-                                  className={cn(
-                                    "text-xs whitespace-nowrap animate-none",
-                                    openedFromSlashedIcon ? "text-endorsed" : (isSlashing ? "text-destructive" : "text-endorsed")
-                                  )}
+                                  className="text-xs whitespace-nowrap animate-none text-endorsed"
                                 >
                                   {openedFromSlashedIcon ? `-${bonusFavor}` : (isSlashing ? `-${bonusFavor}` : `+${bonusFavor}`)} favor
                                 </text>
@@ -552,9 +708,15 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           </div>
         </div>
 
-        {/* Fixed bottom section */}
-        <div className="sm:static fixed bottom-5 left-0 right-0 flex flex-col gap-2 border-t bg-background p-4 sm:p-0 sm:border-t-0 
-          rounded-t-xl shadow-lg sm:shadow-none sm:rounded-none">
+        {/* Fixed bottom section - ensure it stays fixed in doubt mode */}
+        <div className={cn(
+          "sm:static fixed bottom-5 left-0 right-0 flex flex-col gap-2 border-t bg-background p-4",
+          // Adjust styling based on mode
+          openedFromSlashedIcon
+            ? "sm:fixed sm:bottom-5 sm:left-[50%] sm:translate-x-[-50%] sm:w-[calc(100%-3rem)] sm:max-w-[576px] sm:rounded-lg"
+            : "sm:p-0 sm:border-t-0",
+          "rounded-t-xl shadow-lg sm:shadow-none sm:rounded-none"
+        )}>
           {/* Slider Section */}
           <div className={cn(
             "space-y-4",
@@ -623,6 +785,12 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           </div>
         </div>
       </DialogContent>
+      <ReputationAnalysisDialog
+        open={showReputationAnalysis}
+        onOpenChange={setShowReputationAnalysis}
+        restakers={mockRestakers}
+        aggregateReputation={aggregateReputation}
+      />
     </Dialog>
   );
 }; 
