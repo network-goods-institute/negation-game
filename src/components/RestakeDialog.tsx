@@ -72,9 +72,11 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     return existingStakedCred; // This is just one restaker's amount for now
   }, [existingStakedCred]);
 
-  // Update maxStakeAmount to be capped by total restaked amount
+  const DEFAULT_DOUBT_AMOUNT = 30; 
   const maxStakeAmount = Math.floor(openedFromSlashedIcon 
-    ? Math.min(originalPoint.viewerCred || 0, totalRestaked)  // Cap by total restaked when doubting
+    ? totalRestaked > 0 
+      ? Math.min(originalPoint.viewerCred || 0, totalRestaked)  // Cap by total restaked when doubting
+      : Math.min(originalPoint.viewerCred || 0, DEFAULT_DOUBT_AMOUNT) // Use default amount if no restakes
     : (originalPoint.viewerCred || 0)
   );
 
@@ -191,8 +193,9 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     
     return Math.round(weightedRep);
   }, [openedFromSlashedIcon]);
-  const totalFavorFromRestaking = favorFromRestaking;
-  const totalCredRestaked = totalRestaked;
+
+  const effectiveTotalRestaked = totalRestaked || DEFAULT_DOUBT_AMOUNT;
+  const effectiveFavorFromRestaking = favorFromRestaking || DEFAULT_DOUBT_AMOUNT;
   const totalDoubt = stakedCred;
 
   // Recalculate daily earnings and APY
@@ -214,7 +217,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
   // Calculate favor impact
   const favorReduced = stakedCred;
-  const resultingFavor = Math.max(0, totalFavorFromRestaking - favorReduced);
+  const resultingFavor = Math.max(0, effectiveFavorFromRestaking - favorReduced);
 
   if (maxStakeAmount === 0) {
     return (
@@ -292,17 +295,29 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           <div className="flex flex-col items-center text-center">
             {openedFromSlashedIcon ? (
               <>
-                <div className="rounded-full bg-destructive/20 dark:bg-destructive/10 p-3 mb-6">
-                  <AlertCircle className="size-6 text-destructive dark:text-red-400" />
+                <div className="rounded-full bg-endorsed/10 p-3 mb-6">
+                  <Check className="size-6 text-endorsed" />
                 </div>
                 
                 <div className="space-y-2 mb-6">
                   <DialogTitle className="text-xl">Doubt Placed</DialogTitle>
                   <p className="text-muted-foreground">
-                    You&apos;ve reduced the original point&apos;s favor by{" "}
-                    <span className="text-destructive dark:text-red-400">
-                      {submittedValues.bonusFavor}
-                    </span>
+                    You&apos;ve placed {submittedValues.stakeAmount} cred in doubt against this point
+                  </p>
+                </div>
+              </>
+            ) : submittedValues.isSlashing ? (
+              <>
+                <div className="rounded-full bg-destructive/20 dark:bg-destructive/10 p-3 mb-6">
+                  <AlertCircle className="size-6 text-destructive dark:text-red-400" />
+                </div>
+                
+                <div className="space-y-2 mb-6">
+                  <DialogTitle className="text-xl">Stake Slashed</DialogTitle>
+                  <p className="text-muted-foreground">
+                    You&apos;ve slashed <span className="text-destructive dark:text-red-400">
+                      {submittedValues.slashAmount} cred
+                    </span> from your stake
                   </p>
                 </div>
               </>
@@ -331,10 +346,12 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  {submittedValues.isSlashing 
-                    ? `You are losing ${submittedValues.slashAmount} cred for slashing...`
-                    : `You would relinquish ${submittedValues.stakeAmount} cred if you learned...`
-                  }
+                  {openedFromSlashedIcon 
+                    ? `You've doubted ${submittedValues.stakeAmount} cred against...`
+                    : submittedValues.isSlashing 
+                      ? `You are losing ${submittedValues.slashAmount} cred for slashing...`
+                      : `You would relinquish ${submittedValues.stakeAmount} cred if you learned...`
+                }
                 </p>
                 <div className="p-4 rounded-lg border border-dashed border-border hover:bg-muted cursor-pointer">
                   <p className="text-base">{counterPoint.content}</p>
@@ -346,13 +363,17 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
               <div className={cn(
                 "rounded-lg px-4 py-3",
-                submittedValues.isSlashing ? "bg-destructive/10" : "bg-muted/30"
+                openedFromSlashedIcon 
+                  ? "bg-endorsed/10"
+                  : submittedValues.isSlashing ? "bg-destructive/10" : "bg-muted/30"
               )}>
                 <p className="text-sm text-muted-foreground">
-                  {submittedValues.isSlashing ? "Amount Slashed" : "Amount Restaked"}
+                  {openedFromSlashedIcon ? "Amount Doubted" : (submittedValues.isSlashing ? "Amount Slashed" : "Amount Restaked")}
                 </p>
                 <p className="text-lg">
-                  {submittedValues.isSlashing ? (
+                  {openedFromSlashedIcon ? (
+                    `${submittedValues.stakeAmount} / ${submittedValues.maxStakeAmount} cred (${submittedValues.stakePercentage}%)`
+                  ) : submittedValues.isSlashing ? (
                     `${submittedValues.slashAmount} / ${submittedValues.currentlyStaked} cred (${Math.round((submittedValues.slashAmount / submittedValues.currentlyStaked) * 100)}%)`
                   ) : (
                     `${submittedValues.stakeAmount} / ${submittedValues.maxStakeAmount} cred (${submittedValues.stakePercentage}%)`
@@ -497,12 +518,12 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                   <div className="grid grid-cols-3 gap-2">
                     <div className="flex flex-col p-2 bg-muted/40 rounded-lg">
                       <span className="text-[10px] text-muted-foreground">Total cred restaked</span>
-                      <span className="text-sm text-muted-foreground mt-1">{totalCredRestaked}</span>
+                      <span className="text-sm text-muted-foreground mt-1">{effectiveTotalRestaked}</span>
                     </div>
 
                     <div className="flex flex-col p-2 bg-muted/40 rounded-lg">
                       <span className="text-[10px] text-muted-foreground">Total favor from restaking</span>
-                      <span className="text-sm text-muted-foreground mt-1">{totalFavorFromRestaking}</span>
+                      <span className="text-sm text-muted-foreground mt-1">{effectiveFavorFromRestaking}</span>
                     </div>
 
                     <div className="flex flex-col p-2 bg-muted/40 rounded-lg">

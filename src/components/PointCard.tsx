@@ -193,21 +193,19 @@ export const PointCard = ({
                       percentage={restakePercentage}
                     />
                   </Button>
-                  {restakePercentage > 0 && (
-                    <Button
-                      variant="ghost"
-                      className="p-1 -mb-2 rounded-full size-fit text-muted-foreground hover:bg-muted/30"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onRestake?.({openedFromSlashedIcon: true});
-                      }}
-                    >
-                      <div className="flex items-center translate-y-[5px]">
-                        <DoubtIcon className="size-5 stroke-1" />
-                      </div>
-                    </Button>
-                  )}
+                  <Button
+                    variant="ghost"
+                    className="p-1 -mb-2 rounded-full size-fit text-muted-foreground hover:bg-muted/30"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onRestake?.({openedFromSlashedIcon: true});
+                    }}
+                  >
+                    <div className="flex items-center translate-y-[5px]">
+                      <DoubtIcon className="size-5 stroke-1" />
+                    </div>
+                  </Button>
                 </>
               )}
             </div>

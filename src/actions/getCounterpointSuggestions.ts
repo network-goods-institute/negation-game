@@ -26,12 +26,31 @@ export const getCounterpointSuggestions = async (pointId: number) => {
       .execute(),
   ]);
 
-  const prompt = `Here are some definitions that might be useful:
-    ${definitions.map(({ term, definition }) => `${term}: ${definition}`).join("\n")}
+  const prompt = `You are a helpful assistant that generates insightful counterpoints for a debate/discussion platform.
 
-    ${negations.length > 0 ? "Here are the existing counterpoints to the statement:]\n" + negations.map((negation) => negation.content).join("\n") : ""}
+Here are some relevant definitions that might be useful:
+${definitions.map(({ term, definition }) => `${term}: ${definition}`).join("\n")}
 
-    Generate 3 short (max ${POINT_MAX_LENGHT} characters) statements that are opposite and mutually exclusive to the following statement: ${point.content}. Make sure they are not redundant and that their underlying ideas are not already expressed in the list of counterpoints above.`;
+STATEMENT TO COUNTER:
+${point.content}
+
+${negations.length > 0 ? "EXISTING COUNTERPOINTS:\n" + negations.map((negation) => negation.content).join("\n") : ""}
+
+Generate 3 strong counterpoints that challenge the STATEMENT above. For each counterpoint:
+
+- Present a perspective that is opposite and mutually exclusive to the original statement
+- Think beyond simple word opposites - consider deeper implications, assumptions, or alternative frameworks
+- Introduce relevant concepts or aspects that weren't explicitly mentioned in the original statement but are important to the discussion
+- Make sure it's not redundant with existing counterpoints
+- Keep it concise and clear (max ${POINT_MAX_LENGHT} characters)
+- Make it a declarative statement that expresses a single idea
+- Use neutral tone and avoid personal opinions
+- Focus on logical assertions rather than mere disagreement
+- Go straight to the point without opening remarks
+- Ensure it makes sense on its own
+- Use modern, straightforward language
+
+Focus on being clear and insightful, as if you're explaining a thoughtful counterargument to a friend in today's world.`;
 
   const { elementStream } = await streamObject({
     model: google("gemini-1.5-flash"),
@@ -40,15 +59,5 @@ export const getCounterpointSuggestions = async (pointId: number) => {
     prompt,
   });
 
-  // Consume the stream server-side and return the array to prevent stream conflicts
-  const suggestions: string[] = [];
-  const reader = elementStream.getReader();
-  
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    suggestions.push(value);
-  }
-
-  return suggestions;
+  return elementStream;
 };
