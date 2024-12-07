@@ -555,11 +555,11 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                   View reputation analysis →
                 </Button>
 
-                {stakedCred > 0 && (
+                {stakedCred >= 0 && (
                   <div className="flex items-center gap-2 text-sm bg-muted/40 rounded-md p-3">
                     <InfoIcon className="size-4 shrink-0" />
                     <p>
-                      For every cred relinquished by these restakers, you lose 2 cred
+                      For every cred that the restaker slashes you&apos;ll lose one cred out of the amount you&apos;ve doubted
                     </p>
                   </div>
                 )}
