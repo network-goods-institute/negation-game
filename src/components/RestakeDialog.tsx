@@ -356,7 +356,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
                   {openedFromSlashedIcon 
-                    ? `You've doubted ${submittedValues.stakeAmount} cred against...`
+                    ? `You've doubted ${submittedValues.stakeAmount} cred against the possibility of restakers slashing...`
                     : submittedValues.isSlashing 
                       ? `You are losing ${submittedValues.slashAmount} cred for slashing...`
                       : `You would relinquish ${submittedValues.stakeAmount} cred if you learned...`
@@ -408,12 +408,10 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
       <DialogContent 
         className={cn(
           "flex flex-col gap-4 p-4 sm:p-6 max-w-xl overflow-hidden",
-          // Mobile: fixed height with scrolling
-          "min-h-[700px] max-h-[min(900px,85vh)]",
-          // Desktop: taller fixed height with scrolling only for doubt mode due to long dialogue
-          openedFromSlashedIcon 
-            ? "sm:h-[800px]" 
-            : "sm:min-h-[850px] sm:max-h-none sm:h-auto"
+          // Mobile: Responsive height
+          "h-[calc(100vh-2rem)] max-h-[900px]",
+          // Desktop:
+          "sm:min-h-[800px] sm:max-h-[85vh]"
         )}
       >
         {/* Header */}
@@ -476,18 +474,14 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
         {/* Content area */}
         <div className={cn(
-          "flex-1",
-          // Only enable scrolling in doubt mode on desktop
-          openedFromSlashedIcon 
-            ? "overflow-y-auto" 
-            : "overflow-y-auto sm:overflow-visible"
+          "flex-1 min-h-0", // min-h-0 is important for proper flex scrolling
+          // Enable scrolling in both modes
+          "overflow-y-auto"
         )}>
           <div className={cn(
             "space-y-6",
-            // Adjust padding based on mode
-            openedFromSlashedIcon
-              ? "pb-36"
-              : "pb-36 sm:pb-0"
+            // Adjust padding to prevent content from being cut off
+            "pb-4"
           )}>
             {/* Original Point with Date */}
             <div className="space-y-2 pb-2">
@@ -731,14 +725,12 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           </div>
         </div>
 
-        {/* Fixed bottom section - ensure it stays fixed in doubt mode */}
+        {/* Footer */}
         <div className={cn(
-          "sm:static fixed bottom-5 left-0 right-0 flex flex-col gap-2 border-t bg-background p-4",
-          // Adjust styling based on mode
-          openedFromSlashedIcon
-            ? "sm:fixed sm:bottom-5 sm:left-[50%] sm:translate-x-[-50%] sm:w-[calc(100%-3rem)] sm:max-w-[576px] sm:rounded-lg"
-            : "sm:p-0 sm:border-t-0",
-          "rounded-t-xl shadow-lg sm:shadow-none sm:rounded-none"
+          "shrink-0", // Prevent shrinking
+          "flex flex-col gap-2 border-t bg-background pt-4",
+          "relative",
+          "px-0"
         )}>
           {/* Slider Section */}
           <div className={cn(
