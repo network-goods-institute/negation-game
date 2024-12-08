@@ -154,8 +154,13 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   }, [open, existingStakedCred]);
 
   const handleSubmit = () => {
-    const restakeKey = `restake-${originalPoint.id}-${counterPoint.id}`;
-    localStorage.setItem(restakeKey, newStakeAmount.toString());
+    if (openedFromSlashedIcon) {
+      const doubtKey = `doubt-${originalPoint.id}-${counterPoint.id}`;
+      localStorage.setItem(doubtKey, stakedCred.toString());
+    } else {
+      const restakeKey = `restake-${originalPoint.id}-${counterPoint.id}`;
+      localStorage.setItem(restakeKey, stakedCred.toString());
+    }
     
     setSubmittedValues({
       slashAmount,

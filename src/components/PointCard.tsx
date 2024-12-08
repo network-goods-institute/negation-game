@@ -1,5 +1,5 @@
 import { cn } from "@/lib/cn";
-import { HTMLAttributes, MouseEventHandler } from "react";
+import { HTMLAttributes, MouseEventHandler, useMemo } from "react";
 import { Button } from "./ui/button";
 
 import { endorse } from "@/actions/endorse";
@@ -81,6 +81,32 @@ export const PointCard = ({
   const restakePercentage = isNegation && parentPoint 
     ? Math.floor((Number(localStorage.getItem(`restake-${parentPoint.id}-${pointId}`)) || 0) / (parentPoint.viewerCred || 1) * 100)
     : 0;
+
+  const doubtPercentage = useMemo(() => {
+    if (!isNegation || !parentPoint) return 0;
+    
+    const doubtKey = `doubt-${parentPoint.id}-${pointId}`;
+    const doubtAmount = Number(localStorage.getItem(doubtKey)) || 0;
+    
+    const DEFAULT_DOUBT_AMOUNT = 30;
+    const totalRestaked = Number(localStorage.getItem(`restake-${parentPoint.id}-${pointId}`)) || 0;
+    const maxDoubtAmount = Math.floor(
+      totalRestaked > 0 
+        ? Math.min(parentPoint.viewerCred || 0, totalRestaked)
+        : Math.min(parentPoint.viewerCred || 0, DEFAULT_DOUBT_AMOUNT)
+    );
+    
+    const percentage = Math.floor((doubtAmount / maxDoubtAmount) * 100);
+    
+    console.log('Doubt Debug:', {
+      doubtKey,
+      doubtAmount,
+      maxDoubtAmount,
+      percentage
+    });
+    
+    return percentage;
+  }, [isNegation, parentPoint, pointId]);
 
   return (
     <>
@@ -195,15 +221,28 @@ export const PointCard = ({
                   </Button>
                   <Button
                     variant="ghost"
-                    className="p-1 -mb-2 rounded-full size-fit text-muted-foreground hover:bg-muted/30"
+                    className={cn(
+                      "p-1 -mb-2 rounded-full size-fit hover:bg-muted/30",
+                      doubtPercentage > 0 && "text-endorsed"
+                    )}
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
+                      console.log('Doubt button clicked', { doubtPercentage });
                       onRestake?.({openedFromSlashedIcon: true});
                     }}
                   >
                     <div className="flex items-center translate-y-[5px]">
-                      <DoubtIcon className="size-5 stroke-1" />
+                      <DoubtIcon 
+                        className={cn(
+                          "size-5 stroke-1",
+                          doubtPercentage > 0 && "fill-current"
+                        )} 
+                        isFilled={doubtPercentage > 0}
+                      />
+                      {doubtPercentage > 0 && (
+                        <span className="ml-1">{doubtPercentage}%</span>
+                      )}
                     </div>
                   </Button>
                 </>
