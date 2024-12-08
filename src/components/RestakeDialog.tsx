@@ -525,58 +525,61 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                     <span className="text-sm text-muted-foreground mt-1">{effectiveFavorFromRestaking}</span>
                   </div>
 
-                  <div 
-                    className="flex flex-col p-2 bg-muted/40 rounded-lg cursor-pointer hover:bg-muted/60"
-                    onClick={() => setShowReputationAnalysis(true)}
-                  >
-                    <span className="text-[10px] text-muted-foreground">Restaker Reputation</span>
-                    <div className="mt-1 flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">{aggregateReputation}%</span>
-                      <span className="text-xs text-muted-foreground">→</span>
-                    </div>
+                  <div className="flex flex-col p-2 bg-muted/40 rounded-lg">
+                    <span className="text-[10px] text-muted-foreground">Total doubt</span>
+                    <span className="text-sm text-muted-foreground mt-1">{totalDoubt}</span>
                   </div>
                 </div>
 
                 {/* Second Row - 3 items */}
                 <div className="grid grid-cols-3 gap-2">
                   <div className="flex flex-col p-3 bg-muted/40 rounded-lg">
-                    <span className="text-xs font-medium">Returns</span>
+                    <span className="text-xs font-medium">Favor Reduced</span>
+                    <div className="mt-2 space-y-0.5">
+                      <div className="text-lg text-endorsed">-{favorReduced}</div>
+                      <div className="text-sm text-muted-foreground">favor</div>
+                      <div className="text-xs text-muted-foreground">{resultingFavor} remaining</div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col p-3 bg-muted/40 rounded-lg">
+                    <span className="text-xs font-medium">Time to ROI</span>
                     <div className="mt-2 space-y-0.5">
                       <div className="text-lg">{paybackPeriod}</div>
                       <div className="text-sm text-muted-foreground">days until</div>
                       <div className="text-sm text-muted-foreground">breakeven</div>
-                      <div className="text-xs text-endorsed mt-1">
-                        {apy}% APY
-                      </div>
                     </div>
                   </div>
 
                   <div className="flex flex-col p-3 bg-muted/40 rounded-lg">
-                    <span className="text-xs font-medium">Favor Reduced</span>
+                    <span className="text-xs font-medium">APY</span>
                     <div className="mt-2 space-y-0.5">
-                      <div className="text-lg text-endorsed">-{favorReduced}</div>
-                      <div className="text-lg text-endorsed">favor</div>
-                      <div className="text-xs text-muted-foreground">{resultingFavor} favor</div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col p-3 bg-muted/40 rounded-lg">
-                    <span className="text-xs font-medium">Total doubt</span>
-                    <div className="mt-2 space-y-0.5">
-                      <div className="text-2xl">{totalDoubt}</div>
-                      <div className="text-sm text-muted-foreground">/ {maxStakeAmount}</div>
+                      <div className="text-lg text-endorsed">{apy}%</div>
+                      <div className="text-sm text-muted-foreground">{dailyEarnings} cred/day</div>
                     </div>
                   </div>
                 </div>
 
                 {stakedCred >= 0 && (
-                  <div className="flex items-center gap-2 text-sm bg-muted/40 rounded-md p-3">
+                  <div className="flex items-center gap-2 text-sm">
                     <InfoIcon className="size-4 shrink-0" />
                     <p>
                       For every cred that the restaker slashes you&apos;ll lose one cred out of the amount you&apos;ve doubted
                     </p>
                   </div>
                 )}
+
+                {/* Reputation Row - Full width */}
+                <div 
+                  className="flex items-center justify-between p-3 bg-muted/40 rounded-lg cursor-pointer hover:bg-muted/60"
+                  onClick={() => setShowReputationAnalysis(true)}
+                >
+                  <div>
+                    <span className="text-xs font-medium">Restaker Reputation</span>
+                    <div className="text-lg mt-1">{aggregateReputation}%</div>
+                  </div>
+                  <span className="text-muted-foreground">→</span>
+                </div>
               </div>
             )}
 
