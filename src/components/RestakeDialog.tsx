@@ -730,7 +730,9 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           "shrink-0", // Prevent shrinking
           "flex flex-col gap-2 border-t bg-background pt-4",
           "relative",
-          "px-0"
+          "px-0",
+          // bottom padding for mobile
+          "pb-5 sm:pb-0"
         )}>
           {/* Slider Section */}
           <div className={cn(
@@ -790,7 +792,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
               </Button>
               <Button 
                 variant="default" 
-                className="bg-endorsed hover:bg-endorsed/90"
+                className="bg-primary hover:bg-primary/90"
                 onClick={handleSubmit}
                 disabled={maxStakeAmount === 0 || stakedCred === 0}
               >
