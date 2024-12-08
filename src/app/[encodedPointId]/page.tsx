@@ -131,11 +131,29 @@ export default function PointPage({
 
   const { data: counterpointSuggestions = [] } = useQuery({
     queryKey: ["counterpoint-suggestions", point?.pointId],
-    queryFn: ({ queryKey: [, pointId] }) =>
-      getCounterpointSuggestions(pointId as number),
-    enabled: !!point?.pointId && negations && negations.length === 0,
+    queryFn: async ({ queryKey: [, pointId] }) => {
+      const stream = await getCounterpointSuggestions(pointId as number);
+
+      if (stream instanceof ReadableStream) {
+        const reader = stream.getReader();
+        const suggestions: string[] = [];
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value) suggestions.push(value);
+        }
+        
+        return suggestions;
+      }
+      
+      return [];
+    },
+    enabled: !!point?.pointId,
     staleTime: Infinity,
   });
+
+  console.log('Current counterpointSuggestions:', counterpointSuggestions);
 
   const [selectNegationDialogOpen, toggleSelectNegationDialog] = useToggle(false);
   const [restakePoint, setRestakePoint] = useState<{
@@ -476,7 +494,7 @@ export default function PointPage({
                       <div className="relative grid text-muted-foreground">
                         <CircleXIcon className="shrink-0 size-6 stroke-1 text-muted-foreground col-start-1 row-start-1" />
                       </div>
-                      <p className="tracking-tighter text-sm  @sm/point:text-base  -mt-0.5">
+                      <p className="tracking-tighter text-sm @sm/point:text-base -mt-0.5">
                         {suggestion}
                       </p>
                     </div>

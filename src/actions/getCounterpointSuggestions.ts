@@ -10,6 +10,7 @@ import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 export const getCounterpointSuggestions = async (pointId: number) => {
+
   const point = await db
     .select({ content: pointsTable.content, keywords: pointsTable.keywords })
     .from(pointsTable)

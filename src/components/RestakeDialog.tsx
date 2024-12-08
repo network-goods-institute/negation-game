@@ -475,13 +475,10 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
         {/* Content area */}
         <div className={cn(
           "flex-1 min-h-0", // min-h-0 is important for proper flex scrolling
-          // Enable scrolling in both modes
           "overflow-y-auto"
         )}>
           <div className={cn(
             "space-y-6",
-            // Adjust padding to prevent content from being cut off
-            "pb-4"
           )}>
             {/* Original Point with Date */}
             <div className="space-y-2 pb-2">
