@@ -36,7 +36,7 @@ export const ReputationAnalysisDialog = ({
             <PopoverContent className="w-80">
               <p className="text-sm text-muted-foreground">
                 Reputation scores indicate how reliable restakers are based on their history 
-                of doubting and restaking. Higher scores mean the restaker is less likely 
+                of doubting and restaking. Higher scores mean the restaker is more likely 
                 to self-slash.
               </p>
             </PopoverContent>

@@ -202,9 +202,9 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   const dailyEarnings = useMemo(() => {
     if (!openedFromSlashedIcon || stakedCred === 0) return 0;
     
-    // Base rate of 0.1 cred per day per cred doubted
+    // Base rate of 0.3 cred per day per cred doubted
     // Decreases as you doubt more (diminishing returns)
-    const baseRate = 0.1;
+    const baseRate = 0.3;
     const diminishingFactor = 1 - (stakedCred / maxStakeAmount) * 0.5; // 50% reduction at max doubt
     return Math.floor(stakedCred * baseRate * diminishingFactor * 100) / 100;
   }, [stakedCred, maxStakeAmount, openedFromSlashedIcon]);
@@ -218,6 +218,11 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   // Calculate favor impact
   const favorReduced = stakedCred;
   const resultingFavor = Math.max(0, effectiveFavorFromRestaking - favorReduced);
+
+  const paybackPeriod = useMemo(() => {
+    if (dailyEarnings === 0 || stakedCred === 0) return 0;
+    return Math.ceil(stakedCred / dailyEarnings);
+  }, [dailyEarnings, stakedCred]);
 
   if (maxStakeAmount === 0) {
     return (
@@ -241,15 +246,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           </div>
 
           <div className="flex flex-col gap-6">
-            {/* Original point that needs endorsing */}
-            <div className="space-y-2 p-4 border rounded-lg bg-muted/30">
-              <p className="text-sm text-muted-foreground font-medium">Original Point</p>
-              <p className="text-base">{originalPoint.content}</p>
-              <span className="text-sm text-muted-foreground block">
-                {format(originalPoint.createdAt, "h':'mm a '·' MMM d',' yyyy")}
-              </span>
-            </div>
-
             <div className="flex flex-col items-center text-center gap-4">
               <AlertCircle className="size-12 text-muted-foreground" />
               <div className="space-y-2">
@@ -258,17 +254,25 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                   Before you can restake this point, you need to endorse it with some cred.
                 </p>
               </div>
-              <Button 
-                onClick={() => {
-                  onOpenChange?.(false);
-                  onEndorseClick?.();
-                }}
-              >
-                Endorse Original Point
-              </Button>
             </div>
 
-            {/* Counter point for context */}
+            <div className="space-y-2 p-4 border rounded-lg bg-muted/30">
+              <p className="text-sm text-muted-foreground font-medium">Original Point</p>
+              <p className="text-base">{originalPoint.content}</p>
+              <span className="text-sm text-muted-foreground block">
+                {format(originalPoint.createdAt, "h':'mm a '·' MMM d',' yyyy")}
+              </span>
+            </div>
+
+            <Button 
+              onClick={() => {
+                onOpenChange?.(false);
+                onEndorseClick?.();
+              }}
+            >
+              Endorse Original Point
+            </Button>
+
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">Negation</p>
               <div className="p-4 rounded-lg border border-dashed">
@@ -513,68 +517,61 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                   </Popover>
                 </div>
 
-                <div className="space-y-2">
-                  {/* First Row - 3 items */}
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="flex flex-col p-2 bg-muted/40 rounded-lg">
-                      <span className="text-[10px] text-muted-foreground">Total cred restaked</span>
-                      <span className="text-sm text-muted-foreground mt-1">{effectiveTotalRestaked}</span>
-                    </div>
-
-                    <div className="flex flex-col p-2 bg-muted/40 rounded-lg">
-                      <span className="text-[10px] text-muted-foreground">Total favor from restaking</span>
-                      <span className="text-sm text-muted-foreground mt-1">{effectiveFavorFromRestaking}</span>
-                    </div>
-
-                    <div className="flex flex-col p-2 bg-muted/40 rounded-lg">
-                      <span className="text-[10px] text-muted-foreground">Restaker Reputation</span>
-                      <div className="mt-1">
-                        <span className="text-sm text-muted-foreground">{aggregateReputation}%</span>
-                        <div className="text-[10px] text-muted-foreground">on average</div>
-                      </div>
-                    </div>
+                {/* First Row - 3 items */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="flex flex-col p-2 bg-muted/40 rounded-lg">
+                    <span className="text-[10px] text-muted-foreground">Total cred restaked</span>
+                    <span className="text-sm text-muted-foreground mt-1">{effectiveTotalRestaked}</span>
                   </div>
 
-                  {/* Second Row - 3 items */}
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="flex flex-col p-3 bg-muted/40 rounded-lg">
-                      <span className="text-xs font-medium">Earnings</span>
-                      <div className="mt-2 space-y-0.5">
-                        <div className="text-lg">{dailyEarnings}</div>
-                        <div className="text-sm text-muted-foreground">cred</div>
-                        <div className="text-sm text-muted-foreground">/ day</div>
-                        <div className="text-sm text-muted-foreground">({apy}%</div>
-                        <div className="text-sm text-muted-foreground">APY)</div>
-                      </div>
-                    </div>
+                  <div className="flex flex-col p-2 bg-muted/40 rounded-lg">
+                    <span className="text-[10px] text-muted-foreground">Total favor from restaking</span>
+                    <span className="text-sm text-muted-foreground mt-1">{effectiveFavorFromRestaking}</span>
+                  </div>
 
-                    <div className="flex flex-col p-3 bg-muted/40 rounded-lg">
-                      <span className="text-xs font-medium">Favor Reduced</span>
-                      <div className="mt-2 space-y-0.5">
-                        <div className="text-lg text-endorsed">-{favorReduced}</div>
-                        <div className="text-lg text-endorsed">favor</div>
-                        <div className="text-xs text-muted-foreground">{resultingFavor} favor</div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col p-3 bg-muted/40 rounded-lg">
-                      <span className="text-xs font-medium">Total doubt</span>
-                      <div className="mt-2 space-y-0.5">
-                        <div className="text-2xl">{totalDoubt}</div>
-                        <div className="text-sm text-muted-foreground">/ {maxStakeAmount}</div>
-                      </div>
+                  <div 
+                    className="flex flex-col p-2 bg-muted/40 rounded-lg cursor-pointer hover:bg-muted/60"
+                    onClick={() => setShowReputationAnalysis(true)}
+                  >
+                    <span className="text-[10px] text-muted-foreground">Restaker Reputation</span>
+                    <div className="mt-1 flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">{aggregateReputation}%</span>
+                      <span className="text-xs text-muted-foreground">→</span>
                     </div>
                   </div>
                 </div>
 
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="w-full text-muted-foreground"
-                  onClick={() => setShowReputationAnalysis(true)}
-                >
-                  View reputation analysis →
-                </Button>
+                {/* Second Row - 3 items */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="flex flex-col p-3 bg-muted/40 rounded-lg">
+                    <span className="text-xs font-medium">Returns</span>
+                    <div className="mt-2 space-y-0.5">
+                      <div className="text-lg">{paybackPeriod}</div>
+                      <div className="text-sm text-muted-foreground">days until</div>
+                      <div className="text-sm text-muted-foreground">breakeven</div>
+                      <div className="text-xs text-endorsed mt-1">
+                        {apy}% APY
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col p-3 bg-muted/40 rounded-lg">
+                    <span className="text-xs font-medium">Favor Reduced</span>
+                    <div className="mt-2 space-y-0.5">
+                      <div className="text-lg text-endorsed">-{favorReduced}</div>
+                      <div className="text-lg text-endorsed">favor</div>
+                      <div className="text-xs text-muted-foreground">{resultingFavor} favor</div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col p-3 bg-muted/40 rounded-lg">
+                    <span className="text-xs font-medium">Total doubt</span>
+                    <div className="mt-2 space-y-0.5">
+                      <div className="text-2xl">{totalDoubt}</div>
+                      <div className="text-sm text-muted-foreground">/ {maxStakeAmount}</div>
+                    </div>
+                  </div>
+                </div>
 
                 {stakedCred >= 0 && (
                   <div className="flex items-center gap-2 text-sm bg-muted/40 rounded-md p-3">
