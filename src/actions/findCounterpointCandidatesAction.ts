@@ -106,7 +106,7 @@ export const findCounterpointCandidatesAction = async ({
     `.mapWith(Number),
     })
     .from(embeddingsTable)
-    .innerJoin(pointsTable, eq(pointsTable.id, embeddingsTable.id))
+    .innerJoin(pointsTable, eq(pointsTable.id, embeddingsTable.pointId))
     .where(and(gt(similarity, 0.5), ne(pointsTable.id, negatedPointId)))
     .orderBy((t) => desc(t.similarity))
     .limit(10);
