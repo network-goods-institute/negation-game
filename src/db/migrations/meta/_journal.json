@@ -183,6 +183,13 @@
       "when": 1731075954398,
       "tag": "0025_serious_spyke",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1733773219999,
+      "tag": "0026_omniscient_nekra",
+      "breakpoints": true
     }
   ]
 }

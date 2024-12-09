@@ -19,9 +19,9 @@ export const addEmbedding = async ({
 
   await db
     .insert(embeddingsTable)
-    .values({ embedding, id: Number(pointId) })
+    .values({ embedding, pointId: Number(pointId) })
     .onConflictDoUpdate({
-      target: [embeddingsTable.id],
+      target: [embeddingsTable.pointId],
       set: { embedding },
     })
     .execute();

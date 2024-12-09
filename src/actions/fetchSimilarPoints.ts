@@ -25,7 +25,7 @@ export const fetchSimilarPoints = async ({ query }: { query: string }) => {
     .from(embeddingsTable)
     .innerJoin(
       pointsWithDetailsView,
-      eq(pointsWithDetailsView.pointId, embeddingsTable.id)
+      eq(pointsWithDetailsView.pointId, embeddingsTable.pointId)
     )
     .where(gt(similarity, 0.5))
     .orderBy((t) => desc(t.similarity))

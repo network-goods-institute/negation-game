@@ -5,7 +5,7 @@ import { pgTable, serial, vector } from "drizzle-orm/pg-core";
 export const embeddingsTable = pgTable(
   "embeddings",
   {
-    id: serial("point_id")
+    pointId: serial("point_id")
       .primaryKey()
       .references(() => pointsTable.id, { onDelete: "cascade" }),
     embedding: vector("embedding", { dimensions: 384 }),
