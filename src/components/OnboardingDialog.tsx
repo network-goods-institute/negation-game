@@ -29,7 +29,6 @@ export const OnboardingDialog: FC<OnboardingDialogProps> = ({ ...props }) => {
           onValidSubmit={({ username }) =>
             initUser({ username }).then(() => {
               queryClient.invalidateQueries({
-                exact: false,
                 queryKey: ["user"],
               });
             })

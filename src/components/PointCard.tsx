@@ -3,6 +3,7 @@ import { HTMLAttributes, MouseEventHandler } from "react";
 import { Button } from "./ui/button";
 
 import { endorse } from "@/actions/endorse";
+import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { CredInput } from "@/components/CredInput";
 import { EndorseIcon } from "@/components/icons/EndorseIcon";
 import { NegateIcon } from "@/components/icons/NegateIcon";
@@ -16,7 +17,7 @@ import { useCredInput } from "@/hooks/useCredInput";
 import { usePrivy } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
-import { useRouter } from "next/navigation";
+import { useAtom } from "jotai";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -45,6 +46,7 @@ export const PointCard = ({
   onNegate,
   ...props
 }: PointCardProps) => {
+  const [hoveredPointId, setHoveredPointId] = useAtom(hoveredPointIdAtom);
   const endorsedByViewer =
     viewerContext?.viewerCred !== undefined && viewerContext.viewerCred > 0;
 
@@ -55,7 +57,6 @@ export const PointCard = ({
   const { credInput, setCredInput, notEnoughCred } = useCredInput({
     resetWhen: !endorsePopoverOpen,
   });
-  const { push } = useRouter();
 
   return (
     <div
@@ -63,6 +64,8 @@ export const PointCard = ({
         "@container/point flex gap-3 pt-4 pb-3 px-4 relative rounded-none",
         className
       )}
+      onMouseOver={() => setHoveredPointId(pointId)}
+      onMouseLeave={() => setHoveredPointId(undefined)}
       {...props}
     >
       {/* <CircleDotIcon className="shrink-0 size-6  text-muted-foreground" /> */}
@@ -133,6 +136,9 @@ export const PointCard = ({
                   onClick={() => {
                     endorse({ pointId, cred: credInput }).then(() => {
                       queryClient.invalidateQueries({ queryKey: ["feed"] });
+                      queryClient.invalidateQueries({
+                        queryKey: [pointId],
+                      });
                       toggleEndorsePopoverOpen(false);
                     });
                   }}

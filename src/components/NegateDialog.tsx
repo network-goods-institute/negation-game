@@ -3,6 +3,7 @@ import { endorse as endorseAction } from "@/actions/endorse";
 import { findCounterpointCandidatesAction as fetchCounterpointCandidatesAction } from "@/actions/findCounterpointCandidatesAction";
 import { negate as negateAction } from "@/actions/negate";
 import { reviewProposedCounterpointAction } from "@/actions/reviewProposedCounterpointAction";
+import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { negationContentAtom } from "@/atoms/negationContentAtom";
 import { CredInput } from "@/components/CredInput";
 import { PointEditor } from "@/components/PointEditor";
@@ -27,6 +28,7 @@ import {
   POINT_MIN_LENGHT,
 } from "@/constants/config";
 import { useCredInput } from "@/hooks/useCredInput";
+import { usePointData } from "@/hooks/usePointData";
 import { cn } from "@/lib/cn";
 import { DialogProps } from "@radix-ui/react-dialog";
 import { PopoverAnchor } from "@radix-ui/react-popover";
@@ -46,21 +48,12 @@ import {
 } from "lucide-react";
 import { FC, ReactNode, useCallback, useEffect, useState } from "react";
 
-export interface NegateDialogProps extends DialogProps {
-  negatedPoint?: {
-    pointId: number;
-    content: string;
-    cred: number;
-    createdAt: Date;
-  };
-}
+export interface NegateDialogProps
+  extends Omit<DialogProps, "open" | "onOpenChange"> {}
 
-export const NegateDialog: FC<NegateDialogProps> = ({
-  negatedPoint,
-  open,
-  onOpenChange,
-  ...props
-}) => {
+export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
+  const [negatedPointId, setNegatedPointId] = useAtom(negatedPointIdAtom);
+  const { data: negatedPoint } = usePointData(negatedPointId);
   const [counterpointContent, setCounterpointContent] = useAtom(
     negationContentAtom(negatedPoint?.pointId)
   );
@@ -71,7 +64,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({
     notEnoughCred,
     resetCredInput: resetCred,
   } = useCredInput({
-    resetWhen: !open,
+    resetWhen: !negatedPointId,
   });
   const { mutateAsync: addCounterpoint, isPending: isAddingCounterpoint } =
     useMutation({
@@ -162,11 +155,15 @@ export const NegateDialog: FC<NegateDialogProps> = ({
   }, [resetCred, setCounterpointContent]);
 
   useEffect(() => {
-    if (!open) resetForm();
-  }, [open, resetForm]);
+    if (!negatedPointId) resetForm();
+  }, [negatedPointId, resetForm]);
 
   return (
-    <Dialog {...props} open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      {...props}
+      open={!!negatedPointId}
+      onOpenChange={(isOpen) => !isOpen && setNegatedPointId(undefined)}
+    >
       <DialogContent className="@container sm:top-xl flex flex-col overflow-auto sm:translate-y-0 h-full rounded-none sm:rounded-md sm:h-fit gap-0  bg-background  p-4 sm:p-8 shadow-sm w-full max-w-xl">
         <div className="w-full flex items-center justify-between mb-xl">
           <DialogTitle>Negate</DialogTitle>
@@ -305,7 +302,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({
                       });
 
                     resetForm();
-                    onOpenChange?.(false);
+                    setNegatedPointId(undefined);
                   })
                 }
               >
@@ -335,7 +332,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({
                 <p className="text-sm font-semibold text-muted-foreground mb-sm text-center">
                   Review counterpoint suggestions
                 </p>
-                <div className="flex flex-col overflow-scroll  gap-sm shadow-inner border rounded-md p-2 bg-muted">
+                <div className="flex flex-col overflow-y-auto  gap-sm shadow-inner border rounded-md p-2 bg-muted">
                   {reviewResults.existingSimilarCounterpoints.length > 0 && (
                     <>
                       <p className="text-xs text-muted-foreground my-sm text-center">

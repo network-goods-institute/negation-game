@@ -1,34 +1,7 @@
 "use server";
 
-import { getUserId } from "@/actions/getUserId";
-import { endorsementsTable, pointsWithDetailsView } from "@/db/schema";
-import { addFavor } from "@/db/utils/addFavor";
-import { getColumns } from "@/db/utils/getColumns";
-import { db } from "@/services/db";
-import { eq, sql } from "drizzle-orm";
+import { fetchPoints } from "@/actions/fetchPoints";
 
 export const fetchPoint = async (id: number) => {
-  const viewerId = await getUserId();
-
-  return await db
-    .select({
-      ...getColumns(pointsWithDetailsView),
-      ...(viewerId
-        ? {
-            viewerCred: sql<number>`
-              COALESCE((
-                SELECT SUM(${endorsementsTable.cred})
-                FROM ${endorsementsTable}
-                WHERE ${endorsementsTable.pointId} = ${id}
-                  AND ${endorsementsTable.userId} = ${viewerId}
-              ), 0)
-            `.mapWith(Number),
-          }
-        : {}),
-    })
-    .from(pointsWithDetailsView)
-    .where(eq(pointsWithDetailsView.pointId, id))
-    .limit(1)
-    .then(addFavor)
-    .then((points) => points[0]);
+  return await fetchPoints([id]).then((points) => points[0]);
 };

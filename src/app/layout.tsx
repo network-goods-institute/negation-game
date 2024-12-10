@@ -13,6 +13,7 @@ import { Inter } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DevOnly } from "@/components/utils/DevOnly";
 import { ToggleableReactQueryDevTools } from "@/components/utils/ToggleableReactQueryDevTools";
+import "@xyflow/react/dist/style.css";
 import Link from "next/link";
 import "./globals.css";
 
@@ -30,9 +31,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className="h-full">
-      <body
-        className={cn(inter.className, "h-full flex flex-col overflow-clip")}
-      >
+      <body className={cn(inter.className, "h-full flex flex-col")}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -42,7 +41,7 @@ export default function RootLayout({
           <ThemedPrivyProvider>
             <QueryClientProvider>
               <TooltipProvider>
-                <header className="sticky top-0 z-10 border-b py-sm flex justify-between container-padding items-center w-full bg-background h-2xl">
+                <header className="sticky top-0 z-20 border-b py-sm flex justify-between container-padding items-center w-full bg-background h-[var(--header-height)]">
                   <Link href="/" className="font-bold">
                     Negation Game
                   </Link>

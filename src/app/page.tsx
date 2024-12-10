@@ -1,20 +1,20 @@
 "use client";
 
 import { fetchFeedPage } from "@/actions/fetchFeed";
+import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { MakePointDialog } from "@/components/MakePointDialog";
 import { NegateDialog } from "@/components/NegateDialog";
 import { PointCard } from "@/components/PointCard";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import { encodeId } from "@/lib/encodeId";
-import { favor } from "@/lib/negation-game/favor";
 import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
 import { usePrivy } from "@privy-io/react-auth";
 import { useQuery } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
+import { useSetAtom } from "jotai";
 import { DiscIcon, PlusIcon } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
 
 export default function Home() {
   const { user, login } = usePrivy();
@@ -26,10 +26,7 @@ export default function Home() {
     },
   });
 
-  const [negatedPoint, setNegatedPoint] = useState<
-    | { pointId: number; content: string; createdAt: Date; cred: number }
-    | undefined
-  >(undefined);
+  const setNegatedPointId = useSetAtom(negatedPointIdAtom);
 
   const [makePointOpen, onMakePointOpenChange] = useToggle(false);
 
@@ -60,7 +57,7 @@ export default function Home() {
               viewerContext={{ viewerCred: point.viewerCred }}
               onNegate={(e) => {
                 e.preventDefault();
-                user !== null ? setNegatedPoint(point) : login();
+                user !== null ? setNegatedPointId(point.pointId) : login();
               }}
             />
           </Link>
@@ -76,13 +73,7 @@ export default function Home() {
         <span className="hidden  sm:block ml-sm">Make a Point</span>
       </Button>
 
-      <NegateDialog
-        negatedPoint={negatedPoint}
-        open={negatedPoint !== undefined}
-        onOpenChange={(isOpen: boolean) =>
-          !isOpen && setNegatedPoint(undefined)
-        }
-      />
+      <NegateDialog />
       <MakePointDialog
         open={makePointOpen}
         onOpenChange={onMakePointOpenChange}

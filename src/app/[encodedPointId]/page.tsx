@@ -6,8 +6,12 @@ import { fetchFavorHistory } from "@/actions/fetchFavorHistory";
 import { fetchPoint } from "@/actions/fetchPoint";
 import { fetchPointNegations } from "@/actions/fetchPointNegations";
 import { getCounterpointSuggestions } from "@/actions/getCounterpointSuggestions";
+import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
+import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
+import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { negationContentAtom } from "@/atoms/negationContentAtom";
 import { CredInput } from "@/components/CredInput";
+import { GraphView } from "@/components/graph/GraphView";
 import { EndorseIcon } from "@/components/icons/EndorseIcon";
 import { NegateIcon } from "@/components/icons/NegateIcon";
 import { NegateDialog } from "@/components/NegateDialog";
@@ -31,13 +35,19 @@ import { encodeId } from "@/lib/encodeId";
 import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
 import { TimelineScale, timelineScales } from "@/lib/timelineScale";
 import { usePrivy } from "@privy-io/react-auth";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useAtomCallback } from "jotai/utils";
 import {
   ArrowLeftIcon,
   CircleXIcon,
   DiscIcon,
+  NetworkIcon,
   SparklesIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -62,21 +72,21 @@ export default function PointPage({
   const encodedPointId = use(params).encodedPointId;
   const pointId = decodeId(encodedPointId);
   const { user: privyUser, login } = usePrivy();
-  const [negatedPoint, setNegatedPoint] = useState<
-    | { pointId: number; content: string; createdAt: Date; cred: number }
-    | undefined
-  >(undefined);
+  const setNegatedPointId = useSetAtom(negatedPointIdAtom);
   const setNegationContent = useAtomCallback(
     (_get, set, negatedPointId: number, content: string) => {
       set(negationContentAtom(negatedPointId), content);
     }
   );
+
+  const [canvasEnabled, setCanvasEnabled] = useAtom(canvasEnabledAtom);
+
   const {
     data: point,
     refetch: refetchPoint,
     isLoading: isLoadingPoint,
   } = useQuery({
-    queryKey: ["point", pointId, privyUser?.id],
+    queryKey: [pointId, "point", privyUser?.id],
     queryFn: () => {
       return fetchPoint(pointId);
     },
@@ -90,20 +100,35 @@ export default function PointPage({
     isFetching: isFetchingFavorHistory,
   } = useQuery({
     queryKey: [pointId, "favor-history", timelineScale] as const,
-    queryFn: ({ queryKey: [id, , scale] }) => {
-      return fetchFavorHistory({ pointId: id, scale });
+    queryFn: ({ queryKey: [pointId, , scale] }) => {
+      return fetchFavorHistory({ pointId, scale });
     },
     placeholderData: keepPreviousData,
     refetchInterval: 60000,
   });
 
+  const queryClient = useQueryClient();
+
   const { data: negations, isLoading: isLoadingNegations } = useQuery({
     queryKey: [pointId, "point-negations", privyUser?.id],
-    queryFn: () => fetchPointNegations(pointId),
+    queryFn: async () => {
+      const negations = await fetchPointNegations(pointId);
+
+      for (const negation of negations) {
+        queryClient.setQueryData(
+          ["point", negation.pointId, privyUser?.id],
+          negation
+        );
+      }
+
+      return negations;
+    },
   });
 
   const endorsedByViewer =
     point?.viewerCred !== undefined && point.viewerCred > 0;
+
+  const hoveredPointId = useAtomValue(hoveredPointIdAtom);
 
   const { data: user } = useUser();
   const [endorsePopoverOpen, toggleEndorsePopoverOpen] = useToggle(false);
@@ -153,14 +178,17 @@ export default function PointPage({
   }, [counterpointSuggestionsStream]);
 
   return (
-    <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow  gap-md bg-background overflow-auto">
-      <div className="w-full sm:col-[2] flex flex-col border-x pb-10">
+    <main
+      data-canvas-enabled={canvasEnabled}
+      className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] data-[canvas-enabled=true]:md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background"
+    >
+      <div className="w-full sm:col-[2] flex flex-col border-x pb-10 overflow-auto">
         {isLoadingPoint && (
           <Loader className="absolute self-center my-auto top-0 bottom-0" />
         )}
 
         {point && (
-          <div className="@container/point relative flex-grow   bg-background">
+          <div className="@container/point relative flex-grow bg-background">
             <div className="sticky top-0 z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
               <div className="flex items-center gap-3">
                 <Button
@@ -182,6 +210,14 @@ export default function PointPage({
                 <h1 className="text-xl font-medium">Point</h1>
               </div>
               <div className="flex gap-sm items-center text-muted-foreground">
+                <Button
+                  size={"icon"}
+                  variant={canvasEnabled ? "default" : "outline"}
+                  className="rounded-full p-2 size-9"
+                  onClick={() => setCanvasEnabled(!canvasEnabled)}
+                >
+                  <NetworkIcon className="" />
+                </Button>
                 <Popover
                   open={endorsePopoverOpen}
                   onOpenChange={toggleEndorsePopoverOpen}
@@ -254,7 +290,9 @@ export default function PointPage({
                     "@md/point:border @md/point:px-4"
                   )}
                   onClick={() =>
-                    privyUser !== null ? setNegatedPoint(point) : login()
+                    privyUser !== null
+                      ? setNegatedPointId(point.pointId)
+                      : login()
                   }
                 >
                   <NegateIcon className="@md/point:hidden" />
@@ -263,7 +301,10 @@ export default function PointPage({
               </div>
             </div>
 
-            <div className="bg-background px-4 pb-3 border-b">
+            <div
+              data-is-hovered={hoveredPointId === pointId}
+              className=" px-4 py-3 border-b data-[is-hovered=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
+            >
               <p className="tracking-tight text-md  @xs/point:text-md @sm/point:text-lg mb-sm">
                 {point.content}
               </p>
@@ -370,12 +411,13 @@ export default function PointPage({
               {negations &&
                 negations.map((negation, i) => (
                   <Link
+                    data-is-hovered={hoveredPointId === negation.pointId}
                     draggable={false}
                     onClick={preventDefaultIfContainsSelection}
                     href={`/${encodeId(negation.pointId)}`}
                     key={negation.pointId}
                     className={cn(
-                      "flex cursor-pointer hover:bg-accent px-4 pt-5 pb-2 border-b"
+                      "flex cursor-pointer  px-4 pt-5 pb-2 border-b hover:bg-accent data-[is-hovered=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
                     )}
                   >
                     <div className="flex flex-col  items-center">
@@ -385,7 +427,9 @@ export default function PointPage({
                       onNegate={(e) => {
                         //prevent the link from navigating
                         e.preventDefault();
-                        user !== null ? setNegatedPoint(negation) : login();
+                        user !== null
+                          ? setNegatedPointId(negation.pointId)
+                          : login();
                       }}
                       className="flex-grow -mt-3.5 pb-3"
                       favor={negation.favor}
@@ -422,7 +466,7 @@ export default function PointPage({
                           return;
                         }
                         setNegationContent(pointId, suggestion);
-                        setNegatedPoint(point);
+                        setNegatedPointId(point.pointId);
                       }}
                     >
                       <div className="relative grid text-muted-foreground">
@@ -439,14 +483,16 @@ export default function PointPage({
           </div>
         )}
       </div>
+      {canvasEnabled && (
+        <GraphView
+          closeButtonClassName="md:hidden"
+          className="!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset]  !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md: !z-10 md:z-auto"
+          rootPointId={pointId}
+          onClose={() => setCanvasEnabled(false)}
+        />
+      )}
 
-      <NegateDialog
-        negatedPoint={negatedPoint}
-        open={negatedPoint !== undefined}
-        onOpenChange={(isOpen: boolean) =>
-          !isOpen && setNegatedPoint(undefined)
-        }
-      />
+      <NegateDialog />
     </main>
   );
 }
