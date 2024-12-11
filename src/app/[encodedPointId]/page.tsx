@@ -405,7 +405,7 @@ export default function PointPage({
                 <Loader className="absolute left-0 right-0 mx-auto top-[20px] bottom-auto" />
               )}
               {negations &&
-                negations.map((negation, i) => (
+                negations.map((negation) => (
                   <Link
                     draggable={false}
                     onClick={preventDefaultIfContainsSelection}
@@ -442,6 +442,7 @@ export default function PointPage({
                         ...point,
                         id: point.pointId
                       }}
+                      negationId={point.pointId}
                       onRestake={({openedFromSlashedIcon}) => setRestakePoint({
                         point: {
                           ...point,

@@ -4,6 +4,11 @@ export { endorsementsTable } from "@/db/tables/endorsementsTable";
 export { negationsTable } from "@/db/tables/negationsTable";
 export { pointsTable } from "@/db/tables/pointsTable";
 export { usersTable } from "@/db/tables/usersTable";
+export {
+  restakesTable,
+  restakeHistoryTable,
+  restakeActionEnum,
+} from "@/db/tables/restakesTable";
 
 export { pointFavorHistoryView } from "@/db/views/pointFavorHistoryView";
 export { pointsWithDetailsView } from "@/db/views/pointsWithDetailsView";
