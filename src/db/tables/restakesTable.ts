@@ -46,11 +46,6 @@ export const restakesTable = pgTable(
     active: boolean("active").notNull().default(true),
   },
   (table) => ({
-    // Ensure pointId is less than negationId
-    pointOrderConstraint: check(
-      "point_order_constraint",
-      sql`${table.pointId} < ${table.negationId}`
-    ),
     // Ensure amount is positive
     amountPositiveConstraint: check(
       "amount_positive_constraint",

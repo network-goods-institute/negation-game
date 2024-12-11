@@ -1,9 +1,10 @@
 "use server";
 
 import { db } from "@/services/db";
-import { pointsWithDetailsView } from "@/db/schema";
+import { pointsWithDetailsView, restakesTable } from "@/db/schema";
 import { eq, or, and, ne } from "drizzle-orm";
 import { negationsTable } from "@/db/tables/negationsTable";
+import { getUserId } from "@/actions/getUserId";
 
 export type NegationResult = {
   id: number;
@@ -13,9 +14,16 @@ export type NegationResult = {
   amountSupporters: number;
   amountNegations: number;
   negationsCred: number;
+  restake: {
+    id: number;
+    amount: number;
+    active: boolean;
+  } | null;
 }
 
 export const fetchPointNegations = async (pointId: number): Promise<NegationResult[]> => {
+  const userId = await getUserId();
+
   const results = await db
     .selectDistinct({
       id: pointsWithDetailsView.pointId,
@@ -25,6 +33,11 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
       amountSupporters: pointsWithDetailsView.amountSupporters,
       amountNegations: pointsWithDetailsView.amountNegations,
       negationsCred: pointsWithDetailsView.negationsCred,
+      restake: {
+        id: restakesTable.id,
+        amount: restakesTable.amount,
+        active: restakesTable.active,
+      }
     })
     .from(pointsWithDetailsView)
     .innerJoin(
@@ -32,6 +45,15 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
       or(
         eq(negationsTable.newerPointId, pointsWithDetailsView.pointId),
         eq(negationsTable.olderPointId, pointsWithDetailsView.pointId)
+      )
+    )
+    .leftJoin(
+      restakesTable,
+      and(
+        eq(restakesTable.pointId, pointId),
+        eq(restakesTable.negationId, pointsWithDetailsView.pointId),
+        eq(restakesTable.userId, userId ?? ''),
+        eq(restakesTable.active, true)
       )
     )
     .where(

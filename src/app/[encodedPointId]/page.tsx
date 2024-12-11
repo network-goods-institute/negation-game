@@ -31,7 +31,7 @@ import { encodeId } from "@/lib/encodeId";
 import { favor } from "@/lib/negation-game/favor";
 import { TimelineScale, timelineScales } from "@/lib/timelineScale";
 import { usePrivy } from "@privy-io/react-auth";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
 import { useAtomCallback } from "jotai/utils";
 import {
@@ -405,62 +405,65 @@ export default function PointPage({
                 <Loader className="absolute left-0 right-0 mx-auto top-[20px] bottom-auto" />
               )}
               {negations &&
-                negations.map((negation) => (
-                  <Link
-                    draggable={false}
-                    onClick={preventDefaultIfContainsSelection}
-                    href={`/${encodeId(negation.id)}`}
-                    key={negation.id}
-                    className={cn(
-                      "flex cursor-pointer hover:bg-accent px-4 pt-5 pb-2 border-b"
-                    )}
-                  >
-                    <div className="flex flex-col  items-center">
-                      <CircleXIcon className="shrink-0 size-6 no-scaling-stroke stroke-1 text-muted-foreground " />
-                    </div>
-                    <PointCard
-                      onNegate={(e) => {
-                        e.preventDefault();
-                        user !== null ? setNegatedPoint({
-                          id: negation.id,
-                          content: negation.content,
-                          createdAt: negation.createdAt,
-                          cred: negation.cred
-                        }) : login();
-                      }}
-                      className="flex-grow -mt-3.5 pb-3"
-                      favor={favor({ ...negation })}
-                      content={negation.content}
-                      createdAt={negation.createdAt}
-                      amountSupporters={negation.amountSupporters}
-                      amountNegations={negation.amountNegations}
-                      pointId={negation.id}
-                      totalCred={negation.cred}
-                      viewerContext={{ viewerCred: negation.cred }}
-                      isNegation={true}
-                      parentPoint={{
-                        ...point,
-                        id: point.pointId
-                      }}
-                      negationId={point.pointId}
-                      onRestake={({openedFromSlashedIcon}) => setRestakePoint({
-                        point: {
+                negations.map((negation) => {
+                  return (
+                    <Link
+                      draggable={false}
+                      onClick={preventDefaultIfContainsSelection}
+                      href={`/${encodeId(negation.id)}`}
+                      key={negation.id}
+                      className={cn(
+                        "flex cursor-pointer hover:bg-accent px-4 pt-5 pb-2 border-b"
+                      )}
+                    >
+                      <div className="flex flex-col  items-center">
+                        <CircleXIcon className="shrink-0 size-6 no-scaling-stroke stroke-1 text-muted-foreground " />
+                      </div>
+                      <PointCard
+                        onNegate={(e) => {
+                          e.preventDefault();
+                          user !== null ? setNegatedPoint({
+                            id: negation.id,
+                            content: negation.content,
+                            createdAt: negation.createdAt,
+                            cred: negation.cred
+                          }) : login();
+                        }}
+                        className="flex-grow -mt-3.5 pb-3"
+                        favor={favor({ ...negation })}
+                        content={negation.content}
+                        createdAt={negation.createdAt}
+                        amountSupporters={negation.amountSupporters}
+                        amountNegations={negation.amountNegations}
+                        pointId={negation.id}
+                        totalCred={negation.cred}
+                        viewerContext={{ viewerCred: negation.cred }}
+                        isNegation={true}
+                        parentPoint={{
                           ...point,
-                          stakedAmount: point.cred,
-                          pointId: point.pointId,
                           id: point.pointId
-                        },
-                        counterPoint: {
-                          ...negation,
-                          stakedAmount: negation.cred,
-                          pointId: negation.id,
-                          id: negation.id
-                        },
-                        openedFromSlashedIcon
-                      })}
-                    />
-                  </Link>
-                ))}
+                        }}
+                        negationId={point.pointId}
+                        onRestake={({openedFromSlashedIcon}) => setRestakePoint({
+                          point: {
+                            ...point,
+                            stakedAmount: point.cred,
+                            pointId: point.pointId,
+                            id: point.pointId
+                          },
+                          counterPoint: {
+                            ...negation,
+                            stakedAmount: negation.cred,
+                            pointId: negation.id,
+                            id: negation.id
+                          },
+                          openedFromSlashedIcon
+                        })}
+                        restake={negation.restake}
+                      />
+                    </Link>
+                  );
+                })}
               {!isLoadingNegations && negations?.length === 0 && (
                 <p className="w-full text-center py-md border-b text-muted-foreground">
                   No negations yet

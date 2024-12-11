@@ -24,7 +24,6 @@ import { favor } from "@/lib/negation-game/favor";
 import { format } from "date-fns";
 import { Separator } from "@/components/ui/separator";
 import { ReputationAnalysisDialog } from "./ReputationAnalysisDialog";
-import { fetchRestake } from "@/actions/fetchRestake";
 import { restake } from "@/actions/restake";
 
 export interface RestakeDialogProps extends DialogProps {
@@ -64,17 +63,20 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   ...props
 }) => {
   const { data: existingRestake } = useQuery({
-    queryKey: ['restake', originalPoint.id, counterPoint.id],
-    queryFn: () => fetchRestake(originalPoint.id, counterPoint.id)
+    queryKey: ['point', originalPoint.id],
+    queryFn: () => fetchPoint(originalPoint.id),
+    select: (data) => data?.restake
   });
 
   const [stakedCred, setStakedCred] = useState(0);
 
   useEffect(() => {
-    if (existingRestake) {
+    if (existingRestake && (!openedFromSlashedIcon || originalPoint.id < counterPoint.id)) {
       setStakedCred(existingRestake.amount);
+    } else {
+      setStakedCred(0);
     }
-  }, [existingRestake]);
+  }, [existingRestake, openedFromSlashedIcon, originalPoint.id, counterPoint.id]);
 
   const DEFAULT_DOUBT_AMOUNT = 30; 
   const maxStakeAmount = Math.floor(openedFromSlashedIcon 

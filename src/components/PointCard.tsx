@@ -19,8 +19,6 @@ import { useToggle } from "@uidotdev/usehooks";
 import { useRouter } from "next/navigation";
 import { RestakeIcon } from "@/components/icons/RestakeIcon";
 import { DoubtIcon } from "@/components/icons/DoubtIcon";
-import { fetchRestake } from "@/actions/fetchRestake";
-import { fetchTotalRestaked } from "@/actions/fetchTotalRestaked";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -49,6 +47,11 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   };
   onRestake?: (options: { openedFromSlashedIcon: boolean }) => void;
   negationId?: number;
+  restake?: {
+    id: number;
+    amount: number;
+    active: boolean;
+  } | null;
 }
 
 export const PointCard = ({
@@ -66,6 +69,7 @@ export const PointCard = ({
   parentPoint,
   onRestake,
   negationId,
+  restake,
   ...props
 }: PointCardProps) => {
   const endorsedByViewer =
@@ -80,27 +84,15 @@ export const PointCard = ({
   });
   const { push } = useRouter();
 
-  const { data: pointRestake } = useQuery({
-    queryKey: ['restake', pointId, negationId],
-    queryFn: () => fetchRestake(pointId, negationId ?? pointId),
-    enabled: !!isNegation && !!parentPoint && !!negationId
-  });
-
-  const { data: totalRestaked } = useQuery({
-    queryKey: ['restake-total', pointId, negationId],
-    queryFn: () => fetchTotalRestaked(pointId, negationId ?? pointId),
-    enabled: !!isNegation && !!parentPoint && !!negationId
-  });
-
   const restakePercentage = useMemo(() => {
-    if (!isNegation || !parentPoint || !pointRestake) return 0;
-    return Math.floor((pointRestake.amount / (parentPoint.viewerCred || 1)) * 100);
-  }, [isNegation, parentPoint, pointRestake]);
+    if (!isNegation || !parentPoint || !restake) return 0;
+    return Math.floor((restake.amount / (parentPoint.viewerCred || 1)) * 100);
+  }, [isNegation, parentPoint, restake]);
 
   const doubtPercentage = useMemo(() => {
-    if (!isNegation || !parentPoint || !pointRestake) return 0;
+    if (!isNegation || !parentPoint || !restake) return 0;
     
-    const totalRestaked = pointRestake.amount;
+    const totalRestaked = restake.amount;
     const DEFAULT_DOUBT_AMOUNT = 30;
     
     const maxDoubtAmount = Math.floor(
@@ -109,8 +101,8 @@ export const PointCard = ({
         : Math.min(parentPoint.viewerCred || 0, DEFAULT_DOUBT_AMOUNT)
     );
     
-    return Math.floor((pointRestake.amount / maxDoubtAmount) * 100);
-  }, [isNegation, parentPoint, pointRestake]);
+    return Math.floor((restake.amount / maxDoubtAmount) * 100);
+  }, [isNegation, parentPoint, restake]);
 
   return (
     <>
@@ -209,7 +201,7 @@ export const PointCard = ({
                     variant="ghost"
                     className={cn(
                       "p-1 -mb-2 rounded-full size-fit hover:bg-muted/30",
-                      !!pointRestake && "text-endorsed"
+                      !!restake && "text-endorsed"
                     )}
                     onClick={(e) => {
                       e.preventDefault();
@@ -220,9 +212,9 @@ export const PointCard = ({
                     <RestakeIcon 
                       className={cn(
                         "size-5 stroke-1",
-                        !!pointRestake && "fill-current text-endorsed"
+                        !!restake && "fill-current text-endorsed"
                       )}
-                      showPercentage={!!pointRestake}
+                      showPercentage={!!restake}
                       percentage={restakePercentage}
                     />
                   </Button>
