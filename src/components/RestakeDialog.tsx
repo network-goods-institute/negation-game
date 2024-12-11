@@ -25,6 +25,7 @@ import { format } from "date-fns";
 import { Separator } from "@/components/ui/separator";
 import { ReputationAnalysisDialog } from "./ReputationAnalysisDialog";
 import { restake } from "@/actions/restake";
+import { fetchPoint } from "@/actions/fetchPoint";
 
 export interface RestakeDialogProps extends DialogProps {
   originalPoint: {

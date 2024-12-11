@@ -1,10 +1,10 @@
 "use server";
 
 import { getUserId } from "@/actions/getUserId";
-import { endorsementsTable, pointsWithDetailsView } from "@/db/schema";
+import { endorsementsTable, pointsWithDetailsView, restakesTable } from "@/db/schema";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 
 export const fetchPoint = async (id: number) => {
   const viewerId = await getUserId();
@@ -22,10 +22,23 @@ export const fetchPoint = async (id: number) => {
                   AND ${endorsementsTable.userId} = ${viewerId}
               ), 0)
             `.mapWith(Number),
+            restake: {
+              id: restakesTable.id,
+              amount: restakesTable.amount,
+              active: restakesTable.active,
+            }
           }
         : {}),
     })
     .from(pointsWithDetailsView)
+    .leftJoin(
+      restakesTable,
+      and(
+        eq(restakesTable.pointId, id),
+        eq(restakesTable.userId, viewerId ?? ''),
+        eq(restakesTable.active, true)
+      )
+    )
     .where(eq(pointsWithDetailsView.pointId, id))
     .limit(1)
     .then((points) => points[0]);
