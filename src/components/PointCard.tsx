@@ -86,7 +86,7 @@ export const PointCard = ({
 
   const restakePercentage = useMemo(() => {
     if (!isNegation || !parentPoint || !restake) return 0;
-    return Math.floor((restake.amount / (parentPoint.viewerCred || 1)) * 100);
+    return Math.round((restake.amount / (parentPoint.viewerCred || 1)) * 100);
   }, [isNegation, parentPoint, restake]);
 
   const doubtPercentage = useMemo(() => {
@@ -227,7 +227,6 @@ export const PointCard = ({
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      console.log('Doubt button clicked', { doubtPercentage });
                       onRestake?.({openedFromSlashedIcon: true});
                     }}
                   >

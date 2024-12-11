@@ -5,6 +5,7 @@ import { pointsWithDetailsView, restakesTable } from "@/db/schema";
 import { eq, or, and, ne } from "drizzle-orm";
 import { negationsTable } from "@/db/tables/negationsTable";
 import { getUserId } from "@/actions/getUserId";
+import { slashesTable } from "@/db/tables/slashesTable";
 
 export type NegationResult = {
   id: number;
@@ -15,6 +16,11 @@ export type NegationResult = {
   amountNegations: number;
   negationsCred: number;
   restake: {
+    id: number;
+    amount: number;
+    active: boolean;
+  } | null;
+  slash: {
     id: number;
     amount: number;
     active: boolean;
@@ -37,6 +43,11 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
         id: restakesTable.id,
         amount: restakesTable.amount,
         active: restakesTable.active,
+      },
+      slash: {
+        id: slashesTable.id,
+        amount: slashesTable.amount,
+        active: slashesTable.active,
       }
     })
     .from(pointsWithDetailsView)
@@ -54,6 +65,15 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
         eq(restakesTable.negationId, pointsWithDetailsView.pointId),
         eq(restakesTable.userId, userId ?? ''),
         eq(restakesTable.active, true)
+      )
+    )
+    .leftJoin(
+      slashesTable,
+      and(
+        eq(slashesTable.pointId, pointId),
+        eq(slashesTable.negationId, pointsWithDetailsView.pointId),
+        eq(slashesTable.userId, userId ?? ''),
+        eq(slashesTable.active, true)
       )
     )
     .where(

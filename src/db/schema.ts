@@ -10,5 +10,12 @@ export {
   restakeActionEnum,
 } from "@/db/tables/restakesTable";
 
+export {
+  slashesTable,
+  slashHistoryTable,
+  slashActionEnum,
+} from "@/db/tables/slashesTable";
+
+
 export { pointFavorHistoryView } from "@/db/views/pointFavorHistoryView";
 export { pointsWithDetailsView } from "@/db/views/pointsWithDetailsView";

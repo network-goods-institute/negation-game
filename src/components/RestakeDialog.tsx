@@ -25,7 +25,8 @@ import { format } from "date-fns";
 import { Separator } from "@/components/ui/separator";
 import { ReputationAnalysisDialog } from "./ReputationAnalysisDialog";
 import { restake } from "@/actions/restake";
-import { fetchPoint } from "@/actions/fetchPoint";
+import { slash } from "@/actions/slash";
+import { fetchRestakeForPoints } from "@/actions/fetchRestakeForPoints";
 
 export interface RestakeDialogProps extends DialogProps {
   originalPoint: {
@@ -38,6 +39,16 @@ export interface RestakeDialogProps extends DialogProps {
     negationsCred: number;
     amountSupporters: number;
     amountNegations: number;
+    restake?: {
+      id: number;
+      amount: number;
+      active: boolean;
+    } | null;
+    slash?: {
+      id: number;
+      amount: number;
+      active: boolean;
+    } | null;
   };
   counterPoint: {
     id: number;
@@ -64,9 +75,8 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   ...props
 }) => {
   const { data: existingRestake } = useQuery({
-    queryKey: ['point', originalPoint.id],
-    queryFn: () => fetchPoint(originalPoint.id),
-    select: (data) => data?.restake
+    queryKey: ['restake', originalPoint.id, counterPoint.id],
+    queryFn: () => fetchRestakeForPoints(originalPoint.id, counterPoint.id)
   });
 
   const [stakedCred, setStakedCred] = useState(0);
@@ -164,12 +174,21 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
+
     try {
-      await restake({
-        pointId: originalPoint.id,
-        negationId: counterPoint.id,
-        amount: stakedCred
-      });
+      if (isSlashing) {
+        const result = await slash({
+          pointId: originalPoint.id,
+          negationId: counterPoint.id,
+          amount: slashAmount
+        });
+      } else {
+        await restake({
+          pointId: originalPoint.id,
+          negationId: counterPoint.id,
+          amount: stakedCred
+        });
+      }
       
       setSubmittedValues({
         slashAmount,
@@ -184,14 +203,21 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
       queryClient.invalidateQueries({ 
         queryKey: ['restake']
       });
+      queryClient.invalidateQueries({ 
+        queryKey: ['point']
+      });
       
       setShowSuccess(true);
+    } catch (error) {
+      // If error, rollback the optimistic update
+      queryClient.invalidateQueries({
+        queryKey: ['restake', originalPoint.id, counterPoint.id]
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Add new calculation for doubt APY
   const doubtApy = useMemo(() => {
     if (!openedFromSlashedIcon) return 0;
     // Calculate APY based on staked amount

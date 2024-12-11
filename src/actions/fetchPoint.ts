@@ -1,7 +1,7 @@
 "use server";
 
 import { getUserId } from "@/actions/getUserId";
-import { endorsementsTable, pointsWithDetailsView, restakesTable } from "@/db/schema";
+import { endorsementsTable, pointsWithDetailsView, restakesTable, slashesTable } from "@/db/schema";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
 import { eq, and, sql } from "drizzle-orm";
@@ -26,6 +26,11 @@ export const fetchPoint = async (id: number) => {
               id: restakesTable.id,
               amount: restakesTable.amount,
               active: restakesTable.active,
+            },
+            slash: {
+              id: slashesTable.id,
+              amount: slashesTable.amount,
+              active: slashesTable.active,
             }
           }
         : {}),
@@ -37,6 +42,14 @@ export const fetchPoint = async (id: number) => {
         eq(restakesTable.pointId, id),
         eq(restakesTable.userId, viewerId ?? ''),
         eq(restakesTable.active, true)
+      )
+    )
+    .leftJoin(
+      slashesTable,
+      and(
+        eq(slashesTable.pointId, id),
+        eq(slashesTable.userId, viewerId ?? ''),
+        eq(slashesTable.active, true)
       )
     )
     .where(eq(pointsWithDetailsView.pointId, id))
