@@ -19,7 +19,7 @@ import { LoaderCircleIcon } from "lucide-react";
 export const ConnectButton = () => {
   const { login, logout, user: privyUser } = usePrivy();
 
-  const { data: user, isLoading } = useUser();
+  const { data: user } = useUser();
 
   if (!privyUser)
     return (
@@ -43,7 +43,7 @@ export const ConnectButton = () => {
   if (!user)
     return (
       <>
-        <OnboardingDialog open={!isLoading} />
+        <OnboardingDialog open={user === null} />
         <Button
           key="connect"
           className="w-36 rounded-full"
