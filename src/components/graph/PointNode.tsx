@@ -5,7 +5,6 @@ import { usePointData, usePrefetchPoint } from "@/hooks/usePointData";
 import { cn } from "@/lib/cn";
 import {
   Handle,
-  MarkerType,
   Node,
   NodeProps,
   Position,
@@ -124,11 +123,6 @@ export const PointNode = ({
         target: id,
         source: nodeId,
         type: "negation",
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          strokeWidth: 2,
-          color: "var(--xy-edge-stroke, var(--xy-edge-stroke-default))",
-        },
       });
     }
   }, [
