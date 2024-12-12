@@ -19,7 +19,6 @@ export const fetchTotalRestaked = async (pointId: number, negationId: number) =>
       and(
         eq(restakesTable.pointId, smallerId),
         eq(restakesTable.negationId, largerId),
-        eq(restakesTable.active, true)
       )
     )
     .then(rows => rows[0] ?? { totalAmount: 0, totalRestakers: 0 });
