@@ -13,12 +13,11 @@ interface SlashArgs {
 
 export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
   const userId = await getUserId();
-  console.log('Slash action:', { userId, pointId, negationId, amount });
-  
   if (!userId) {
     throw new Error("Must be authenticated to slash");
   }
 
+  // Look for ANY slash (active or not)
   const existingSlash = await db
     .select()
     .from(slashesTable)
@@ -26,28 +25,20 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
       and(
         eq(slashesTable.userId, userId),
         eq(slashesTable.pointId, pointId),
-        eq(slashesTable.negationId, negationId),
-        eq(slashesTable.active, true)
+        eq(slashesTable.negationId, negationId)
       )
     )
     .limit(1)
     .then(rows => rows[0]);
 
-  console.log('Existing slash:', existingSlash);
-
   if (existingSlash) {
-    // Update existing slash
-    const action = amount > existingSlash.amount 
-      ? "increased" 
-      : amount < existingSlash.amount 
-        ? "decreased" 
-        : "deactivated";
+    const newAmount = amount;
 
     await db
       .update(slashesTable)
       .set({ 
-        amount,
-        active: amount > 0 
+        amount: newAmount,
+        active: true
       })
       .where(eq(slashesTable.id, existingSlash.id));
 
@@ -57,14 +48,14 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
       userId,
       pointId,
       negationId,
-      action: action as typeof slashActionEnum.enumValues[number],
+      action: amount > existingSlash.amount ? "increased" : "decreased",
       previousAmount: existingSlash.amount,
-      newAmount: amount
+      newAmount
     });
 
     return existingSlash.id;
   } else {
-    // Create new slash
+    // Create new slash with initial amount
     const newSlash = await db
       .insert(slashesTable)
       .values({

@@ -211,6 +211,13 @@
       "when": 1733883063194,
       "tag": "0029_foamy_clint_barton",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1733954203808,
+      "tag": "0030_heavy_edwin_jarvis",
+      "breakpoints": true
     }
   ]
 }

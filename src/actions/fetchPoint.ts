@@ -1,7 +1,7 @@
 "use server";
 
 import { getUserId } from "@/actions/getUserId";
-import { endorsementsTable, pointsWithDetailsView, restakesTable, slashesTable } from "@/db/schema";
+import { endorsementsTable, pointsWithDetailsView, effectiveRestakesView, slashesTable } from "@/db/schema";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
 import { eq, and, sql } from "drizzle-orm";
@@ -23,9 +23,11 @@ export const fetchPoint = async (id: number) => {
               ), 0)
             `.mapWith(Number),
             restake: {
-              id: restakesTable.id,
-              amount: restakesTable.amount,
-              active: restakesTable.active,
+              id: effectiveRestakesView.pointId,
+              amount: effectiveRestakesView.effectiveAmount,
+              active: effectiveRestakesView.isActive,
+              originalAmount: effectiveRestakesView.originalAmount,
+              slashedAmount: effectiveRestakesView.slashedAmount
             },
             slash: {
               id: slashesTable.id,
@@ -37,11 +39,11 @@ export const fetchPoint = async (id: number) => {
     })
     .from(pointsWithDetailsView)
     .leftJoin(
-      restakesTable,
+      effectiveRestakesView,
       and(
-        eq(restakesTable.pointId, id),
-        eq(restakesTable.userId, viewerId ?? ''),
-        eq(restakesTable.active, true)
+        eq(effectiveRestakesView.pointId, id),
+        eq(effectiveRestakesView.userId, viewerId ?? ''),
+        eq(effectiveRestakesView.isActive, true)
       )
     )
     .leftJoin(

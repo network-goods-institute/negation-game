@@ -1,11 +1,10 @@
 "use server";
 
 import { db } from "@/services/db";
-import { pointsWithDetailsView, restakesTable } from "@/db/schema";
+import { pointsWithDetailsView, effectiveRestakesView, slashesTable } from "@/db/schema";
 import { eq, or, and, ne } from "drizzle-orm";
 import { negationsTable } from "@/db/tables/negationsTable";
 import { getUserId } from "@/actions/getUserId";
-import { slashesTable } from "@/db/tables/slashesTable";
 
 export type NegationResult = {
   id: number;
@@ -19,6 +18,8 @@ export type NegationResult = {
     id: number;
     amount: number;
     active: boolean;
+    originalAmount: number;
+    slashedAmount: number;
   } | null;
   slash: {
     id: number;
@@ -40,9 +41,11 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
       amountNegations: pointsWithDetailsView.amountNegations,
       negationsCred: pointsWithDetailsView.negationsCred,
       restake: {
-        id: restakesTable.id,
-        amount: restakesTable.amount,
-        active: restakesTable.active,
+        id: effectiveRestakesView.pointId,
+        amount: effectiveRestakesView.effectiveAmount,
+        active: effectiveRestakesView.isActive,
+        originalAmount: effectiveRestakesView.originalAmount,
+        slashedAmount: effectiveRestakesView.slashedAmount
       },
       slash: {
         id: slashesTable.id,
@@ -59,12 +62,12 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
       )
     )
     .leftJoin(
-      restakesTable,
+      effectiveRestakesView,
       and(
-        eq(restakesTable.pointId, pointId),
-        eq(restakesTable.negationId, pointsWithDetailsView.pointId),
-        eq(restakesTable.userId, userId ?? ''),
-        eq(restakesTable.active, true)
+        eq(effectiveRestakesView.pointId, pointId),
+        eq(effectiveRestakesView.negationId, pointsWithDetailsView.pointId),
+        eq(effectiveRestakesView.userId, userId ?? ''),
+        eq(effectiveRestakesView.isActive, true)
       )
     )
     .leftJoin(

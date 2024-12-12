@@ -1,7 +1,7 @@
 "use server";
 
 import { getUserId } from "@/actions/getUserId";
-import { restakesTable, restakeHistoryTable, restakeActionEnum, usersTable } from "@/db/schema";
+import { restakesTable, restakeHistoryTable, restakeActionEnum, usersTable, slashesTable, slashHistoryTable } from "@/db/schema";
 import { db } from "@/services/db";
 import { eq, and, sql, or } from "drizzle-orm";
 
@@ -48,27 +48,64 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
         ? "decreased" 
         : "deactivated";
 
-    await db
-      .update(restakesTable)
-      .set({ 
-        amount,
-        active: amount > 0 
-      })
-      .where(eq(restakesTable.id, existingRestake.id));
+    await db.transaction(async (tx) => {
+      // Always deactivate any active slashes when modifying restakes
+      const activeSlash = await tx
+        .select()
+        .from(slashesTable)
+        .where(
+          and(
+            eq(slashesTable.userId, userId),
+            eq(slashesTable.pointId, pointId),
+            eq(slashesTable.negationId, negationId),
+            eq(slashesTable.active, true)
+          )
+        )
+        .limit(1)
+        .then(rows => rows[0]);
 
-    // Record history
-    await db.insert(restakeHistoryTable).values({
-      restakeId: existingRestake.id,
-      userId,
-      pointId: pointId,
-      negationId: negationId,
-      action: action as typeof restakeActionEnum.enumValues[number],
-      previousAmount: existingRestake.amount,
-      newAmount: amount
+      if (activeSlash) {
+        // Always deactivate slash when modifying restake
+        await tx.insert(slashHistoryTable).values({
+          slashId: activeSlash.id,
+          userId,
+          pointId,
+          negationId,
+          action: "deactivated",
+          previousAmount: activeSlash.amount,
+          newAmount: activeSlash.amount  // Keep amount but mark as inactive
+        });
+
+        await tx
+          .update(slashesTable)
+          .set({ 
+            active: false  // Just deactivate, don't modify amount
+          })
+          .where(eq(slashesTable.id, activeSlash.id));
+      }
+
+      // Update the restake
+      await tx
+        .update(restakesTable)
+        .set({ 
+          amount,
+          active: amount > 0 
+        })
+        .where(eq(restakesTable.id, existingRestake.id));
+
+      // Record restake history
+      await tx.insert(restakeHistoryTable).values({
+        restakeId: existingRestake.id,
+        userId,
+        pointId,
+        negationId,
+        action: action as typeof restakeActionEnum.enumValues[number],
+        previousAmount: existingRestake.amount,
+        newAmount: amount
+      });
     });
 
-    const result = existingRestake.id;
-    return result;
+    return existingRestake.id;
   } else {
     // Create new restake
     const newRestake = await db

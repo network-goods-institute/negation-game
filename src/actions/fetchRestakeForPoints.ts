@@ -1,7 +1,7 @@
 "use server";
 
 import { getUserId } from "@/actions/getUserId";
-import { restakesTable } from "@/db/schema";
+import { effectiveRestakesView } from "@/db/schema";
 import { db } from "@/services/db";
 import { and, eq } from "drizzle-orm";
 
@@ -11,13 +11,13 @@ export const fetchRestakeForPoints = async (pointId: number, negationId: number)
 
   return await db
     .select()
-    .from(restakesTable)
+    .from(effectiveRestakesView)
     .where(
       and(
-        eq(restakesTable.pointId, pointId),
-        eq(restakesTable.negationId, negationId),
-        eq(restakesTable.userId, userId),
-        eq(restakesTable.active, true)
+        eq(effectiveRestakesView.pointId, pointId),
+        eq(effectiveRestakesView.negationId, negationId),
+        eq(effectiveRestakesView.userId, userId),
+        eq(effectiveRestakesView.isActive, true)
       )
     )
     .limit(1)

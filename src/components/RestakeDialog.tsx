@@ -43,6 +43,8 @@ export interface RestakeDialogProps extends DialogProps {
       id: number;
       amount: number;
       active: boolean;
+      originalAmount: number;
+      slashedAmount: number;
     } | null;
     slash?: {
       id: number;
@@ -83,7 +85,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
   useEffect(() => {
     if (existingRestake && (!openedFromSlashedIcon || originalPoint.id < counterPoint.id)) {
-      setStakedCred(existingRestake.amount);
+      setStakedCred(existingRestake.effectiveAmount);
     } else {
       setStakedCred(0);
     }
@@ -91,10 +93,10 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
   const DEFAULT_DOUBT_AMOUNT = 30; 
   const maxStakeAmount = Math.floor(openedFromSlashedIcon 
-    ? (existingRestake?.amount ?? 0) > 0 
+    ? (existingRestake?.effectiveAmount ?? 0) > 0 
       ? Math.min(
           originalPoint.viewerCred || 0, 
-          (existingRestake?.amount ?? 0)
+          (existingRestake?.effectiveAmount ?? 0)
         )
       : Math.min(originalPoint.viewerCred || 0, DEFAULT_DOUBT_AMOUNT)
     : (originalPoint.viewerCred || 0)
@@ -102,9 +104,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
   // Get favor from restaking from localStorage
   const favorFromRestaking = useMemo(() => {
-    // In reality this would come from the database
-    // For now simulate with localStorage - assume 1:1 ratio for demo
-    return existingRestake?.amount || 0;
+    return existingRestake?.effectiveAmount || 0;
   }, [existingRestake]);
 
   const [isSlashing, setIsSlashing] = useState(false);
@@ -135,7 +135,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     enabled: open,
   });
 
-  const currentlyStaked = existingRestake?.amount || 0;
+  const currentlyStaked = existingRestake?.effectiveAmount || 0;
   const newStakeAmount = stakedCred;
 
   const slashAmount = isSlashing ? Math.floor(currentlyStaked - newStakeAmount) : 0;
@@ -241,7 +241,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     return Math.round(weightedRep);
   }, [openedFromSlashedIcon]);
 
-  const effectiveTotalRestaked = existingRestake?.amount || DEFAULT_DOUBT_AMOUNT;
+  const effectiveTotalRestaked = existingRestake?.effectiveAmount || DEFAULT_DOUBT_AMOUNT;
   const effectiveFavorFromRestaking = favorFromRestaking || DEFAULT_DOUBT_AMOUNT;
   const totalDoubt = stakedCred;
 
