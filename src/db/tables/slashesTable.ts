@@ -1,9 +1,11 @@
 import { pointsTable } from "@/db/tables/pointsTable";
 import { usersTable } from "@/db/tables/usersTable";
+import { restakesTable } from "@/db/tables/restakesTable";
 import { InferColumnsDataTypes, sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  foreignKey,
   index,
   integer,
   pgEnum,
@@ -30,6 +32,11 @@ export const slashesTable = pgTable(
         onDelete: "cascade",
       })
       .notNull(),
+    restakeId: integer("restake_id")
+      .references(() => restakesTable.id, {
+        onDelete: "cascade",
+      })
+      .notNull(),
     pointId: integer("point_id")
       .references(() => pointsTable.id, {
         onDelete: "cascade",
@@ -42,17 +49,18 @@ export const slashesTable = pgTable(
       .notNull(),
     amount: integer("amount").notNull(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
-    active: boolean("active").notNull().default(true),
   },
   (table) => ({
-    // Ensure amount is positive
-    amountPositiveConstraint: check(
-      "amount_positive_constraint",
-      sql`${table.amount} > 0`
+    // Ensure amount is non-negative
+    amountNonNegativeConstraint: check(
+      "amount_non_negative_constraint",
+      sql`${table.amount} >= 0`
     ),
-    uniqueActiveSlash: unique("unique_active_slash").on(table.userId, table.pointId, table.negationId),
-
+    // Unique constraint for slashes
+    uniqueSlash: unique("unique_slash").on(table.userId, table.restakeId),
+    // Indexes
     userIndex: index("slashes_user_idx").on(table.userId),
+    restakeIndex: index("slashes_restake_idx").on(table.restakeId),
     pointIndex: index("slashes_point_idx").on(table.pointId),
     negationIndex: index("slashes_negation_idx").on(table.negationId),
   })

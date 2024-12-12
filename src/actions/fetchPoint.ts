@@ -26,13 +26,12 @@ export const fetchPoint = async (id: number) => {
               id: effectiveRestakesView.pointId,
               amount: effectiveRestakesView.effectiveAmount,
               active: effectiveRestakesView.isActive,
-              originalAmount: effectiveRestakesView.originalAmount,
+              originalAmount: effectiveRestakesView.amount,
               slashedAmount: effectiveRestakesView.slashedAmount
             },
             slash: {
               id: slashesTable.id,
               amount: slashesTable.amount,
-              active: slashesTable.active,
             }
           }
         : {}),
@@ -51,7 +50,6 @@ export const fetchPoint = async (id: number) => {
       and(
         eq(slashesTable.pointId, id),
         eq(slashesTable.userId, viewerId ?? ''),
-        eq(slashesTable.active, true)
       )
     )
     .where(eq(pointsWithDetailsView.pointId, id))

@@ -2,7 +2,7 @@
 
 import { db } from "@/services/db";
 import { pointsWithDetailsView, effectiveRestakesView, slashesTable } from "@/db/schema";
-import { eq, or, and, ne } from "drizzle-orm";
+import { eq, or, and, ne, sql } from "drizzle-orm";
 import { negationsTable } from "@/db/tables/negationsTable";
 import { getUserId } from "@/actions/getUserId";
 
@@ -44,13 +44,13 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
         id: effectiveRestakesView.pointId,
         amount: effectiveRestakesView.effectiveAmount,
         active: effectiveRestakesView.isActive,
-        originalAmount: effectiveRestakesView.originalAmount,
+        originalAmount: effectiveRestakesView.amount,
         slashedAmount: effectiveRestakesView.slashedAmount
       },
       slash: {
         id: slashesTable.id,
         amount: slashesTable.amount,
-        active: slashesTable.active,
+        active: sql<boolean>`${slashesTable.amount} > 0`.as("slash_active")
       }
     })
     .from(pointsWithDetailsView)
@@ -75,8 +75,7 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
       and(
         eq(slashesTable.pointId, pointId),
         eq(slashesTable.negationId, pointsWithDetailsView.pointId),
-        eq(slashesTable.userId, userId ?? ''),
-        eq(slashesTable.active, true)
+        eq(slashesTable.userId, userId ?? '')
       )
     )
     .where(

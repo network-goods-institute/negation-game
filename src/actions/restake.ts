@@ -3,7 +3,7 @@
 import { getUserId } from "@/actions/getUserId";
 import { restakesTable, restakeHistoryTable, restakeActionEnum, usersTable, slashesTable, slashHistoryTable } from "@/db/schema";
 import { db } from "@/services/db";
-import { eq, and, sql, or } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 
 interface RestakeArgs {
   pointId: number;
@@ -26,7 +26,7 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
         eq(restakesTable.userId, userId),
         eq(restakesTable.pointId, pointId),      // FROM point
         eq(restakesTable.negationId, negationId), // TO point
-        eq(restakesTable.active, true)
+        sql`${restakesTable.amount} > 0`
       )
     )
     .limit(1)
@@ -49,8 +49,8 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
         : "deactivated";
 
     await db.transaction(async (tx) => {
-      // Always deactivate any active slashes when modifying restakes
-      const activeSlash = await tx
+      // Always set any existing slash to 0 when modifying restakes
+      const existingSlash = await tx
         .select()
         .from(slashesTable)
         .where(
@@ -58,39 +58,34 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
             eq(slashesTable.userId, userId),
             eq(slashesTable.pointId, pointId),
             eq(slashesTable.negationId, negationId),
-            eq(slashesTable.active, true)
+            sql`${slashesTable.amount} > 0`
           )
         )
         .limit(1)
         .then(rows => rows[0]);
 
-      if (activeSlash) {
-        // Always deactivate slash when modifying restake
+      if (existingSlash) {
+        // Set slash amount to 0 when modifying restake
         await tx.insert(slashHistoryTable).values({
-          slashId: activeSlash.id,
+          slashId: existingSlash.id,
           userId,
           pointId,
           negationId,
           action: "deactivated",
-          previousAmount: activeSlash.amount,
-          newAmount: activeSlash.amount  // Keep amount but mark as inactive
+          previousAmount: existingSlash.amount,
+          newAmount: 0
         });
 
         await tx
           .update(slashesTable)
-          .set({ 
-            active: false  // Just deactivate, don't modify amount
-          })
-          .where(eq(slashesTable.id, activeSlash.id));
+          .set({ amount: 0 })
+          .where(eq(slashesTable.id, existingSlash.id));
       }
 
       // Update the restake
       await tx
         .update(restakesTable)
-        .set({ 
-          amount,
-          active: amount > 0 
-        })
+        .set({ amount })
         .where(eq(restakesTable.id, existingRestake.id));
 
       // Record restake history
@@ -114,8 +109,7 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
         userId,
         pointId,
         negationId,
-        amount,
-        active: true
+        amount
       })
       .returning({ id: restakesTable.id })
       .then(([{ id }]) => id);
@@ -130,7 +124,6 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
       newAmount: amount
     });
 
-    const result = newRestake;
-    return result;
+    return newRestake;
   }
 }; 

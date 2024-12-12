@@ -43,18 +43,15 @@ export const restakesTable = pgTable(
       .notNull(),
     amount: integer("amount").notNull(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
-    active: boolean("active").notNull().default(true),
   },
   (table) => ({
-    // Ensure amount is positive
-    amountPositiveConstraint: check(
-      "amount_positive_constraint",
-      sql`${table.amount} > 0`
+    // Ensure amount is non-negative
+    amountNonNegativeConstraint: check(
+      "amount_non_negative_constraint",
+      sql`${table.amount} >= 0`
     ),
-    // Unique constraint for active restakes
-    uniqueActiveRestake: unique("unique_active_restake").on(table.userId, table.pointId, table.negationId),
-    activeIndex: index("active_restake_idx")
-      .on(table.userId, table.pointId, table.negationId, table.active),
+    // Unique constraint for restakes - this is needed for the foreign key reference
+    uniqueRestake: unique("unique_restake").on(table.userId, table.pointId, table.negationId),
     // Indexes
     userIndex: index("restakes_user_idx").on(table.userId),
     pointIndex: index("restakes_point_idx").on(table.pointId),
