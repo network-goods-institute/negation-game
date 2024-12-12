@@ -13,7 +13,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useQuery } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
 import { useSetAtom } from "jotai";
-import { DiscIcon, PlusIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 import Link from "next/link";
 
 export default function Home() {
@@ -41,12 +41,11 @@ export default function Home() {
             draggable={false}
             onClick={preventDefaultIfContainsSelection}
             href={`/${encodeId(point.pointId)}`}
-            className="flex border-b cursor-pointer hover:bg-accent py-2"
+            className="flex border-b cursor-pointer hover:bg-accent "
             key={point.pointId}
           >
-            <DiscIcon className="ml-4 mt-3 shrink-0 size-6 text-muted-foreground stroke-1" />
             <PointCard
-              className="flex-grow -mt-0.5 pl-3"
+              className="flex-grow p-6"
               amountSupporters={point.amountSupporters}
               createdAt={point.createdAt}
               cred={point.cred}

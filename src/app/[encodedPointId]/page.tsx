@@ -408,43 +408,47 @@ export default function PointPage({
               {isLoadingNegations && (
                 <Loader className="absolute left-0 right-0 mx-auto top-[20px] bottom-auto" />
               )}
-              {negations &&
-                negations.map((negation, i) => (
-                  <Link
-                    data-is-hovered={hoveredPointId === negation.pointId}
-                    draggable={false}
-                    onClick={preventDefaultIfContainsSelection}
-                    href={`/${encodeId(negation.pointId)}`}
-                    key={negation.pointId}
-                    className={cn(
-                      "flex cursor-pointer  px-4 pt-5 pb-2 border-b hover:bg-accent data-[is-hovered=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
-                    )}
-                  >
-                    <div className="flex flex-col  items-center">
-                      <CircleXIcon className="shrink-0 size-6 no-scaling-stroke stroke-1 text-muted-foreground " />
-                    </div>
-                    <PointCard
-                      onNegate={(e) => {
-                        //prevent the link from navigating
-                        e.preventDefault();
-                        user !== null
-                          ? setNegatedPointId(negation.pointId)
-                          : login();
-                      }}
-                      className="flex-grow -mt-3.5 pb-3"
-                      favor={negation.favor}
-                      content={negation.content}
-                      createdAt={negation.createdAt}
-                      amountSupporters={negation.amountSupporters}
-                      amountNegations={negation.amountNegations}
-                      pointId={negation.pointId}
-                      cred={negation.cred}
-                      viewerContext={{ viewerCred: negation.viewerCred }}
-                    />
-                  </Link>
-                ))}
+              {negations && negations.length > 0 && (
+                <>
+                  <span className="text-muted-foreground text-xs uppercase font-semibold tracking-widest w-full p-2 border-b text-center">
+                    negations
+                  </span>
+                  {negations.map((negation, i) => (
+                    <Link
+                      data-is-hovered={hoveredPointId === negation.pointId}
+                      draggable={false}
+                      onClick={preventDefaultIfContainsSelection}
+                      href={`/${encodeId(negation.pointId)}`}
+                      key={negation.pointId}
+                      className={cn(
+                        "flex cursor-pointer  px-4 pt-5 pb-2 border-b hover:bg-accent data-[is-hovered=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
+                      )}
+                    >
+                      <PointCard
+                        onNegate={(e) => {
+                          //prevent the link from navigating
+                          e.preventDefault();
+                          user !== null
+                            ? setNegatedPointId(negation.pointId)
+                            : login();
+                        }}
+                        className="flex-grow -mt-3.5 pb-3"
+                        favor={negation.favor}
+                        content={negation.content}
+                        createdAt={negation.createdAt}
+                        amountSupporters={negation.amountSupporters}
+                        amountNegations={negation.amountNegations}
+                        pointId={negation.pointId}
+                        cred={negation.cred}
+                        viewerContext={{ viewerCred: negation.viewerCred }}
+                      />
+                    </Link>
+                  ))}
+                </>
+              )}
+
               {!isLoadingNegations && negations?.length === 0 && (
-                <p className="w-full text-center py-md border-b text-muted-foreground">
+                <p className="w-full uppercase tracking-widest font-semibold text-xs text-center py-md border-b text-muted-foreground">
                   No negations yet
                 </p>
               )}
