@@ -836,7 +836,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                 variant="default" 
                 className="bg-primary hover:bg-primary/90"
                 onClick={handleSubmit}
-                disabled={maxStakeAmount === 0 || stakedCred === 0 || isSubmitting}
+                disabled={maxStakeAmount === 0 || (!isSlashing && stakedCred === 0) || isSubmitting}
               >
                 {isSubmitting ? "Submitting..." : "Submit"}
               </Button>
