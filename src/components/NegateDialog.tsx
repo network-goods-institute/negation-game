@@ -28,8 +28,8 @@ import {
   POINT_MIN_LENGHT,
 } from "@/constants/config";
 import { useCredInput } from "@/hooks/useCredInput";
-import { usePointData } from "@/hooks/usePointData";
 import { cn } from "@/lib/cn";
+import { usePointData } from "@/queries/usePointData";
 import { DialogProps } from "@radix-ui/react-dialog";
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -115,7 +115,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
 
       setGuidanceNotes(undefined);
 
-      //set the review results cache for rephrasings so that the user is not forced to review again right away if he picks one
+      //set the review results cache for rephrasings so that the user is not forced to review again if he picks one
       reviewResults.suggestions.forEach((selectedSuggestion) =>
         queryClient.setQueryData<typeof reviewResults>(
           ["counterpoint-review", negatedPoint, selectedSuggestion] as const,

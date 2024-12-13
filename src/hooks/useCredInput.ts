@@ -1,4 +1,4 @@
-import { useUser } from "@/hooks/useUser";
+import { useUser } from "@/queries/useUser";
 import { useEffect, useState } from "react";
 
 export interface UseCredInputOptions {

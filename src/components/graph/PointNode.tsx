@@ -1,8 +1,8 @@
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { PointCard } from "@/components/PointCard";
-import { usePointData, usePrefetchPoint } from "@/hooks/usePointData";
 import { cn } from "@/lib/cn";
+import { usePointData, usePrefetchPoint } from "@/queries/usePointData";
 import {
   Handle,
   Node,

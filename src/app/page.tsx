@@ -1,6 +1,5 @@
 "use client";
 
-import { fetchFeedPage } from "@/actions/fetchFeed";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { MakePointDialog } from "@/components/MakePointDialog";
 import { NegateDialog } from "@/components/NegateDialog";
@@ -9,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import { encodeId } from "@/lib/encodeId";
 import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
+import { useFeed } from "@/queries/useFeed";
 import { usePrivy } from "@privy-io/react-auth";
-import { useQuery } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
 import { useSetAtom } from "jotai";
 import { PlusIcon } from "lucide-react";
@@ -19,13 +18,7 @@ import Link from "next/link";
 export default function Home() {
   const { user, login } = usePrivy();
 
-  const { data: points, isLoading } = useQuery({
-    queryKey: ["feed", user?.id],
-    queryFn: () => {
-      return fetchFeedPage();
-    },
-  });
-
+  const { data: points, isLoading } = useFeed();
   const setNegatedPointId = useSetAtom(negatedPointIdAtom);
 
   const [makePointOpen, onMakePointOpenChange] = useToggle(false);

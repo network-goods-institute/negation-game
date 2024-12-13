@@ -1,5 +1,4 @@
 import { endorse } from "@/actions/endorse";
-import { fetchSimilarPoints } from "@/actions/fetchSimilarPoints";
 import { makePoint } from "@/actions/makePoint";
 import { CredInput } from "@/components/CredInput";
 import { PointEditor } from "@/components/PointEditor";
@@ -14,11 +13,11 @@ import {
 } from "@/components/ui/dialog";
 import { POINT_MAX_LENGHT, POINT_MIN_LENGHT } from "@/constants/config";
 import { useCredInput } from "@/hooks/useCredInput";
-import { useUser } from "@/hooks/useUser";
 import { cn } from "@/lib/cn";
-import { favor } from "@/lib/negation-game/favor";
+import { useSimilarPoints } from "@/queries/useSimilarPoints";
+import { useUser } from "@/queries/useUser";
 import { DialogProps } from "@radix-ui/react-dialog";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useDebounce } from "@uidotdev/usehooks";
 import { ArrowLeftIcon, BlendIcon, DiscIcon, Undo2Icon } from "lucide-react";
 import { FC, useState } from "react";
@@ -53,13 +52,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
       (charactersLeft >= 0 && content.length >= POINT_MIN_LENGHT));
   const queryClient = useQueryClient();
   const debouncedContent = useDebounce(content, 500);
-  const { data: similarPoints } = useQuery({
-    queryKey: ["similarPoints", debouncedContent],
-    queryFn: ({ queryKey: [, query] }) =>
-      debouncedContent.length >= POINT_MIN_LENGHT
-        ? fetchSimilarPoints({ query })
-        : [],
-  });
+  const { data: similarPoints } = useSimilarPoints(debouncedContent);
 
   return (
     <Dialog {...props} open={open} onOpenChange={onOpenChange}>

@@ -2,10 +2,6 @@
 import { format } from "date-fns";
 
 import { endorse } from "@/actions/endorse";
-import { fetchFavorHistory } from "@/actions/fetchFavorHistory";
-import { fetchPoint } from "@/actions/fetchPoint";
-import { fetchPointNegations } from "@/actions/fetchPointNegations";
-import { getCounterpointSuggestions } from "@/actions/getCounterpointSuggestions";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
@@ -28,18 +24,16 @@ import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DEFAULT_TIMESCALE } from "@/constants/config";
 import { useCredInput } from "@/hooks/useCredInput";
-import { useUser } from "@/hooks/useUser";
 import { cn } from "@/lib/cn";
 import { decodeId } from "@/lib/decodeId";
 import { encodeId } from "@/lib/encodeId";
 import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
 import { TimelineScale, timelineScales } from "@/lib/timelineScale";
+import { useCounterpointSuggestions } from "@/queries/useCounterpointSuggestions";
+import { useFavorHistory } from "@/queries/useFavorHistory";
+import { usePointNegations } from "@/queries/usePointNegations";
+import { useUser } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
-import {
-  keepPreviousData,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useAtomCallback } from "jotai/utils";
@@ -52,7 +46,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Fragment, use, useEffect, useState } from "react";
+import { Fragment, use, useState } from "react";
 import {
   Dot,
   Line,
@@ -63,11 +57,12 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { usePointData } from "../../queries/usePointData";
 
 export default function PointPage({
   params,
 }: {
-  params: Promise<{ encodedPointId: string }>;
+  params: Promise<{ encodedPointId: string; space: string }>;
 }) {
   const encodedPointId = use(params).encodedPointId;
   const pointId = decodeId(encodedPointId);
@@ -85,12 +80,7 @@ export default function PointPage({
     data: point,
     refetch: refetchPoint,
     isLoading: isLoadingPoint,
-  } = useQuery({
-    queryKey: [pointId, "point", privyUser?.id],
-    queryFn: () => {
-      return fetchPoint(pointId);
-    },
-  });
+  } = usePointData(pointId);
 
   const [timelineScale, setTimelineScale] =
     useState<TimelineScale>(DEFAULT_TIMESCALE);
@@ -98,32 +88,10 @@ export default function PointPage({
     data: favorHistory,
     refetch: refetchFavorHistory,
     isFetching: isFetchingFavorHistory,
-  } = useQuery({
-    queryKey: [pointId, "favor-history", timelineScale] as const,
-    queryFn: ({ queryKey: [pointId, , scale] }) => {
-      return fetchFavorHistory({ pointId, scale });
-    },
-    placeholderData: keepPreviousData,
-    refetchInterval: 60000,
-  });
+  } = useFavorHistory({ pointId, timelineScale });
 
-  const queryClient = useQueryClient();
-
-  const { data: negations, isLoading: isLoadingNegations } = useQuery({
-    queryKey: [pointId, "point-negations", privyUser?.id],
-    queryFn: async () => {
-      const negations = await fetchPointNegations(pointId);
-
-      for (const negation of negations) {
-        queryClient.setQueryData(
-          ["point", negation.pointId, privyUser?.id],
-          negation
-        );
-      }
-
-      return negations;
-    },
-  });
+  const { data: negations, isLoading: isLoadingNegations } =
+    usePointNegations(pointId);
 
   const endorsedByViewer =
     point?.viewerCred !== undefined && point.viewerCred > 0;
@@ -142,40 +110,7 @@ export default function PointPage({
 
   const { back, push } = useRouter();
 
-  const { data: counterpointSuggestionsStream } = useQuery({
-    queryKey: ["counterpoint-suggestions", point?.pointId],
-    queryFn: ({ queryKey: [, pointId] }) =>
-      getCounterpointSuggestions(pointId as number),
-    enabled: !!point?.pointId && negations && negations.length === 0,
-    staleTime: Infinity,
-  });
-
-  const [counterpointSuggestions, setCounterpointSuggestions] = useState<
-    string[]
-  >([]);
-
-  useEffect(() => {
-    if (counterpointSuggestionsStream === undefined) return;
-
-    setCounterpointSuggestions([]);
-    let isCancelled = false;
-
-    const consumeStream = async () => {
-      const reader = counterpointSuggestionsStream.getReader();
-      while (!isCancelled) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        setCounterpointSuggestions((prev) => [...prev, value]);
-      }
-      reader.releaseLock();
-    };
-
-    consumeStream();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [counterpointSuggestionsStream]);
+  const counterpointSuggestions = useCounterpointSuggestions(point?.pointId);
 
   return (
     <main

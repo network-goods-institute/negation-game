@@ -8,7 +8,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { useUser } from "@/hooks/useUser";
+import { useUser } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import {
   DropdownMenuContent,
