@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -82,16 +81,15 @@ export const OnboardingForm: FC<OnboardingFormProps> = ({
                 />
               </FormControl>
               <FormMessage />
-              <FormDescription className="text-xs">
-                <ul className="list-inside">
-                  <li className="list-disc">
-                    can only contain letters, numbers and underscores
-                  </li>
-                  <li className="list-disc">
-                    cannot start or end with an underscore
-                  </li>
-                </ul>
-              </FormDescription>
+
+              <ul className="list-inside text-xs text-muted-foreground">
+                <li className="list-disc">
+                  can only contain letters, numbers and underscores
+                </li>
+                <li className="list-disc">
+                  cannot start or end with an underscore
+                </li>
+              </ul>
             </FormItem>
           )}
         />
