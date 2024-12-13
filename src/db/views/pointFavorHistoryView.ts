@@ -1,8 +1,15 @@
-import { endorsementsTable, negationsTable, pointsTable } from "@/db/schema";
+import { endorsementsTable, negationsTable, pointsTable, restakesTable, restakeHistoryTable, slashesTable, slashHistoryTable } from "@/db/schema";
 import { sql } from "drizzle-orm";
 import { pgView } from "drizzle-orm/pg-core";
 
-export type PointFavorHistoryViewEventType = "point_created" | "endorsement_made" | "negation_made" | "negation_endorsed" | "favor_queried";
+export type PointFavorHistoryViewEventType = 
+  | "point_created" 
+  | "endorsement_made" 
+  | "negation_made" 
+  | "negation_endorsed" 
+  | "restake_modified"
+  | "slash_modified"
+  | "favor_queried";
 
 export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
   const allEvents = qb.$with("all_events").as(
@@ -64,6 +71,27 @@ export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
       .union(
         qb
           .select({
+            point_id: sql`${restakesTable.pointId} as point_id`,
+            event_time: sql`${restakeHistoryTable.createdAt} as event_time`,
+            event_type: sql<PointFavorHistoryViewEventType>`'restake_modified' as event_type`,
+          })
+          .from(restakeHistoryTable)
+          .innerJoin(restakesTable, sql`${restakeHistoryTable.restakeId} = ${restakesTable.id}`)
+      )
+      .union(
+        qb
+          .select({
+            point_id: sql`${restakesTable.pointId} as point_id`,
+            event_time: sql`${slashHistoryTable.createdAt} as event_time`,
+            event_type: sql<PointFavorHistoryViewEventType>`'slash_modified' as event_type`,
+          })
+          .from(slashHistoryTable)
+          .innerJoin(slashesTable, sql`${slashHistoryTable.slashId} = ${slashesTable.id}`)
+          .innerJoin(restakesTable, sql`${slashesTable.restakeId} = ${restakesTable.id}`)
+      )
+      .union(
+        qb
+          .select({
             point_id: sql`${pointsTable.id} as point_id`,
             event_time: sql`NOW() as event_time`,
             event_type: sql<PointFavorHistoryViewEventType>`'favor_queried' as event_type`,
@@ -81,16 +109,59 @@ export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
         .mapWith(Date.parse)
         .as("event_time"),
       cred: sql`"all_events_with_stats".cred`.as("cred"),
-      negationsCred: sql`"all_events_with_stats".negations_cred`.as(
-        "negations_cred"
-      ),
+      negationsCred: sql`"all_events_with_stats".negations_cred`.as("negations_cred"),
       favor: sql<number>`CAST(
-            CASE
-                WHEN "all_events_with_stats".cred = 0 THEN 0
-                WHEN "all_events_with_stats".negations_cred = 0 THEN 100
-                ELSE ROUND(100.0 * "all_events_with_stats".cred / ("all_events_with_stats".cred + "all_events_with_stats".negations_cred), 2)
-            END
-        AS NUMERIC)`
+        CASE
+          WHEN "all_events_with_stats"."cred" = 0 THEN 0
+          WHEN "all_events_with_stats"."negations_cred" = 0 THEN 100
+          ELSE ROUND(100.0 * "all_events_with_stats"."cred" / ("all_events_with_stats"."cred" + "all_events_with_stats"."negations_cred"), 2) +
+            COALESCE(
+              CASE "all_events_with_stats"."event_type"
+                WHEN 'restake_modified' THEN (
+                  SELECT rh.new_amount - COALESCE((
+                    SELECT sh.new_amount
+                    FROM ${slashHistoryTable} sh
+                    JOIN ${slashesTable} s ON s.id = sh.slash_id
+                    WHERE s.restake_id = r.id
+                    AND sh.created_at <= "all_events_with_stats"."event_time"
+                    ORDER BY sh.created_at DESC
+                    LIMIT 1
+                  ), 0)
+                  FROM ${restakeHistoryTable} rh
+                  JOIN ${restakesTable} r ON r.id = rh.restake_id
+                  WHERE r.point_id = "all_events_with_stats"."point_id"
+                  AND rh.created_at = "all_events_with_stats"."event_time"
+                )
+                WHEN 'slash_modified' THEN (
+                  SELECT r.amount - sh.new_amount
+                  FROM ${slashHistoryTable} sh
+                  JOIN ${slashesTable} s ON s.id = sh.slash_id
+                  JOIN ${restakesTable} r ON r.id = s.restake_id
+                  WHERE r.point_id = "all_events_with_stats"."point_id"
+                  AND sh.created_at = "all_events_with_stats"."event_time"
+                )
+                ELSE (
+                  SELECT rh.new_amount - COALESCE((
+                    SELECT sh.new_amount
+                    FROM ${slashHistoryTable} sh
+                    JOIN ${slashesTable} s ON s.id = sh.slash_id
+                    WHERE s.restake_id = r.id
+                    AND sh.created_at <= "all_events_with_stats"."event_time"
+                    ORDER BY sh.created_at DESC
+                    LIMIT 1
+                  ), 0)
+                  FROM ${restakeHistoryTable} rh
+                  JOIN ${restakesTable} r ON r.id = rh.restake_id
+                  WHERE r.point_id = "all_events_with_stats"."point_id"
+                  AND rh.created_at <= "all_events_with_stats"."event_time"
+                  ORDER BY rh.created_at DESC
+                  LIMIT 1
+                )
+              END,
+              0
+            )
+        END
+      AS NUMERIC)`
         .mapWith(Number)
         .as("favor"),
     })

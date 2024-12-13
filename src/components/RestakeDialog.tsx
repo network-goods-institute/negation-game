@@ -141,7 +141,11 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   const slashAmount = isSlashing ? Math.floor(currentlyStaked - newStakeAmount) : 0;
   const stakeAmount = isSlashing ? 0 : Math.floor(newStakeAmount);
   
-  const bonusFavor = Math.floor(isSlashing ? slashAmount : stakeAmount);
+  // Calculate the delta between new stake and current stake
+  const bonusFavor = Math.floor(isSlashing ? 
+    slashAmount : // For slashing, use the full slash amount
+    (stakeAmount - currentlyStaked) // For staking, use the difference
+  );
 
   // Get the current favor from the last data point
   const currentFavor = favorHistory?.length ? favorHistory[favorHistory.length - 1].favor : 50;
