@@ -12,7 +12,7 @@ export const initUser = async ({ username }: Pick<InsertUser, "username">) => {
     throw new Error("Must be authenticated to add a point");
   }
 
-  await db.insert(usersTable).values({ username, id: userId });
-
-  return;
+  return (
+    await db.insert(usersTable).values({ username, id: userId }).returning()
+  )[0]!;
 };

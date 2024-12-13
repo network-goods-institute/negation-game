@@ -6,6 +6,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { userQueryKey } from "@/hooks/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { DialogProps } from "@radix-ui/react-dialog";
 import { useQueryClient } from "@tanstack/react-query";
@@ -27,10 +28,8 @@ export const OnboardingDialog: FC<OnboardingDialogProps> = ({ ...props }) => {
           className=""
           onCancel={logout}
           onValidSubmit={({ username }) =>
-            initUser({ username }).then(() => {
-              queryClient.invalidateQueries({
-                queryKey: ["user"],
-              });
+            initUser({ username }).then((user) => {
+              queryClient.setQueryData(userQueryKey(user.id), user);
             })
           }
         />
