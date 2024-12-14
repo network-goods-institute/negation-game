@@ -535,7 +535,12 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                     {format(originalPoint.createdAt, "h':'mm a '·' MMM d',' yyyy")}
                   </span>
                   <span className="inline-flex px-3 py-1 rounded-full bg-endorsed/10 text-endorsed text-sm">
-                    {favor({ cred: originalPoint.cred, negationsCred: originalPoint.negationsCred })} favor
+                    {favor({ 
+                      cred: originalPoint.cred, 
+                      negationsCred: originalPoint.negationsCred,
+                      restakeAmount: originalPoint.restake?.amount ?? 0,
+                      slashedAmount: originalPoint.restake?.slashedAmount ?? 0
+                    })} favor
                   </span>
                 </div>
               </div>
@@ -731,7 +736,9 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                 className="justify-evenly ~@/lg:~text-xs/sm"
                 favor={favor({ 
                   cred: originalPoint.cred,
-                  negationsCred: originalPoint.negationsCred
+                  negationsCred: originalPoint.negationsCred,
+                  restakeAmount: originalPoint.restake?.amount ?? 0,
+                  slashedAmount: originalPoint.restake?.slashedAmount ?? 0
                 })}
                 amountNegations={originalPoint.amountNegations}
                 amountSupporters={originalPoint.amountSupporters}

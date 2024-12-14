@@ -394,7 +394,12 @@ export default function PointPage({
               <Separator className="my-md" />
               <PointStats
                 className="justify-evenly ~@/lg:~text-xs/sm mb-sm"
-                favor={favor({ ...point })}
+                favor={favor({ 
+                  cred: point.cred, 
+                  negationsCred: point.negationsCred,
+                  restakeAmount: point.restake?.amount ?? 0,
+                  slashedAmount: point.restake?.slashedAmount ?? 0
+                })}
                 amountNegations={point.amountNegations}
                 amountSupporters={point.amountSupporters}
                 cred={point.cred}
@@ -430,7 +435,10 @@ export default function PointPage({
                           }) : login();
                         }}
                         className="flex-grow -mt-3.5 pb-3"
-                        favor={favor({ ...negation })}
+                        favor={favor({ 
+                          cred: negation.cred,
+                          negationsCred: negation.negationsCred
+                        })}
                         content={negation.content}
                         createdAt={negation.createdAt}
                         amountSupporters={negation.amountSupporters}

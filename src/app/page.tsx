@@ -53,7 +53,7 @@ export default function Home() {
               createdAt={point.createdAt}
               totalCred={point.cred}
               pointId={point.pointId}
-              favor={favor({ ...point })}
+              favor={Math.floor(point.favor)}
               amountNegations={point.amountNegations}
               content={point.content}
               viewerContext={{ viewerCred: point.viewerCred }}
