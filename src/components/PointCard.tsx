@@ -19,6 +19,7 @@ import { useToggle } from "@uidotdev/usehooks";
 import { useRouter } from "next/navigation";
 import { RestakeIcon } from "@/components/icons/RestakeIcon";
 import { DoubtIcon } from "@/components/icons/DoubtIcon";
+import { fetchDoubtForRestake } from "@/actions/fetchDoubtForRestake";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -48,9 +49,13 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   onRestake?: (options: { openedFromSlashedIcon: boolean }) => void;
   negationId?: number;
   restake?: {
-    id: number;
+    id: number | null;
     amount: number;
     active: boolean;
+    isOwner: boolean;
+    totalRestakeAmount: number;
+    originalAmount?: number | null;
+    slashedAmount?: number;
   } | null;
 }
 
@@ -85,24 +90,22 @@ export const PointCard = ({
   const { push } = useRouter();
 
   const restakePercentage = useMemo(() => {
-    if (!isNegation || !parentPoint || !restake) return 0;
+    if (!isNegation || !parentPoint || !restake?.amount) return 0;
     return Math.round((restake.amount / (parentPoint.viewerCred || 1)) * 100);
   }, [isNegation, parentPoint, restake]);
 
+  const { data: existingDoubt } = useQuery({
+    queryKey: ['doubt', parentPoint?.id, pointId],
+    queryFn: () => parentPoint?.id ? fetchDoubtForRestake(parentPoint.id, pointId) : null,
+    enabled: !!parentPoint?.id && !!pointId
+  });
+
   const doubtPercentage = useMemo(() => {
-    if (!isNegation || !parentPoint || !restake) return 0;
+    if (!isNegation || !restake?.amount || !existingDoubt?.amount) return 0;
     
-    const totalRestaked = restake.amount;
-    const DEFAULT_DOUBT_AMOUNT = 30;
-    
-    const maxDoubtAmount = Math.floor(
-      totalRestaked > 0 
-        ? Math.min(parentPoint.viewerCred || 0, totalRestaked)
-        : Math.min(parentPoint.viewerCred || 0, DEFAULT_DOUBT_AMOUNT)
-    );
-    
-    return Math.floor((restake.amount / maxDoubtAmount) * 100);
-  }, [isNegation, parentPoint, restake]);
+    const totalRestaked = restake.totalRestakeAmount;
+    return Math.floor((existingDoubt.amount / totalRestaked) * 100);
+  }, [isNegation, restake, existingDoubt]);
 
   return (
     <>
@@ -201,7 +204,7 @@ export const PointCard = ({
                     variant="ghost"
                     className={cn(
                       "p-1 -mb-2 rounded-full size-fit hover:bg-muted/30",
-                      !!restake && "text-endorsed"
+                      restake?.isOwner && restake?.amount && "text-endorsed"
                     )}
                     onClick={(e) => {
                       e.preventDefault();
@@ -212,9 +215,9 @@ export const PointCard = ({
                     <RestakeIcon 
                       className={cn(
                         "size-5 stroke-1",
-                        !!restake && "fill-current text-endorsed"
+                        restake?.isOwner && restake?.amount && "fill-current text-endorsed"
                       )}
-                      showPercentage={!!restake}
+                      showPercentage={restake?.isOwner && !!restake?.amount}
                       percentage={restakePercentage}
                     />
                   </Button>
@@ -222,7 +225,7 @@ export const PointCard = ({
                     variant="ghost"
                     className={cn(
                       "p-1 -mb-2 rounded-full size-fit hover:bg-muted/30",
-                      doubtPercentage > 0 && "text-endorsed"
+                      !!existingDoubt?.amount && "text-endorsed"
                     )}
                     onClick={(e) => {
                       e.preventDefault();
@@ -234,11 +237,11 @@ export const PointCard = ({
                       <DoubtIcon 
                         className={cn(
                           "size-5 stroke-1",
-                          doubtPercentage > 0 && "fill-current"
+                          !!existingDoubt?.amount && "fill-current"
                         )} 
-                        isFilled={doubtPercentage > 0}
+                        isFilled={!!existingDoubt?.amount}
                       />
-                      {doubtPercentage > 0 && (
+                      {!!existingDoubt?.amount && (
                         <span className="ml-1">{doubtPercentage}%</span>
                       )}
                     </div>

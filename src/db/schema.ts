@@ -16,6 +16,11 @@ export {
   slashActionEnum,
 } from "@/db/tables/slashesTable";
 
+export {
+  doubtsTable,
+  doubtHistoryTable,
+  doubtActionEnum,
+} from "@/db/tables/doubtsTable";
 
 export { pointFavorHistoryView } from "@/db/views/pointFavorHistoryView";
 export { pointsWithDetailsView } from "@/db/views/pointsWithDetailsView";
