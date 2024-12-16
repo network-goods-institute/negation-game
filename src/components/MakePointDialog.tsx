@@ -1,5 +1,3 @@
-import { endorse } from "@/actions/endorse";
-import { makePoint } from "@/actions/makePoint";
 import { CredInput } from "@/components/CredInput";
 import { PointEditor } from "@/components/PointEditor";
 import { PointStats } from "@/components/PointStats";
@@ -14,6 +12,8 @@ import {
 import { POINT_MAX_LENGHT, POINT_MIN_LENGHT } from "@/constants/config";
 import { useCredInput } from "@/hooks/useCredInput";
 import { cn } from "@/lib/cn";
+import { useEndorse } from "@/mutations/useEndorse";
+import { useMakePoint } from "@/mutations/useMakePoint";
 import { useSimilarPoints } from "@/queries/useSimilarPoints";
 import { useUser } from "@/queries/useUser";
 import { DialogProps } from "@radix-ui/react-dialog";
@@ -53,6 +53,8 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
   const queryClient = useQueryClient();
   const debouncedContent = useDebounce(content, 500);
   const { data: similarPoints } = useSimilarPoints(debouncedContent);
+  const { mutateAsync: endorse } = useEndorse();
+  const { mutateAsync: makePoint } = useMakePoint();
 
   return (
     <Dialog {...props} open={open} onOpenChange={onOpenChange}>
@@ -162,10 +164,6 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
                   cred: cred,
                 })
             ).then(() => {
-              queryClient.invalidateQueries({
-                queryKey: ["feed"],
-                exact: false,
-              });
               onOpenChange?.(false);
               setContent("");
               selectPoint(undefined);

@@ -10,7 +10,7 @@ import {
   usersTable,
 } from "@/db/schema";
 import { InsertEndorsement } from "@/db/tables/endorsementsTable";
-import { InsertNegation } from "@/db/tables/negationsTable";
+import { Negation } from "@/db/tables/negationsTable";
 import { InsertPoint, Point } from "@/db/tables/pointsTable";
 import { db } from "@/services/db";
 import { waitUntil } from "@vercel/functions";
@@ -18,11 +18,11 @@ import { eq, sql } from "drizzle-orm";
 
 export const addCounterpoint = async ({
   content,
-  olderPointId: existingPointId,
+  negatedPointId,
   cred = 0,
-}: Omit<InsertPoint, "createdBy"> &
-  Pick<InsertNegation, "olderPointId"> &
-  Pick<InsertEndorsement, "cred">): Promise<Point["id"]> => {
+}: Omit<InsertPoint, "createdBy"> & {
+  negatedPointId: Negation["olderPointId"];
+} & Pick<InsertEndorsement, "cred">): Promise<Point["id"]> => {
   const userId = await getUserId();
 
   if (!userId) {
@@ -52,7 +52,7 @@ export const addCounterpoint = async ({
     }
 
     await tx.insert(negationsTable).values({
-      olderPointId: existingPointId,
+      olderPointId: negatedPointId,
       newerPointId: newPointId,
       createdBy: userId,
     });

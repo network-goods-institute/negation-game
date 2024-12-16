@@ -1,7 +1,4 @@
-import { addCounterpoint as addCounterpointAction } from "@/actions/addCounterpoint";
-import { endorse as endorseAction } from "@/actions/endorse";
 import { findCounterpointCandidatesAction as fetchCounterpointCandidatesAction } from "@/actions/findCounterpointCandidatesAction";
-import { negate as negateAction } from "@/actions/negate";
 import { reviewProposedCounterpointAction } from "@/actions/reviewProposedCounterpointAction";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { negationContentAtom } from "@/atoms/negationContentAtom";
@@ -29,10 +26,13 @@ import {
 } from "@/constants/config";
 import { useCredInput } from "@/hooks/useCredInput";
 import { cn } from "@/lib/cn";
+import { useAddCounterpoint } from "@/mutations/useAddCounterpoint";
+import { useEndorse } from "@/mutations/useEndorse";
+import { useNegate } from "@/mutations/useNegate";
 import { usePointData } from "@/queries/usePointData";
 import { DialogProps } from "@radix-ui/react-dialog";
 import { PopoverAnchor } from "@radix-ui/react-popover";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
 import { produce } from "immer";
 import { useAtom } from "jotai";
@@ -67,15 +67,9 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     resetWhen: !negatedPointId,
   });
   const { mutateAsync: addCounterpoint, isPending: isAddingCounterpoint } =
-    useMutation({
-      mutationFn: addCounterpointAction,
-    });
-  const { mutateAsync: negate, isPending: isNegating } = useMutation({
-    mutationFn: negateAction,
-  });
-  const { mutateAsync: endorse, isPending: isEndorsing } = useMutation({
-    mutationFn: endorseAction,
-  });
+    useAddCounterpoint();
+  const { mutateAsync: negate, isPending: isNegating } = useNegate();
+  const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
 
   const [guidanceNotes, setGuidanceNotes] = useState<ReactNode | undefined>(
     undefined
@@ -279,7 +273,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                     ? addCounterpoint({
                         content: counterpointContent,
                         cred,
-                        olderPointId: negatedPoint?.pointId,
+                        negatedPointId: negatedPoint!.pointId,
                       })
                     : selectedCounterpointCandidate.isCounterpoint
                       ? endorse({
@@ -292,15 +286,6 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                           cred,
                         })
                   ).then(() => {
-                    queryClient.invalidateQueries({ queryKey: ["feed"] });
-                    queryClient.invalidateQueries({
-                      queryKey: [negatedPoint?.pointId],
-                    });
-                    if (!!selectedCounterpointCandidate)
-                      queryClient.invalidateQueries({
-                        queryKey: [selectedCounterpointCandidate.id],
-                      });
-
                     resetForm();
                     setNegatedPointId(undefined);
                   })

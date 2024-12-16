@@ -10,6 +10,8 @@ const pointFetcher = create({
   scheduler: windowScheduler(10),
 });
 
+export type PointData = Awaited<ReturnType<typeof fetchPoints>>[number];
+
 export const pointQueryKey = ({
   pointId,
   userId,
@@ -48,17 +50,29 @@ export const useSetPointData = () => {
         pointId: number;
         userId?: string;
       },
-      data: Awaited<ReturnType<typeof fetchPoints>>[number]
+      data: PointData
     ) => queryClient.setQueryData(pointQueryKey(key), data),
     [queryClient]
   );
 };
 
-export const useInvalidatePointData = () => {
+export const useInvalidateRelatedPoints = () => {
   const queryClient = useQueryClient();
+  const { user } = usePrivy();
 
   return useCallback(
-    (pointId: number) => queryClient.invalidateQueries({ queryKey: [pointId] }),
-    [queryClient]
+    (pointId: number) => {
+      const pointData: PointData | undefined =
+        queryClient.getQueryData(
+          pointQueryKey({ pointId, userId: user?.id })
+        ) ?? queryClient.getQueryData(pointQueryKey({ pointId }));
+      queryClient.invalidateQueries({ queryKey: [pointId] });
+      if (!pointData) return;
+
+      pointData.negationIds.forEach((negationId) => {
+        queryClient.invalidateQueries({ queryKey: [negationId] });
+      });
+    },
+    [queryClient, user?.id]
   );
 };

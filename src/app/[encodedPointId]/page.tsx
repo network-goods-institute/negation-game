@@ -1,7 +1,6 @@
 "use client";
 import { format } from "date-fns";
 
-import { endorse } from "@/actions/endorse";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
@@ -29,6 +28,7 @@ import { decodeId } from "@/lib/decodeId";
 import { encodeId } from "@/lib/encodeId";
 import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
 import { TimelineScale, timelineScales } from "@/lib/timelineScale";
+import { useEndorse } from "@/mutations/useEndorse";
 import { useCounterpointSuggestions } from "@/queries/useCounterpointSuggestions";
 import { useFavorHistory } from "@/queries/useFavorHistory";
 import { usePointNegations } from "@/queries/usePointNegations";
@@ -73,6 +73,8 @@ export default function PointPage({
       set(negationContentAtom(negatedPointId), content);
     }
   );
+
+  const { mutateAsync: endorse } = useEndorse();
 
   const [canvasEnabled, setCanvasEnabled] = useAtom(canvasEnabledAtom);
 

@@ -2,7 +2,6 @@ import { cn } from "@/lib/cn";
 import { HTMLAttributes, MouseEventHandler } from "react";
 import { Button } from "./ui/button";
 
-import { endorse } from "@/actions/endorse";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { CredInput } from "@/components/CredInput";
 import { EndorseIcon } from "@/components/icons/EndorseIcon";
@@ -14,6 +13,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useCredInput } from "@/hooks/useCredInput";
+import { useEndorse } from "@/mutations/useEndorse";
 import { usePrivy } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
@@ -49,6 +49,7 @@ export const PointCard = ({
   const [hoveredPointId, setHoveredPointId] = useAtom(hoveredPointIdAtom);
   const endorsedByViewer =
     viewerContext?.viewerCred !== undefined && viewerContext.viewerCred > 0;
+  const { mutateAsync: endorse } = useEndorse();
 
   const { user: privyUser, login } = usePrivy();
 
@@ -135,10 +136,6 @@ export const PointCard = ({
                   disabled={credInput === 0 || notEnoughCred}
                   onClick={() => {
                     endorse({ pointId, cred: credInput }).then(() => {
-                      queryClient.invalidateQueries({ queryKey: ["feed"] });
-                      queryClient.invalidateQueries({
-                        queryKey: [pointId],
-                      });
                       toggleEndorsePopoverOpen(false);
                     });
                   }}
