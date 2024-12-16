@@ -253,6 +253,13 @@
       "when": 1734051162857,
       "tag": "0035_solid_king_cobra",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1734148567415,
+      "tag": "0036_soft_penance",
+      "breakpoints": true
     }
   ]
 }
