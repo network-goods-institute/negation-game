@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { Loader } from "@/components/ui/loader";
 import { cn } from "@/lib/cn";
+import { usePrivy } from "@privy-io/react-auth";
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
@@ -94,4 +95,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 );
 Button.displayName = "Button";
 
-export { Button, buttonVariants };
+const AuthenticatedActionButton = ({ onClick, ...props }: ButtonProps) => {
+  const { user, login } = usePrivy();
+  return <Button {...props} onClick={!!user ? onClick : login} />;
+};
+
+export { AuthenticatedActionButton, Button, buttonVariants };

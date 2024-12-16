@@ -1,6 +1,6 @@
 import { cn } from "@/lib/cn";
 import { HTMLAttributes, MouseEventHandler } from "react";
-import { Button } from "./ui/button";
+import { AuthenticatedActionButton, Button } from "./ui/button";
 
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { CredInput } from "@/components/CredInput";
@@ -84,7 +84,7 @@ export const PointCard = ({
         />
 
         <div className="flex gap-sm w-full text-muted-foreground">
-          <Button
+          <AuthenticatedActionButton
             variant="ghost"
             className="p-1 -ml-3 -mb-2 rounded-full size-fit hover:bg-negated/30"
             onClick={(e) => {
@@ -93,7 +93,7 @@ export const PointCard = ({
             }}
           >
             <NegateIcon />
-          </Button>
+          </AuthenticatedActionButton>
           <Popover
             open={endorsePopoverOpen}
             onOpenChange={toggleEndorsePopoverOpen}
