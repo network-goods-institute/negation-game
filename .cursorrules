@@ -1,0 +1,44 @@
+You are not to make sql migration files directly. Simply update the schema file and I can run the migration.
+
+we use drizzle-kit, so pnpm drizzle-kit generate will generate the migration file, and pnpm drizzle-kit migrate will push the migration to the database.
+
+So do not write any sql migration files.
+
+If I tell you to do something, do it. Do not ask for confirmation.
+
+Make sure to avoid ambigious sql statements. It happens a lot so be as specific as possible. Never be implicit, this is a database. Come on now.
+
+Follow existing code style for the schema, views, and tables.
+
+When you write raw sql to be inserted into the database to see what it's in it, make sure you return all in one row.
+
+Additionaly, use drizzle syntax for sql statements.
+
+Current tasks:
+Implementing doubt feature fully. Currently it's only half implemented with frontend pieces in place and temp local storage.
+
+Doubts are placed against existing restakes, where users can doubt up to either their available cred or the restake amount.
+Doubters earn daily rewards with a base rate of 0.3 cred per day per cred doubted, subject to diminishing returns as more cred is doubted (using formula: 1 - (stakedCred/maxStakeAmount) * 0.5). 
+When restakers slash their stake, doubters lose cred proportionally (1:1). The feature is currently partially implemented with temporary localStorage storage tracking favorFromRestaking, doubt amounts per restake, and effective restake amounts after doubts, but needs to be moved to a proper database implementation to track doubts against specific restakes, doubt history, earnings, and their relationship with slashes.
+
+Also you are doubting in aggregate the restakes of a point, not individual restakes.
+
+The doubt system needs to integrate with the existing restake/slash history system to maintain consistent state and proper favor calculations through the pointFavorHistoryView. Key components:
+- Restake/slash history tables track all changes to restakes and slashes
+- Favor calculations must consider doubt effects
+- Daily earnings and diminishing returns need proper database tracking
+- ROI/payback period calculations must be accurate
+
+----
+
+We have doubt making in general made, but it does not currently affect the favor calculations. Doubt is basically just just undoing the bonus that restaking does. So when you doubt, you are undoing the restake bonus.
+
+In addition, if the person who restaked, is doubted, and then they slash, it should not minus the favor again. It should just get rid of the doubt once/if they *fully* slash. Otherwise no real difference.
+
+These need to be taken into affect in the effective restake amount calculations and the pointFavorHistoryView.
+
+Also the - favor text is missing in restake dialog when doubting (present however when restaking or slashing).
+
+----
+
+Overall cleaning up to do (get rid of logging, unused code, any unused tables, i've been mostly proactive but im sure some stuff has slipped past in 70 or so commits)
