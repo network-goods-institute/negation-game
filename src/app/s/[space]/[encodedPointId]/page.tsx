@@ -22,6 +22,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DEFAULT_TIMESCALE } from "@/constants/config";
+import { useBasePath } from "@/hooks/useBasePath";
 import { useCredInput } from "@/hooks/useCredInput";
 import { cn } from "@/lib/cn";
 import { decodeId } from "@/lib/decodeId";
@@ -73,6 +74,8 @@ export default function PointPage({
       set(negationContentAtom(negatedPointId), content);
     }
   );
+
+  const basePath = useBasePath();
 
   const { mutateAsync: endorse } = useEndorse();
 
@@ -142,7 +145,7 @@ export default function PointPage({
                       return;
                     }
 
-                    push(`/s/${point.space}/`);
+                    push(`${basePath}/${point.space}/`);
                   }}
                 >
                   <ArrowLeftIcon />

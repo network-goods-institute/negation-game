@@ -6,6 +6,7 @@ import { NegateDialog } from "@/components/NegateDialog";
 import { PointCard } from "@/components/PointCard";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
+import { useBasePath } from "@/hooks/useBasePath";
 import { encodeId } from "@/lib/encodeId";
 import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
 import { useFeed } from "@/queries/useFeed";
@@ -19,6 +20,7 @@ import { useCallback } from "react";
 export default function Home() {
   const { user, login } = usePrivy();
   const [makePointOpen, onMakePointOpenChange] = useToggle(false);
+  const basePath = useBasePath();
 
   const loginOrMakePoint = useCallback(
     () => (user !== null ? onMakePointOpenChange(true) : login()),
@@ -52,7 +54,7 @@ export default function Home() {
                 <Link
                   draggable={false}
                   onClick={preventDefaultIfContainsSelection}
-                  href={`/s/${point.space}/${encodeId(point.pointId)}`}
+                  href={`${basePath}/${point.space}/${encodeId(point.pointId)}`}
                   className="flex border-b cursor-pointer hover:bg-accent "
                   key={point.pointId}
                 >

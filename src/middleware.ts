@@ -1,4 +1,6 @@
 import { DEFAULT_SPACE, SPACE_HEADER } from "@/constants/config";
+import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
+import { spaceBasePath } from "@/lib/negation-game/spaceBasePath";
 import { NextRequest, NextResponse } from "next/server";
 
 export const config = {
@@ -27,13 +29,17 @@ export default async function middleware(req: NextRequest) {
     return response;
   }
 
-  const match = url.pathname.match(/^\/s\/([^/]+)/);
-  const space = match ? match[1] : null;
+  const space = getSpaceFromPathname(url.pathname);
 
-  // let it 404
+  // let it 404 if it's a malformed url
   if (!space) return;
 
-  const response = NextResponse.next();
+  const response =
+    space === DEFAULT_SPACE
+      ? NextResponse.redirect(
+          new URL(url.origin + url.pathname.replace(spaceBasePath(space), ""))
+        )
+      : NextResponse.next();
   response.headers.set(SPACE_HEADER, space);
   return response;
 }
