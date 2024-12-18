@@ -35,7 +35,7 @@ import { usePointNegations } from "@/queries/usePointNegations";
 import { useUser } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { useToggle } from "@uidotdev/usehooks";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import { useAtomCallback } from "jotai/utils";
 import {
   ArrowLeftIcon,
@@ -102,7 +102,7 @@ export default function PointPage({
   const endorsedByViewer =
     point?.viewerCred !== undefined && point.viewerCred > 0;
 
-  const hoveredPointId = useAtomValue(hoveredPointIdAtom);
+  const [hoveredPointId, setHoveredPointId] = useAtom(hoveredPointIdAtom);
 
   const { data: user } = useUser();
   const [endorsePopoverOpen, toggleEndorsePopoverOpen] = useToggle(false);
@@ -243,8 +243,10 @@ export default function PointPage({
             </div>
 
             <div
-              data-is-hovered={hoveredPointId === pointId}
-              className=" px-4 py-3 border-b data-[is-hovered=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
+              data-show-hover={canvasEnabled && hoveredPointId === pointId}
+              onMouseEnter={() => setHoveredPointId(pointId)}
+              onMouseLeave={() => setHoveredPointId(undefined)}
+              className=" px-4 py-3 border-b data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
             >
               <p className="tracking-tight text-md  @xs/point:text-md @sm/point:text-lg mb-sm">
                 {point.content}
@@ -356,13 +358,15 @@ export default function PointPage({
                   </span>
                   {negations.map((negation, i) => (
                     <Link
-                      data-is-hovered={hoveredPointId === negation.pointId}
+                      data-show-hover={
+                        canvasEnabled && hoveredPointId === negation.pointId
+                      }
                       draggable={false}
                       onClick={preventDefaultIfContainsSelection}
                       href={`/${encodeId(negation.pointId)}`}
                       key={negation.pointId}
                       className={cn(
-                        "flex cursor-pointer  px-4 pt-5 pb-2 border-b hover:bg-accent data-[is-hovered=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
+                        "flex cursor-pointer  px-4 pt-5 pb-2 border-b hover:bg-accent data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
                       )}
                     >
                       <PointCard
