@@ -37,7 +37,7 @@ export default function Home() {
           <>
             {points.length === 0 ? (
               <span className="absolute self-center my-auto top-0 bottom-0">
-                Nothing here yet. Why don't you{" "}
+                {`Nothing here yet. Why don't you `}
                 <Button
                   variant={"link"}
                   className="p-0 text-base"
