@@ -2,6 +2,7 @@
 
 import { addEmbedding } from "@/actions/addEmbedding";
 import { addKeywords } from "@/actions/addKeywords";
+import { getSpace } from "@/actions/getSpace";
 import { getUserId } from "@/actions/getUserId";
 import {
   endorsementsTable,
@@ -29,10 +30,12 @@ export const addCounterpoint = async ({
     throw new Error("Must be authenticated to add a point");
   }
 
+  const space = await getSpace();
+
   return await db.transaction(async (tx) => {
     const newPointId = await tx
       .insert(pointsTable)
-      .values({ content, createdBy: userId })
+      .values({ content, createdBy: userId, space })
       .returning({ id: pointsTable.id })
       .then(([{ id }]) => id);
 

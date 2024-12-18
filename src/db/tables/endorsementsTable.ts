@@ -1,3 +1,5 @@
+import { DEFAULT_SPACE } from "@/constants/config";
+import { spacesTable } from "@/db/schema";
 import { pointsTable } from "@/db/tables/pointsTable";
 import { usersTable } from "@/db/tables/usersTable";
 import { InferColumnsDataTypes } from "drizzle-orm";
@@ -24,6 +26,11 @@ export const endorsementsTable = pgTable(
       .references(() => usersTable.id, { onDelete: "cascade" })
       .notNull(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
+    space: varchar("space")
+      .references(() => spacesTable.id, {
+        onDelete: "cascade",
+      })
+      .default(DEFAULT_SPACE),
   },
   (table) => ({
     userEndorsementsIndex: index().on(table.userId),

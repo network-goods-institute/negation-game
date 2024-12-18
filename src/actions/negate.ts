@@ -1,5 +1,6 @@
 "use server";
 
+import { getSpace } from "@/actions/getSpace";
 import { getUserId } from "@/actions/getUserId";
 import { endorsementsTable, negationsTable, usersTable } from "@/db/schema";
 import { Point } from "@/db/tables/pointsTable";
@@ -18,6 +19,7 @@ export const negate = async ({
   cred = 0,
 }: NegateArgs) => {
   const userId = await getUserId();
+  const space = await getSpace();
 
   if (!userId) {
     throw new Error("Must be authenticated to add a point");
@@ -44,7 +46,7 @@ export const negate = async ({
 
     return await tx
       .insert(negationsTable)
-      .values({ createdBy: userId, newerPointId, olderPointId })
+      .values({ createdBy: userId, newerPointId, olderPointId, space })
       .returning({ negationId: negationsTable.id })
       .then(([{ negationId }]) => negationId);
   });

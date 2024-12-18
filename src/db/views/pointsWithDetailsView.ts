@@ -11,6 +11,7 @@ export const pointsWithDetailsView = pgView("point_with_details_view").as(
         content: pointsTable.content,
         createdAt: pointsTable.createdAt,
         createdBy: pointsTable.createdBy,
+        space: pointsTable.space,
         amountNegations: sql<number>`
         COALESCE((
           SELECT COUNT(*)

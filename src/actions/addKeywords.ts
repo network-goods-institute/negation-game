@@ -1,5 +1,6 @@
 "use server";
 
+import { getSpace } from "@/actions/getSpace";
 import { Point, pointsTable } from "@/db/tables/pointsTable";
 import { db } from "@/services/db";
 import { google } from "@ai-sdk/google";

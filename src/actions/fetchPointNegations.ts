@@ -1,5 +1,6 @@
 "use server";
 
+import { getSpace } from "@/actions/getSpace";
 import { getUserId } from "@/actions/getUserId";
 import {
   endorsementsTable,
@@ -13,6 +14,8 @@ import { and, desc, eq, ne, or, sql } from "drizzle-orm";
 
 export const fetchPointNegations = async (id: number) => {
   const viewerId = await getUserId();
+
+  const space = await getSpace();
 
   return await db
     .select({
@@ -44,7 +47,8 @@ export const fetchPointNegations = async (id: number) => {
           eq(pointsWithDetailsView.pointId, negationsTable.olderPointId),
           eq(pointsWithDetailsView.pointId, negationsTable.newerPointId)
         ),
-        ne(pointsWithDetailsView.pointId, id)
+        ne(pointsWithDetailsView.pointId, id),
+        eq(pointsWithDetailsView.space, space)
       )
     )
     .orderBy(desc(pointsWithDetailsView.cred))

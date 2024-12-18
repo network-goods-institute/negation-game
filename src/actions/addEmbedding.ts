@@ -1,5 +1,6 @@
 "use server";
 
+import { getSpace } from "@/actions/getSpace";
 import { embeddingsTable } from "@/db/schema";
 import { Point } from "@/db/tables/pointsTable";
 import { db } from "@/services/db";
@@ -17,9 +18,11 @@ export const addEmbedding = async ({
     })
   ).embedding;
 
+  const space = await getSpace();
+
   await db
     .insert(embeddingsTable)
-    .values({ embedding, id: Number(pointId) })
+    .values({ embedding, id: Number(pointId), space })
     .onConflictDoUpdate({
       target: [embeddingsTable.id],
       set: { embedding },

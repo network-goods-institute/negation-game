@@ -45,8 +45,8 @@ import {
   SparklesIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Fragment, use, useState } from "react";
+import { notFound, useRouter } from "next/navigation";
+import { Fragment, use, useEffect, useState } from "react";
 import {
   Dot,
   Line,
@@ -57,7 +57,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { usePointData } from "../../queries/usePointData";
+import { usePointData } from "../../../../queries/usePointData";
 
 export default function PointPage({
   params,
@@ -83,6 +83,10 @@ export default function PointPage({
     refetch: refetchPoint,
     isLoading: isLoadingPoint,
   } = usePointData(pointId);
+
+  useEffect(() => {
+    if (point === null) notFound();
+  }, [point]);
 
   const [timelineScale, setTimelineScale] =
     useState<TimelineScale>(DEFAULT_TIMESCALE);
@@ -138,7 +142,7 @@ export default function PointPage({
                       return;
                     }
 
-                    push("/");
+                    push(`/s/${point.space}/`);
                   }}
                 >
                   <ArrowLeftIcon />

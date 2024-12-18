@@ -1,6 +1,8 @@
+import { DEFAULT_SPACE } from "@/constants/config";
+import { spacesTable } from "@/db/schema";
 import { pointsTable } from "@/db/tables/pointsTable";
 import { InferColumnsDataTypes } from "drizzle-orm";
-import { pgTable, serial, vector } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, vector } from "drizzle-orm/pg-core";
 
 export const embeddingsTable = pgTable(
   "embeddings",
@@ -9,6 +11,11 @@ export const embeddingsTable = pgTable(
       .primaryKey()
       .references(() => pointsTable.id, { onDelete: "cascade" }),
     embedding: vector("embedding", { dimensions: 384 }),
+    space: varchar("space")
+      .references(() => spacesTable.id, {
+        onDelete: "cascade",
+      })
+      .default(DEFAULT_SPACE),
   }
   // (table) => ({
   //   embeddingIndex: index("embeddingIndex").using(

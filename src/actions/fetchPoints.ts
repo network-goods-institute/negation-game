@@ -1,14 +1,16 @@
 "use server";
 
+import { getSpace } from "@/actions/getSpace";
 import { getUserId } from "@/actions/getUserId";
 import { endorsementsTable, pointsWithDetailsView } from "@/db/schema";
 import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
-import { inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 export const fetchPoints = async (ids: number[]) => {
   const viewerId = await getUserId();
+  const space = await getSpace();
 
   return await db
     .select({
@@ -27,6 +29,11 @@ export const fetchPoints = async (ids: number[]) => {
         : {}),
     })
     .from(pointsWithDetailsView)
-    .where(inArray(pointsWithDetailsView.pointId, ids))
+    .where(
+      and(
+        inArray(pointsWithDetailsView.pointId, ids),
+        eq(pointsWithDetailsView.space, space)
+      )
+    )
     .then(addFavor);
 };

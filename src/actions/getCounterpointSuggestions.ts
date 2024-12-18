@@ -1,15 +1,18 @@
 "use server";
 
 import { fetchPointNegations } from "@/actions/fetchPointNegations";
+import { getSpace } from "@/actions/getSpace";
 import { POINT_MAX_LENGHT } from "@/constants/config";
 import { definitionsTable, pointsTable } from "@/db/schema";
 import { db } from "@/services/db";
 import { google } from "@ai-sdk/google";
 import { streamObject } from "ai";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 export const getCounterpointSuggestions = async (pointId: number) => {
+  const space = await getSpace();
+
   const point = await db
     .select({ content: pointsTable.content, keywords: pointsTable.keywords })
     .from(pointsTable)
@@ -22,8 +25,12 @@ export const getCounterpointSuggestions = async (pointId: number) => {
     db
       .select()
       .from(definitionsTable)
-      .where(sql`lower(${definitionsTable.term}) IN ${point.keywords}`)
-      .execute(),
+      .where(
+        and(
+          sql`lower(${definitionsTable.term}) IN ${point.keywords}`,
+          eq(definitionsTable.space, space)
+        )
+      ),
   ]);
 
   const prompt = `${

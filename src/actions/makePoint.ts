@@ -7,6 +7,7 @@ import { eq, sql } from "drizzle-orm";
 
 import { addEmbedding } from "@/actions/addEmbedding";
 import { addKeywords } from "@/actions/addKeywords";
+import { getSpace } from "@/actions/getSpace";
 import { InsertEndorsement } from "@/db/tables/endorsementsTable";
 import { InsertPoint, Point } from "@/db/tables/pointsTable";
 import { waitUntil } from "@vercel/functions";
@@ -18,6 +19,9 @@ export const makePoint = async ({
   Point["id"]
 > => {
   const userId = await getUserId();
+  const space = await getSpace();
+
+  console.log({ space });
 
   if (!userId) {
     throw new Error("Must be authenticated to add a point");
@@ -26,7 +30,7 @@ export const makePoint = async ({
   return await db.transaction(async (tx) => {
     const newPointId = await tx
       .insert(pointsTable)
-      .values({ content, createdBy: userId })
+      .values({ content, createdBy: userId, space })
       .returning({ id: pointsTable.id })
       .then(([{ id }]) => id);
 
@@ -42,6 +46,7 @@ export const makePoint = async ({
         cred,
         pointId: newPointId,
         userId,
+        space,
       });
     }
 

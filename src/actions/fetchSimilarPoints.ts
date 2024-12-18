@@ -1,14 +1,16 @@
 "use server";
 
+import { getSpace } from "@/actions/getSpace";
 import { embeddingsTable, pointsWithDetailsView } from "@/db/schema";
 import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
 import { openai } from "@ai-sdk/openai";
 import { embed } from "ai";
-import { cosineDistance, desc, eq, gt, sql } from "drizzle-orm";
+import { and, cosineDistance, desc, eq, gt, sql } from "drizzle-orm";
 
 export const fetchSimilarPoints = async ({ query }: { query: string }) => {
+  const space = await getSpace();
   const embedding = (
     await embed({
       model: openai.embedding("text-embedding-3-small", { dimensions: 384 }),
@@ -28,7 +30,7 @@ export const fetchSimilarPoints = async ({ query }: { query: string }) => {
       pointsWithDetailsView,
       eq(pointsWithDetailsView.pointId, embeddingsTable.id)
     )
-    .where(gt(similarity, 0.5))
+    .where(and(gt(similarity, 0.5), eq(pointsWithDetailsView.space, space)))
     .orderBy((t) => desc(t.similarity))
     .limit(5)
     .then(addFavor);

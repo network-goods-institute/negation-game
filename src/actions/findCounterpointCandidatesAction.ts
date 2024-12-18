@@ -1,5 +1,6 @@
 "use server";
 
+import { getSpace } from "@/actions/getSpace";
 import {
   embeddingsTable,
   endorsementsTable,
@@ -36,6 +37,8 @@ export const findCounterpointCandidatesAction = async ({
   negatedPointContent,
   counterpointContent,
 }: FindCounterpointCandidatesArgs) => {
+  const space = await getSpace();
+
   const embedding = (
     await embed({
       model: openai.embedding("text-embedding-3-small", { dimensions: 384 }),
@@ -108,7 +111,13 @@ export const findCounterpointCandidatesAction = async ({
     })
     .from(embeddingsTable)
     .innerJoin(pointsTable, eq(pointsTable.id, embeddingsTable.id))
-    .where(and(gt(similarity, 0.5), ne(pointsTable.id, negatedPointId)))
+    .where(
+      and(
+        gt(similarity, 0.5),
+        ne(pointsTable.id, negatedPointId),
+        eq(pointsTable.space, space)
+      )
+    )
     .orderBy((t) => desc(t.similarity))
     .limit(10)
     .then(addFavor);

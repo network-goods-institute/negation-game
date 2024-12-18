@@ -1,4 +1,5 @@
-import { usersTable } from "@/db/schema";
+import { DEFAULT_SPACE } from "@/constants/config";
+import { spacesTable, usersTable } from "@/db/schema";
 import { pointsTable } from "@/db/tables/pointsTable";
 import { InferColumnsDataTypes, lt } from "drizzle-orm";
 import {
@@ -25,6 +26,11 @@ export const negationsTable = pgTable(
       onDelete: "cascade",
     }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
+    space: varchar("space")
+      .references(() => spacesTable.id, {
+        onDelete: "cascade",
+      })
+      .default(DEFAULT_SPACE),
   },
   (table) => ({
     olderPointFirstConstraint: check(

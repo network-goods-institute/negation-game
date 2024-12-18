@@ -1,5 +1,6 @@
 "use server";
 
+import { getSpace } from "@/actions/getSpace";
 import { getUserId } from "@/actions/getUserId";
 import { usersTable } from "@/db/schema";
 import {
@@ -21,6 +22,8 @@ export const endorse = async ({
     throw new Error("Must be authenticated to add a point");
   }
 
+  const space = await getSpace();
+
   const endorsementId = await db.transaction(async (tx) => {
     await tx
       .update(usersTable)
@@ -31,7 +34,7 @@ export const endorse = async ({
 
     return await tx
       .insert(endorsementsTable)
-      .values({ cred, userId, pointId })
+      .values({ cred, userId, pointId, space })
       .returning({ id: endorsementsTable.id })
       .then(([{ id }]) => id);
   });

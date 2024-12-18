@@ -411,6 +411,15 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                           <>
                             <AlertTriangleIcon className="size-3 align-[-1.5px] inline-block" />{" "}
                             {reviewResults.feedback}
+                            <Button
+                              variant={"link"}
+                              className="text-xs size-fit inline-block p-0 font-normal underline underline-offset-1 ml-1"
+                              onClick={() => {
+                                setGuidanceNotes(undefined);
+                              }}
+                            >
+                              dismiss
+                            </Button>
                           </>
                         ) : undefined
                       );
