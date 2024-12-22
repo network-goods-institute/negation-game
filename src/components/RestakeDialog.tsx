@@ -743,7 +743,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                           const isLastPoint = index === projectedData.length - 1;
                           if (!isLastPoint) return <g key={`dot-${index}`} />;
 
-                          const textY = isSlashing ? cy + 15 : cy - 10;
+                          const textY = cy - 10;
 
                           return (
                             <g key={`dot-${index}`}>
@@ -754,15 +754,15 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                                 fill="currentColor" 
                                 className="animate-none text-endorsed"
                               />
-                              {bonusFavor > 0 && (
+                              {favorReduced > 0 && (
                                 <text
                                   x={cx + (openedFromSlashedIcon ? -35 : (isSlashing ? 30 : -35))}
-                                  y={openedFromSlashedIcon ? cy + 20 : textY}
+                                  y={textY}
                                   textAnchor={openedFromSlashedIcon ? "start" : (isSlashing ? "end" : "start")}
                                   fill="currentColor"
                                   className="text-xs whitespace-nowrap animate-none text-endorsed"
                                 >
-                                  {openedFromSlashedIcon ? `-${bonusFavor}` : (isSlashing ? `-${bonusFavor}` : `+${bonusFavor}`)} favor
+                                  -{favorReduced} favor
                                 </text>
                               )}
                             </g>
