@@ -28,7 +28,6 @@ import { useUser } from "@/hooks/useUser";
 import { cn } from "@/lib/cn";
 import { decodeId } from "@/lib/decodeId";
 import { encodeId } from "@/lib/encodeId";
-import { favor } from "@/lib/negation-game/favor";
 import { TimelineScale, timelineScales } from "@/lib/timelineScale";
 import { usePrivy } from "@privy-io/react-auth";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -130,7 +129,7 @@ export default function PointPage({
   const { back, push } = useRouter();
 
   const { data: counterpointSuggestions = [] } = useQuery({
-    queryKey: ["counterpoint-suggestions", point?.pointId],
+    queryKey: ["counterpoint-suggestions", point?.id],
     queryFn: async ({ queryKey: [, pointId] }) => {
       const stream = await getCounterpointSuggestions(pointId as number);
 
@@ -149,7 +148,7 @@ export default function PointPage({
       
       return [];
     },
-    enabled: !!point?.pointId,
+    enabled: !!point?.id,
     staleTime: Infinity,
   });
 
@@ -203,7 +202,7 @@ export default function PointPage({
                   open={selectNegationDialogOpen}
                   onOpenChange={toggleSelectNegationDialog}
                   originalPoint={{
-                    id: point.pointId,
+                    id: point.id,
                     content: point.content,
                     createdAt: point.createdAt,
                     stakedAmount: point.cred,
@@ -212,7 +211,7 @@ export default function PointPage({
                     amountNegations: point.amountNegations,
                     negationsCred: point.negationsCred
                   }}
-                  negationId={point.pointId}
+                  negationId={point.id}
                 />
                 <Popover
                   open={endorsePopoverOpen}
@@ -287,7 +286,7 @@ export default function PointPage({
                   )}
                   onClick={() =>
                     privyUser !== null ? setNegatedPoint({
-                      id: point.pointId,
+                      id: point.id,
                       content: point.content,
                       createdAt: point.createdAt,
                       cred: point.cred
@@ -430,10 +429,7 @@ export default function PointPage({
                           }) : login();
                         }}
                         className="flex-grow -mt-3.5 pb-3"
-                        favor={favor({ 
-                          cred: negation.cred,
-                          negationsCred: negation.negationsCred
-                        })}
+                        favor={negation.favor}
                         content={negation.content}
                         createdAt={negation.createdAt}
                         amountSupporters={negation.amountSupporters}
@@ -444,15 +440,15 @@ export default function PointPage({
                         isNegation={true}
                         parentPoint={{
                           ...point,
-                          id: point.pointId
+                          id: point.id
                         }}
-                        negationId={point.pointId}
+                        negationId={point.id}
                         onRestake={({openedFromSlashedIcon}) => setRestakePoint({
                           point: {
                             ...point,
                             stakedAmount: point.cred,
-                            pointId: point.pointId,
-                            id: point.pointId
+                            pointId: point.id,
+                            id: point.id
                           },
                           counterPoint: {
                             ...negation,
@@ -489,9 +485,9 @@ export default function PointPage({
                           login();
                           return;
                         }
-                        setNegationContent(point.pointId, suggestion);
+                        setNegationContent(point.id, suggestion);
                         setNegatedPoint({
-                          id: point.pointId,
+                          id: point.id,
                           content: point.content,
                           createdAt: point.createdAt,
                           cred: point.cred

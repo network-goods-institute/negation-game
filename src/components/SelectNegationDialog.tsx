@@ -8,7 +8,6 @@ import { useToggle } from "@uidotdev/usehooks";
 import { useQuery } from "@tanstack/react-query";
 import { fetchPointNegations } from "@/actions/fetchPointNegations";
 import { PointStats } from "./PointStats";
-import { favor } from "@/lib/negation-game/favor";
 import { Loader } from "./ui/loader";
 import { NegationResult } from "@/actions/fetchPointNegations";
 
@@ -22,6 +21,7 @@ interface SelectNegationDialogProps extends DialogProps {
     amountSupporters: number;
     amountNegations: number;
     negationsCred: number;
+    favor?: number;
   };
   negationId: number;
 }
@@ -58,10 +58,7 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
           <div className="space-y-2">
             <p className="text-lg font-medium">{originalPoint.content}</p>
             <span className="inline-flex px-3 py-1 rounded-full bg-endorsed/10 text-endorsed text-sm">
-              {favor({ 
-                cred: originalPoint.stakedAmount, 
-                negationsCred: originalPoint.negationsCred 
-              })} favor
+              {originalPoint.favor ?? 50} favor
             </span>
           </div>
 
@@ -96,7 +93,7 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
                 >
                   <p className="mb-2">{negation.content}</p>
                   <PointStats
-                    favor={favor(negation)}
+                    favor={negation.favor}
                     amountNegations={negation.amountNegations}
                     amountSupporters={negation.amountSupporters}
                     cred={negation.cred}

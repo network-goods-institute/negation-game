@@ -28,7 +28,6 @@ import {
 } from "@/constants/config";
 import { useCredInput } from "@/hooks/useCredInput";
 import { cn } from "@/lib/cn";
-import { favor } from "@/lib/negation-game/favor";
 import { DialogProps } from "@radix-ui/react-dialog";
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -226,9 +225,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({
                     {selectedCounterpointCandidate.content}
                   </span>
                   <PointStats
-                    favor={favor({
-                      ...selectedCounterpointCandidate,
-                    })}
+                    favor={selectedCounterpointCandidate.favor}
                     amountNegations={
                       selectedCounterpointCandidate.amountNegations
                     }
@@ -351,9 +348,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({
                               {counterpointCandidate.content}
                             </span>
                             <PointStats
-                              favor={favor({
-                                ...counterpointCandidate,
-                              })}
+                              favor={counterpointCandidate.favor}
                               amountNegations={
                                 counterpointCandidate.amountNegations
                               }

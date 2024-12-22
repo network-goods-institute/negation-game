@@ -104,6 +104,16 @@ export const findCounterpointCandidatesAction = async ({
         )
       ), 0)
     `.mapWith(Number),
+      favor: sql<number>`
+        COALESCE((
+          SELECT favor 
+          FROM point_favor_history 
+          WHERE point_id = ${pointsTable.id}
+          AND event_type = 'favor_queried'
+          ORDER BY event_time DESC 
+          LIMIT 1
+        ), 50)
+      `.mapWith(Number)
     })
     .from(embeddingsTable)
     .innerJoin(pointsTable, eq(pointsTable.id, embeddingsTable.pointId))

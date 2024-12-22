@@ -17,7 +17,6 @@ import { POINT_MAX_LENGHT, POINT_MIN_LENGHT } from "@/constants/config";
 import { useCredInput } from "@/hooks/useCredInput";
 import { useUser } from "@/hooks/useUser";
 import { cn } from "@/lib/cn";
-import { favor } from "@/lib/negation-game/favor";
 import { DialogProps } from "@radix-ui/react-dialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDebounce } from "@uidotdev/usehooks";
@@ -120,9 +119,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
                   {selectedPoint.content}
                 </span>
                 <PointStats
-                  favor={favor({
-                    ...selectedPoint,
-                  })}
+                  favor={selectedPoint.favor}
                   amountNegations={selectedPoint.amountNegations}
                   amountSupporters={selectedPoint.amountSupporters}
                   cred={selectedPoint.cred}
@@ -163,7 +160,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
 
             {similarPoints?.map((similarPoint) => (
               <div
-                key={similarPoint.pointId}
+                key={similarPoint.id}
                 onClick={() => selectPoint(similarPoint)}
                 className="flex p-4 gap-2 hover:bg-accent w-full cursor-pointer border rounded-md mb-2"
               >
@@ -173,11 +170,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
                     {similarPoint.content}
                   </span>
                   <PointStats
-                    favor={favor({
-                      ...similarPoint,
-                      cred: similarPoint.cred,
-                      negationsCred: similarPoint.negationsCred
-                    })}
+                    favor={similarPoint.favor}
                     amountNegations={similarPoint.amountNegations}
                     amountSupporters={similarPoint.amountSupporters}
                     cred={similarPoint.cred}
@@ -267,7 +260,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
           disabled={!canSubmit}
           onClick={() => {
             (selectedPoint
-              ? endorse({ pointId: selectedPoint.pointId, cred })
+              ? endorse({ pointId: selectedPoint.id, cred })
               : makePoint({
                   content,
                   cred: cred,

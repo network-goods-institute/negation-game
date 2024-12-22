@@ -1,4 +1,4 @@
-import { endorsementsTable, negationsTable, pointsTable, restakesTable, restakeHistoryTable, slashesTable, slashHistoryTable } from "@/db/schema";
+import { endorsementsTable, negationsTable, pointsTable, restakesTable, restakeHistoryTable, slashesTable, slashHistoryTable, doubtsTable, doubtHistoryTable } from "@/db/schema";
 import { sql } from "drizzle-orm";
 import { pgView } from "drizzle-orm/pg-core";
 
@@ -9,14 +9,15 @@ export type PointFavorHistoryViewEventType =
   | "negation_endorsed" 
   | "restake_modified"
   | "slash_modified"
+  | "doubt_modified"
   | "favor_queried";
 
 export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
   const allEvents = qb.$with("all_events").as(
     qb
       .select({
-        point_id: sql`${pointsTable.id} as point_id`,
-        event_time: sql`${pointsTable.createdAt} as event_time`,
+        point_id: sql`id as point_id`,
+        event_time: sql`created_at as event_time`,
         event_type: sql<PointFavorHistoryViewEventType>`'point_created' as event_type`,
       })
       .from(pointsTable)
@@ -98,62 +99,124 @@ export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
           })
           .from(pointsTable)
       )
+      .union(
+        qb
+          .select({
+            point_id: sql`${doubtsTable.pointId} as point_id`,
+            event_time: sql`${doubtHistoryTable.createdAt} as event_time`,
+            event_type: sql<PointFavorHistoryViewEventType>`'doubt_modified' as event_type`,
+          })
+          .from(doubtHistoryTable)
+          .innerJoin(doubtsTable, sql`${doubtHistoryTable.doubtId} = ${doubtsTable.id}`)
+      )
+  );
+
+  const allEventsWithStats = qb.$with("all_events_with_stats").as(
+    qb.select({
+      point_id: sql`all_events.point_id`,
+      event_type: sql`all_events.event_type`,
+      event_time: sql`all_events.event_time`,
+      cred: sql`COALESCE((
+        SELECT SUM(cred)
+        FROM endorsements
+        WHERE point_id = all_events.point_id
+        AND created_at <= all_events.event_time
+      ), 0)`,
+      negations_cred: sql`COALESCE((
+        SELECT SUM(cred)
+        FROM endorsements
+        WHERE point_id IN (
+          SELECT newer_point_id
+          FROM negations
+          WHERE older_point_id = all_events.point_id
+          AND created_at <= all_events.event_time
+          UNION
+          SELECT older_point_id
+          FROM negations
+          WHERE newer_point_id = all_events.point_id
+          AND created_at <= all_events.event_time
+        )
+        AND created_at <= all_events.event_time
+      ), 0)`
+    })
+    .from(allEvents)
   );
 
   return qb
-    .with(allEvents)
     .select({
-      pointId: sql`"all_events_with_stats".point_id`.as("point_id"),
-      event_type: sql<PointFavorHistoryViewEventType>`"all_events_with_stats".event_type`.as("event_type"),
-      eventTime: sql`"all_events_with_stats".event_time`
-        .mapWith(Date.parse)
-        .as("event_time"),
-      cred: sql`"all_events_with_stats".cred`.as("cred"),
-      negationsCred: sql`"all_events_with_stats".negations_cred`.as("negations_cred"),
-      favor: sql<number>`CAST(
+      pointId: sql`all_events_with_stats.point_id`.as("point_id"),
+      eventType: sql`all_events_with_stats.event_type`.as("event_type"),
+      eventTime: sql`all_events_with_stats.event_time`.as("event_time"),
+      cred: sql`all_events_with_stats.cred`.as("cred"),
+      negationsCred: sql`all_events_with_stats.negations_cred`.as("negations_cred"),
+      favor: sql<number>`FLOOR(
         CASE
-          WHEN "all_events_with_stats"."cred" = 0 THEN 0
-          WHEN "all_events_with_stats"."negations_cred" = 0 THEN 100
-          ELSE ROUND(100.0 * "all_events_with_stats"."cred" / ("all_events_with_stats"."cred" + "all_events_with_stats"."negations_cred"), 2) +
+          WHEN cred = 0 THEN 0
+          WHEN negations_cred = 0 THEN 100
+          ELSE ROUND(100.0 * cred / (cred + negations_cred), 2) +
             COALESCE(
-              CASE "all_events_with_stats"."event_type"
+              CASE event_type
                 WHEN 'restake_modified' THEN (
-                  SELECT rh.new_amount - COALESCE((
+                  SELECT FLOOR(rh.new_amount - COALESCE((
                     SELECT sh.new_amount
                     FROM ${slashHistoryTable} sh
                     JOIN ${slashesTable} s ON s.id = sh.slash_id
                     WHERE s.restake_id = r.id
-                    AND sh.created_at <= "all_events_with_stats"."event_time"
+                    AND sh.created_at <= all_events_with_stats.event_time
                     ORDER BY sh.created_at DESC
                     LIMIT 1
-                  ), 0)
+                  ), 0))
                   FROM ${restakeHistoryTable} rh
                   JOIN ${restakesTable} r ON r.id = rh.restake_id
-                  WHERE r.point_id = "all_events_with_stats"."point_id"
-                  AND rh.created_at = "all_events_with_stats"."event_time"
+                  WHERE r.point_id = all_events_with_stats.point_id
+                  AND rh.created_at = all_events_with_stats.event_time
                 )
                 WHEN 'slash_modified' THEN (
-                  SELECT r.amount - sh.new_amount
+                  SELECT FLOOR(r.amount - sh.new_amount)
                   FROM ${slashHistoryTable} sh
                   JOIN ${slashesTable} s ON s.id = sh.slash_id
                   JOIN ${restakesTable} r ON r.id = s.restake_id
-                  WHERE r.point_id = "all_events_with_stats"."point_id"
-                  AND sh.created_at = "all_events_with_stats"."event_time"
+                  WHERE r.point_id = all_events_with_stats.point_id
+                  AND sh.created_at = all_events_with_stats.event_time
                 )
-                ELSE (
-                  SELECT rh.new_amount - COALESCE((
+                WHEN 'doubt_modified' THEN (
+                  SELECT FLOOR(rh.new_amount - COALESCE((
                     SELECT sh.new_amount
                     FROM ${slashHistoryTable} sh
                     JOIN ${slashesTable} s ON s.id = sh.slash_id
                     WHERE s.restake_id = r.id
-                    AND sh.created_at <= "all_events_with_stats"."event_time"
+                    AND sh.created_at <= all_events_with_stats.event_time
                     ORDER BY sh.created_at DESC
                     LIMIT 1
-                  ), 0)
+                  ), 0))
+                  FROM ${doubtHistoryTable} dh
+                  JOIN ${doubtsTable} d ON d.id = dh.doubt_id
+                  JOIN ${restakesTable} r ON r.point_id = d.point_id
+                  JOIN ${restakeHistoryTable} rh ON rh.restake_id = r.id
+                  WHERE d.point_id = all_events_with_stats.point_id
+                  AND dh.created_at = all_events_with_stats.event_time
+                  ORDER BY rh.created_at DESC
+                  LIMIT 1
+                )
+                ELSE (
+                  SELECT GREATEST(0, FLOOR(rh.new_amount - COALESCE((
+                    SELECT sh.new_amount
+                    FROM ${slashHistoryTable} sh
+                    JOIN ${slashesTable} s ON s.id = sh.slash_id
+                    WHERE s.restake_id = r.id
+                    AND sh.created_at <= all_events_with_stats.event_time
+                    ORDER BY sh.created_at DESC
+                    LIMIT 1
+                  ), 0) - COALESCE((
+                    SELECT SUM(d.amount)
+                    FROM ${doubtsTable} d
+                    WHERE d.point_id = r.point_id
+                    AND d.negation_id = r.negation_id
+                  ), 0)))
                   FROM ${restakeHistoryTable} rh
                   JOIN ${restakesTable} r ON r.id = rh.restake_id
-                  WHERE r.point_id = "all_events_with_stats"."point_id"
-                  AND rh.created_at <= "all_events_with_stats"."event_time"
+                  WHERE r.point_id = all_events_with_stats.point_id
+                  AND rh.created_at <= all_events_with_stats.event_time
                   ORDER BY rh.created_at DESC
                   LIMIT 1
                 )
@@ -161,51 +224,8 @@ export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
               0
             )
         END
-      AS NUMERIC)`
-        .mapWith(Number)
-        .as("favor"),
+      )`.as("favor")
     })
-    .from(
-      qb
-        .select({
-          pointId: sql`"all_events".point_id`.as("point_id"),
-          event_type: sql<PointFavorHistoryViewEventType>`"all_events".event_type`.as("event_type"),
-          eventTime: sql`"all_events".event_time`.as("event_time"),
-          cred: sql<number>`
-          COALESCE((
-            SELECT SUM(${endorsementsTable.cred})
-            FROM ${endorsementsTable}
-            WHERE ${endorsementsTable.pointId} = "all_events".point_id
-            AND ${endorsementsTable.createdAt} <= "all_events".event_time
-          ), 0)
-        `
-            .mapWith(Number)
-            .as("cred"),
-          negationsCred: sql<number>`
-          COALESCE((
-            SELECT SUM(${endorsementsTable.cred})
-            FROM ${endorsementsTable}
-            WHERE ${endorsementsTable.pointId} IN (
-              SELECT newer_point_id
-              FROM ${negationsTable}
-              WHERE older_point_id = "all_events".point_id
-              AND ${negationsTable.createdAt} <= "all_events".event_time
-              UNION
-              SELECT older_point_id
-              FROM ${negationsTable}
-              WHERE newer_point_id = "all_events".point_id
-              AND ${negationsTable.createdAt} <= "all_events".event_time
-            ) AND ${endorsementsTable.createdAt} <= "all_events".event_time
-          ), 0)
-        `
-            .mapWith(Number)
-            .as("negations_cred"),
-        })
-        .from(allEvents)
-        .as("all_events_with_stats")
-    )
-    .orderBy(
-      sql`"all_events_with_stats".event_time`,
-      sql`"all_events_with_stats".point_id`
-    );
+    .from(allEventsWithStats)
+    .orderBy(sql`event_time, point_id`);
 });

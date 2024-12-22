@@ -17,8 +17,8 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
         COALESCE((
           SELECT ${pointFavorHistoryView.favor}
           FROM ${pointFavorHistoryView}
-          WHERE ${pointFavorHistoryView.pointId} = ${pointsWithDetailsView.pointId}
-          AND ${pointFavorHistoryView.event_type} = 'favor_queried'
+          WHERE ${pointFavorHistoryView.pointId} = ${pointsWithDetailsView.id}
+          AND ${pointFavorHistoryView.eventType} = 'favor_queried'
           ORDER BY ${pointFavorHistoryView.eventTime} DESC
           LIMIT 1
         ), 0)
@@ -29,7 +29,7 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
               COALESCE((
                 SELECT SUM(${endorsementsTable.cred})
                 FROM ${endorsementsTable}
-                WHERE ${endorsementsTable.pointId} = ${pointsWithDetailsView.pointId}
+                WHERE ${endorsementsTable.pointId} = ${pointsWithDetailsView.id}
                   AND ${endorsementsTable.userId} = ${viewerId}
               ), 0)
             `.mapWith(Number),

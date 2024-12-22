@@ -52,7 +52,7 @@ export const fetchPoint = async (id: number) => {
         eq(slashesTable.userId, viewerId ?? ''),
       )
     )
-    .where(eq(pointsWithDetailsView.pointId, id))
+    .where(eq(pointsWithDetailsView.id, id))
     .limit(1)
     .then((points) => points[0]);
 };

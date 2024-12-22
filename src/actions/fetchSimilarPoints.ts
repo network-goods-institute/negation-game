@@ -21,11 +21,21 @@ export const fetchSimilarPoints = async ({ query }: { query: string }) => {
     .select({
       similarity,
       ...getColumns(pointsWithDetailsView),
+      favor: sql<number>`
+        COALESCE((
+          SELECT favor 
+          FROM point_favor_history 
+          WHERE point_id = ${pointsWithDetailsView.id}
+          AND event_type = 'favor_queried'
+          ORDER BY event_time DESC 
+          LIMIT 1
+        ), 50)
+      `.mapWith(Number),
     })
     .from(embeddingsTable)
     .innerJoin(
       pointsWithDetailsView,
-      eq(pointsWithDetailsView.pointId, embeddingsTable.pointId)
+      eq(pointsWithDetailsView.id, embeddingsTable.pointId)
     )
     .where(gt(similarity, 0.5))
     .orderBy((t) => desc(t.similarity))

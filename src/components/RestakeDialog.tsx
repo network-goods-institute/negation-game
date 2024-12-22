@@ -20,7 +20,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { timelineScales } from "@/lib/timelineScale";
 import { PointStats } from "@/components/PointStats";
-import { favor } from "@/lib/negation-game/favor";
 import { format } from "date-fns";
 import { Separator } from "@/components/ui/separator";
 import { ReputationAnalysisDialog } from "./ReputationAnalysisDialog";
@@ -48,6 +47,7 @@ export interface RestakeDialogProps extends DialogProps {
       active: boolean;
       originalAmount: number;
       slashedAmount: number;
+      doubtedAmount: number;
     } | null;
     slash?: {
       id: number;
@@ -583,12 +583,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                     {format(originalPoint.createdAt, "h':'mm a '·' MMM d',' yyyy")}
                   </span>
                   <span className="inline-flex px-3 py-1 rounded-full bg-endorsed/10 text-endorsed text-sm">
-                    {favor({ 
-                      cred: originalPoint.cred, 
-                      negationsCred: originalPoint.negationsCred,
-                      restakeAmount: originalPoint.restake?.amount ?? 0,
-                      slashedAmount: originalPoint.restake?.slashedAmount ?? 0
-                    })} favor
+                    {favorHistory?.length ? favorHistory[favorHistory.length - 1].favor : 50} favor
                   </span>
                 </div>
               </div>
@@ -743,7 +738,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                           const isLastPoint = index === projectedData.length - 1;
                           if (!isLastPoint) return <g key={`dot-${index}`} />;
 
-                          const textY = cy - 10;
+                          const textY = isSlashing ? cy + 20 : cy - 10;
 
                           return (
                             <g key={`dot-${index}`}>
@@ -754,7 +749,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                                 fill="currentColor" 
                                 className="animate-none text-endorsed"
                               />
-                              {favorReduced > 0 && (
+                              {(favorReduced > 0 || stakeAmount > 0 || slashAmount > 0) && (
                                 <text
                                   x={cx + (openedFromSlashedIcon ? -35 : (isSlashing ? 30 : -35))}
                                   y={textY}
@@ -762,7 +757,12 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                                   fill="currentColor"
                                   className="text-xs whitespace-nowrap animate-none text-endorsed"
                                 >
-                                  -{favorReduced} favor
+                                  {openedFromSlashedIcon ? 
+                                    `-${favorReduced}` :  // Doubting
+                                    isSlashing ? 
+                                      `-${slashAmount}` :  // Slashing
+                                      `+${stakeAmount}`    // Restaking
+                                  } favor
                                 </text>
                               )}
                             </g>
@@ -782,12 +782,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
             <div className="border-t pt-2">
               <PointStats
                 className="justify-evenly ~@/lg:~text-xs/sm"
-                favor={favor({ 
-                  cred: originalPoint.cred,
-                  negationsCred: originalPoint.negationsCred,
-                  restakeAmount: originalPoint.restake?.amount ?? 0,
-                  slashedAmount: originalPoint.restake?.slashedAmount ?? 0
-                })}
+                favor={favorHistory?.length ? favorHistory[favorHistory.length - 1].favor : 50}
                 amountNegations={originalPoint.amountNegations}
                 amountSupporters={originalPoint.amountSupporters}
                 cred={originalPoint.cred}

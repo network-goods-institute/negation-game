@@ -55,7 +55,8 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
     isOwner: boolean;
     totalRestakeAmount: number;
     originalAmount?: number | null;
-    slashedAmount?: number;
+    slashedAmount: number;
+    doubtedAmount: number;
   } | null;
 }
 

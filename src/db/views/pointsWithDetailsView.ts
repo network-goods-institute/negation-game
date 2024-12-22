@@ -7,7 +7,7 @@ export const pointsWithDetailsView = pgView("point_with_details_view").as(
   (qb) =>
     qb
       .select({
-        pointId: pointsTable.id,
+        id: pointsTable.id,
         content: pointsTable.content,
         createdAt: pointsTable.createdAt,
         createdBy: pointsTable.createdBy,
