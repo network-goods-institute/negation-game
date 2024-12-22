@@ -394,12 +394,7 @@ export default function PointPage({
               <Separator className="my-md" />
               <PointStats
                 className="justify-evenly ~@/lg:~text-xs/sm mb-sm"
-                favor={favor({ 
-                  cred: point.cred, 
-                  negationsCred: point.negationsCred,
-                  restakeAmount: point.restake?.amount ?? 0,
-                  slashedAmount: point.restake?.slashedAmount ?? 0
-                })}
+                favor={favorHistory?.length ? Math.floor(favorHistory[favorHistory.length - 1].favor) : 50}
                 amountNegations={point.amountNegations}
                 amountSupporters={point.amountSupporters}
                 cred={point.cred}
