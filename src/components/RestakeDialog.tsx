@@ -87,14 +87,14 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   const { data: existingDoubt } = useQuery({
     queryKey: ['doubt', originalPoint.id, counterPoint.id],
     queryFn: () => fetchDoubtForRestake(originalPoint.id, counterPoint.id),
-    enabled: !!originalPoint.id && !!counterPoint.id && openedFromSlashedIcon
+    enabled: !!originalPoint.id && !!counterPoint.id
   });
 
   const [stakedCred, setStakedCred] = useState(0);
 
   useEffect(() => {
     if (openedFromSlashedIcon) {
-      setStakedCred(existingDoubt?.amount ?? 0);
+      setStakedCred(existingDoubt?.isUserDoubt ? existingDoubt.userAmount : 0);
     } else if (existingRestake) {
       setStakedCred(existingRestake.effectiveAmount);
     } else {
@@ -166,24 +166,45 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   
   // Calculate the delta between new stake and current stake
   const bonusFavor = Math.floor(isSlashing ? 
-    slashAmount : // For slashing, use the full slash amount
-    (stakeAmount - currentlyStaked) // For staking, use the difference
+    Math.max(0, (existingDoubt?.amount || 0) - slashAmount) : // doubt - slash
+    (stakeAmount - currentlyStaked)
   );
 
   // Get the current favor from the last data point
   const currentFavor = favorHistory?.length ? favorHistory[favorHistory.length - 1].favor : 50;
   
   const handleSliderChange = useCallback((values: number[]) => {
+    // If in doubt mode and user has their own doubt with amount > 0, don't allow changes
+    if (openedFromSlashedIcon && existingDoubt?.isUserDoubt && existingDoubt.userAmount > 0) {
+      return;
+    }
+    
     const newStakedCred = Math.floor(values[0]);
     setStakedCred(newStakedCred);
     setIsSlashing(openedFromSlashedIcon ? false : newStakedCred < currentlyStaked);
-  }, [currentlyStaked, openedFromSlashedIcon]);
+  }, [currentlyStaked, openedFromSlashedIcon, existingDoubt]);
+
+  const favorReduced = stakedCred;
+
+  const favorImpact = openedFromSlashedIcon ? 
+    favorReduced : // Doubting
+    isSlashing ? 
+      Math.max(0, slashAmount - (existingDoubt?.amount || 0)) :
+      bonusFavor; // Restaking
 
   const projectedData = favorHistory ? [
     ...favorHistory,
     {
       timestamp: new Date(Date.now() + 8000),
-      favor: currentFavor + (openedFromSlashedIcon ? -bonusFavor : (isSlashing ? -bonusFavor : bonusFavor)),
+      favor: currentFavor + (
+        openedFromSlashedIcon ? 
+          existingDoubt?.isUserDoubt ? 
+            -(stakedCred - existingDoubt.userAmount) : // Show only the change from user's current doubt
+            -stakedCred :  // No existing user doubt, show full new doubt
+          isSlashing ? 
+            -favorImpact : 
+            favorImpact
+      ),
       isProjection: true
     }
   ] : [];
@@ -301,14 +322,16 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     return Math.floor((dailyEarnings * 365 / stakedCred) * 100);
   }, [dailyEarnings, stakedCred]);
 
-  // Calculate favor impact
-  const favorReduced = stakedCred;
   const resultingFavor = Math.max(0, effectiveFavorFromRestaking - favorReduced);
 
   const paybackPeriod = useMemo(() => {
     if (dailyEarnings === 0 || stakedCred === 0) return 0;
     return Math.ceil(stakedCred / dailyEarnings);
   }, [dailyEarnings, stakedCred]);
+
+  const isUserDoubt = useMemo(() => {
+    return existingDoubt?.isUserDoubt ?? false;
+  }, [existingDoubt?.isUserDoubt]);
 
   if (maxStakeAmount === 0 && !openedFromSlashedIcon) {
     return (
@@ -738,7 +761,9 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                           const isLastPoint = index === projectedData.length - 1;
                           if (!isLastPoint) return <g key={`dot-${index}`} />;
 
-                          const textY = isSlashing ? cy + 20 : cy - 10;
+                          const textY = (openedFromSlashedIcon || isSlashing) ? cy + 20 : cy - 10;
+                          const textX = cx + (openedFromSlashedIcon ? -35 : (isSlashing ? 30 : -35));
+                          const textAnchor = openedFromSlashedIcon ? "start" : (isSlashing ? "end" : "start");
 
                           return (
                             <g key={`dot-${index}`}>
@@ -751,16 +776,16 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                               />
                               {(favorReduced > 0 || stakeAmount > 0 || slashAmount > 0) && (
                                 <text
-                                  x={cx + (openedFromSlashedIcon ? -35 : (isSlashing ? 30 : -35))}
+                                  x={textX}
                                   y={textY}
-                                  textAnchor={openedFromSlashedIcon ? "start" : (isSlashing ? "end" : "start")}
+                                  textAnchor={textAnchor}
                                   fill="currentColor"
                                   className="text-xs whitespace-nowrap animate-none text-endorsed"
                                 >
                                   {openedFromSlashedIcon ? 
                                     `-${favorReduced}` :  // Doubting
                                     isSlashing ? 
-                                      `-${slashAmount}` :  // Slashing
+                                      `-${favorImpact}` :  // Changed from slashAmount to favorImpact
                                       `+${stakeAmount}`    // Restaking
                                   } favor
                                 </text>
@@ -801,11 +826,26 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
               </div>
             )}
 
+            {/* Add after the existing warnings */}
+            {!openedFromSlashedIcon && isSlashing && (existingDoubt?.amount ?? 0) > 0 && (
+              <div className="flex items-center gap-2 text-sm bg-yellow-500 dark:bg-yellow-500/90 text-black dark:text-white rounded-md p-3">
+                <InfoIcon className="size-4 shrink-0" />
+                <p>
+                  Due to existing doubts ({existingDoubt?.amount ?? 0} cred)
+                  {isUserDoubt ? ` (including your ${existingDoubt?.userAmount ?? 0} cred doubt)` : ""}, 
+                  slashing will only reduce favor by {favorImpact} instead of {slashAmount}
+                </p>
+              </div>
+            )}
+
             <p className="text-sm text-muted-foreground">
               {openedFromSlashedIcon ? (
                 `You are placing ${stakeAmount} cred in doubt of...`
               ) : isSlashing ? (
-                `You are losing ${slashAmount} cred for slashing...`
+                `You are losing ${slashAmount} cred for slashing${(existingDoubt?.amount ?? 0) > 0 ? 
+                  ` (doubters will also lose ${Math.min(slashAmount, existingDoubt?.amount ?? 0)} cred)` : 
+                  ''
+                }...`
               ) : (
                 `You would relinquish ${stakeAmount} cred if you learned...`
               )}
@@ -850,6 +890,16 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
               </span>
             </div>
             
+            {openedFromSlashedIcon && existingDoubt?.isUserDoubt && existingDoubt.userAmount > 0 && (
+              <div className="flex items-center gap-2 text-sm bg-muted/30 rounded-md p-3">
+                <InfoIcon className="size-4 shrink-0" />
+                <p>
+                  You already have an active doubt of {existingDoubt.userAmount} cred. 
+                  Doubts cannot be modified after creation.
+                </p>
+              </div>
+            )}
+
             <Slider
               value={[stakedCred]}
               onValueChange={handleSliderChange}
@@ -857,8 +907,8 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
               step={1}
               className="w-full"
               destructive={!openedFromSlashedIcon && isSlashing}
-              disabled={maxStakeAmount === 0}
-              existingCred={openedFromSlashedIcon ? 0 : currentlyStaked}
+              disabled={maxStakeAmount === 0 || (openedFromSlashedIcon && existingDoubt?.isUserDoubt && existingDoubt.userAmount > 0)}
+              existingCred={openedFromSlashedIcon ? existingDoubt?.amount ?? 0 : currentlyStaked}
               isDoubtMode={openedFromSlashedIcon}
             />
           </div>
@@ -876,9 +926,9 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
               {openedFromSlashedIcon ? (
                 <>-{favorReduced} favor</>
               ) : isSlashing ? (
-                <>-{bonusFavor} favor</>
+                <>-{favorImpact} favor</>
               ) : (
-                <>+{bonusFavor} favor</>
+                <>+{favorImpact} favor</>
               )}
             </span>
             
@@ -890,7 +940,9 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                 variant="default" 
                 className="bg-primary hover:bg-primary/90"
                 onClick={handleSubmit}
-                disabled={maxStakeAmount === 0 || (!isSlashing && stakedCred === 0) || isSubmitting}
+                disabled={maxStakeAmount === 0 || 
+                  (!openedFromSlashedIcon && !isSlashing && stakedCred === 0) || 
+                  isSubmitting}
               >
                 {isSubmitting ? "Submitting..." : "Submit"}
               </Button>

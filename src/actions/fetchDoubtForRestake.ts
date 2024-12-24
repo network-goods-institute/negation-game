@@ -7,24 +7,43 @@ import { getUserId } from "./getUserId";
 
 export const fetchDoubtForRestake = async (pointId: number, negationId: number) => {
   const userId = await getUserId();
-  if (!userId) return null;
 
-  return await db
-    .select({
-      id: doubtsTable.id,
-      amount: doubtsTable.amount,
-      lastEarningsAt: doubtsTable.lastEarningsAt,
-      createdAt: doubtsTable.createdAt
-    })
-    .from(doubtsTable)
-    .where(
-      and(
-        eq(doubtsTable.userId, userId),
-        eq(doubtsTable.pointId, pointId),
-        eq(doubtsTable.negationId, negationId),
-        sql`${doubtsTable.amount} > 0`
+  // Get both total amount and user's doubt in one query
+  const result = await db.select({
+    totalAmount: sql<number>`COALESCE(SUM(${doubtsTable.amount}), 0)`,
+    userDoubtAmount: sql<number>`
+      COALESCE((
+        SELECT amount 
+        FROM ${doubtsTable} d2 
+        WHERE d2.user_id = ${userId}
+          AND d2.point_id = ${pointId}
+          AND d2.negation_id = ${negationId}
+          AND d2.amount > 0
+      ), 0)
+    `,
+    hasUserDoubt: sql<boolean>`
+      EXISTS (
+        SELECT 1 
+        FROM ${doubtsTable} d2 
+        WHERE d2.user_id = ${userId}
+          AND d2.point_id = ${pointId}
+          AND d2.negation_id = ${negationId}
+          AND d2.amount > 0
       )
+    `
+  })
+  .from(doubtsTable)
+  .where(
+    and(
+      eq(doubtsTable.pointId, pointId),
+      eq(doubtsTable.negationId, negationId),
+      sql`${doubtsTable.amount} > 0`
     )
-    .limit(1)
-    .then(rows => rows[0] ?? null);
+  );
+
+  return {
+    amount: Number(result[0].totalAmount),
+    userAmount: Number(result[0].userDoubtAmount),
+    isUserDoubt: result[0].hasUserDoubt
+  };
 }; 

@@ -226,7 +226,7 @@ export const PointCard = ({
                     variant="ghost"
                     className={cn(
                       "p-1 -mb-2 rounded-full size-fit hover:bg-muted/30",
-                      !!existingDoubt?.amount && "text-endorsed"
+                      existingDoubt?.isUserDoubt && "text-endorsed"
                     )}
                     onClick={(e) => {
                       e.preventDefault();
@@ -238,11 +238,11 @@ export const PointCard = ({
                       <DoubtIcon 
                         className={cn(
                           "size-5 stroke-1",
-                          !!existingDoubt?.amount && "fill-current"
+                          existingDoubt?.isUserDoubt && "fill-current"
                         )} 
-                        isFilled={!!existingDoubt?.amount}
+                        isFilled={existingDoubt?.isUserDoubt}
                       />
-                      {!!existingDoubt?.amount && (
+                      {existingDoubt?.isUserDoubt && (
                         <span className="ml-1">{doubtPercentage}%</span>
                       )}
                     </div>

@@ -25,12 +25,17 @@ export const doubt = async ({ pointId, negationId, amount }: DoubtArgs) => {
       and(
         eq(doubtsTable.userId, userId),
         eq(doubtsTable.pointId, pointId),
-        eq(doubtsTable.negationId, negationId),
-        sql`${doubtsTable.amount} > 0`
+        eq(doubtsTable.negationId, negationId)
       )
     )
     .limit(1)
     .then(rows => rows[0]);
+
+  if (existingDoubt) {
+    throw new Error("Doubts cannot be modified after creation");
+  }
+
+  if (amount === 0) return null;
 
   // Deduct cred from user
   await db
@@ -40,57 +45,28 @@ export const doubt = async ({ pointId, negationId, amount }: DoubtArgs) => {
     })
     .where(eq(usersTable.id, userId));
 
-  if (existingDoubt) {
-    // Update existing doubt
-    const action = amount > existingDoubt.amount 
-      ? "increased" 
-      : amount < existingDoubt.amount 
-        ? "decreased" 
-        : "deactivated";
-
-    await db.transaction(async (tx) => {
-      // Update the doubt
-      await tx
-        .update(doubtsTable)
-        .set({ amount })
-        .where(eq(doubtsTable.id, existingDoubt.id));
-
-      // Record doubt history
-      await tx.insert(doubtHistoryTable).values({
-        doubtId: existingDoubt.id,
-        userId,
-        pointId,
-        negationId,
-        action: action as typeof doubtActionEnum.enumValues[number],
-        previousAmount: existingDoubt.amount,
-        newAmount: amount
-      });
-    });
-
-    return existingDoubt.id;
-  } else {
-    // Create new doubt
-    const newDoubt = await db
-      .insert(doubtsTable)
-      .values({
-        userId,
-        pointId,
-        negationId,
-        amount
-      })
-      .returning({ id: doubtsTable.id })
-      .then(([{ id }]) => id);
-
-    // Record history
-    await db.insert(doubtHistoryTable).values({
-      doubtId: newDoubt,
+  // Create new doubt
+  const newDoubt = await db
+    .insert(doubtsTable)
+    .values({
       userId,
       pointId,
       negationId,
-      action: "created",
-      newAmount: amount
-    });
+      amount,
+      immutable: true
+    })
+    .returning({ id: doubtsTable.id })
+    .then(([{ id }]) => id);
 
-    return newDoubt;
-  }
+  // Record history
+  await db.insert(doubtHistoryTable).values({
+    doubtId: newDoubt,
+    userId,
+    pointId,
+    negationId,
+    action: "created",
+    newAmount: amount
+  });
+
+  return newDoubt;
 }; 

@@ -16,8 +16,6 @@ import {
 
 export const doubtActionEnum = pgEnum("doubt_action", [
   "created",
-  "increased",
-  "decreased",
   "deactivated"
 ]);
 
@@ -43,6 +41,7 @@ export const doubtsTable = pgTable(
     amount: integer("amount").notNull(),
     lastEarningsAt: timestamp("last_earnings_at").notNull().defaultNow(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
+    immutable: boolean("immutable").notNull().default(true),
   },
   (table) => ({
     amountNonNegativeConstraint: check(

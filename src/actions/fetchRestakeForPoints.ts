@@ -55,6 +55,7 @@ export const fetchRestakeForPoints = async (pointId: number, negationId: number)
   // Return user's restake if found, otherwise return first restake but with total amount
   return userRestake ?? {
     ...restakes[0],
-    effectiveAmount: restakes[0].totalRestakeAmount
+    effectiveAmount: restakes[0].totalRestakeAmount,
+    totalRestakeAmount: restakes[0].totalRestakeAmount
   };
 }; 
