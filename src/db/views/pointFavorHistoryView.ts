@@ -157,22 +157,40 @@ export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
             COALESCE(
               CASE event_type
                 WHEN 'restake_modified' THEN (
-                  SELECT FLOOR(rh.new_amount - COALESCE((
-                    SELECT sh.new_amount
-                    FROM ${slashHistoryTable} sh
-                    JOIN ${slashesTable} s ON s.id = sh.slash_id
-                    WHERE s.restake_id = r.id
-                    AND sh.created_at <= all_events_with_stats.event_time
-                    ORDER BY sh.created_at DESC
-                    LIMIT 1
-                  ), 0))
+                  SELECT FLOOR(rh.new_amount - GREATEST(
+                    COALESCE((
+                      SELECT sh.new_amount
+                      FROM ${slashHistoryTable} sh
+                      JOIN ${slashesTable} s ON s.id = sh.slash_id
+                      WHERE s.restake_id = r.id
+                      AND sh.created_at <= all_events_with_stats.event_time
+                      ORDER BY sh.created_at DESC
+                      LIMIT 1
+                    ), 0),
+                    COALESCE((
+                      SELECT SUM(d.amount)
+                      FROM ${doubtsTable} d
+                      WHERE d.point_id = r.point_id
+                      AND d.negation_id = r.negation_id
+                      AND d.created_at <= all_events_with_stats.event_time
+                    ), 0)
+                  ))
                   FROM ${restakeHistoryTable} rh
                   JOIN ${restakesTable} r ON r.id = rh.restake_id
                   WHERE r.point_id = all_events_with_stats.point_id
                   AND rh.created_at = all_events_with_stats.event_time
                 )
                 WHEN 'slash_modified' THEN (
-                  SELECT FLOOR(r.amount - sh.new_amount)
+                  SELECT FLOOR(r.amount - GREATEST(
+                    sh.new_amount,
+                    COALESCE((
+                      SELECT SUM(d.amount)
+                      FROM ${doubtsTable} d
+                      WHERE d.point_id = r.point_id
+                      AND d.negation_id = r.negation_id
+                      AND d.created_at <= all_events_with_stats.event_time
+                    ), 0)
+                  ))
                   FROM ${slashHistoryTable} sh
                   JOIN ${slashesTable} s ON s.id = sh.slash_id
                   JOIN ${restakesTable} r ON r.id = s.restake_id
@@ -180,15 +198,24 @@ export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
                   AND sh.created_at = all_events_with_stats.event_time
                 )
                 WHEN 'doubt_modified' THEN (
-                  SELECT FLOOR(rh.new_amount - COALESCE((
-                    SELECT sh.new_amount
-                    FROM ${slashHistoryTable} sh
-                    JOIN ${slashesTable} s ON s.id = sh.slash_id
-                    WHERE s.restake_id = r.id
-                    AND sh.created_at <= all_events_with_stats.event_time
-                    ORDER BY sh.created_at DESC
-                    LIMIT 1
-                  ), 0))
+                  SELECT FLOOR(rh.new_amount - GREATEST(
+                    COALESCE((
+                      SELECT sh.new_amount
+                      FROM ${slashHistoryTable} sh
+                      JOIN ${slashesTable} s ON s.id = sh.slash_id
+                      WHERE s.restake_id = r.id
+                      AND sh.created_at <= all_events_with_stats.event_time
+                      ORDER BY sh.created_at DESC
+                      LIMIT 1
+                    ), 0),
+                    COALESCE((
+                      SELECT SUM(d.amount)
+                      FROM ${doubtsTable} d
+                      WHERE d.point_id = r.point_id
+                      AND d.negation_id = r.negation_id
+                      AND d.created_at <= all_events_with_stats.event_time
+                    ), 0)
+                  ))
                   FROM ${doubtHistoryTable} dh
                   JOIN ${doubtsTable} d ON d.id = dh.doubt_id
                   JOIN ${restakesTable} r ON r.point_id = d.point_id
@@ -199,20 +226,24 @@ export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
                   LIMIT 1
                 )
                 ELSE (
-                  SELECT GREATEST(0, FLOOR(rh.new_amount - COALESCE((
-                    SELECT sh.new_amount
-                    FROM ${slashHistoryTable} sh
-                    JOIN ${slashesTable} s ON s.id = sh.slash_id
-                    WHERE s.restake_id = r.id
-                    AND sh.created_at <= all_events_with_stats.event_time
-                    ORDER BY sh.created_at DESC
-                    LIMIT 1
-                  ), 0) - COALESCE((
-                    SELECT SUM(d.amount)
-                    FROM ${doubtsTable} d
-                    WHERE d.point_id = r.point_id
-                    AND d.negation_id = r.negation_id
-                  ), 0)))
+                  SELECT GREATEST(0, FLOOR(rh.new_amount - GREATEST(
+                    COALESCE((
+                      SELECT sh.new_amount
+                      FROM ${slashHistoryTable} sh
+                      JOIN ${slashesTable} s ON s.id = sh.slash_id
+                      WHERE s.restake_id = r.id
+                      AND sh.created_at <= all_events_with_stats.event_time
+                      ORDER BY sh.created_at DESC
+                      LIMIT 1
+                    ), 0),
+                    COALESCE((
+                      SELECT SUM(d.amount)
+                      FROM ${doubtsTable} d
+                      WHERE d.point_id = r.point_id
+                      AND d.negation_id = r.negation_id
+                      AND d.created_at <= all_events_with_stats.event_time
+                    ), 0)
+                  )))
                   FROM ${restakeHistoryTable} rh
                   JOIN ${restakesTable} r ON r.id = rh.restake_id
                   WHERE r.point_id = all_events_with_stats.point_id
