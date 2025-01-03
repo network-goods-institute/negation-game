@@ -8,18 +8,23 @@ import { getUserId } from "./getUserId";
 export const fetchDoubtForRestake = async (pointId: number, negationId: number) => {
   const userId = await getUserId();
 
-  // Get both total amount and user's doubt in one query
+  // Get both total amount and user's doubts in one query
   const result = await db.select({
     totalAmount: sql<number>`COALESCE(SUM(${doubtsTable.amount}), 0)`,
-    userDoubtAmount: sql<number>`
-      COALESCE((
-        SELECT amount 
+    userDoubts: sql<{id: number, amount: number, createdAt: Date}[]>`
+      ARRAY(
+        SELECT json_build_object(
+          'id', d2.id,
+          'amount', d2.amount,
+          'createdAt', d2.created_at
+        )
         FROM ${doubtsTable} d2 
         WHERE d2.user_id = ${userId}
           AND d2.point_id = ${pointId}
           AND d2.negation_id = ${negationId}
           AND d2.amount > 0
-      ), 0)
+        ORDER BY d2.created_at DESC
+      )
     `,
     hasUserDoubt: sql<boolean>`
       EXISTS (
@@ -41,9 +46,12 @@ export const fetchDoubtForRestake = async (pointId: number, negationId: number) 
     )
   );
 
+  const userDoubts = result[0].userDoubts || [];
+  
   return {
     amount: Number(result[0].totalAmount),
-    userAmount: Number(result[0].userDoubtAmount),
+    userDoubts,
+    userAmount: userDoubts.reduce((sum, d) => sum + d.amount, 0),
     isUserDoubt: result[0].hasUserDoubt
   };
 }; 

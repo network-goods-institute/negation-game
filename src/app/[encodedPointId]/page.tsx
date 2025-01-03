@@ -421,7 +421,7 @@ export default function PointPage({
                       <PointCard
                         onNegate={(e) => {
                           e.preventDefault();
-                          user !== null ? setNegatedPoint({
+                          privyUser !== null ? setNegatedPoint({
                             id: negation.id,
                             content: negation.content,
                             createdAt: negation.createdAt,
@@ -443,21 +443,27 @@ export default function PointPage({
                           id: point.id
                         }}
                         negationId={point.id}
-                        onRestake={({openedFromSlashedIcon}) => setRestakePoint({
-                          point: {
-                            ...point,
-                            stakedAmount: point.cred,
-                            pointId: point.id,
-                            id: point.id
-                          },
-                          counterPoint: {
-                            ...negation,
-                            stakedAmount: negation.cred,
-                            pointId: negation.id,
-                            id: negation.id
-                          },
-                          openedFromSlashedIcon
-                        })}
+                        onRestake={({openedFromSlashedIcon}) => {
+                          if (privyUser === null) {
+                            login();
+                            return;
+                          }
+                          setRestakePoint({
+                            point: {
+                              ...point,
+                              stakedAmount: point.cred,
+                              pointId: point.id,
+                              id: point.id
+                            },
+                            counterPoint: {
+                              ...negation,
+                              stakedAmount: negation.cred,
+                              pointId: negation.id,
+                              id: negation.id
+                            },
+                            openedFromSlashedIcon
+                          });
+                        }}
                         restake={negation.restake}
                       />
                     </Link>
