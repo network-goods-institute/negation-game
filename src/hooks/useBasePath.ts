@@ -8,5 +8,5 @@ export const useBasePath = () => {
 
   const space = useMemo(() => getSpaceFromPathname(pathName), [pathName]);
 
-  return space ? spaceBasePath(space) : "/";
+  return space ? spaceBasePath(space) : "";
 };

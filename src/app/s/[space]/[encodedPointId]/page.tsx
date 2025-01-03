@@ -12,6 +12,7 @@ import { NegateIcon } from "@/components/icons/NegateIcon";
 import { NegateDialog } from "@/components/NegateDialog";
 import { PointCard } from "@/components/PointCard";
 import { PointStats } from "@/components/PointStats";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import {
@@ -21,7 +22,7 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { DEFAULT_TIMESCALE } from "@/constants/config";
+import { DEFAULT_SPACE, DEFAULT_TIMESCALE } from "@/constants/config";
 import { useBasePath } from "@/hooks/useBasePath";
 import { useCredInput } from "@/hooks/useCredInput";
 import { cn } from "@/lib/cn";
@@ -33,8 +34,10 @@ import { useEndorse } from "@/mutations/useEndorse";
 import { useCounterpointSuggestions } from "@/queries/useCounterpointSuggestions";
 import { useFavorHistory } from "@/queries/useFavorHistory";
 import { usePointNegations } from "@/queries/usePointNegations";
+import { useSpace } from "@/queries/useSpace";
 import { useUser } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
+import { AvatarImage } from "@radix-ui/react-avatar";
 import { useToggle } from "@uidotdev/usehooks";
 import { useAtom, useSetAtom } from "jotai";
 import { useAtomCallback } from "jotai/utils";
@@ -76,6 +79,7 @@ export default function PointPage({
   );
 
   const basePath = useBasePath();
+  const space = useSpace();
 
   const { mutateAsync: endorse } = useEndorse();
 
@@ -134,7 +138,7 @@ export default function PointPage({
         {point && (
           <div className="@container/point relative flex-grow bg-background">
             <div className="sticky top-0 z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <Button
                   variant={"link"}
                   size={"icon"}
@@ -145,13 +149,34 @@ export default function PointPage({
                       return;
                     }
 
-                    push(`${basePath}/${point.space}/`);
+                    push(`${basePath}/`);
                   }}
                 >
                   <ArrowLeftIcon />
                 </Button>
-                <DiscIcon className="shrink-0 size-6 text-muted-foreground stroke-1" />
-                <h1 className="text-xl font-medium">Point</h1>
+                {space?.data && space.data.id !== DEFAULT_SPACE ? (
+                  <>
+                    <Avatar className="border-4 border-background h-12 w-12">
+                      {space.data.icon && (
+                        <AvatarImage
+                          src={space.data.icon}
+                          alt={`s/${space.data.id} icon`}
+                        />
+                      )}
+                      <AvatarFallback className="text-xl font-bold text-muted-foreground">
+                        {space.data.id.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <h1 className="text-lg  font-semibold">
+                      s/{space.data.id}
+                    </h1>
+                  </>
+                ) : (
+                  <>
+                    <DiscIcon className="shrink-0 size-6 text-muted-foreground stroke-1" />
+                    <h1 className="text-xl font-medium">Point</h1>
+                  </>
+                )}
               </div>
               <div className="flex gap-sm items-center text-muted-foreground">
                 <Button
@@ -366,7 +391,7 @@ export default function PointPage({
                       }
                       draggable={false}
                       onClick={preventDefaultIfContainsSelection}
-                      href={`/${encodeId(negation.pointId)}`}
+                      href={`${basePath}/${encodeId(negation.pointId)}`}
                       key={negation.pointId}
                       className={cn(
                         "flex cursor-pointer  px-4 pt-5 pb-2 border-b hover:bg-accent data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
