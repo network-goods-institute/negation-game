@@ -1,0 +1,1 @@
+ALTER TYPE "public"."doubt_action" ADD VALUE 'reduced_by_slash';

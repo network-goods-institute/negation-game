@@ -16,7 +16,8 @@ import {
 
 export const doubtActionEnum = pgEnum("doubt_action", [
   "created",
-  "deactivated"
+  "deactivated",
+  "reduced_by_slash"
 ]);
 
 export const doubtsTable = pgTable(
