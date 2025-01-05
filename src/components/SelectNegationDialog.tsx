@@ -10,6 +10,8 @@ import { fetchPointNegations } from "@/actions/fetchPointNegations";
 import { PointStats } from "./PointStats";
 import { Loader } from "./ui/loader";
 import { NegationResult } from "@/actions/fetchPointNegations";
+import { fetchFavorHistory } from "@/actions/fetchFavorHistory";
+import { DEFAULT_TIMESCALE } from "@/constants/config";
 
 interface SelectNegationDialogProps extends DialogProps {
   originalPoint: {
@@ -42,6 +44,19 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
     enabled: open,
   });
 
+  const { data: favorHistory } = useQuery({
+    queryKey: ["favor-history", originalPoint.id, DEFAULT_TIMESCALE],
+    queryFn: () => fetchFavorHistory({ 
+      pointId: originalPoint.id, 
+      scale: DEFAULT_TIMESCALE 
+    }),
+    enabled: open,
+  });
+
+  const currentFavor = favorHistory?.length ? 
+    Math.floor(favorHistory[favorHistory.length - 1].favor) : 
+    50;
+
   return (
     <>
       <Dialog {...props} open={open && !restakeDialogOpen} onOpenChange={onOpenChange}>
@@ -58,7 +73,7 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
           <div className="space-y-2">
             <p className="text-lg font-medium">{originalPoint.content}</p>
             <span className="inline-flex px-3 py-1 rounded-full bg-endorsed/10 text-endorsed text-sm">
-              {originalPoint.favor ?? 50} favor
+              {currentFavor} favor
             </span>
           </div>
 
@@ -121,7 +136,8 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
             cred: originalPoint.stakedAmount,
             negationsCred: originalPoint.negationsCred || 0,
             amountSupporters: originalPoint.amountSupporters || 0,
-            amountNegations: originalPoint.amountNegations || 0
+            amountNegations: originalPoint.amountNegations || 0,
+            favor: currentFavor
           }}
           counterPoint={selectedNegation}
         />

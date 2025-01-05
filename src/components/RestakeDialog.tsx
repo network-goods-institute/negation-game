@@ -41,6 +41,7 @@ export interface RestakeDialogProps extends DialogProps {
     negationsCred: number;
     amountSupporters: number;
     amountNegations: number;
+    favor?: number;
     restake?: {
       id: number;
       amount: number;
