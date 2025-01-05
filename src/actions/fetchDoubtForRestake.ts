@@ -1,12 +1,31 @@
 "use server";
 
-import { doubtsTable } from "@/db/schema";
+import { doubtsTable, restakesTable } from "@/db/schema";
 import { db } from "@/services/db";
 import { and, eq, sql } from "drizzle-orm";
 import { getUserId } from "./getUserId";
 
 export const fetchDoubtForRestake = async (pointId: number, negationId: number) => {
   const userId = await getUserId();
+
+  // First check if there are any doubts at all
+  const doubtsExist = await db
+    .select()
+    .from(doubtsTable)
+    .where(
+      and(
+        eq(doubtsTable.pointId, pointId),
+        eq(doubtsTable.negationId, negationId),
+        sql`${doubtsTable.amount} > 0`
+      )
+    )
+    .limit(1);
+
+  // If no doubts exist at all, return null instead of zero values
+  if (doubtsExist.length === 0) {
+    console.log('[fetchDoubtForRestake] No doubts exist, returning null');
+    return null;
+  }
 
   // Get both total amount and user's doubts in one query
   const result = await db.select({
@@ -46,12 +65,15 @@ export const fetchDoubtForRestake = async (pointId: number, negationId: number) 
     )
   );
 
+
   const userDoubts = result[0].userDoubts || [];
   
-  return {
+  const response = {
     amount: Number(result[0].totalAmount),
     userDoubts,
     userAmount: userDoubts.reduce((sum, d) => sum + d.amount, 0),
     isUserDoubt: result[0].hasUserDoubt
   };
+
+  return response;
 }; 
