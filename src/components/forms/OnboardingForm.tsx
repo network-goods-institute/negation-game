@@ -14,22 +14,29 @@ import { Input } from "@/components/ui/input";
 import { USERNAME_MAX_LENGHT } from "@/constants/config";
 import { InsertUser, insertUserSchema } from "@/db/tables/usersTable";
 import { cn } from "@/lib/cn";
+import { useInitUser } from "@/mutations/useInitUser";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { usePrivy } from "@privy-io/react-auth";
 import { FC, HTMLAttributes } from "react";
-import { SubmitHandler, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { ZodIssueCode } from "zod";
 
 export interface OnboardingFormProps extends HTMLAttributes<HTMLFormElement> {
-  onValidSubmit: SubmitHandler<Pick<InsertUser, "username">>;
   onCancel: () => void;
 }
 
 export const OnboardingForm: FC<OnboardingFormProps> = ({
-  onValidSubmit,
   onCancel,
   className,
   ...props
 }) => {
+  const {
+    mutate: initUser,
+    isPending: isSubmitting,
+    isSuccess,
+  } = useInitUser();
+  const { user } = usePrivy();
+
   const form = useForm<Pick<InsertUser, "username">>({
     resolver: zodResolver(
       insertUserSchema
@@ -63,7 +70,7 @@ export const OnboardingForm: FC<OnboardingFormProps> = ({
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(onValidSubmit)}
+        onSubmit={form.handleSubmit(({ username }) => initUser({ username }))}
         className={cn("space-y-lg", className)}
         {...props}
       >
@@ -95,7 +102,12 @@ export const OnboardingForm: FC<OnboardingFormProps> = ({
         />
 
         <div className="flex flex-col md:flex-row-reverse md:gap-md pt-lg">
-          <Button type="submit" className="w-full md:w-fit">
+          <Button
+            type="submit"
+            className="w-full md:w-32"
+            disabled={isSubmitting || isSuccess}
+            rightLoading={isSubmitting}
+          >
             Submit
           </Button>
           <Button

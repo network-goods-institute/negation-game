@@ -1,4 +1,3 @@
-import { initUser } from "@/actions/initUser";
 import { OnboardingForm } from "@/components/forms/OnboardingForm";
 import {
   Dialog,
@@ -6,17 +5,15 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { userQueryKey } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { DialogProps } from "@radix-ui/react-dialog";
-import { useQueryClient } from "@tanstack/react-query";
 import { FC } from "react";
 
 export interface OnboardingDialogProps extends DialogProps {}
 
 export const OnboardingDialog: FC<OnboardingDialogProps> = ({ ...props }) => {
   const { logout } = usePrivy();
-  const queryClient = useQueryClient();
+
   return (
     <Dialog {...props}>
       <DialogContent className=" flex flex-col items-center justify-center overflow-auto  h-screen rounded-none sm:rounded-md sm:h-fit gap-0  bg-background  p-4 sm:p-10 shadow-sm sm:max-w-xl w-full">
@@ -24,15 +21,7 @@ export const OnboardingDialog: FC<OnboardingDialogProps> = ({ ...props }) => {
         <DialogDescription
           hidden
         >{`Let's set up your acount`}</DialogDescription>
-        <OnboardingForm
-          className=""
-          onCancel={logout}
-          onValidSubmit={({ username }) =>
-            initUser({ username }).then((user) => {
-              queryClient.setQueryData(userQueryKey(user.id), user);
-            })
-          }
-        />
+        <OnboardingForm onCancel={logout} />
       </DialogContent>
     </Dialog>
   );

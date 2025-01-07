@@ -45,7 +45,7 @@ export const insertUserSchema = createInsertSchema(usersTable, {
         `must be at most ${USERNAME_MAX_LENGHT} characters long`
       )
       .regex(
-        /[_a-zA-Z0-9]+/,
+        /^[_a-zA-Z0-9]+$/,
         "can only contain letters, numbers and underscores"
       )
       .regex(/^(?!_).*(?<!_)$/, "cannot start or end with an underscore"),
