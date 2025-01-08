@@ -124,6 +124,42 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   const [showReputationAnalysis, setShowReputationAnalysis] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const { data: negationFavorHistory } = useQuery({
+    queryKey: ["favor-history", counterPoint.id, timelineScale],
+    queryFn: () => fetchFavorHistory({ 
+      pointId: counterPoint.id, 
+      scale: timelineScale 
+    }),
+    enabled: open,
+  });
+
+  const { data: favorHistory, isLoading: isLoadingHistory } = useQuery({
+    queryKey: ["favor-history", originalPoint.id, timelineScale],
+    queryFn: () => fetchFavorHistory({ 
+      pointId: originalPoint.id, 
+      scale: timelineScale 
+    }),
+    enabled: open,
+  });
+
+  useEffect(() => {
+    if (!existingRestake?.isUserRestake) {
+      setIsSlashing(false);
+    }
+  }, [existingRestake?.isUserRestake]);
+
+  const currentlyStaked = existingRestake?.isUserRestake 
+  ? (existingRestake.effectiveAmount ?? 0)
+  : 0;
+
+  useEffect(() => {
+    if (!open) {
+      setStakedCred(currentlyStaked);
+      setShowSuccess(false);
+      setIsSlashing(false);
+    }
+  }, [open, currentlyStaked]);
+
   // User data and authentication
   const { data: userId, isLoading: isLoadingUserId } = useQuery({
     queryKey: ['userId'],
@@ -139,6 +175,11 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   // Derived state calculations
   const isUserRestake = useMemo(() => existingRestake?.userId === userId, [existingRestake?.userId, userId]);
 
+  // Get favor from restaking
+  const favorFromRestaking = useMemo(() => {
+    return existingRestake?.effectiveAmount || 0;
+  }, [existingRestake]);
+
   // Check if user can place a doubt
   const canDoubt = useMemo(() => {
     if (!openedFromSlashedIcon) return true; // Not in doubt mode
@@ -147,6 +188,71 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     if (!userId) return false; // No user logged in
     return true;
   }, [openedFromSlashedIcon, existingRestake?.totalRestakeAmount, userId, isLoadingUserId]);
+
+  const favorReduced = stakedCred;
+
+  const effectiveTotalRestaked = existingRestake?.effectiveAmount || 0;
+  const effectiveFavorFromRestaking = favorFromRestaking || 0;
+  const totalDoubt = stakedCred;
+
+  const hourlyRate = useMemo(() => {
+    if (!openedFromSlashedIcon || stakedCred === 0) return 0;
+    
+    // Base APY of 5%
+    const baseAPY = 0.05;
+    
+    // Get current favor of negation point
+    const negationFavor = favorHistory?.length 
+      ? favorHistory[favorHistory.length - 1].favor 
+      : 0;
+
+    // APY modulation: e^(ln(APY) + ln(current favor + 0.0001))
+    const modifiedAPY = Math.exp(
+      Math.log(baseAPY) + 
+      Math.log(negationFavor + 0.0001)
+    );
+
+    // hourly_rate = (APY * doubt_amount) / (365 * 24)
+    return (modifiedAPY * stakedCred) / (365 * 24);
+  }, [openedFromSlashedIcon, stakedCred, favorHistory]);
+
+  // Calculate daily and yearly earnings
+  const dailyEarnings = useMemo(() => {
+    return Math.round(hourlyRate * 24 * 100) / 100;
+  }, [hourlyRate]);
+
+  // Calculate APY
+  const apy = useMemo(() => {
+    if (stakedCred === 0) return 0;
+    
+    const negationFavor = negationFavorHistory?.length 
+      ? negationFavorHistory[negationFavorHistory.length - 1].favor 
+      : 0;
+
+    const modifiedAPY = Math.exp(
+      Math.log(0.05) + 
+      Math.log(negationFavor + 0.0001)
+    );
+
+    return Math.round(modifiedAPY * 100);
+  }, [stakedCred, negationFavorHistory]);
+
+  const resultingFavor = Math.max(0, effectiveFavorFromRestaking - favorReduced);
+
+  const paybackPeriod = useMemo(() => {
+    if (dailyEarnings === 0 || stakedCred === 0) return 0;
+    return Math.ceil(stakedCred / dailyEarnings);
+  }, [dailyEarnings, stakedCred]);
+
+  const isUserDoubt = useMemo(() => {
+    return existingDoubt?.isUserDoubt ?? false;
+  }, [existingDoubt?.isUserDoubt]);
+
+  const { data: reputationData } = useQuery({
+    queryKey: ['restaker-reputation', originalPoint.id, counterPoint.id],
+    queryFn: () => fetchRestakerReputation(originalPoint.id, counterPoint.id),
+    enabled: open
+  });
 
   // Loading state handler
   if (isLoadingUser) {
@@ -171,32 +277,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     : user?.cred ?? 0
   );
 
-  // Get favor from restaking
-  const favorFromRestaking = useMemo(() => {
-    return existingRestake?.effectiveAmount || 0;
-  }, [existingRestake]);
-
-  const { data: favorHistory, isLoading: isLoadingHistory } = useQuery({
-    queryKey: ["favor-history", originalPoint.id, timelineScale],
-    queryFn: () => fetchFavorHistory({ 
-      pointId: originalPoint.id, 
-      scale: timelineScale 
-    }),
-    enabled: open,
-  });
-
-  const { data: negationFavorHistory } = useQuery({
-    queryKey: ["favor-history", counterPoint.id, timelineScale],
-    queryFn: () => fetchFavorHistory({ 
-      pointId: counterPoint.id, 
-      scale: timelineScale 
-    }),
-    enabled: open,
-  });
-
-  const currentlyStaked = existingRestake?.isUserRestake 
-    ? (existingRestake.effectiveAmount ?? 0)
-    : 0;
   const newStakeAmount = stakedCred;
 
   const slashAmount = isSlashing ? Math.floor(currentlyStaked - newStakeAmount) : 0;
@@ -222,8 +302,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     setIsSlashing(openedFromSlashedIcon ? false : newStakedCred < currentlyStaked);
   }, [currentlyStaked, openedFromSlashedIcon, existingDoubt]);
 
-  const favorReduced = stakedCred;
-
   const favorImpact = openedFromSlashedIcon ? 
     favorReduced : // Doubting
     isSlashing ? 
@@ -246,14 +324,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
       isProjection: true
     }
   ] : [];
-
-  useEffect(() => {
-    if (!open) {
-      setStakedCred(currentlyStaked);
-      setShowSuccess(false);
-      setIsSlashing(false);
-    }
-  }, [open, currentlyStaked]);
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -311,107 +381,12 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     }
   };
 
-  const doubtApy = useMemo(() => {
-    if (!openedFromSlashedIcon) return 0;
-    return Math.floor((stakedCred / maxStakeAmount) * 100);
-  }, [openedFromSlashedIcon, stakedCred, maxStakeAmount]);
-
-  const mockRestakers: RestakerInfo[] = [
-    { address: "0x1234...5678", amount: 100, reputation: 85 },
-    { address: "0x8765...4321", amount: 50, reputation: 92 },
-    { address: "0x2468...1357", amount: 75, reputation: 78 },
-  ];
-
-  const aggregateReputation = useMemo(() => {
-    if (!openedFromSlashedIcon) return 0;
-    
-    const totalStaked = mockRestakers.reduce((sum, r) => sum + r.amount, 0);
-    const weightedRep = mockRestakers.reduce((sum, r) => 
-      sum + (r.reputation * r.amount / totalStaked), 0);
-    
-    return Math.round(weightedRep);
-  }, [openedFromSlashedIcon]);
-
-  const effectiveTotalRestaked = existingRestake?.effectiveAmount || 0;
-  const effectiveFavorFromRestaking = favorFromRestaking || 0;
-  const totalDoubt = stakedCred;
-
-  // New APY calculation based on actual formula
-  const hourlyRate = useMemo(() => {
-    if (!openedFromSlashedIcon || stakedCred === 0) return 0;
-    
-    // Base APY of 5%
-    const baseAPY = 0.05;
-    
-    // Get current favor of negation point
-    const negationFavor = favorHistory?.length 
-      ? favorHistory[favorHistory.length - 1].favor 
-      : 0;
-
-    // APY modulation: e^(ln(APY) + ln(current favor + 0.0001))
-    const modifiedAPY = Math.exp(
-      Math.log(baseAPY) + 
-      Math.log(negationFavor + 0.0001)
-    );
-
-    // hourly_rate = (APY * doubt_amount) / (365 * 24)
-    return (modifiedAPY * stakedCred) / (365 * 24);
-  }, [openedFromSlashedIcon, stakedCred, favorHistory]);
-
-  // Calculate daily and yearly earnings
-  const dailyEarnings = useMemo(() => {
-    return Math.round(hourlyRate * 24 * 100) / 100;
-  }, [hourlyRate]);
-
-  const yearlyEarnings = useMemo(() => {
-    return hourlyRate * 24 * 365;
-  }, [hourlyRate]);
-
-  // Calculate APY
-  const apy = useMemo(() => {
-    if (stakedCred === 0) return 0;
-    
-    const negationFavor = negationFavorHistory?.length 
-      ? negationFavorHistory[negationFavorHistory.length - 1].favor 
-      : 0;
-
-    const modifiedAPY = Math.exp(
-      Math.log(0.05) + 
-      Math.log(negationFavor + 0.0001)
-    );
-
-    return Math.round(modifiedAPY * 100);
-  }, [stakedCred, negationFavorHistory]);
-
-  const resultingFavor = Math.max(0, effectiveFavorFromRestaking - favorReduced);
-
-  const paybackPeriod = useMemo(() => {
-    if (dailyEarnings === 0 || stakedCred === 0) return 0;
-    return Math.ceil(stakedCred / dailyEarnings);
-  }, [dailyEarnings, stakedCred]);
-
-  const isUserDoubt = useMemo(() => {
-    return existingDoubt?.isUserDoubt ?? false;
-  }, [existingDoubt?.isUserDoubt]);
-
   // Add info message when hitting cred limit
   const showCredLimitMessage = stakedCred === user?.cred && stakedCred < (
     openedFromSlashedIcon 
       ? Math.min(originalPoint.stakedAmount || 0, Number(existingRestake?.totalRestakeAmount ?? 0))
       : originalPoint.viewerCred || 0
   );
-
-  useEffect(() => {
-    if (!existingRestake?.isUserRestake) {
-      setIsSlashing(false);
-    }
-  }, [existingRestake?.isUserRestake]);
-
-  const { data: reputationData } = useQuery({
-    queryKey: ['restaker-reputation', originalPoint.id, counterPoint.id],
-    queryFn: () => fetchRestakerReputation(originalPoint.id, counterPoint.id),
-    enabled: open
-  });
 
   if ((originalPoint.viewerCred || 0) === 0 && !openedFromSlashedIcon) {
     return (
