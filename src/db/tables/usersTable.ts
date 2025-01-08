@@ -1,4 +1,8 @@
-import { USERNAME_MAX_LENGHT, USERNAME_MIN_LENGHT } from "@/constants/config";
+import {
+  USER_INITIAL_CRED,
+  USERNAME_MAX_LENGHT,
+  USERNAME_MIN_LENGHT,
+} from "@/constants/config";
 import { InferColumnsDataTypes, sql } from "drizzle-orm";
 import {
   check,
@@ -14,7 +18,7 @@ export const usersTable = pgTable(
   {
     id: varchar("id").primaryKey(),
     username: varchar("username").notNull(),
-    cred: integer("cred").notNull().default(200),
+    cred: integer("cred").notNull().default(USER_INITIAL_CRED),
   },
   (table) => ({
     noNegativeCred: check("noNegativeCred", sql`${table.cred} >= 0`),
