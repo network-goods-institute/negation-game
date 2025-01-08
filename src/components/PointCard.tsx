@@ -98,7 +98,8 @@ export const PointCard = ({
   const { data: existingDoubt } = useQuery({
     queryKey: ['doubt', parentPoint?.id, pointId],
     queryFn: () => parentPoint?.id ? fetchDoubtForRestake(parentPoint.id, pointId) : null,
-    enabled: !!parentPoint?.id && !!pointId
+    enabled: !!parentPoint?.id && !!pointId,
+    staleTime: 1000 * 60 * 5 // 5 minutes
   });
 
   const doubtPercentage = useMemo(() => {

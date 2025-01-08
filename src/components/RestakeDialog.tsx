@@ -94,6 +94,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   openedFromSlashedIcon,
   ...props
 }) => {
+  // Core data fetching hooks
   const { data: existingRestake } = useQuery<RestakeResponse | null>({
     queryKey: ['restake', originalPoint.id, counterPoint.id],
     queryFn: () => fetchRestakeForPoints(originalPoint.id, counterPoint.id)
@@ -101,75 +102,15 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
   const { data: existingDoubt } = useQuery({
     queryKey: ['doubt', originalPoint.id, counterPoint.id],
-    queryFn: () => fetchDoubtForRestake(
-      originalPoint.id, 
-      counterPoint.id
-    ),
+    queryFn: () => fetchDoubtForRestake(originalPoint.id, counterPoint.id),
     enabled: !!originalPoint.id && !!counterPoint.id
   });
 
+  // State management hooks
   const [stakedCred, setStakedCred] = useState(0);
-
-  const { data: userId, isLoading: isLoadingUserId } = useQuery({
-    queryKey: ['userId'],
-    queryFn: getUserId
-  });
-
-  const isUserRestake = existingRestake?.userId === userId;
-
-  useEffect(() => {
-    if (openedFromSlashedIcon) {
-      setStakedCred(existingDoubt?.isUserDoubt ? existingDoubt.userAmount : 0);
-    } else if (existingRestake?.isUserRestake) {
-      setStakedCred(existingRestake.effectiveAmount ?? 0);
-    } else {
-      setStakedCred(0);
-    }
-  }, [existingDoubt, existingRestake, openedFromSlashedIcon]);
-
-  const canDoubt = useMemo(() => {
-    if (!openedFromSlashedIcon) return true; // Not in doubt mode
-    if (isLoadingUserId) return false; // Still loading user
-    if (!existingRestake?.totalRestakeAmount) return false; // No active restakes to doubt
-    if (!userId) return false; // No user logged in
-    return true;
-  }, [openedFromSlashedIcon, existingRestake?.totalRestakeAmount, userId, isLoadingUserId]);
-
-  const { data: user, isLoading: isLoadingUser } = useUser();
-
-  if (isLoadingUser) {
-    return (
-      <Dialog {...props} open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="flex items-center justify-center p-6">
-          <Loader className="size-6" />
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  const maxStakeAmount = Math.floor(openedFromSlashedIcon 
-    ? canDoubt 
-      ? Math.min(
-          originalPoint.stakedAmount || 0,
-          existingRestake?.totalRestakeAmount ?? 0,
-          user?.cred ?? 0
-        )
-      : 0
-    : user?.cred ?? 0
-  );
-
-  // Get favor from restaking from localStorage
-  const favorFromRestaking = useMemo(() => {
-    return existingRestake?.effectiveAmount || 0;
-  }, [existingRestake]);
-
   const [isSlashing, setIsSlashing] = useState(false);
   const [timelineScale, setTimelineScale] = useState<TimelineScale>(DEFAULT_TIMESCALE);
   const [endorsePopoverOpen, toggleEndorsePopoverOpen] = useToggle(false);
-  const { cred, setCred, notEnoughCred } = useCredInput({
-    resetWhen: !endorsePopoverOpen,
-  });
-  const queryClient = useQueryClient();
   const [showSuccess, setShowSuccess] = useState(false);
   const [submittedValues, setSubmittedValues] = useState<{
     slashAmount: number;
@@ -181,6 +122,59 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     isSlashing: boolean;
   } | null>(null);
   const [showReputationAnalysis, setShowReputationAnalysis] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // User data and authentication
+  const { data: userId, isLoading: isLoadingUserId } = useQuery({
+    queryKey: ['userId'],
+    queryFn: getUserId
+  });
+
+  const { data: user, isLoading: isLoadingUser } = useUser();
+  const queryClient = useQueryClient();
+  const { cred, setCred, notEnoughCred } = useCredInput({
+    resetWhen: !endorsePopoverOpen,
+  });
+
+  // Derived state calculations
+  const isUserRestake = useMemo(() => existingRestake?.userId === userId, [existingRestake?.userId, userId]);
+
+  // Check if user can place a doubt
+  const canDoubt = useMemo(() => {
+    if (!openedFromSlashedIcon) return true; // Not in doubt mode
+    if (isLoadingUserId) return false; // Still loading user
+    if (!existingRestake?.totalRestakeAmount) return false; // No active restakes to doubt
+    if (!userId) return false; // No user logged in
+    return true;
+  }, [openedFromSlashedIcon, existingRestake?.totalRestakeAmount, userId, isLoadingUserId]);
+
+  // Loading state handler
+  if (isLoadingUser) {
+    return (
+      <Dialog {...props} open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="flex items-center justify-center p-6">
+          <Loader className="size-6" />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Calculate maximum stake amount based on mode and constraints
+  const maxStakeAmount = Math.floor(openedFromSlashedIcon 
+    ? canDoubt 
+      ? Math.min(
+          originalPoint.stakedAmount || 0,
+          existingRestake?.totalRestakeAmount ?? 0,
+          user?.cred ?? 0
+        )
+      : 0
+    : user?.cred ?? 0
+  );
+
+  // Get favor from restaking
+  const favorFromRestaking = useMemo(() => {
+    return existingRestake?.effectiveAmount || 0;
+  }, [existingRestake]);
 
   const { data: favorHistory, isLoading: isLoadingHistory } = useQuery({
     queryKey: ["favor-history", originalPoint.id, timelineScale],
@@ -253,7 +247,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     }
   ] : [];
 
-  // Reset states when dialog closes
   useEffect(() => {
     if (!open) {
       setStakedCred(currentlyStaked);
@@ -261,8 +254,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
       setIsSlashing(false);
     }
   }, [open, currentlyStaked]);
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -312,8 +303,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
       
       setShowSuccess(true);
     } catch (error) {
-      console.error("Error in handleSubmit:", error);
-      // If error, rollback the optimistic update
       queryClient.invalidateQueries({
         queryKey: ['restake', originalPoint.id, counterPoint.id]
       });
@@ -324,8 +313,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
   const doubtApy = useMemo(() => {
     if (!openedFromSlashedIcon) return 0;
-    // Calculate APY based on staked amount
-    // This is a placeholder calculation - we need to implement actual APY logic
     return Math.floor((stakedCred / maxStakeAmount) * 100);
   }, [openedFromSlashedIcon, stakedCred, maxStakeAmount]);
 
@@ -837,7 +824,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                   </div>
                 )}
 
-                {/* Reputation Row - Full width */}
+                {/* Reputation Section */}
                 <div 
                   className="flex items-center justify-between p-3 bg-muted/40 rounded-lg cursor-pointer hover:bg-muted/60"
                   onClick={() => setShowReputationAnalysis(true)}
@@ -851,7 +838,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
               </div>
             )}
 
-            {/* Timeline Controls */}
+            {/* Timeline */}
             <div className="flex justify-between items-center pb-2">
               <ToggleGroup
                 type="single"
@@ -877,7 +864,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
               />
             </div>
 
-            {/* Graph Section */}
+            {/* Graph */}
             <div className="w-full h-32 relative bg-background">
               {isLoadingHistory ? (
                 <Loader className="absolute left-0 right-0 mx-auto top-[20px]" />
@@ -977,7 +964,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
               </div>
             )}
 
-            {/* Add after the existing warnings */}
             {!openedFromSlashedIcon && isSlashing && (existingDoubt?.amount ?? 0) > 0 && (
               <div className="flex items-center gap-2 text-sm bg-yellow-500 dark:bg-yellow-500/90 text-black dark:text-white rounded-md p-3">
                 <InfoIcon className="size-4 shrink-0" />
@@ -1010,7 +996,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                 `You would relinquish ${stakeAmount} cred if you learned...`
               )}
             </p>
-
             {/* Credibility Section with Date */}
             <div className="p-4 rounded-lg border border-dashed border-border hover:bg-muted cursor-pointer">
               <p className="text-base">{counterPoint.content}</p>
@@ -1037,7 +1022,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
             )}
           </div>
         </div>
-
+        
         {/* Footer */}
         <div className={cn(
           "shrink-0", // Prevent shrinking
