@@ -124,6 +124,12 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   const [showReputationAnalysis, setShowReputationAnalysis] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Derived values
+  const currentlyStaked = existingRestake?.isUserRestake 
+    ? (existingRestake.effectiveAmount ?? 0)
+    : 0;
+  console.log('currentlyStaked:', currentlyStaked, 'existingRestake:', existingRestake);
+
   const { data: negationFavorHistory } = useQuery({
     queryKey: ["favor-history", counterPoint.id, timelineScale],
     queryFn: () => fetchFavorHistory({ 
@@ -148,9 +154,16 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     }
   }, [existingRestake?.isUserRestake]);
 
-  const currentlyStaked = existingRestake?.isUserRestake 
-  ? (existingRestake.effectiveAmount ?? 0)
-  : 0;
+  // Set initial stakedCred when dialog opens
+  useEffect(() => {
+    if (open) {
+      setStakedCred(
+        openedFromSlashedIcon 
+          ? (existingDoubt?.userAmount ?? 0)  // Use existing doubt amount if it exists
+          : currentlyStaked
+      );
+    }
+  }, [open, currentlyStaked, openedFromSlashedIcon, existingDoubt?.userAmount]);
 
   useEffect(() => {
     if (!open) {
@@ -229,6 +242,15 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
       ? negationFavorHistory[negationFavorHistory.length - 1].favor 
       : 0;
 
+    console.log('APY calculation:', {
+      stakedCred,
+      negationFavor,
+      baseAPY: 0.05,
+      logBaseAPY: Math.log(0.05),
+      logNegationFavor: Math.log(negationFavor + 0.0001),
+      modifiedAPY: Math.exp(Math.log(0.05) + Math.log(negationFavor + 0.0001))
+    });
+
     const modifiedAPY = Math.exp(
       Math.log(0.05) + 
       Math.log(negationFavor + 0.0001)
@@ -254,6 +276,17 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     enabled: open
   });
 
+  const handleSliderChange = useCallback((values: number[]) => {
+    // If in doubt mode and user has their own doubt, don't allow changes
+    if (openedFromSlashedIcon && existingDoubt?.isUserDoubt) {
+      return;
+    }
+    
+    const newStakedCred = Math.floor(values[0]);
+    setStakedCred(newStakedCred);
+    setIsSlashing(openedFromSlashedIcon ? false : newStakedCred < currentlyStaked);
+  }, [currentlyStaked, openedFromSlashedIcon, existingDoubt]);
+
   // Loading state handler
   if (isLoadingUser) {
     return (
@@ -274,7 +307,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           user?.cred ?? 0
         )
       : 0
-    : user?.cred ?? 0
+    : (user?.cred ?? 0) + (currentlyStaked) // Add current stake to available cred
   );
 
   const newStakeAmount = stakedCred;
@@ -291,17 +324,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   // Get the current favor from the last data point
   const currentFavor = favorHistory?.length ? favorHistory[favorHistory.length - 1].favor : 50;
   
-  const handleSliderChange = useCallback((values: number[]) => {
-    // If in doubt mode and user has their own doubt with amount > 0, don't allow changes
-    if (openedFromSlashedIcon && existingDoubt?.isUserDoubt && existingDoubt.userAmount > 0) {
-      return;
-    }
-    
-    const newStakedCred = Math.floor(values[0]);
-    setStakedCred(newStakedCred);
-    setIsSlashing(openedFromSlashedIcon ? false : newStakedCred < currentlyStaked);
-  }, [currentlyStaked, openedFromSlashedIcon, existingDoubt]);
-
   const favorImpact = openedFromSlashedIcon ? 
     favorReduced : // Doubting
     isSlashing ? 
@@ -632,6 +654,9 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
       </Dialog>
     );
   }
+
+  // Log when component renders
+  console.log('RestakeDialog render - stakedCred:', stakedCred, 'currentlyStaked:', currentlyStaked);
 
   return (
     <Dialog {...props} open={open} onOpenChange={onOpenChange}>

@@ -32,14 +32,6 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
     .limit(1)
     .then(rows => rows[0]);
 
-  // Deduct cred from user
-  await db
-    .update(usersTable)
-    .set({
-      cred: sql`${usersTable.cred} - ${amount}`,
-    })
-    .where(eq(usersTable.id, userId));
-
   if (existingRestake) {
     // Update existing restake
     const action = amount > existingRestake.amount 
@@ -47,6 +39,17 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
       : amount < existingRestake.amount 
         ? "decreased" 
         : "deactivated";
+
+    // Only deduct/refund the difference
+    const credDelta = amount - existingRestake.amount;
+    
+    // Deduct cred from user
+    await db
+      .update(usersTable)
+      .set({
+        cred: sql`${usersTable.cred} - ${credDelta}`,
+      })
+      .where(eq(usersTable.id, userId));
 
     await db.transaction(async (tx) => {
       // Always set any existing slash to 0 when modifying restakes

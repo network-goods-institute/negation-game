@@ -92,7 +92,7 @@ export const PointCard = ({
 
   const restakePercentage = useMemo(() => {
     if (!isNegation || !parentPoint || !restake?.amount) return 0;
-    return Math.round((restake.amount / (parentPoint.viewerCred || 1)) * 100);
+    return Math.round((restake.amount / ((restake.amount + (parentPoint.viewerCred || 0)) || 1)) * 100);
   }, [isNegation, parentPoint, restake]);
 
   const { data: existingDoubt } = useQuery({
