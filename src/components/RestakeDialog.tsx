@@ -307,7 +307,10 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           user?.cred ?? 0
         )
       : 0
-    : (user?.cred ?? 0) + (currentlyStaked) // Add current stake to available cred
+    : Math.min(
+        (user?.cred ?? 0) + (currentlyStaked), // Available cred + current stake
+        originalPoint.viewerCred ?? 0 // Limited by endorsement on parent point
+      )
   );
 
   const newStakeAmount = stakedCred;
