@@ -14,12 +14,31 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@radix-ui/react-dropdown-menu";
-import { LoaderCircleIcon } from "lucide-react";
+import { LoaderCircleIcon, CoinsIcon } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { collectEarnings } from "@/actions/collectEarnings";
+import { EarningsDialog } from "@/components/EarningsDialog";
 
 export const ConnectButton = () => {
   const { login, logout, user: privyUser } = usePrivy();
-
   const { data: user, isLoading } = useUser();
+  const queryClient = useQueryClient();
+  const [isCollecting, setIsCollecting] = useState(false);
+  const [collectedAmount, setCollectedAmount] = useState<number | null>(null);
+
+  const handleCollectEarnings = async () => {
+    if (!user || isCollecting) return;
+    
+    setIsCollecting(true);
+    try {
+      const collected = await collectEarnings();
+      await queryClient.invalidateQueries({ queryKey: ['user'] });
+      setCollectedAmount(collected);
+    } finally {
+      setIsCollecting(false);
+    }
+  };
 
   if (!privyUser)
     return (
@@ -57,24 +76,43 @@ export const ConnectButton = () => {
 
   if (user)
     return (
-      <DropdownMenu modal={false}>
-        <DropdownMenuTrigger asChild>
-          <Button variant={"outline"} key="connect" className="w-36">
-            <p className="overflow-clip max-w-full">{user.username}</p>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="end"
-          sideOffset={8}
-          className="bg-background border rounded-sm p-md text-sm w-48 shadow-md"
-        >
-          <DropdownMenuLabel>My Account</DropdownMenuLabel>
-          <DropdownMenuLabel className="font-normal text-muted-foreground">
-            {user.cred} cred
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={logout}>Sign out</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <>
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <Button variant={"outline"} key="connect" className="w-36">
+              <p className="overflow-clip max-w-full">{user.username}</p>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            sideOffset={8}
+            className="bg-background border rounded-sm p-md text-sm w-48 shadow-md"
+          >
+            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuLabel className="font-normal text-muted-foreground">
+              {user.cred} cred
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onClick={handleCollectEarnings}
+              disabled={isCollecting}
+              className="gap-2"
+            >
+              {isCollecting ? (
+                <LoaderCircleIcon className="size-4 animate-spin" />
+              ) : (
+                <CoinsIcon className="size-4" />
+              )}
+              Collect Earnings
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={logout}>Sign out</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <EarningsDialog 
+          open={collectedAmount !== null}
+          onOpenChange={(open) => !open && setCollectedAmount(null)}
+        />
+      </>
     );
 };

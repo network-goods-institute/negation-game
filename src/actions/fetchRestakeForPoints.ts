@@ -58,19 +58,21 @@ export const fetchRestakeForPoints = async (pointId: number, negationId: number)
       effectiveRestakesView.userId
     );
 
-  if (restakes.length === 0) {
-    return null;
-  }
-
-  // Find the user's restake if it exists
+  // Find user's restake
   const userRestake = restakes.find(r => r.userId === userId);
+  
+  // Calculate total restake amount from all active restakes
+  const totalRestakeAmount = restakes.reduce((sum, r) => sum + Number(r.effectiveAmount), 0);
 
-  // Return user's restake if found, otherwise return first restake but with total amount
-  const result = userRestake ?? {
-    ...restakes[0],
-    effectiveAmount: restakes[0].totalRestakeAmount,
-    totalRestakeAmount: restakes[0].totalRestakeAmount
-  };
-
-  return result;
+  // Return either user's restake with total amount info, or just total amount info
+  return userRestake 
+    ? {
+        ...userRestake,
+        totalRestakeAmount,
+        isUserRestake: true
+      }
+    : {
+        totalRestakeAmount,
+        isUserRestake: false
+      };
 }; 

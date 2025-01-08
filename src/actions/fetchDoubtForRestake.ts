@@ -23,7 +23,6 @@ export const fetchDoubtForRestake = async (pointId: number, negationId: number) 
 
   // If no doubts exist at all, return null instead of zero values
   if (doubtsExist.length === 0) {
-    console.log('[fetchDoubtForRestake] No doubts exist, returning null');
     return null;
   }
 

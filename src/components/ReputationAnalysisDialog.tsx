@@ -2,17 +2,12 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { InfoIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-
-type RestakerInfo = {
-  address: string;
-  amount: number;
-  reputation: number;
-};
+import type { RestakerReputation } from "@/actions/fetchRestakerReputation";
 
 interface ReputationAnalysisDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  restakers: RestakerInfo[];
+  restakers: RestakerReputation[];
   aggregateReputation: number;
 }
 
@@ -52,13 +47,13 @@ export const ReputationAnalysisDialog = ({
           <div className="space-y-4">
             <h3 className="font-medium">Current Restakers</h3>
             <div className="space-y-3">
-              {restakers.map((restaker, i) => (
+              {restakers.map((restaker) => (
                 <div 
-                  key={i} 
+                  key={restaker.userId} 
                   className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors"
                 >
                   <div className="space-y-1">
-                    <p className="font-medium">{restaker.address}</p>
+                    <p className="font-medium">{restaker.userId}</p>
                     <p className="text-sm text-muted-foreground">
                       {restaker.amount} cred staked
                     </p>
