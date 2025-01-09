@@ -2,8 +2,8 @@
 
 import { getUserId } from "@/actions/getUserId";
 import { db } from "@/services/db";
-import { and, eq, sql } from "drizzle-orm";
-import { doubtsTable, endorsementsTable, restakesTable } from "@/db/schema";
+import { and, eq, sql, desc } from "drizzle-orm";
+import { doubtsTable, endorsementsTable, restakesTable, usersTable } from "@/db/schema";
 
 const calculateEarnings = (userId: string) => {
   return db
@@ -74,20 +74,27 @@ export const collectEarnings = async () => {
 
   return await db.transaction(async (tx) => {
     const earningsQuery = await calculateEarnings(userId);
+    console.log('Initial earnings query:', earningsQuery);
 
     let totalEarnings = 0;
 
     for (const doubt of earningsQuery) {
       const rawEarnings = doubt.hourly_rate * doubt.hours_since_payout;
-      const earnings = Math.floor(Math.min(rawEarnings, doubt.available_endorsement)); // Floor for actual collection
+      const earnings = Math.floor(Math.min(rawEarnings, doubt.available_endorsement));
+      console.log('Processing doubt:', {
+        doubtId: doubt.doubt_id,
+        rawEarnings,
+        earnings,
+        hourlyRate: doubt.hourly_rate,
+        hoursSinceLastPayout: doubt.hours_since_payout,
+        availableEndorsement: doubt.available_endorsement
+      });
       
       if (earnings > 0) { 
-        // Get restakers' endorsements to deduct proportionally
         const restakersEndorsements = await tx
           .select({
             user_id: endorsementsTable.userId,
-            cred: endorsementsTable.cred,
-            total: sql<number>`SUM(${endorsementsTable.cred}) OVER()`
+            total_cred: sql<number>`SUM(${endorsementsTable.cred})`,
           })
           .from(endorsementsTable)
           .where(and(
@@ -100,36 +107,106 @@ export const collectEarnings = async () => {
               AND negation_id = ${doubt.negation_id}
               AND created_at <= ${sql.raw(`'${doubt.createdAt.toISOString()}'`)}
             )`
-          ));
+          ))
+          .groupBy(endorsementsTable.userId);
 
-        // Deduct proportionally from each restaker's endorsement
+        console.log('Found restakers endorsements:', restakersEndorsements);
+
+        let actuallyCollected = 0;
+        let remainingEarnings = earnings;
+
         for (const endorsement of restakersEndorsements) {
-          const proportion = endorsement.cred / endorsement.total;
-          const deduction = earnings * proportion;
+          const proportion = endorsement.total_cred / doubt.available_endorsement;
+          const deduction = endorsement === restakersEndorsements[restakersEndorsements.length - 1]
+            ? remainingEarnings
+            : Math.floor(earnings * proportion);
 
-          await tx
-            .update(endorsementsTable)
-            .set({ 
-              cred: sql`GREATEST(cred - ${deduction}, 0)`
-            })
-            .where(and(
-              eq(endorsementsTable.pointId, doubt.point_id),
-              eq(endorsementsTable.userId, endorsement.user_id),
-              sql`created_at <= ${sql.raw(`'${doubt.createdAt.toISOString()}'`)}`
-            ));
+          console.log('Processing endorsement:', {
+            userId: endorsement.user_id,
+            totalCred: endorsement.total_cred,
+            proportion,
+            deduction,
+            remainingEarnings
+          });
+
+          if (deduction > 0) {
+            const userEndorsements = await tx
+              .select()
+              .from(endorsementsTable)
+              .where(and(
+                eq(endorsementsTable.pointId, doubt.point_id),
+                eq(endorsementsTable.userId, endorsement.user_id),
+                sql`${endorsementsTable.createdAt} <= ${sql.raw(`'${doubt.createdAt.toISOString()}'`)}`
+              ))
+              .orderBy(desc(endorsementsTable.cred));
+
+            console.log('User endorsements found:', userEndorsements);
+
+            let remainingDeduction = deduction;
+            for (const e of userEndorsements) {
+              const toDeduct = Math.min(remainingDeduction, e.cred);
+              console.log('Deducting from endorsement:', {
+                endorsementId: e.id,
+                currentCred: e.cred,
+                toDeduct,
+                remainingDeduction
+              });
+
+              if (toDeduct > 0) {
+                await tx
+                  .update(endorsementsTable)
+                  .set({ 
+                    cred: e.cred - toDeduct
+                  })
+                  .where(and(
+                    eq(endorsementsTable.pointId, doubt.point_id),
+                    eq(endorsementsTable.id, e.id)
+                  ));
+                remainingDeduction -= toDeduct;
+                actuallyCollected += toDeduct;
+                remainingEarnings -= toDeduct;
+                console.log('After deduction:', {
+                  remainingDeduction,
+                  actuallyCollected
+                });
+              }
+              if (remainingDeduction <= 0) break;
+            }
+          }
         }
 
-        await tx
-          .update(doubtsTable)
-          .set({ 
-            lastEarningsAt: sql`NOW()`
-          })
-          .where(eq(doubtsTable.id, doubt.doubt_id));
+        console.log('Finished processing doubt:', {
+          doubtId: doubt.doubt_id,
+          actuallyCollected,
+          totalEarnings
+        });
 
-        totalEarnings += earnings;
+        if (actuallyCollected > 0) {
+          await tx
+            .update(doubtsTable)
+            .set({ 
+              lastEarningsAt: sql`NOW()`
+            })
+            .where(eq(doubtsTable.id, doubt.doubt_id));
+
+          await tx
+            .update(usersTable)
+            .set({
+              cred: sql`${usersTable.cred} + ${actuallyCollected}`
+            })
+            .where(eq(usersTable.id, userId));
+
+          totalEarnings += actuallyCollected;
+          console.log('Updated last earnings at and total:', {
+            doubtId: doubt.doubt_id,
+            totalEarnings,
+            addedToUser: actuallyCollected
+          });
+        }
       }
     }
 
+    console.log('Final total earnings:', totalEarnings);
     return totalEarnings;
   });
 }; 

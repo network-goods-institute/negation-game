@@ -6,6 +6,7 @@ import { CoinsIcon, Check, Loader2 } from "lucide-react";
 import { DialogProps } from "@radix-ui/react-dialog";
 import { FC, useState, useEffect } from "react";
 import { previewEarnings, collectEarnings } from "@/actions/collectEarnings";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface EarningsDialogProps extends DialogProps {
   onOpenChange: (open: boolean) => void;
@@ -16,29 +17,59 @@ export const EarningsDialog: FC<EarningsDialogProps> = ({
   onOpenChange,
   ...props
 }) => {
+  const [isLoading, setIsLoading] = useState(true);
   const [isCollecting, setIsCollecting] = useState(false);
   const [collected, setCollected] = useState(false);
   const [amount, setAmount] = useState(0);
   const [previewAmount, setPreviewAmount] = useState(0);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (open) {
-      previewEarnings().then(setPreviewAmount);
+      setIsLoading(true);
+      previewEarnings()
+        .then(setPreviewAmount)
+        .finally(() => setIsLoading(false));
     }
   }, [open]);
 
   const handleCollect = async () => {
     setIsCollecting(true);
-    const earnings = await collectEarnings();
-    setAmount(earnings);
-    setCollected(true);
-    setIsCollecting(false);
+    try {
+      const earnings = await collectEarnings();
+      await queryClient.invalidateQueries({ queryKey: ['user'] });
+      setAmount(earnings);
+      setCollected(true);
+    } finally {
+      setIsCollecting(false);
+    }
   };
 
   const handleClose = () => {
-    setCollected(false);
     onOpenChange(false);
   };
+
+  useEffect(() => {
+    if (!open) {
+      setTimeout(() => {
+        setCollected(false);
+        setAmount(0);
+        setPreviewAmount(0);
+        setIsCollecting(false);
+      }, 200);
+    }
+  }, [open]);
+
+  if (isLoading) {
+    return (
+      <Dialog {...props} open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="flex flex-col items-center justify-center gap-4 p-6">
+          <div className="h-12 w-12 rounded-full border-4 border-t-endorsed animate-spin" />
+          <DialogTitle>Loading earnings...</DialogTitle>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog {...props} open={open} onOpenChange={onOpenChange}>
@@ -52,11 +83,14 @@ export const EarningsDialog: FC<EarningsDialogProps> = ({
             <div className="space-y-2">
               <DialogTitle className="text-xl">Collect Earnings</DialogTitle>
               <div className="flex items-center justify-center gap-2 text-lg">
-                <CoinsIcon className="size-5" />
                 <span>
-                  {previewAmount.toFixed(4)} <span className="text-muted-foreground">cred available</span>
+                  <span className="text-endorsed">{previewAmount.toFixed(4)}</span>
+                  <span className="text-muted-foreground ml-2">cred available</span>
                 </span>
               </div>
+              <p className="text-sm text-muted-foreground">
+                (Actual amount may be lower due to rounding)
+              </p>
             </div>
 
             <Button 
@@ -65,7 +99,10 @@ export const EarningsDialog: FC<EarningsDialogProps> = ({
               disabled={isCollecting || Math.floor(previewAmount) === 0}
             >
               {isCollecting ? (
-                <Loader2 className="size-4 mr-2 animate-spin" />
+                <>
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                  Collecting...
+                </>
               ) : Math.floor(previewAmount) === 0 ? (
                 "Not enough to collect yet"
               ) : (
@@ -82,9 +119,9 @@ export const EarningsDialog: FC<EarningsDialogProps> = ({
             <div className="space-y-2">
               <DialogTitle className="text-xl">Earnings Collected!</DialogTitle>
               <div className="flex items-center justify-center gap-2 text-lg">
-                <CoinsIcon className="size-5" />
                 <span>
-                  {amount} <span className="text-muted-foreground">cred</span>
+                  <span className="text-endorsed">{amount}</span>
+                  <span className="text-muted-foreground ml-2">cred</span>
                 </span>
               </div>
             </div>
