@@ -259,8 +259,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
           {counterpointWasReviewed && !reviewIsStale ? (
             <div className="items-end mt-md flex flex-col w-full xs:flex-row justify-end gap-2">
               <Button
-                variant="outline"
-                className="min-w-28 w-full xs:w-fit text-primary hover:text-primary hover:bg-accent/20"
+                className="min-w-28 w-full xs:w-fit"
                 rightLoading={
                   isReviewingCounterpoint ||
                   isNegating ||
