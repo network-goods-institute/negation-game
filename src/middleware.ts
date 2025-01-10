@@ -1,3 +1,5 @@
+// can be safely removed after a while
+
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
