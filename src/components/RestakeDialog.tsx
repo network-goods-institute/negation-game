@@ -123,6 +123,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   } | null>(null);
   const [showReputationAnalysis, setShowReputationAnalysis] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [endorsementReduced, setEndorsementReduced] = useState(false);
 
   // Derived values
   const currentlyStaked = existingRestake?.isUserRestake 
@@ -304,18 +305,24 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
       ? Math.min(
           originalPoint.stakedAmount || 0,
           existingRestake?.totalRestakeAmount ?? 0,
-          user?.cred ?? 0
+          user?.cred ?? 0,
+          originalPoint.viewerCred ?? 0
         )
       : 0
     : Math.min(
-        (user?.cred ?? 0) + (currentlyStaked), // Available cred + current stake
-        originalPoint.viewerCred ?? 0 // Limited by endorsement on parent point
+        (user?.cred ?? 0) + (currentlyStaked), 
+        originalPoint.viewerCred ?? 0
       )
   );
 
   const newStakeAmount = stakedCred;
 
-  const slashAmount = isSlashing ? Math.floor(currentlyStaked - newStakeAmount) : 0;
+  const slashAmount = isSlashing ? 
+    Math.min(
+      Math.floor(currentlyStaked - newStakeAmount),
+      originalPoint.viewerCred ?? 0  // Cap slash at current endorsement
+    ) : 0;
+
   const stakeAmount = isSlashing ? 0 : Math.floor(newStakeAmount);
   
   // Calculate the delta between new stake and current stake
@@ -412,6 +419,16 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
       ? Math.min(originalPoint.stakedAmount || 0, Number(existingRestake?.totalRestakeAmount ?? 0))
       : originalPoint.viewerCred || 0
   );
+
+  // After fetching the current endorsement amount, compare it with existing restake/doubt
+  useEffect(() => {
+    if (existingRestake?.amount && originalPoint.viewerCred) {
+      // If current endorsement is less than existing restake/doubt
+      if (originalPoint.viewerCred < existingRestake.amount) {
+        setEndorsementReduced(true);
+      }
+    }
+  }, [existingRestake?.amount, originalPoint.viewerCred]);
 
   if ((originalPoint.viewerCred || 0) === 0 && !openedFromSlashedIcon) {
     return (
@@ -983,6 +1000,29 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                 <InfoIcon className="size-4 shrink-0" />
                 <p>
                   {openedFromSlashedIcon ? "Doubt" : "Stake"} amount limited by your available cred ({user?.cred} cred)
+                </p>
+              </div>
+            )}
+
+            {endorsementReduced && (
+              <div className="flex items-center gap-2 text-sm bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-md p-3">
+                <AlertCircle className="size-4 shrink-0" />
+                <p>
+                  {openedFromSlashedIcon ? 
+                    "The maximum doubt amount has been reduced because some endorsement cred was used for doubt payouts." :
+                    isSlashing ?
+                      "You can still slash your restake, but the maximum amount has been reduced due to endorsement payouts." :
+                      "The maximum restake amount has been reduced because some endorsement cred was used for doubt payouts."
+                  }
+                </p>
+              </div>
+            )}
+
+            {isSlashing && endorsementReduced && (
+              <div className="flex items-center gap-2 text-sm bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-md p-3">
+                <AlertCircle className="size-4 shrink-0" />
+                <p>
+                  Your maximum slash amount has been reduced to {originalPoint.viewerCred} cred due to endorsement payouts.
                 </p>
               </div>
             )}
