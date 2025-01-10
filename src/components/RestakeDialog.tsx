@@ -975,7 +975,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
             {/* Warnings */}
             {!openedFromSlashedIcon && isSlashing && (
-              <div className="flex items-center gap-2 text-sm bg-yellow-500 dark:bg-yellow-500/90 text-black dark:text-white rounded-md p-3">
+              <div className="flex items-center gap-2 text-sm bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-md p-3">
                 <AlertCircle className="size-4 shrink-0" />
                 <p>
                   Reducing your stake will slash your restaked cred from the original point. 
@@ -985,7 +985,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
             )}
 
             {!openedFromSlashedIcon && isSlashing && (existingDoubt?.amount ?? 0) > 0 && (
-              <div className="flex items-center gap-2 text-sm bg-yellow-500 dark:bg-yellow-500/90 text-black dark:text-white rounded-md p-3">
+              <div className="flex items-center gap-2 text-sm bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-md p-3">
                 <InfoIcon className="size-4 shrink-0" />
                 <p>
                   Due to existing doubts ({existingDoubt?.amount ?? 0} cred)
@@ -996,7 +996,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
             )}
 
             {showCredLimitMessage && (
-              <div className="flex items-center gap-2 text-sm bg-muted/30 rounded-md p-3">
+              <div className="flex items-center gap-2 text-sm bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-md p-3">
                 <InfoIcon className="size-4 shrink-0" />
                 <p>
                   {openedFromSlashedIcon ? "Doubt" : "Stake"} amount limited by your available cred ({user?.cred} cred)
