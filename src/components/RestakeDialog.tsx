@@ -174,6 +174,16 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     }
   }, [open, currentlyStaked]);
 
+    // After fetching the current endorsement amount, compare it with existing restake/doubt
+    useEffect(() => {
+      if (existingRestake?.amount && originalPoint.viewerCred) {
+        // If current endorsement is less than existing restake/doubt
+        if (originalPoint.viewerCred < existingRestake.amount) {
+          setEndorsementReduced(true);
+        }
+      }
+    }, [existingRestake?.amount, originalPoint.viewerCred]);
+
   // User data and authentication
   const { data: userId, isLoading: isLoadingUserId } = useQuery({
     queryKey: ['userId'],
@@ -419,16 +429,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
       ? Math.min(originalPoint.stakedAmount || 0, Number(existingRestake?.totalRestakeAmount ?? 0))
       : originalPoint.viewerCred || 0
   );
-
-  // After fetching the current endorsement amount, compare it with existing restake/doubt
-  useEffect(() => {
-    if (existingRestake?.amount && originalPoint.viewerCred) {
-      // If current endorsement is less than existing restake/doubt
-      if (originalPoint.viewerCred < existingRestake.amount) {
-        setEndorsementReduced(true);
-      }
-    }
-  }, [existingRestake?.amount, originalPoint.viewerCred]);
 
   if ((originalPoint.viewerCred || 0) === 0 && !openedFromSlashedIcon) {
     return (
