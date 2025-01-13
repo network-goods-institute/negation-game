@@ -22,6 +22,8 @@ export const endorse = async ({
     throw new Error("Must be authenticated to add a point");
   }
 
+  if (cred <= 0) throw new Error("Cred must be positive");
+
   const space = await getSpace();
 
   const endorsementId = await db.transaction(async (tx) => {

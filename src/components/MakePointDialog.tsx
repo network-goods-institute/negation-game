@@ -47,7 +47,6 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
   const canSubmit =
     user &&
     user.cred >= cred &&
-    cred > 0 &&
     (selectedPoint ||
       (charactersLeft >= 0 && content.length >= POINT_MIN_LENGHT));
   const queryClient = useQueryClient();

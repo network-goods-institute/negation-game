@@ -135,11 +135,9 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   const canReview =
     charactersLeft >= 0 && counterpointContent.length >= POINT_MIN_LENGHT;
 
-  const canSubmit = selectedCounterpointCandidate
+  const canSubmit = selectedCounterpointCandidate?.isCounterpoint
     ? cred > 0
-    : charactersLeft >= 0 &&
-      counterpointContent.length >= POINT_MIN_LENGHT &&
-      cred > 0;
+    : charactersLeft >= 0 && counterpointContent.length >= POINT_MIN_LENGHT;
 
   const resetForm = useCallback(() => {
     selectCounterpointCandidate(undefined);
