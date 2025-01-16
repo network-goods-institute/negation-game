@@ -1,17 +1,15 @@
 "use server";
 
 import { fetchPointNegations } from "@/actions/fetchPointNegations";
-import { getSpace } from "@/actions/getSpace";
 import { POINT_MAX_LENGHT } from "@/constants/config";
 import { definitionsTable, pointsTable } from "@/db/schema";
 import { db } from "@/services/db";
 import { google } from "@ai-sdk/google";
 import { streamObject } from "ai";
-import { and, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 export const getCounterpointSuggestions = async (pointId: number) => {
-  const space = await getSpace();
 
   const point = await db
     .select({ content: pointsTable.content, keywords: pointsTable.keywords })
@@ -26,22 +24,38 @@ export const getCounterpointSuggestions = async (pointId: number) => {
       .select()
       .from(definitionsTable)
       .where(
-        and(
-          sql`lower(${definitionsTable.term}) IN ${point.keywords}`,
-          eq(definitionsTable.space, space)
-        )
-      ),
+        point.keywords.length > 0 
+          ? sql`lower(${definitionsTable.term}) IN ${point.keywords}`
+          : sql`1=0`
+      )
+      .execute(),
   ]);
 
-  const prompt = `${
-    definitions.length > 0 &&
-    `Here are some definitions that might be useful:
-    ${definitions.map(({ term, definition }) => `${term}: ${definition}`).join("\n")}`
-  }
+  const prompt = `You are a helpful assistant that generates insightful counterpoints for a debate/discussion platform.
 
-    ${negations.length > 0 ? "Here are the existing counterpoints to the statement:\n" + negations.map((negation) => negation.content).join("\n") : ""}
+${definitions.length > 0 ? `Here are some relevant definitions that might be useful:
+${definitions.map(({ term, definition }) => `${term}: ${definition}`).join("\n")}
 
-    Generate 3 short (max ${POINT_MAX_LENGHT} characters) statements that are opposite and mutually exclusive to the following statement: ${point.content}. Make sure they are not redundant and that their underlying ideas are not already expressed in the list of counterpoints above.`;
+` : ''}STATEMENT TO COUNTER:
+${point.content}
+
+${negations.length > 0 ? "EXISTING COUNTERPOINTS:\n" + negations.map((negation) => negation.content).join("\n") : ""}
+
+Generate 3 strong counterpoints that challenge the STATEMENT above. For each counterpoint:
+
+- Present a perspective that is opposite and mutually exclusive to the original statement
+- Think beyond simple word opposites - consider deeper implications, assumptions, or alternative frameworks
+- Introduce relevant concepts or aspects that weren't explicitly mentioned in the original statement but are important to the discussion
+- Make sure it's not redundant with existing counterpoints
+- Keep it concise and clear (max ${POINT_MAX_LENGHT} characters)
+- Make it a declarative statement that expresses a single idea
+- Use neutral tone and avoid personal opinions
+- Focus on logical assertions rather than mere disagreement
+- Go straight to the point without opening remarks
+- Ensure it makes sense on its own
+- Use modern, straightforward language
+
+Focus on being clear and insightful, as if you're explaining a thoughtful counterargument to a friend in today's world.`;
 
   const { elementStream } = await streamObject({
     model: google("gemini-1.5-flash"),
