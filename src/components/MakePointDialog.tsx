@@ -210,9 +210,11 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
                         size="sm"
                         onClick={() => {
                           setEditingSuggestion(null);
-                          const newMap = new Map(editedContents);
-                          newMap.delete(suggestion);
-                          setEditedContents(newMap);
+                          setEditedContents(map => {
+                            const newMap = new Map(map);
+                            newMap.delete(suggestion);
+                            return newMap;
+                          });
                         }}
                       >
                         Cancel

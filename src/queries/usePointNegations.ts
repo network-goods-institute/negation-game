@@ -21,9 +21,20 @@ export const usePointNegations = (pointId: number) => {
       const negations = await fetchPointNegations(pointId);
 
       for (const negation of negations) {
+        const transformedNegation = {
+          ...negation,
+          restake: negation.restake ? {
+            id: negation.restake.id ?? 0,
+            amount: negation.restake.amount,
+            slashedAmount: negation.restake.slashedAmount,
+            active: negation.restake.active,
+            originalAmount: negation.restake.originalAmount ?? 0,
+          } : null
+        };
+
         setPointData(
           { pointId: negation.pointId, userId: privyUser?.id },
-          negation
+          transformedNegation
         );
       }
 

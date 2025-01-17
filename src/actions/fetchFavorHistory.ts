@@ -4,7 +4,7 @@ import { pointFavorHistoryView } from "@/db/schema";
 import { Point } from "@/db/tables/pointsTable";
 import { timelineScale, TimelineScale } from "@/lib/timelineScale";
 import { db } from "@/services/db";
-import { and, desc, sql } from "drizzle-orm";
+import { and, desc, sql, eq } from "drizzle-orm";
 import { last } from "remeda";
 
 export interface FetchFavorHistoryParams {
@@ -21,67 +21,53 @@ export async function fetchFavorHistory({
 }: FetchFavorHistoryParams) {
   const { bucketSize, period } =
     scale === "ALL"
-      ? //TODO make bucket size dynamic based on how old the point is
-        { bucketSize: 1 * minute, period: 10 * year }
+      ? { bucketSize: 1 * minute, period: 10 * year }
       : timelineScale[scale];
 
-  const startOfRange = sql`(CURRENT_TIMESTAMP - interval '${period} seconds')`;
+  // Make the interval explicit
+  const rangeStart = sql`CURRENT_TIMESTAMP - make_interval(secs => ${period}::integer)`;
 
-  return await db
+  // First get the last favor value before our range
+  const beforeRangeValue = await db
     .select({
-      timestamp:
-        sql<Date>`to_timestamp(ceil(extract(epoch from ${pointFavorHistoryView.eventTime}) / ${bucketSize}) * ${bucketSize})`
-          .mapWith((d) => new Date(d))
-          .as("timestamp"),
-      favor: sql<number>`max(${pointFavorHistoryView.favor})`
-        .mapWith(Number)
-        .as("favor"),
-      insideRange: sql<boolean>`true`.mapWith(Boolean).as("inside_range"),
+      timestamp: sql<Date>`to_timestamp(floor(extract(epoch from event_time)::integer / ${bucketSize}::integer) * ${bucketSize}::integer)`,
+      favor: pointFavorHistoryView.favor,
     })
     .from(pointFavorHistoryView)
     .where(
       and(
-        sql`${pointFavorHistoryView.pointId} = ${pointId}`,
-        sql`${pointFavorHistoryView.eventTime} >= ${startOfRange}`.inlineParams()
+        eq(pointFavorHistoryView.pointId, pointId),
+        sql`event_time < ${rangeStart}`
       )
     )
-    .groupBy(sql`timestamp`)
-    // select the first favor value before the start of the range to make sure the graph starts at the correct value
-    .union(
-      db
-        .select({
-          timestamp:
-            sql<Date>`to_timestamp(ceil(extract(epoch from ${pointFavorHistoryView.eventTime}) / ${bucketSize}) * ${bucketSize})`
-              .mapWith((d) => new Date(d))
-              .as("timestamp"),
-          favor: pointFavorHistoryView.favor,
-          insideRange: sql<boolean>`false`.mapWith(Boolean).as("inside_range"),
-        })
-        .from(pointFavorHistoryView)
-        .where(
-          and(
-            sql`${pointFavorHistoryView.pointId} = ${pointId}`,
-            sql`${pointFavorHistoryView.eventTime} < ${startOfRange}`.inlineParams()
-          )
-        )
-        .orderBy(desc(sql`timestamp`))
-        .limit(1)
+    .orderBy(desc(sql`event_time`))
+    .limit(1)
+    .then(rows => rows[0]);
+
+  // Then get the values within our range
+  const rangeValues = await db
+    .select({
+      timestamp: sql<Date>`to_timestamp(floor(extract(epoch from event_time)::integer / ${bucketSize}::integer) * ${bucketSize}::integer)`.as('bucket_timestamp'),
+      favor: sql<number>`max(favor)`,
+    })
+    .from(pointFavorHistoryView)
+    .where(
+      and(
+        eq(pointFavorHistoryView.pointId, pointId),
+        sql`event_time >= ${rangeStart}`
+      )
     )
-    .orderBy(sql`timestamp`)
-    .then(([firstResult, ...restOfResults]) => {
-      const pickDesiredFields = ({ timestamp, favor }: typeof firstResult) => ({
-        timestamp,
-        favor,
-      });
-      if (firstResult.insideRange)
-        return [firstResult, ...restOfResults].map(pickDesiredFields);
+    .groupBy(sql`bucket_timestamp`)
+    .orderBy(sql`bucket_timestamp`);
 
-      const endOfRange = last(restOfResults)!.timestamp.getTime();
-      const startOfRange = endOfRange - period * 1000;
+  // Combine results
+  if (!beforeRangeValue) return rangeValues;
 
-      return [
-        { ...firstResult, timestamp: new Date(startOfRange) },
-        ...restOfResults,
-      ].map(pickDesiredFields);
-    });
+  const endOfRange = last(rangeValues)?.timestamp.getTime() ?? Date.now();
+  const startOfRange = endOfRange - period * 1000;
+
+  return [
+    { ...beforeRangeValue, timestamp: new Date(startOfRange) },
+    ...rangeValues
+  ];
 }

@@ -2,7 +2,12 @@
 
 import { getSpace } from "@/actions/getSpace";
 import { getUserId } from "@/actions/getUserId";
-import { endorsementsTable, pointsWithDetailsView } from "@/db/schema";
+import { 
+  endorsementsTable, 
+  pointsWithDetailsView,
+  effectiveRestakesView,
+  slashesTable 
+} from "@/db/schema";
 import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
@@ -25,10 +30,36 @@ export const fetchPoints = async (ids: number[]) => {
                   AND ${endorsementsTable.userId} = ${viewerId}
               ), 0)
             `.mapWith(Number),
+            restake: {
+              id: effectiveRestakesView.pointId,
+              amount: effectiveRestakesView.effectiveAmount,
+              active: effectiveRestakesView.isActive,
+              originalAmount: effectiveRestakesView.amount,
+              slashedAmount: effectiveRestakesView.slashedAmount
+            },
+            slash: {
+              id: slashesTable.id,
+              amount: slashesTable.amount,
+            }
           }
         : {}),
     })
     .from(pointsWithDetailsView)
+    .leftJoin(
+      effectiveRestakesView,
+      and(
+        eq(effectiveRestakesView.pointId, pointsWithDetailsView.pointId),
+        eq(effectiveRestakesView.userId, viewerId ?? ''),
+        eq(effectiveRestakesView.isActive, true)
+      )
+    )
+    .leftJoin(
+      slashesTable,
+      and(
+        eq(slashesTable.pointId, pointsWithDetailsView.pointId),
+        eq(slashesTable.userId, viewerId ?? '')
+      )
+    )
     .where(
       and(
         inArray(pointsWithDetailsView.pointId, ids),

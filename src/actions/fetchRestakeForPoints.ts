@@ -1,24 +1,42 @@
 "use server";
 
-import { effectiveRestakesView, restakesTable, doubtsTable } from "@/db/schema";
+import { effectiveRestakesView, restakesTable } from "@/db/schema";
 import { db } from "@/services/db";
-import { and, eq, sql, lte } from "drizzle-orm";
+import { and, eq, sql, or } from "drizzle-orm";
 import { getUserId } from "./getUserId";
 
 export const fetchRestakeForPoints = async (pointId: number, negationId: number) => {
   const userId = await getUserId();
+  console.log('fetchRestakeForPoints called with:', { pointId, negationId, userId });
 
   if (!userId) {
     return null;
   }
 
-  // Always query with the smaller ID first
-  const [smallerId, largerId] = pointId < negationId 
-    ? [pointId, negationId] 
-    : [negationId, pointId];
+  // First get the total amount from all active restakes
+  const [totals] = await db
+    .select({
+      totalRestakeAmount: sql<number>`
+        SUM(${effectiveRestakesView.effectiveAmount})
+        FILTER (WHERE ${effectiveRestakesView.isActive} = true)
+      `.as('total_restake_amount')
+    })
+    .from(effectiveRestakesView)
+    .where(
+      or(
+        and(
+          eq(effectiveRestakesView.pointId, pointId),
+          eq(effectiveRestakesView.negationId, negationId)
+        ),
+        and(
+          eq(effectiveRestakesView.pointId, negationId),
+          eq(effectiveRestakesView.negationId, pointId)
+        )
+      )
+    );
 
-  // Get all active restakes for this point pair
-  const restakes = await db
+  // Then get user's restake if it exists
+  const [userRestake] = await db
     .select({
       id: restakesTable.id,
       userId: restakesTable.userId,
@@ -27,10 +45,6 @@ export const fetchRestakeForPoints = async (pointId: number, negationId: number)
       slashedAmount: effectiveRestakesView.slashedAmount,
       doubtedAmount: effectiveRestakesView.doubtedAmount,
       isActive: effectiveRestakesView.isActive,
-      totalRestakeAmount: sql<number>`
-        SUM(${effectiveRestakesView.effectiveAmount})
-        FILTER (WHERE ${effectiveRestakesView.isActive} = true)
-      `.as('total_restake_amount')
     })
     .from(effectiveRestakesView)
     .innerJoin(
@@ -43,36 +57,38 @@ export const fetchRestakeForPoints = async (pointId: number, negationId: number)
     )
     .where(
       and(
-        eq(effectiveRestakesView.pointId, smallerId),
-        eq(effectiveRestakesView.negationId, largerId),
-        eq(effectiveRestakesView.isActive, true)
+        or(
+          and(
+            eq(effectiveRestakesView.pointId, pointId),
+            eq(effectiveRestakesView.negationId, negationId)
+          ),
+          and(
+            eq(effectiveRestakesView.pointId, negationId),
+            eq(effectiveRestakesView.negationId, pointId)
+          )
+        ),
+        eq(effectiveRestakesView.userId, userId)
       )
-    )
-    .groupBy(
-      restakesTable.id,
-      effectiveRestakesView.effectiveAmount,
-      effectiveRestakesView.amount,
-      effectiveRestakesView.slashedAmount,
-      effectiveRestakesView.doubtedAmount,
-      effectiveRestakesView.isActive,
-      effectiveRestakesView.userId
     );
 
-  // Find user's restake
-  const userRestake = restakes.find(r => r.userId === userId);
-  
-  // Calculate total restake amount from all active restakes
-  const totalRestakeAmount = restakes.reduce((sum, r) => sum + Number(r.effectiveAmount), 0);
+  console.log('Query results:', {
+    totals,
+    userRestake,
+    totalRestakeAmount: totals?.totalRestakeAmount || 0
+  });
 
   // Return either user's restake with total amount info, or just total amount info
-  return userRestake 
+  const result = userRestake 
     ? {
         ...userRestake,
-        totalRestakeAmount,
+        totalRestakeAmount: totals?.totalRestakeAmount || 0,
         isUserRestake: true
       }
     : {
-        totalRestakeAmount,
+        totalRestakeAmount: totals?.totalRestakeAmount || 0,
         isUserRestake: false
       };
+
+  console.log('Returning result:', result);
+  return result;
 }; 

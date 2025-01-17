@@ -7,8 +7,7 @@ import {
   restakesTable, 
   restakeHistoryTable,
   doubtsTable,
-  doubtHistoryTable,
-  usersTable
+  doubtHistoryTable
 } from "@/db/schema";
 import { db } from "@/services/db";
 import { eq, and, sql, desc } from "drizzle-orm";
