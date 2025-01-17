@@ -211,12 +211,13 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
                         onClick={() => {
                           setEditingSuggestion(null);
                           setEditedContents(map => {
-                            const newMap = new Map(map);
-                            newMap.delete(suggestion);
+                            const newMap = new Map(
+                              Array.from(map).filter(([key]) => key !== suggestion)
+                            );
                             return newMap;
                           });
                         }}
-                      >
+                      > 
                         Cancel
                       </Button>
                       <Button
