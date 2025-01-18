@@ -48,12 +48,21 @@ export type NegationResult = {
     active: boolean;
   } | null;
   favor: number;
-}
+  restakesByPoint: number;
+};
 
 export const fetchPointNegations = async (pointId: number): Promise<NegationResult[]> => {
   const userId = await getUserId();
   const space = await getSpace();
   
+  console.log('FETCH NEGATIONS - Viewing point:', pointId);
+  console.log('Looking for restakes in tables:', {
+    restakesTable: {
+      point_id: 'Point doing the restaking',
+      negation_id: 'Point being restaked against'
+    }
+  });
+
   const results = await db
     .selectDistinct({
       pointId: pointsWithDetailsView.pointId,
@@ -84,11 +93,10 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
           COALESCE((
             SELECT SUM(${doubtsTable.amount})::integer
             FROM ${doubtsTable}
-            WHERE ${doubtsTable.pointId} = ${restakesTable.pointId}
-            AND ${doubtsTable.negationId} = ${restakesTable.negationId}
+            WHERE ${doubtsTable.pointId} = ${effectiveRestakesView.pointId}
+            AND ${doubtsTable.negationId} = ${effectiveRestakesView.negationId}
           ), 0)
-        `.mapWith(Number)
-        .as("doubted_amount"),
+        `.mapWith(Number),
         totalRestakeAmount: sql<number>`
           SUM(${effectiveRestakesView.effectiveAmount}) OVER (
             PARTITION BY ${effectiveRestakesView.pointId}, ${effectiveRestakesView.negationId}
@@ -105,7 +113,16 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
         id: doubtsTable.id,
         amount: doubtsTable.amount,
         active: sql<boolean>`${doubtsTable.amount} > 0`.as("doubt_active")
-      }
+      },
+      restakesByPoint: sql<number>`
+        COALESCE(
+          (SELECT SUM(er1.effective_amount)
+           FROM ${effectiveRestakesView} AS er1
+           WHERE er1.point_id = ${pointsWithDetailsView.pointId}
+           AND er1.is_active = true), 
+          0
+        )
+      `.mapWith(Number)
     })
     .from(pointsWithDetailsView)
     .innerJoin(
@@ -153,10 +170,25 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
           eq(negationsTable.olderPointId, pointId),
           eq(negationsTable.newerPointId, pointId)
         ),
-        ne(pointsWithDetailsView.pointId, pointId),
         eq(pointsWithDetailsView.space, space)
       )
-    );
+    )
+    .then((points) => {
+      console.log('RESTAKE DATA CHECK:', {
+        viewingPointId: pointId,
+        negations: points.map(p => ({
+          negationId: p.pointId,
+          restakeFromDB: {
+            id: p.restake?.id,
+            amount: p.restake?.amount,
+            active: p.restake?.active,
+            slashedAmount: p.restake?.slashedAmount,
+            doubtedAmount: p.restake?.doubtedAmount
+          }
+        }))
+      });
+      return addFavor(points);
+    });
 
-  return addFavor(results);
+  return results;
 };

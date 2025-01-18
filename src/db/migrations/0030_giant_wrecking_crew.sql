@@ -229,48 +229,52 @@ CREATE INDEX IF NOT EXISTS "slashes_user_idx" ON "slashes" USING btree ("user_id
 CREATE INDEX IF NOT EXISTS "slashes_restake_idx" ON "slashes" USING btree ("restake_id");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "slashes_point_idx" ON "slashes" USING btree ("point_id");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "slashes_negation_idx" ON "slashes" USING btree ("negation_id");--> statement-breakpoint
-CREATE VIEW "public"."effective_restakes_view" AS (select "user_id", "point_id", "negation_id", "amount", 
-        COALESCE((
-          SELECT "amount"
-          FROM "slashes"
-          WHERE "restake_id" = "id"
-          AND "amount" > 0 
-          AND "created_at" > "created_at"
-        ), 0)
-       as "slashed_amount", 
-        COALESCE((
-          SELECT SUM("amount")
-          FROM "doubts"
-          WHERE "point_id" = "point_id"
-          AND "negation_id" = "negation_id"
-        ), 0)
-       as "doubted_amount", 
-        GREATEST(0, "amount" - 
-          COALESCE((
-            SELECT "amount"
-            FROM "slashes"
-            WHERE "restake_id" = "id"
-            AND "amount" > 0 
-            AND "created_at" > "created_at"
-          ), 0)
-        )
-       as "effective_amount", 
-        "amount" > (
-          COALESCE((
-            SELECT "amount"
-            FROM "slashes"
-            WHERE "restake_id" = "id"
-            AND "amount" > 0 
-            AND "created_at" > "created_at"
-          ), 0) +
-          COALESCE((
-            SELECT SUM("amount")
-            FROM "doubts"
-            WHERE "point_id" = "point_id"
-            AND "negation_id" = "negation_id"
-          ), 0)
-        )
-       as "is_active" from "restakes" where "restakes"."amount" > 0);--> statement-breakpoint
+CREATE VIEW "public"."effective_restakes_view" AS (
+  SELECT 
+    restakes.user_id,
+    restakes.point_id,
+    restakes.negation_id,
+    restakes.amount,
+    COALESCE((
+      SELECT slashes.amount
+      FROM slashes
+      WHERE slashes.restake_id = restakes.id
+      AND slashes.amount > 0 
+      AND slashes.created_at > restakes.created_at
+    ), 0) as slashed_amount,
+    COALESCE((
+      SELECT SUM(doubts.amount)
+      FROM doubts
+      WHERE doubts.point_id = restakes.point_id
+      AND doubts.negation_id = restakes.negation_id
+    ), 0) as doubted_amount,
+    GREATEST(0, restakes.amount - 
+      COALESCE((
+        SELECT slashes.amount
+        FROM slashes
+        WHERE slashes.restake_id = restakes.id
+        AND slashes.amount > 0 
+        AND slashes.created_at > restakes.created_at
+      ), 0)
+    ) as effective_amount,
+    restakes.amount > (
+      COALESCE((
+        SELECT slashes.amount
+        FROM slashes
+        WHERE slashes.restake_id = restakes.id
+        AND slashes.amount > 0 
+        AND slashes.created_at > restakes.created_at
+      ), 0) +
+      COALESCE((
+        SELECT SUM(doubts.amount)
+        FROM doubts
+        WHERE doubts.point_id = restakes.point_id
+        AND doubts.negation_id = restakes.negation_id
+      ), 0)
+    ) as is_active
+  FROM restakes
+  WHERE restakes.amount > 0
+);
 CREATE VIEW "public"."point_favor_history" AS (
   WITH all_events AS (
     SELECT id as point_id, created_at as event_time, 'point_created' as event_type

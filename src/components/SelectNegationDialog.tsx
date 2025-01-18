@@ -97,24 +97,26 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
             </div>
           ) : (
             <div className="space-y-3">
-              {negations?.map((negation: NegationResult) => (
-                <div
-                  key={negation.pointId}
-                  className="flex flex-col p-4 rounded-lg border border-dashed border-border hover:bg-muted cursor-pointer"
-                  onClick={() => {
-                    setSelectedNegation(negation);
-                    toggleRestakeDialog(true);
-                  }}
-                >
-                  <p className="mb-2">{negation.content}</p>
-                  <PointStats
-                    favor={negation.favor}
-                    amountNegations={negation.amountNegations}
-                    amountSupporters={negation.amountSupporters}
-                    cred={negation.cred}
-                  />
-                </div>
-              ))}
+              {negations
+                ?.filter(negation => negation.pointId !== originalPoint.id)
+                ?.map((negation: NegationResult) => (
+                  <div
+                    key={negation.pointId}
+                    className="flex flex-col p-4 rounded-lg border border-dashed border-border hover:bg-muted cursor-pointer"
+                    onClick={() => {
+                      setSelectedNegation(negation);
+                      toggleRestakeDialog(true);
+                    }}
+                  >
+                    <p className="mb-2">{negation.content}</p>
+                    <PointStats
+                      favor={negation.favor}
+                      amountNegations={negation.amountNegations}
+                      amountSupporters={negation.amountSupporters}
+                      cred={negation.cred}
+                    />
+                  </div>
+                ))}
             </div>
           )}
         </DialogContent>

@@ -23,6 +23,7 @@ export const usePointNegations = (pointId: number) => {
       for (const negation of negations) {
         const transformedNegation = {
           ...negation,
+          restakesByPoint: negation.restakesByPoint,
           restake: negation.restake ? {
             id: negation.restake.id ?? 0,
             amount: negation.restake.amount,
