@@ -6,7 +6,7 @@ import {
   endorsementsTable, 
   pointsWithDetailsView,
   effectiveRestakesView,
-  slashesTable 
+  slashesTable,
 } from "@/db/schema";
 import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
@@ -20,6 +20,7 @@ export const fetchPoints = async (ids: number[]) => {
   return await db
     .select({
       ...getColumns(pointsWithDetailsView),
+      // Viewer specific data
       ...(viewerId
         ? {
             viewerCred: sql<number>`
@@ -30,12 +31,14 @@ export const fetchPoints = async (ids: number[]) => {
                   AND ${endorsementsTable.userId} = ${viewerId}
               ), 0)
             `.mapWith(Number),
+            // Viewer's specific restake/slash info
             restake: {
               id: effectiveRestakesView.pointId,
-              amount: effectiveRestakesView.effectiveAmount,
+              amount: effectiveRestakesView.amount,
               active: effectiveRestakesView.isActive,
               originalAmount: effectiveRestakesView.amount,
-              slashedAmount: effectiveRestakesView.slashedAmount
+              slashedAmount: effectiveRestakesView.slashedAmount,
+              doubtedAmount: effectiveRestakesView.doubtedAmount,
             },
             slash: {
               id: slashesTable.id,
@@ -43,6 +46,32 @@ export const fetchPoints = async (ids: number[]) => {
             }
           }
         : {}),
+      // Total amounts for favor calculation (always included)
+      restakesByPoint: sql<number>`
+        COALESCE(
+          (SELECT SUM(er1.amount)
+           FROM ${effectiveRestakesView} AS er1
+           WHERE er1.point_id = ${pointsWithDetailsView.pointId}
+           AND er1.is_active = true), 
+          0
+        )
+      `.mapWith(Number),
+      slashedAmount: sql<number>`
+        COALESCE(
+          (SELECT SUM(er1.slashed_amount)
+           FROM ${effectiveRestakesView} AS er1
+           WHERE er1.point_id = ${pointsWithDetailsView.pointId}), 
+          0
+        )
+      `.mapWith(Number),
+      doubtedAmount: sql<number>`
+        COALESCE(
+          (SELECT SUM(er1.doubted_amount)
+           FROM ${effectiveRestakesView} AS er1
+           WHERE er1.point_id = ${pointsWithDetailsView.pointId}), 
+          0
+        )
+      `.mapWith(Number),
     })
     .from(pointsWithDetailsView)
     .leftJoin(
@@ -66,5 +95,8 @@ export const fetchPoints = async (ids: number[]) => {
         eq(pointsWithDetailsView.space, space)
       )
     )
-    .then(addFavor);
+    .then((points) => {
+      console.log('Points before favor calculation:', JSON.stringify(points, null, 2));
+      return addFavor(points);
+    });
 };

@@ -16,26 +16,37 @@ export const useFeed = () => {
       for (const point of page) {
         const transformedPoint = {
           ...point,
-          restake: point.restake ? {
+          restakesByPoint: point.restakesByPoint,
+          slashedAmount: point.slashedAmount,
+          doubtedAmount: point.doubtedAmount,
+          restake: {
             id: 0,
-            amount: point.restake.amount,
-            slashedAmount: point.restake.slashedAmount,
-            active: true,
-            originalAmount: point.restake.totalRestakeAmount,
-          } : null
+            amount: 0,
+            slashedAmount: 0,
+            doubtedAmount: 0,
+            active: false,
+            originalAmount: 0,
+          }
         };
-        setPointData({ pointId: point.pointId, userId: privyUser?.id }, transformedPoint);
+        setPointData(
+          { pointId: point.pointId, userId: privyUser?.id }, 
+          transformedPoint
+        );
       }
 
       return page.map(point => ({
         ...point,
-        restake: point.restake ? {
+        restakesByPoint: point.restakesByPoint,
+        slashedAmount: point.slashedAmount,
+        doubtedAmount: point.doubtedAmount,
+        restake: {
           id: 0,
-          amount: point.restake.amount,
-          slashedAmount: point.restake.slashedAmount,
-          active: true,
-          originalAmount: point.restake.totalRestakeAmount,
-        } : null
+          amount: 0,
+          slashedAmount: 0,
+          doubtedAmount: 0,
+          active: false,
+          originalAmount: 0,
+        }
       }));
     },
   });

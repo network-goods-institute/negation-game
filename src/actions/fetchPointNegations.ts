@@ -29,12 +29,12 @@ export type NegationResult = {
   negationIds: number[];
   restake: {
     id: number | null;
-    amount: number;
+    amount: number | null;
     active: boolean;
     originalAmount: number | null;
-    slashedAmount: number;
-    doubtedAmount: number;
-    totalRestakeAmount: number;
+    slashedAmount: number | null;
+    doubtedAmount: number | null;
+    totalRestakeAmount: number | null;
     isOwner: boolean;
   } | null;
   slash: {
@@ -49,6 +49,8 @@ export type NegationResult = {
   } | null;
   favor: number;
   restakesByPoint: number;
+  slashedAmount: number;
+  doubtedAmount: number;
 };
 
 export const fetchPointNegations = async (pointId: number): Promise<NegationResult[]> => {
@@ -83,20 +85,38 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
             AND ${endorsementsTable.userId} = ${userId}
         ), 0)
       `.mapWith(Number) : sql<number>`0`.mapWith(Number),
+      restakesByPoint: sql<number>`
+        COALESCE(
+          (SELECT SUM(er1.amount)
+           FROM ${effectiveRestakesView} AS er1
+           WHERE er1.point_id = ${pointsWithDetailsView.pointId}
+           AND er1.is_active = true), 
+          0
+        )
+      `.mapWith(Number),
+      slashedAmount: sql<number>`
+        COALESCE(
+          (SELECT SUM(er1.slashed_amount)
+           FROM ${effectiveRestakesView} AS er1
+           WHERE er1.point_id = ${pointsWithDetailsView.pointId}), 
+          0
+        )
+      `.mapWith(Number),
+      doubtedAmount: sql<number>`
+        COALESCE(
+          (SELECT SUM(er1.doubted_amount)
+           FROM ${effectiveRestakesView} AS er1
+           WHERE er1.point_id = ${pointsWithDetailsView.pointId}), 
+          0
+        )
+      `.mapWith(Number),
       restake: {
         id: restakesTable.id,
-        amount: effectiveRestakesView.effectiveAmount,
+        amount: effectiveRestakesView.amount,
         active: effectiveRestakesView.isActive,
         originalAmount: effectiveRestakesView.amount,
         slashedAmount: effectiveRestakesView.slashedAmount,
-        doubtedAmount: sql<number>`
-          COALESCE((
-            SELECT SUM(${doubtsTable.amount})::integer
-            FROM ${doubtsTable}
-            WHERE ${doubtsTable.pointId} = ${effectiveRestakesView.pointId}
-            AND ${doubtsTable.negationId} = ${effectiveRestakesView.negationId}
-          ), 0)
-        `.mapWith(Number),
+        doubtedAmount: effectiveRestakesView.doubtedAmount,
         totalRestakeAmount: sql<number>`
           SUM(${effectiveRestakesView.effectiveAmount}) OVER (
             PARTITION BY ${effectiveRestakesView.pointId}, ${effectiveRestakesView.negationId}
@@ -114,15 +134,6 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
         amount: doubtsTable.amount,
         active: sql<boolean>`${doubtsTable.amount} > 0`.as("doubt_active")
       },
-      restakesByPoint: sql<number>`
-        COALESCE(
-          (SELECT SUM(er1.effective_amount)
-           FROM ${effectiveRestakesView} AS er1
-           WHERE er1.point_id = ${pointsWithDetailsView.pointId}
-           AND er1.is_active = true), 
-          0
-        )
-      `.mapWith(Number)
     })
     .from(pointsWithDetailsView)
     .innerJoin(
@@ -182,8 +193,8 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
             id: p.restake?.id,
             amount: p.restake?.amount,
             active: p.restake?.active,
-            slashedAmount: p.restake?.slashedAmount,
-            doubtedAmount: p.restake?.doubtedAmount
+            slashedAmount: p.slashedAmount,
+            doubtedAmount: p.doubtedAmount
           }
         }))
       });

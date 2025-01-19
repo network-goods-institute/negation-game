@@ -26,51 +26,41 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
                   AND ${endorsementsTable.userId} = ${viewerId}
               ), 0)
             `.mapWith(Number),
-            restake: {
-              amount: effectiveRestakesView.effectiveAmount,
-              slashedAmount: effectiveRestakesView.slashedAmount,
-              doubtedAmount: sql<number>`
-                COALESCE((
-                  SELECT SUM(${doubtsTable.amount})::integer
-                  FROM ${doubtsTable}
-                  WHERE ${doubtsTable.pointId} = ${effectiveRestakesView.pointId}
-                  AND ${doubtsTable.negationId} = ${effectiveRestakesView.negationId}
-                ), 0)
-              `.mapWith(Number),
-              totalRestakeAmount: sql<number>`
-                SUM(${effectiveRestakesView.effectiveAmount}) OVER (
-                  PARTITION BY ${effectiveRestakesView.pointId}, ${effectiveRestakesView.negationId}
-                )
-              `.as('total_restake_amount')
-            }
           }
         : {}),
       restakesByPoint: sql<number>`
         COALESCE(
-          (SELECT SUM(er1.effective_amount)
+          (SELECT SUM(er1.amount)
            FROM ${effectiveRestakesView} AS er1
            WHERE er1.point_id = ${pointsWithDetailsView.pointId}
            AND er1.is_active = true), 
           0
         )
       `.mapWith(Number),
+      slashedAmount: sql<number>`
+        COALESCE(
+          (SELECT SUM(er1.slashed_amount)
+           FROM ${effectiveRestakesView} AS er1
+           WHERE er1.point_id = ${pointsWithDetailsView.pointId}), 
+          0
+        )
+      `.mapWith(Number),
+      doubtedAmount: sql<number>`
+        COALESCE(
+          (SELECT SUM(er1.doubted_amount)
+           FROM ${effectiveRestakesView} AS er1
+           WHERE er1.point_id = ${pointsWithDetailsView.pointId}), 
+          0
+        )
+      `.mapWith(Number),
     })
     .from(pointsWithDetailsView)
-    .leftJoin(
-      effectiveRestakesView,
-      and(
-        eq(effectiveRestakesView.pointId, pointsWithDetailsView.pointId),
-        eq(effectiveRestakesView.userId, viewerId ?? ''),
-        eq(effectiveRestakesView.isActive, true)
-      )
-    )
     .where(eq(pointsWithDetailsView.space, space))
     .orderBy(desc(pointsWithDetailsView.createdAt))
     .then((points) => {
-      console.log('Raw points before favor:', points);
+      console.log('Raw points with full detail:', JSON.stringify(points, null, 2));
       return addFavor(points);
     });
 
-  console.log('Points with favor:', results);
   return results;
 };
