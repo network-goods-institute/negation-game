@@ -46,6 +46,7 @@ export type NegationResult = {
     id: number;
     amount: number;
     active: boolean;
+    userAmount: number;
   } | null;
   favor: number;
   restakesByPoint: number;
@@ -57,14 +58,6 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
   const userId = await getUserId();
   const space = await getSpace();
   
-  console.log('FETCH NEGATIONS - Viewing point:', pointId);
-  console.log('Looking for restakes in tables:', {
-    restakesTable: {
-      point_id: 'Point doing the restaking',
-      negation_id: 'Point being restaked against'
-    }
-  });
-
   const results = await db
     .selectDistinct({
       pointId: pointsWithDetailsView.pointId,
@@ -116,7 +109,7 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
         active: effectiveRestakesView.isActive,
         originalAmount: effectiveRestakesView.amount,
         slashedAmount: effectiveRestakesView.slashedAmount,
-        doubtedAmount: effectiveRestakesView.doubtedAmount,
+        doubtedAmount: sql<number>`COALESCE(${effectiveRestakesView.doubtedAmount}, 0)`.mapWith(Number),
         totalRestakeAmount: sql<number>`
           SUM(${effectiveRestakesView.effectiveAmount}) OVER (
             PARTITION BY ${effectiveRestakesView.pointId}, ${effectiveRestakesView.negationId}
@@ -132,7 +125,8 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
       doubt: {
         id: doubtsTable.id,
         amount: doubtsTable.amount,
-        active: sql<boolean>`${doubtsTable.amount} > 0`.as("doubt_active")
+        active: sql<boolean>`${doubtsTable.amount} > 0`.as("doubt_active"),
+        userAmount: doubtsTable.amount,
       },
     })
     .from(pointsWithDetailsView)
@@ -185,19 +179,6 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
       )
     )
     .then((points) => {
-      console.log('RESTAKE DATA CHECK:', {
-        viewingPointId: pointId,
-        negations: points.map(p => ({
-          negationId: p.pointId,
-          restakeFromDB: {
-            id: p.restake?.id,
-            amount: p.restake?.amount,
-            active: p.restake?.active,
-            slashedAmount: p.slashedAmount,
-            doubtedAmount: p.doubtedAmount
-          }
-        }))
-      });
       return addFavor(points);
     });
 

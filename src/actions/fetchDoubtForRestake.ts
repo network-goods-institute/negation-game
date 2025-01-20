@@ -1,6 +1,6 @@
 "use server";
 
-import { doubtsTable, restakesTable } from "@/db/schema";
+import { doubtsTable } from "@/db/schema";
 import { db } from "@/services/db";
 import { and, eq, sql } from "drizzle-orm";
 import { getUserId } from "./getUserId";
@@ -8,7 +8,6 @@ import { getUserId } from "./getUserId";
 export const fetchDoubtForRestake = async (pointId: number, negationId: number) => {
   const userId = await getUserId();
 
-  // First check if there are any doubts at all
   const doubtsExist = await db
     .select()
     .from(doubtsTable)

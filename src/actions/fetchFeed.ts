@@ -26,6 +26,12 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
                   AND ${endorsementsTable.userId} = ${viewerId}
               ), 0)
             `.mapWith(Number),
+            doubt: {
+              id: doubtsTable.id,
+              amount: doubtsTable.amount,
+              active: sql<boolean>`${doubtsTable.amount} > 0`.as("doubt_active"),
+              userAmount: doubtsTable.amount,
+            }
           }
         : {}),
       restakesByPoint: sql<number>`
@@ -55,10 +61,16 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
       `.mapWith(Number),
     })
     .from(pointsWithDetailsView)
+    .leftJoin(
+      doubtsTable,
+      and(
+        eq(doubtsTable.pointId, pointsWithDetailsView.pointId),
+        eq(doubtsTable.userId, viewerId ?? '')
+      )
+    )
     .where(eq(pointsWithDetailsView.space, space))
     .orderBy(desc(pointsWithDetailsView.createdAt))
     .then((points) => {
-      console.log('Raw points with full detail:', JSON.stringify(points, null, 2));
       return addFavor(points);
     });
 

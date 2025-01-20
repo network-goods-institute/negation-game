@@ -12,10 +12,8 @@ export const favor = ({
   negationsCred,
   restakeAmount = 0,
   slashedAmount = 0,
-  doubtedAmount = 0,
-  totalRestakeAmount = 0
+  doubtedAmount = 0
 }: FavorArgs) => {
-  // Base favor calculation
   let baseFavor;
   if (cred === 0) {
     baseFavor = 0;
@@ -28,22 +26,7 @@ export const favor = ({
   // Calculate effective restake amount by subtracting the greater of slashed or doubted amounts
   const effectiveRestakeAmount = Math.max(0, restakeAmount - Math.max(slashedAmount, doubtedAmount));
 
-  // Add the effective restake amount to base favor
   const finalFavor = baseFavor + effectiveRestakeAmount;
-
-  console.log('Calculating favor:', {
-    inputs: {
-      cred,
-      negationsCred,
-      restakeAmount,
-      slashedAmount,
-      doubtedAmount,
-      totalRestakeAmount,
-      baseFavor,
-      effectiveRestakeAmount
-    },
-    result: finalFavor
-  });
   
   return finalFavor;
 };

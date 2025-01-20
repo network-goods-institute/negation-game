@@ -5,7 +5,6 @@ import { DialogProps } from "@radix-ui/react-dialog";
 import { FC, useState, useEffect, useCallback, useMemo } from "react";
 import { ArrowLeftIcon, AlertCircle, Check, InfoIcon } from "lucide-react";
 import { Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { fetchFavorHistory } from "@/actions/fetchFavorHistory";
 import { useQuery } from "@tanstack/react-query";
 import { DEFAULT_TIMESCALE } from "@/constants/config";
 import { TimelineScale } from "@/lib/timelineScale";
@@ -23,14 +22,15 @@ import { PointStats } from "@/components/PointStats";
 import { format } from "date-fns";
 import { Separator } from "@/components/ui/separator";
 import { ReputationAnalysisDialog } from "./ReputationAnalysisDialog";
-import { restake } from "@/actions/restake";
-import { slash } from "@/actions/slash";
-import { fetchRestakeForPoints } from "@/actions/fetchRestakeForPoints";
-import { doubt } from "@/actions/doubt";
-import { fetchDoubtForRestake } from "@/actions/fetchDoubtForRestake";
 import { getUserId } from "@/actions/getUserId";
 import { useUser } from "@/queries/useUser";
-import { fetchRestakerReputation } from "@/actions/fetchRestakerReputation";
+import { useRestake } from "@/mutations/useRestake";
+import { useSlash } from "@/mutations/useSlash";
+import { useDoubt } from "@/mutations/useDoubt";
+import { useRestakeForPoints } from "@/queries/useRestakeForPoints";
+import { useDoubtForRestake } from "@/queries/useDoubtForRestake";
+import { useFavorHistory } from "@/queries/useFavorHistory";
+import { useRestakerReputation } from "@/queries/useRestakerReputation";
 
 export interface RestakeDialogProps extends DialogProps {
   originalPoint: {
@@ -67,24 +67,6 @@ export interface RestakeDialogProps extends DialogProps {
   openedFromSlashedIcon?: boolean;
 }
 
-type RestakerInfo = {
-  address: string;
-  amount: number;
-  reputation: number;
-};
-
-type RestakeResponse = {
-  id?: number;
-  userId?: string;
-  effectiveAmount?: number;
-  amount?: number;
-  slashedAmount?: number;
-  doubtedAmount?: number;
-  isActive?: boolean;
-  totalRestakeAmount: number;
-  isUserRestake: boolean;
-};
-
 export const RestakeDialog: FC<RestakeDialogProps> = ({
   originalPoint,
   counterPoint,
@@ -94,19 +76,21 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   openedFromSlashedIcon,
   ...props
 }) => {
-  // Core data fetching hooks
-  const { data: existingRestake } = useQuery<RestakeResponse | null>({
-    queryKey: ['restake', originalPoint.id, counterPoint.id],
-    queryFn: () => fetchRestakeForPoints(originalPoint.id, counterPoint.id)
-  });
 
-  const { data: existingDoubt } = useQuery({
-    queryKey: ['doubt', originalPoint.id, counterPoint.id],
-    queryFn: () => fetchDoubtForRestake(originalPoint.id, counterPoint.id),
-    enabled: !!originalPoint.id && !!counterPoint.id
-  });
+  const { mutateAsync: restakeMutation } = useRestake();
+  const { mutateAsync: slashMutation } = useSlash();
+  const { mutateAsync: doubtMutation } = useDoubt();
 
-  // State management hooks
+  const { data: existingRestake } = useRestakeForPoints(
+    originalPoint.id, 
+    counterPoint.id
+  );
+
+  const { data: existingDoubt } = useDoubtForRestake(
+    originalPoint.id, 
+    counterPoint.id
+  );
+
   const [stakedCred, setStakedCred] = useState(0);
   const [isSlashing, setIsSlashing] = useState(false);
   const [timelineScale, setTimelineScale] = useState<TimelineScale>(DEFAULT_TIMESCALE);
@@ -129,25 +113,21 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   const currentlyStaked = existingRestake?.isUserRestake 
     ? (existingRestake.effectiveAmount ?? 0)
     : 0;
-  console.log('currentlyStaked:', currentlyStaked, 'existingRestake:', existingRestake);
 
-  const { data: negationFavorHistory } = useQuery({
-    queryKey: ["favor-history", counterPoint.id, timelineScale],
-    queryFn: () => fetchFavorHistory({ 
-      pointId: counterPoint.id, 
-      scale: timelineScale 
-    }),
-    enabled: open,
+  const { data: negationFavorHistory } = useFavorHistory({ 
+    pointId: counterPoint.id, 
+    timelineScale: timelineScale 
   });
 
-  const { data: favorHistory, isLoading: isLoadingHistory } = useQuery({
-    queryKey: ["favor-history", originalPoint.id, timelineScale],
-    queryFn: () => fetchFavorHistory({ 
-      pointId: originalPoint.id, 
-      scale: timelineScale 
-    }),
-    enabled: open,
+  const { data: favorHistory, isLoading: isLoadingHistory } = useFavorHistory({ 
+    pointId: originalPoint.id, 
+    timelineScale: timelineScale 
   });
+
+  const { data: reputationData } = useRestakerReputation(
+    originalPoint.id, 
+    counterPoint.id
+  );
 
   useEffect(() => {
     if (!existingRestake?.isUserRestake) {
@@ -184,7 +164,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
       }
     }, [existingRestake?.amount, originalPoint.viewerCred]);
 
-  // User data and authentication
   const { data: userId, isLoading: isLoadingUserId } = useQuery({
     queryKey: ['userId'],
     queryFn: getUserId
@@ -219,7 +198,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   const effectiveFavorFromRestaking = favorFromRestaking || 0;
   const totalDoubt = stakedCred;
 
-  // Calculate APY first
   const apy = useMemo(() => {
     if (stakedCred === 0) return 0;
     
@@ -260,12 +238,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     return existingDoubt?.isUserDoubt ?? false;
   }, [existingDoubt?.isUserDoubt]);
 
-  const { data: reputationData } = useQuery({
-    queryKey: ['restaker-reputation', originalPoint.id, counterPoint.id],
-    queryFn: () => fetchRestakerReputation(originalPoint.id, counterPoint.id),
-    enabled: open
-  });
-
   const handleSliderChange = useCallback((values: number[]) => {
     // If in doubt mode and user has their own doubt, don't allow changes
     if (openedFromSlashedIcon && existingDoubt?.isUserDoubt) {
@@ -305,17 +277,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
       </Dialog>
     );
   }
-
-  // Add before maxStakeAmount calculation
-  console.log('Max stake calculation:', {
-    openedFromSlashedIcon,
-    canDoubt,
-    originalPointStakedAmount: originalPoint.stakedAmount,
-    totalRestakeAmount: existingRestake?.totalRestakeAmount,
-    userCred: user?.cred,
-    currentlyStaked,
-    viewerCred: originalPoint.viewerCred
-  });
 
   // Calculate maximum stake amount based on mode and constraints
   const maxStakeAmount = Math.floor(openedFromSlashedIcon 
@@ -379,20 +340,20 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
     try {
       if (openedFromSlashedIcon) {
-        await doubt({
+        await doubtMutation({
           pointId: originalPoint.id,
           negationId: counterPoint.id,
           amount: stakedCred
         });
       } else {
         if (isSlashing) {
-          await slash({
+          await slashMutation({
             pointId: originalPoint.id,
             negationId: counterPoint.id,
             amount: slashAmount
           });
         } else {
-          await restake({
+          await restakeMutation({
             pointId: originalPoint.id,
             negationId: counterPoint.id,
             amount: stakedCred
@@ -410,21 +371,9 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
         isSlashing
       });
       
-      queryClient.invalidateQueries({ 
-        queryKey: ['restake']
-      });
-      queryClient.invalidateQueries({ 
-        queryKey: ['point']
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['doubt']
-      });
-      
       setShowSuccess(true);
     } catch (error) {
-      queryClient.invalidateQueries({
-        queryKey: ['restake', originalPoint.id, counterPoint.id]
-      });
+      console.error('Error submitting action:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -649,9 +598,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
       </Dialog>
     );
   }
-
-  // Log when component renders
-  console.log('RestakeDialog render - stakedCred:', stakedCred, 'currentlyStaked:', currentlyStaked);
 
   return (
     <Dialog {...props} open={open} onOpenChange={onOpenChange}>

@@ -1,5 +1,5 @@
 import { cn } from "@/lib/cn";
-import { HTMLAttributes, MouseEventHandler, useMemo } from "react";
+import { HTMLAttributes, MouseEventHandler, useMemo, useState, useCallback } from "react";
 import { AuthenticatedActionButton, Button } from "./ui/button";
 import { endorse } from "@/actions/endorse";
 import { CredInput } from "@/components/CredInput";
@@ -15,11 +15,11 @@ import {
 } from "@/components/ui/popover";
 import { useCredInput } from "@/hooks/useCredInput";
 import { usePrivy } from "@privy-io/react-auth";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
 import { useAtom } from "jotai";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
-import { fetchDoubtForRestake } from "@/actions/fetchDoubtForRestake";
+import { usePrefetchRestakeData } from "@/hooks/usePrefetchRestakeData";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -43,6 +43,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
     amountSupporters: number;
     amountNegations: number;
     negationsCred: number;
+    stakedAmount: number;
   };
   onRestake?: (options: { openedFromSlashedIcon: boolean }) => void;
   negationId?: number;
@@ -55,6 +56,13 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
     originalAmount?: number | null;
     slashedAmount: number;
     doubtedAmount: number;
+    effectiveAmount?: number;
+  } | null;
+  doubt?: {
+    id: number;
+    amount: number;
+    active: boolean;
+    userAmount: number;
   } | null;
 }
 
@@ -74,9 +82,10 @@ export const PointCard = ({
   onRestake,
   negationId,
   restake,
+  doubt,
   ...props
 }: PointCardProps) => {
-  const [hoveredPointId, setHoveredPointId] = useAtom(hoveredPointIdAtom);
+  const [_, setHoveredPointId] = useAtom(hoveredPointIdAtom);
   const endorsedByViewer = viewerContext?.viewerCred !== undefined && viewerContext.viewerCred > 0;
   const queryClient = useQueryClient();
   const { user: privyUser, login } = usePrivy();
@@ -84,24 +93,28 @@ export const PointCard = ({
   const { credInput, setCredInput, notEnoughCred } = useCredInput({
     resetWhen: !endorsePopoverOpen,
   });
+  const [isEndorsing, setIsEndorsing] = useState(false);
+  const prefetchRestakeData = usePrefetchRestakeData();
 
   const restakePercentage = useMemo(() => {
     if (!isNegation || !parentPoint || !restake?.amount) return 0;
-    return Math.round((restake.amount / (parentPoint.viewerCred || 1)) * 100);
+    
+    const rawPercentage = (restake.amount / (parentPoint.viewerCred || 1)) * 100;
+    
+    return Math.round(rawPercentage);
   }, [isNegation, parentPoint, restake]);
 
-  const { data: existingDoubt } = useQuery({
-    queryKey: ['doubt', parentPoint?.id, pointId],
-    queryFn: () => parentPoint?.id ? fetchDoubtForRestake(parentPoint.id, pointId) : null,
-    enabled: !!parentPoint?.id && !!pointId,
-    staleTime: 1000 * 60 * 5 // 5 minutes
-  });
-
   const doubtPercentage = useMemo(() => {
-    if (!isNegation || !restake?.amount || !existingDoubt?.amount) return 0;
+    if (!isNegation || !restake?.amount || !doubt?.amount) return 0;
     const totalRestaked = restake.totalRestakeAmount;
-    return Math.floor((existingDoubt.amount / totalRestaked) * 100);
-  }, [isNegation, restake, existingDoubt]);
+    return Math.round((doubt.userAmount / totalRestaked) * 100);
+  }, [isNegation, restake, doubt]);
+
+  const handleRestakeHover = useCallback(() => {
+    if (isNegation && parentPoint?.id && negationId) {
+      prefetchRestakeData(parentPoint.id, negationId);
+    }
+  }, [isNegation, parentPoint?.id, negationId, prefetchRestakeData]);
 
   return (
     <div
@@ -109,7 +122,10 @@ export const PointCard = ({
         "@container/point flex gap-3 pt-4 pb-3 px-4 relative rounded-none",
         className
       )}
-      onMouseOver={() => setHoveredPointId(pointId)}
+      onMouseOver={() => {
+        setHoveredPointId(pointId);
+        handleRestakeHover();
+      }}
       onMouseLeave={() => setHoveredPointId(undefined)}
       {...props}
     >
@@ -171,15 +187,27 @@ export const PointCard = ({
                     notEnoughCred={notEnoughCred}
                   />
                   <Button
-                    disabled={credInput === 0 || notEnoughCred}
+                    disabled={credInput === 0 || notEnoughCred || isEndorsing}
                     onClick={() => {
-                      endorse({ pointId, cred: credInput }).then(() => {
-                        queryClient.invalidateQueries({ queryKey: ["feed"] });
-                        toggleEndorsePopoverOpen(false);
-                      });
+                      setIsEndorsing(true);
+                      endorse({ pointId, cred: credInput })
+                        .then(() => {
+                          queryClient.invalidateQueries({ queryKey: ["feed"] });
+                          toggleEndorsePopoverOpen(false);
+                        })
+                        .finally(() => {
+                          setIsEndorsing(false);
+                        });
                     }}
                   >
-                    Endorse
+                    {isEndorsing ? (
+                      <div className="flex items-center gap-2">
+                        <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                        <span>Endorsing...</span>
+                      </div>
+                    ) : (
+                      "Endorse"
+                    )}
                   </Button>
                 </div>
                 {notEnoughCred && (
@@ -203,6 +231,7 @@ export const PointCard = ({
                     e.stopPropagation();
                     onRestake?.({openedFromSlashedIcon: false});
                   }}
+                  onMouseEnter={handleRestakeHover}
                 >
                   <RestakeIcon 
                     className={cn(
@@ -217,23 +246,24 @@ export const PointCard = ({
                   variant="ghost"
                   className={cn(
                     "p-1 -mb-2 rounded-full size-fit hover:bg-muted/30",
-                    existingDoubt?.isUserDoubt && "text-endorsed"
+                    doubt?.active && "text-endorsed"
                   )}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     onRestake?.({openedFromSlashedIcon: true});
                   }}
+                  onMouseEnter={handleRestakeHover}
                 >
                   <div className="flex items-center translate-y-[5px]">
                     <DoubtIcon 
                       className={cn(
                         "size-5 stroke-1",
-                        existingDoubt?.isUserDoubt && "fill-current"
+                        doubt?.active && "fill-current"
                       )} 
-                      isFilled={existingDoubt?.isUserDoubt}
+                      isFilled={doubt?.active}
                     />
-                    {existingDoubt?.isUserDoubt && (
+                    {doubt?.active && (
                       <span className="ml-1">{doubtPercentage}%</span>
                     )}
                   </div>

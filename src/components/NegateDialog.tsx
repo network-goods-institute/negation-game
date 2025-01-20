@@ -283,6 +283,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                           cred,
                         })
                   ).then(() => {
+                    queryClient.invalidateQueries({ queryKey: ["feed"] });
                     resetForm();
                     setNegatedPointId(undefined);
                   })

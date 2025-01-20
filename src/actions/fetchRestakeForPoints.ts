@@ -7,7 +7,6 @@ import { getUserId } from "./getUserId";
 
 export const fetchRestakeForPoints = async (pointId: number, negationId: number) => {
   const userId = await getUserId();
-  console.log('fetchRestakeForPoints called with:', { pointId, negationId, userId });
 
   if (!userId) {
     return null;
@@ -43,7 +42,7 @@ export const fetchRestakeForPoints = async (pointId: number, negationId: number)
       effectiveAmount: effectiveRestakesView.effectiveAmount,
       amount: effectiveRestakesView.amount,
       slashedAmount: effectiveRestakesView.slashedAmount,
-      doubtedAmount: effectiveRestakesView.doubtedAmount,
+      doubtedAmount: sql<number>`COALESCE(${effectiveRestakesView.doubtedAmount}, 0)`.mapWith(Number),
       isActive: effectiveRestakesView.isActive,
     })
     .from(effectiveRestakesView)
@@ -71,12 +70,6 @@ export const fetchRestakeForPoints = async (pointId: number, negationId: number)
       )
     );
 
-  console.log('Query results:', {
-    totals,
-    userRestake,
-    totalRestakeAmount: totals?.totalRestakeAmount || 0
-  });
-
   // Return either user's restake with total amount info, or just total amount info
   const result = userRestake 
     ? {
@@ -89,6 +82,5 @@ export const fetchRestakeForPoints = async (pointId: number, negationId: number)
         isUserRestake: false
       };
 
-  console.log('Returning result:', result);
   return result;
 }; 

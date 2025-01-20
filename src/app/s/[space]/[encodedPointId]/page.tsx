@@ -65,6 +65,7 @@ import {
 import { usePointData } from "../../../../queries/usePointData";
 import { SelectNegationDialog } from "@/components/SelectNegationDialog";
 import { RestakeDialog } from "@/components/RestakeDialog";
+import { usePrefetchPoint } from "@/hooks/usePrefetchPoint";
 
 type Point = {
   id: number;
@@ -86,7 +87,7 @@ export default function PointPage({
 }) {
   const encodedPointId = use(params).encodedPointId;
   const pointId = decodeId(encodedPointId);
-  const { user: privyUser, login } = usePrivy();
+  const { user: privyUser, login, ready } = usePrivy();
   const setNegatedPointId = useSetAtom(negatedPointIdAtom);
   const setNegationContent = useAtomCallback(
     (_get, set, negatedPointId: number, content: string) => {
@@ -147,6 +148,17 @@ export default function PointPage({
     counterPoint: Point;
     openedFromSlashedIcon?: boolean;
   } | null>(null);
+
+  const prefetchPoint = usePrefetchPoint();
+
+  // If Privy isn't ready yet, show loading state
+  if (!ready) {
+    return (
+      <main className="flex items-center justify-center flex-grow">
+        <Loader className="size-6" />
+      </main>
+    );
+  }
 
   return (
     <main
@@ -428,6 +440,7 @@ export default function PointPage({
                         className={cn(
                           "flex cursor-pointer px-4 pt-5 pb-2 border-b hover:bg-accent data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
                         )}
+                        onMouseEnter={() => prefetchPoint(negation.pointId)}
                       >
                         <PointCard
                           onNegate={(e) => {
@@ -446,7 +459,8 @@ export default function PointPage({
                           isNegation={true}
                           parentPoint={{
                             ...point,
-                            id: point.pointId
+                            id: point.pointId,
+                            stakedAmount: point.cred
                           }}
                           negationId={point.pointId}
                           onRestake={({openedFromSlashedIcon}) => {
@@ -471,6 +485,7 @@ export default function PointPage({
                             });
                           }}
                           restake={negation.restake}
+                          doubt={negation.doubt}
                         />
                       </Link>
                     ))}
@@ -478,9 +493,11 @@ export default function PointPage({
               )}
 
               {!isLoadingNegations && negations?.length === 0 && (
-                <p className="w-full uppercase tracking-widest font-semibold text-xs text-center py-md border-b text-muted-foreground">
-                  No negations yet
-                </p>
+                <>
+                  <p className="w-full uppercase tracking-widest font-semibold text-xs text-center py-md border-b text-muted-foreground">
+                    No negations yet
+                  </p>
+                </>
               )}
 
               {counterpointSuggestions.length > 0 && (
@@ -506,7 +523,7 @@ export default function PointPage({
                       <div className="relative grid text-muted-foreground">
                         <CircleXIcon className="shrink-0 size-6 stroke-1 text-muted-foreground col-start-1 row-start-1" />
                       </div>
-                      <p className="tracking-tighter text-sm  @sm/point:text-base  -mt-0.5">
+                      <p className="tracking-tighter text-sm @sm/point:text-base -mt-0.5">
                         {suggestion}
                       </p>
                     </div>

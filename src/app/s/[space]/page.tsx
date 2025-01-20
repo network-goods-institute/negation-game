@@ -35,8 +35,8 @@ export default function Home() {
   const setNegatedPointId = useSetAtom(negatedPointIdAtom);
 
   return (
-    <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow gap-md  bg-background overflow-auto">
-      <div className="relative w-full sm:col-[2] h-full flex flex-col gap-0 border-x">
+    <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow bg-background">
+      <div className="relative w-full sm:col-[2] flex flex-col gap-0 border-x overflow-auto">
         {space && space.data && space.data.id !== DEFAULT_SPACE && (
           <>
             <div className="absolute top-0 h-10 w-full bg-muted" />

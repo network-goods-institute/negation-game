@@ -1,10 +1,25 @@
 import { getCounterpointSuggestions } from "@/actions/getCounterpointSuggestions";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
+export const counterpointSuggestionsKey = (pointId?: number) => 
+  ["counterpoint-suggestions", pointId];
+
 export const useCounterpointSuggestions = (pointId?: number) => {
+  const queryClient = useQueryClient();
+
+  // Start loading immediately when pointId is available
+  useEffect(() => {
+    if (pointId) {
+      queryClient.prefetchQuery({
+        queryKey: counterpointSuggestionsKey(pointId),
+        queryFn: () => getCounterpointSuggestions(pointId),
+      });
+    }
+  }, [pointId, queryClient]);
+
   const { data: counterpointSuggestionsStream } = useQuery({
-    queryKey: ["counterpoint-suggestions", pointId],
+    queryKey: counterpointSuggestionsKey(pointId),
     queryFn: ({ queryKey: [, pointId] }) =>
       getCounterpointSuggestions(pointId as number),
     enabled: !!pointId,

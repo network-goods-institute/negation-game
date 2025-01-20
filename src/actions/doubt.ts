@@ -17,7 +17,6 @@ export const doubt = async ({ pointId, negationId, amount }: DoubtArgs) => {
     throw new Error("Must be authenticated to doubt");
   }
 
-  // Look for existing doubt
   const existingDoubt = await db
     .select()
     .from(doubtsTable)
@@ -44,8 +43,7 @@ export const doubt = async ({ pointId, negationId, amount }: DoubtArgs) => {
       cred: sql`${usersTable.cred} - ${amount}`,
     })
     .where(eq(usersTable.id, userId));
-
-  // Create new doubt
+    
   const newDoubt = await db
     .insert(doubtsTable)
     .values({

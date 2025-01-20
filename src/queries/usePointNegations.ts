@@ -33,6 +33,12 @@ export const usePointNegations = (pointId: number) => {
             originalAmount: negation.restake.originalAmount ?? 0,
             totalRestakeAmount: negation.restake.totalRestakeAmount ?? 0,
             isOwner: negation.restake.isOwner
+          } : null,
+          doubt: negation.doubt ? {
+            id: negation.doubt.id ?? 0,
+            amount: negation.doubt.amount ?? 0,
+            active: negation.doubt.active ?? false,
+            userAmount: negation.doubt.userAmount ?? 0
           } : null
         };
 

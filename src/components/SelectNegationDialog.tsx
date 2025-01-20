@@ -5,12 +5,11 @@ import { FC, useState } from "react";
 import { ArrowLeftIcon, CircleXIcon } from "lucide-react";
 import { RestakeDialog } from "./RestakeDialog";
 import { useToggle } from "@uidotdev/usehooks";
-import { useQuery } from "@tanstack/react-query";
-import { fetchPointNegations } from "@/actions/fetchPointNegations";
 import { PointStats } from "./PointStats";
 import { Loader } from "./ui/loader";
 import { NegationResult } from "@/actions/fetchPointNegations";
-import { fetchFavorHistory } from "@/actions/fetchFavorHistory";
+import { usePointNegations } from "@/queries/usePointNegations";
+import { useFavorHistory } from "@/queries/useFavorHistory";
 import { DEFAULT_TIMESCALE } from "@/constants/config";
 
 interface SelectNegationDialogProps extends DialogProps {
@@ -38,19 +37,11 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
   const [selectedNegation, setSelectedNegation] = useState<NegationResult | null>(null);
   const [restakeDialogOpen, toggleRestakeDialog] = useToggle(false);
 
-  const { data: negations, isLoading } = useQuery({
-    queryKey: ["point-negations", originalPoint.id],
-    queryFn: () => fetchPointNegations(originalPoint.id),
-    enabled: open,
-  });
+  const { data: negations, isLoading } = usePointNegations(originalPoint.id);
 
-  const { data: favorHistory } = useQuery({
-    queryKey: ["favor-history", originalPoint.id, DEFAULT_TIMESCALE],
-    queryFn: () => fetchFavorHistory({ 
-      pointId: originalPoint.id, 
-      scale: DEFAULT_TIMESCALE 
-    }),
-    enabled: open,
+  const { data: favorHistory } = useFavorHistory({ 
+    pointId: originalPoint.id, 
+    timelineScale: DEFAULT_TIMESCALE 
   });
 
   const currentFavor = favorHistory?.length ? 

@@ -7,6 +7,7 @@ import {
   pointsWithDetailsView,
   effectiveRestakesView,
   slashesTable,
+  doubtsTable,
 } from "@/db/schema";
 import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
@@ -43,6 +44,12 @@ export const fetchPoints = async (ids: number[]) => {
             slash: {
               id: slashesTable.id,
               amount: slashesTable.amount,
+            },
+            doubt: {
+              id: doubtsTable.id,
+              amount: doubtsTable.amount,
+              active: sql<boolean>`${doubtsTable.amount} > 0`.as("doubt_active"),
+              userAmount: doubtsTable.amount,
             }
           }
         : {}),
@@ -89,6 +96,13 @@ export const fetchPoints = async (ids: number[]) => {
         eq(slashesTable.userId, viewerId ?? '')
       )
     )
+    .leftJoin(
+      doubtsTable,
+      and(
+        eq(doubtsTable.pointId, pointsWithDetailsView.pointId),
+        eq(doubtsTable.userId, viewerId ?? '')
+      )
+    )
     .where(
       and(
         inArray(pointsWithDetailsView.pointId, ids),
@@ -96,7 +110,6 @@ export const fetchPoints = async (ids: number[]) => {
       )
     )
     .then((points) => {
-      console.log('Points before favor calculation:', JSON.stringify(points, null, 2));
       return addFavor(points);
     });
 };

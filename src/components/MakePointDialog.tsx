@@ -79,6 +79,8 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
     (selectedPoint ||
       (charactersLeft >= 0 && content.length >= POINT_MIN_LENGHT));
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   return (
     <Dialog {...props} open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:top-xl flex flex-col overflow-auto sm:translate-y-0 h-full rounded-none sm:rounded-md sm:h-fit gap-0  bg-background p-4 sm:p-8 shadow-sm w-full max-w-xl">
@@ -258,24 +260,36 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
 
         <Button
           className="self-end mt-md"
-          disabled={!canSubmit}
+          disabled={!canSubmit || isSubmitting}
           onClick={() => {
+            setIsSubmitting(true);
             (selectedPoint
               ? endorse({ pointId: selectedPoint.pointId, cred })
               : makePoint({
                   content,
                   cred: cred,
                 })
-            ).then(() => {
-              onOpenChange?.(false);
-              setContent("");
-              selectPoint(undefined);
-              setSuggestionSelected(false);
-              resetCred();
-            });
+            )
+              .then(() => {
+                onOpenChange?.(false);
+                setContent("");
+                selectPoint(undefined);
+                setSuggestionSelected(false);
+                resetCred();
+              })
+              .finally(() => {
+                setIsSubmitting(false);
+              });
           }}
         >
-          {selectedPoint ? "Endorse Point" : "Make Point"}
+          {isSubmitting ? (
+            <div className="flex items-center gap-2">
+              <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+              {selectedPoint ? "Endorsing..." : "Creating..."}
+            </div>
+          ) : (
+            selectedPoint ? "Endorse Point" : "Make Point"
+          )}
         </Button>
       </DialogContent>
     </Dialog>

@@ -16,10 +16,6 @@ export const addFavor = <
       slashedAmount: point.slashedAmount ?? 0,
       doubtedAmount: point.doubtedAmount ?? 0,
     };
-    console.log('Adding favor for point:', {
-      pointId: (point as any).pointId,
-      inputs: favorInputs
-    });
     return {
       ...point,
       favor: favor(favorInputs)

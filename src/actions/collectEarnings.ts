@@ -74,22 +74,12 @@ export const collectEarnings = async () => {
 
   return await db.transaction(async (tx) => {
     const earningsQuery = await calculateEarnings(userId);
-    console.log('Initial earnings query:', earningsQuery);
-
     let totalEarnings = 0;
 
     for (const doubt of earningsQuery) {
       const rawEarnings = doubt.hourly_rate * doubt.hours_since_payout;
       const earnings = Math.floor(Math.min(rawEarnings, doubt.available_endorsement));
-      console.log('Processing doubt:', {
-        doubtId: doubt.doubt_id,
-        rawEarnings,
-        earnings,
-        hourlyRate: doubt.hourly_rate,
-        hoursSinceLastPayout: doubt.hours_since_payout,
-        availableEndorsement: doubt.available_endorsement
-      });
-      
+
       if (earnings > 0) { 
         const restakersEndorsements = await tx
           .select({
@@ -110,8 +100,6 @@ export const collectEarnings = async () => {
           ))
           .groupBy(endorsementsTable.userId);
 
-        console.log('Found restakers endorsements:', restakersEndorsements);
-
         let actuallyCollected = 0;
         let remainingEarnings = earnings;
 
@@ -120,14 +108,6 @@ export const collectEarnings = async () => {
           const deduction = endorsement === restakersEndorsements[restakersEndorsements.length - 1]
             ? remainingEarnings
             : Math.floor(earnings * proportion);
-
-          console.log('Processing endorsement:', {
-            userId: endorsement.user_id,
-            totalCred: endorsement.total_cred,
-            proportion,
-            deduction,
-            remainingEarnings
-          });
 
           if (deduction > 0) {
             const userEndorsements = await tx
@@ -140,17 +120,9 @@ export const collectEarnings = async () => {
               ))
               .orderBy(desc(endorsementsTable.cred));
 
-            console.log('User endorsements found:', userEndorsements);
-
             let remainingDeduction = deduction;
             for (const e of userEndorsements) {
               const toDeduct = Math.min(remainingDeduction, e.cred);
-              console.log('Deducting from endorsement:', {
-                endorsementId: e.id,
-                currentCred: e.cred,
-                toDeduct,
-                remainingDeduction
-              });
 
               if (toDeduct > 0) {
                 await tx
@@ -165,22 +137,11 @@ export const collectEarnings = async () => {
                 remainingDeduction -= toDeduct;
                 actuallyCollected += toDeduct;
                 remainingEarnings -= toDeduct;
-                console.log('After deduction:', {
-                  remainingDeduction,
-                  actuallyCollected
-                });
               }
               if (remainingDeduction <= 0) break;
             }
           }
         }
-
-        console.log('Finished processing doubt:', {
-          doubtId: doubt.doubt_id,
-          actuallyCollected,
-          totalEarnings
-        });
-
         if (actuallyCollected > 0) {
           await tx
             .update(doubtsTable)
@@ -197,16 +158,10 @@ export const collectEarnings = async () => {
             .where(eq(usersTable.id, userId));
 
           totalEarnings += actuallyCollected;
-          console.log('Updated last earnings at and total:', {
-            doubtId: doubt.doubt_id,
-            totalEarnings,
-            addedToUser: actuallyCollected
-          });
         }
       }
     }
 
-    console.log('Final total earnings:', totalEarnings);
     return totalEarnings;
   });
 }; 

@@ -2,7 +2,7 @@ import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { PointCard } from "@/components/PointCard";
 import { cn } from "@/lib/cn";
-import { usePointData, usePrefetchPoint } from "@/queries/usePointData";
+import { usePointData } from "@/queries/usePointData";
 import {
   Handle,
   Node,
@@ -95,13 +95,6 @@ export const PointNode = ({
       !existingPointNodes.has(negId) // Don't create if exists anywhere in graph
     );
 
-    console.log('Expanding negations:', {
-      pointId,
-      existingPoints: Array.from(existingPointNodes.keys()),
-      connectedNegations: Array.from(connectedNegationIds),
-      negationsToCreate
-    });
-
     // Create new nodes and edges
     negationsToCreate.forEach((negationId, i) => {
       const nodeId = nanoid();
@@ -129,13 +122,7 @@ export const PointNode = ({
   const expandedRef = useRef(false);
   useEffect(() => {
     if (!expandOnInit || !pointData || expandedRef.current) return;
-    
-    console.log('Initial expansion for point:', {
-      pointId,
-      parentId,
-      alreadyExpanded: expandedRef.current
-    });
-    
+        
     expandedRef.current = true;
     expandNegations();
   }, [expandOnInit, pointData, expandNegations, pointId, parentId]);

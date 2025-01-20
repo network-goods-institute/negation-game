@@ -21,8 +21,6 @@ export const makePoint = async ({
   const userId = await getUserId();
   const space = await getSpace();
 
-  console.log({ space });
-
   if (!userId) {
     throw new Error("Must be authenticated to add a point");
   }
