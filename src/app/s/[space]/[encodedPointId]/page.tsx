@@ -47,6 +47,7 @@ import {
   DiscIcon,
   NetworkIcon,
   SparklesIcon,
+  Repeat2Icon,
 } from "lucide-react";
 import Link from "next/link";
 import { notFound, useRouter } from "next/navigation";
@@ -62,6 +63,22 @@ import {
   YAxis,
 } from "recharts";
 import { usePointData } from "../../../../queries/usePointData";
+import { SelectNegationDialog } from "@/components/SelectNegationDialog";
+import { RestakeDialog } from "@/components/RestakeDialog";
+import { usePrefetchPoint } from "@/hooks/usePrefetchPoint";
+
+type Point = {
+  id: number;
+  pointId: number;
+  content: string;
+  createdAt: Date;
+  cred: number;
+  stakedAmount: number;
+  viewerCred?: number;
+  amountSupporters: number;
+  amountNegations: number;
+  negationsCred: number;
+};
 
 export default function PointPage({
   params,
@@ -70,7 +87,7 @@ export default function PointPage({
 }) {
   const encodedPointId = use(params).encodedPointId;
   const pointId = decodeId(encodedPointId);
-  const { user: privyUser, login } = usePrivy();
+  const { user: privyUser, login, ready } = usePrivy();
   const setNegatedPointId = useSetAtom(negatedPointIdAtom);
   const setNegationContent = useAtomCallback(
     (_get, set, negatedPointId: number, content: string) => {
@@ -124,6 +141,24 @@ export default function PointPage({
   const { back, push } = useRouter();
 
   const counterpointSuggestions = useCounterpointSuggestions(point?.pointId);
+
+  const [selectNegationDialogOpen, toggleSelectNegationDialog] = useToggle(false);
+  const [restakePoint, setRestakePoint] = useState<{
+    point: Point;
+    counterPoint: Point;
+    openedFromSlashedIcon?: boolean;
+  } | null>(null);
+
+  const prefetchPoint = usePrefetchPoint();
+
+  // If Privy isn't ready yet, show loading state
+  if (!ready) {
+    return (
+      <main className="flex items-center justify-center flex-grow">
+        <Loader className="size-6" />
+      </main>
+    );
+  }
 
   return (
     <main
@@ -179,6 +214,13 @@ export default function PointPage({
                 )}
               </div>
               <div className="flex gap-sm items-center text-muted-foreground">
+                <Button
+                  variant="ghost"
+                  className="p-2 rounded-full size-fit hover:bg-muted/30"
+                  onClick={() => toggleSelectNegationDialog(true)}
+                >
+                  <Repeat2Icon className="size-6 stroke-1" />
+                </Button>
                 <Button
                   size={"icon"}
                   variant={canvasEnabled ? "default" : "outline"}
@@ -384,46 +426,78 @@ export default function PointPage({
                   <span className="text-muted-foreground text-xs uppercase font-semibold tracking-widest w-full p-2 border-b text-center">
                     negations
                   </span>
-                  {negations.map((negation, i) => (
-                    <Link
-                      data-show-hover={
-                        canvasEnabled && hoveredPointId === negation.pointId
-                      }
-                      draggable={false}
-                      onClick={preventDefaultIfContainsSelection}
-                      href={`${basePath}/${encodeId(negation.pointId)}`}
-                      key={negation.pointId}
-                      className={cn(
-                        "flex cursor-pointer  px-4 pt-5 pb-2 border-b hover:bg-accent data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
-                      )}
-                    >
-                      <PointCard
-                        onNegate={(e) => {
-                          //prevent the link from navigating
-                          e.preventDefault();
-                          user !== null
-                            ? setNegatedPointId(negation.pointId)
-                            : login();
-                        }}
-                        className="flex-grow -mt-3.5 pb-3"
-                        favor={negation.favor}
-                        content={negation.content}
-                        createdAt={negation.createdAt}
-                        amountSupporters={negation.amountSupporters}
-                        amountNegations={negation.amountNegations}
-                        pointId={negation.pointId}
-                        cred={negation.cred}
-                        viewerContext={{ viewerCred: negation.viewerCred }}
-                      />
-                    </Link>
-                  ))}
+                  {negations
+                    .filter(negation => negation.pointId !== pointId)
+                    .map((negation) => (
+                      <Link
+                        data-show-hover={
+                          canvasEnabled && hoveredPointId === negation.pointId
+                        }
+                        draggable={false}
+                        onClick={preventDefaultIfContainsSelection}
+                        href={`${basePath}/${encodeId(negation.pointId)}`}
+                        key={negation.pointId}
+                        className={cn(
+                          "flex cursor-pointer px-4 pt-5 pb-2 border-b hover:bg-accent data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
+                        )}
+                        onMouseEnter={() => prefetchPoint(negation.pointId)}
+                      >
+                        <PointCard
+                          onNegate={(e) => {
+                            e.preventDefault();
+                            user !== null ? setNegatedPointId(negation.pointId) : login();
+                          }}
+                          className="flex-grow -mt-3.5 pb-3"
+                          favor={negation.favor}
+                          content={negation.content}
+                          createdAt={negation.createdAt}
+                          amountSupporters={negation.amountSupporters}
+                          amountNegations={negation.amountNegations}
+                          pointId={negation.pointId}
+                          cred={negation.cred}
+                          viewerContext={{ viewerCred: negation.viewerCred }}
+                          isNegation={true}
+                          parentPoint={{
+                            ...point,
+                            id: point.pointId,
+                            stakedAmount: point.cred
+                          }}
+                          negationId={point.pointId}
+                          onRestake={({openedFromSlashedIcon}) => {
+                            if (privyUser === null) {
+                              login();
+                              return;
+                            }
+                            setRestakePoint({
+                              point: {
+                                ...point,
+                                stakedAmount: point.cred,
+                                pointId: point.pointId,
+                                id: point.pointId
+                              },
+                              counterPoint: {
+                                ...negation,
+                                stakedAmount: negation.cred,
+                                pointId: negation.pointId,
+                                id: negation.pointId
+                              },
+                              openedFromSlashedIcon
+                            });
+                          }}
+                          restake={negation.restake}
+                          doubt={negation.doubt}
+                        />
+                      </Link>
+                    ))}
                 </>
               )}
 
               {!isLoadingNegations && negations?.length === 0 && (
-                <p className="w-full uppercase tracking-widest font-semibold text-xs text-center py-md border-b text-muted-foreground">
-                  No negations yet
-                </p>
+                <>
+                  <p className="w-full uppercase tracking-widest font-semibold text-xs text-center py-md border-b text-muted-foreground">
+                    No negations yet
+                  </p>
+                </>
               )}
 
               {counterpointSuggestions.length > 0 && (
@@ -449,7 +523,7 @@ export default function PointPage({
                       <div className="relative grid text-muted-foreground">
                         <CircleXIcon className="shrink-0 size-6 stroke-1 text-muted-foreground col-start-1 row-start-1" />
                       </div>
-                      <p className="tracking-tighter text-sm  @sm/point:text-base  -mt-0.5">
+                      <p className="tracking-tighter text-sm @sm/point:text-base -mt-0.5">
                         {suggestion}
                       </p>
                     </div>
@@ -470,6 +544,33 @@ export default function PointPage({
       )}
 
       <NegateDialog />
+
+      <SelectNegationDialog
+        open={selectNegationDialogOpen}
+        onOpenChange={toggleSelectNegationDialog}
+        originalPoint={{
+          id: point?.pointId ?? 0,
+          content: point?.content ?? '',
+          createdAt: point?.createdAt ?? new Date(),
+          stakedAmount: point?.cred ?? 0,
+          viewerCred: point?.viewerCred,
+          amountSupporters: point?.amountSupporters ?? 0,
+          amountNegations: point?.amountNegations ?? 0,
+          negationsCred: point?.negationsCred ?? 0
+        }}
+        negationId={point?.pointId ?? 0}
+      />
+
+      {restakePoint && (
+        <RestakeDialog
+          open={restakePoint !== null}
+          onOpenChange={(open) => !open && setRestakePoint(null)}
+          originalPoint={restakePoint.point}
+          counterPoint={restakePoint.counterPoint}
+          onEndorseClick={() => toggleEndorsePopoverOpen(true)}
+          openedFromSlashedIcon={restakePoint.openedFromSlashedIcon}
+        />
+      )}
     </main>
   );
 }

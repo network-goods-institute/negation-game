@@ -14,10 +14,52 @@ export const useFeed = () => {
       const page = await fetchFeedPage();
 
       for (const point of page) {
-        setPointData({ pointId: point.pointId, userId: privyUser?.id }, point);
+        const transformedPoint = {
+          ...point,
+          restakesByPoint: point.restakesByPoint,
+          slashedAmount: point.slashedAmount,
+          doubtedAmount: point.doubtedAmount,
+          restake: {
+            id: 0,
+            amount: 0,
+            slashedAmount: 0,
+            doubtedAmount: 0,
+            active: false,
+            originalAmount: 0,
+          },
+          doubt: {
+            id: point.doubt?.id ?? 0,
+            amount: point.doubt?.amount ?? 0,
+            active: point.doubt?.active ?? false,
+            userAmount: point.doubt?.userAmount ?? 0,
+          }
+        };
+        setPointData(
+          { pointId: point.pointId, userId: privyUser?.id }, 
+          transformedPoint
+        );
       }
 
-      return page;
+      return page.map(point => ({
+        ...point,
+        restakesByPoint: point.restakesByPoint,
+        slashedAmount: point.slashedAmount,
+        doubtedAmount: point.doubtedAmount,
+        restake: {
+          id: 0,
+          amount: 0,
+          slashedAmount: 0,
+          doubtedAmount: 0,
+          active: false,
+          originalAmount: 0,
+        },
+        doubt: {
+          id: point.doubt?.id ?? 0,
+          amount: point.doubt?.amount ?? 0,
+          active: point.doubt?.active ?? false,
+          userAmount: point.doubt?.userAmount ?? 0,
+        }
+      }));
     },
   });
 };

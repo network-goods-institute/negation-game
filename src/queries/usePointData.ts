@@ -7,7 +7,7 @@ import { useCallback } from "react";
 const pointFetcher = create({
   fetcher: async (ids: number[]) => await fetchPoints(ids),
   resolver: keyResolver("pointId"),
-  scheduler: windowScheduler(10),
+  scheduler: windowScheduler(20),
 });
 
 export type PointData = Awaited<ReturnType<typeof fetchPoints>>[number];
@@ -26,7 +26,7 @@ export const usePointData = (pointId?: number) => {
     queryKey: pointQueryKey({ pointId, userId: user?.id }),
     queryFn: () => (pointId ? pointFetcher.fetch(pointId) : null),
     gcTime: Infinity,
-    staleTime: 1000 * 60 * 60,
+    staleTime: 1000 * 60 * 5,
   });
 };
 
