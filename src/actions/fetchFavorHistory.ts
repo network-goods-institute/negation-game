@@ -64,7 +64,7 @@ export async function fetchFavorHistory({
   // Combine results
   if (!beforeRangeValue) return rangeValues;
 
-  const endOfRange = last(rangeValues)?.timestamp.getTime() ?? Date.now();
+  const endOfRange = new Date(last(rangeValues)?.timestamp ?? Date.now()).getTime();
   const startOfRange = endOfRange - period * 1000;
 
   return [

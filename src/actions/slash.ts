@@ -144,7 +144,10 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
 
         // Update each doubt and record history
         for (const doubt of doubts) {
-          const reductionAmount = Math.floor(doubt.amount * slashProportion);
+          const reductionAmount = Math.min(
+            Math.floor(doubt.amount * slashProportion),
+            doubt.amount
+          );
           if (reductionAmount > 0) {
             const newDoubtAmount = doubt.amount - reductionAmount;
 
@@ -200,7 +203,12 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
 
         // Update each doubt and record history
         for (const doubt of doubts) {
-          const reductionAmount = Math.floor(doubt.amount * slashProportion);
+          // Calculate reduction amount but cap it at the current doubt amount
+          const reductionAmount = Math.min(
+            Math.floor(doubt.amount * slashProportion),
+            doubt.amount  // Never reduce more than the current doubt amount
+          );
+
           if (reductionAmount > 0) {
             const newDoubtAmount = doubt.amount - reductionAmount;
 

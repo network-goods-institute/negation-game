@@ -51,6 +51,7 @@ export interface RestakeDialogProps extends DialogProps {
       originalAmount: number;
       slashedAmount: number;
       doubtedAmount: number;
+      effectiveAmount?: number;
     } | null;
     slash?: {
       id: number;
@@ -76,17 +77,16 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   openedFromSlashedIcon,
   ...props
 }) => {
-
   const { mutateAsync: restakeMutation } = useRestake();
   const { mutateAsync: slashMutation } = useSlash();
   const { mutateAsync: doubtMutation } = useDoubt();
 
-  const { data: existingRestake } = useRestakeForPoints(
+  const { data: existingRestake, isLoading: isLoadingRestake } = useRestakeForPoints(
     originalPoint.id, 
     counterPoint.id
   );
 
-  const { data: existingDoubt } = useDoubtForRestake(
+  const { data: existingDoubt, isLoading: isLoadingDoubt } = useDoubtForRestake(
     originalPoint.id, 
     counterPoint.id
   );
@@ -111,7 +111,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
   // Derived values
   const currentlyStaked = existingRestake?.isUserRestake 
-    ? (existingRestake.effectiveAmount ?? 0)
+    ? (existingRestake.amount ?? 0)
     : 0;
 
   const { data: negationFavorHistory } = useFavorHistory({ 
@@ -138,11 +138,10 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   // Set initial stakedCred when dialog opens
   useEffect(() => {
     if (open) {
-      setStakedCred(
-        openedFromSlashedIcon 
-          ? (existingDoubt?.userAmount ?? 0)  // Use existing doubt amount if it exists
-          : currentlyStaked
-      );
+      const newStakedCred = openedFromSlashedIcon 
+        ? (existingDoubt?.userAmount ?? 0)
+        : currentlyStaked;
+      setStakedCred(newStakedCred);
     }
   }, [open, currentlyStaked, openedFromSlashedIcon, existingDoubt?.userAmount]);
 
@@ -187,10 +186,14 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   const canDoubt = useMemo(() => {
     if (!openedFromSlashedIcon) return true; // Not in doubt mode
     if (isLoadingUserId) return false; // Still loading user
-    if (!existingRestake?.totalRestakeAmount) return false; // No active restakes to doubt
     if (!userId) return false; // No user logged in
+    
+    // Check original amount instead of effective amount
+    const totalRestakeAmount = existingRestake?.amount ?? 0;
+    if (totalRestakeAmount === 0) return false; // No restakes to doubt
+    
     return true;
-  }, [openedFromSlashedIcon, existingRestake?.totalRestakeAmount, userId, isLoadingUserId]);
+  }, [openedFromSlashedIcon, existingRestake?.amount, userId, isLoadingUserId]);
 
   const favorReduced = stakedCred;
 
@@ -239,8 +242,8 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   }, [existingDoubt?.isUserDoubt]);
 
   const handleSliderChange = useCallback((values: number[]) => {
-    // If in doubt mode and user has their own doubt, don't allow changes
-    if (openedFromSlashedIcon && existingDoubt?.isUserDoubt) {
+    // If user has an existing doubt, don't allow changes regardless of effective amount
+    if (openedFromSlashedIcon && existingDoubt?.isUserDoubt && existingDoubt.userAmount > 0) {
       return;
     }
     
@@ -254,7 +257,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
     const factors = {
       stake: originalPoint.stakedAmount || 0,
-      restake: existingRestake?.totalRestakeAmount ?? 0,
+      restake: existingRestake?.amount ?? 0,
       cred: user?.cred ?? 0
     };
 
@@ -265,7 +268,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     if (minValue === factors.cred) return "your available cred";
     
     return null;
-  }, [openedFromSlashedIcon, canDoubt, originalPoint.stakedAmount, existingRestake?.totalRestakeAmount, user?.cred]);
+  }, [openedFromSlashedIcon, canDoubt, originalPoint.stakedAmount, existingRestake?.amount, user?.cred]);
 
   // Loading state handler
   if (isLoadingUser) {
@@ -283,8 +286,8 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     ? canDoubt 
       ? Math.min(
           originalPoint.stakedAmount || 0,        // Can't doubt more than total stake on point
-          existingRestake?.totalRestakeAmount ?? 0, // Can't doubt more than total restaked
-          user?.cred ?? 0                          // Can't doubt more than user's available cred
+          existingRestake?.amount ?? 0,           // Use amount instead of totalRestakeAmount
+          user?.cred ?? 0                         // Can't doubt more than user's available cred
         )
       : 0
     : Math.min(
@@ -382,7 +385,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   // Add info message when hitting cred limit
   const showCredLimitMessage = stakedCred === user?.cred && stakedCred < (
     openedFromSlashedIcon 
-      ? Math.min(originalPoint.stakedAmount || 0, Number(existingRestake?.totalRestakeAmount ?? 0))
+      ? Math.min(originalPoint.stakedAmount || 0, Number(existingRestake?.amount ?? 0))
       : originalPoint.viewerCred || 0
   );
 

@@ -5,11 +5,12 @@ import { usePrivy } from "@privy-io/react-auth";
 export type RestakeResponse = {
   id?: number;
   userId?: string;
-  effectiveAmount?: number;
   amount?: number;
+  effectiveAmount?: number;
+  originalAmount?: number;
   slashedAmount?: number;
   doubtedAmount?: number;
-  isActive?: boolean;
+  active?: boolean;
   totalRestakeAmount: number;
   isUserRestake: boolean;
 } | null;

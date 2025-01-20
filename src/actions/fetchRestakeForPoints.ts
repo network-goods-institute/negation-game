@@ -1,6 +1,6 @@
 "use server";
 
-import { effectiveRestakesView, restakesTable } from "@/db/schema";
+import { effectiveRestakesView, restakesTable, slashesTable } from "@/db/schema";
 import { db } from "@/services/db";
 import { and, eq, sql, or } from "drizzle-orm";
 import { getUserId } from "./getUserId";
@@ -34,16 +34,17 @@ export const fetchRestakeForPoints = async (pointId: number, negationId: number)
       )
     );
 
-  // Then get user's restake if it exists
+  // Then get user's restake if it exists and isn't fully slashed
   const [userRestake] = await db
     .select({
       id: restakesTable.id,
       userId: restakesTable.userId,
-      effectiveAmount: effectiveRestakesView.effectiveAmount,
       amount: effectiveRestakesView.amount,
+      effectiveAmount: effectiveRestakesView.effectiveAmount,
+      originalAmount: effectiveRestakesView.amount,
       slashedAmount: effectiveRestakesView.slashedAmount,
       doubtedAmount: sql<number>`COALESCE(${effectiveRestakesView.doubtedAmount}, 0)`.mapWith(Number),
-      isActive: effectiveRestakesView.isActive,
+      active: effectiveRestakesView.isActive,
     })
     .from(effectiveRestakesView)
     .innerJoin(
@@ -66,21 +67,30 @@ export const fetchRestakeForPoints = async (pointId: number, negationId: number)
             eq(effectiveRestakesView.negationId, pointId)
           )
         ),
-        eq(effectiveRestakesView.userId, userId)
+        eq(effectiveRestakesView.userId, userId),
+        // Only return if not fully slashed
+        sql`${effectiveRestakesView.slashedAmount} < ${effectiveRestakesView.amount}`
       )
     );
 
   // Return either user's restake with total amount info, or just total amount info
-  const result = userRestake 
-    ? {
-        ...userRestake,
-        totalRestakeAmount: totals?.totalRestakeAmount || 0,
-        isUserRestake: true
-      }
-    : {
-        totalRestakeAmount: totals?.totalRestakeAmount || 0,
-        isUserRestake: false
-      };
+  if (userRestake) {
+    return {
+      id: userRestake.id,
+      userId: userRestake.userId,
+      amount: userRestake.amount,
+      effectiveAmount: userRestake.effectiveAmount,
+      originalAmount: userRestake.originalAmount,
+      slashedAmount: userRestake.slashedAmount,
+      doubtedAmount: userRestake.doubtedAmount,
+      active: userRestake.active,
+      totalRestakeAmount: totals?.totalRestakeAmount || 0,
+      isUserRestake: true
+    };
+  }
 
-  return result;
+  return {
+    totalRestakeAmount: totals?.totalRestakeAmount || 0,
+    isUserRestake: false
+  };
 }; 

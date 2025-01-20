@@ -50,7 +50,7 @@ export const PointNode = ({
     deleteElements,
   } = useReactFlow();
 
-  const { isLoading, data: pointData } = usePointData(pointId);
+  const { data: pointData } = usePointData(pointId);
 
   // Check if this node is a duplicate
   const isRedundant = useMemo(() => {
