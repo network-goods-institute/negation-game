@@ -2,7 +2,7 @@ import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { PointCard } from "@/components/PointCard";
 import { cn } from "@/lib/cn";
-import { usePointData } from "@/queries/usePointData";
+import { usePointData, usePrefetchPoint } from "@/queries/usePointData";
 import {
   Handle,
   Node,
@@ -10,12 +10,15 @@ import {
   Position,
   useHandleConnections,
   useReactFlow,
+  useStore,
+  useStoreApi,
   useUpdateNodeInternals,
 } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
 import { XIcon } from "lucide-react";
 import { nanoid } from "nanoid";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { find } from "remeda";
 
 export type PointNodeData = {
   pointId: number;
@@ -32,8 +35,13 @@ export interface PointNodeProps extends Omit<NodeProps, "data"> {
 export const PointNode = ({
   data: { pointId, parentId, expandOnInit },
   id,
+  positionAbsoluteX,
+  positionAbsoluteY,
 }: PointNodeProps) => {
   const [hoveredPoint, setHoveredPoint] = useAtom(hoveredPointIdAtom);
+  const [shouldExpandOnInit, setShouldExpandOnInit] = useState(
+    expandOnInit ?? false
+  );
   const incomingConnections = useHandleConnections({
     type: "target",
     nodeId: id,
@@ -46,66 +54,67 @@ export const PointNode = ({
     addEdges,
     getNode,
     getNodes,
+    getEdges,
     getHandleConnections,
+
     deleteElements,
   } = useReactFlow();
 
-  const { data: pointData } = usePointData(pointId);
+  const { subscribe } = useStoreApi();
 
-  // Check if this node is a duplicate
+  // track only amount of nodes to prevent rerenders whenever node positions or selection change
+  const amountOfNodes = useStore((state) => state.nodes.length);
+
   const isRedundant = useMemo(() => {
-    const existingNodes = getNodes()
-      .filter((node): node is PointNode => node.type === "point")
-      .filter(node => node.data.pointId === pointId);
-    
-    // If there are multiple nodes for this point, only keep the first one
-    return existingNodes.length > 1 && existingNodes[0].id !== id;
+    const firstOccurence = find(
+      getNodes().filter((node): node is PointNode => node.type === "point"),
+      (node) => node.data.pointId === pointId
+    );
+
+    return firstOccurence ? firstOccurence.id !== id : false;
   }, [getNodes, id, pointId]);
 
-  // Update node internals when connections change
   useEffect(() => {
     updateNodeInternals(id);
   }, [id, incomingConnections.length, updateNodeInternals]);
 
+  const prefetchPoint = usePrefetchPoint();
+  const { isLoading, data: pointData } = usePointData(pointId);
+
+  useEffect(() => {
+    if (!pointData) return;
+    pointData.negationIds
+      .filter((id) => id !== parentId)
+      .forEach((negationId) => prefetchPoint(negationId));
+  }, [pointData?.negationIds, parentId, pointData, prefetchPoint]);
+
   const expandNegations = useCallback(() => {
     if (!pointData) return;
 
-    const currentNode = getNode(id)!;
-
-    // First, get all existing point nodes in the graph
-    const existingPointNodes = new Map(
-      getNodes()
-        .filter((node): node is PointNode => node.type === "point")
-        .map(node => [node.data.pointId, node])
-    );
-
-    // Get currently connected negation IDs
-    const connectedNegationIds = new Set([
+    const expandedNegationIds = [
       ...getHandleConnections({ type: "target", nodeId: id }).map((c) => {
         const node = getNode(c.source)! as PointNode;
         return node.data.pointId;
       }),
       ...(parentId ? [parentId] : []),
-    ]);
+    ];
 
-    // Filter negations that should be created
-    const negationsToCreate = pointData.negationIds.filter(negId => 
-      negId !== pointId && // Don't create self-references
-      !connectedNegationIds.has(negId) && // Don't create if already connected
-      !existingPointNodes.has(negId) // Don't create if exists anywhere in graph
-    );
+    const currentNode = getNode(id)!;
 
-    // Create new nodes and edges
-    negationsToCreate.forEach((negationId, i) => {
+    for (const [i, negationId] of pointData.negationIds.entries()) {
+      if (expandedNegationIds.includes(negationId)) continue;
       const nodeId = nanoid();
-      
       addNodes({
         id: nodeId,
         data: { pointId: negationId, parentId: pointId },
         type: "point",
         position: {
           x: currentNode.position.x + i * 20,
-          y: currentNode.position.y + (currentNode?.measured?.height ?? 200) + 100 + 20 * i,
+          y:
+            currentNode.position.y +
+            (currentNode?.measured?.height ?? 200) +
+            100 +
+            20 * i,
         },
       });
 
@@ -115,54 +124,60 @@ export const PointNode = ({
         source: nodeId,
         type: "negation",
       });
-    });
-  }, [pointData, getHandleConnections, id, parentId, getNode, addNodes, pointId, addEdges, getNodes]);
+    }
+  }, [
+    pointData,
+    getHandleConnections,
+    id,
+    parentId,
+    getNode,
+    addNodes,
+    pointId,
+    addEdges,
+  ]);
 
-  // Only expand once on init
-  const expandedRef = useRef(false);
   useEffect(() => {
-    if (!expandOnInit || !pointData || expandedRef.current) return;
-        
-    expandedRef.current = true;
-    expandNegations();
-  }, [expandOnInit, pointData, expandNegations, pointId, parentId]);
+    if (!shouldExpandOnInit || pointData === undefined) return;
 
-  // Calculate collapsed negations count
+    // FIXME: this is causing duplicates on strict mode. Couldn't track down the issue
+    expandNegations();
+    setShouldExpandOnInit(false);
+  }, [shouldExpandOnInit, pointData, expandNegations]);
+
   const collapsedNegations = pointData
     ? pointData.amountNegations -
       incomingConnections.length -
       (parentId ? 1 : 0)
     : 0;
 
-  // Handle node removal
   const collapseSelfAndNegations = useCallback(async () => {
     const removeNestedNegations = async (nodeId: string) => {
-      const connections = getHandleConnections({
+      const incomingConnections = getHandleConnections({
         type: "target",
         nodeId,
       });
-      
-      // Remove child nodes first
-      for (const conn of connections) {
-        await removeNestedNegations(conn.source);
-      }
+      const nodeIds = incomingConnections.map((c) => c.source);
+      const edgeIds = incomingConnections.map((c) => c.edgeId);
 
-      // Then remove this node and its edges
+      if (nodeIds.length > 0) nodeIds.forEach(removeNestedNegations);
+
       await deleteElements({
-        nodes: [{ id: nodeId }],
-        edges: connections.map(c => ({ id: c.edgeId })),
+        nodes: nodeIds.map((id) => ({ id })),
+        edges: edgeIds.map((id) => ({ id })),
       });
     };
 
-    await removeNestedNegations(id);
+    await removeNestedNegations(id).then(() =>
+      deleteElements({ nodes: [{ id }] })
+    );
   }, [deleteElements, getHandleConnections, id]);
 
   return (
     <div
+      data-loading={isLoading}
       className={cn(
         "relative bg-background rounded-md border-2 min-h-28 w-64",
-        hoveredPoint === pointId && "border-primary",
-        isRedundant && "opacity-30"
+        hoveredPoint === pointId && "border-primary"
       )}
       onMouseOver={() => setHoveredPoint(pointId)}
       onMouseLeave={() => setHoveredPoint(undefined)}
