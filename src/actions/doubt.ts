@@ -30,7 +30,8 @@ export const doubt = async ({ pointId, negationId, amount }: DoubtArgs) => {
     .limit(1)
     .then(rows => rows[0]);
 
-  if (existingDoubt) {
+  // Only allow modifying if the existing doubt was fully slashed (amount = 0)
+  if (existingDoubt && existingDoubt.amount > 0) {
     throw new Error("Doubts cannot be modified after creation");
   }
 
@@ -43,28 +44,49 @@ export const doubt = async ({ pointId, negationId, amount }: DoubtArgs) => {
       cred: sql`${usersTable.cred} - ${amount}`,
     })
     .where(eq(usersTable.id, userId));
+
+  let doubtId: number;
     
-  const newDoubt = await db
-    .insert(doubtsTable)
-    .values({
-      userId,
-      pointId,
-      negationId,
-      amount,
-      immutable: true
-    })
-    .returning({ id: doubtsTable.id })
-    .then(([{ id }]) => id);
+  if (existingDoubt) {
+    // Update existing doubt with new values
+    // Need to overwrite the dates so shit doesn't get weird
+    // This is effectively a new doubt, but the rest of the system assumes that only one row exists per user per point-negation pair
+    await db
+      .update(doubtsTable)
+      .set({
+        amount,
+        lastEarningsAt: sql`CURRENT_TIMESTAMP`,
+        createdAt: sql`CURRENT_TIMESTAMP`,
+      })
+      .where(eq(doubtsTable.id, existingDoubt.id))
+      .returning({ id: doubtsTable.id });
+      
+    doubtId = existingDoubt.id;
+  } else {
+    // Create new doubt
+    doubtId = await db
+      .insert(doubtsTable)
+      .values({
+        userId,
+        pointId,
+        negationId,
+        amount,
+        immutable: true
+      })
+      .returning({ id: doubtsTable.id })
+      .then(([{ id }]) => id);
+  }
 
   // Record history
   await db.insert(doubtHistoryTable).values({
-    doubtId: newDoubt,
+    doubtId,
     userId,
     pointId,
     negationId,
     action: "created",
+    previousAmount: existingDoubt?.amount ?? null,
     newAmount: amount
   });
 
-  return newDoubt;
+  return doubtId;
 }; 

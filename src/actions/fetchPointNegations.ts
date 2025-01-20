@@ -105,13 +105,27 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
       `.mapWith(Number),
       restake: {
         id: restakesTable.id,
-        amount: effectiveRestakesView.amount,
+        userId: restakesTable.userId,
+        // done in order to differentiate between "inactivity" due to doubts versus slashes
+        // inactivity due to slashes do not need to be rendered in the UI
+        // inactivity due to doubts should be rendered in the UI
+        amount: sql<number>`
+          CASE 
+            WHEN ${effectiveRestakesView.slashedAmount} >= ${effectiveRestakesView.amount} THEN 0
+            ELSE ${effectiveRestakesView.amount}
+          END
+        `.mapWith(Number),
         active: effectiveRestakesView.isActive,
         originalAmount: effectiveRestakesView.amount,
         slashedAmount: effectiveRestakesView.slashedAmount,
         doubtedAmount: sql<number>`COALESCE(${effectiveRestakesView.doubtedAmount}, 0)`.mapWith(Number),
         totalRestakeAmount: sql<number>`
-          SUM(${effectiveRestakesView.effectiveAmount}) OVER (
+          SUM(
+            CASE 
+              WHEN ${effectiveRestakesView.slashedAmount} >= ${effectiveRestakesView.amount} THEN 0
+              ELSE ${effectiveRestakesView.amount}
+            END
+          ) OVER (
             PARTITION BY ${effectiveRestakesView.pointId}, ${effectiveRestakesView.negationId}
           )
         `.as('total_restake_amount'),
@@ -141,8 +155,7 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
       effectiveRestakesView,
       and(
         eq(effectiveRestakesView.pointId, pointId),
-        eq(effectiveRestakesView.negationId, pointsWithDetailsView.pointId),
-        eq(effectiveRestakesView.isActive, true)
+        eq(effectiveRestakesView.negationId, pointsWithDetailsView.pointId)
       )
     )
     .leftJoin(

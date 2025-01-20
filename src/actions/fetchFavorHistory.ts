@@ -21,6 +21,7 @@ export async function fetchFavorHistory({
 }: FetchFavorHistoryParams) {
   const { bucketSize, period } =
     scale === "ALL"
+    //TODO make bucket size dynamic based on how old the point is
       ? { bucketSize: 1 * minute, period: 10 * year }
       : timelineScale[scale];
 

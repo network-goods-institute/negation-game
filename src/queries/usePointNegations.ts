@@ -41,12 +41,10 @@ export const usePointNegations = (pointId: number) => {
             userAmount: negation.doubt.userAmount ?? 0
           } : null
         };
-
         setPointData(
           { pointId: negation.pointId, userId: privyUser?.id },
           transformedNegation
         );
-
         return transformedNegation;
       });
 

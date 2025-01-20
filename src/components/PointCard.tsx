@@ -85,6 +85,7 @@ export const PointCard = ({
   doubt,
   ...props
 }: PointCardProps) => {
+
   const [_, setHoveredPointId] = useAtom(hoveredPointIdAtom);
   const endorsedByViewer = viewerContext?.viewerCred !== undefined && viewerContext.viewerCred > 0;
   const queryClient = useQueryClient();
@@ -98,9 +99,7 @@ export const PointCard = ({
 
   const restakePercentage = useMemo(() => {
     if (!isNegation || !parentPoint || !restake?.amount) return 0;
-    
     const rawPercentage = (restake.amount / (parentPoint.viewerCred || 1)) * 100;
-    
     return Math.round(rawPercentage);
   }, [isNegation, parentPoint, restake]);
 
