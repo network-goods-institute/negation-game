@@ -22,6 +22,14 @@ const calculateEarnings = (userId: string) => {
         ORDER BY event_time DESC 
         LIMIT 1
       ), 0)`,
+      apy: sql<number>`EXP(LN(0.05) + LN(COALESCE((
+        SELECT favor 
+        FROM point_favor_history
+        WHERE point_id = ${doubtsTable.negationId}
+        AND event_type = 'favor_queried'
+        ORDER BY event_time DESC 
+        LIMIT 1
+      ), 0) + 0.0001))`,
       hourly_rate: sql<number>`(EXP(LN(0.05) + LN(COALESCE((
         SELECT favor 
         FROM point_favor_history
@@ -55,18 +63,22 @@ export const previewEarnings = async () => {
   }
 
   const earningsQuery = await calculateEarnings(userId);
-  
   let totalEarnings = 0;
   for (const doubt of earningsQuery) {
     const rawEarnings = doubt.hourly_rate * doubt.hours_since_payout;
     const earnings = Math.min(rawEarnings, doubt.available_endorsement);
-    totalEarnings += earnings; // Keep decimals for preview
+    totalEarnings += earnings;
   }
 
   return totalEarnings;
 };
 
-export const collectEarnings = async () => {
+interface CollectionResult {
+  totalEarnings: number;
+  affectedPoints: number[];
+}
+
+export const collectEarnings = async (): Promise<CollectionResult> => {
   const userId = await getUserId();
   if (!userId) {
     throw new Error("Must be authenticated to collect earnings");
@@ -74,9 +86,13 @@ export const collectEarnings = async () => {
 
   return await db.transaction(async (tx) => {
     const earningsQuery = await calculateEarnings(userId);
+    const affectedPoints = new Set<number>();
     let totalEarnings = 0;
 
     for (const doubt of earningsQuery) {
+      affectedPoints.add(doubt.point_id);
+      affectedPoints.add(doubt.negation_id);
+
       const rawEarnings = doubt.hourly_rate * doubt.hours_since_payout;
       const earnings = Math.floor(Math.min(rawEarnings, doubt.available_endorsement));
 
@@ -142,6 +158,7 @@ export const collectEarnings = async () => {
             }
           }
         }
+
         if (actuallyCollected > 0) {
           await tx
             .update(doubtsTable)
@@ -162,6 +179,9 @@ export const collectEarnings = async () => {
       }
     }
 
-    return totalEarnings;
+    return {
+      totalEarnings,
+      affectedPoints: Array.from(affectedPoints)
+    };
   });
 }; 

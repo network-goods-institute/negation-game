@@ -32,7 +32,7 @@ export const usePrefetchRestakeData = () => {
 
       // Restaker reputation
       queryClient.prefetchQuery({
-        queryKey: restakerReputationQueryKey({ pointId, negationId, userId: user?.id }),
+        queryKey: restakerReputationQueryKey(pointId, negationId, user?.id),
         queryFn: () => fetchRestakerReputation(pointId, negationId),
         staleTime
       }),

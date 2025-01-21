@@ -3,29 +3,18 @@ import { fetchRestakerReputation, RestakerReputation } from "@/actions/fetchRest
 import { usePrivy } from "@privy-io/react-auth";
 
 export type RestakerReputationResponse = {
-  restakers: Array<RestakerReputation>;
+  restakers: RestakerReputation[];
   aggregateReputation: number;
 };
 
-export const restakerReputationQueryKey = ({
-  pointId,
-  negationId,
-  userId,
-}: {
-  pointId: number;
-  negationId: number;
-  userId?: string;
-}) => ["restaker-reputation", pointId, negationId, userId];
+export const restakerReputationQueryKey = (pointId: number, negationId: number, userId?: string) => 
+  ["restaker-reputation", pointId, negationId, userId] as const;
 
 export const useRestakerReputation = (pointId: number, negationId: number) => {
   const { user: privyUser } = usePrivy();
 
   return useQuery<RestakerReputationResponse>({
-    queryKey: restakerReputationQueryKey({ 
-      pointId, 
-      negationId, 
-      userId: privyUser?.id 
-    }),
+    queryKey: restakerReputationQueryKey(pointId, negationId, privyUser?.id),
     queryFn: () => fetchRestakerReputation(pointId, negationId),
     enabled: !!pointId && !!negationId
   });
