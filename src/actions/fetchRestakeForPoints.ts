@@ -17,7 +17,7 @@ export const fetchRestakeForPoints = async (pointId: number, negationId: number)
     .select({
       totalRestakeAmount: sql<number>`
         SUM(${effectiveRestakesView.effectiveAmount})
-        FILTER (WHERE ${effectiveRestakesView.isActive} = true)
+        FILTER (WHERE ${effectiveRestakesView.slashedAmount} < ${effectiveRestakesView.amount})
       `.as('total_restake_amount')
     })
     .from(effectiveRestakesView)

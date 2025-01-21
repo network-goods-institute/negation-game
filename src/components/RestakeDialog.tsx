@@ -184,16 +184,19 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
   // Check if user can place a doubt
   const canDoubt = useMemo(() => {
+
     if (!openedFromSlashedIcon) return true; // Not in doubt mode
     if (isLoadingUserId) return false; // Still loading user
     if (!userId) return false; // No user logged in
     
-    // Check original amount instead of effective amount
-    const totalRestakeAmount = existingRestake?.amount ?? 0;
-    if (totalRestakeAmount === 0) return false; // No restakes to doubt
+    // Check total restake amount instead of user's restake amount
+    const totalRestakeAmount = existingRestake?.totalRestakeAmount ?? 0;
+    if (totalRestakeAmount === 0) {
+      return false;
+    }
     
     return true;
-  }, [openedFromSlashedIcon, existingRestake?.amount, userId, isLoadingUserId]);
+  }, [openedFromSlashedIcon, existingRestake?.totalRestakeAmount, userId, isLoadingUserId]);
 
   const favorReduced = stakedCred;
 
@@ -257,7 +260,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
     const factors = {
       stake: originalPoint.stakedAmount || 0,
-      restake: existingRestake?.amount ?? 0,
+      restake: existingRestake?.totalRestakeAmount ?? 0,
       cred: user?.cred ?? 0
     };
 
@@ -268,7 +271,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     if (minValue === factors.cred) return "your available cred";
     
     return null;
-  }, [openedFromSlashedIcon, canDoubt, originalPoint.stakedAmount, existingRestake?.amount, user?.cred]);
+  }, [openedFromSlashedIcon, canDoubt, originalPoint.stakedAmount, existingRestake?.totalRestakeAmount, user?.cred]);
 
   // Loading state handler
   if (isLoadingUser) {
@@ -286,7 +289,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     ? canDoubt 
       ? Math.min(
           originalPoint.stakedAmount || 0,        // Can't doubt more than total stake on point
-          existingRestake?.amount ?? 0,           // Use amount instead of totalRestakeAmount
+          existingRestake?.totalRestakeAmount ?? 0,  // Can't doubt more than total restake amount
           user?.cred ?? 0                         // Can't doubt more than user's available cred
         )
       : 0

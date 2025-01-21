@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { CoinsIcon, Check, Loader2 } from "lucide-react";
 import { DialogProps } from "@radix-ui/react-dialog";
 import { FC, useState, useEffect } from "react";
-import { previewEarnings, collectEarnings } from "@/actions/collectEarnings";
-import { useQueryClient } from "@tanstack/react-query";
+import { useCollectEarnings } from "@/mutations/useCollectEarnings";
+import { useEarningsPreview } from "@/queries/useEarningsPreview";
 
 interface EarningsDialogProps extends DialogProps {
   onOpenChange: (open: boolean) => void;
@@ -17,31 +17,21 @@ export const EarningsDialog: FC<EarningsDialogProps> = ({
   onOpenChange,
   ...props
 }) => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [isCollecting, setIsCollecting] = useState(false);
   const [collected, setCollected] = useState(false);
   const [amount, setAmount] = useState(0);
-  const [previewAmount, setPreviewAmount] = useState(0);
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    if (open) {
-      setIsLoading(true);
-      previewEarnings()
-        .then(setPreviewAmount)
-        .finally(() => setIsLoading(false));
-    }
-  }, [open]);
+  
+  const { data: previewAmount = 0, isLoading } = useEarningsPreview({
+    enabled: open
+  });
+  const { mutateAsync: collect, isPending: isCollecting } = useCollectEarnings();
 
   const handleCollect = async () => {
-    setIsCollecting(true);
     try {
-      const earnings = await collectEarnings();
-      await queryClient.invalidateQueries({ queryKey: ['user'] });
-      setAmount(earnings);
+      const result = await collect();
+      setAmount(result.totalEarnings);
       setCollected(true);
-    } finally {
-      setIsCollecting(false);
+    } catch (error) {
+      console.error('Failed to collect earnings:', error);
     }
   };
 
@@ -54,8 +44,6 @@ export const EarningsDialog: FC<EarningsDialogProps> = ({
       setTimeout(() => {
         setCollected(false);
         setAmount(0);
-        setPreviewAmount(0);
-        setIsCollecting(false);
       }, 200);
     }
   }, [open]);
@@ -91,6 +79,10 @@ export const EarningsDialog: FC<EarningsDialogProps> = ({
               <p className="text-sm text-muted-foreground">
                 (Actual amount may be lower due to rounding)
               </p>
+              <div className="text-sm text-muted-foreground mt-4 text-left">
+                <p className="font-medium mb-1">How to earn cred?</p>
+                <p>When you doubt a restake and the restaker slashes their position, you earn a portion of their endorsement cred proportional to your doubt amount.</p>
+              </div>
             </div>
 
             <Button 

@@ -53,7 +53,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
     active: boolean;
     isOwner: boolean;
     totalRestakeAmount: number;
-    originalAmount?: number | null;
+    originalAmount: number;
     slashedAmount: number;
     doubtedAmount: number;
     effectiveAmount?: number;
@@ -97,16 +97,19 @@ export const PointCard = ({
   const [isEndorsing, setIsEndorsing] = useState(false);
   const prefetchRestakeData = usePrefetchRestakeData();
 
-  const restakePercentage = useMemo(() => {
-    if (!isNegation || !parentPoint || !restake?.amount) return 0;
+  const [restakePercentage, isOverHundred] = useMemo(() => {
+    if (!isNegation || !parentPoint || !restake?.amount) return [0, false];
     const rawPercentage = (restake.amount / (parentPoint.viewerCred || 1)) * 100;
-    return Math.round(rawPercentage);
+    return [
+      Math.min(100, Math.round(rawPercentage)),
+      rawPercentage > 100
+    ];
   }, [isNegation, parentPoint, restake]);
 
   const doubtPercentage = useMemo(() => {
     if (!isNegation || !restake?.amount || !doubt?.amount) return 0;
-    const totalRestaked = restake.totalRestakeAmount;
-    return Math.round((doubt.userAmount / totalRestaked) * 100);
+    const rawPercentage = (doubt.userAmount / restake.totalRestakeAmount) * 100;
+    return Math.min(100, Math.round(rawPercentage));
   }, [isNegation, restake, doubt]);
 
   const handleRestakeHover = useCallback(() => {
@@ -114,6 +117,15 @@ export const PointCard = ({
       prefetchRestakeData(parentPoint.id, negationId);
     }
   }, [isNegation, parentPoint?.id, negationId, prefetchRestakeData]);
+
+  const showRestakeAmount = useMemo(() => {
+
+    if (!restake) return false;
+    
+    if (restake.slashedAmount >= restake.originalAmount) return false;
+    
+    return restake.amount > 0;
+  }, [restake]);
 
   return (
     <div
@@ -223,7 +235,7 @@ export const PointCard = ({
                   variant="ghost"
                   className={cn(
                     "p-1 -mb-2 rounded-full size-fit hover:bg-muted/30",
-                    restake?.isOwner && restake?.amount && "text-endorsed"
+                    showRestakeAmount && "text-endorsed"
                   )}
                   onClick={(e) => {
                     e.preventDefault();
@@ -235,17 +247,20 @@ export const PointCard = ({
                   <RestakeIcon 
                     className={cn(
                       "size-5 stroke-1",
-                      restake?.isOwner && restake?.amount && "fill-current text-endorsed"
+                      showRestakeAmount && "fill-current text-endorsed"
                     )}
-                    showPercentage={restake?.isOwner && !!restake?.amount}
+                    showPercentage={showRestakeAmount}
                     percentage={restakePercentage}
                   />
+                  {showRestakeAmount && isOverHundred && (
+                    <span className="ml-1 translate-y-[5px]">+</span>
+                  )}
                 </Button>
                 <Button
                   variant="ghost"
                   className={cn(
                     "p-1 -mb-2 rounded-full size-fit hover:bg-muted/30",
-                    doubt?.active && "text-endorsed"
+                    doubt?.amount !== undefined && doubt.amount > 0 && "text-endorsed"
                   )}
                   onClick={(e) => {
                     e.preventDefault();
@@ -258,12 +273,15 @@ export const PointCard = ({
                     <DoubtIcon 
                       className={cn(
                         "size-5 stroke-1",
-                        doubt?.active && "fill-current"
+                        doubt?.amount !== undefined && doubt.amount > 0 && "fill-current"
                       )} 
-                      isFilled={doubt?.active}
+                      isFilled={doubt?.amount !== undefined && doubt.amount > 0}
                     />
-                    {doubt?.active && (
-                      <span className="ml-1">{doubtPercentage}%</span>
+                    {doubt?.amount !== undefined && doubt.amount > 0 && (
+                      <span className="ml-1">
+                        {doubtPercentage}
+                        {doubtPercentage > 100 && '+'}%
+                      </span>
                     )}
                   </div>
                 </Button>

@@ -2,12 +2,11 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { InfoIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import type { RestakerReputation } from "@/actions/fetchRestakerReputation";
+import { DialogProps } from "@radix-ui/react-dialog";
+import type { RestakerReputationResponse } from "@/queries/useRestakerReputation";
 
-interface ReputationAnalysisDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  restakers: RestakerReputation[];
+interface ReputationAnalysisDialogProps extends DialogProps {
+  restakers: RestakerReputationResponse['restakers'];
   aggregateReputation: number;
 }
 
@@ -48,24 +47,12 @@ export const ReputationAnalysisDialog = ({
             <h3 className="font-medium">Current Restakers</h3>
             <div className="space-y-3">
               {restakers.map((restaker) => (
-                <div 
-                  key={restaker.userId} 
-                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors"
-                >
-                  <div className="space-y-1">
-                    <p className="font-medium">{restaker.userId}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {restaker.amount} cred staked
-                    </p>
+                <div key={restaker.hashedUserId} className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <span>{restaker.username}</span>
+                    <span className="text-xs text-muted-foreground">({restaker.hashedUserId})</span>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="text-lg">
-                      {restaker.reputation}%
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      reputation
-                    </span>
-                  </div>
+                  <span>{restaker.reputation}%</span>
                 </div>
               ))}
             </div>
