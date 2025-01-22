@@ -58,6 +58,12 @@ export interface RestakeDialogProps extends DialogProps {
       amount: number;
       active: boolean;
     } | null;
+    doubt?: {
+      id: number;
+      amount: number;
+      userAmount: number;
+      isUserDoubt: boolean;
+    } | null;
   };
   counterPoint: {
     id: number;

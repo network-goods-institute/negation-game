@@ -50,19 +50,18 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   restake?: {
     id: number | null;
     amount: number;
-    active: boolean;
-    isOwner: boolean;
-    totalRestakeAmount: number;
     originalAmount: number;
     slashedAmount: number;
     doubtedAmount: number;
+    totalRestakeAmount: number;
+    isOwner: boolean;
     effectiveAmount?: number;
   } | null;
   doubt?: {
     id: number;
     amount: number;
-    active: boolean;
     userAmount: number;
+    isUserDoubt: boolean;
   } | null;
 }
 
@@ -98,7 +97,7 @@ export const PointCard = ({
   const prefetchRestakeData = usePrefetchRestakeData();
 
   const [restakePercentage, isOverHundred] = useMemo(() => {
-    if (!isNegation || !parentPoint || !restake?.amount) return [0, false];
+    if (!isNegation || !parentPoint || !restake?.amount || !restake.isOwner) return [0, false];
     const rawPercentage = (restake.amount / (parentPoint.viewerCred || 1)) * 100;
     return [
       Math.min(100, Math.round(rawPercentage)),
@@ -107,7 +106,7 @@ export const PointCard = ({
   }, [isNegation, parentPoint, restake]);
 
   const doubtPercentage = useMemo(() => {
-    if (!isNegation || !restake?.amount || !doubt?.amount) return 0;
+    if (!isNegation || !restake?.amount || !doubt?.amount || !doubt.isUserDoubt) return 0;
     const rawPercentage = (doubt.userAmount / restake.totalRestakeAmount) * 100;
     return Math.min(100, Math.round(rawPercentage));
   }, [isNegation, restake, doubt]);
@@ -244,12 +243,13 @@ export const PointCard = ({
                   }}
                   onMouseEnter={handleRestakeHover}
                 >
-                  <RestakeIcon 
+                  <RestakeIcon
                     className={cn(
                       "size-5 stroke-1",
-                      showRestakeAmount && "fill-current text-endorsed"
+                      "text-muted-foreground hover:text-foreground transition-colors",
+                      showRestakeAmount && restake?.isOwner && "text-endorsed fill-current"
                     )}
-                    showPercentage={showRestakeAmount}
+                    showPercentage={showRestakeAmount && restake?.isOwner}
                     percentage={restakePercentage}
                   />
                   {showRestakeAmount && isOverHundred && (
@@ -260,7 +260,7 @@ export const PointCard = ({
                   variant="ghost"
                   className={cn(
                     "p-1 -mb-2 rounded-full size-fit hover:bg-muted/30",
-                    doubt?.amount !== undefined && doubt.amount > 0 && "text-endorsed"
+                    doubt?.amount !== undefined && doubt.amount > 0 && doubt.isUserDoubt && "text-endorsed"
                   )}
                   onClick={(e) => {
                     e.preventDefault();
@@ -273,11 +273,12 @@ export const PointCard = ({
                     <DoubtIcon 
                       className={cn(
                         "size-5 stroke-1",
-                        doubt?.amount !== undefined && doubt.amount > 0 && "fill-current"
+                        "text-muted-foreground hover:text-foreground transition-colors",
+                        doubt?.amount !== undefined && doubt.amount > 0 && doubt.isUserDoubt && "text-endorsed fill-current"
                       )} 
-                      isFilled={doubt?.amount !== undefined && doubt.amount > 0}
+                      isFilled={doubt?.amount !== undefined && doubt.amount > 0 && doubt.isUserDoubt}
                     />
-                    {doubt?.amount !== undefined && doubt.amount > 0 && (
+                    {doubt?.amount !== undefined && doubt.amount > 0 && doubt.isUserDoubt && (
                       <span className="ml-1">
                         {doubtPercentage}
                         {doubtPercentage > 100 && '+'}%

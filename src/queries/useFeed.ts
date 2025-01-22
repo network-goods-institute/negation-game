@@ -30,8 +30,8 @@ export const useFeed = () => {
           doubt: {
             id: point.doubt?.id ?? 0,
             amount: point.doubt?.amount ?? 0,
-            active: point.doubt?.active ?? false,
             userAmount: point.doubt?.userAmount ?? 0,
+            isUserDoubt: point.doubt?.isUserDoubt ?? false
           }
         };
         setPointData(
@@ -56,8 +56,8 @@ export const useFeed = () => {
         doubt: {
           id: point.doubt?.id ?? 0,
           amount: point.doubt?.amount ?? 0,
-          active: point.doubt?.active ?? false,
           userAmount: point.doubt?.userAmount ?? 0,
+          isUserDoubt: point.doubt?.isUserDoubt ?? false
         }
       }));
     },

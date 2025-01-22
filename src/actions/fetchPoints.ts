@@ -35,8 +35,12 @@ export const fetchPoints = async (ids: number[]) => {
             // Viewer's specific restake/slash info
             restake: {
               id: effectiveRestakesView.pointId,
-              amount: effectiveRestakesView.amount,
-              active: effectiveRestakesView.isActive,
+              amount: sql<number>`
+                CASE 
+                  WHEN ${effectiveRestakesView.slashedAmount} >= ${effectiveRestakesView.amount} THEN 0
+                  ELSE ${effectiveRestakesView.amount}
+                END
+              `.mapWith(Number),
               originalAmount: effectiveRestakesView.amount,
               slashedAmount: effectiveRestakesView.slashedAmount,
               doubtedAmount: effectiveRestakesView.doubtedAmount,
@@ -48,8 +52,8 @@ export const fetchPoints = async (ids: number[]) => {
             doubt: {
               id: doubtsTable.id,
               amount: doubtsTable.amount,
-              active: sql<boolean>`${doubtsTable.amount} > 0`.as("doubt_active"),
               userAmount: doubtsTable.amount,
+              isUserDoubt: sql<boolean>`${doubtsTable.userId} = ${viewerId}`.as('is_user_doubt')
             }
           }
         : {}),
@@ -59,7 +63,7 @@ export const fetchPoints = async (ids: number[]) => {
           (SELECT SUM(er1.amount)
            FROM ${effectiveRestakesView} AS er1
            WHERE er1.point_id = ${pointsWithDetailsView.pointId}
-           AND er1.is_active = true), 
+           AND er1.slashed_amount < er1.amount), 
           0
         )
       `.mapWith(Number),
@@ -86,7 +90,7 @@ export const fetchPoints = async (ids: number[]) => {
       and(
         eq(effectiveRestakesView.pointId, pointsWithDetailsView.pointId),
         eq(effectiveRestakesView.userId, viewerId ?? ''),
-        eq(effectiveRestakesView.isActive, true)
+        sql`${effectiveRestakesView.slashedAmount} < ${effectiveRestakesView.amount}`
       )
     )
     .leftJoin(

@@ -29,8 +29,8 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
             doubt: {
               id: doubtsTable.id,
               amount: doubtsTable.amount,
-              active: sql<boolean>`${doubtsTable.amount} > 0`.as("doubt_active"),
               userAmount: doubtsTable.amount,
+              isUserDoubt: sql<boolean>`${doubtsTable.userId} = ${viewerId}`.as('is_user_doubt')
             }
           }
         : {}),
@@ -39,7 +39,7 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
           (SELECT SUM(er1.amount)
            FROM ${effectiveRestakesView} AS er1
            WHERE er1.point_id = ${pointsWithDetailsView.pointId}
-           AND er1.is_active = true), 
+           AND er1.slashed_amount < er1.amount), 
           0
         )
       `.mapWith(Number),

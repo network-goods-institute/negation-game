@@ -30,7 +30,6 @@ export type NegationResult = {
   restake: {
     id: number | null;
     amount: number | null;
-    active: boolean;
     originalAmount: number | null;
     slashedAmount: number | null;
     doubtedAmount: number | null;
@@ -40,13 +39,12 @@ export type NegationResult = {
   slash: {
     id: number;
     amount: number;
-    active: boolean;
   } | null;
   doubt: {
     id: number;
     amount: number;
-    active: boolean;
     userAmount: number;
+    isUserDoubt: boolean;
   } | null;
   favor: number;
   restakesByPoint: number;
@@ -83,7 +81,7 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
           (SELECT SUM(er1.amount)
            FROM ${effectiveRestakesView} AS er1
            WHERE er1.point_id = ${pointsWithDetailsView.pointId}
-           AND er1.is_active = true), 
+           AND er1.slashed_amount < er1.amount), 
           0
         )
       `.mapWith(Number),
@@ -106,16 +104,12 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
       restake: {
         id: restakesTable.id,
         userId: restakesTable.userId,
-        // done in order to differentiate between "inactivity" due to doubts versus slashes
-        // inactivity due to slashes do not need to be rendered in the UI
-        // inactivity due to doubts should be rendered in the UI
         amount: sql<number>`
           CASE 
             WHEN ${effectiveRestakesView.slashedAmount} >= ${effectiveRestakesView.amount} THEN 0
             ELSE ${effectiveRestakesView.amount}
           END
         `.mapWith(Number),
-        active: effectiveRestakesView.isActive,
         originalAmount: effectiveRestakesView.amount,
         slashedAmount: effectiveRestakesView.slashedAmount,
         doubtedAmount: sql<number>`COALESCE(${effectiveRestakesView.doubtedAmount}, 0)`.mapWith(Number),
@@ -134,13 +128,12 @@ export const fetchPointNegations = async (pointId: number): Promise<NegationResu
       slash: {
         id: slashesTable.id,
         amount: slashesTable.amount,
-        active: sql<boolean>`${slashesTable.amount} > 0`.as("slash_active")
       },
       doubt: {
         id: doubtsTable.id,
         amount: doubtsTable.amount,
-        active: sql<boolean>`${doubtsTable.amount} > 0`.as("doubt_active"),
         userAmount: doubtsTable.amount,
+        isUserDoubt: sql<boolean>`${doubtsTable.userId} = ${userId}`.as('is_user_doubt')
       },
     })
     .from(pointsWithDetailsView)

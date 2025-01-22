@@ -36,24 +36,7 @@ export const effectiveRestakesView = pgView("effective_restakes_view").as((qb) =
             AND ${slashesTable.createdAt} > ${restakesTable.createdAt}
           ), 0)
         )
-      `.as("effective_amount"),
-      isActive: sql<boolean>`
-        ${restakesTable.amount} > (
-          COALESCE((
-            SELECT ${slashesTable.amount}
-            FROM ${slashesTable}
-            WHERE ${slashesTable.restakeId} = ${restakesTable.id}
-            AND ${slashesTable.amount} > 0 
-            AND ${slashesTable.createdAt} > ${restakesTable.createdAt}
-          ), 0) +
-          COALESCE((
-            SELECT SUM(${doubtsTable.amount})
-            FROM ${doubtsTable}
-            WHERE ${doubtsTable.pointId} = ${restakesTable.pointId}
-            AND ${doubtsTable.negationId} = ${restakesTable.negationId}
-          ), 0)
-        )
-      `.as("is_active")
+      `.as("effective_amount")
     })
     .from(restakesTable)
     .where(sql`${restakesTable.amount} > 0`)

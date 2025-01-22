@@ -1,0 +1,184 @@
+You are not to make sql migration files directly. Simply update the schema file and I can run the migration.
+
+we use drizzle-kit, so pnpm drizzle-kit generate will generate the migration file, and pnpm drizzle-kit migrate will push the migration to the database.
+
+So do not write any sql migration files.
+
+If I tell you to do something, do it. Do not ask for confirmation.
+
+Make sure to avoid ambiguous sql statements. It happens a lot so be as specific as possible. Never be implicit, this is a database. Come on now.
+
+Follow existing code style for the schema, views, and tables.
+
+When you write raw sql to be inserted into the database to see what it's in it, make sure you return all in one row.
+
+Additionally, use drizzle syntax for sql statements.
+
+Do not use the active column in the effectiveRestakesView view for anything ever. It is soon to be removed.
+
+// Restake System Rules:
+// 1. Restakes are commitments to change one's mind about a parent point IF a negation is true
+// 2. Slashes are fulfillments of that commitment - admitting the negation changed your mind
+// 3. Doubts bet on restakers following through on their commitments
+
+// Implementation Rules:
+// 1. For UI visibility, check slashedAmount < originalAmount
+// 2. totalRestakeAmount Rules:
+//    - Sum of all effectiveAmounts from non-fully-slashed restakes for a point-negation pair
+//    - Used as the maximum amount that can be doubted
+//    - Excludes restakes where slashedAmount >= originalAmount
+//    - Includes both the user's own restakes and others' restakes
+//    - Reduced by slashes but not by existing doubts
+// 3. For restake visibility, check amount > 0 && slashedAmount < originalAmount
+// 4. Doubts are immutable once placed, can only be reduced by slashes
+// 5. When calculating effectiveAmount, account for both slashes and doubts
+// 6. Hide fully slashed restakes (slashedAmount >= originalAmount) from UI entirely
+
+// Query Rules:
+// 1. When calculating totalRestakeAmount:
+//    SELECT SUM(effectiveAmount) 
+//    WHERE slashedAmount < originalAmount
+//    AND pointId/negationId match the point-negation pair
+// 2. Viewer-specific data must be clearly separated in query structure
+// 3. Global totals must be calculated independently of viewer context
+// 4. Ownership flags must be explicitly calculated using userId equality
+// 5. All amounts must use COALESCE to handle NULL values consistently
+
+// Core System Rules:
+// 1. Points are arguments, negations are counterarguments
+// 2. Negations alone don't change minds - restakes make that commitment
+// 3. Restaking costs cred immediately but grants favor bonus to parent point
+// 4. Slashing removes favor bonus and punishes doubters but costs no additional cred
+// 5. Doubters bet against restakers admitting they're wrong
+// 6. Multiple doubts don't stack in reducing favor (uses max(slashed, doubted))
+// 7. Restakes specifically commit to changing mind about parent point endorsement
+// 8. Favor bonus shows extra conviction by stating change conditions
+// 9. Endorsement amount limits restake amount on parent point
+// 10. Endorsement reductions can affect existing restakes
+
+// Component Detection Rules:
+// 1. PointCard:
+//    - Shows current states only
+//    - Displays restake/doubt icons based on amount > 0 && slashedAmount < originalAmount
+//    - Uses totalRestakeAmount for doubt possibility
+//    - Delegates state changes to RestakeDialog
+//    - Never handles transitions directly
+//    - Shows restake icon when restake exists and isn't fully slashed
+//    - Shows doubt icon when doubt amount exists
+//    - Enables doubt interaction if totalRestakeAmount > 0
+//    - Checks endorsement amount for restake possibility
+//    - Hides restake option if no parent point endorsement
+// 2. RestakeDialog:
+//    - Handles full state lifecycle
+//    - Manages three modes: restaking, slashing, doubting
+//    - Enforces system rules and limits
+//    - Calculates state transitions and their impacts
+//    - Validates all state changes
+//    - Handles proportional doubt reductions on slash
+//    - Enforces doubt immutability
+//    - Manages favor impact calculations
+//    - Shows warnings for state-specific conditions
+//    - Tracks endorsement reductions
+//    - Handles partial slash calculations
+//    - Enforces endorsement-based restake limits
+//    - Shows endorsement reduction warnings
+//    - Explains favor bonus mechanics
+//    - Clarifies slash vs doubt implications
+
+// Economic Rules:
+// 1. Restaking:
+//    - Costs cred immediately on placement
+//    - Grants favor bonus to parent point
+//    - Bonus reduced by max(slashed, doubted)
+//    - Represents commitment to change mind
+//    - Shows intellectual honesty by stating change conditions
+//    - Cannot be increased after placement
+//    - Can be slashed partially or fully
+//    - Limited by parent point endorsement
+//    - Demonstrates extra conviction in parent point
+// 2. Doubting:
+//    - Bets against restaker integrity
+//    - Wins if restaker doesn't slash
+//    - Loses proportionally if restaker slashes
+//    - Immutable after placement
+//    - Limited by totalRestakeAmount
+//    - Multiple doubts share proportional losses
+//    - Cannot be modified even by owner
+//    - Forces choice between ego and integrity
+// 3. Slashing:
+//    - Costs no additional cred
+//    - Removes favor bonus
+//    - Punishes doubters proportionally
+//    - Can be partial or complete
+//    - Represents admission of changed mind
+//    - Reduces all doubts proportionally
+//    - Shows intellectual integrity
+//    - Often motivated by already-lost favor from doubts
+
+// Favor Calculation Rules:
+// 1. Base favor from point/negation cred ratio
+// 2. Restake bonus added to parent point
+// 3. Bonus reduced by max(slashed, doubted)
+// 4. Multiple doubts don't stack
+// 5. Slashes permanently reduce favor
+// 6. Favor impact immediate on restake
+// 7. Favor reduced before slash if doubted
+// 8. Endorsement changes can affect favor calculation
+// 9. Parent point gets favor bonus from restake commitment
+
+// State Transition Rules:
+// 1. Restakes:
+//    - Start with full amount and favor
+//    - Can only decrease through slashing
+//    - Cannot be undone or increased
+//    - Must respect endorsement limits
+// 2. Doubts:
+//    - Immutable after placement
+//    - Only reduced by slashes
+//    - Cannot be voluntarily removed
+//    - Force restaker choice between ego/integrity
+// 3. Slashes:
+//    - Can be partial or complete
+//    - Trigger doubt reductions
+//    - Remove favor proportionally
+//    - Cannot be undone
+//    - Often motivated by doubt-reduced favor
+
+// Incentive Structure Rules:
+// 1. Intellectual Honesty:
+//    - Restaking shows willingness to change mind
+//    - Slashing demonstrates follow-through
+//    - Doubting keeps restakers accountable
+//    - Extra conviction shown through restake commitment
+// 2. Economic Balance:
+//    - Immediate cred cost for restaking
+//    - Favor bonus as reward for honesty
+//    - Doubt potential as risk factor
+//    - Endorsement limits as natural constraint
+// 3. Game Theory:
+//    - Slashing decision balances ego vs integrity
+//    - Doubt placement considers restaker history
+//    - Multiple doubters share risk/reward
+//    - Doubts force meaningful integrity choices
+
+// UI Representation Rules:
+// 1. Icons always present in outline form as base state
+// 2. Fill state and percentages only shown for owned positions
+// 3. Ownership checks must gate all personal metrics
+// 4. Base styling preserved when adding state-based styles
+// 5. Related UI elements (restake/doubt) share consistent styling and alignment
+// 6. Base icon styling (size, stroke) must be consistent across all states
+// 7. Interactive states (hover, fill) build on top of base styles
+// 8. Percentages and icons must maintain vertical alignment
+
+// Data Structure Rules:
+// 1. Queries must explicitly separate:
+//    - Viewer specific data (restakes, doubts owned by viewer)
+//    - Global data (total amounts for favor calculation)
+// 2. Ownership must be explicitly marked in database queries
+// 3. Ownership flags must propagate through all transformations
+// 4. Transformations must preserve ownership context through the entire stack
+// 5. Data structures must include explicit ownership flags for UI consumption
+
+Current tasks:
+N/A

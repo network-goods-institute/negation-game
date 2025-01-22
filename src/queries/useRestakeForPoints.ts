@@ -10,7 +10,6 @@ export type RestakeResponse = {
   originalAmount?: number;
   slashedAmount?: number;
   doubtedAmount?: number;
-  active?: boolean;
   totalRestakeAmount: number;
   isUserRestake: boolean;
 } | null;

@@ -12,7 +12,7 @@ export const fetchRestakeForPoints = async (pointId: number, negationId: number)
     return null;
   }
 
-  // First get the total amount from all active restakes
+  // First get the total amount from all non-fully-slashed restakes
   const [totals] = await db
     .select({
       totalRestakeAmount: sql<number>`
@@ -44,7 +44,6 @@ export const fetchRestakeForPoints = async (pointId: number, negationId: number)
       originalAmount: effectiveRestakesView.amount,
       slashedAmount: effectiveRestakesView.slashedAmount,
       doubtedAmount: sql<number>`COALESCE(${effectiveRestakesView.doubtedAmount}, 0)`.mapWith(Number),
-      active: effectiveRestakesView.isActive,
     })
     .from(effectiveRestakesView)
     .innerJoin(
@@ -83,7 +82,6 @@ export const fetchRestakeForPoints = async (pointId: number, negationId: number)
       originalAmount: userRestake.originalAmount,
       slashedAmount: userRestake.slashedAmount,
       doubtedAmount: userRestake.doubtedAmount,
-      active: userRestake.active,
       totalRestakeAmount: totals?.totalRestakeAmount || 0,
       isUserRestake: true
     };
