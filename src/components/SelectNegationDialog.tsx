@@ -1,8 +1,8 @@
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { DialogProps } from "@radix-ui/react-dialog";
-import { FC, useState } from "react";
-import { ArrowLeftIcon, CircleXIcon } from "lucide-react";
+import { FC, useState, useEffect } from "react";
+import { ArrowLeftIcon, CircleXIcon, PlusIcon } from "lucide-react";
 import { RestakeDialog } from "./RestakeDialog";
 import { useToggle } from "@uidotdev/usehooks";
 import { PointStats } from "./PointStats";
@@ -11,6 +11,9 @@ import { NegationResult } from "@/actions/fetchPointNegations";
 import { usePointNegations } from "@/queries/usePointNegations";
 import { useFavorHistory } from "@/queries/useFavorHistory";
 import { DEFAULT_TIMESCALE } from "@/constants/config";
+import { useSetAtom, useAtomValue } from "jotai";
+import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
+import { usePrivy } from "@privy-io/react-auth";
 
 interface SelectNegationDialogProps extends DialogProps {
   originalPoint: {
@@ -36,6 +39,10 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
 }) => {
   const [selectedNegation, setSelectedNegation] = useState<NegationResult | null>(null);
   const [restakeDialogOpen, toggleRestakeDialog] = useToggle(false);
+  const setNegatedPointId = useSetAtom(negatedPointIdAtom);
+  const currentNegatedPointId = useAtomValue(negatedPointIdAtom);
+  const { user: privyUser, login } = usePrivy();
+  const [waitingForNegation, setWaitingForNegation] = useState(false);
 
   const { data: negations, isLoading } = usePointNegations(originalPoint.id);
 
@@ -47,6 +54,37 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
   const currentFavor = favorHistory?.length ? 
     Math.floor(favorHistory[favorHistory.length - 1].favor) : 
     50;
+
+  // Reopen dialog when negation creation is complete
+  useEffect(() => {
+    if (currentNegatedPointId === undefined && waitingForNegation) {
+      // Force a small delay to ensure the negation dialog is fully closed
+      setTimeout(() => {
+        setWaitingForNegation(false);
+        onOpenChange?.(true);
+      }, 500); // Increased delay to ensure all state updates are complete
+    }
+  }, [currentNegatedPointId, waitingForNegation, onOpenChange]);
+
+  // Reset waiting state when dialog is closed normally
+  useEffect(() => {
+    if (!open) {
+      // Only reset if we're not in the middle of creating a negation
+      if (currentNegatedPointId === undefined && !waitingForNegation) {
+        setWaitingForNegation(false);
+      }
+    }
+  }, [open, currentNegatedPointId, waitingForNegation]);
+
+  const handleCreateNegation = () => {
+    if (!privyUser) {
+      login();
+      return;
+    }
+    setWaitingForNegation(true);
+    setNegatedPointId(originalPoint.id);
+    onOpenChange?.(false);
+  };
 
   return (
     <>
@@ -74,6 +112,15 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
             </p>
           </div>
 
+          <Button
+            variant="outline"
+            className="flex items-center gap-2 w-full"
+            onClick={handleCreateNegation}
+          >
+            <PlusIcon className="size-4" />
+            Create new negation
+          </Button>
+
           {isLoading ? (
             <Loader className="self-center" />
           ) : negations?.length === 0 ? (
@@ -82,7 +129,7 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
               <div className="text-center space-y-1">
                 <p>No negations available</p>
                 <p className="text-sm">
-                  You can restake points after someone creates a negation
+                  Create a negation to start restaking
                 </p>
               </div>
             </div>
