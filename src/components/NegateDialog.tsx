@@ -47,6 +47,7 @@ import {
   TrashIcon,
 } from "lucide-react";
 import { FC, ReactNode, useCallback, useEffect, useState } from "react";
+import { useSubmitHotkey } from '@/hooks/useSubmitHotkey';
 
 export interface NegateDialogProps
   extends Omit<DialogProps, "open" | "onOpenChange"> {}
@@ -149,6 +150,75 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   useEffect(() => {
     if (!negatedPointId) resetForm();
   }, [negatedPointId, resetForm]);
+
+  const handleSubmit = useCallback(() => {
+    if (!canSubmit || isSubmitting) return;
+
+    (selectedCounterpointCandidate === undefined
+      ? addCounterpoint({
+          content: counterpointContent,
+          cred,
+          negatedPointId: negatedPoint!.pointId,
+        })
+      : selectedCounterpointCandidate.isCounterpoint
+        ? endorse({
+            pointId: selectedCounterpointCandidate.id,
+            cred,
+          })
+        : negate({
+            negatedPointId: negatedPoint!.pointId,
+            counterpointId: selectedCounterpointCandidate.id,
+            cred,
+          })
+    ).then(() => {
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
+      resetForm();
+      setNegatedPointId(undefined);
+    });
+  }, [
+    canSubmit,
+    isSubmitting,
+    selectedCounterpointCandidate,
+    counterpointContent,
+    cred,
+    negatedPoint,
+    queryClient,
+    resetForm,
+    setNegatedPointId,
+  ]);
+
+  const handleSubmitOrReview = useCallback(() => {
+    if (!negatedPointId) return;
+
+    // If review hasn't been done yet and we can review, trigger review
+    if (!counterpointWasReviewed && canReview && !isReviewingCounterpoint) {
+      reviewCounterpoint();
+      return;
+    }
+
+    // Only submit if we have explicitly selected a counterpoint candidate
+    // or if we've reviewed and closed the suggestions popover
+    if (counterpointWasReviewed && 
+        !reviewIsStale && 
+        canSubmit && 
+        !isSubmitting && 
+        !reviewPopoverOpen) {
+      handleSubmit();
+    }
+  }, [
+    negatedPointId,
+    counterpointWasReviewed,
+    canReview,
+    isReviewingCounterpoint,
+    reviewIsStale,
+    canSubmit,
+    isSubmitting,
+    reviewPopoverOpen,
+    reviewCounterpoint,
+    handleSubmit
+  ]);
+
+  useSubmitHotkey(handleSubmitOrReview, !!negatedPointId);
 
   return (
     <Dialog
@@ -265,29 +335,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                   isAddingCounterpoint
                 }
                 disabled={!canSubmit || isSubmitting}
-                onClick={() =>
-                  (selectedCounterpointCandidate === undefined
-                    ? addCounterpoint({
-                        content: counterpointContent,
-                        cred,
-                        negatedPointId: negatedPoint!.pointId,
-                      })
-                    : selectedCounterpointCandidate.isCounterpoint
-                      ? endorse({
-                          pointId: selectedCounterpointCandidate.id,
-                          cred,
-                        })
-                      : negate({
-                          negatedPointId: negatedPoint!.pointId,
-                          counterpointId: selectedCounterpointCandidate.id,
-                          cred,
-                        })
-                  ).then(() => {
-                    queryClient.invalidateQueries({ queryKey: ["feed"] });
-                    resetForm();
-                    setNegatedPointId(undefined);
-                  })
-                }
+                onClick={handleSubmit}
               >
                 {selectedCounterpointCandidate?.isCounterpoint
                   ? isSubmitting

@@ -20,8 +20,9 @@ import { useUser } from "@/queries/useUser";
 import { DialogProps } from "@radix-ui/react-dialog";
 import { useDebounce } from "@uidotdev/usehooks";
 import { ArrowLeftIcon, BlendIcon, DiscIcon, Undo2Icon } from "lucide-react";
-import { FC, useEffect, useState } from "react";
+import { FC, useEffect, useState, useCallback } from "react";
 import { IterableElement } from "type-fest";
+import { useSubmitHotkey } from '@/hooks/useSubmitHotkey';
 
 export interface MakePointDialogProps extends DialogProps {}
 
@@ -80,6 +81,31 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
       (charactersLeft >= 0 && content.length >= POINT_MIN_LENGHT));
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = useCallback(() => {
+    if (!canSubmit || isSubmitting) return;
+    
+    setIsSubmitting(true);
+    (selectedPoint
+      ? endorse({ pointId: selectedPoint.pointId, cred })
+      : makePoint({
+          content,
+          cred: cred,
+        })
+    )
+      .then(() => {
+        onOpenChange?.(false);
+        setContent("");
+        selectPoint(undefined);
+        setSuggestionSelected(false);
+        resetCred();
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
+  }, [canSubmit, isSubmitting, selectedPoint, content, cred, onOpenChange, resetCred]);
+
+  useSubmitHotkey(handleSubmit, open);
 
   return (
     <Dialog {...props} open={open} onOpenChange={onOpenChange}>
@@ -261,26 +287,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
         <Button
           className="self-end mt-md"
           disabled={!canSubmit || isSubmitting}
-          onClick={() => {
-            setIsSubmitting(true);
-            (selectedPoint
-              ? endorse({ pointId: selectedPoint.pointId, cred })
-              : makePoint({
-                  content,
-                  cred: cred,
-                })
-            )
-              .then(() => {
-                onOpenChange?.(false);
-                setContent("");
-                selectPoint(undefined);
-                setSuggestionSelected(false);
-                resetCred();
-              })
-              .finally(() => {
-                setIsSubmitting(false);
-              });
-          }}
+          onClick={handleSubmit}
         >
           {isSubmitting ? (
             <div className="flex items-center gap-2">
