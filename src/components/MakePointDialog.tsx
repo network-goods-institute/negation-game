@@ -22,7 +22,7 @@ import { useDebounce } from "@uidotdev/usehooks";
 import { ArrowLeftIcon, BlendIcon, DiscIcon, Undo2Icon } from "lucide-react";
 import { FC, useEffect, useState, useCallback } from "react";
 import { IterableElement } from "type-fest";
-import { useSubmitHotkey } from '@/hooks/useSubmitHotkey';
+import { useSubmitHotkey } from "@/hooks/useSubmitHotkey";
 
 export interface MakePointDialogProps extends DialogProps {}
 
@@ -44,8 +44,12 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
     IterableElement<typeof similarPoints> | undefined
   >(undefined);
 
-  const [editingSuggestion, setEditingSuggestion] = useState<string | null>(null);
-  const [editedContents, setEditedContents] = useState<Map<string, string>>(new Map());
+  const [editingSuggestion, setEditingSuggestion] = useState<string | null>(
+    null,
+  );
+  const [editedContents, setEditedContents] = useState<Map<string, string>>(
+    new Map(),
+  );
   const [suggestionSelected, setSuggestionSelected] = useState(false);
 
   const charactersLeft = POINT_MAX_LENGHT - content.length;
@@ -55,21 +59,28 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
   const { mutateAsync: endorse } = useEndorse();
   const { mutateAsync: makePoint } = useMakePoint();
 
-  const { data: improvementSuggestionsStream, isLoading: isLoadingImprovements } = 
-    useImprovePoint(debouncedContent, {
-      enabled: !selectedPoint && 
-               !suggestionSelected && 
-               debouncedContent.length >= POINT_MIN_LENGHT
-    });
+  const {
+    data: improvementSuggestionsStream,
+    isLoading: isLoadingImprovements,
+  } = useImprovePoint(debouncedContent, {
+    enabled:
+      !selectedPoint &&
+      !suggestionSelected &&
+      debouncedContent.length >= POINT_MIN_LENGHT,
+  });
 
-  const [improvementSuggestions, setImprovementSuggestions] = useState<string[]>([]);
+  const [improvementSuggestions, setImprovementSuggestions] = useState<
+    string[]
+  >([]);
 
   useEffect(() => {
     if (!improvementSuggestionsStream) {
       setImprovementSuggestions([]);
       return;
     }
-    const suggestions = improvementSuggestionsStream.split('\n').filter(Boolean);
+    const suggestions = improvementSuggestionsStream
+      .split("\n")
+      .filter(Boolean);
     setImprovementSuggestions(suggestions);
   }, [improvementSuggestionsStream]);
 
@@ -84,7 +95,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
 
   const handleSubmit = useCallback(() => {
     if (!canSubmit || isSubmitting) return;
-    
+
     setIsSubmitting(true);
     (selectedPoint
       ? endorse({ pointId: selectedPoint.pointId, cred })
@@ -103,7 +114,15 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
       .finally(() => {
         setIsSubmitting(false);
       });
-  }, [canSubmit, isSubmitting, selectedPoint, content, cred, onOpenChange, resetCred]);
+  }, [
+    canSubmit,
+    isSubmitting,
+    selectedPoint,
+    content,
+    cred,
+    onOpenChange,
+    resetCred,
+  ]);
 
   useSubmitHotkey(handleSubmit, open);
 
@@ -125,7 +144,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
             <DiscIcon
               className={cn(
                 "size-6 text-muted-foreground stroke-1",
-                !selectedPoint && "text-endorsed"
+                !selectedPoint && "text-endorsed",
               )}
             />
             {cred > 0 && (
@@ -205,12 +224,14 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
           </>
         )}
 
-        {!selectedPoint && content.length >= POINT_MIN_LENGHT && isLoadingImprovements && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
-            <span className="size-2 bg-muted-foreground rounded-full animate-bounce" />
-            <span>Crafting other phrasings...</span>
-          </div>
-        )}
+        {!selectedPoint &&
+          content.length >= POINT_MIN_LENGHT &&
+          isLoadingImprovements && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
+              <span className="size-2 bg-muted-foreground rounded-full animate-bounce" />
+              <span>Crafting other phrasings...</span>
+            </div>
+          )}
 
         {!selectedPoint && improvementSuggestions.length > 0 && (
           <>
@@ -238,20 +259,24 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
                         size="sm"
                         onClick={() => {
                           setEditingSuggestion(null);
-                          setEditedContents(map => {
+                          setEditedContents((map) => {
                             const newMap = new Map(
-                              Array.from(map).filter(([key]) => key !== suggestion)
+                              Array.from(map).filter(
+                                ([key]) => key !== suggestion,
+                              ),
                             );
                             return newMap;
                           });
                         }}
-                      > 
+                      >
                         Cancel
                       </Button>
                       <Button
                         size="sm"
                         onClick={() => {
-                          setContent(editedContents.get(suggestion) ?? suggestion);
+                          setContent(
+                            editedContents.get(suggestion) ?? suggestion,
+                          );
                           setSuggestionSelected(true);
                           setEditingSuggestion(null);
                           setEditedContents(new Map());
@@ -294,8 +319,10 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
               <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
               {selectedPoint ? "Endorsing..." : "Creating..."}
             </div>
+          ) : selectedPoint ? (
+            "Endorse Point"
           ) : (
-            selectedPoint ? "Endorse Point" : "Make Point"
+            "Make Point"
           )}
         </Button>
       </DialogContent>

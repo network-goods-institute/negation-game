@@ -1,13 +1,13 @@
 "use server";
 
 import { getUserId } from "@/actions/getUserId";
-import { 
-  slashesTable, 
-  slashHistoryTable, 
-  restakesTable, 
+import {
+  slashesTable,
+  slashHistoryTable,
+  restakesTable,
   restakeHistoryTable,
   doubtsTable,
-  doubtHistoryTable
+  doubtHistoryTable,
 } from "@/db/schema";
 import { db } from "@/services/db";
 import { eq, and, sql, desc } from "drizzle-orm";
@@ -34,11 +34,11 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
           eq(restakesTable.userId, userId),
           eq(restakesTable.pointId, pointId),
           eq(restakesTable.negationId, negationId),
-          sql`${restakesTable.amount} > 0`
-        )
+          sql`${restakesTable.amount} > 0`,
+        ),
       )
       .limit(1)
-      .then(rows => rows[0]);
+      .then((rows) => rows[0]);
 
     if (!restake) {
       throw new Error("No active restake found to slash");
@@ -51,15 +51,19 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
       .where(
         and(
           eq(slashesTable.userId, userId),
-          eq(slashesTable.restakeId, restake.id)
-        )
+          eq(slashesTable.restakeId, restake.id),
+        ),
       )
       .limit(1)
-      .then(rows => rows[0]);
+      .then((rows) => rows[0]);
 
     // Get all active doubts for this restake created after the restake
     // and before any newer restake for the same point/negation pair
-    const doubts = await tx.execute<{ id: number, userId: string, amount: number }>(sql`
+    const doubts = await tx.execute<{
+      id: number;
+      userId: string;
+      amount: number;
+    }>(sql`
       SELECT 
         d.id,
         d.user_id as "userId",
@@ -89,18 +93,22 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
 
     if (existingSlash) {
       // Get the last restake history BEFORE this slash attempt
-      const lastRestakeHistory = await tx.execute<{
-        id: number;
-        restake_id: number;
-        created_at: Date;
-      }>(sql`
+      const lastRestakeHistory = await tx
+        .execute<{
+          id: number;
+          restake_id: number;
+          created_at: Date;
+        }>(
+          sql`
         SELECT *
         FROM ${restakeHistoryTable}
         WHERE restake_id = ${restake.id}
         AND created_at < CURRENT_TIMESTAMP
         ORDER BY created_at DESC
         LIMIT 1
-      `).then(rows => rows[0]);
+      `,
+        )
+        .then((rows) => rows[0]);
 
       // Get the last slash history
       const lastSlashHistory = await tx
@@ -109,14 +117,16 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
         .where(eq(slashHistoryTable.slashId, existingSlash.id))
         .orderBy(desc(slashHistoryTable.createdAt))
         .limit(1)
-        .then(rows => rows[0]);
+        .then((rows) => rows[0]);
 
       // If there was a restake between our last slash and now, replace
       // Otherwise, add to the existing amount
-      const newAmount = lastRestakeHistory && lastSlashHistory && 
+      const newAmount =
+        lastRestakeHistory &&
+        lastSlashHistory &&
         lastRestakeHistory.created_at > lastSlashHistory.createdAt
-        ? amount  // Replace if there was a restake since last slash
-        : existingSlash.amount + amount;  // Add to existing amount
+          ? amount // Replace if there was a restake since last slash
+          : existingSlash.amount + amount; // Add to existing amount
 
       // Calculate the additional slash amount
       const additionalSlashAmount = newAmount - existingSlash.amount;
@@ -135,7 +145,7 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
         negationId,
         action: amount > existingSlash.amount ? "increased" : "decreased",
         previousAmount: existingSlash.amount,
-        newAmount
+        newAmount,
       });
 
       // Handle doubt reductions for additional slash
@@ -146,7 +156,7 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
         for (const doubt of doubts) {
           const reductionAmount = Math.min(
             Math.floor(doubt.amount * slashProportion),
-            doubt.amount
+            doubt.amount,
           );
           if (reductionAmount > 0) {
             const newDoubtAmount = doubt.amount - reductionAmount;
@@ -165,9 +175,8 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
               negationId,
               action: "reduced_by_slash",
               previousAmount: doubt.amount,
-              newAmount: newDoubtAmount
+              newAmount: newDoubtAmount,
             });
-
           }
         }
       }
@@ -182,7 +191,7 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
           restakeId: restake.id,
           pointId,
           negationId,
-          amount
+          amount,
         })
         .returning({ id: slashesTable.id })
         .then(([{ id }]) => id);
@@ -194,7 +203,7 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
         pointId,
         negationId,
         action: "created",
-        newAmount: amount
+        newAmount: amount,
       });
 
       // Handle doubt reductions for new slash
@@ -206,7 +215,7 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
           // Calculate reduction amount but cap it at the current doubt amount
           const reductionAmount = Math.min(
             Math.floor(doubt.amount * slashProportion),
-            doubt.amount  // Never reduce more than the current doubt amount
+            doubt.amount, // Never reduce more than the current doubt amount
           );
 
           if (reductionAmount > 0) {
@@ -226,7 +235,7 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
               negationId,
               action: "reduced_by_slash",
               previousAmount: doubt.amount,
-              newAmount: newDoubtAmount
+              newAmount: newDoubtAmount,
             });
           }
         }
@@ -235,4 +244,4 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
       return newSlash;
     }
   });
-}; 
+};

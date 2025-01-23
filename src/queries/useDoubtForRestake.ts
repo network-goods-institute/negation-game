@@ -27,12 +27,12 @@ export const useDoubtForRestake = (pointId: number, negationId: number) => {
   const { user: privyUser } = usePrivy();
 
   return useQuery<DoubtResponse>({
-    queryKey: doubtForRestakeQueryKey({ 
-      pointId, 
-      negationId, 
-      userId: privyUser?.id 
+    queryKey: doubtForRestakeQueryKey({
+      pointId,
+      negationId,
+      userId: privyUser?.id,
     }),
     queryFn: () => fetchDoubtForRestake(pointId, negationId),
-    enabled: !!pointId && !!negationId
+    enabled: !!pointId && !!negationId,
   });
-}; 
+};

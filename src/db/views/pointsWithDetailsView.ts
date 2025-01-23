@@ -73,7 +73,7 @@ export const pointsWithDetailsView = pgView("point_with_details_view").as(
         `.as("negation_ids"),
       })
       .from(pointsTable)
-      .$dynamic()
+      .$dynamic(),
 );
 
 export type PointWithDetails = InferSelectViewModel<

@@ -1,12 +1,16 @@
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { InfoIcon } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { DialogProps } from "@radix-ui/react-dialog";
 import type { RestakerReputationResponse } from "@/queries/useRestakerReputation";
 
 interface ReputationAnalysisDialogProps extends DialogProps {
-  restakers: RestakerReputationResponse['restakers'];
+  restakers: RestakerReputationResponse["restakers"];
   aggregateReputation: number;
 }
 
@@ -29,9 +33,9 @@ export const ReputationAnalysisDialog = ({
             </PopoverTrigger>
             <PopoverContent className="w-80">
               <p className="text-sm text-muted-foreground">
-                Reputation scores indicate how reliable restakers are based on their history 
-                of doubting and restaking. Higher scores mean the restaker is more likely 
-                to self-slash.
+                Reputation scores indicate how reliable restakers are based on
+                their history of doubting and restaking. Higher scores mean the
+                restaker is more likely to self-slash.
               </p>
             </PopoverContent>
           </Popover>
@@ -47,10 +51,15 @@ export const ReputationAnalysisDialog = ({
             <h3 className="font-medium">Current Restakers</h3>
             <div className="space-y-3">
               {restakers.map((restaker) => (
-                <div key={restaker.hashedUserId} className="flex justify-between items-center">
+                <div
+                  key={restaker.hashedUserId}
+                  className="flex justify-between items-center"
+                >
                   <div className="flex items-center gap-2">
                     <span>{restaker.username}</span>
-                    <span className="text-xs text-muted-foreground">({restaker.hashedUserId})</span>
+                    <span className="text-xs text-muted-foreground">
+                      ({restaker.hashedUserId})
+                    </span>
                   </div>
                   <span>{restaker.reputation}%</span>
                 </div>
@@ -61,4 +70,4 @@ export const ReputationAnalysisDialog = ({
       </DialogContent>
     </Dialog>
   );
-}; 
+};

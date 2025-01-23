@@ -1,9 +1,9 @@
-import { useQueryClient } from '@tanstack/react-query';
-import { pointQueryKey } from '@/queries/usePointData';
-import { pointNegationsQueryKey } from '@/queries/usePointNegations';
-import { usePrivy } from '@privy-io/react-auth';
-import { fetchPoint } from '@/actions/fetchPoint';
-import { fetchPointNegations } from '@/actions/fetchPointNegations';
+import { useQueryClient } from "@tanstack/react-query";
+import { pointQueryKey } from "@/queries/usePointData";
+import { pointNegationsQueryKey } from "@/queries/usePointNegations";
+import { usePrivy } from "@privy-io/react-auth";
+import { fetchPoint } from "@/actions/fetchPoint";
+import { fetchPointNegations } from "@/actions/fetchPointNegations";
 
 export const usePrefetchPoint = () => {
   const queryClient = useQueryClient();
@@ -18,13 +18,14 @@ export const usePrefetchPoint = () => {
       }),
       queryClient.prefetchQuery({
         queryKey: pointNegationsQueryKey({ pointId, userId: user?.id }),
-        queryFn: () => fetchPointNegations(pointId).catch(() => {
-          // If negations fetch fails, silently ignore - it will retry when component mounts
-          return [];
-        }),
-      })
+        queryFn: () =>
+          fetchPointNegations(pointId).catch(() => {
+            // If negations fetch fails, silently ignore - it will retry when component mounts
+            return [];
+          }),
+      }),
     ]).catch(() => {
       // Ignore any Promise.all errors - individual promises handle their own errors
     });
   };
-}; 
+};

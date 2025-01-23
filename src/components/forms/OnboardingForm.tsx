@@ -59,7 +59,7 @@ export const OnboardingForm: FC<OnboardingFormProps> = ({
         }),
       {
         async: true,
-      }
+      },
     ),
     defaultValues: {
       username: "",

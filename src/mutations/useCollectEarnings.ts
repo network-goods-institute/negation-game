@@ -20,13 +20,13 @@ export const useCollectEarnings = () => {
 
       // Invalidate earnings preview
       queryClient.invalidateQueries({
-        queryKey: ['earnings-preview']
+        queryKey: ["earnings-preview"],
       });
 
       // Invalidate each affected point and its relationships
-      result.affectedPoints.forEach(pointId => {
+      result.affectedPoints.forEach((pointId) => {
         invalidateRelatedPoints(pointId);
       });
     },
   });
-}; 
+};

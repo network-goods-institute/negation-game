@@ -62,7 +62,9 @@ export const PointEditor: FC<PointEditorProps> = ({
         <div className="flex gap-sm items-center">
           <span
             className={cn(
-              charactersLeft >= 0 ? "text-muted-foreground" : "text-destructive"
+              charactersLeft >= 0
+                ? "text-muted-foreground"
+                : "text-destructive",
             )}
           >
             {charactersLeft}

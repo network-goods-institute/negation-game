@@ -92,7 +92,7 @@ export default function PointPage({
   const setNegationContent = useAtomCallback(
     (_get, set, negatedPointId: number, content: string) => {
       set(negationContentAtom(negatedPointId), content);
-    }
+    },
   );
 
   const basePath = useBasePath();
@@ -142,7 +142,8 @@ export default function PointPage({
 
   const counterpointSuggestions = useCounterpointSuggestions(point?.pointId);
 
-  const [selectNegationDialogOpen, toggleSelectNegationDialog] = useToggle(false);
+  const [selectNegationDialogOpen, toggleSelectNegationDialog] =
+    useToggle(false);
   const [restakePoint, setRestakePoint] = useState<{
     point: Point;
     counterPoint: Point;
@@ -243,7 +244,7 @@ export default function PointPage({
                       className={cn(
                         "p-2 rounded-full size-fit gap-sm hover:bg-endorsed/30",
                         endorsedByViewer && "text-endorsed",
-                        "@md/point:border @md/point:px-4"
+                        "@md/point:border @md/point:px-4",
                       )}
                       onClick={(e) => {
                         if (privyUser === null) {
@@ -258,7 +259,7 @@ export default function PointPage({
                       <EndorseIcon
                         className={cn(
                           "@md/point:hidden",
-                          endorsedByViewer && "fill-current"
+                          endorsedByViewer && "fill-current",
                         )}
                       />
                       <span className="hidden @md/point:inline">
@@ -298,7 +299,7 @@ export default function PointPage({
                   variant="ghost"
                   className={cn(
                     "p-2  rounded-full size-fit hover:bg-primary/30",
-                    "@md/point:border @md/point:px-4"
+                    "@md/point:border @md/point:px-4",
                   )}
                   onClick={() =>
                     privyUser !== null
@@ -427,7 +428,7 @@ export default function PointPage({
                     negations
                   </span>
                   {negations
-                    .filter(negation => negation.pointId !== pointId)
+                    .filter((negation) => negation.pointId !== pointId)
                     .map((negation) => (
                       <Link
                         data-show-hover={
@@ -438,14 +439,16 @@ export default function PointPage({
                         href={`${basePath}/${encodeId(negation.pointId)}`}
                         key={negation.pointId}
                         className={cn(
-                          "flex cursor-pointer px-4 pt-5 pb-2 border-b hover:bg-accent data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
+                          "flex cursor-pointer px-4 pt-5 pb-2 border-b hover:bg-accent data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]",
                         )}
                         onMouseEnter={() => prefetchPoint(negation.pointId)}
                       >
                         <PointCard
                           onNegate={(e) => {
                             e.preventDefault();
-                            user !== null ? setNegatedPointId(negation.pointId) : login();
+                            user !== null
+                              ? setNegatedPointId(negation.pointId)
+                              : login();
                           }}
                           className="flex-grow -mt-3.5 pb-3"
                           favor={negation.favor}
@@ -460,10 +463,10 @@ export default function PointPage({
                           parentPoint={{
                             ...point,
                             id: point.pointId,
-                            stakedAmount: point.cred
+                            stakedAmount: point.cred,
                           }}
                           negationId={point.pointId}
-                          onRestake={({openedFromSlashedIcon}) => {
+                          onRestake={({ openedFromSlashedIcon }) => {
                             if (privyUser === null) {
                               login();
                               return;
@@ -473,15 +476,15 @@ export default function PointPage({
                                 ...point,
                                 stakedAmount: point.cred,
                                 pointId: point.pointId,
-                                id: point.pointId
+                                id: point.pointId,
                               },
                               counterPoint: {
                                 ...negation,
                                 stakedAmount: negation.cred,
                                 pointId: negation.pointId,
-                                id: negation.pointId
+                                id: negation.pointId,
                               },
-                              openedFromSlashedIcon
+                              openedFromSlashedIcon,
                             });
                           }}
                           restake={negation.restake}
@@ -550,13 +553,13 @@ export default function PointPage({
         onOpenChange={toggleSelectNegationDialog}
         originalPoint={{
           id: point?.pointId ?? 0,
-          content: point?.content ?? '',
+          content: point?.content ?? "",
           createdAt: point?.createdAt ?? new Date(),
           stakedAmount: point?.cred ?? 0,
           viewerCred: point?.viewerCred,
           amountSupporters: point?.amountSupporters ?? 0,
           amountNegations: point?.amountNegations ?? 0,
-          negationsCred: point?.negationsCred ?? 0
+          negationsCred: point?.negationsCred ?? 0,
         }}
         negationId={point?.pointId ?? 0}
       />

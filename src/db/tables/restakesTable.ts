@@ -48,15 +48,19 @@ export const restakesTable = pgTable(
     // Ensure amount is non-negative
     amountNonNegativeConstraint: check(
       "amount_non_negative_constraint",
-      sql`${table.amount} >= 0`
+      sql`${table.amount} >= 0`,
     ),
     // Unique constraint for restakes - this is needed for the foreign key reference
-    uniqueRestake: unique("unique_restake").on(table.userId, table.pointId, table.negationId),
+    uniqueRestake: unique("unique_restake").on(
+      table.userId,
+      table.pointId,
+      table.negationId,
+    ),
     // Indexes
     userIndex: index("restakes_user_idx").on(table.userId),
     pointIndex: index("restakes_point_idx").on(table.pointId),
     negationIndex: index("restakes_negation_idx").on(table.negationId),
-  })
+  }),
 );
 
 export const restakeHistoryTable = pgTable(
@@ -94,7 +98,7 @@ export const restakeHistoryTable = pgTable(
     userIndex: index("restake_history_user_idx").on(table.userId),
     pointIndex: index("restake_history_point_idx").on(table.pointId),
     negationIndex: index("restake_history_negation_idx").on(table.negationId),
-  })
+  }),
 );
 
 // Export types

@@ -55,9 +55,9 @@ export const findCounterpointCandidatesAction = async ({
       .where(
         or(
           sql`${negationsTable.olderPointId} = ${pointsTable.id} AND ${negationsTable.newerPointId} = ${negatedPointId}`,
-          sql`${negationsTable.newerPointId} = ${pointsTable.id} AND ${negationsTable.olderPointId} = ${negatedPointId}`
-        )
-      )
+          sql`${negationsTable.newerPointId} = ${pointsTable.id} AND ${negationsTable.olderPointId} = ${negatedPointId}`,
+        ),
+      ),
   ).mapWith(Boolean);
 
   const similarPoints = await db
@@ -115,8 +115,8 @@ export const findCounterpointCandidatesAction = async ({
       and(
         gt(similarity, 0.5),
         ne(pointsTable.id, negatedPointId),
-        eq(pointsTable.space, space)
-      )
+        eq(pointsTable.space, space),
+      ),
     )
     .orderBy((t) => desc(t.similarity))
     .limit(10)

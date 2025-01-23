@@ -5,7 +5,10 @@ import { db } from "@/services/db";
 import { and, eq, sql } from "drizzle-orm";
 import { getUserId } from "./getUserId";
 
-export const fetchDoubtForRestake = async (pointId: number, negationId: number) => {
+export const fetchDoubtForRestake = async (
+  pointId: number,
+  negationId: number,
+) => {
   const userId = await getUserId();
 
   const doubtsExist = await db
@@ -15,8 +18,8 @@ export const fetchDoubtForRestake = async (pointId: number, negationId: number) 
       and(
         eq(doubtsTable.pointId, pointId),
         eq(doubtsTable.negationId, negationId),
-        sql`${doubtsTable.amount} > 0`
-      )
+        sql`${doubtsTable.amount} > 0`,
+      ),
     )
     .limit(1);
 
@@ -26,9 +29,10 @@ export const fetchDoubtForRestake = async (pointId: number, negationId: number) 
   }
 
   // Get both total amount and user's doubts in one query
-  const result = await db.select({
-    totalAmount: sql<number>`COALESCE(SUM(${doubtsTable.amount}), 0)`,
-    userDoubts: sql<{id: number, amount: number, createdAt: Date}[]>`
+  const result = await db
+    .select({
+      totalAmount: sql<number>`COALESCE(SUM(${doubtsTable.amount}), 0)`,
+      userDoubts: sql<{ id: number; amount: number; createdAt: Date }[]>`
       ARRAY(
         SELECT json_build_object(
           'id', d2.id,
@@ -43,7 +47,7 @@ export const fetchDoubtForRestake = async (pointId: number, negationId: number) 
         ORDER BY d2.created_at DESC
       )
     `,
-    hasUserDoubt: sql<boolean>`
+      hasUserDoubt: sql<boolean>`
       EXISTS (
         SELECT 1 
         FROM ${doubtsTable} d2 
@@ -52,26 +56,25 @@ export const fetchDoubtForRestake = async (pointId: number, negationId: number) 
           AND d2.negation_id = ${negationId}
           AND d2.amount > 0
       )
-    `
-  })
-  .from(doubtsTable)
-  .where(
-    and(
-      eq(doubtsTable.pointId, pointId),
-      eq(doubtsTable.negationId, negationId),
-      sql`${doubtsTable.amount} > 0`
-    )
-  );
-
+    `,
+    })
+    .from(doubtsTable)
+    .where(
+      and(
+        eq(doubtsTable.pointId, pointId),
+        eq(doubtsTable.negationId, negationId),
+        sql`${doubtsTable.amount} > 0`,
+      ),
+    );
 
   const userDoubts = result[0].userDoubts || [];
-  
+
   const response = {
     amount: Number(result[0].totalAmount),
     userDoubts,
     userAmount: userDoubts.reduce((sum, d) => sum + d.amount, 0),
-    isUserDoubt: result[0].hasUserDoubt
+    isUserDoubt: result[0].hasUserDoubt,
   };
 
   return response;
-}; 
+};

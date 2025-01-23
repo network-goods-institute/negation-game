@@ -1,4 +1,9 @@
-import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { DialogProps } from "@radix-ui/react-dialog";
 import { FC, useState, useEffect } from "react";
@@ -37,7 +42,8 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
   onOpenChange,
   ...props
 }) => {
-  const [selectedNegation, setSelectedNegation] = useState<NegationResult | null>(null);
+  const [selectedNegation, setSelectedNegation] =
+    useState<NegationResult | null>(null);
   const [restakeDialogOpen, toggleRestakeDialog] = useToggle(false);
   const setNegatedPointId = useSetAtom(negatedPointIdAtom);
   const currentNegatedPointId = useAtomValue(negatedPointIdAtom);
@@ -46,14 +52,14 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
 
   const { data: negations, isLoading } = usePointNegations(originalPoint.id);
 
-  const { data: favorHistory } = useFavorHistory({ 
-    pointId: originalPoint.id, 
-    timelineScale: DEFAULT_TIMESCALE 
+  const { data: favorHistory } = useFavorHistory({
+    pointId: originalPoint.id,
+    timelineScale: DEFAULT_TIMESCALE,
   });
 
-  const currentFavor = favorHistory?.length ? 
-    Math.floor(favorHistory[favorHistory.length - 1].favor) : 
-    50;
+  const currentFavor = favorHistory?.length
+    ? Math.floor(favorHistory[favorHistory.length - 1].favor)
+    : 50;
 
   // Reopen dialog when negation creation is complete
   useEffect(() => {
@@ -88,7 +94,11 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
 
   return (
     <>
-      <Dialog {...props} open={open && !restakeDialogOpen} onOpenChange={onOpenChange}>
+      <Dialog
+        {...props}
+        open={open && !restakeDialogOpen}
+        onOpenChange={onOpenChange}
+      >
         <DialogContent className="flex flex-col gap-6 p-4 sm:p-6 max-w-xl">
           <div className="flex items-center gap-2">
             <DialogClose asChild>
@@ -108,7 +118,8 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
 
           <div className="text-sm text-muted-foreground space-y-2 bg-muted/30 p-3 rounded-md">
             <p>
-              Get higher favor for this point. Select a counterpoint that would change your mind if it were true.
+              Get higher favor for this point. Select a counterpoint that would
+              change your mind if it were true.
             </p>
           </div>
 
@@ -128,15 +139,13 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
               <CircleXIcon className="size-12 stroke-1" />
               <div className="text-center space-y-1">
                 <p>No negations available</p>
-                <p className="text-sm">
-                  Create a negation to start restaking
-                </p>
+                <p className="text-sm">Create a negation to start restaking</p>
               </div>
             </div>
           ) : (
             <div className="space-y-3">
               {negations
-                ?.filter(negation => negation.pointId !== originalPoint.id)
+                ?.filter((negation) => negation.pointId !== originalPoint.id)
                 ?.map((negation: NegationResult) => (
                   <div
                     key={negation.pointId}
@@ -177,15 +186,15 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
             negationsCred: originalPoint.negationsCred || 0,
             amountSupporters: originalPoint.amountSupporters || 0,
             amountNegations: originalPoint.amountNegations || 0,
-            favor: currentFavor
+            favor: currentFavor,
           }}
           counterPoint={{
             id: selectedNegation.pointId,
             content: selectedNegation.content,
-            createdAt: selectedNegation.createdAt
+            createdAt: selectedNegation.createdAt,
           }}
         />
       )}
     </>
   );
-}; 
+};

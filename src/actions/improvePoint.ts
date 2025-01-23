@@ -1,7 +1,7 @@
 "use server";
 
-import { openai } from '@ai-sdk/openai';
-import { generateText } from 'ai';
+import { openai } from "@ai-sdk/openai";
+import { generateText } from "ai";
 
 const POINT_PROMPT = `You are a helpful assistant that improves the phrasing of points in a debate/discussion platform.
 A good point:
@@ -16,7 +16,9 @@ If the user's input is insufficient or unclear, generate a complete point that c
 Provide 2-3 improved versions of the point that follow these guidelines. Each suggestion should be on a new line.
 DO NOT include any explanations or additional text—ONLY output the improved versions.`;
 
-const NEGATION_PROMPT = (parentPoint: string) => `You are a helpful assistant that improves the phrasing of counterpoints in a debate/discussion platform.
+const NEGATION_PROMPT = (
+  parentPoint: string,
+) => `You are a helpful assistant that improves the phrasing of counterpoints in a debate/discussion platform.
 
 The user is trying to NEGATE this point: "${parentPoint}"
 
@@ -43,16 +45,16 @@ export const improvePoint = async (content: string): Promise<string | null> => {
   }
 
   const { text } = await generateText({
-    model: openai('gpt-4o-mini'),
+    model: openai("gpt-4o-mini"),
     messages: [
       {
-        role: 'system',
-        content: POINT_PROMPT
+        role: "system",
+        content: POINT_PROMPT,
       },
       {
-        role: 'user',
-        content
-      }
+        role: "user",
+        content,
+      },
     ],
     temperature: 0.7,
     maxTokens: 200,
@@ -61,22 +63,25 @@ export const improvePoint = async (content: string): Promise<string | null> => {
   return text || null;
 };
 
-export const improveNegation = async (content: string, parentPoint: string): Promise<string | null> => {
+export const improveNegation = async (
+  content: string,
+  parentPoint: string,
+): Promise<string | null> => {
   if (!content?.trim()) {
     return null;
   }
 
   const { text } = await generateText({
-    model: openai('gpt-4o-mini'),
+    model: openai("gpt-4o-mini"),
     messages: [
       {
-        role: 'system',
-        content: NEGATION_PROMPT(parentPoint)
+        role: "system",
+        content: NEGATION_PROMPT(parentPoint),
       },
       {
-        role: 'user',
-        content
-      }
+        role: "user",
+        content,
+      },
     ],
     temperature: 0.7,
     maxTokens: 200,

@@ -54,7 +54,7 @@ export const slashesTable = pgTable(
     // Ensure amount is non-negative
     amountNonNegativeConstraint: check(
       "amount_non_negative_constraint",
-      sql`${table.amount} >= 0`
+      sql`${table.amount} >= 0`,
     ),
     // Unique constraint for slashes
     uniqueSlash: unique("unique_slash").on(table.userId, table.restakeId),
@@ -63,7 +63,7 @@ export const slashesTable = pgTable(
     restakeIndex: index("slashes_restake_idx").on(table.restakeId),
     pointIndex: index("slashes_point_idx").on(table.pointId),
     negationIndex: index("slashes_negation_idx").on(table.negationId),
-  })
+  }),
 );
 
 export const slashHistoryTable = pgTable(
@@ -101,7 +101,7 @@ export const slashHistoryTable = pgTable(
     userIndex: index("slash_history_user_idx").on(table.userId),
     pointIndex: index("slash_history_point_idx").on(table.pointId),
     negationIndex: index("slash_history_negation_idx").on(table.negationId),
-  })
+  }),
 );
 
 // Export types
@@ -113,4 +113,4 @@ export type InsertSlashHistory = typeof slashHistoryTable.$inferInsert;
 export type SelectSlashHistory = typeof slashHistoryTable.$inferSelect;
 export type SlashHistory = InferColumnsDataTypes<
   typeof slashHistoryTable._.columns
->; 
+>;

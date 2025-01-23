@@ -7,7 +7,9 @@ export const addFavor = <
     slashedAmount?: number;
     doubtedAmount?: number;
   },
->(points: T[]) => {
+>(
+  points: T[],
+) => {
   const pointsWithFavor = points.map((point) => {
     const favorInputs = {
       cred: point.cred,
@@ -18,7 +20,7 @@ export const addFavor = <
     };
     return {
       ...point,
-      favor: favor(favorInputs)
+      favor: favor(favorInputs),
     };
   });
   return pointsWithFavor;

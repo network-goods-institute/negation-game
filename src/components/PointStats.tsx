@@ -23,7 +23,7 @@ export const PointStats = ({
     <div
       className={cn(
         "w-full flex gap-xs items-center text-xs text-muted-foreground",
-        className
+        className,
       )}
       {...props}
     >
@@ -44,7 +44,7 @@ export const PointStats = ({
           key={`stat-${i}`}
           className={cn(
             "leading-none flex gap-y-0 gap-x-1  justify-center flex-wrap",
-            label === "favor" && "font-bold"
+            label === "favor" && "font-bold",
           )}
         >
           <span>{value}</span>

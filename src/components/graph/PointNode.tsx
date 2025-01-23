@@ -40,7 +40,7 @@ export const PointNode = ({
 }: PointNodeProps) => {
   const [hoveredPoint, setHoveredPoint] = useAtom(hoveredPointIdAtom);
   const [shouldExpandOnInit, setShouldExpandOnInit] = useState(
-    expandOnInit ?? false
+    expandOnInit ?? false,
   );
   const incomingConnections = useHandleConnections({
     type: "target",
@@ -68,7 +68,7 @@ export const PointNode = ({
   const isRedundant = useMemo(() => {
     const firstOccurence = find(
       getNodes().filter((node): node is PointNode => node.type === "point"),
-      (node) => node.data.pointId === pointId
+      (node) => node.data.pointId === pointId,
     );
 
     return firstOccurence ? firstOccurence.id !== id : false;
@@ -168,7 +168,7 @@ export const PointNode = ({
     };
 
     await removeNestedNegations(id).then(() =>
-      deleteElements({ nodes: [{ id }] })
+      deleteElements({ nodes: [{ id }] }),
     );
   }, [deleteElements, getHandleConnections, id]);
 
@@ -177,7 +177,7 @@ export const PointNode = ({
       data-loading={isLoading}
       className={cn(
         "relative bg-background rounded-md border-2 min-h-28 w-64",
-        hoveredPoint === pointId && "border-primary"
+        hoveredPoint === pointId && "border-primary",
       )}
       onMouseOver={() => setHoveredPoint(pointId)}
       onMouseLeave={() => setHoveredPoint(undefined)}
@@ -225,7 +225,7 @@ export const PointNode = ({
             viewerContext={{ viewerCred: pointData.viewerCred }}
             className={cn(
               "bg-muted/40 rounded-sm z-10",
-              isRedundant && "opacity-30 hover:opacity-100"
+              isRedundant && "opacity-30 hover:opacity-100",
             )}
           />
         </>

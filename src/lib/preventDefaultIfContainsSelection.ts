@@ -8,7 +8,7 @@ export const preventDefaultIfContainsSelection: MouseEventHandler = (e) => {
     !selection.isCollapsed &&
     selection.containsNode(
       e.target as HTMLAnchorElement,
-      allowPartialContainment
+      allowPartialContainment,
     )
   ) {
     e.preventDefault();

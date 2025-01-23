@@ -17,7 +17,7 @@ import {
 export const doubtActionEnum = pgEnum("doubt_action", [
   "created",
   "deactivated",
-  "reduced_by_slash"
+  "reduced_by_slash",
 ]);
 
 export const doubtsTable = pgTable(
@@ -47,13 +47,17 @@ export const doubtsTable = pgTable(
   (table) => ({
     amountNonNegativeConstraint: check(
       "amount_non_negative_constraint",
-      sql`${table.amount} >= 0`
+      sql`${table.amount} >= 0`,
     ),
-    uniqueDoubt: unique("unique_doubt").on(table.userId, table.pointId, table.negationId),
+    uniqueDoubt: unique("unique_doubt").on(
+      table.userId,
+      table.pointId,
+      table.negationId,
+    ),
     userIndex: index("doubts_user_idx").on(table.userId),
     pointIndex: index("doubts_point_idx").on(table.pointId),
     negationIndex: index("doubts_negation_idx").on(table.negationId),
-  })
+  }),
 );
 
 export const doubtHistoryTable = pgTable(
@@ -90,7 +94,7 @@ export const doubtHistoryTable = pgTable(
     userIndex: index("doubt_history_user_idx").on(table.userId),
     pointIndex: index("doubt_history_point_idx").on(table.pointId),
     negationIndex: index("doubt_history_negation_idx").on(table.negationId),
-  })
+  }),
 );
 
 // Export types
@@ -100,4 +104,6 @@ export type Doubt = InferColumnsDataTypes<typeof doubtsTable._.columns>;
 
 export type InsertDoubtHistory = typeof doubtHistoryTable.$inferInsert;
 export type SelectDoubtHistory = typeof doubtHistoryTable.$inferSelect;
-export type DoubtHistory = InferColumnsDataTypes<typeof doubtHistoryTable._.columns>; 
+export type DoubtHistory = InferColumnsDataTypes<
+  typeof doubtHistoryTable._.columns
+>;

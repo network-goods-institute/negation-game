@@ -2,7 +2,12 @@
 
 import { getSpace } from "@/actions/getSpace";
 import { getUserId } from "@/actions/getUserId";
-import { endorsementsTable, pointsWithDetailsView, effectiveRestakesView, doubtsTable } from "@/db/schema";
+import {
+  endorsementsTable,
+  pointsWithDetailsView,
+  effectiveRestakesView,
+  doubtsTable,
+} from "@/db/schema";
 import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
@@ -30,8 +35,10 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
               id: doubtsTable.id,
               amount: doubtsTable.amount,
               userAmount: doubtsTable.amount,
-              isUserDoubt: sql<boolean>`${doubtsTable.userId} = ${viewerId}`.as('is_user_doubt')
-            }
+              isUserDoubt: sql<boolean>`${doubtsTable.userId} = ${viewerId}`.as(
+                "is_user_doubt",
+              ),
+            },
           }
         : {}),
       restakesByPoint: sql<number>`
@@ -65,8 +72,8 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
       doubtsTable,
       and(
         eq(doubtsTable.pointId, pointsWithDetailsView.pointId),
-        eq(doubtsTable.userId, viewerId ?? '')
-      )
+        eq(doubtsTable.userId, viewerId ?? ""),
+      ),
     )
     .where(eq(pointsWithDetailsView.space, space))
     .orderBy(desc(pointsWithDetailsView.createdAt))

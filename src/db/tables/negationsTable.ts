@@ -35,15 +35,15 @@ export const negationsTable = pgTable(
   (table) => ({
     olderPointFirstConstraint: check(
       "olderPointFirst",
-      lt(table.olderPointId, table.newerPointId)
+      lt(table.olderPointId, table.newerPointId),
     ),
     olderPointIndex: index("olderPointIndex").on(table.olderPointId),
     newerPointIndex: index("newerPointIndex").on(table.newerPointId),
     uniqueNegationsConstraint: unique("uniqueNegation").on(
       table.olderPointId,
-      table.newerPointId
+      table.newerPointId,
     ),
-  })
+  }),
 );
 
 export type InsertNegation = typeof negationsTable.$inferInsert;

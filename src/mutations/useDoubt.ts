@@ -19,20 +19,20 @@ export const useDoubt = () => {
 
       // Invalidate doubt-specific queries
       queryClient.invalidateQueries({
-        queryKey: ['doubt', pointId, negationId]
+        queryKey: ["doubt", pointId, negationId],
       });
 
       // Invalidate point-negations to update percentages
       queryClient.invalidateQueries({
-        queryKey: [pointId, 'point-negations']
+        queryKey: [pointId, "point-negations"],
       });
 
       // Invalidate favor history
       queryClient.invalidateQueries({
-        queryKey: [pointId, 'favor-history']
+        queryKey: [pointId, "favor-history"],
       });
       queryClient.invalidateQueries({
-        queryKey: [negationId, 'favor-history']
+        queryKey: [negationId, "favor-history"],
       });
 
       // Update user's cred balance
@@ -42,8 +42,8 @@ export const useDoubt = () => {
 
       // Invalidate feed
       queryClient.invalidateQueries({
-        queryKey: ['feed']
+        queryKey: ["feed"],
       });
     },
   });
-}; 
+};

@@ -16,7 +16,7 @@ export const embeddingsTable = pgTable(
         onDelete: "cascade",
       })
       .default(DEFAULT_SPACE),
-  }
+  },
   // (table) => ({
   //   embeddingIndex: index("embeddingIndex").using(
   //     "hnsw",

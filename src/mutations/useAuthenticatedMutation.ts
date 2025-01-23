@@ -5,7 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 // This is a fallback. Ideally, the button that initiates the flow should the login form to prevent form data loss when signing in.
 export const useAuthenticatedMutation: typeof useMutation = (
   { mutationFn, ...options },
-  queryClient
+  queryClient,
 ) => {
   const { user, login } = usePrivy();
 
@@ -14,6 +14,6 @@ export const useAuthenticatedMutation: typeof useMutation = (
       ...options,
       mutationFn: !user ? (login as unknown as typeof mutationFn) : mutationFn,
     },
-    queryClient
+    queryClient,
   );
 };

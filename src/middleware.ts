@@ -23,7 +23,7 @@ export default async function middleware(req: NextRequest) {
     const space = DEFAULT_SPACE;
 
     const response = NextResponse.rewrite(
-      new URL(`/s/global${url.pathname}`, req.url)
+      new URL(`/s/global${url.pathname}`, req.url),
     );
     response.headers.set(SPACE_HEADER, space);
     return response;
@@ -37,7 +37,7 @@ export default async function middleware(req: NextRequest) {
   const response =
     space === DEFAULT_SPACE
       ? NextResponse.redirect(
-          new URL(url.origin + url.pathname.replace(spaceBasePath(space), ""))
+          new URL(url.origin + url.pathname.replace(spaceBasePath(space), "")),
         )
       : NextResponse.next();
   response.headers.set(SPACE_HEADER, space);

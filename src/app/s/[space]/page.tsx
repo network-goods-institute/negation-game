@@ -28,7 +28,7 @@ export default function Home() {
 
   const loginOrMakePoint = useCallback(
     () => (user !== null ? onMakePointOpenChange(true) : login()),
-    [user, login, onMakePointOpenChange]
+    [user, login, onMakePointOpenChange],
   );
 
   const { data: points, isLoading } = useFeed();

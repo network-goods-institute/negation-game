@@ -19,11 +19,12 @@ export const EarningsDialog: FC<EarningsDialogProps> = ({
 }) => {
   const [collected, setCollected] = useState(false);
   const [amount, setAmount] = useState(0);
-  
+
   const { data: previewAmount = 0, isLoading } = useEarningsPreview({
-    enabled: open
+    enabled: open,
   });
-  const { mutateAsync: collect, isPending: isCollecting } = useCollectEarnings();
+  const { mutateAsync: collect, isPending: isCollecting } =
+    useCollectEarnings();
 
   const handleCollect = async () => {
     try {
@@ -31,7 +32,7 @@ export const EarningsDialog: FC<EarningsDialogProps> = ({
       setAmount(result.totalEarnings);
       setCollected(true);
     } catch (error) {
-      console.error('Failed to collect earnings:', error);
+      console.error("Failed to collect earnings:", error);
     }
   };
 
@@ -67,13 +68,17 @@ export const EarningsDialog: FC<EarningsDialogProps> = ({
             <div className="rounded-full bg-endorsed/10 p-3">
               <CoinsIcon className="size-6 text-endorsed" />
             </div>
-            
+
             <div className="space-y-2">
               <DialogTitle className="text-xl">Collect Earnings</DialogTitle>
               <div className="flex items-center justify-center gap-2 text-lg">
                 <span>
-                  <span className="text-endorsed">{previewAmount.toFixed(4)}</span>
-                  <span className="text-muted-foreground ml-2">cred available</span>
+                  <span className="text-endorsed">
+                    {previewAmount.toFixed(4)}
+                  </span>
+                  <span className="text-muted-foreground ml-2">
+                    cred available
+                  </span>
                 </span>
               </div>
               <p className="text-sm text-muted-foreground">
@@ -81,12 +86,16 @@ export const EarningsDialog: FC<EarningsDialogProps> = ({
               </p>
               <div className="text-sm text-muted-foreground mt-4 text-left">
                 <p className="font-medium mb-1">How to earn cred?</p>
-                <p>When you doubt a restake and the restaker slashes their position, you earn a portion of their endorsement cred proportional to your doubt amount.</p>
+                <p>
+                  When you doubt a restake and the restaker slashes their
+                  position, you earn a portion of their endorsement cred
+                  proportional to your doubt amount.
+                </p>
               </div>
             </div>
 
-            <Button 
-              className="w-full" 
+            <Button
+              className="w-full"
               onClick={handleCollect}
               disabled={isCollecting || Math.floor(previewAmount) === 0}
             >
@@ -107,7 +116,7 @@ export const EarningsDialog: FC<EarningsDialogProps> = ({
             <div className="rounded-full bg-endorsed/10 p-3">
               <Check className="size-6 text-endorsed" />
             </div>
-            
+
             <div className="space-y-2">
               <DialogTitle className="text-xl">Earnings Collected!</DialogTitle>
               <div className="flex items-center justify-center gap-2 text-lg">
@@ -118,10 +127,7 @@ export const EarningsDialog: FC<EarningsDialogProps> = ({
               </div>
             </div>
 
-            <Button 
-              className="w-full" 
-              onClick={handleClose}
-            >
+            <Button className="w-full" onClick={handleClose}>
               Done
             </Button>
           </>
@@ -129,4 +135,4 @@ export const EarningsDialog: FC<EarningsDialogProps> = ({
       </DialogContent>
     </Dialog>
   );
-}; 
+};

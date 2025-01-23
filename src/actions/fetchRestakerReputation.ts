@@ -2,7 +2,12 @@
 
 import { db } from "@/services/db";
 import { and, eq, sql } from "drizzle-orm";
-import { restakesTable, slashesTable, doubtsTable, usersTable } from "@/db/schema";
+import {
+  restakesTable,
+  slashesTable,
+  doubtsTable,
+  usersTable,
+} from "@/db/schema";
 import { sqids } from "@/services/sqids";
 
 export type RestakerReputation = {
@@ -12,13 +17,16 @@ export type RestakerReputation = {
   reputation: number;
 };
 
-export const fetchRestakerReputation = async (pointId: number, negationId: number) => {
-    // Get all active restakers for this point-negation pair
+export const fetchRestakerReputation = async (
+  pointId: number,
+  negationId: number,
+) => {
+  // Get all active restakers for this point-negation pair
   const restakers = await db
     .select({
       username: usersTable.username,
-      userId: sql<string>`r.user_id`.as('user_id'),
-      amount: sql<number>`SUM(r.amount)`.as('amount'),
+      userId: sql<string>`r.user_id`.as("user_id"),
+      amount: sql<number>`SUM(r.amount)`.as("amount"),
       reputation: sql<number>`
         ROUND(
           (
@@ -83,34 +91,40 @@ export const fetchRestakerReputation = async (pointId: number, negationId: numbe
             ))
           )
         )
-      `.as('reputation')
+      `.as("reputation"),
     })
     .from(sql`${restakesTable} r`)
     .leftJoin(usersTable, eq(usersTable.id, sql`r.user_id`))
     .where(
-      and(
-        eq(sql`r.point_id`, pointId),
-        eq(sql`r.negation_id`, negationId)
-      )
+      and(eq(sql`r.point_id`, pointId), eq(sql`r.negation_id`, negationId)),
     )
     .groupBy(sql`r.user_id`, usersTable.username);
 
-  const restakersWithHashedIds = restakers.map(r => ({
+  const restakersWithHashedIds = restakers.map((r) => ({
     username: r.username,
-    hashedUserId: sqids.encode([r.userId.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)]),
+    hashedUserId: sqids.encode([
+      r.userId.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0),
+    ]),
     amount: r.amount,
-    reputation: r.reputation
+    reputation: r.reputation,
   }));
 
-  const totalAmount = restakersWithHashedIds.reduce((sum, r) => sum + r.amount, 0);
-  const aggregateReputation = totalAmount > 0 
-    ? Math.round(
-        restakersWithHashedIds.reduce((sum, r) => sum + (r.reputation * r.amount), 0) / totalAmount
-      )
-    : 50; // Default to 50% if no restakers, although this should never happen
+  const totalAmount = restakersWithHashedIds.reduce(
+    (sum, r) => sum + r.amount,
+    0,
+  );
+  const aggregateReputation =
+    totalAmount > 0
+      ? Math.round(
+          restakersWithHashedIds.reduce(
+            (sum, r) => sum + r.reputation * r.amount,
+            0,
+          ) / totalAmount,
+        )
+      : 50; // Default to 50% if no restakers, although this should never happen
 
   return {
     restakers: restakersWithHashedIds,
-    aggregateReputation
+    aggregateReputation,
   };
-}; 
+};

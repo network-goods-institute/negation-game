@@ -35,7 +35,7 @@ export const endorsementsTable = pgTable(
   (table) => ({
     userEndorsementsIndex: index().on(table.userId),
     pointEndorsementsIndex: index().on(table.pointId),
-  })
+  }),
 );
 
 export type InsertEndorsement = typeof endorsementsTable.$inferInsert;

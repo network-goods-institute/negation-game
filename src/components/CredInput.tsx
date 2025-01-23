@@ -43,7 +43,7 @@ export const CredInput: FC<CredInputProps> = ({
             className={cn(
               "group gap-xs font-normal text-muted-foreground rounded-full text-center size-8",
               "data-[state=on]:w-fit  data-[state=on]:text-endorsed data-[state=on]:bg-background data-[state=on]:hover:border-muted-foreground data-[state=on]:border",
-              notEnoughCred && "data-[state=on]:text-destructive"
+              notEnoughCred && "data-[state=on]:text-destructive",
             )}
           >
             {value}
@@ -53,7 +53,7 @@ export const CredInput: FC<CredInputProps> = ({
       <div
         className={cn(
           "group inline-flex gap-xs font-normal text-muted-foreground rounded-full items-center justify-center h-8 w-fit",
-          usingCustomCredAmount && "border"
+          usingCustomCredAmount && "border",
         )}
       >
         {!usingCustomCredAmount && (
@@ -75,7 +75,7 @@ export const CredInput: FC<CredInputProps> = ({
               value={cred}
               onChange={(e) =>
                 setCred(
-                  Math.min(Number(e.target.value.replace(/\D/g, "")), 9999)
+                  Math.min(Number(e.target.value.replace(/\D/g, "")), 9999),
                 )
               }
               autoFocus
@@ -85,13 +85,13 @@ export const CredInput: FC<CredInputProps> = ({
               maxLength={6}
               className={cn(
                 "h-8 border-none bg-transparent w-[56px] focus-visible:ring-offset-0 focus-visible:ring-0 text-endorsed pr-0",
-                notEnoughCred && "text-destructive"
+                notEnoughCred && "text-destructive",
               )}
             />
             <span
               className={cn(
                 "text-endorsed text-sm mr-sm",
-                notEnoughCred && "text-destructive"
+                notEnoughCred && "text-destructive",
               )}
             >
               cred

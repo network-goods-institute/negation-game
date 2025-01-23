@@ -7,14 +7,16 @@ export interface RestakeIconProps extends ComponentProps<typeof Diamond> {
   percentage?: number;
 }
 
-export const RestakeIcon = ({ className, showPercentage, percentage, ...props }: RestakeIconProps) => (
+export const RestakeIcon = ({
+  className,
+  showPercentage,
+  percentage,
+  ...props
+}: RestakeIconProps) => (
   <div className="flex items-center translate-y-[5px]">
-    <Diamond 
-      className={cn("size-5 stroke-1", className)} 
-      {...props} 
-    />
+    <Diamond className={cn("size-5 stroke-1", className)} {...props} />
     {showPercentage && percentage && (
       <span className="ml-1">{percentage}%</span>
     )}
   </div>
-); 
+);

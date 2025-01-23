@@ -10,7 +10,6 @@ import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 export const getCounterpointSuggestions = async (pointId: number) => {
-
   const point = await db
     .select({ content: pointsTable.content, keywords: pointsTable.keywords })
     .from(pointsTable)
@@ -24,19 +23,23 @@ export const getCounterpointSuggestions = async (pointId: number) => {
       .select()
       .from(definitionsTable)
       .where(
-        point.keywords.length > 0 
+        point.keywords.length > 0
           ? sql`lower(${definitionsTable.term}) IN ${point.keywords}`
-          : sql`1=0`
+          : sql`1=0`,
       )
       .execute(),
   ]);
 
   const prompt = `You are a helpful assistant that generates insightful counterpoints for a debate/discussion platform.
 
-${definitions.length > 0 ? `Here are some relevant definitions that might be useful:
+${
+  definitions.length > 0
+    ? `Here are some relevant definitions that might be useful:
 ${definitions.map(({ term, definition }) => `${term}: ${definition}`).join("\n")}
 
-` : ''}STATEMENT TO COUNTER:
+`
+    : ""
+}STATEMENT TO COUNTER:
 ${point.content}
 
 ${negations.length > 0 ? "EXISTING COUNTERPOINTS:\n" + negations.map((negation) => negation.content).join("\n") : ""}

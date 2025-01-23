@@ -1,12 +1,22 @@
-import { endorsementsTable, negationsTable, pointsTable, restakesTable, restakeHistoryTable, slashesTable, slashHistoryTable, doubtsTable, doubtHistoryTable } from "@/db/schema";
+import {
+  endorsementsTable,
+  negationsTable,
+  pointsTable,
+  restakesTable,
+  restakeHistoryTable,
+  slashesTable,
+  slashHistoryTable,
+  doubtsTable,
+  doubtHistoryTable,
+} from "@/db/schema";
 import { sql } from "drizzle-orm";
 import { pgView } from "drizzle-orm/pg-core";
 
-export type PointFavorHistoryViewEventType = 
-  | "point_created" 
-  | "endorsement_made" 
-  | "negation_made" 
-  | "negation_endorsed" 
+export type PointFavorHistoryViewEventType =
+  | "point_created"
+  | "endorsement_made"
+  | "negation_made"
+  | "negation_endorsed"
   | "restake_modified"
   | "slash_modified"
   | "doubt_modified"
@@ -28,7 +38,7 @@ export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
             event_time: sql`${endorsementsTable.createdAt} as event_time`,
             event_type: sql<PointFavorHistoryViewEventType>`'endorsement_made' as event_type`,
           })
-          .from(endorsementsTable)
+          .from(endorsementsTable),
       )
       .union(
         qb
@@ -37,7 +47,7 @@ export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
             event_time: sql`${negationsTable.createdAt} as event_time`,
             event_type: sql<PointFavorHistoryViewEventType>`'negation_made' as event_type`,
           })
-          .from(negationsTable)
+          .from(negationsTable),
       )
       .union(
         qb
@@ -46,7 +56,7 @@ export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
             event_time: sql`${negationsTable.createdAt} as event_time`,
             event_type: sql<PointFavorHistoryViewEventType>`'negation_made' as event_type`,
           })
-          .from(negationsTable)
+          .from(negationsTable),
       )
       .union(
         qb
@@ -66,8 +76,8 @@ export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
               (${negationsTable.olderPointId} = ${endorsementsTable.pointId} OR 
                ${negationsTable.newerPointId} = ${endorsementsTable.pointId})
               AND ${negationsTable.createdAt} <= ${endorsementsTable.createdAt}
-            )`
-          )
+            )`,
+          ),
       )
       .union(
         qb
@@ -77,7 +87,10 @@ export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
             event_type: sql<PointFavorHistoryViewEventType>`'restake_modified' as event_type`,
           })
           .from(restakeHistoryTable)
-          .innerJoin(restakesTable, sql`${restakeHistoryTable.restakeId} = ${restakesTable.id}`)
+          .innerJoin(
+            restakesTable,
+            sql`${restakeHistoryTable.restakeId} = ${restakesTable.id}`,
+          ),
       )
       .union(
         qb
@@ -87,8 +100,14 @@ export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
             event_type: sql<PointFavorHistoryViewEventType>`'slash_modified' as event_type`,
           })
           .from(slashHistoryTable)
-          .innerJoin(slashesTable, sql`${slashHistoryTable.slashId} = ${slashesTable.id}`)
-          .innerJoin(restakesTable, sql`${slashesTable.restakeId} = ${restakesTable.id}`)
+          .innerJoin(
+            slashesTable,
+            sql`${slashHistoryTable.slashId} = ${slashesTable.id}`,
+          )
+          .innerJoin(
+            restakesTable,
+            sql`${slashesTable.restakeId} = ${restakesTable.id}`,
+          ),
       )
       .union(
         qb
@@ -97,7 +116,7 @@ export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
             event_time: sql`NOW() as event_time`,
             event_type: sql<PointFavorHistoryViewEventType>`'favor_queried' as event_type`,
           })
-          .from(pointsTable)
+          .from(pointsTable),
       )
       .union(
         qb
@@ -107,22 +126,26 @@ export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
             event_type: sql<PointFavorHistoryViewEventType>`'doubt_modified' as event_type`,
           })
           .from(doubtHistoryTable)
-          .innerJoin(doubtsTable, sql`${doubtHistoryTable.doubtId} = ${doubtsTable.id}`)
-      )
+          .innerJoin(
+            doubtsTable,
+            sql`${doubtHistoryTable.doubtId} = ${doubtsTable.id}`,
+          ),
+      ),
   );
 
   const allEventsWithStats = qb.$with("all_events_with_stats").as(
-    qb.select({
-      point_id: sql`all_events.point_id`,
-      event_type: sql`all_events.event_type`,
-      event_time: sql`all_events.event_time`,
-      cred: sql`COALESCE((
+    qb
+      .select({
+        point_id: sql`all_events.point_id`,
+        event_type: sql`all_events.event_type`,
+        event_time: sql`all_events.event_time`,
+        cred: sql`COALESCE((
         SELECT SUM(cred)
         FROM endorsements
         WHERE point_id = all_events.point_id
         AND created_at <= all_events.event_time
       ), 0)`,
-      negations_cred: sql`COALESCE((
+        negations_cred: sql`COALESCE((
         SELECT SUM(cred)
         FROM endorsements
         WHERE point_id IN (
@@ -137,9 +160,9 @@ export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
           AND created_at <= all_events.event_time
         )
         AND created_at <= all_events.event_time
-      ), 0)`
-    })
-    .from(allEvents)
+      ), 0)`,
+      })
+      .from(allEvents),
   );
 
   return qb
@@ -148,7 +171,9 @@ export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
       eventType: sql`all_events_with_stats.event_type`.as("event_type"),
       eventTime: sql`all_events_with_stats.event_time`.as("event_time"),
       cred: sql`all_events_with_stats.cred`.as("cred"),
-      negationsCred: sql`all_events_with_stats.negations_cred`.as("negations_cred"),
+      negationsCred: sql`all_events_with_stats.negations_cred`.as(
+        "negations_cred",
+      ),
       favor: sql<number>`FLOOR(
         CASE
           WHEN cred = 0 THEN 0
@@ -255,7 +280,7 @@ export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
               0
             )
         END
-      )`.as("favor")
+      )`.as("favor"),
     })
     .from(allEventsWithStats)
     .orderBy(sql`event_time, point_id`);

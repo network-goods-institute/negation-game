@@ -51,7 +51,7 @@ export const PointForm: FC<PositionFormProps> = ({
                 <FormLabel>Description</FormLabel>
                 <FormDescription
                   className={cn(
-                    field.value.length > POINT_MAX_LENGHT && "text-destructive"
+                    field.value.length > POINT_MAX_LENGHT && "text-destructive",
                   )}
                 >
                   {field.value.length}/{POINT_MAX_LENGHT}

@@ -25,7 +25,7 @@ export function useDebouncedQuery<
 
   const queryKeyHash = useMemo(
     () => queryKeyHashFn(queryKey),
-    [queryKey, queryKeyHashFn]
+    [queryKey, queryKeyHashFn],
   );
 
   useEffect(() => {

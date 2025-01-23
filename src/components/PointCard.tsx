@@ -1,5 +1,11 @@
 import { cn } from "@/lib/cn";
-import { HTMLAttributes, MouseEventHandler, useMemo, useState, useCallback } from "react";
+import {
+  HTMLAttributes,
+  MouseEventHandler,
+  useMemo,
+  useState,
+  useCallback,
+} from "react";
 import { AuthenticatedActionButton, Button } from "./ui/button";
 import { endorse } from "@/actions/endorse";
 import { CredInput } from "@/components/CredInput";
@@ -84,9 +90,9 @@ export const PointCard = ({
   doubt,
   ...props
 }: PointCardProps) => {
-
   const [_, setHoveredPointId] = useAtom(hoveredPointIdAtom);
-  const endorsedByViewer = viewerContext?.viewerCred !== undefined && viewerContext.viewerCred > 0;
+  const endorsedByViewer =
+    viewerContext?.viewerCred !== undefined && viewerContext.viewerCred > 0;
   const queryClient = useQueryClient();
   const { user: privyUser, login } = usePrivy();
   const [endorsePopoverOpen, toggleEndorsePopoverOpen] = useToggle(false);
@@ -97,16 +103,16 @@ export const PointCard = ({
   const prefetchRestakeData = usePrefetchRestakeData();
 
   const [restakePercentage, isOverHundred] = useMemo(() => {
-    if (!isNegation || !parentPoint || !restake?.amount || !restake.isOwner) return [0, false];
-    const rawPercentage = (restake.amount / (parentPoint.viewerCred || 1)) * 100;
-    return [
-      Math.min(100, Math.round(rawPercentage)),
-      rawPercentage > 100
-    ];
+    if (!isNegation || !parentPoint || !restake?.amount || !restake.isOwner)
+      return [0, false];
+    const rawPercentage =
+      (restake.amount / (parentPoint.viewerCred || 1)) * 100;
+    return [Math.min(100, Math.round(rawPercentage)), rawPercentage > 100];
   }, [isNegation, parentPoint, restake]);
 
   const doubtPercentage = useMemo(() => {
-    if (!isNegation || !restake?.amount || !doubt?.amount || !doubt.isUserDoubt) return 0;
+    if (!isNegation || !restake?.amount || !doubt?.amount || !doubt.isUserDoubt)
+      return 0;
     const rawPercentage = (doubt.userAmount / restake.totalRestakeAmount) * 100;
     return Math.min(100, Math.round(rawPercentage));
   }, [isNegation, restake, doubt]);
@@ -118,11 +124,10 @@ export const PointCard = ({
   }, [isNegation, parentPoint?.id, negationId, prefetchRestakeData]);
 
   const showRestakeAmount = useMemo(() => {
-
     if (!restake) return false;
-    
+
     if (restake.slashedAmount >= restake.originalAmount) return false;
-    
+
     return restake.amount > 0;
   }, [restake]);
 
@@ -130,7 +135,7 @@ export const PointCard = ({
     <div
       className={cn(
         "@container/point flex gap-3 pt-4 pb-3 px-4 relative rounded-none",
-        className
+        className,
       )}
       onMouseOver={() => {
         setHoveredPointId(pointId);
@@ -165,7 +170,10 @@ export const PointCard = ({
               <NegateIcon />
             </AuthenticatedActionButton>
 
-            <Popover open={endorsePopoverOpen} onOpenChange={toggleEndorsePopoverOpen}>
+            <Popover
+              open={endorsePopoverOpen}
+              onOpenChange={toggleEndorsePopoverOpen}
+            >
               <PopoverTrigger asChild>
                 <Button
                   onClick={(e) => {
@@ -178,12 +186,16 @@ export const PointCard = ({
                   }}
                   className={cn(
                     "p-1 rounded-full -mb-2 size-fit gap-sm hover:bg-endorsed/30",
-                    endorsedByViewer && "text-endorsed pr-3"
+                    endorsedByViewer && "text-endorsed pr-3",
                   )}
                   variant={"ghost"}
                 >
-                  <EndorseIcon className={cn(endorsedByViewer && "fill-current")} />{" "}
-                  {endorsedByViewer && <span>{viewerContext.viewerCred} cred</span>}
+                  <EndorseIcon
+                    className={cn(endorsedByViewer && "fill-current")}
+                  />{" "}
+                  {endorsedByViewer && (
+                    <span>{viewerContext.viewerCred} cred</span>
+                  )}
                 </Button>
               </PopoverTrigger>
               <PopoverContent
@@ -234,12 +246,12 @@ export const PointCard = ({
                   variant="ghost"
                   className={cn(
                     "p-1 -mb-2 rounded-full size-fit hover:bg-muted/30",
-                    showRestakeAmount && "text-endorsed"
+                    showRestakeAmount && "text-endorsed",
                   )}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    onRestake?.({openedFromSlashedIcon: false});
+                    onRestake?.({ openedFromSlashedIcon: false });
                   }}
                   onMouseEnter={handleRestakeHover}
                 >
@@ -247,7 +259,9 @@ export const PointCard = ({
                     className={cn(
                       "size-5 stroke-1",
                       "text-muted-foreground hover:text-foreground transition-colors",
-                      showRestakeAmount && restake?.isOwner && "text-endorsed fill-current"
+                      showRestakeAmount &&
+                        restake?.isOwner &&
+                        "text-endorsed fill-current",
                     )}
                     showPercentage={showRestakeAmount && restake?.isOwner}
                     percentage={restakePercentage}
@@ -260,30 +274,42 @@ export const PointCard = ({
                   variant="ghost"
                   className={cn(
                     "p-1 -mb-2 rounded-full size-fit hover:bg-muted/30",
-                    doubt?.amount !== undefined && doubt.amount > 0 && doubt.isUserDoubt && "text-endorsed"
+                    doubt?.amount !== undefined &&
+                      doubt.amount > 0 &&
+                      doubt.isUserDoubt &&
+                      "text-endorsed",
                   )}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    onRestake?.({openedFromSlashedIcon: true});
+                    onRestake?.({ openedFromSlashedIcon: true });
                   }}
                   onMouseEnter={handleRestakeHover}
                 >
                   <div className="flex items-center translate-y-[5px]">
-                    <DoubtIcon 
+                    <DoubtIcon
                       className={cn(
                         "size-5 stroke-1",
                         "text-muted-foreground hover:text-foreground transition-colors",
-                        doubt?.amount !== undefined && doubt.amount > 0 && doubt.isUserDoubt && "text-endorsed fill-current"
-                      )} 
-                      isFilled={doubt?.amount !== undefined && doubt.amount > 0 && doubt.isUserDoubt}
+                        doubt?.amount !== undefined &&
+                          doubt.amount > 0 &&
+                          doubt.isUserDoubt &&
+                          "text-endorsed fill-current",
+                      )}
+                      isFilled={
+                        doubt?.amount !== undefined &&
+                        doubt.amount > 0 &&
+                        doubt.isUserDoubt
+                      }
                     />
-                    {doubt?.amount !== undefined && doubt.amount > 0 && doubt.isUserDoubt && (
-                      <span className="ml-1">
-                        {doubtPercentage}
-                        {doubtPercentage > 100 && '+'}%
-                      </span>
-                    )}
+                    {doubt?.amount !== undefined &&
+                      doubt.amount > 0 &&
+                      doubt.isUserDoubt && (
+                        <span className="ml-1">
+                          {doubtPercentage}
+                          {doubtPercentage > 100 && "+"}%
+                        </span>
+                      )}
                   </div>
                 </Button>
               </>

@@ -2,8 +2,8 @@
 
 import { getSpace } from "@/actions/getSpace";
 import { getUserId } from "@/actions/getUserId";
-import { 
-  endorsementsTable, 
+import {
+  endorsementsTable,
   pointsWithDetailsView,
   effectiveRestakesView,
   slashesTable,
@@ -53,8 +53,10 @@ export const fetchPoints = async (ids: number[]) => {
               id: doubtsTable.id,
               amount: doubtsTable.amount,
               userAmount: doubtsTable.amount,
-              isUserDoubt: sql<boolean>`${doubtsTable.userId} = ${viewerId}`.as('is_user_doubt')
-            }
+              isUserDoubt: sql<boolean>`${doubtsTable.userId} = ${viewerId}`.as(
+                "is_user_doubt",
+              ),
+            },
           }
         : {}),
       // Total amounts for favor calculation (always included)
@@ -89,29 +91,29 @@ export const fetchPoints = async (ids: number[]) => {
       effectiveRestakesView,
       and(
         eq(effectiveRestakesView.pointId, pointsWithDetailsView.pointId),
-        eq(effectiveRestakesView.userId, viewerId ?? ''),
-        sql`${effectiveRestakesView.slashedAmount} < ${effectiveRestakesView.amount}`
-      )
+        eq(effectiveRestakesView.userId, viewerId ?? ""),
+        sql`${effectiveRestakesView.slashedAmount} < ${effectiveRestakesView.amount}`,
+      ),
     )
     .leftJoin(
       slashesTable,
       and(
         eq(slashesTable.pointId, pointsWithDetailsView.pointId),
-        eq(slashesTable.userId, viewerId ?? '')
-      )
+        eq(slashesTable.userId, viewerId ?? ""),
+      ),
     )
     .leftJoin(
       doubtsTable,
       and(
         eq(doubtsTable.pointId, pointsWithDetailsView.pointId),
-        eq(doubtsTable.userId, viewerId ?? '')
-      )
+        eq(doubtsTable.userId, viewerId ?? ""),
+      ),
     )
     .where(
       and(
         inArray(pointsWithDetailsView.pointId, ids),
-        eq(pointsWithDetailsView.space, space)
-      )
+        eq(pointsWithDetailsView.space, space),
+      ),
     )
     .then((points) => {
       return addFavor(points);

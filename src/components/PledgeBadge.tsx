@@ -15,7 +15,7 @@ export const PledgeBadge: FC<PledgeBadgeProps> = ({
     {...props}
     className={cn(
       "px-xs py-3xs leading-none rounded-md hover:bg-primary bg-primary font-normal",
-      className
+      className,
     )}
   >
     <span className="text-[0.8rem] align-text-bottom mr-0.5 ">ℂ</span>

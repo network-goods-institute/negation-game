@@ -31,16 +31,16 @@ export const useFeed = () => {
             id: point.doubt?.id ?? 0,
             amount: point.doubt?.amount ?? 0,
             userAmount: point.doubt?.userAmount ?? 0,
-            isUserDoubt: point.doubt?.isUserDoubt ?? false
-          }
+            isUserDoubt: point.doubt?.isUserDoubt ?? false,
+          },
         };
         setPointData(
-          { pointId: point.pointId, userId: privyUser?.id }, 
-          transformedPoint
+          { pointId: point.pointId, userId: privyUser?.id },
+          transformedPoint,
         );
       }
 
-      return page.map(point => ({
+      return page.map((point) => ({
         ...point,
         restakesByPoint: point.restakesByPoint,
         slashedAmount: point.slashedAmount,
@@ -57,8 +57,8 @@ export const useFeed = () => {
           id: point.doubt?.id ?? 0,
           amount: point.doubt?.amount ?? 0,
           userAmount: point.doubt?.userAmount ?? 0,
-          isUserDoubt: point.doubt?.isUserDoubt ?? false
-        }
+          isUserDoubt: point.doubt?.isUserDoubt ?? false,
+        },
       }));
     },
   });

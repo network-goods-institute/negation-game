@@ -24,11 +24,11 @@ export const doubt = async ({ pointId, negationId, amount }: DoubtArgs) => {
       and(
         eq(doubtsTable.userId, userId),
         eq(doubtsTable.pointId, pointId),
-        eq(doubtsTable.negationId, negationId)
-      )
+        eq(doubtsTable.negationId, negationId),
+      ),
     )
     .limit(1)
-    .then(rows => rows[0]);
+    .then((rows) => rows[0]);
 
   // Only allow modifying if the existing doubt was fully slashed (amount = 0)
   if (existingDoubt && existingDoubt.amount > 0) {
@@ -46,7 +46,7 @@ export const doubt = async ({ pointId, negationId, amount }: DoubtArgs) => {
     .where(eq(usersTable.id, userId));
 
   let doubtId: number;
-    
+
   if (existingDoubt) {
     // Update existing doubt with new values
     // Need to overwrite the dates so shit doesn't get weird
@@ -60,7 +60,7 @@ export const doubt = async ({ pointId, negationId, amount }: DoubtArgs) => {
       })
       .where(eq(doubtsTable.id, existingDoubt.id))
       .returning({ id: doubtsTable.id });
-      
+
     doubtId = existingDoubt.id;
   } else {
     // Create new doubt
@@ -71,7 +71,7 @@ export const doubt = async ({ pointId, negationId, amount }: DoubtArgs) => {
         pointId,
         negationId,
         amount,
-        immutable: true
+        immutable: true,
       })
       .returning({ id: doubtsTable.id })
       .then(([{ id }]) => id);
@@ -85,8 +85,8 @@ export const doubt = async ({ pointId, negationId, amount }: DoubtArgs) => {
     negationId,
     action: "created",
     previousAmount: existingDoubt?.amount ?? null,
-    newAmount: amount
+    newAmount: amount,
   });
 
   return doubtId;
-}; 
+};

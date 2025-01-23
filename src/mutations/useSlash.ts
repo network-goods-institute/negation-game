@@ -19,23 +19,23 @@ export const useSlash = () => {
 
       // Invalidate restake and slash queries
       queryClient.invalidateQueries({
-        queryKey: ['restake', pointId, negationId]
+        queryKey: ["restake", pointId, negationId],
       });
       queryClient.invalidateQueries({
-        queryKey: ['slash', pointId, negationId]
+        queryKey: ["slash", pointId, negationId],
       });
 
       // Also invalidate point-negations to update percentages
       queryClient.invalidateQueries({
-        queryKey: [pointId, 'point-negations']
+        queryKey: [pointId, "point-negations"],
       });
 
       // Invalidate favor history to update percentages
       queryClient.invalidateQueries({
-        queryKey: [pointId, 'favor-history']
+        queryKey: [pointId, "favor-history"],
       });
       queryClient.invalidateQueries({
-        queryKey: [negationId, 'favor-history']
+        queryKey: [negationId, "favor-history"],
       });
 
       // Update user's cred balance
@@ -45,8 +45,8 @@ export const useSlash = () => {
 
       // Invalidate feed if points are shown there
       queryClient.invalidateQueries({
-        queryKey: ['feed']
+        queryKey: ["feed"],
       });
     },
   });
-}; 
+};

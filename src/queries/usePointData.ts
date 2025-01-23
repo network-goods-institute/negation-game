@@ -50,9 +50,9 @@ export const useSetPointData = () => {
         pointId: number;
         userId?: string;
       },
-      data: PointData
+      data: PointData,
     ) => queryClient.setQueryData(pointQueryKey(key), data),
-    [queryClient]
+    [queryClient],
   );
 };
 
@@ -64,7 +64,7 @@ export const useInvalidateRelatedPoints = () => {
     (pointId: number) => {
       const pointData: PointData | undefined =
         queryClient.getQueryData(
-          pointQueryKey({ pointId, userId: user?.id })
+          pointQueryKey({ pointId, userId: user?.id }),
         ) ?? queryClient.getQueryData(pointQueryKey({ pointId }));
       queryClient.invalidateQueries({ queryKey: [pointId] });
       if (!pointData) return;
@@ -73,6 +73,6 @@ export const useInvalidateRelatedPoints = () => {
         queryClient.invalidateQueries({ queryKey: [negationId] });
       });
     },
-    [queryClient, user?.id]
+    [queryClient, user?.id],
   );
 };

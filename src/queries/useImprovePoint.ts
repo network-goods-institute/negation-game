@@ -2,7 +2,10 @@ import { improvePoint } from "@/actions/improvePoint";
 import { POINT_MIN_LENGHT } from "@/constants/config";
 import { useQuery } from "@tanstack/react-query";
 
-export const useImprovePoint = (content: string, options?: { enabled?: boolean }) => {
+export const useImprovePoint = (
+  content: string,
+  options?: { enabled?: boolean },
+) => {
   return useQuery({
     queryKey: ["improvementSuggestions", content],
     queryFn: ({ queryKey: [, query] }) =>
@@ -12,6 +15,6 @@ export const useImprovePoint = (content: string, options?: { enabled?: boolean }
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
-    gcTime: 0
+    gcTime: 0,
   });
-}; 
+};

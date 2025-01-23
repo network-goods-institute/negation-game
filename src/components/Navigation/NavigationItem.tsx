@@ -23,7 +23,7 @@ export const NavigationItem: FC<NavigationItemProps> = ({
       className={cn(
         "text-muted-foreground",
         path === pathname && "text-foreground",
-        className
+        className,
       )}
       {...props}
     >

@@ -2,8 +2,10 @@ import { getCounterpointSuggestions } from "@/actions/getCounterpointSuggestions
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
-export const counterpointSuggestionsKey = (pointId?: number) => 
-  ["counterpoint-suggestions", pointId];
+export const counterpointSuggestionsKey = (pointId?: number) => [
+  "counterpoint-suggestions",
+  pointId,
+];
 
 export const useCounterpointSuggestions = (pointId?: number) => {
   const queryClient = useQueryClient();

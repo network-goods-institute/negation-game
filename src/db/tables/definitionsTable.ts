@@ -17,7 +17,7 @@ export const definitionsTable = pgTable(
   },
   (table) => ({
     uniqueTermIndex: uniqueIndex("uniqueTermIndex").on(
-      sql`concat(${table.space},'-',lower(${table.term}))`
+      sql`concat(${table.space},'-',lower(${table.term}))`,
     ),
-  })
+  }),
 );

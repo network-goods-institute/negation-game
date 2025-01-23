@@ -17,7 +17,7 @@ export const Ribbon: FC<RibbonProps> = ({
       className={cn(
         "absolute p-2 bg-primary text-primary-foreground",
         `-right-[${foldSize}px]`,
-        className
+        className,
       )}
       style={{
         top: `calc(-1*${foldSize}px)`,

@@ -76,7 +76,7 @@ export const ConnectButton = () => {
               {user.cred} cred
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem 
+            <DropdownMenuItem
               onClick={() => setDialogOpen(true)}
               className="gap-2"
             >
@@ -87,10 +87,7 @@ export const ConnectButton = () => {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <EarningsDialog 
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-        />
+        <EarningsDialog open={dialogOpen} onOpenChange={setDialogOpen} />
       </>
     );
 };

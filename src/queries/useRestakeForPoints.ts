@@ -28,12 +28,12 @@ export const useRestakeForPoints = (pointId: number, negationId: number) => {
   const { user: privyUser } = usePrivy();
 
   return useQuery<RestakeResponse>({
-    queryKey: restakeForPointsQueryKey({ 
-      pointId, 
-      negationId, 
-      userId: privyUser?.id 
+    queryKey: restakeForPointsQueryKey({
+      pointId,
+      negationId,
+      userId: privyUser?.id,
     }),
     queryFn: () => fetchRestakeForPoints(pointId, negationId),
-    enabled: !!pointId && !!negationId
+    enabled: !!pointId && !!negationId,
   });
-}; 
+};

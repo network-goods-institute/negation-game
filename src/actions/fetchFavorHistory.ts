@@ -21,8 +21,8 @@ export async function fetchFavorHistory({
 }: FetchFavorHistoryParams) {
   const { bucketSize, period } =
     scale === "ALL"
-    //TODO make bucket size dynamic based on how old the point is
-      ? { bucketSize: 1 * minute, period: 10 * year }
+      ? //TODO make bucket size dynamic based on how old the point is
+        { bucketSize: 1 * minute, period: 10 * year }
       : timelineScale[scale];
 
   // Make the interval explicit
@@ -38,25 +38,28 @@ export async function fetchFavorHistory({
     .where(
       and(
         eq(pointFavorHistoryView.pointId, pointId),
-        sql`event_time < ${rangeStart}`
-      )
+        sql`event_time < ${rangeStart}`,
+      ),
     )
     .orderBy(desc(sql`event_time`))
     .limit(1)
-    .then(rows => rows[0]);
+    .then((rows) => rows[0]);
 
   // Then get the values within our range
   const rangeValues = await db
     .select({
-      timestamp: sql<Date>`to_timestamp(floor(extract(epoch from event_time)::integer / ${bucketSize}::integer) * ${bucketSize}::integer)`.as('bucket_timestamp'),
+      timestamp:
+        sql<Date>`to_timestamp(floor(extract(epoch from event_time)::integer / ${bucketSize}::integer) * ${bucketSize}::integer)`.as(
+          "bucket_timestamp",
+        ),
       favor: sql<number>`max(favor)`,
     })
     .from(pointFavorHistoryView)
     .where(
       and(
         eq(pointFavorHistoryView.pointId, pointId),
-        sql`event_time >= ${rangeStart}`
-      )
+        sql`event_time >= ${rangeStart}`,
+      ),
     )
     .groupBy(sql`bucket_timestamp`)
     .orderBy(sql`bucket_timestamp`);
@@ -64,11 +67,13 @@ export async function fetchFavorHistory({
   // Combine results
   if (!beforeRangeValue) return rangeValues;
 
-  const endOfRange = new Date(last(rangeValues)?.timestamp ?? Date.now()).getTime();
+  const endOfRange = new Date(
+    last(rangeValues)?.timestamp ?? Date.now(),
+  ).getTime();
   const startOfRange = endOfRange - period * 1000;
 
   return [
     { ...beforeRangeValue, timestamp: new Date(startOfRange) },
-    ...rangeValues
+    ...rangeValues,
   ];
 }

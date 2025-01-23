@@ -3,7 +3,12 @@
 import { getUserId } from "@/actions/getUserId";
 import { db } from "@/services/db";
 import { and, eq, sql, desc } from "drizzle-orm";
-import { doubtsTable, endorsementsTable, restakesTable, usersTable } from "@/db/schema";
+import {
+  doubtsTable,
+  endorsementsTable,
+  restakesTable,
+  usersTable,
+} from "@/db/schema";
 
 const calculateEarnings = (userId: string) => {
   return db
@@ -50,7 +55,7 @@ const calculateEarnings = (userId: string) => {
           AND negation_id = ${doubtsTable.negationId}
           AND created_at <= ${sql.raw(`'${new Date().toISOString()}'`)}
         )
-      )`
+      )`,
     })
     .from(doubtsTable)
     .where(eq(doubtsTable.userId, userId));
@@ -94,46 +99,55 @@ export const collectEarnings = async (): Promise<CollectionResult> => {
       affectedPoints.add(doubt.negation_id);
 
       const rawEarnings = doubt.hourly_rate * doubt.hours_since_payout;
-      const earnings = Math.floor(Math.min(rawEarnings, doubt.available_endorsement));
+      const earnings = Math.floor(
+        Math.min(rawEarnings, doubt.available_endorsement),
+      );
 
-      if (earnings > 0) { 
+      if (earnings > 0) {
         const restakersEndorsements = await tx
           .select({
             user_id: endorsementsTable.userId,
             total_cred: sql<number>`SUM(${endorsementsTable.cred})`,
           })
           .from(endorsementsTable)
-          .where(and(
-            eq(endorsementsTable.pointId, doubt.point_id),
-            sql`${endorsementsTable.createdAt} <= ${sql.raw(`'${doubt.createdAt.toISOString()}'`)}`,
-            sql`${endorsementsTable.userId} IN (
+          .where(
+            and(
+              eq(endorsementsTable.pointId, doubt.point_id),
+              sql`${endorsementsTable.createdAt} <= ${sql.raw(`'${doubt.createdAt.toISOString()}'`)}`,
+              sql`${endorsementsTable.userId} IN (
               SELECT user_id 
               FROM ${restakesTable}
               WHERE point_id = ${doubt.point_id}
               AND negation_id = ${doubt.negation_id}
               AND created_at <= ${sql.raw(`'${doubt.createdAt.toISOString()}'`)}
-            )`
-          ))
+            )`,
+            ),
+          )
           .groupBy(endorsementsTable.userId);
 
         let actuallyCollected = 0;
         let remainingEarnings = earnings;
 
         for (const endorsement of restakersEndorsements) {
-          const proportion = endorsement.total_cred / doubt.available_endorsement;
-          const deduction = endorsement === restakersEndorsements[restakersEndorsements.length - 1]
-            ? remainingEarnings
-            : Math.floor(earnings * proportion);
+          const proportion =
+            endorsement.total_cred / doubt.available_endorsement;
+          const deduction =
+            endorsement ===
+            restakersEndorsements[restakersEndorsements.length - 1]
+              ? remainingEarnings
+              : Math.floor(earnings * proportion);
 
           if (deduction > 0) {
             const userEndorsements = await tx
               .select()
               .from(endorsementsTable)
-              .where(and(
-                eq(endorsementsTable.pointId, doubt.point_id),
-                eq(endorsementsTable.userId, endorsement.user_id),
-                sql`${endorsementsTable.createdAt} <= ${sql.raw(`'${doubt.createdAt.toISOString()}'`)}`
-              ))
+              .where(
+                and(
+                  eq(endorsementsTable.pointId, doubt.point_id),
+                  eq(endorsementsTable.userId, endorsement.user_id),
+                  sql`${endorsementsTable.createdAt} <= ${sql.raw(`'${doubt.createdAt.toISOString()}'`)}`,
+                ),
+              )
               .orderBy(desc(endorsementsTable.cred));
 
             let remainingDeduction = deduction;
@@ -143,13 +157,15 @@ export const collectEarnings = async (): Promise<CollectionResult> => {
               if (toDeduct > 0) {
                 await tx
                   .update(endorsementsTable)
-                  .set({ 
-                    cred: e.cred - toDeduct
+                  .set({
+                    cred: e.cred - toDeduct,
                   })
-                  .where(and(
-                    eq(endorsementsTable.pointId, doubt.point_id),
-                    eq(endorsementsTable.id, e.id)
-                  ));
+                  .where(
+                    and(
+                      eq(endorsementsTable.pointId, doubt.point_id),
+                      eq(endorsementsTable.id, e.id),
+                    ),
+                  );
                 remainingDeduction -= toDeduct;
                 actuallyCollected += toDeduct;
                 remainingEarnings -= toDeduct;
@@ -162,15 +178,15 @@ export const collectEarnings = async (): Promise<CollectionResult> => {
         if (actuallyCollected > 0) {
           await tx
             .update(doubtsTable)
-            .set({ 
-              lastEarningsAt: sql`NOW()`
+            .set({
+              lastEarningsAt: sql`NOW()`,
             })
             .where(eq(doubtsTable.id, doubt.doubt_id));
 
           await tx
             .update(usersTable)
             .set({
-              cred: sql`${usersTable.cred} + ${actuallyCollected}`
+              cred: sql`${usersTable.cred} + ${actuallyCollected}`,
             })
             .where(eq(usersTable.id, userId));
 
@@ -181,7 +197,7 @@ export const collectEarnings = async (): Promise<CollectionResult> => {
 
     return {
       totalEarnings,
-      affectedPoints: Array.from(affectedPoints)
+      affectedPoints: Array.from(affectedPoints),
     };
   });
-}; 
+};

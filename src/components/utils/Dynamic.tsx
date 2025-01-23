@@ -10,5 +10,5 @@ export const Dynamic = dynamic(
     )),
   {
     ssr: false,
-  }
+  },
 );
