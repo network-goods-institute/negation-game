@@ -1,18 +1,9 @@
-import { cn } from "@/lib/cn";
-import {
-  HTMLAttributes,
-  MouseEventHandler,
-  useMemo,
-  useState,
-  useCallback,
-} from "react";
-import { AuthenticatedActionButton, Button } from "./ui/button";
-import { endorse } from "@/actions/endorse";
+import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { CredInput } from "@/components/CredInput";
+import { DoubtIcon } from "@/components/icons/DoubtIcon";
 import { EndorseIcon } from "@/components/icons/EndorseIcon";
 import { NegateIcon } from "@/components/icons/NegateIcon";
 import { RestakeIcon } from "@/components/icons/RestakeIcon";
-import { DoubtIcon } from "@/components/icons/DoubtIcon";
 import { PointStats } from "@/components/PointStats";
 import {
   Popover,
@@ -20,12 +11,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useCredInput } from "@/hooks/useCredInput";
+import { usePrefetchRestakeData } from "@/hooks/usePrefetchRestakeData";
+import { cn } from "@/lib/cn";
+import { useEndorse } from "@/mutations/useEndorse";
 import { usePrivy } from "@privy-io/react-auth";
-import { useQueryClient } from "@tanstack/react-query";
 import { useToggle } from "@uidotdev/usehooks";
 import { useAtom } from "jotai";
-import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
-import { usePrefetchRestakeData } from "@/hooks/usePrefetchRestakeData";
+import { HTMLAttributes, MouseEventHandler, useCallback, useMemo } from "react";
+import { AuthenticatedActionButton, Button } from "./ui/button";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -90,16 +83,16 @@ export const PointCard = ({
   doubt,
   ...props
 }: PointCardProps) => {
+  const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
+
   const [_, setHoveredPointId] = useAtom(hoveredPointIdAtom);
   const endorsedByViewer =
     viewerContext?.viewerCred !== undefined && viewerContext.viewerCred > 0;
-  const queryClient = useQueryClient();
   const { user: privyUser, login } = usePrivy();
   const [endorsePopoverOpen, toggleEndorsePopoverOpen] = useToggle(false);
   const { credInput, setCredInput, notEnoughCred } = useCredInput({
     resetWhen: !endorsePopoverOpen,
   });
-  const [isEndorsing, setIsEndorsing] = useState(false);
   const prefetchRestakeData = usePrefetchRestakeData();
 
   const [restakePercentage, isOverHundred] = useMemo(() => {
@@ -135,7 +128,7 @@ export const PointCard = ({
     <div
       className={cn(
         "@container/point flex gap-3 pt-4 pb-3 px-4 relative rounded-none",
-        className,
+        className
       )}
       onMouseOver={() => {
         setHoveredPointId(pointId);
@@ -186,7 +179,7 @@ export const PointCard = ({
                   }}
                   className={cn(
                     "p-1 rounded-full -mb-2 size-fit gap-sm hover:bg-endorsed/30",
-                    endorsedByViewer && "text-endorsed pr-3",
+                    endorsedByViewer && "text-endorsed pr-3"
                   )}
                   variant={"ghost"}
                 >
@@ -211,15 +204,9 @@ export const PointCard = ({
                   <Button
                     disabled={credInput === 0 || notEnoughCred || isEndorsing}
                     onClick={() => {
-                      setIsEndorsing(true);
-                      endorse({ pointId, cred: credInput })
-                        .then(() => {
-                          queryClient.invalidateQueries({ queryKey: ["feed"] });
-                          toggleEndorsePopoverOpen(false);
-                        })
-                        .finally(() => {
-                          setIsEndorsing(false);
-                        });
+                      endorse({ pointId, cred: credInput }).then(() => {
+                        toggleEndorsePopoverOpen(false);
+                      });
                     }}
                   >
                     {isEndorsing ? (
@@ -246,7 +233,7 @@ export const PointCard = ({
                   variant="ghost"
                   className={cn(
                     "p-1 -mb-2 rounded-full size-fit hover:bg-muted/30",
-                    showRestakeAmount && "text-endorsed",
+                    showRestakeAmount && "text-endorsed"
                   )}
                   onClick={(e) => {
                     e.preventDefault();
@@ -261,7 +248,7 @@ export const PointCard = ({
                       "text-muted-foreground hover:text-foreground transition-colors",
                       showRestakeAmount &&
                         restake?.isOwner &&
-                        "text-endorsed fill-current",
+                        "text-endorsed fill-current"
                     )}
                     showPercentage={showRestakeAmount && restake?.isOwner}
                     percentage={restakePercentage}
@@ -277,7 +264,7 @@ export const PointCard = ({
                     doubt?.amount !== undefined &&
                       doubt.amount > 0 &&
                       doubt.isUserDoubt &&
-                      "text-endorsed",
+                      "text-endorsed"
                   )}
                   onClick={(e) => {
                     e.preventDefault();
@@ -294,7 +281,7 @@ export const PointCard = ({
                         doubt?.amount !== undefined &&
                           doubt.amount > 0 &&
                           doubt.isUserDoubt &&
-                          "text-endorsed fill-current",
+                          "text-endorsed fill-current"
                       )}
                       isFilled={
                         doubt?.amount !== undefined &&
