@@ -87,6 +87,7 @@
     "eslint-plugin-storybook": "^0.8.0",
     "fluid-tailwind": "^1.0.3",
     "postcss": "^8.4.35",
+    "prettier": "^3.4.2",
     "storybook": "^8.2.9",
     "tailwindcss": "^3.4.3",
     "type-fest": "^4.26.1",
