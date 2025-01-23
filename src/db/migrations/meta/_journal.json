@@ -225,6 +225,13 @@
       "when": 1737514975625,
       "tag": "0031_worthless_mother_askani",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1737515000000,
+      "tag": "0032_manual_view_fix",
+      "breakpoints": true
     }
   ]
 }
