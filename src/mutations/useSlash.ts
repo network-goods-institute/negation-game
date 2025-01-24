@@ -33,9 +33,11 @@ export const useSlash = () => {
       // Invalidate favor history to update percentages
       queryClient.invalidateQueries({
         queryKey: [pointId, "favor-history"],
+        exact: false,
       });
       queryClient.invalidateQueries({
         queryKey: [negationId, "favor-history"],
+        exact: false,
       });
 
       // Update user's cred balance
@@ -43,7 +45,7 @@ export const useSlash = () => {
         queryKey: userQueryKey(user?.id),
       });
 
-      // Invalidate feed if points are shown there
+      // Invalidate feed
       queryClient.invalidateQueries({
         queryKey: ["feed"],
       });

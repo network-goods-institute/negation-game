@@ -34,8 +34,8 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
           eq(restakesTable.userId, userId),
           eq(restakesTable.pointId, pointId),
           eq(restakesTable.negationId, negationId),
-          sql`${restakesTable.amount} > 0`,
-        ),
+          sql`${restakesTable.amount} > 0`
+        )
       )
       .limit(1)
       .then((rows) => rows[0]);
@@ -51,8 +51,8 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
       .where(
         and(
           eq(slashesTable.userId, userId),
-          eq(slashesTable.restakeId, restake.id),
-        ),
+          eq(slashesTable.restakeId, restake.id)
+        )
       )
       .limit(1)
       .then((rows) => rows[0]);
@@ -106,7 +106,7 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
         AND created_at < CURRENT_TIMESTAMP
         ORDER BY created_at DESC
         LIMIT 1
-      `,
+      `
         )
         .then((rows) => rows[0]);
 
@@ -131,10 +131,24 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
       // Calculate the additional slash amount
       const additionalSlashAmount = newAmount - existingSlash.amount;
 
+      // Calculate if slash is being reused:
+      // 1. Previous amount was > 0
+      // 2. New amount is 0 (explicitly zeroed by restake modification)
+      // 3. We're reusing the slash row
+      // This ensures proper tracking of which restake modification this slash responds to
+      const isBeingReused = existingSlash.amount > 0 && amount === 0;
+
       // Update slash amount
       await tx
         .update(slashesTable)
-        .set({ amount: newAmount })
+        .set({
+          amount,
+          ...(isBeingReused
+            ? {
+                createdAt: sql`CURRENT_TIMESTAMP`,
+              }
+            : {}),
+        })
         .where(eq(slashesTable.id, existingSlash.id));
 
       // Record slash history
@@ -156,7 +170,7 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
         for (const doubt of doubts) {
           const reductionAmount = Math.min(
             Math.floor(doubt.amount * slashProportion),
-            doubt.amount,
+            doubt.amount
           );
           if (reductionAmount > 0) {
             const newDoubtAmount = doubt.amount - reductionAmount;
@@ -215,7 +229,7 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
           // Calculate reduction amount but cap it at the current doubt amount
           const reductionAmount = Math.min(
             Math.floor(doubt.amount * slashProportion),
-            doubt.amount, // Never reduce more than the current doubt amount
+            doubt.amount // Never reduce more than the current doubt amount
           );
 
           if (reductionAmount > 0) {

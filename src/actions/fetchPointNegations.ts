@@ -53,7 +53,7 @@ export type NegationResult = {
 };
 
 export const fetchPointNegations = async (
-  pointId: number,
+  pointId: number
 ): Promise<NegationResult[]> => {
   const userId = await getUserId();
   const space = await getSpace();
@@ -108,17 +108,12 @@ export const fetchPointNegations = async (
       restake: {
         id: restakesTable.id,
         userId: restakesTable.userId,
-        amount: sql<number>`
-          CASE 
-            WHEN ${effectiveRestakesView.slashedAmount} >= ${effectiveRestakesView.amount} THEN 0
-            ELSE ${effectiveRestakesView.amount}
-          END
-        `.mapWith(Number),
+        amount: effectiveRestakesView.effectiveAmount,
         originalAmount: effectiveRestakesView.amount,
         slashedAmount: effectiveRestakesView.slashedAmount,
         doubtedAmount:
           sql<number>`COALESCE(${effectiveRestakesView.doubtedAmount}, 0)`.mapWith(
-            Number,
+            Number
           ),
         totalRestakeAmount: sql<number>`
           SUM(
@@ -131,7 +126,7 @@ export const fetchPointNegations = async (
           )
         `.as("total_restake_amount"),
         isOwner: sql<boolean>`${effectiveRestakesView.userId} = ${userId}`.as(
-          "is_owner",
+          "is_owner"
         ),
       },
       slash: {
@@ -143,7 +138,7 @@ export const fetchPointNegations = async (
         amount: doubtsTable.amount,
         userAmount: doubtsTable.amount,
         isUserDoubt: sql<boolean>`${doubtsTable.userId} = ${userId}`.as(
-          "is_user_doubt",
+          "is_user_doubt"
         ),
       },
     })
@@ -152,48 +147,48 @@ export const fetchPointNegations = async (
       negationsTable,
       or(
         eq(negationsTable.newerPointId, pointsWithDetailsView.pointId),
-        eq(negationsTable.olderPointId, pointsWithDetailsView.pointId),
-      ),
+        eq(negationsTable.olderPointId, pointsWithDetailsView.pointId)
+      )
     )
     .leftJoin(
       effectiveRestakesView,
       and(
         eq(effectiveRestakesView.pointId, pointId),
-        eq(effectiveRestakesView.negationId, pointsWithDetailsView.pointId),
-      ),
+        eq(effectiveRestakesView.negationId, pointsWithDetailsView.pointId)
+      )
     )
     .leftJoin(
       restakesTable,
       and(
         eq(restakesTable.pointId, effectiveRestakesView.pointId),
         eq(restakesTable.negationId, effectiveRestakesView.negationId),
-        eq(restakesTable.userId, effectiveRestakesView.userId),
-      ),
+        eq(restakesTable.userId, effectiveRestakesView.userId)
+      )
     )
     .leftJoin(
       slashesTable,
       and(
         eq(slashesTable.pointId, pointId),
         eq(slashesTable.negationId, pointsWithDetailsView.pointId),
-        eq(slashesTable.userId, userId ?? ""),
-      ),
+        eq(slashesTable.userId, userId ?? "")
+      )
     )
     .leftJoin(
       doubtsTable,
       and(
         eq(doubtsTable.pointId, pointId),
         eq(doubtsTable.negationId, pointsWithDetailsView.pointId),
-        eq(doubtsTable.userId, userId ?? ""),
-      ),
+        eq(doubtsTable.userId, userId ?? "")
+      )
     )
     .where(
       and(
         or(
           eq(negationsTable.olderPointId, pointId),
-          eq(negationsTable.newerPointId, pointId),
+          eq(negationsTable.newerPointId, pointId)
         ),
-        eq(pointsWithDetailsView.space, space),
-      ),
+        eq(pointsWithDetailsView.space, space)
+      )
     )
     .then((points) => {
       return addFavor(points);

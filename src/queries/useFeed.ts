@@ -36,7 +36,7 @@ export const useFeed = () => {
         };
         setPointData(
           { pointId: point.pointId, userId: privyUser?.id },
-          transformedPoint,
+          transformedPoint
         );
       }
 

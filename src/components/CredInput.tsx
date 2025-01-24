@@ -10,10 +10,10 @@ import { FC } from "react";
 
 export interface CredInputProps
   extends Omit<ToggleGroupSingleProps, "type">,
-    Pick<
-      ReturnType<typeof useCredInput>,
-      "credInput" | "setCredInput" | "notEnoughCred"
-    > {}
+  Pick<
+    ReturnType<typeof useCredInput>,
+    "credInput" | "setCredInput" | "notEnoughCred"
+  > { }
 
 const DEFAULT_CRED_OPTIONS = [1, 5, 10];
 

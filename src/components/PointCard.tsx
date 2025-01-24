@@ -247,8 +247,8 @@ export const PointCard = ({
                       "size-5 stroke-1",
                       "text-muted-foreground hover:text-foreground transition-colors",
                       showRestakeAmount &&
-                        restake?.isOwner &&
-                        "text-endorsed fill-current"
+                      restake?.isOwner &&
+                      "text-endorsed fill-current"
                     )}
                     showPercentage={showRestakeAmount && restake?.isOwner}
                     percentage={restakePercentage}
@@ -262,9 +262,9 @@ export const PointCard = ({
                   className={cn(
                     "p-1 -mb-2 rounded-full size-fit hover:bg-muted/30",
                     doubt?.amount !== undefined &&
-                      doubt.amount > 0 &&
-                      doubt.isUserDoubt &&
-                      "text-endorsed"
+                    doubt.amount > 0 &&
+                    doubt.isUserDoubt &&
+                    "text-endorsed"
                   )}
                   onClick={(e) => {
                     e.preventDefault();
@@ -279,9 +279,9 @@ export const PointCard = ({
                         "size-5 stroke-1",
                         "text-muted-foreground hover:text-foreground transition-colors",
                         doubt?.amount !== undefined &&
-                          doubt.amount > 0 &&
-                          doubt.isUserDoubt &&
-                          "text-endorsed fill-current"
+                        doubt.amount > 0 &&
+                        doubt.isUserDoubt &&
+                        "text-endorsed fill-current"
                       )}
                       isFilled={
                         doubt?.amount !== undefined &&

@@ -1,6 +1,6 @@
 {
-    "id": "3b5dc261-8c35-4e2b-9365-373d11bc0228",
-    "prevId": "5743169b-3c38-4d61-8451-af2fbd5ce561",
+    "id": "3b5dc261-8c35-4e2b-9365-373d11bc0218",
+    "prevId": "3b5dc261-8c35-4e2b-9365-373d11bc0228",
     "version": "7",
     "dialect": "postgresql",
     "tables": {
@@ -1558,6 +1558,7 @@
         "schema": "public",
         "values": [
           "created",
+          "increased",
           "deactivated",
           "reduced_by_slash"
         ]

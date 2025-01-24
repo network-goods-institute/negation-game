@@ -30,9 +30,11 @@ export const useDoubt = () => {
       // Invalidate favor history
       queryClient.invalidateQueries({
         queryKey: [pointId, "favor-history"],
+        exact: false,
       });
       queryClient.invalidateQueries({
         queryKey: [negationId, "favor-history"],
+        exact: false,
       });
 
       // Update user's cred balance

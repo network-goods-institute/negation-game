@@ -27,8 +27,8 @@ const Slider = React.forwardRef<
   ) => {
     const currentValue = value[0];
 
-    // Convert to percentages only for visual display as dealing with percentages is awful
-    const existingPercentage = (existingCred / max) * 100;
+    // For doubts, only show the current value since they can only increase
+    const existingPercentage = isDoubtMode ? 0 : (existingCred / max) * 100;
     const currentPercentage = (currentValue / max) * 100;
 
     return (
@@ -44,22 +44,22 @@ const Slider = React.forwardRef<
         {...props}
       >
         <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-endorsed/10">
+          {/* For doubts, show simple fill from 0 to current */}
+          {isDoubtMode && (
+            <div
+              className="absolute h-full bg-endorsed"
+              style={{
+                width: `${currentPercentage}%`,
+              }}
+            />
+          )}
+
           {/* Base layer - existing stake (grey) - only show if not in doubt mode */}
           {!isDoubtMode && !destructive && existingCred > 0 && (
             <div
               className="absolute h-full bg-muted-foreground/20 dark:bg-white/20"
               style={{
                 width: `${existingPercentage}%`,
-              }}
-            />
-          )}
-
-          {/* Simple blue fill for doubt mode */}
-          {isDoubtMode && (
-            <div
-              className="absolute h-full bg-endorsed"
-              style={{
-                width: `${currentPercentage}%`,
               }}
             />
           )}

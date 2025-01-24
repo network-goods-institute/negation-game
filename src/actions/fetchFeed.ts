@@ -36,7 +36,7 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
               amount: doubtsTable.amount,
               userAmount: doubtsTable.amount,
               isUserDoubt: sql<boolean>`${doubtsTable.userId} = ${viewerId}`.as(
-                "is_user_doubt",
+                "is_user_doubt"
               ),
             },
           }
@@ -72,8 +72,8 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
       doubtsTable,
       and(
         eq(doubtsTable.pointId, pointsWithDetailsView.pointId),
-        eq(doubtsTable.userId, viewerId ?? ""),
-      ),
+        eq(doubtsTable.userId, viewerId ?? "")
+      )
     )
     .where(eq(pointsWithDetailsView.space, space))
     .orderBy(desc(pointsWithDetailsView.createdAt))

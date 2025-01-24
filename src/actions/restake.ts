@@ -32,9 +32,8 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
       and(
         eq(restakesTable.userId, userId),
         eq(restakesTable.pointId, pointId), // FROM point
-        eq(restakesTable.negationId, negationId), // TO point
-        sql`${restakesTable.amount} > 0`,
-      ),
+        eq(restakesTable.negationId, negationId) // TO point
+      )
     )
     .limit(1)
     .then((rows) => rows[0]);
@@ -69,8 +68,8 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
             eq(slashesTable.userId, userId),
             eq(slashesTable.pointId, pointId),
             eq(slashesTable.negationId, negationId),
-            sql`${slashesTable.amount} > 0`,
-          ),
+            sql`${slashesTable.amount} > 0`
+          )
         )
         .limit(1)
         .then((rows) => rows[0]);
@@ -93,10 +92,38 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
           .where(eq(slashesTable.id, existingSlash.id));
       }
 
-      // Update the restake
+      // Calculate if restake is effectively zeroed (fully slashed)
+      const isEffectivelyZeroed = await tx
+        .select({
+          slashedAmount: sql<number>`
+            COALESCE((
+              SELECT amount 
+              FROM ${slashesTable} 
+              WHERE restake_id = ${existingRestake.id}
+              AND amount > 0
+            ), 0)
+          `.as("slashed_amount"),
+        })
+        .from(restakesTable)
+        .where(eq(restakesTable.id, existingRestake.id))
+        .then((rows) => rows[0]?.slashedAmount >= existingRestake.amount);
+
+      // Reset timestamps if:
+      // 1. Restake was fully slashed (slashedAmount >= amount)
+      // 2. We're reusing it with a new amount
+      // This ensures:
+      // - New doubts only earn from endorsements that existed when this "new" restake was placed
+      // - Slashes properly track which restake modification they're responding to
       await tx
         .update(restakesTable)
-        .set({ amount })
+        .set({
+          amount,
+          ...(isEffectivelyZeroed
+            ? {
+                createdAt: sql`CURRENT_TIMESTAMP`,
+              }
+            : {}),
+        })
         .where(eq(restakesTable.id, existingRestake.id));
 
       // Record restake history
@@ -105,7 +132,7 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
         userId,
         pointId,
         negationId,
-        action: action as (typeof restakeActionEnum.enumValues)[number],
+        action: existingRestake.amount === 0 ? "created" : action,
         previousAmount: existingRestake.amount,
         newAmount: amount,
       });

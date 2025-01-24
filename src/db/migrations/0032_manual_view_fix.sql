@@ -30,3 +30,5 @@ CREATE VIEW "public"."effective_restakes_view" AS (
   FROM "restakes"
   WHERE restakes."amount" > 0
 );
+
+ALTER TYPE "public"."doubt_action" ADD VALUE 'increased' BEFORE 'deactivated';
