@@ -40,5 +40,5 @@ export const effectiveRestakesView = pgView("effective_restakes_view").as(
       `.as("effective_amount"),
       })
       .from(restakesTable)
-      .where(sql`${restakesTable.amount} > 0`),
+      .where(sql`"restakes"."amount" > 0`)
 );

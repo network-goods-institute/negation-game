@@ -6,6 +6,7 @@ import {
   endorsementsTable,
   negationsTable,
   pointsTable,
+  effectiveRestakesView,
 } from "@/db/schema";
 import { Point } from "@/db/tables/pointsTable";
 import { addFavor } from "@/db/utils/addFavor";
@@ -55,9 +56,9 @@ export const findCounterpointCandidatesAction = async ({
       .where(
         or(
           sql`${negationsTable.olderPointId} = ${pointsTable.id} AND ${negationsTable.newerPointId} = ${negatedPointId}`,
-          sql`${negationsTable.newerPointId} = ${pointsTable.id} AND ${negationsTable.olderPointId} = ${negatedPointId}`,
-        ),
-      ),
+          sql`${negationsTable.newerPointId} = ${pointsTable.id} AND ${negationsTable.olderPointId} = ${negatedPointId}`
+        )
+      )
   ).mapWith(Boolean);
 
   const similarPoints = await db
@@ -108,6 +109,31 @@ export const findCounterpointCandidatesAction = async ({
         )
       ), 0)
     `.mapWith(Number),
+      restakesByPoint: sql<number>`
+        COALESCE(
+          (SELECT SUM(er1.amount)
+           FROM ${effectiveRestakesView} AS er1
+           WHERE er1.point_id = ${pointsTable.id}
+           AND er1.slashed_amount < er1.amount), 
+          0
+        )
+      `.mapWith(Number),
+      slashedAmount: sql<number>`
+        COALESCE(
+          (SELECT SUM(er1.slashed_amount)
+           FROM ${effectiveRestakesView} AS er1
+           WHERE er1.point_id = ${pointsTable.id}), 
+          0
+        )
+      `.mapWith(Number),
+      doubtedAmount: sql<number>`
+        COALESCE(
+          (SELECT SUM(er1.doubted_amount)
+           FROM ${effectiveRestakesView} AS er1
+           WHERE er1.point_id = ${pointsTable.id}), 
+          0
+        )
+      `.mapWith(Number),
     })
     .from(embeddingsTable)
     .innerJoin(pointsTable, eq(pointsTable.id, embeddingsTable.id))
@@ -115,8 +141,8 @@ export const findCounterpointCandidatesAction = async ({
       and(
         gt(similarity, 0.5),
         ne(pointsTable.id, negatedPointId),
-        eq(pointsTable.space, space),
-      ),
+        eq(pointsTable.space, space)
+      )
     )
     .orderBy((t) => desc(t.similarity))
     .limit(10)

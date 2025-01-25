@@ -19,6 +19,7 @@ export const useFeed = () => {
           restakesByPoint: point.restakesByPoint,
           slashedAmount: point.slashedAmount,
           doubtedAmount: point.doubtedAmount,
+          totalRestakeAmount: point.totalRestakeAmount,
           restake: {
             id: 0,
             amount: 0,
@@ -45,6 +46,7 @@ export const useFeed = () => {
         restakesByPoint: point.restakesByPoint,
         slashedAmount: point.slashedAmount,
         doubtedAmount: point.doubtedAmount,
+        totalRestakeAmount: point.totalRestakeAmount,
         restake: {
           id: 0,
           amount: 0,

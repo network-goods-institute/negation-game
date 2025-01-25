@@ -14,6 +14,30 @@ import { db } from "@/services/db";
 import { Timestamp } from "@/types/Timestamp";
 import { desc, eq, sql, and } from "drizzle-orm";
 
+export type FeedPoint = {
+  pointId: number;
+  content: string;
+  createdAt: Date;
+  createdBy: string;
+  cred: number;
+  amountSupporters: number;
+  amountNegations: number;
+  negationsCred: number;
+  space: string | null;
+  viewerCred?: number;
+  negationIds: number[];
+  restakesByPoint: number;
+  slashedAmount: number;
+  doubtedAmount: number;
+  totalRestakeAmount: number;
+  doubt?: {
+    id: number;
+    amount: number;
+    userAmount: number;
+    isUserDoubt: boolean;
+  } | null;
+};
+
 export const fetchFeedPage = async (olderThan?: Timestamp) => {
   const viewerId = await getUserId();
   const space = await getSpace();
@@ -66,6 +90,19 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
           0
         )
       `.mapWith(Number),
+      totalRestakeAmount: sql<number>`
+        COALESCE((
+          SELECT SUM(CASE 
+            WHEN er.slashed_amount >= er.amount THEN 0
+            ELSE er.amount
+          END)
+          FROM ${effectiveRestakesView} AS er
+          WHERE er.point_id = ${pointsWithDetailsView.pointId}
+          AND er.negation_id = ANY(${pointsWithDetailsView.negationIds})
+        ), 0)
+      `
+        .mapWith(Number)
+        .as("total_restake_amount"),
     })
     .from(pointsWithDetailsView)
     .leftJoin(

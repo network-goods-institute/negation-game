@@ -65,7 +65,7 @@ import {
 import { usePointData } from "../../../../queries/usePointData";
 import { SelectNegationDialog } from "@/components/SelectNegationDialog";
 import { RestakeDialog } from "@/components/RestakeDialog";
-import { usePrefetchPoint } from "@/hooks/usePrefetchPoint";
+import { usePrefetchPoint } from "@/queries/usePointData";
 
 type Point = {
   id: number;
@@ -351,7 +351,7 @@ export default function PointPage({
                       className="overflow-visible text-endorsed"
                       dot={({ key, ...dot }) =>
                         favorHistory &&
-                        dot.index === favorHistory.length - 1 ? (
+                          dot.index === favorHistory.length - 1 ? (
                           <Fragment key={key}>
                             <Dot
                               {...dot}
@@ -378,8 +378,8 @@ export default function PointPage({
                       labelFormatter={(timestamp: Date) =>
                         timestamp.toLocaleString()
                       }
-                      // position={{ y: 0 }}
-                      // offset={0}
+                    // position={{ y: 0 }}
+                    // offset={0}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -489,6 +489,7 @@ export default function PointPage({
                           }}
                           restake={negation.restake}
                           doubt={negation.doubt}
+                          totalRestakeAmount={negation.totalRestakeAmount}
                         />
                       </Link>
                     ))}

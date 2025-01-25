@@ -8,6 +8,7 @@ import {
   effectiveRestakesView,
   slashesTable,
   doubtsTable,
+  restakesTable,
 } from "@/db/schema";
 import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
@@ -54,7 +55,7 @@ export const fetchPoints = async (ids: number[]) => {
               amount: doubtsTable.amount,
               userAmount: doubtsTable.amount,
               isUserDoubt: sql<boolean>`${doubtsTable.userId} = ${viewerId}`.as(
-                "is_user_doubt",
+                "is_user_doubt"
               ),
             },
           }
@@ -85,6 +86,19 @@ export const fetchPoints = async (ids: number[]) => {
           0
         )
       `.mapWith(Number),
+      totalRestakeAmount: sql<number>`
+        COALESCE((
+          SELECT SUM(CASE 
+            WHEN er.slashed_amount >= er.amount THEN 0
+            ELSE er.amount
+          END)
+          FROM ${effectiveRestakesView} AS er
+          WHERE er.point_id = ${pointsWithDetailsView.pointId}
+          AND er.negation_id = ANY(${pointsWithDetailsView.negationIds})
+        ), 0)
+      `
+        .mapWith(Number)
+        .as("total_restake_amount"),
     })
     .from(pointsWithDetailsView)
     .leftJoin(
@@ -92,28 +106,28 @@ export const fetchPoints = async (ids: number[]) => {
       and(
         eq(effectiveRestakesView.pointId, pointsWithDetailsView.pointId),
         eq(effectiveRestakesView.userId, viewerId ?? ""),
-        sql`${effectiveRestakesView.slashedAmount} < ${effectiveRestakesView.amount}`,
-      ),
+        sql`${effectiveRestakesView.slashedAmount} < ${effectiveRestakesView.amount}`
+      )
     )
     .leftJoin(
       slashesTable,
       and(
         eq(slashesTable.pointId, pointsWithDetailsView.pointId),
-        eq(slashesTable.userId, viewerId ?? ""),
-      ),
+        eq(slashesTable.userId, viewerId ?? "")
+      )
     )
     .leftJoin(
       doubtsTable,
       and(
         eq(doubtsTable.pointId, pointsWithDetailsView.pointId),
-        eq(doubtsTable.userId, viewerId ?? ""),
-      ),
+        eq(doubtsTable.userId, viewerId ?? "")
+      )
     )
     .where(
       and(
         inArray(pointsWithDetailsView.pointId, ids),
-        eq(pointsWithDetailsView.space, space),
-      ),
+        eq(pointsWithDetailsView.space, space)
+      )
     )
     .then((points) => {
       return addFavor(points);

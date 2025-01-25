@@ -50,6 +50,7 @@ export type NegationResult = {
   restakesByPoint: number;
   slashedAmount: number;
   doubtedAmount: number;
+  totalRestakeAmount: number;
 };
 
 export const fetchPointNegations = async (
@@ -81,66 +82,86 @@ export const fetchPointNegations = async (
       `.mapWith(Number)
         : sql<number>`0`.mapWith(Number),
       restakesByPoint: sql<number>`
-        COALESCE(
-          (SELECT SUM(er1.amount)
-           FROM ${effectiveRestakesView} AS er1
-           WHERE er1.point_id = ${pointsWithDetailsView.pointId}
-           AND er1.slashed_amount < er1.amount), 
-          0
-        )
+        COALESCE((
+          SELECT SUM(er.amount)
+          FROM ${effectiveRestakesView} AS er
+          WHERE er.point_id = ${pointsWithDetailsView.pointId}
+          AND er.slashed_amount < er.amount
+        ), 0)
       `.mapWith(Number),
+      restake: sql<any>`
+        COALESCE((
+          SELECT jsonb_build_object(
+            'id', r.id,
+            'amount', er.effective_amount,
+            'originalAmount', er.amount,
+            'slashedAmount', er.slashed_amount,
+            'doubtedAmount', COALESCE(er.doubted_amount, 0),
+            'isOwner', er.user_id = ${userId}
+          )
+          FROM ${effectiveRestakesView} AS er
+          INNER JOIN ${restakesTable} AS r 
+          ON r.point_id = er.point_id 
+          AND r.negation_id = er.negation_id
+          WHERE er.point_id = ${pointId}
+          AND er.negation_id = ${pointsWithDetailsView.pointId}
+          AND er.user_id = ${userId}
+          AND er.slashed_amount < er.amount
+          LIMIT 1
+        ), NULL)`.as("restake"),
       slashedAmount: sql<number>`
-        COALESCE(
-          (SELECT SUM(er1.slashed_amount)
-           FROM ${effectiveRestakesView} AS er1
-           WHERE er1.point_id = ${pointsWithDetailsView.pointId}), 
-          0
-        )
+        COALESCE((
+          SELECT SUM(er.slashed_amount)
+          FROM ${effectiveRestakesView} AS er
+          WHERE er.point_id = ${pointsWithDetailsView.pointId}
+        ), 0)
       `.mapWith(Number),
       doubtedAmount: sql<number>`
-        COALESCE(
-          (SELECT SUM(er1.doubted_amount)
-           FROM ${effectiveRestakesView} AS er1
-           WHERE er1.point_id = ${pointsWithDetailsView.pointId}), 
-          0
-        )
+        COALESCE((
+          SELECT SUM(er.doubted_amount)
+          FROM ${effectiveRestakesView} AS er
+          WHERE er.point_id = ${pointsWithDetailsView.pointId}
+        ), 0)
       `.mapWith(Number),
-      restake: {
-        id: restakesTable.id,
-        userId: restakesTable.userId,
-        amount: effectiveRestakesView.effectiveAmount,
-        originalAmount: effectiveRestakesView.amount,
-        slashedAmount: effectiveRestakesView.slashedAmount,
-        doubtedAmount:
-          sql<number>`COALESCE(${effectiveRestakesView.doubtedAmount}, 0)`.mapWith(
-            Number
-          ),
-        totalRestakeAmount: sql<number>`
-          SUM(
-            CASE 
-              WHEN ${effectiveRestakesView.slashedAmount} >= ${effectiveRestakesView.amount} THEN 0
-              ELSE ${effectiveRestakesView.amount}
-            END
-          ) OVER (
-            PARTITION BY ${effectiveRestakesView.pointId}, ${effectiveRestakesView.negationId}
+      slash: sql<any>`
+        COALESCE((
+          SELECT jsonb_build_object(
+            'id', s.id,
+            'amount', s.amount
           )
-        `.as("total_restake_amount"),
-        isOwner: sql<boolean>`${effectiveRestakesView.userId} = ${userId}`.as(
-          "is_owner"
-        ),
-      },
-      slash: {
-        id: slashesTable.id,
-        amount: slashesTable.amount,
-      },
-      doubt: {
-        id: doubtsTable.id,
-        amount: doubtsTable.amount,
-        userAmount: doubtsTable.amount,
-        isUserDoubt: sql<boolean>`${doubtsTable.userId} = ${userId}`.as(
-          "is_user_doubt"
-        ),
-      },
+          FROM ${slashesTable} AS s
+          WHERE s.point_id = ${pointId}
+          AND s.negation_id = ${pointsWithDetailsView.pointId}
+          AND s.user_id = ${userId}
+          LIMIT 1
+        ), NULL)`,
+      doubt: sql<any>`
+        COALESCE((
+          SELECT jsonb_build_object(
+            'id', d.id,
+            'amount', d.amount,
+            'userAmount', d.amount,
+            'isUserDoubt', d.user_id = ${userId}
+          )
+          FROM ${doubtsTable} AS d
+          WHERE d.point_id = ${pointId}
+          AND d.negation_id = ${pointsWithDetailsView.pointId}
+          AND d.user_id = ${userId}
+          LIMIT 1
+        ), NULL)`,
+      totalRestakeAmount: sql<number>`
+        COALESCE((
+          SELECT SUM(CASE 
+            WHEN er.slashed_amount >= er.amount THEN 0
+            ELSE er.amount
+          END)
+          FROM ${effectiveRestakesView} AS er
+          WHERE er.point_id = ${pointId}
+          AND er.negation_id = ${pointsWithDetailsView.pointId}
+        ), 0)
+      `
+        .mapWith(Number)
+        .as("total_restake_amount"),
     })
     .from(pointsWithDetailsView)
     .innerJoin(
@@ -148,37 +169,6 @@ export const fetchPointNegations = async (
       or(
         eq(negationsTable.newerPointId, pointsWithDetailsView.pointId),
         eq(negationsTable.olderPointId, pointsWithDetailsView.pointId)
-      )
-    )
-    .leftJoin(
-      effectiveRestakesView,
-      and(
-        eq(effectiveRestakesView.pointId, pointId),
-        eq(effectiveRestakesView.negationId, pointsWithDetailsView.pointId)
-      )
-    )
-    .leftJoin(
-      restakesTable,
-      and(
-        eq(restakesTable.pointId, effectiveRestakesView.pointId),
-        eq(restakesTable.negationId, effectiveRestakesView.negationId),
-        eq(restakesTable.userId, effectiveRestakesView.userId)
-      )
-    )
-    .leftJoin(
-      slashesTable,
-      and(
-        eq(slashesTable.pointId, pointId),
-        eq(slashesTable.negationId, pointsWithDetailsView.pointId),
-        eq(slashesTable.userId, userId ?? "")
-      )
-    )
-    .leftJoin(
-      doubtsTable,
-      and(
-        eq(doubtsTable.pointId, pointId),
-        eq(doubtsTable.negationId, pointsWithDetailsView.pointId),
-        eq(doubtsTable.userId, userId ?? "")
       )
     )
     .where(

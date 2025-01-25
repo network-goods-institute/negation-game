@@ -52,10 +52,10 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
     originalAmount: number;
     slashedAmount: number;
     doubtedAmount: number;
-    totalRestakeAmount: number;
     isOwner: boolean;
     effectiveAmount?: number;
   } | null;
+  totalRestakeAmount?: number;
   doubt?: {
     id: number;
     amount: number;
@@ -80,6 +80,7 @@ export const PointCard = ({
   onRestake,
   negationId,
   restake,
+  totalRestakeAmount,
   doubt,
   ...props
 }: PointCardProps) => {
@@ -104,11 +105,17 @@ export const PointCard = ({
   }, [isNegation, parentPoint, restake]);
 
   const doubtPercentage = useMemo(() => {
-    if (!isNegation || !restake?.amount || !doubt?.amount || !doubt.isUserDoubt)
+
+    if (!isNegation || !totalRestakeAmount || !doubt?.amount || !doubt.isUserDoubt) {
       return 0;
-    const rawPercentage = (doubt.userAmount / restake.totalRestakeAmount) * 100;
-    return Math.min(100, Math.round(rawPercentage));
-  }, [isNegation, restake, doubt]);
+    }
+
+    const rawPercentage = (doubt.userAmount / totalRestakeAmount) * 100;
+
+    const result = Math.min(100, Math.round(rawPercentage));
+
+    return result;
+  }, [isNegation, totalRestakeAmount, doubt]);
 
   const handleRestakeHover = useCallback(() => {
     if (isNegation && parentPoint?.id && negationId) {

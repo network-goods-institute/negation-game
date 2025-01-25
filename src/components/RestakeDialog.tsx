@@ -303,6 +303,24 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     [currentlyStaked, openedFromSlashedIcon, existingDoubt],
   );
 
+  // For doubts, use raw restake amount as max
+  const maxStakeAmount = useMemo(() => {
+    if (openedFromSlashedIcon) {
+      // For doubts, use total restake amount as max
+      return existingRestake?.totalRestakeAmount ?? 0;
+    }
+    // For restakes, use viewer's endorsement amount
+    return originalPoint.viewerCred ?? 0;
+  }, [openedFromSlashedIcon, existingRestake, originalPoint.viewerCred]);
+
+  // For doubts, start from existing doubt amount (if any)
+  const initialStakeAmount = useMemo(() => {
+    if (openedFromSlashedIcon) {
+      return existingDoubt?.userAmount ?? 0;
+    }
+    return currentlyStaked;
+  }, [openedFromSlashedIcon, existingDoubt?.userAmount, currentlyStaked]);
+
   const limitingFactor = useMemo(() => {
     if (!openedFromSlashedIcon || !canDoubt) return null;
 
@@ -327,6 +345,10 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
     user?.cred,
   ]);
 
+  useEffect(() => {
+    setStakedCred(initialStakeAmount);
+  }, [initialStakeAmount]);
+
   // Loading state handler
   if (isLoadingUser) {
     return (
@@ -337,28 +359,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
       </Dialog>
     );
   }
-
-  // For doubts, use raw restake amount as max
-  const maxStakeAmount = useMemo(() => {
-    if (openedFromSlashedIcon) {
-      // For doubts, use total restake amount as max
-      return existingRestake?.totalRestakeAmount ?? 0;
-    }
-    // For restakes, use viewer's endorsement amount
-    return originalPoint.viewerCred ?? 0;
-  }, [openedFromSlashedIcon, existingRestake, originalPoint.viewerCred]);
-
-  // For doubts, start from existing doubt amount (if any)
-  const initialStakeAmount = useMemo(() => {
-    if (openedFromSlashedIcon) {
-      return existingDoubt?.userAmount ?? 0;
-    }
-    return currentlyStaked;
-  }, [openedFromSlashedIcon, existingDoubt?.userAmount, currentlyStaked]);
-
-  useEffect(() => {
-    setStakedCred(initialStakeAmount);
-  }, [initialStakeAmount]);
 
   const newStakeAmount = stakedCred;
 
@@ -1279,8 +1279,6 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                   : currentlyStaked
               }
               isDoubtMode={openedFromSlashedIcon}
-              onPointerDown={() => console.log('Slider pointer down')}
-              onPointerMove={(e) => console.log('Slider pointer move:', e.clientX)}
             />
           </div>
 

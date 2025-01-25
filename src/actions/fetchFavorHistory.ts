@@ -38,8 +38,8 @@ export async function fetchFavorHistory({
     .where(
       and(
         eq(pointFavorHistoryView.pointId, pointId),
-        sql`event_time < ${rangeStart}`,
-      ),
+        sql`event_time < ${rangeStart}`
+      )
     )
     .orderBy(desc(sql`event_time`))
     .limit(1)
@@ -50,7 +50,7 @@ export async function fetchFavorHistory({
     .select({
       timestamp:
         sql<Date>`to_timestamp(floor(extract(epoch from event_time)::integer / ${bucketSize}::integer) * ${bucketSize}::integer)`.as(
-          "bucket_timestamp",
+          "bucket_timestamp"
         ),
       favor: sql<number>`max(favor)`,
     })
@@ -58,8 +58,8 @@ export async function fetchFavorHistory({
     .where(
       and(
         eq(pointFavorHistoryView.pointId, pointId),
-        sql`event_time >= ${rangeStart}`,
-      ),
+        sql`event_time >= ${rangeStart}`
+      )
     )
     .groupBy(sql`bucket_timestamp`)
     .orderBy(sql`bucket_timestamp`);
@@ -68,7 +68,7 @@ export async function fetchFavorHistory({
   if (!beforeRangeValue) return rangeValues;
 
   const endOfRange = new Date(
-    last(rangeValues)?.timestamp ?? Date.now(),
+    last(rangeValues)?.timestamp ?? Date.now()
   ).getTime();
   const startOfRange = endOfRange - period * 1000;
 
