@@ -14,9 +14,10 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@radix-ui/react-dropdown-menu";
-import { LoaderCircleIcon, CoinsIcon } from "lucide-react";
+import { LoaderCircleIcon, CoinsIcon, UserIcon } from "lucide-react";
 import { useState } from "react";
 import { EarningsDialog } from "@/components/EarningsDialog";
+import Link from "next/link";
 
 export const ConnectButton = () => {
   const { login, logout, user: privyUser } = usePrivy();
@@ -76,6 +77,12 @@ export const ConnectButton = () => {
               {user.cred} cred
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/profile" className="gap-2">
+                <UserIcon className="size-4" />
+                Profile
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => setDialogOpen(true)}
               className="gap-2"

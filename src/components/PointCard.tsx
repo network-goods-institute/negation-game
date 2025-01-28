@@ -62,6 +62,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
     userAmount: number;
     isUserDoubt: boolean;
   } | null;
+  space?: string;
 }
 
 export const PointCard = ({
@@ -82,6 +83,7 @@ export const PointCard = ({
   restake,
   totalRestakeAmount,
   doubt,
+  space,
   ...props
 }: PointCardProps) => {
   const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
@@ -144,10 +146,17 @@ export const PointCard = ({
       onMouseLeave={() => setHoveredPointId(undefined)}
       {...props}
     >
-      <div className="flex flex-col">
-        <p className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg mb-xs -mt-1 select-text">
-          {content}
-        </p>
+      <div className="flex flex-col flex-grow">
+        <div className="flex justify-between items-start">
+          <p className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg mb-xs -mt-1 select-text">
+            {content}
+          </p>
+          {space && (
+            <span className="text-xs text-muted-foreground ml-2 whitespace-nowrap shrink-0">
+              [{space}]
+            </span>
+          )}
+        </div>
 
         <PointStats
           className="mb-md select-text"
