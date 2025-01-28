@@ -1,10 +1,10 @@
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { CredInput } from "@/components/CredInput";
+import { PointStats } from "@/components/PointStats";
 import { DoubtIcon } from "@/components/icons/DoubtIcon";
 import { EndorseIcon } from "@/components/icons/EndorseIcon";
 import { NegateIcon } from "@/components/icons/NegateIcon";
 import { RestakeIcon } from "@/components/icons/RestakeIcon";
-import { PointStats } from "@/components/PointStats";
 import {
   Popover,
   PopoverContent,
@@ -12,15 +12,22 @@ import {
 } from "@/components/ui/popover";
 import { useCredInput } from "@/hooks/useCredInput";
 import { usePrefetchRestakeData } from "@/hooks/usePrefetchRestakeData";
+import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 import { cn } from "@/lib/cn";
 import { useEndorse } from "@/mutations/useEndorse";
 import { usePrivy } from "@privy-io/react-auth";
 import { useToggle } from "@uidotdev/usehooks";
 import { useAtom } from "jotai";
-import { HTMLAttributes, MouseEventHandler, useCallback, useMemo, useState, useEffect } from "react";
-import { AuthenticatedActionButton, Button } from "./ui/button";
-import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 import { CheckIcon } from "lucide-react";
+import {
+  HTMLAttributes,
+  MouseEventHandler,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { AuthenticatedActionButton, Button } from "./ui/button";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -111,8 +118,12 @@ export const PointCard = ({
   }, [isNegation, parentPoint, restake]);
 
   const doubtPercentage = useMemo(() => {
-
-    if (!isNegation || !totalRestakeAmount || !doubt?.amount || !doubt.isUserDoubt) {
+    if (
+      !isNegation ||
+      !totalRestakeAmount ||
+      !doubt?.amount ||
+      !doubt.isUserDoubt
+    ) {
       return 0;
     }
 
@@ -142,7 +153,9 @@ export const PointCard = ({
     isVisited(pointId).then((result) => {
       if (isMounted) setVisited(result);
     });
-    return () => { isMounted = false };
+    return () => {
+      isMounted = false;
+    };
   }, [isVisited, pointId]);
 
   return (
@@ -159,24 +172,15 @@ export const PointCard = ({
       {...props}
     >
       <div className="flex flex-col flex-grow">
-        <div className="flex justify-between items-start">
-          <p className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg mb-xs -mt-1 select-text max-w-[calc(100%-4rem)] flex-1">
-            {content}
-          </p>
-          <div className="flex items-center gap-2">
-            {visited === true && (
-              <CheckIcon className="size-4 text-muted-foreground/80 translate-y-[1px] ml-2" />
-            )}
-            {space && (
-              <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
-                [{space}]
-              </span>
-            )}
-          </div>
-        </div>
+        <p className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg -mt-1 mb-sm  select-text flex-1">
+          {content}
+          {visited === true && (
+            <CheckIcon className="inline size-4 text-muted-foreground/80 ml-2" />
+          )}
+        </p>
 
         <PointStats
-          className="mb-md select-text"
+          className="mb-md  select-text"
           amountNegations={amountNegations}
           amountSupporters={amountSupporters}
           favor={favor}
@@ -280,8 +284,8 @@ export const PointCard = ({
                       "size-5 stroke-1",
                       "text-muted-foreground hover:text-foreground transition-colors",
                       showRestakeAmount &&
-                      restake?.isOwner &&
-                      "text-endorsed fill-current"
+                        restake?.isOwner &&
+                        "text-endorsed fill-current"
                     )}
                     showPercentage={showRestakeAmount && restake?.isOwner}
                     percentage={restakePercentage}
@@ -295,9 +299,9 @@ export const PointCard = ({
                   className={cn(
                     "p-1 -mb-2 rounded-full size-fit hover:bg-muted/30",
                     doubt?.amount !== undefined &&
-                    doubt.amount > 0 &&
-                    doubt.isUserDoubt &&
-                    "text-endorsed"
+                      doubt.amount > 0 &&
+                      doubt.isUserDoubt &&
+                      "text-endorsed"
                   )}
                   onClick={(e) => {
                     e.preventDefault();
@@ -312,9 +316,9 @@ export const PointCard = ({
                         "size-5 stroke-1",
                         "text-muted-foreground hover:text-foreground transition-colors",
                         doubt?.amount !== undefined &&
-                        doubt.amount > 0 &&
-                        doubt.isUserDoubt &&
-                        "text-endorsed fill-current"
+                          doubt.amount > 0 &&
+                          doubt.isUserDoubt &&
+                          "text-endorsed fill-current"
                       )}
                       isFilled={
                         doubt?.amount !== undefined &&
