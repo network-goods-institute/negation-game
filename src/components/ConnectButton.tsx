@@ -14,7 +14,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@radix-ui/react-dropdown-menu";
-import { LoaderCircleIcon, CoinsIcon, UserIcon } from "lucide-react";
+import { LoaderCircleIcon, CoinsIcon, UserIcon, LogOutIcon } from "lucide-react";
 import { useState } from "react";
 import { EarningsDialog } from "@/components/EarningsDialog";
 import Link from "next/link";
@@ -90,7 +90,10 @@ export const ConnectButton = () => {
               <CoinsIcon className="size-4" />
               Collect Earnings
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={logout}>Sign out</DropdownMenuItem>
+            <DropdownMenuItem onClick={logout} className="gap-2">
+              <LogOutIcon className="size-4" />
+              Sign out
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 

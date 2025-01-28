@@ -16,15 +16,17 @@ import { useSpace } from "@/queries/useSpace";
 import { usePrivy } from "@privy-io/react-auth";
 import { useToggle } from "@uidotdev/usehooks";
 import { useSetAtom } from "jotai";
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, TrophyIcon } from "lucide-react";
 import Link from "next/link";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
+import { LeaderboardDialog } from "@/components/LeaderboardDialog";
 
 export default function Home() {
   const { user, login } = usePrivy();
   const [makePointOpen, onMakePointOpenChange] = useToggle(false);
   const basePath = useBasePath();
   const space = useSpace();
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
 
   const loginOrMakePoint = useCallback(
     () => (user !== null ? onMakePointOpenChange(true) : login()),
@@ -103,18 +105,34 @@ export default function Home() {
           </>
         )}
       </div>
-      <Button
-        className="fixed bottom-md right-sm sm:right-md rounded-full p-3 h-fit sm:px-4"
-        onClick={loginOrMakePoint}
-      >
-        <PlusIcon className="inline align-baseline" />
-        <span className="hidden  sm:block ml-sm">Make a Point</span>
-      </Button>
+      <div className="fixed bottom-md right-sm sm:right-md flex flex-col items-end gap-2">
+        <Button
+          className="rounded-full p-3 h-fit sm:px-4 order-2"
+          onClick={loginOrMakePoint}
+        >
+          <PlusIcon className="inline align-baseline" />
+          <span className="hidden sm:block ml-sm">Make a Point</span>
+        </Button>
+
+        <Button
+          variant="ghost"
+          className="rounded-full p-3 h-fit sm:px-4 order-1"
+          onClick={() => setLeaderboardOpen(true)}
+        >
+          <TrophyIcon className="size-6 stroke-1" />
+          <span className="hidden sm:block ml-sm">Leaderboard</span>
+        </Button>
+      </div>
 
       <NegateDialog />
       <MakePointDialog
         open={makePointOpen}
         onOpenChange={onMakePointOpenChange}
+      />
+      <LeaderboardDialog
+        open={leaderboardOpen}
+        onOpenChange={setLeaderboardOpen}
+        space={space.data?.id || "global"}
       />
     </main>
   );
