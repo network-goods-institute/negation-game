@@ -17,7 +17,7 @@ import { useEndorse } from "@/mutations/useEndorse";
 import { usePrivy } from "@privy-io/react-auth";
 import { useToggle } from "@uidotdev/usehooks";
 import { useAtom } from "jotai";
-import { HTMLAttributes, MouseEventHandler, useCallback, useMemo } from "react";
+import { HTMLAttributes, MouseEventHandler, useCallback, useMemo, useState, useEffect } from "react";
 import { AuthenticatedActionButton, Button } from "./ui/button";
 import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 import { CheckIcon } from "lucide-react";
@@ -99,8 +99,8 @@ export const PointCard = ({
     resetWhen: !endorsePopoverOpen,
   });
   const prefetchRestakeData = usePrefetchRestakeData();
-  const { visitedPoints } = useVisitedPoints();
-  const isVisited = visitedPoints.has(pointId);
+  const { isVisited } = useVisitedPoints();
+  const [visited, setVisited] = useState<boolean | null>(null);
 
   const [restakePercentage, isOverHundred] = useMemo(() => {
     if (!isNegation || !parentPoint || !restake?.amount || !restake.isOwner)
@@ -137,6 +137,14 @@ export const PointCard = ({
     return restake.amount > 0;
   }, [restake]);
 
+  useEffect(() => {
+    let isMounted = true;
+    isVisited(pointId).then((result) => {
+      if (isMounted) setVisited(result);
+    });
+    return () => { isMounted = false };
+  }, [isVisited, pointId]);
+
   return (
     <div
       className={cn(
@@ -152,12 +160,12 @@ export const PointCard = ({
     >
       <div className="flex flex-col flex-grow">
         <div className="flex justify-between items-start">
-          <p className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg mb-xs -mt-1 select-text">
+          <p className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg mb-xs -mt-1 select-text max-w-[calc(100%-4rem)] flex-1">
             {content}
           </p>
           <div className="flex items-center gap-2">
-            {isVisited && (
-              <CheckIcon className="size-4 text-muted-foreground/80 translate-y-[1px]" />
+            {visited === true && (
+              <CheckIcon className="size-4 text-muted-foreground/80 translate-y-[1px] ml-2" />
             )}
             {space && (
               <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
