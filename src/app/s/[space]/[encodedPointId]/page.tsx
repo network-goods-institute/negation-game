@@ -50,7 +50,7 @@ import {
   Repeat2Icon,
 } from "lucide-react";
 import Link from "next/link";
-import { notFound, useRouter } from "next/navigation";
+import { notFound, useRouter, useSearchParams } from "next/navigation";
 import { Fragment, use, useEffect, useState } from "react";
 import {
   Dot,
@@ -66,6 +66,7 @@ import { usePointData } from "../../../../queries/usePointData";
 import { SelectNegationDialog } from "@/components/SelectNegationDialog";
 import { RestakeDialog } from "@/components/RestakeDialog";
 import { usePrefetchPoint } from "@/queries/usePointData";
+import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 
 type Point = {
   id: number;
@@ -139,6 +140,7 @@ export default function PointPage({
   });
 
   const { back, push } = useRouter();
+  const searchParams = useSearchParams();
 
   const counterpointSuggestions = useCounterpointSuggestions(point?.pointId);
 
@@ -151,6 +153,18 @@ export default function PointPage({
   } | null>(null);
 
   const prefetchPoint = usePrefetchPoint();
+
+  const { markPointAsRead } = useVisitedPoints();
+
+  useEffect(() => {
+    if (pointId) {
+      markPointAsRead(pointId);
+    }
+  }, [pointId, markPointAsRead]);
+
+  useEffect(() => {
+    setCanvasEnabled(searchParams.get('view') === 'graph');
+  }, [searchParams, setCanvasEnabled]);
 
   // If Privy isn't ready yet, show loading state
   if (!ready) {
@@ -226,7 +240,16 @@ export default function PointPage({
                   size={"icon"}
                   variant={canvasEnabled ? "default" : "outline"}
                   className="rounded-full p-2 size-9"
-                  onClick={() => setCanvasEnabled(!canvasEnabled)}
+                  onClick={() => {
+                    const newParams = new URLSearchParams(searchParams.toString());
+                    if (!canvasEnabled) {
+                      newParams.set('view', 'graph');
+                    } else {
+                      newParams.delete('view'); // eslint-disable-line drizzle/enforce-delete-with-where
+                    }
+                    push(`?${newParams.toString()}`);
+                    setCanvasEnabled(!canvasEnabled);
+                  }}
                 >
                   <NetworkIcon className="" />
                 </Button>
@@ -543,7 +566,12 @@ export default function PointPage({
           closeButtonClassName="md:hidden"
           className="!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset]  !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md: !z-10 md:z-auto"
           rootPointId={pointId}
-          onClose={() => setCanvasEnabled(false)}
+          onClose={() => {
+            const newParams = new URLSearchParams(searchParams.toString());
+            newParams.delete('view'); // eslint-disable-line drizzle/enforce-delete-with-where
+            push(`?${newParams.toString()}`);
+            setCanvasEnabled(false);
+          }}
         />
       )}
 

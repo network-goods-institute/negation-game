@@ -19,6 +19,8 @@ import { useToggle } from "@uidotdev/usehooks";
 import { useAtom } from "jotai";
 import { HTMLAttributes, MouseEventHandler, useCallback, useMemo } from "react";
 import { AuthenticatedActionButton, Button } from "./ui/button";
+import { useVisitedPoints } from "@/hooks/useVisitedPoints";
+import { CheckIcon } from "lucide-react";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -97,6 +99,8 @@ export const PointCard = ({
     resetWhen: !endorsePopoverOpen,
   });
   const prefetchRestakeData = usePrefetchRestakeData();
+  const { visitedPoints } = useVisitedPoints();
+  const isVisited = visitedPoints.has(pointId);
 
   const [restakePercentage, isOverHundred] = useMemo(() => {
     if (!isNegation || !parentPoint || !restake?.amount || !restake.isOwner)
@@ -151,11 +155,16 @@ export const PointCard = ({
           <p className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg mb-xs -mt-1 select-text">
             {content}
           </p>
-          {space && (
-            <span className="text-xs text-muted-foreground ml-2 whitespace-nowrap shrink-0">
-              [{space}]
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {isVisited && (
+              <CheckIcon className="size-4 text-muted-foreground/80 translate-y-[1px]" />
+            )}
+            {space && (
+              <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
+                [{space}]
+              </span>
+            )}
+          </div>
         </div>
 
         <PointStats

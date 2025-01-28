@@ -7,7 +7,7 @@ export const canvasEnabledAtom = atom(
   (_get, set, newValue: boolean) => {
     set(hoveredPointIdAtom, undefined);
     set(primitiveCanvasEnabledAtom, newValue);
-  },
+  }
 );
 
 const primitiveCanvasEnabledAtom = atomWithStorage("canvasEnabled", false);
