@@ -41,6 +41,7 @@ export const negate = async ({
         cred,
         pointId: counterpointId,
         userId,
+        space,
       });
     }
 
