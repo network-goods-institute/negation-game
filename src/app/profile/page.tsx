@@ -13,6 +13,7 @@ import { ArrowLeftIcon, ArrowDownIcon } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { ConnectButton } from "@/components/ConnectButton";
 import { useState } from "react";
+import { useProfilePoints } from "@/queries/useProfilePoints";
 
 export default function ProfilePage() {
     const { user: privyUser, ready, login } = usePrivy();
@@ -22,6 +23,7 @@ export default function ProfilePage() {
     const basePath = useBasePath();
     const [isTimelineAscending, setIsTimelineAscending] = useState(false);
     const [isEndorsementsAscending, setIsEndorsementsAscending] = useState(false);
+    const { data: profilePoints } = useProfilePoints();
 
     if (!ready || isLoadingPoints) {
         return (
@@ -66,19 +68,32 @@ export default function ProfilePage() {
 
     if (!user || !points) return null;
 
-    const myPoints = points.filter(point => point.createdBy === privyUser?.id);
+    const myPoints = profilePoints || [];
     const endorsedPoints = points.filter(point => point.viewerCred && point.viewerCred > 0);
 
-    const spaces = Array.from(new Set(myPoints.map(p => p.space))).filter(Boolean) as string[];
+    const spaces = Array.from(
+        new Set(
+            myPoints.map(p => p.space)
+        )
+    ).filter(space => space !== null && space !== undefined) as string[];
+
     const pointsBySpace = spaces.map(space => ({
         space,
         points: myPoints.filter(p => p.space === space)
     }));
 
-    const generalPoints = myPoints.filter(p => !p.space);
-    if (generalPoints.length > 0) {
-        pointsBySpace.push({ space: "General", points: generalPoints });
+    if (myPoints.some(p => !p.space)) {
+        pointsBySpace.push({
+            space: "General",
+            points: myPoints.filter(p => !p.space)
+        });
     }
+
+    pointsBySpace.sort((a, b) => {
+        if (a.space === "global") return -1;
+        if (b.space === "global") return 1;
+        return a.space.localeCompare(b.space);
+    });
 
     return (
         <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow bg-background">
@@ -109,19 +124,18 @@ export default function ProfilePage() {
                         </div>
                     </div>
 
-                    <Tabs defaultValue="overview" className="w-full">
+                    <Tabs defaultValue="profile" className="w-full">
                         <TabsList>
-                            <TabsTrigger value="overview">Overview</TabsTrigger>
-                            <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                            <TabsTrigger value="profile">Profile</TabsTrigger>
                             <TabsTrigger value="endorsements">Endorsements</TabsTrigger>
                             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value="overview" className="mt-4">
-                            <div className="grid gap-4">
+                        <TabsContent value="profile" className="mt-4">
+                            <div className="space-y-6">
                                 <div className="p-4 border rounded-lg">
                                     <h3 className="font-medium mb-2">Stats</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 px-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div className="p-4 border rounded-lg text-center md:text-left">
                                             <p className="text-xs md:text-sm text-muted-foreground mb-1">Points Created</p>
                                             <p className="text-xl md:text-2xl font-medium">{myPoints.length}</p>
@@ -138,54 +152,52 @@ export default function ProfilePage() {
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        </TabsContent>
 
-                        <TabsContent value="timeline">
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-end">
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setIsTimelineAscending(!isTimelineAscending)}
-                                        className="text-muted-foreground gap-1"
-                                    >
-                                        {isTimelineAscending ? 'Oldest First' : 'Newest First'}
-                                        <ArrowDownIcon className={`size-4 transition-transform ${isTimelineAscending ? 'rotate-180' : ''}`} />
-                                    </Button>
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-end">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setIsTimelineAscending(!isTimelineAscending)}
+                                            className="text-muted-foreground gap-1"
+                                        >
+                                            {isTimelineAscending ? 'Oldest First' : 'Newest First'}
+                                            <ArrowDownIcon className={`size-4 transition-transform ${isTimelineAscending ? 'rotate-180' : ''}`} />
+                                        </Button>
+                                    </div>
+                                    {myPoints.length === 0 ? (
+                                        <p className="text-muted-foreground text-center py-8">
+                                            No points created yet
+                                        </p>
+                                    ) : (
+                                        [...myPoints]
+                                            .sort((a, b) =>
+                                                isTimelineAscending
+                                                    ? a.createdAt.getTime() - b.createdAt.getTime()
+                                                    : b.createdAt.getTime() - a.createdAt.getTime()
+                                            )
+                                            .map((point) => (
+                                                <Link
+                                                    key={point.pointId}
+                                                    href={`${basePath}/${encodeId(point.pointId)}`}
+                                                    className="flex border-b cursor-pointer hover:bg-accent"
+                                                >
+                                                    <PointCard
+                                                        className="flex-grow"
+                                                        pointId={point.pointId}
+                                                        content={point.content}
+                                                        createdAt={point.createdAt}
+                                                        cred={point.cred}
+                                                        favor={point.favor}
+                                                        amountSupporters={point.amountSupporters}
+                                                        amountNegations={point.amountNegations}
+                                                        viewerContext={{ viewerCred: point.viewerCred }}
+                                                        space={point.space ?? undefined}
+                                                    />
+                                                </Link>
+                                            ))
+                                    )}
                                 </div>
-                                {myPoints.length === 0 ? (
-                                    <p className="text-muted-foreground text-center py-8">
-                                        No points created yet
-                                    </p>
-                                ) : (
-                                    [...myPoints]
-                                        .sort((a, b) =>
-                                            isTimelineAscending
-                                                ? a.createdAt.getTime() - b.createdAt.getTime()
-                                                : b.createdAt.getTime() - a.createdAt.getTime()
-                                        )
-                                        .map((point) => (
-                                            <Link
-                                                key={point.pointId}
-                                                href={`${basePath}/${encodeId(point.pointId)}`}
-                                                className="flex border-b cursor-pointer hover:bg-accent"
-                                            >
-                                                <PointCard
-                                                    className="flex-grow"
-                                                    pointId={point.pointId}
-                                                    content={point.content}
-                                                    createdAt={point.createdAt}
-                                                    cred={point.cred}
-                                                    favor={point.favor}
-                                                    amountSupporters={point.amountSupporters}
-                                                    amountNegations={point.amountNegations}
-                                                    viewerContext={{ viewerCred: point.viewerCred }}
-                                                    space={point.space ?? undefined}
-                                                />
-                                            </Link>
-                                        ))
-                                )}
                             </div>
                         </TabsContent>
 
@@ -239,45 +251,35 @@ export default function ProfilePage() {
 
                         <TabsContent value="dashboard">
                             <div className="space-y-6">
-                                <div className="space-y-4">
-                                    <h3 className="text-lg font-medium">Points by Space</h3>
-
-                                    {pointsBySpace.length === 0 ? (
-                                        <p className="text-muted-foreground text-center py-8">
-                                            No points across spaces
-                                        </p>
-                                    ) : (
-                                        pointsBySpace.map(({ space, points }) => (
-                                            <div key={space} className="space-y-4">
-                                                <div className="bg-muted/30 p-3 rounded-lg">
-                                                    <h4 className="font-medium text-sm uppercase tracking-wider text-muted-foreground">
-                                                        {space}
-                                                    </h4>
-                                                </div>
-                                                {points.map((point) => (
-                                                    <Link
-                                                        key={point.pointId}
-                                                        href={`${basePath}/${encodeId(point.pointId)}`}
-                                                        className="flex border-b cursor-pointer hover:bg-accent"
-                                                    >
-                                                        <PointCard
-                                                            className="flex-grow"
-                                                            pointId={point.pointId}
-                                                            content={point.content}
-                                                            createdAt={point.createdAt}
-                                                            cred={point.cred}
-                                                            favor={point.favor}
-                                                            amountSupporters={point.amountSupporters}
-                                                            amountNegations={point.amountNegations}
-                                                            viewerContext={{ viewerCred: point.viewerCred }}
-                                                            space={point.space ?? undefined}
-                                                        />
-                                                    </Link>
-                                                ))}
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
+                                {pointsBySpace.map(({ space, points }) => (
+                                    <div key={space} className="space-y-4">
+                                        <div className="bg-muted/30 p-3 rounded-lg">
+                                            <h4 className="font-medium text-sm uppercase tracking-wider text-muted-foreground">
+                                                {space === "General" ? "General" : `s/${space}`}
+                                            </h4>
+                                        </div>
+                                        {points.map((point) => (
+                                            <Link
+                                                key={point.pointId}
+                                                href={`${basePath}/${encodeId(point.pointId)}`}
+                                                className="flex border-b cursor-pointer hover:bg-accent"
+                                            >
+                                                <PointCard
+                                                    className="flex-grow"
+                                                    pointId={point.pointId}
+                                                    content={point.content}
+                                                    createdAt={point.createdAt}
+                                                    cred={point.cred}
+                                                    favor={point.favor}
+                                                    amountSupporters={point.amountSupporters}
+                                                    amountNegations={point.amountNegations}
+                                                    viewerContext={{ viewerCred: point.viewerCred }}
+                                                    space={point.space ?? undefined}
+                                                />
+                                            </Link>
+                                        ))}
+                                    </div>
+                                ))}
                             </div>
                         </TabsContent>
                     </Tabs>

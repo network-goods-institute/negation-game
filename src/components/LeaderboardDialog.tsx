@@ -5,6 +5,7 @@ import { useFeed } from "@/queries/useFeed";
 import { useAllUsers } from "@/queries/useAllUsers";
 import { TrophyIcon } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useUser } from "@/queries/useUser";
 
 export const LeaderboardDialog = ({
     open,
@@ -17,6 +18,7 @@ export const LeaderboardDialog = ({
 }) => {
     const { data: feed } = useFeed();
     const { data: allUsers } = useAllUsers();
+    const { data: user } = useUser();
     const [sortBy, setSortBy] = useState<"points" | "cred">("points");
     const [sortDescending, setSortDescending] = useState(true);
 
@@ -31,13 +33,11 @@ export const LeaderboardDialog = ({
             return acc;
         }, {} as Record<string, number>);
 
-        // Merge with user data and filter
-        return allUsers
-            .map(user => ({
-                ...user,
-                points: pointsCount[user.id] || 0
-            }))
-            .filter(user => user.points > 0);
+        // Merge with user data - include all users
+        return allUsers.map(user => ({
+            ...user,
+            points: pointsCount[user.id] || 0
+        }));
 
     }, [feed, allUsers, space]);
 
@@ -46,6 +46,15 @@ export const LeaderboardDialog = ({
         const valueB = (sortBy === "points" ? b.points : b.cred) || 0;
         return sortDescending ? valueB - valueA : valueA - valueB;
     });
+
+    // Find current user's index in the sorted list
+    const currentUserIndex = useMemo(() => {
+        if (!user || !sortedUsers) return -1;
+        return sortedUsers.findIndex(u => u.id === user.id);
+    }, [user, sortedUsers]);
+
+    // Get current user's actual rank (index + 1)
+    const currentUserRank = currentUserIndex + 1;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -95,10 +104,37 @@ export const LeaderboardDialog = ({
                                         </tr>
                                     </thead>
                                     <tbody>
+                                        {/* Current user row at top */}
+                                        {currentUserIndex >= 0 && (
+                                            <tr className="bg-muted/30 border-y-2 border-primary/20">
+                                                <td className="py-3 pl-4 pr-2">{currentUserRank}</td>
+                                                <td className="py-3 px-2 font-medium flex items-center gap-2">
+                                                    {sortedUsers[currentUserIndex].username}
+                                                    <span className="text-xs text-primary px-2 py-1 rounded-full bg-primary/10">
+                                                        You
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-2">{sortedUsers[currentUserIndex].points}</td>
+                                                <td className="py-3 pr-6">{sortedUsers[currentUserIndex].cred}</td>
+                                            </tr>
+                                        )}
+
+                                        {/* Regular leaderboard */}
                                         {sortedUsers.map((user, index) => (
                                             <tr key={user.id} className="border-t">
                                                 <td className="py-3 pl-4 pr-2">{index + 1}</td>
-                                                <td className="py-3 px-2 font-medium">{user.username}</td>
+                                                <td className="py-3 px-2 font-medium">
+                                                    {user.id === sortedUsers[currentUserIndex]?.id ? (
+                                                        <span className="flex items-center gap-2">
+                                                            {user.username}
+                                                            <span className="text-xs text-primary px-2 py-1 rounded-full bg-primary/10">
+                                                                You
+                                                            </span>
+                                                        </span>
+                                                    ) : (
+                                                        user.username
+                                                    )}
+                                                </td>
                                                 <td className="py-3 px-2">{user.points}</td>
                                                 <td className="py-3 pr-6">{user.cred}</td>
                                             </tr>
