@@ -294,24 +294,40 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
         return;
       }
 
+      // For doubts, also check against user's available cred
+      if (openedFromSlashedIcon && values[0] > (user?.cred ?? 0)) {
+        return;
+      }
+
       const newStakedCred = Math.floor(values[0]);
       setStakedCred(newStakedCred);
       setIsSlashing(
         openedFromSlashedIcon ? false : newStakedCred < currentlyStaked,
       );
     },
-    [currentlyStaked, openedFromSlashedIcon, existingDoubt],
+    [currentlyStaked, openedFromSlashedIcon, existingDoubt, user?.cred],
   );
 
-  // For doubts, use raw restake amount as max
+  // For doubts, use minimum of total restake amount and user's available cred
   const maxStakeAmount = useMemo(() => {
     if (openedFromSlashedIcon) {
-      // For doubts, use total restake amount as max
-      return existingRestake?.totalRestakeAmount ?? 0;
+      // For doubts, use minimum of:
+      // 1. Total restake amount
+      // 2. User's available cred + existing doubt amount
+      return Math.min(
+        existingRestake?.totalRestakeAmount ?? 0,
+        (user?.cred ?? 0) + (existingDoubt?.userAmount ?? 0)
+      );
     }
-    // For restakes, use viewer's endorsement amount
+    // For restakes, use viewer's endorsement amount only
     return originalPoint.viewerCred ?? 0;
-  }, [openedFromSlashedIcon, existingRestake, originalPoint.viewerCred]);
+  }, [
+    openedFromSlashedIcon,
+    existingRestake,
+    originalPoint.viewerCred,
+    user?.cred,
+    existingDoubt?.userAmount
+  ]);
 
   // For doubts, start from existing doubt amount (if any)
   const initialStakeAmount = useMemo(() => {
@@ -469,14 +485,13 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
   // Add info message when hitting cred limit
   const showCredLimitMessage =
-    stakedCred === user?.cred &&
+    openedFromSlashedIcon && // Only show for doubts
+    stakedCred === ((user?.cred ?? 0) + (existingDoubt?.userAmount ?? 0)) &&
     stakedCred <
-    (openedFromSlashedIcon
-      ? Math.min(
-        originalPoint.stakedAmount || 0,
-        Number(existingRestake?.amount ?? 0),
-      )
-      : originalPoint.viewerCred || 0);
+    Math.min(
+      originalPoint.stakedAmount || 0,
+      Number(existingRestake?.amount ?? 0),
+    );
 
   if ((originalPoint.viewerCred || 0) === 0 && !openedFromSlashedIcon) {
     return (
