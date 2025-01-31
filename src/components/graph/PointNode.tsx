@@ -1,8 +1,14 @@
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { PointCard } from "@/components/PointCard";
+import { useEditMode } from "@/components/graph/EditModeContext";
+import { useOriginalPoster } from "@/components/graph/OriginalPosterContext";
 import { cn } from "@/lib/cn";
 import { usePointData, usePrefetchPoint } from "@/queries/usePointData";
+import {
+  usePrefetchUserEndorsements,
+  useUserEndorsement,
+} from "@/queries/useUserEndorsements";
 import {
   Handle,
   Node,
@@ -22,7 +28,7 @@ import { find } from "remeda";
 
 export type PointNodeData = {
   pointId: number;
-  parentId?: number;
+  parentId?: string;
   expandOnInit?: boolean;
 };
 
@@ -40,10 +46,15 @@ export const PointNode = ({
 }: PointNodeProps) => {
   const [hoveredPoint, setHoveredPoint] = useAtom(hoveredPointIdAtom);
   const [shouldExpandOnInit, setShouldExpandOnInit] = useState(
-    expandOnInit ?? false,
+    expandOnInit ?? false
   );
   const incomingConnections = useHandleConnections({
     type: "target",
+    nodeId: id,
+  });
+
+  const outgoingConnections = useHandleConnections({
+    type: "source",
     nodeId: id,
   });
 
@@ -68,7 +79,7 @@ export const PointNode = ({
   const isRedundant = useMemo(() => {
     const firstOccurence = find(
       getNodes().filter((node): node is PointNode => node.type === "point"),
-      (node) => node.data.pointId === pointId,
+      (node) => node.data.pointId === pointId
     );
 
     return firstOccurence ? firstOccurence.id !== id : false;
@@ -79,14 +90,34 @@ export const PointNode = ({
   }, [id, incomingConnections.length, updateNodeInternals]);
 
   const prefetchPoint = usePrefetchPoint();
+  const prefetchUserEndorsements = usePrefetchUserEndorsements();
+
   const { isLoading, data: pointData } = usePointData(pointId);
+  const { originalPosterId } = useOriginalPoster();
+  const { data: opCred } = useUserEndorsement(originalPosterId, pointId);
+
+  const endorsedByOp = opCred && opCred > 0;
 
   useEffect(() => {
     if (!pointData) return;
     pointData.negationIds
-      .filter((id) => id !== parentId)
-      .forEach((negationId) => prefetchPoint(negationId));
-  }, [pointData?.negationIds, parentId, pointData, prefetchPoint]);
+      .filter((id) => id !== Number(parentId))
+      .forEach((negationId) => {
+        prefetchPoint(negationId);
+        originalPosterId &&
+          prefetchUserEndorsements(originalPosterId, negationId);
+      });
+  }, [
+    pointData?.negationIds,
+    parentId,
+    pointData,
+    prefetchPoint,
+    originalPosterId,
+    prefetchUserEndorsements,
+  ]);
+
+  const isAddressingStatement = parentId === "statement";
+  const editMode = useEditMode();
 
   const expandNegations = useCallback(() => {
     if (!pointData) return;
@@ -147,7 +178,7 @@ export const PointNode = ({
   const collapsedNegations = pointData
     ? pointData.amountNegations -
       incomingConnections.length -
-      (parentId ? 1 : 0)
+      outgoingConnections.filter((c) => c.target !== "statement").length
     : 0;
 
   const collapseSelfAndNegations = useCallback(async () => {
@@ -168,7 +199,7 @@ export const PointNode = ({
     };
 
     await removeNestedNegations(id).then(() =>
-      deleteElements({ nodes: [{ id }] }),
+      deleteElements({ nodes: [{ id }] })
     );
   }, [deleteElements, getHandleConnections, id]);
 
@@ -177,7 +208,8 @@ export const PointNode = ({
       data-loading={isLoading}
       className={cn(
         "relative bg-background rounded-md border-2 min-h-28 w-64",
-        hoveredPoint === pointId && "border-primary",
+        endorsedByOp && "border-yellow-500",
+        hoveredPoint === pointId && "border-primary"
       )}
       onMouseOver={() => setHoveredPoint(pointId)}
       onMouseLeave={() => setHoveredPoint(undefined)}
@@ -205,8 +237,16 @@ export const PointNode = ({
           id={`${id}-outgoing-handle`}
           type="source"
           position={Position.Top}
-          className="-z-10 pt-1 pb-0.5 px-2 translate-y-[-100%]  -translate-x-1/2  size-fit bg-muted text-center border-2 border-b-0 rounded-t-full pointer-events-auto !cursor-pointer"
-          onClick={collapseSelfAndNegations}
+          className={
+            isAddressingStatement && !editMode
+              ? "invisible"
+              : "-z-10 pt-1 pb-0.5 px-2 translate-y-[-100%]  -translate-x-1/2  size-fit bg-muted text-center border-2 border-b-0 rounded-t-full pointer-events-auto !cursor-pointer"
+          }
+          onClick={
+            isAddressingStatement && !editMode
+              ? undefined
+              : collapseSelfAndNegations
+          }
         >
           <XIcon className="size-4" />
         </Handle>
@@ -225,9 +265,10 @@ export const PointNode = ({
             viewerContext={{ viewerCred: pointData.viewerCred }}
             className={cn(
               "bg-muted/40 rounded-sm z-10",
-              isRedundant && "opacity-30 hover:opacity-100",
+              isRedundant && "opacity-30 hover:opacity-100"
             )}
-          />
+            originalPosterId={originalPosterId}
+          ></PointCard>
         </>
       ) : (
         <div className="w-full flex-grow h-32 bg-muted/40 animate-pulse" />

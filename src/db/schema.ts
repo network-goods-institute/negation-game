@@ -3,24 +3,25 @@ export { embeddingsTable } from "@/db/tables/embeddingsTable";
 export { endorsementsTable } from "@/db/tables/endorsementsTable";
 export { negationsTable } from "@/db/tables/negationsTable";
 export { pointsTable } from "@/db/tables/pointsTable";
-export { usersTable } from "@/db/tables/usersTable";
-export { spacesTable } from "@/db/tables/spacesTable";
 export {
-  restakesTable,
-  restakeHistoryTable,
   restakeActionEnum,
+  restakeHistoryTable,
+  restakesTable,
 } from "@/db/tables/restakesTable";
+export { spacesTable } from "@/db/tables/spacesTable";
+export { usersTable } from "@/db/tables/usersTable";
+export { viewpointsTable } from "@/db/tables/viewpointsTable";
 
 export {
-  slashesTable,
-  slashHistoryTable,
   slashActionEnum,
+  slashHistoryTable,
+  slashesTable,
 } from "@/db/tables/slashesTable";
 
 export {
-  doubtsTable,
-  doubtHistoryTable,
   doubtActionEnum,
+  doubtHistoryTable,
+  doubtsTable,
 } from "@/db/tables/doubtsTable";
 
 export { effectiveRestakesView } from "@/db/views/effectiveRestakesView";

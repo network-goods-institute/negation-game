@@ -6,12 +6,14 @@ import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { negationContentAtom } from "@/atoms/negationContentAtom";
 import { CredInput } from "@/components/CredInput";
-import { GraphView } from "@/components/graph/GraphView";
-import { EndorseIcon } from "@/components/icons/EndorseIcon";
-import { NegateIcon } from "@/components/icons/NegateIcon";
 import { NegateDialog } from "@/components/NegateDialog";
 import { PointCard } from "@/components/PointCard";
 import { PointStats } from "@/components/PointStats";
+import { RestakeDialog } from "@/components/RestakeDialog";
+import { SelectNegationDialog } from "@/components/SelectNegationDialog";
+import { GraphView } from "@/components/graph/GraphView";
+import { EndorseIcon } from "@/components/icons/EndorseIcon";
+import { NegateIcon } from "@/components/icons/NegateIcon";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
@@ -25,6 +27,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DEFAULT_SPACE, DEFAULT_TIMESCALE } from "@/constants/config";
 import { useBasePath } from "@/hooks/useBasePath";
 import { useCredInput } from "@/hooks/useCredInput";
+import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 import { cn } from "@/lib/cn";
 import { decodeId } from "@/lib/decodeId";
 import { encodeId } from "@/lib/encodeId";
@@ -33,12 +36,14 @@ import { TimelineScale, timelineScales } from "@/lib/timelineScale";
 import { useEndorse } from "@/mutations/useEndorse";
 import { useCounterpointSuggestions } from "@/queries/useCounterpointSuggestions";
 import { useFavorHistory } from "@/queries/useFavorHistory";
+import { usePrefetchPoint } from "@/queries/usePointData";
 import { usePointNegations } from "@/queries/usePointNegations";
 import { useSpace } from "@/queries/useSpace";
 import { useUser } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { AvatarImage } from "@radix-ui/react-avatar";
 import { useToggle } from "@uidotdev/usehooks";
+import { ReactFlowProvider } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
 import { useAtomCallback } from "jotai/utils";
 import {
@@ -46,12 +51,13 @@ import {
   CircleXIcon,
   DiscIcon,
   NetworkIcon,
-  SparklesIcon,
   Repeat2Icon,
+  SparklesIcon,
 } from "lucide-react";
+import { nanoid } from "nanoid";
 import Link from "next/link";
 import { notFound, useRouter, useSearchParams } from "next/navigation";
-import { Fragment, use, useEffect, useState } from "react";
+import { Fragment, use, useEffect, useMemo, useState } from "react";
 import {
   Dot,
   Line,
@@ -63,10 +69,6 @@ import {
   YAxis,
 } from "recharts";
 import { usePointData } from "../../../../queries/usePointData";
-import { SelectNegationDialog } from "@/components/SelectNegationDialog";
-import { RestakeDialog } from "@/components/RestakeDialog";
-import { usePrefetchPoint } from "@/queries/usePointData";
-import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 
 type Point = {
   id: number;
@@ -93,11 +95,23 @@ export default function PointPage({
   const setNegationContent = useAtomCallback(
     (_get, set, negatedPointId: number, content: string) => {
       set(negationContentAtom(negatedPointId), content);
-    },
+    }
   );
 
   const basePath = useBasePath();
   const space = useSpace();
+
+  const initialNodes = useMemo(
+    () => [
+      {
+        id: nanoid(),
+        position: { x: 100, y: 100 },
+        type: "point" as const,
+        data: { pointId, expandOnInit: true },
+      },
+    ],
+    [pointId]
+  );
 
   const { mutateAsync: endorse } = useEndorse();
 
@@ -163,7 +177,7 @@ export default function PointPage({
   }, [pointId, markPointAsRead]);
 
   useEffect(() => {
-    setCanvasEnabled(searchParams.get('view') === 'graph');
+    setCanvasEnabled(searchParams.get("view") === "graph");
   }, [searchParams, setCanvasEnabled]);
 
   // If Privy isn't ready yet, show loading state
@@ -241,11 +255,13 @@ export default function PointPage({
                   variant={canvasEnabled ? "default" : "outline"}
                   className="rounded-full p-2 size-9"
                   onClick={() => {
-                    const newParams = new URLSearchParams(searchParams.toString());
+                    const newParams = new URLSearchParams(
+                      searchParams.toString()
+                    );
                     if (!canvasEnabled) {
-                      newParams.set('view', 'graph');
+                      newParams.set("view", "graph");
                     } else {
-                      newParams.delete('view'); // eslint-disable-line drizzle/enforce-delete-with-where
+                      newParams.delete("view"); // eslint-disable-line drizzle/enforce-delete-with-where
                     }
                     push(`?${newParams.toString()}`);
                     setCanvasEnabled(!canvasEnabled);
@@ -267,7 +283,7 @@ export default function PointPage({
                       className={cn(
                         "p-2 rounded-full size-fit gap-sm hover:bg-endorsed/30",
                         endorsedByViewer && "text-endorsed",
-                        "@md/point:border @md/point:px-4",
+                        "@md/point:border @md/point:px-4"
                       )}
                       onClick={(e) => {
                         if (privyUser === null) {
@@ -282,7 +298,7 @@ export default function PointPage({
                       <EndorseIcon
                         className={cn(
                           "@md/point:hidden",
-                          endorsedByViewer && "fill-current",
+                          endorsedByViewer && "fill-current"
                         )}
                       />
                       <span className="hidden @md/point:inline">
@@ -322,7 +338,7 @@ export default function PointPage({
                   variant="ghost"
                   className={cn(
                     "p-2  rounded-full size-fit hover:bg-primary/30",
-                    "@md/point:border @md/point:px-4",
+                    "@md/point:border @md/point:px-4"
                   )}
                   onClick={() =>
                     privyUser !== null
@@ -374,7 +390,7 @@ export default function PointPage({
                       className="overflow-visible text-endorsed"
                       dot={({ key, ...dot }) =>
                         favorHistory &&
-                          dot.index === favorHistory.length - 1 ? (
+                        dot.index === favorHistory.length - 1 ? (
                           <Fragment key={key}>
                             <Dot
                               {...dot}
@@ -401,8 +417,8 @@ export default function PointPage({
                       labelFormatter={(timestamp: Date) =>
                         timestamp.toLocaleString()
                       }
-                    // position={{ y: 0 }}
-                    // offset={0}
+                      // position={{ y: 0 }}
+                      // offset={0}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -462,7 +478,7 @@ export default function PointPage({
                         href={`${basePath}/${encodeId(negation.pointId)}`}
                         key={negation.pointId}
                         className={cn(
-                          "flex cursor-pointer px-4 pt-5 pb-2 border-b hover:bg-accent data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]",
+                          "flex cursor-pointer px-4 pt-5 pb-2 border-b hover:bg-accent data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
                         )}
                         onMouseEnter={() => prefetchPoint(negation.pointId)}
                       >
@@ -562,17 +578,22 @@ export default function PointPage({
         )}
       </div>
       {canvasEnabled && (
-        <GraphView
-          closeButtonClassName="md:hidden"
-          className="!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset]  !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md: !z-10 md:z-auto"
-          rootPointId={pointId}
-          onClose={() => {
-            const newParams = new URLSearchParams(searchParams.toString());
-            newParams.delete('view'); // eslint-disable-line drizzle/enforce-delete-with-where
-            push(`?${newParams.toString()}`);
-            setCanvasEnabled(false);
-          }}
-        />
+        <ReactFlowProvider>
+          <GraphView
+            onInit={(reactFlow) => {
+              reactFlow.addNodes(initialNodes);
+            }}
+            closeButtonClassName="md:hidden"
+            className="!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset]  !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md: !z-10 md:z-auto"
+            rootPointId={pointId}
+            onClose={() => {
+              const newParams = new URLSearchParams(searchParams.toString());
+              newParams.delete("view"); // eslint-disable-line drizzle/enforce-delete-with-where
+              push(`?${newParams.toString()}`);
+              setCanvasEnabled(false);
+            }}
+          />
+        </ReactFlowProvider>
       )}
 
       <NegateDialog />

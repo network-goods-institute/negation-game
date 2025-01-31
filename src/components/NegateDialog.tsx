@@ -21,10 +21,11 @@ import {
 } from "@/components/ui/popover";
 import {
   GOOD_ENOUGH_POINT_RATING,
-  POINT_MAX_LENGHT,
-  POINT_MIN_LENGHT,
+  POINT_MAX_LENGTH,
+  POINT_MIN_LENGTH,
 } from "@/constants/config";
 import { useCredInput } from "@/hooks/useCredInput";
+import { useSubmitHotkey } from "@/hooks/useSubmitHotkey";
 import { cn } from "@/lib/cn";
 import { useAddCounterpoint } from "@/mutations/useAddCounterpoint";
 import { useEndorse } from "@/mutations/useEndorse";
@@ -47,16 +48,15 @@ import {
   TrashIcon,
 } from "lucide-react";
 import { FC, ReactNode, useCallback, useEffect, useState } from "react";
-import { useSubmitHotkey } from "@/hooks/useSubmitHotkey";
 
 export interface NegateDialogProps
-  extends Omit<DialogProps, "open" | "onOpenChange"> { }
+  extends Omit<DialogProps, "open" | "onOpenChange"> {}
 
 export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   const [negatedPointId, setNegatedPointId] = useAtom(negatedPointIdAtom);
   const { data: negatedPoint } = usePointData(negatedPointId);
   const [counterpointContent, setCounterpointContent] = useAtom(
-    negationContentAtom(negatedPoint?.pointId),
+    negationContentAtom(negatedPoint?.pointId)
   );
   const [reviewPopoverOpen, toggleReviewPopoverOpen] = useToggle(false);
   const {
@@ -73,7 +73,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
 
   const [guidanceNotes, setGuidanceNotes] = useState<ReactNode | undefined>(
-    undefined,
+    undefined
   );
 
   const isSubmitting = isNegating || isEndorsing || isAddingCounterpoint;
@@ -82,7 +82,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     | Awaited<ReturnType<typeof fetchCounterpointCandidatesAction>>[number]
     | undefined
   >(undefined);
-  const charactersLeft = POINT_MAX_LENGHT - counterpointContent.length;
+  const charactersLeft = POINT_MAX_LENGTH - counterpointContent.length;
 
   const queryClient = useQueryClient();
 
@@ -117,10 +117,10 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
           produce(reviewResults, (draft) => {
             draft.rating = 10;
             draft.suggestions = draft.suggestions.filter(
-              (suggestion) => suggestion !== selectedSuggestion,
+              (suggestion) => suggestion !== selectedSuggestion
             );
-          }),
-        ),
+          })
+        )
       );
 
       if (
@@ -134,11 +134,11 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   });
 
   const canReview =
-    charactersLeft >= 0 && counterpointContent.length >= POINT_MIN_LENGHT;
+    charactersLeft >= 0 && counterpointContent.length >= POINT_MIN_LENGTH;
 
   const canSubmit = selectedCounterpointCandidate?.isCounterpoint
     ? cred > 0
-    : charactersLeft >= 0 && counterpointContent.length >= POINT_MIN_LENGHT;
+    : charactersLeft >= 0 && counterpointContent.length >= POINT_MIN_LENGTH;
 
   const resetForm = useCallback(() => {
     selectCounterpointCandidate(undefined);
@@ -156,20 +156,20 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
 
     (selectedCounterpointCandidate === undefined
       ? addCounterpoint({
-        content: counterpointContent,
-        cred,
-        negatedPointId: negatedPoint!.pointId,
-      })
+          content: counterpointContent,
+          cred,
+          negatedPointId: negatedPoint!.pointId,
+        })
       : selectedCounterpointCandidate.isCounterpoint
         ? endorse({
-          pointId: selectedCounterpointCandidate.id,
-          cred,
-        })
+            pointId: selectedCounterpointCandidate.id,
+            cred,
+          })
         : negate({
-          negatedPointId: negatedPoint!.pointId,
-          counterpointId: selectedCounterpointCandidate.id,
-          cred,
-        })
+            negatedPointId: negatedPoint!.pointId,
+            counterpointId: selectedCounterpointCandidate.id,
+            cred,
+          })
     ).then(() => {
       queryClient.invalidateQueries({ queryKey: ["feed"] });
       resetForm();
@@ -255,7 +255,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                     "w-px -my-px flex-grow border-l border-muted-foreground",
                     (!selectedCounterpointCandidate ||
                       !selectedCounterpointCandidate.isCounterpoint) &&
-                    "border-dashed border-endorsed",
+                      "border-dashed border-endorsed"
                   )}
                 />
               </div>
@@ -273,7 +273,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                 className={cn(
                   "shrink-0 size-6 stroke-1 text-muted-foreground",
                   !selectedCounterpointCandidate &&
-                  "circle-dashed-2 text-endorsed",
+                    "circle-dashed-2 text-endorsed"
                 )}
               />
               {cred > 0 && (
@@ -325,6 +325,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                 setCred={setCred}
                 placeholder="Make your counterpoint"
                 guidanceNotes={guidanceNotes}
+                textareaClassName="-ml-2 -mt-2"
               />
             )}
           </div>
@@ -382,7 +383,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                             className="flex flex-col gap-2 p-4  hover:border-muted-foreground  w-full bg-background cursor-pointer border rounded-md"
                             onClick={() => {
                               selectCounterpointCandidate(
-                                counterpointCandidate,
+                                counterpointCandidate
                               );
                               toggleReviewPopoverOpen(false);
                             }}
@@ -401,7 +402,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                               cred={counterpointCandidate.cred}
                             />
                           </div>
-                        ),
+                        )
                       )}
 
                       <div className="flex items-center gap-2">
@@ -436,7 +437,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                             >
                               restore
                             </Button>
-                          </>,
+                          </>
                         );
                         setCounterpointContent(suggestion);
                         toggleReviewPopoverOpen(false);
@@ -472,7 +473,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                               dismiss
                             </Button>
                           </>
-                        ) : undefined,
+                        ) : undefined
                       );
                       selectCounterpointCandidate(undefined);
                       toggleReviewPopoverOpen(false);

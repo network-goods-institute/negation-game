@@ -9,22 +9,22 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { POINT_MAX_LENGHT, POINT_MIN_LENGHT } from "@/constants/config";
+import { POINT_MAX_LENGTH, POINT_MIN_LENGTH } from "@/constants/config";
 import { useCredInput } from "@/hooks/useCredInput";
+import { useSubmitHotkey } from "@/hooks/useSubmitHotkey";
 import { cn } from "@/lib/cn";
 import { useEndorse } from "@/mutations/useEndorse";
 import { useMakePoint } from "@/mutations/useMakePoint";
-import { useSimilarPoints } from "@/queries/useSimilarPoints";
 import { useImprovePoint } from "@/queries/useImprovePoint";
+import { useSimilarPoints } from "@/queries/useSimilarPoints";
 import { useUser } from "@/queries/useUser";
 import { DialogProps } from "@radix-ui/react-dialog";
 import { useDebounce } from "@uidotdev/usehooks";
 import { ArrowLeftIcon, BlendIcon, DiscIcon, Undo2Icon } from "lucide-react";
-import { FC, useEffect, useState, useCallback } from "react";
+import { FC, useCallback, useEffect, useState } from "react";
 import { IterableElement } from "type-fest";
-import { useSubmitHotkey } from "@/hooks/useSubmitHotkey";
 
-export interface MakePointDialogProps extends DialogProps { }
+export interface MakePointDialogProps extends DialogProps {}
 
 export const MakePointDialog: FC<MakePointDialogProps> = ({
   open,
@@ -45,14 +45,14 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
   >(undefined);
 
   const [editingSuggestion, setEditingSuggestion] = useState<string | null>(
-    null,
+    null
   );
   const [editedContents, setEditedContents] = useState<Map<string, string>>(
-    new Map(),
+    new Map()
   );
   const [suggestionSelected, setSuggestionSelected] = useState(false);
 
-  const charactersLeft = POINT_MAX_LENGHT - content.length;
+  const charactersLeft = POINT_MAX_LENGTH - content.length;
   const { data: user } = useUser();
   const debouncedContent = useDebounce(content, 500);
   const { data: similarPoints } = useSimilarPoints(debouncedContent);
@@ -66,7 +66,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
     enabled:
       !selectedPoint &&
       !suggestionSelected &&
-      debouncedContent.length >= POINT_MIN_LENGHT,
+      debouncedContent.length >= POINT_MIN_LENGTH,
   });
 
   const [improvementSuggestions, setImprovementSuggestions] = useState<
@@ -89,7 +89,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
     user.cred >= cred &&
     cred > 0 &&
     (selectedPoint ||
-      (charactersLeft >= 0 && content.length >= POINT_MIN_LENGHT));
+      (charactersLeft >= 0 && content.length >= POINT_MIN_LENGTH));
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -100,9 +100,9 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
     (selectedPoint
       ? endorse({ pointId: selectedPoint.pointId, cred })
       : makePoint({
-        content,
-        cred: cred,
-      })
+          content,
+          cred: cred,
+        })
     )
       .then(() => {
         onOpenChange?.(false);
@@ -150,7 +150,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
             <DiscIcon
               className={cn(
                 "size-6 text-muted-foreground stroke-1",
-                !selectedPoint && "text-endorsed",
+                !selectedPoint && "text-endorsed"
               )}
             />
             {cred > 0 && (
@@ -197,6 +197,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
               cred={cred}
               setCred={setCred}
               placeholder="Make your Point"
+              textareaClassName="-ml-2 -mt-2"
             />
           )}
         </div>
@@ -231,7 +232,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
         )}
 
         {!selectedPoint &&
-          content.length >= POINT_MIN_LENGHT &&
+          content.length >= POINT_MIN_LENGTH &&
           isLoadingImprovements && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
               <span className="size-2 bg-muted-foreground rounded-full animate-bounce" />
@@ -268,8 +269,8 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
                           setEditedContents((map) => {
                             const newMap = new Map(
                               Array.from(map).filter(
-                                ([key]) => key !== suggestion,
-                              ),
+                                ([key]) => key !== suggestion
+                              )
                             );
                             return newMap;
                           });
@@ -281,7 +282,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
                         size="sm"
                         onClick={() => {
                           setContent(
-                            editedContents.get(suggestion) ?? suggestion,
+                            editedContents.get(suggestion) ?? suggestion
                           );
                           setSuggestionSelected(true);
                           setEditingSuggestion(null);

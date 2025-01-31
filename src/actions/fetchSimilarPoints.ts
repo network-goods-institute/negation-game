@@ -13,6 +13,10 @@ import { openai } from "@ai-sdk/openai";
 import { embed } from "ai";
 import { and, cosineDistance, desc, eq, gt, sql } from "drizzle-orm";
 
+export type SimilarPointsResult = Awaited<
+  ReturnType<typeof fetchSimilarPoints>
+>[number];
+
 export const fetchSimilarPoints = async ({ query }: { query: string }) => {
   const space = await getSpace();
   const embedding = (

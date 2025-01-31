@@ -15,7 +15,7 @@ import { waitUntil } from "@vercel/functions";
 export const makePoint = async ({
   content,
   cred = 0,
-}: Omit<InsertPoint, "createdBy"> & Pick<InsertEndorsement, "cred">): Promise<
+}: Pick<InsertPoint, "content"> & Pick<InsertEndorsement, "cred">): Promise<
   Point["id"]
 > => {
   const userId = await getUserId();

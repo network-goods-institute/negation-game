@@ -10,10 +10,12 @@ import { FC } from "react";
 
 export interface CredInputProps
   extends Omit<ToggleGroupSingleProps, "type">,
-  Pick<
-    ReturnType<typeof useCredInput>,
-    "credInput" | "setCredInput" | "notEnoughCred"
-  > { }
+    Pick<
+      ReturnType<typeof useCredInput>,
+      "credInput" | "setCredInput" | "notEnoughCred"
+    > {
+  compact?: boolean;
+}
 
 const DEFAULT_CRED_OPTIONS = [1, 5, 10];
 
@@ -21,6 +23,7 @@ export const CredInput: FC<CredInputProps> = ({
   credInput: cred,
   setCredInput: setCred,
   notEnoughCred,
+  compact = false,
   ...props
 }) => {
   const [usingCustomCredAmount, toggleUsingCustomCredAmount] = useToggle(false);
@@ -43,17 +46,24 @@ export const CredInput: FC<CredInputProps> = ({
             className={cn(
               "group gap-xs font-normal text-muted-foreground rounded-full text-center size-8",
               "data-[state=on]:w-fit  data-[state=on]:text-endorsed data-[state=on]:bg-background data-[state=on]:hover:border-muted-foreground data-[state=on]:border",
-              notEnoughCred && "data-[state=on]:text-destructive",
+              notEnoughCred && "data-[state=on]:text-destructive"
             )}
           >
             {value}
-            <span className="hidden group-data-[state=on]:inline">cred</span>
+            <span
+              className={cn(
+                "hidden",
+                !compact && "group-data-[state=on]:inline"
+              )}
+            >
+              cred
+            </span>
           </ToggleGroupItem>
         ))}
       <div
         className={cn(
           "group inline-flex gap-xs font-normal text-muted-foreground rounded-full items-center justify-center h-8 w-fit",
-          usingCustomCredAmount && "border",
+          usingCustomCredAmount && "border"
         )}
       >
         {!usingCustomCredAmount && (
@@ -75,7 +85,7 @@ export const CredInput: FC<CredInputProps> = ({
               value={cred}
               onChange={(e) =>
                 setCred(
-                  Math.min(Number(e.target.value.replace(/\D/g, "")), 9999),
+                  Math.min(Number(e.target.value.replace(/\D/g, "")), 9999)
                 )
               }
               autoFocus
@@ -85,13 +95,13 @@ export const CredInput: FC<CredInputProps> = ({
               maxLength={6}
               className={cn(
                 "h-8 border-none bg-transparent w-[56px] focus-visible:ring-offset-0 focus-visible:ring-0 text-endorsed pr-0",
-                notEnoughCred && "text-destructive",
+                notEnoughCred && "text-destructive"
               )}
             />
             <span
               className={cn(
                 "text-endorsed text-sm mr-sm",
-                notEnoughCred && "text-destructive",
+                notEnoughCred && "text-destructive"
               )}
             >
               cred

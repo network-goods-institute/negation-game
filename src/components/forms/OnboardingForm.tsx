@@ -11,7 +11,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { USERNAME_MAX_LENGHT } from "@/constants/config";
+import { USERNAME_MAX_LENGTH } from "@/constants/config";
 import { InsertUser, insertUserSchema } from "@/db/tables/usersTable";
 import { cn } from "@/lib/cn";
 import { useInitUser } from "@/mutations/useInitUser";
@@ -59,7 +59,7 @@ export const OnboardingForm: FC<OnboardingFormProps> = ({
         }),
       {
         async: true,
-      },
+      }
     ),
     defaultValues: {
       username: "",
@@ -82,7 +82,7 @@ export const OnboardingForm: FC<OnboardingFormProps> = ({
               <FormLabel>Username</FormLabel>
               <FormControl>
                 <Input
-                  maxLength={USERNAME_MAX_LENGHT + 15}
+                  maxLength={USERNAME_MAX_LENGTH + 15}
                   className="max-w-64"
                   {...field}
                 />

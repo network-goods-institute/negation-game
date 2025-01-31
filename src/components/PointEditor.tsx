@@ -4,7 +4,7 @@ import {
   AutosizeTextAreaProps,
 } from "@/components/ui/autosize-textarea";
 import { Separator } from "@/components/ui/separator";
-import { POINT_MAX_LENGHT, POINT_MIN_LENGHT } from "@/constants/config";
+import { POINT_MAX_LENGTH, POINT_MIN_LENGTH } from "@/constants/config";
 import { useCredInput } from "@/hooks/useCredInput";
 import { cn } from "@/lib/cn";
 import { CircleCheckBigIcon } from "lucide-react";
@@ -18,6 +18,8 @@ export interface PointEditorProps extends HTMLAttributes<HTMLDivElement> {
   placeholder?: string;
   textareaProps?: Partial<AutosizeTextAreaProps>;
   guidanceNotes?: ReactNode;
+  textareaClassName?: string;
+  compact?: boolean;
 }
 
 export const PointEditor: FC<PointEditorProps> = ({
@@ -27,7 +29,9 @@ export const PointEditor: FC<PointEditorProps> = ({
   cred,
   setCred,
   textareaProps,
+  textareaClassName,
   placeholder = "Make your point",
+  compact = false,
   guidanceNotes = (
     <>
       <CircleCheckBigIcon className="size-3 align-[-1.5px] inline-block " />{" "}
@@ -35,7 +39,7 @@ export const PointEditor: FC<PointEditorProps> = ({
     </>
   ),
 }) => {
-  const charactersLeft = POINT_MAX_LENGHT - content.length;
+  const charactersLeft = POINT_MAX_LENGTH - content.length;
   const { notEnoughCred } = useCredInput({ cred, setCred });
 
   return (
@@ -45,7 +49,10 @@ export const PointEditor: FC<PointEditorProps> = ({
         style={{ height: "46px" }}
         onChange={(e) => setContent(e.target.value.replace(/\n/g, ""))}
         autoFocus
-        className="w-full rounded-none !ring-0 tracking-tight text-md border-none @sm/point:text-lg p-2 -ml-2 -mt-2 "
+        className={cn(
+          "w-full rounded-none !ring-0 tracking-tight text-md border-none @sm/point:text-lg p-2",
+          textareaClassName
+        )}
         placeholder={placeholder}
         {...textareaProps}
       />
@@ -57,14 +64,13 @@ export const PointEditor: FC<PointEditorProps> = ({
           credInput={cred}
           setCredInput={setCred}
           notEnoughCred={notEnoughCred}
+          compact={compact}
         />
 
         <div className="flex gap-sm items-center">
           <span
             className={cn(
-              charactersLeft >= 0
-                ? "text-muted-foreground"
-                : "text-destructive",
+              charactersLeft >= 0 ? "text-muted-foreground" : "text-destructive"
             )}
           >
             {charactersLeft}
@@ -89,7 +95,7 @@ export const PointEditor: FC<PointEditorProps> = ({
               fill="none"
               strokeDasharray="339.292"
               strokeDashoffset={
-                2 * Math.PI * 54 * (1 - POINT_MIN_LENGHT / POINT_MAX_LENGHT)
+                2 * Math.PI * 54 * (1 - POINT_MIN_LENGTH / POINT_MAX_LENGTH)
               }
               transform="rotate(-90 60 60)"
             />
@@ -107,7 +113,7 @@ export const PointEditor: FC<PointEditorProps> = ({
                 2 *
                 Math.PI *
                 54 *
-                (Math.max(0, charactersLeft) / POINT_MAX_LENGHT)
+                (Math.max(0, charactersLeft) / POINT_MAX_LENGTH)
               }
               transform="rotate(-90 60 60)"
             />
@@ -124,7 +130,7 @@ export const PointEditor: FC<PointEditorProps> = ({
                 2 *
                 Math.PI *
                 54 *
-                Math.max(0, 1 + Math.min(0, charactersLeft) / POINT_MAX_LENGHT)
+                Math.max(0, 1 + Math.min(0, charactersLeft) / POINT_MAX_LENGTH)
               }
               transform="rotate(-90 60 60)"
             />

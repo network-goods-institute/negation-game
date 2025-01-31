@@ -1,7 +1,7 @@
 "use server";
 
 import { fetchPointNegations } from "@/actions/fetchPointNegations";
-import { POINT_MAX_LENGHT } from "@/constants/config";
+import { POINT_MAX_LENGTH } from "@/constants/config";
 import { definitionsTable, pointsTable } from "@/db/schema";
 import { db } from "@/services/db";
 import { google } from "@ai-sdk/google";
@@ -25,7 +25,7 @@ export const getCounterpointSuggestions = async (pointId: number) => {
       .where(
         point.keywords.length > 0
           ? sql`lower(${definitionsTable.term}) IN ${point.keywords}`
-          : sql`1=0`,
+          : sql`1=0`
       )
       .execute(),
   ]);
@@ -50,7 +50,7 @@ Generate 3 strong counterpoints that challenge the STATEMENT above. For each cou
 - Think beyond simple word opposites - consider deeper implications, assumptions, or alternative frameworks
 - Introduce relevant concepts or aspects that weren't explicitly mentioned in the original statement but are important to the discussion
 - Make sure it's not redundant with existing counterpoints
-- Keep it concise and clear (max ${POINT_MAX_LENGHT} characters)
+- Keep it concise and clear (max ${POINT_MAX_LENGTH} characters)
 - Make it a declarative statement that expresses a single idea
 - Use neutral tone and avoid personal opinions
 - Focus on logical assertions rather than mere disagreement

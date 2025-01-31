@@ -10,7 +10,7 @@ import {
   FormLabel,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { POINT_MAX_LENGHT } from "@/constants/config";
+import { POINT_MAX_LENGTH } from "@/constants/config";
 import { InsertPoint, insertPointSchema } from "@/db/tables/pointsTable";
 import { cn } from "@/lib/cn";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -51,11 +51,11 @@ export const PointForm: FC<PositionFormProps> = ({
                 <FormLabel>Description</FormLabel>
                 <FormDescription
                   className={cn(
-                    field.value.length > POINT_MAX_LENGHT && "text-destructive",
+                    field.value.length > POINT_MAX_LENGTH && "text-destructive"
                   )}
                 >
-                  {field.value.length}/{POINT_MAX_LENGHT}
-                  {field.value.length > POINT_MAX_LENGHT && "!"}
+                  {field.value.length}/{POINT_MAX_LENGTH}
+                  {field.value.length > POINT_MAX_LENGTH && "!"}
                 </FormDescription>
               </div>
               <FormControl>

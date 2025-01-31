@@ -5,16 +5,24 @@ import { DoubtIcon } from "@/components/icons/DoubtIcon";
 import { EndorseIcon } from "@/components/icons/EndorseIcon";
 import { NegateIcon } from "@/components/icons/NegateIcon";
 import { RestakeIcon } from "@/components/icons/RestakeIcon";
+import { Badge } from "@/components/ui/badge";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useCredInput } from "@/hooks/useCredInput";
 import { usePrefetchRestakeData } from "@/hooks/usePrefetchRestakeData";
 import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 import { cn } from "@/lib/cn";
 import { useEndorse } from "@/mutations/useEndorse";
+import { useUser } from "@/queries/useUser";
+import { useUserEndorsement } from "@/queries/useUserEndorsements";
 import { usePrivy } from "@privy-io/react-auth";
 import { useToggle } from "@uidotdev/usehooks";
 import { useAtom } from "jotai";
@@ -72,6 +80,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
     isUserDoubt: boolean;
   } | null;
   space?: string;
+  originalPosterId?: string;
 }
 
 export const PointCard = ({
@@ -93,9 +102,16 @@ export const PointCard = ({
   totalRestakeAmount,
   doubt,
   space,
+  originalPosterId,
   ...props
 }: PointCardProps) => {
   const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
+
+  const { data: originalPoster } = useUser(originalPosterId);
+  const { data: opCred } = useUserEndorsement(originalPosterId, pointId);
+
+  const endorsedByOp = opCred && opCred > 0;
+  const [isOPTooltipOpen, toggleOPTooltip] = useToggle();
 
   const [_, setHoveredPointId] = useAtom(hoveredPointIdAtom);
   const endorsedByViewer =
@@ -341,6 +357,28 @@ export const PointCard = ({
           </div>
         </div>
       </div>
+      {endorsedByOp && (
+        <Tooltip open={isOPTooltipOpen} onOpenChange={toggleOPTooltip}>
+          <TooltipTrigger asChild>
+            <Badge
+              className="absolute hover:bg-yellow-600 bottom-1.5 right-1.5  text-yellow-500 text-xs font-medium  bg-yellow-500/80 text-background dark:font-bold  leading-none  px-1 py-0.5 rounded-[6px]  align-middle"
+              onClick={() => toggleOPTooltip()}
+            >
+              {opCred} cred
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>
+              Endorsed by{" "}
+              <strong className="text-yellow-500">
+                {originalPoster ? originalPoster.username : "poster"}{" "}
+              </strong>{" "}
+              with {opCred} cred
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      )}
+      {props.children}
     </div>
   );
 };

@@ -1,6 +1,8 @@
-import { BezierEdge, EdgeProps } from "@xyflow/react";
+import { BezierEdge, Edge, EdgeProps } from "@xyflow/react";
 
-export interface NegationEdgeProps extends EdgeProps {}
+export interface NegationEdgeProps extends EdgeProps<NegationEdge> {}
+
+export type NegationEdge = Edge<{}, "negation">;
 
 export const NegationEdge = ({ ...props }: NegationEdgeProps) => {
   return (

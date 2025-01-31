@@ -1,7 +1,7 @@
 import {
   USER_INITIAL_CRED,
-  USERNAME_MAX_LENGHT,
-  USERNAME_MIN_LENGHT,
+  USERNAME_MAX_LENGTH,
+  USERNAME_MIN_LENGTH,
 } from "@/constants/config";
 import { InferColumnsDataTypes, sql } from "drizzle-orm";
 import {
@@ -23,14 +23,14 @@ export const usersTable = pgTable(
   (table) => ({
     noNegativeCred: check("noNegativeCred", sql`${table.cred} >= 0`),
     usernameUniqueIndex: uniqueIndex("usernameUniqueIndex").on(
-      sql`lower(${table.username})`,
+      sql`lower(${table.username})`
     ),
     usernameFormatConstraint: check(
       "usernameFormat",
-      sql`LENGTH(${table.username}) BETWEEN ${USERNAME_MIN_LENGHT} AND ${USERNAME_MAX_LENGHT}
-          AND ${table.username} ~ '^[a-zA-Z0-9][_a-zA-Z0-9]*[a-zA-Z0-9]$'`.inlineParams(), //only letters, numbers and underscores; cannot start or end with an underscore
+      sql`LENGTH(${table.username}) BETWEEN ${USERNAME_MIN_LENGTH} AND ${USERNAME_MAX_LENGTH}
+          AND ${table.username} ~ '^[a-zA-Z0-9][_a-zA-Z0-9]*[a-zA-Z0-9]$'`.inlineParams() //only letters, numbers and underscores; cannot start or end with an underscore
     ),
-  }),
+  })
 );
 
 export type InsertUser = typeof usersTable.$inferInsert;
@@ -39,18 +39,18 @@ export type User = InferColumnsDataTypes<typeof usersTable._.columns>;
 
 export const insertUserSchema = createInsertSchema(usersTable, {
   username: (schema) =>
-    schema.username
+    schema
       .min(
-        USERNAME_MIN_LENGHT,
-        `must be at least ${USERNAME_MIN_LENGHT} characters long`,
+        USERNAME_MIN_LENGTH,
+        `must be at least ${USERNAME_MIN_LENGTH} characters long`
       )
       .max(
-        USERNAME_MAX_LENGHT,
-        `must be at most ${USERNAME_MAX_LENGHT} characters long`,
+        USERNAME_MAX_LENGTH,
+        `must be at most ${USERNAME_MAX_LENGTH} characters long`
       )
       .regex(
         /^[_a-zA-Z0-9]+$/,
-        "can only contain letters, numbers and underscores",
+        "can only contain letters, numbers and underscores"
       )
       .regex(/^(?!_).*(?<!_)$/, "cannot start or end with an underscore"),
 });

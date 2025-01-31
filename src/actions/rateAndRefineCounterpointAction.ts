@@ -2,8 +2,8 @@
 
 import {
   GOOD_ENOUGH_POINT_RATING,
-  POINT_MAX_LENGHT,
-  POINT_MIN_LENGHT,
+  POINT_MAX_LENGTH,
+  POINT_MIN_LENGTH,
 } from "@/constants/config";
 import { Point } from "@/db/tables/pointsTable";
 import { google } from "@ai-sdk/google";
@@ -60,7 +60,7 @@ Also offer 3 rephrasings of the COUNTERPOINT that would make it better according
 - The rephrasings must use modern and straightforward way.
 - The rephrasings must avoid using fancy, outdated, or overly formal expressions.
 - The rephrasings should not include opening remarks, going straight to the point.
-- The rephrasings should contain between ${POINT_MIN_LENGHT} and ${POINT_MAX_LENGHT} characters.
+- The rephrasings should contain between ${POINT_MIN_LENGTH} and ${POINT_MAX_LENGTH} characters.
 
 Focus on being clear, concise, and easy to understand, as if you're explaining something to a friend in today's world in an accessible way.
 `;

@@ -1,5 +1,10 @@
+"use client";
+
+import { AddPointNode } from "@/components/graph/AddPointNode";
+import { AppNode } from "@/components/graph/AppNode";
 import { NegationEdge } from "@/components/graph/NegationEdge";
 import { PointNode } from "@/components/graph/PointNode";
+import { StatementNode } from "@/components/graph/StatementNode";
 import { Button } from "@/components/ui/button";
 import {
   Background,
@@ -7,56 +12,63 @@ import {
   ColorMode,
   Controls,
   Edge,
+  EdgeChange,
   MiniMap,
-  Node,
+  NodeChange,
   Panel,
   ReactFlow,
   ReactFlowProps,
-  ReactFlowProvider,
   useEdgesState,
   useNodesState,
-  useReactFlow,
 } from "@xyflow/react";
 import { XIcon } from "lucide-react";
-import { nanoid } from "nanoid";
 import { useTheme } from "next-themes";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 
-export interface GraphViewProps extends ReactFlowProps {
-  rootPointId: number;
+export interface GraphViewProps extends ReactFlowProps<AppNode> {
+  rootPointId?: number;
+  statement?: string;
   onClose?: () => void;
   closeButtonClassName?: string;
 }
 
-export const GraphView = ({ ...props }: GraphViewProps) => (
-  <ReactFlowProvider>
-    <InnerGraphView {...props} />
-  </ReactFlowProvider>
-);
-
-export const InnerGraphView = ({
+export const GraphView = ({
   rootPointId,
+  statement: statement,
   onClose,
   closeButtonClassName,
+  onNodesChange: onNodesChangeProp,
+  onEdgesChange: onEdgesChangeProp,
   ...props
 }: GraphViewProps) => {
-  const {} = useReactFlow();
-
-  const initialNodes = useMemo(() => {
-    return [
-      {
-        id: nanoid(),
-        position: { x: 100, y: 100 },
-        type: "point",
-        data: { pointId: rootPointId, expandOnInit: true },
-      },
-    ];
-  }, [rootPointId]);
-  const [nodes, , onNodesChange] = useNodesState<Node>(initialNodes);
-  const [edges, , onEdgesChange] = useEdgesState<Edge>([]);
+  const [nodes, , onNodesChangeDefault] = useNodesState<AppNode>([]);
+  const [edges, , onEdgesChangeDefault] = useEdgesState<Edge>([]);
   const { theme } = useTheme();
 
-  const nodeTypes = useMemo(() => ({ point: PointNode }), []);
+  const onNodesChange = useCallback(
+    (nodes: NodeChange<AppNode>[]) => {
+      onNodesChangeDefault(nodes);
+      onNodesChangeProp?.(nodes);
+    },
+    [onNodesChangeDefault, onNodesChangeProp]
+  );
+
+  const onEdgesChange = useCallback(
+    (edges: EdgeChange[]) => {
+      onEdgesChangeDefault(edges);
+      onEdgesChangeProp?.(edges);
+    },
+    [onEdgesChangeDefault, onEdgesChangeProp]
+  );
+
+  const nodeTypes = useMemo(
+    () => ({
+      point: PointNode,
+      statement: StatementNode,
+      addPoint: AddPointNode,
+    }),
+    []
+  );
   const edgeTypes = useMemo(() => ({ negation: NegationEdge }), []);
 
   return (
@@ -86,7 +98,11 @@ export const InnerGraphView = ({
         color="hsl(var(--muted))"
         variant={BackgroundVariant.Dots}
       />
-      <MiniMap zoomable pannable />
+      <MiniMap
+        zoomable
+        pannable
+        className="[&>svg]:w-[120px] [&>svg]:h-[90px] sm:[&>svg]:w-[200px] sm:[&>svg]:h-[150px]"
+      />
       <Controls />
     </ReactFlow>
   );
