@@ -4,7 +4,6 @@ import { usersTable, viewpointsTable } from "@/db/schema";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
 import { eq } from "drizzle-orm";
-import { serialize } from "next-mdx-remote/serialize";
 
 export const fetchViewpoint = async (id: string) => {
   const viewpoint = await db
@@ -20,6 +19,6 @@ export const fetchViewpoint = async (id: string) => {
 
   return {
     ...viewpoint,
-    compiledDescription: await serialize(viewpoint.description),
+    description: viewpoint.description,
   };
 };

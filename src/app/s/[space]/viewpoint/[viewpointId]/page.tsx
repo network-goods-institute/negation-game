@@ -30,7 +30,8 @@ import { useMediaQuery } from "@uidotdev/usehooks";
 import { ReactFlowProvider, useReactFlow } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
 import { GroupIcon, NetworkIcon, SplitIcon } from "lucide-react";
-import { MDXRemote } from "next-mdx-remote";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { use } from "react";
 
 import tailwind from "@/../tailwind.config";
@@ -96,7 +97,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
       </div>
     );
 
-  const { title, compiledDescription, graph, author } = viewpoint;
+  const { title, description, graph, author } = viewpoint;
 
   return (
     <main className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
@@ -171,8 +172,10 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
             <Separator className="my-2" />
 
-            <div className=" rounded-none  prose text-wrap break-all whitespace-break-spaces  text-sm ">
-              <MDXRemote {...compiledDescription} />
+            <div className="prose prose-invert max-w-none [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {description}
+              </ReactMarkdown>
             </div>
           </div>
           <div className="relative flex flex-col">
@@ -187,7 +190,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                   className={cn(
                     "border-b",
                     hoveredPointId === point.pointId &&
-                      "shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
+                    "shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
                   )}
                 />
               ))}
@@ -206,8 +209,8 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
           onClose={
             isMobile
               ? () => {
-                  setCanvasEnabled(false);
-                }
+                setCanvasEnabled(false);
+              }
               : undefined
           }
           onNodesChange={() => {

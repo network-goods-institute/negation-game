@@ -6,6 +6,7 @@ import {
   viewpointReasoningAtom,
   viewpointStatementAtom,
 } from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { useEffect, useMemo } from "react";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { AppNode } from "@/components/graph/AppNode";
@@ -34,14 +35,12 @@ import { usePointData } from "@/queries/usePointData";
 import { useSpace } from "@/queries/useSpace";
 import { useUser } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
-import { useQuery } from "@tanstack/react-query";
 import { useMediaQuery } from "@uidotdev/usehooks";
 import { ReactFlowProvider, useReactFlow } from "@xyflow/react";
 import { useAtom } from "jotai";
 import { NetworkIcon } from "lucide-react";
-import { MDXRemote } from "next-mdx-remote";
-import { serialize } from "next-mdx-remote/serialize";
-import { useEffect, useMemo } from "react";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 import tailwind from "@/../tailwind.config";
 import { EditModeProvider } from "@/components/graph/EditModeContext";
@@ -110,11 +109,6 @@ function ViewpointPageContent() {
   }, [graph, statement, reasoning]);
 
   const [hoveredPointId, setHoveredPointId] = useAtom(hoveredPointIdAtom);
-  const { data: compiledMarkdown } = useQuery({
-    queryKey: [reasoning],
-    queryFn: () => serialize(reasoning),
-    placeholderData: (previousData) => previousData,
-  });
 
   return (
     <main className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
@@ -162,18 +156,25 @@ function ViewpointPageContent() {
                 className="rounded-full w-24"
                 disabled={!canPublish || isPublishing}
                 rightLoading={isPublishing}
-                onClick={() =>
-                  publishViewpoint({
-                    title: statement,
-                    description: reasoning,
-                    graph,
-                  }).then((id) => {
-                    setReasoning("");
-                    setStatement("");
-                    setGraph(initialViewpointGraph);
+                onClick={async () => {
+                  try {
+                    const id = await publishViewpoint({
+                      title: statement,
+                      description: reasoning,
+                      graph,
+                    });
+
                     push(`${basePath}/viewpoint/${id}`);
-                  })
-                }
+
+                    setTimeout(() => {
+                      setReasoning("");
+                      setStatement("");
+                      setGraph(initialViewpointGraph);
+                    }, 0);
+                  } catch (error) {
+                    console.error("Failed to publish viewpoint:", error);
+                  }
+                }}
               >
                 Publish
               </AuthenticatedActionButton>
@@ -209,8 +210,10 @@ function ViewpointPageContent() {
                 onChange={(e) => setReasoning(e.target.value)}
                 placeholder={PLACEHOLDER_REASONING}
               />
-              <div className="border  prose text-wrap break-all whitespace-break-spaces rounded-md px-3 py-2 text-sm col-[1/1] row-[1/1] selection:invisible overflow-x-clip">
-                {compiledMarkdown && <MDXRemote {...compiledMarkdown} />}
+              <div className="border prose prose-invert max-w-none [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic rounded-md px-3 py-2 text-sm col-[1/1] row-[1/1] selection:invisible overflow-x-clip">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {reasoning}
+                </ReactMarkdown>
               </div>
             </div>
           </div>
@@ -226,7 +229,7 @@ function ViewpointPageContent() {
                   className={cn(
                     "border-b",
                     hoveredPointId === point.pointId &&
-                      "shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
+                    "shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
                   )}
                 />
               ))}
@@ -245,8 +248,8 @@ function ViewpointPageContent() {
           onClose={
             isMobile
               ? () => {
-                  setCanvasEnabled(false);
-                }
+                setCanvasEnabled(false);
+              }
               : undefined
           }
           onNodesChange={() => {

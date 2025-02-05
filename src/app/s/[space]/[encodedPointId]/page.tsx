@@ -390,7 +390,7 @@ export default function PointPage({
                       className="overflow-visible text-endorsed"
                       dot={({ key, ...dot }) =>
                         favorHistory &&
-                        dot.index === favorHistory.length - 1 ? (
+                          dot.index === favorHistory.length - 1 ? (
                           <Fragment key={key}>
                             <Dot
                               {...dot}
@@ -417,8 +417,8 @@ export default function PointPage({
                       labelFormatter={(timestamp: Date) =>
                         timestamp.toLocaleString()
                       }
-                      // position={{ y: 0 }}
-                      // offset={0}
+                    // position={{ y: 0 }}
+                    // offset={0}
                     />
                   </LineChart>
                 </ResponsiveContainer>
