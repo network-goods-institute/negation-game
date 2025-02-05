@@ -145,7 +145,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
               </Button>
               <AuthenticatedActionButton
                 variant={"outline"}
-                className="rounded-full p-2 size-9"
+                className="rounded-full p-2 size-9 active:scale-95 transition-transform"
                 size={"icon"}
                 onClick={() => {
                   setReasoning("");

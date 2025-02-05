@@ -29,11 +29,29 @@ export default function Home() {
   const space = useSpace();
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const { push } = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   const loginOrMakePoint = useCallback(
-    () => (user !== null ? onMakePointOpenChange(true) : login()),
-    [user, login, onMakePointOpenChange],
+    () => {
+      if (user !== null) {
+        setIsSubmitting(true);
+        onMakePointOpenChange(true);
+      } else {
+        login();
+      }
+    },
+    [user, login, onMakePointOpenChange]
   );
+
+  const handleNewViewpoint = () => {
+    if (user) {
+      setIsNavigating(true);
+      push(`${basePath}/viewpoint/new`);
+    } else {
+      login();
+    }
+  };
 
   const { data: points, isLoading } = useFeed();
   const setNegatedPointId = useSetAtom(negatedPointIdAtom);
@@ -111,17 +129,31 @@ export default function Home() {
         <Button
           className="rounded-full h-10 w-10 sm:w-[160px] order-3"
           onClick={loginOrMakePoint}
+          rightLoading={isSubmitting}
         >
-          <PlusIcon className="size-4 sm:size-4" />
-          <span className="hidden sm:block ml-sm">Make a Point</span>
+          {isSubmitting ? (
+            "Creating..."
+          ) : (
+            <>
+              <PlusIcon className="size-4 sm:size-4" />
+              <span className="hidden sm:block ml-sm">Make a Point</span>
+            </>
+          )}
         </Button>
 
         <Button
           className="rounded-full h-10 w-10 sm:w-[160px] order-2"
-          onClick={() => user ? push(`${basePath}/viewpoint/new`) : login()}
+          onClick={handleNewViewpoint}
+          rightLoading={isNavigating}
         >
-          <GroupIcon className="size-4 sm:size-4" />
-          <span className="hidden sm:block ml-sm">New Viewpoint</span>
+          {isNavigating ? (
+            "Creating..."
+          ) : (
+            <>
+              <GroupIcon className="size-4 sm:size-4" />
+              <span className="hidden sm:block ml-sm">New Viewpoint</span>
+            </>
+          )}
         </Button>
 
         <Button

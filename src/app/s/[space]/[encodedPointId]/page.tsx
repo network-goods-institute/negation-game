@@ -553,7 +553,7 @@ export default function PointPage({
                   {counterpointSuggestions.map((suggestion, i) => (
                     <div
                       key={`suggestion-${i}`}
-                      className="flex gap-3 mt-3 mx-2 px-3 py-4 rounded-md border border-dashed hover:bg-muted cursor-pointer animate-fade-in"
+                      className="flex gap-3 mt-3 mx-2 px-3 py-4 rounded-md border border-dashed hover:bg-muted cursor-pointer animate-fade-in active:scale-95 transition-transform"
                       onClick={() => {
                         if (privyUser === null) {
                           login();

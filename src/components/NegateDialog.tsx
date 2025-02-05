@@ -81,7 +81,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     undefined
   );
 
-  const isSubmitting = isNegating || isEndorsing || isAddingCounterpoint;
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [selectedCounterpointCandidate, selectCounterpointCandidate] = useState<
     | Awaited<ReturnType<typeof fetchCounterpointCandidatesAction>>[number]
@@ -159,6 +159,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   const handleSubmit = useCallback(() => {
     if (!canSubmit || isSubmitting) return;
 
+    setIsSubmitting(true);
     (selectedCounterpointCandidate === undefined
       ? addCounterpoint({
         content: counterpointContent,
@@ -175,11 +176,15 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
           counterpointId: selectedCounterpointCandidate.id,
           cred,
         })
-    ).then(() => {
-      queryClient.invalidateQueries({ queryKey: ["feed"] });
-      resetForm();
-      setNegatedPointId(undefined);
-    });
+    )
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ["feed"] });
+        resetForm();
+        setNegatedPointId(undefined);
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
   }, [
     canSubmit,
     isSubmitting,
@@ -510,9 +515,9 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
               <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
                   <Button
-                    disabled={!canReview || isReviewingCounterpoint}
+                    disabled={!canReview || isReviewingCounterpoint || isSubmitting}
                     className="min-w-28 w-full xs:w-fit"
-                    rightLoading={isReviewingCounterpoint}
+                    rightLoading={isReviewingCounterpoint || isSubmitting}
                     onClick={(e) => {
                       if (e.altKey) {
                         handleSubmit();
@@ -521,7 +526,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                       reviewCounterpoint();
                     }}
                   >
-                    Review & Negate
+                    {isSubmitting ? "Negating..." : isReviewingCounterpoint ? "Reviewing..." : "Review & Negate"}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="text-xs">
