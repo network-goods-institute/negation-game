@@ -48,9 +48,14 @@ import {
   TrashIcon,
 } from "lucide-react";
 import { FC, ReactNode, useCallback, useEffect, useState } from "react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export interface NegateDialogProps
-  extends Omit<DialogProps, "open" | "onOpenChange"> {}
+  extends Omit<DialogProps, "open" | "onOpenChange"> { }
 
 export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   const [negatedPointId, setNegatedPointId] = useAtom(negatedPointIdAtom);
@@ -156,20 +161,20 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
 
     (selectedCounterpointCandidate === undefined
       ? addCounterpoint({
-          content: counterpointContent,
-          cred,
-          negatedPointId: negatedPoint!.pointId,
-        })
+        content: counterpointContent,
+        cred,
+        negatedPointId: negatedPoint!.pointId,
+      })
       : selectedCounterpointCandidate.isCounterpoint
         ? endorse({
-            pointId: selectedCounterpointCandidate.id,
-            cred,
-          })
+          pointId: selectedCounterpointCandidate.id,
+          cred,
+        })
         : negate({
-            negatedPointId: negatedPoint!.pointId,
-            counterpointId: selectedCounterpointCandidate.id,
-            cred,
-          })
+          negatedPointId: negatedPoint!.pointId,
+          counterpointId: selectedCounterpointCandidate.id,
+          cred,
+        })
     ).then(() => {
       queryClient.invalidateQueries({ queryKey: ["feed"] });
       resetForm();
@@ -255,7 +260,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                     "w-px -my-px flex-grow border-l border-muted-foreground",
                     (!selectedCounterpointCandidate ||
                       !selectedCounterpointCandidate.isCounterpoint) &&
-                      "border-dashed border-endorsed"
+                    "border-dashed border-endorsed"
                   )}
                 />
               </div>
@@ -273,7 +278,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                 className={cn(
                   "shrink-0 size-6 stroke-1 text-muted-foreground",
                   !selectedCounterpointCandidate &&
-                    "circle-dashed-2 text-endorsed"
+                  "circle-dashed-2 text-endorsed"
                 )}
               />
               {cred > 0 && (
@@ -501,16 +506,29 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
               </PopoverContent>
             </div>
           ) : (
-            <Button
-              disabled={!canReview || isReviewingCounterpoint}
-              className="min-w-28 mt-md self-end w-full xs:w-fit"
-              rightLoading={isReviewingCounterpoint}
-              onClick={() => {
-                reviewCounterpoint();
-              }}
-            >
-              Review & Negate
-            </Button>
+            <div className="flex items-center gap-2 mt-md self-end">
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <Button
+                    disabled={!canReview || isReviewingCounterpoint}
+                    className="min-w-28 w-full xs:w-fit"
+                    rightLoading={isReviewingCounterpoint}
+                    onClick={(e) => {
+                      if (e.altKey) {
+                        handleSubmit();
+                        return;
+                      }
+                      reviewCounterpoint();
+                    }}
+                  >
+                    Review & Negate
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  Hold {navigator.platform.includes('Mac') ? '⌥' : 'Alt'} and click to skip review
+                </TooltipContent>
+              </Tooltip>
+            </div>
           )}
         </Popover>
       </DialogContent>

@@ -24,7 +24,7 @@ import { ArrowLeftIcon, BlendIcon, DiscIcon, Undo2Icon } from "lucide-react";
 import { FC, useCallback, useEffect, useState } from "react";
 import { IterableElement } from "type-fest";
 
-export interface MakePointDialogProps extends DialogProps {}
+export interface MakePointDialogProps extends DialogProps { }
 
 export const MakePointDialog: FC<MakePointDialogProps> = ({
   open,
@@ -100,9 +100,9 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
     (selectedPoint
       ? endorse({ pointId: selectedPoint.pointId, cred })
       : makePoint({
-          content,
-          cred: cred,
-        })
+        content,
+        cred: cred,
+      })
     )
       .then(() => {
         onOpenChange?.(false);
