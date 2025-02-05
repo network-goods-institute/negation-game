@@ -16,10 +16,11 @@ import { useSpace } from "@/queries/useSpace";
 import { usePrivy } from "@privy-io/react-auth";
 import { useToggle } from "@uidotdev/usehooks";
 import { useSetAtom } from "jotai";
-import { PlusIcon, TrophyIcon } from "lucide-react";
+import { PlusIcon, TrophyIcon, GroupIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { LeaderboardDialog } from "@/components/LeaderboardDialog";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
   const { user, login } = usePrivy();
@@ -27,6 +28,7 @@ export default function Home() {
   const basePath = useBasePath();
   const space = useSpace();
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const { push } = useRouter();
 
   const loginOrMakePoint = useCallback(
     () => (user !== null ? onMakePointOpenChange(true) : login()),
@@ -107,19 +109,27 @@ export default function Home() {
       </div>
       <div className="fixed bottom-md right-sm sm:right-md flex flex-col items-end gap-2">
         <Button
-          className="rounded-full p-3 h-fit sm:px-4 order-2"
+          className="rounded-full h-10 w-10 sm:w-[160px] order-3"
           onClick={loginOrMakePoint}
         >
-          <PlusIcon className="inline align-baseline" />
+          <PlusIcon className="size-4 sm:size-4" />
           <span className="hidden sm:block ml-sm">Make a Point</span>
         </Button>
 
         <Button
+          className="rounded-full h-10 w-10 sm:w-[160px] order-2"
+          onClick={() => user ? push(`${basePath}/viewpoint/new`) : login()}
+        >
+          <GroupIcon className="size-4 sm:size-4" />
+          <span className="hidden sm:block ml-sm">New Viewpoint</span>
+        </Button>
+
+        <Button
           variant="ghost"
-          className="rounded-full p-3 h-fit sm:px-4 order-1"
+          className="rounded-full h-10 w-10 sm:w-auto sm:px-6 order-1"
           onClick={() => setLeaderboardOpen(true)}
         >
-          <TrophyIcon className="size-6 stroke-1" />
+          <TrophyIcon className="size-4 sm:size-4" />
           <span className="hidden sm:block ml-sm">Leaderboard</span>
         </Button>
       </div>
