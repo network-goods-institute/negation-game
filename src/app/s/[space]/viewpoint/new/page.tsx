@@ -112,7 +112,7 @@ function ViewpointPageContent() {
 
   return (
     <main className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
-      <div className="w-full sm:col-[2] flex flex-col border-x pb-10 overflow-auto">
+      <div className="w-full sm:col-[2] flex flex-col border-x">
         <div className="relative flex-grow bg-background">
           <div className="sticky top-0 z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
             {space?.data && space.data.id !== DEFAULT_SPACE ? (
@@ -182,58 +182,61 @@ function ViewpointPageContent() {
           </div>
           <Separator />
 
-          <div className="flex flex-col p-2 gap-2">
-            <Label className="ml-1">Title</Label>
-            <Input
-              placeholder={PLACEHOLDER_STATEMENT}
-              value={statement}
-              onChange={(e) => setStatement(e.target.value)}
-            />
-
-            <Label className="ml-1">
-              By{" "}
-              <span className="font-bold text-sm text-yellow-500">
-                {user?.username}
-              </span>
-            </Label>
-
-            <div>
-              <Label className="ml-1">Description</Label>{" "}
-              <span className="text-muted-foreground text-xs">
-                (Markdown supported)
-              </span>
-            </div>
-            <div className="grid  grid-cols-1 grid-rows-1 ">
-              <Textarea
-                className="relative col-[1/1] h-full row-[1/1] opacity-0 focus-within:opacity-100"
-                value={reasoning}
-                onChange={(e) => setReasoning(e.target.value)}
-                placeholder={PLACEHOLDER_REASONING}
+          <div className="overflow-auto">
+            <div className="flex flex-col p-2 gap-2">
+              <Label className="ml-1">Title</Label>
+              <Input
+                placeholder={PLACEHOLDER_STATEMENT}
+                value={statement}
+                onChange={(e) => setStatement(e.target.value)}
               />
-              <div className="border prose prose-invert max-w-none [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic rounded-md px-3 py-2 text-sm col-[1/1] row-[1/1] selection:invisible overflow-x-clip">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {reasoning}
-                </ReactMarkdown>
+
+              <Label className="ml-1">
+                By{" "}
+                <span className="font-bold text-sm text-yellow-500">
+                  {user?.username}
+                </span>
+              </Label>
+
+              <div>
+                <Label className="ml-1">Description</Label>{" "}
+                <span className="text-muted-foreground text-xs">
+                  (Markdown supported)
+                </span>
+              </div>
+              <div className="grid  grid-cols-1 grid-rows-1 ">
+                <Textarea
+                  className="relative col-[1/1] h-full row-[1/1] opacity-0 focus-within:opacity-100"
+                  value={reasoning}
+                  onChange={(e) => setReasoning(e.target.value)}
+                  placeholder={PLACEHOLDER_REASONING}
+                />
+                <div className="border prose dark:prose-invert max-w-none [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic rounded-md px-3 py-2 text-sm col-[1/1] row-[1/1] selection:invisible overflow-x-clip">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {reasoning}
+                  </ReactMarkdown>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="relative flex flex-col">
-            <span className="text-muted-foreground text-xs uppercase font-semibold tracking-widest w-full p-2 border-y text-center">
-              Points
-            </span>
-            <Dynamic>
-              {points.map((point) => (
-                <PointCardWrapper
-                  key={`${point.pointId}-card`}
-                  point={point}
-                  className={cn(
-                    "border-b",
-                    hoveredPointId === point.pointId &&
-                    "shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
-                  )}
-                />
-              ))}
-            </Dynamic>
+
+            <div className="relative flex-col">
+              <span className="text-muted-foreground text-xs uppercase font-semibold tracking-widest w-full p-2 border-y text-center">
+                Points
+              </span>
+              <Dynamic>
+                {points.map((point) => (
+                  <PointCardWrapper
+                    key={`${point.pointId}-card`}
+                    point={point}
+                    className={cn(
+                      "border-b",
+                      hoveredPointId === point.pointId &&
+                      "shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
+                    )}
+                  />
+                ))}
+              </Dynamic>
+            </div>
           </div>
         </div>
       </div>

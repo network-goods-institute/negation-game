@@ -125,9 +125,9 @@ export default function Home() {
           </>
         )}
       </div>
-      <div className="fixed bottom-md right-sm sm:right-md flex flex-col items-end gap-2">
+      <div className="fixed bottom-md right-sm sm:right-md flex flex-col items-end gap-3">
         <Button
-          className="rounded-full h-10 w-10 sm:w-[160px] order-3"
+          className="aspect-square rounded-full h-[58px] w-[58px] sm:h-10 sm:w-[160px] order-3"
           onClick={loginOrMakePoint}
           rightLoading={isSubmitting}
         >
@@ -135,14 +135,14 @@ export default function Home() {
             "Creating..."
           ) : (
             <>
-              <PlusIcon className="size-4 sm:size-4" />
+              <PlusIcon className="size-7 sm:size-5" />
               <span className="hidden sm:block ml-sm">Make a Point</span>
             </>
           )}
         </Button>
 
         <Button
-          className="rounded-full h-10 w-10 sm:w-[160px] order-2"
+          className="aspect-square rounded-full h-[58px] w-[58px] sm:h-10 sm:w-[160px] order-2"
           onClick={handleNewViewpoint}
           rightLoading={isNavigating}
         >
@@ -150,7 +150,7 @@ export default function Home() {
             "Creating..."
           ) : (
             <>
-              <GroupIcon className="size-4 sm:size-4" />
+              <GroupIcon className="size-7 sm:size-5" />
               <span className="hidden sm:block ml-sm">New Viewpoint</span>
             </>
           )}
@@ -158,10 +158,10 @@ export default function Home() {
 
         <Button
           variant="ghost"
-          className="rounded-full h-10 w-10 sm:w-auto sm:px-6 order-1"
+          className="aspect-square rounded-full h-[58px] w-[58px] sm:h-10 sm:w-auto sm:px-6 order-1"
           onClick={() => setLeaderboardOpen(true)}
         >
-          <TrophyIcon className="size-4 sm:size-4" />
+          <TrophyIcon className="size-7 sm:size-5" />
           <span className="hidden sm:block ml-sm">Leaderboard</span>
         </Button>
       </div>

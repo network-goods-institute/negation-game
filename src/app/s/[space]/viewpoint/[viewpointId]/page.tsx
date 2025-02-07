@@ -30,7 +30,9 @@ import { useMediaQuery } from "@uidotdev/usehooks";
 import { ReactFlowProvider, useReactFlow } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
 import { GroupIcon, NetworkIcon, SplitIcon } from "lucide-react";
-import ReactMarkdown from 'react-markdown';
+import React from 'react';
+import { useEffect, useState } from "react";
+import dynamic from 'next/dynamic';
 import remarkGfm from 'remark-gfm';
 import { use } from "react";
 
@@ -39,6 +41,12 @@ import { useGraphPoints } from "@/components/graph/useGraphPoints";
 import { Loader } from "@/components/ui/loader";
 import { useViewpoint } from "@/queries/useViewpoint";
 import { useRouter } from "next/navigation";
+
+// Create dynamic ReactMarkdown component
+const DynamicMarkdown = dynamic(() => import('react-markdown'), {
+  loading: () => <div className="animate-pulse h-32 bg-muted/30 rounded-md" />,
+  ssr: false // Disable server-side rendering
+});
 
 function PointCardWrapper({
   point,
@@ -77,7 +85,23 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
   const space = useSpace();
   const { data: user } = useUser();
   const [canvasEnabled, setCanvasEnabled] = useAtom(canvasEnabledAtom);
-  const isMobile = useMediaQuery(`(max-width: ${tailwind.theme.screens.sm})`);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640); // 640px is tailwind's sm breakpoint
+    };
+
+    // Check initially
+    checkMobile();
+
+    // Add resize listener
+    window.addEventListener('resize', checkMobile);
+
+    // Cleanup
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   const points = useGraphPoints();
 
   const { updateNodeData } = useReactFlow();
@@ -172,10 +196,10 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
             <Separator className="my-2" />
 
-            <div className="prose prose-invert max-w-none [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <div className="prose dark:prose-invert max-w-none [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic">
+              <DynamicMarkdown remarkPlugins={[remarkGfm]}>
                 {description}
-              </ReactMarkdown>
+              </DynamicMarkdown>
             </div>
           </div>
           <div className="relative flex flex-col">

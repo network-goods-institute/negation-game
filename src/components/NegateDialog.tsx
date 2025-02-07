@@ -235,6 +235,12 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
 
   useSubmitHotkey(handleSubmitOrReview, !!negatedPointId);
 
+  const [platformKey, setPlatformKey] = useState('Alt');
+
+  useEffect(() => {
+    setPlatformKey(navigator?.platform?.includes('Mac') ? '⌥' : 'Alt');
+  }, []);
+
   return (
     <Dialog
       {...props}
@@ -530,7 +536,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="text-xs">
-                  Hold {navigator.platform.includes('Mac') ? '⌥' : 'Alt'} and click to skip review
+                  Hold {platformKey} and click to skip review
                 </TooltipContent>
               </Tooltip>
             </div>

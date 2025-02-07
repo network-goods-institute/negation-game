@@ -36,6 +36,7 @@ import {
   useState,
 } from "react";
 import { AuthenticatedActionButton, Button } from "./ui/button";
+import { Portal } from "@radix-ui/react-portal";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -300,8 +301,8 @@ export const PointCard = ({
                       "size-5 stroke-1",
                       "text-muted-foreground hover:text-foreground transition-colors",
                       showRestakeAmount &&
-                        restake?.isOwner &&
-                        "text-endorsed fill-current"
+                      restake?.isOwner &&
+                      "text-endorsed fill-current"
                     )}
                     showPercentage={showRestakeAmount && restake?.isOwner}
                     percentage={restakePercentage}
@@ -315,9 +316,9 @@ export const PointCard = ({
                   className={cn(
                     "p-1 -mb-2 rounded-full size-fit hover:bg-muted/30",
                     doubt?.amount !== undefined &&
-                      doubt.amount > 0 &&
-                      doubt.isUserDoubt &&
-                      "text-endorsed"
+                    doubt.amount > 0 &&
+                    doubt.isUserDoubt &&
+                    "text-endorsed"
                   )}
                   onClick={(e) => {
                     e.preventDefault();
@@ -332,9 +333,9 @@ export const PointCard = ({
                         "size-5 stroke-1",
                         "text-muted-foreground hover:text-foreground transition-colors",
                         doubt?.amount !== undefined &&
-                          doubt.amount > 0 &&
-                          doubt.isUserDoubt &&
-                          "text-endorsed fill-current"
+                        doubt.amount > 0 &&
+                        doubt.isUserDoubt &&
+                        "text-endorsed fill-current"
                       )}
                       isFilled={
                         doubt?.amount !== undefined &&
@@ -358,24 +359,35 @@ export const PointCard = ({
         </div>
       </div>
       {endorsedByOp && (
-        <Tooltip open={isOPTooltipOpen} onOpenChange={toggleOPTooltip}>
+        <Tooltip
+          open={isOPTooltipOpen}
+          onOpenChange={toggleOPTooltip}
+          delayDuration={0}
+        >
           <TooltipTrigger asChild>
             <Badge
-              className="absolute hover:bg-yellow-600 bottom-1.5 right-1.5  text-yellow-500 text-xs font-medium  bg-yellow-500/80 text-background dark:font-bold  leading-none  px-1 py-0.5 rounded-[6px]  align-middle"
+              className="absolute hover:bg-yellow-600 bottom-1.5 right-1.5 text-yellow-500 text-xs font-medium bg-yellow-500/80 text-background dark:font-bold leading-none px-1 py-0.5 rounded-[6px] align-middle"
               onClick={() => toggleOPTooltip()}
             >
               {opCred} cred
             </Badge>
           </TooltipTrigger>
-          <TooltipContent>
-            <p>
-              Endorsed by{" "}
-              <strong className="text-yellow-500">
-                {originalPoster ? originalPoster.username : "poster"}{" "}
-              </strong>{" "}
-              with {opCred} cred
-            </p>
-          </TooltipContent>
+          <Portal>
+            <TooltipContent
+              side="top"
+              align="center"
+              sideOffset={5}
+              className="z-[100]"
+            >
+              <p>
+                Endorsed by{" "}
+                <strong className="text-yellow-500">
+                  {originalPoster ? originalPoster.username : "poster"}{" "}
+                </strong>{" "}
+                with {opCred} cred
+              </p>
+            </TooltipContent>
+          </Portal>
         </Tooltip>
       )}
       {props.children}
