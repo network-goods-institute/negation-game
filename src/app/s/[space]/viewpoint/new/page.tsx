@@ -6,7 +6,7 @@ import {
   viewpointReasoningAtom,
   viewpointStatementAtom,
 } from "@/app/s/[space]/viewpoint/viewpointAtoms";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { AppNode } from "@/components/graph/AppNode";
@@ -35,18 +35,18 @@ import { usePointData } from "@/queries/usePointData";
 import { useSpace } from "@/queries/useSpace";
 import { useUser } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
-import { useMediaQuery } from "@uidotdev/usehooks";
 import { ReactFlowProvider, useReactFlow } from "@xyflow/react";
 import { useAtom } from "jotai";
 import { NetworkIcon } from "lucide-react";
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
-import tailwind from "@/../tailwind.config";
 import { EditModeProvider } from "@/components/graph/EditModeContext";
 import { useGraphPoints } from "@/components/graph/useGraphPoints";
 import { usePublishViewpoint } from "@/mutations/usePublishViewpoint";
 import { useRouter } from "next/navigation";
+import { Loader } from "@/components/ui/loader";
+import { ErrorBoundary } from "react-error-boundary";
 
 function PointCardWrapper({
   point,
@@ -78,22 +78,20 @@ function PointCardWrapper({
   );
 }
 
-function ViewpointPageContent() {
-  const basePath = useBasePath();
-  const { push } = useRouter();
-
-  const space = useSpace();
-  const { data: user } = useUser();
-  const [canvasEnabled, setCanvasEnabled] = useAtom(canvasEnabledAtom);
-  const isMobile = useMediaQuery(`(max-width: ${tailwind.theme.screens.sm})`);
-
+function ViewpointContent() {
   const { updateNodeData } = useReactFlow();
+  const { data: user } = useUser();
+  const { push } = useRouter();
+  const basePath = useBasePath();
+  const space = useSpace();
+  const [canvasEnabled, setCanvasEnabled] = useAtom(canvasEnabledAtom);
+  const [isMobile, setIsMobile] = useState(false);
   const reactFlow = useReactFlow<AppNode>();
   const [graph, setGraph] = useAtom(viewpointGraphAtom);
   const points = useGraphPoints();
-
   const [statement, setStatement] = useAtom(viewpointStatementAtom);
   const [reasoning, setReasoning] = useAtom(viewpointReasoningAtom);
+
   useEffect(() => {
     updateNodeData("statement", {
       statement: statement.length > 0 ? statement : PLACEHOLDER_STATEMENT,
@@ -107,8 +105,17 @@ function ViewpointPageContent() {
       statement.length > 0 && reasoning.length > 0 && graph.edges.length > 0
     );
   }, [graph, statement, reasoning]);
-
   const [hoveredPointId, setHoveredPointId] = useAtom(hoveredPointIdAtom);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   return (
     <main className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
@@ -129,7 +136,7 @@ function ViewpointPageContent() {
                       {space.data.id.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-md  font-semibold">
+                  <span className="text-md font-semibold">
                     s/{space.data.id}
                   </span>
                 </>
@@ -171,9 +178,7 @@ function ViewpointPageContent() {
                       setStatement("");
                       setGraph(initialViewpointGraph);
                     }, 0);
-                  } catch (error) {
-                    console.error("Failed to publish viewpoint:", error);
-                  }
+                  } catch (error) { }
                 }}
               >
                 Publish
@@ -204,7 +209,7 @@ function ViewpointPageContent() {
                   (Markdown supported)
                 </span>
               </div>
-              <div className="grid  grid-cols-1 grid-rows-1 ">
+              <div className="grid grid-cols-1 grid-rows-1">
                 <Textarea
                   className="relative col-[1/1] h-full row-[1/1] opacity-0 focus-within:opacity-100"
                   value={reasoning}
@@ -219,24 +224,26 @@ function ViewpointPageContent() {
               </div>
             </div>
 
-            <div className="relative flex-col">
-              <span className="text-muted-foreground text-xs uppercase font-semibold tracking-widest w-full p-2 border-y text-center">
-                Points
-              </span>
-              <Dynamic>
-                {points.map((point) => (
-                  <PointCardWrapper
-                    key={`${point.pointId}-card`}
-                    point={point}
-                    className={cn(
-                      "border-b",
-                      hoveredPointId === point.pointId &&
-                      "shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
-                    )}
-                  />
-                ))}
-              </Dynamic>
-            </div>
+            {points.length > 0 && (
+              <div className="flex flex-col w-full">
+                <span className="text-muted-foreground text-xs uppercase font-semibold tracking-widest w-full p-2 border-y text-center">
+                  Points
+                </span>
+                <Dynamic>
+                  {points.map((point) => (
+                    <PointCardWrapper
+                      key={`${point.pointId}-card`}
+                      point={point}
+                      className={cn(
+                        "border-b",
+                        hoveredPointId === point.pointId &&
+                        "shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
+                      )}
+                    />
+                  ))}
+                </Dynamic>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -276,14 +283,63 @@ function ViewpointPageContent() {
   );
 }
 
+function ViewpointPageContent() {
+  const { ready } = usePrivy();
+  const { data: user, isLoading: isLoadingUser } = useUser();
+
+  if (!ready || isLoadingUser) {
+    return (
+      <main className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
+        <div className="w-full sm:col-[2] flex flex-col border-x">
+          <div className="relative flex-grow bg-background">
+            <div className="sticky top-0 z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
+              <div className="h-8 w-32 bg-muted animate-pulse rounded" />
+              <div className="h-8 w-24 bg-muted animate-pulse rounded" />
+            </div>
+            <div className="flex items-center justify-center min-h-[calc(100vh-var(--header-height))]">
+              <Loader className="size-6" />
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (!user) {
+    return (
+      <main className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
+        <div className="w-full sm:col-[2] flex flex-col border-x items-center justify-center">
+          <p>Please log in to continue</p>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <ErrorBoundary
+      fallbackRender={({ error }) => (
+        <div className="flex flex-col items-center justify-center p-4">
+          <h2 className="text-lg font-semibold mb-2">Something went wrong</h2>
+          <pre className="text-sm text-red-500 p-2 bg-red-50 rounded">
+            {error.message}
+          </pre>
+        </div>
+      )}
+    >
+      <ReactFlowProvider>
+        <ViewpointContent />
+      </ReactFlowProvider>
+    </ErrorBoundary>
+  );
+}
+
 export default function NewViewpointPage() {
   const { user: privyUser } = usePrivy();
+
   return (
     <EditModeProvider editMode={true}>
       <OriginalPosterProvider originalPosterId={privyUser?.id}>
-        <ReactFlowProvider>
-          <ViewpointPageContent />
-        </ReactFlowProvider>
+        <ViewpointPageContent />
       </OriginalPosterProvider>
     </EditModeProvider>
   );
