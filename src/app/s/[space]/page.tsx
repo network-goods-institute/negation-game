@@ -32,17 +32,13 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
 
-  const loginOrMakePoint = useCallback(
-    () => {
-      if (user !== null) {
-        setIsSubmitting(true);
-        onMakePointOpenChange(true);
-      } else {
-        login();
-      }
-    },
-    [user, login, onMakePointOpenChange]
-  );
+  const loginOrMakePoint = useCallback(() => {
+    if (user !== null) {
+      onMakePointOpenChange(true);
+    } else {
+      login();
+    }
+  }, [user, login, onMakePointOpenChange]);
 
   const handleNewViewpoint = () => {
     if (user) {
@@ -129,16 +125,10 @@ export default function Home() {
         <Button
           className="aspect-square rounded-full h-[58px] w-[58px] sm:h-10 sm:w-[160px] order-3"
           onClick={loginOrMakePoint}
-          rightLoading={isSubmitting}
+          disabled={makePointOpen}
         >
-          {isSubmitting ? (
-            "Creating..."
-          ) : (
-            <>
-              <PlusIcon className="size-7 sm:size-5" />
-              <span className="hidden sm:block ml-sm">Make a Point</span>
-            </>
-          )}
+          <PlusIcon className="size-7 sm:size-5" />
+          <span className="hidden sm:block ml-sm">Make a Point</span>
         </Button>
 
         <Button

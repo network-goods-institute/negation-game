@@ -188,8 +188,8 @@ export const PointCard = ({
       onMouseLeave={() => setHoveredPointId(undefined)}
       {...props}
     >
-      <div className="flex flex-col flex-grow">
-        <p className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg -mt-1 mb-sm  select-text flex-1">
+      <div className="flex flex-col flex-grow w-full min-w-0">
+        <p className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg -mt-1 mb-sm select-text flex-1 break-words whitespace-normal overflow-hidden">
           {content}
           {visited === true && (
             <CheckIcon className="inline size-4 text-muted-foreground/80 ml-2" />

@@ -356,9 +356,8 @@ export default function PointPage({
               data-show-hover={canvasEnabled && hoveredPointId === pointId}
               onMouseEnter={() => setHoveredPointId(pointId)}
               onMouseLeave={() => setHoveredPointId(undefined)}
-              className=" px-4 py-3 border-b data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
-            >
-              <p className="tracking-tight text-md  @xs/point:text-md @sm/point:text-lg mb-sm">
+              className=" px-4 py-3 border-b data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]">
+              <p className="tracking-tight text-md  @xs/point:text-md @sm/point:text-lg mb-sm break-words whitespace-normal min-w-0">
                 {point.content}
               </p>
               <span className="text-muted-foreground text-sm">

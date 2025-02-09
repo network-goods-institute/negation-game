@@ -93,6 +93,21 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (!open) {
+      setIsSubmitting(false);
+    }
+  }, [open]);
+
+  const handleClose = useCallback(() => {
+    setContent("");
+    selectPoint(undefined);
+    setSuggestionSelected(false);
+    resetCred();
+    setIsSubmitting(false);
+    onOpenChange?.(false);
+  }, [onOpenChange, resetCred]);
+
   const handleSubmit = useCallback(() => {
     if (!canSubmit || isSubmitting) return;
 
@@ -105,13 +120,9 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
       })
     )
       .then(() => {
-        onOpenChange?.(false);
-        setContent("");
-        selectPoint(undefined);
-        setSuggestionSelected(false);
-        resetCred();
+        handleClose();
       })
-      .finally(() => {
+      .catch(() => {
         setIsSubmitting(false);
       });
   }, [
@@ -120,20 +131,15 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
     selectedPoint,
     content,
     cred,
-    onOpenChange,
-    resetCred,
+    handleClose,
     endorse,
     makePoint,
-    setContent,
-    selectPoint,
-    setSuggestionSelected,
-    setIsSubmitting,
   ]);
 
   useSubmitHotkey(handleSubmit, open);
 
   return (
-    <Dialog {...props} open={open} onOpenChange={onOpenChange}>
+    <Dialog {...props} open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:top-xl flex flex-col overflow-auto sm:translate-y-0 h-full rounded-none sm:rounded-md sm:h-fit gap-0  bg-background p-4 sm:p-8 shadow-sm w-full max-w-xl">
         <div className="w-full flex items-center justify-between mb-xl">
           <DialogTitle hidden>Make a Point</DialogTitle>
