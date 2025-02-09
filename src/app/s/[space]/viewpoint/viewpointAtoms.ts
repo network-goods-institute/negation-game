@@ -53,7 +53,9 @@ export const initialViewpointGraph: ViewpointGraph = {
 export const viewpointGraphAtom = atom(
   (get) => {
     const graph = get(viewpointGraphStorageAtom);
-    return JSON.parse(graph) as ViewpointGraph;
+    return graph
+      ? (JSON.parse(graph) as ViewpointGraph)
+      : initialViewpointGraph;
   },
   (_get, set, graph: ViewpointGraph) => {
     set(viewpointGraphStorageAtom, JSON.stringify(graph));

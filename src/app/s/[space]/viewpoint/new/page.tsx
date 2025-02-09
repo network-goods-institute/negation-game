@@ -44,9 +44,10 @@ import remarkGfm from "remark-gfm";
 import { EditModeProvider } from "@/components/graph/EditModeContext";
 import { useGraphPoints } from "@/components/graph/useGraphPoints";
 import { usePublishViewpoint } from "@/mutations/usePublishViewpoint";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Loader } from "@/components/ui/loader";
 import { ErrorBoundary } from "react-error-boundary";
+import { Trash2Icon } from "lucide-react";
 
 function PointCardWrapper({
   point,
@@ -91,6 +92,8 @@ function ViewpointContent() {
   const points = useGraphPoints();
   const [statement, setStatement] = useAtom(viewpointStatementAtom);
   const [reasoning, setReasoning] = useAtom(viewpointReasoningAtom);
+  const pathname = usePathname();
+
 
   useEffect(() => {
     updateNodeData("statement", {
@@ -116,6 +119,28 @@ function ViewpointContent() {
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  useEffect(() => {
+    if (pathname !== `${basePath}/viewpoint/new`) {
+      return;
+    }
+
+    if (localStorage.getItem("justPublished") === "true") {
+      localStorage.removeItem("justPublished");
+      setReasoning("");
+      setStatement("");
+      setGraph(initialViewpointGraph);
+    }
+  }, [pathname, setReasoning, setStatement, setGraph, basePath]);
+
+  const clearGraph = () => {
+    setReasoning("");
+    setStatement("");
+    setGraph(initialViewpointGraph);
+    // Explicitly set nodes and edges in React Flow.
+    reactFlow.setNodes(initialViewpointGraph.nodes);
+    reactFlow.setEdges(initialViewpointGraph.edges);
+  };
 
   return (
     <main className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
@@ -158,6 +183,14 @@ function ViewpointContent() {
               >
                 <NetworkIcon className="" />
               </Button>
+              <Button
+                variant={"ghost"}
+                size={"icon"}
+                className="mr-2"
+                onClick={clearGraph}
+              >
+                <Trash2Icon />
+              </Button>
               <AuthenticatedActionButton
                 size={"sm"}
                 className="rounded-full w-24"
@@ -170,15 +203,14 @@ function ViewpointContent() {
                       description: reasoning,
                       graph,
                     });
-
+                    localStorage.setItem("justPublished", "true");
                     push(`${basePath}/viewpoint/${id}`);
-
-                    setTimeout(() => {
-                      setReasoning("");
-                      setStatement("");
-                      setGraph(initialViewpointGraph);
-                    }, 0);
-                  } catch (error) { }
+                  } catch (error) {
+                    console.error("Failed to publish viewpoint:", error);
+                    alert(
+                      "Failed to publish viewpoint. See console for details."
+                    );
+                  }
                 }}
               >
                 Publish

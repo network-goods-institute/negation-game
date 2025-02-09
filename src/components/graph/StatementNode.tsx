@@ -62,22 +62,22 @@ export const StatementNode = ({
         onClick={
           editing
             ? () => {
-                const answerId = nanoid();
-                addNodes({
-                  id: answerId,
-                  type: "addPoint",
-                  position: {
-                    x: positionAbsoluteX,
-                    y: positionAbsoluteY + 100,
-                  },
-                  data: { parentId: id },
-                });
-                addEdges({
-                  id: nanoid(),
-                  source: answerId,
-                  target: id,
-                });
-              }
+              const answerId = nanoid();
+              addNodes({
+                id: answerId,
+                type: "addPoint",
+                position: {
+                  x: positionAbsoluteX,
+                  y: positionAbsoluteY + 100,
+                },
+                data: { parentId: id },
+              });
+              addEdges({
+                id: nanoid(),
+                source: answerId,
+                target: id,
+              });
+            }
             : undefined
         }
       >
