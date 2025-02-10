@@ -21,10 +21,12 @@ import {
   useUpdateNodeInternals,
 } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
-import { XIcon } from "lucide-react";
+import { Trash2Icon, XIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { find } from "remeda";
+import { AuthenticatedActionButton } from "@/components/ui/button";
+import { deletedPointIdsAtom } from "@/app/s/[space]/viewpoint/viewpointAtoms";
 
 export type PointNodeData = {
   pointId: number;
@@ -36,13 +38,13 @@ export type PointNode = Node<PointNodeData, "point">;
 
 export interface PointNodeProps extends Omit<NodeProps, "data"> {
   data: PointNodeData;
+  onDelete?: (nodeId: string) => void;
 }
 
 export const PointNode = ({
   data: { pointId, parentId, expandOnInit },
   id,
-  positionAbsoluteX,
-  positionAbsoluteY,
+  onDelete,
 }: PointNodeProps) => {
   const [hoveredPoint, setHoveredPoint] = useAtom(hoveredPointIdAtom);
   const [shouldExpandOnInit, setShouldExpandOnInit] = useState(
@@ -65,16 +67,11 @@ export const PointNode = ({
     addEdges,
     getNode,
     getNodes,
-    getEdges,
     getHandleConnections,
 
     deleteElements,
   } = useReactFlow();
 
-  const { subscribe } = useStoreApi();
-
-  // track only amount of nodes to prevent rerenders whenever node positions or selection change
-  const amountOfNodes = useStore((state) => state.nodes.length);
 
   const isRedundant = useMemo(() => {
     const firstOccurence = find(
@@ -119,6 +116,8 @@ export const PointNode = ({
   const isAddressingStatement = parentId === "statement";
   const editMode = useEditMode();
 
+  const [deletedPointIds] = useAtom(deletedPointIdsAtom);
+
   const expandNegations = useCallback(() => {
     if (!pointData) return;
 
@@ -132,7 +131,12 @@ export const PointNode = ({
 
     const currentNode = getNode(id)!;
 
-    for (const [i, negationId] of pointData.negationIds.entries()) {
+    // Filter out deleted points before expanding
+    const nonDeletedNegationIds = pointData.negationIds.filter(
+      (id) => !deletedPointIds.has(id)
+    );
+
+    for (const [i, negationId] of nonDeletedNegationIds.entries()) {
       if (expandedNegationIds.includes(negationId)) continue;
       const nodeId = nanoid();
       addNodes({
@@ -165,6 +169,7 @@ export const PointNode = ({
     addNodes,
     pointId,
     addEdges,
+    deletedPointIds,
   ]);
 
   useEffect(() => {
@@ -176,9 +181,10 @@ export const PointNode = ({
   }, [shouldExpandOnInit, pointData, expandNegations]);
 
   const collapsedNegations = pointData
-    ? pointData.amountNegations -
+    ? // Filter out deleted negations first
+    (pointData.negationIds.filter(id => !deletedPointIds.has(id)).length -
       incomingConnections.length -
-      outgoingConnections.filter((c) => c.target !== "statement").length
+      outgoingConnections.filter((c) => c.target !== "statement").length)
     : 0;
 
   const collapseSelfAndNegations = useCallback(async () => {
@@ -201,7 +207,27 @@ export const PointNode = ({
     await removeNestedNegations(id).then(() =>
       deleteElements({ nodes: [{ id }] })
     );
-  }, [deleteElements, getHandleConnections, id]);
+
+    // Filter out deleted points
+    const nonDeletedNegationIds = pointData?.negationIds.filter(
+      (id) => !deletedPointIds.has(id)
+    ) ?? [];
+
+    for (const negationId of nonDeletedNegationIds) {
+      prefetchPoint(negationId);
+      originalPosterId &&
+        prefetchUserEndorsements(originalPosterId, negationId);
+    }
+  }, [
+    deleteElements,
+    getHandleConnections,
+    id,
+    pointData,
+    deletedPointIds,
+    prefetchPoint,
+    originalPosterId,
+    prefetchUserEndorsements,
+  ]);
 
   return (
     <div
@@ -222,7 +248,7 @@ export const PointNode = ({
         className={
           collapsedNegations === 0
             ? "invisible"
-            : "-z-10 pb-0.5 px-4 translate-y-[100%] -translate-x-1/2  size-fit bg-muted text-center border-2 border-t-0 rounded-b-full pointer-events-auto cursor-pointer"
+            : "pb-0.5 px-4 translate-y-[100%] -translate-x-1/2  size-fit bg-muted text-center border-2 border-t-0 rounded-b-full pointer-events-auto cursor-pointer"
         }
         onClick={expandNegations}
       >
@@ -251,6 +277,19 @@ export const PointNode = ({
           <XIcon className="size-4" />
         </Handle>
       )}
+      {editMode && (
+        <AuthenticatedActionButton
+          variant="ghost"
+          size="icon"
+          className="absolute top-1 right-1 z-50"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete?.(id);
+          }}
+        >
+          <Trash2Icon className="size-4" />
+        </AuthenticatedActionButton>
+      )}
       {pointData ? (
         <>
           <PointCard
@@ -265,7 +304,8 @@ export const PointNode = ({
             viewerContext={{ viewerCred: pointData.viewerCred }}
             className={cn(
               "bg-muted/40 rounded-sm z-10",
-              isRedundant && "opacity-30 hover:opacity-100"
+              isRedundant && "opacity-30 hover:opacity-100",
+              editMode && "pr-8"
             )}
             originalPosterId={originalPosterId}
           ></PointCard>

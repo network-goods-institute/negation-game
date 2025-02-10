@@ -5,8 +5,9 @@ import {
   viewpointGraphAtom,
   viewpointReasoningAtom,
   viewpointStatementAtom,
+  deletedPointIdsAtom,
 } from "@/app/s/[space]/viewpoint/viewpointAtoms";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { AppNode } from "@/components/graph/AppNode";
@@ -35,29 +36,43 @@ import { usePointData } from "@/queries/usePointData";
 import { useSpace } from "@/queries/useSpace";
 import { useUser } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
-import { ReactFlowProvider, useReactFlow } from "@xyflow/react";
-import { useAtom } from "jotai";
+import {
+  ReactFlowProvider,
+  useReactFlow,
+} from "@xyflow/react";
+import { useAtom, useSetAtom } from "jotai";
 import { NetworkIcon } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { EditModeProvider } from "@/components/graph/EditModeContext";
+import { EditModeProvider, useEditMode } from "@/components/graph/EditModeContext";
 import { useGraphPoints } from "@/components/graph/useGraphPoints";
 import { usePublishViewpoint } from "@/mutations/usePublishViewpoint";
 import { useRouter, usePathname } from "next/navigation";
 import { Loader } from "@/components/ui/loader";
 import { ErrorBoundary } from "react-error-boundary";
 import { Trash2Icon } from "lucide-react";
+import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 
 function PointCardWrapper({
   point,
   className,
+  onDelete,
 }: {
   point: { pointId: number; parentId?: number | string };
   className?: string;
+  onDelete: (pointId: string) => void;
 }) {
   const { data: pointData } = usePointData(point.pointId);
   const { originalPosterId } = useOriginalPoster();
+  const setNegatedPointId = useSetAtom(negatedPointIdAtom);
+  const reactFlow = useReactFlow<AppNode>();
+  const editMode = useEditMode();
+  const [deletedPointIds] = useAtom(deletedPointIdsAtom);
+
+  if (deletedPointIds.has(point.pointId)) {
+    return null;
+  }
 
   if (!pointData)
     return (
@@ -74,13 +89,38 @@ function PointCardWrapper({
       favor={pointData.favor}
       amountSupporters={pointData.amountSupporters}
       amountNegations={pointData.amountNegations}
+      viewerContext={{ viewerCred: pointData.viewerCred }}
+      onNegate={() => setNegatedPointId(point.pointId)}
       originalPosterId={originalPosterId}
-    />
+    >
+      {editMode && (
+        <AuthenticatedActionButton
+          variant="ghost"
+          size="icon"
+          className="absolute top-2 right-2"
+          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+            e.stopPropagation();
+            const targetNode = reactFlow.getNodes().find(
+              (n: AppNode) => n.type === "point" &&
+                n.data?.pointId === point.pointId
+            );
+
+            if (!targetNode) {
+              return;
+            }
+
+            onDelete(targetNode.id);
+          }}
+        >
+          <Trash2Icon className="size-4" />
+        </AuthenticatedActionButton>
+      )}
+    </PointCard>
   );
 }
 
 function ViewpointContent() {
-  const { updateNodeData } = useReactFlow();
+  const { updateNodeData, deleteElements } = useReactFlow();
   const { data: user } = useUser();
   const { push } = useRouter();
   const basePath = useBasePath();
@@ -93,7 +133,8 @@ function ViewpointContent() {
   const [statement, setStatement] = useAtom(viewpointStatementAtom);
   const [reasoning, setReasoning] = useAtom(viewpointReasoningAtom);
   const pathname = usePathname();
-
+  const editMode = useEditMode();
+  const [_, setDeletedPointIds] = useAtom(deletedPointIdsAtom);
 
   useEffect(() => {
     updateNodeData("statement", {
@@ -140,7 +181,78 @@ function ViewpointContent() {
     // Explicitly set nodes and edges in React Flow.
     reactFlow.setNodes(initialViewpointGraph.nodes);
     reactFlow.setEdges(initialViewpointGraph.edges);
+    setDeletedPointIds(new Set()); // Clear deleted points
   };
+
+  const removePointFromViewpoint = useCallback(
+    (pointIdToRemove: string) => {
+      const currentNodes = reactFlow.getNodes();
+      const currentEdges = reactFlow.getEdges();
+
+      if (pointIdToRemove === 'statement') {
+        return;
+      }
+
+      const nodesToRemove = new Set<string>([pointIdToRemove]);
+      const edgesToRemove = new Set<string>();
+
+      // Find all edges connected to this node (both directions)
+      const connectedEdges = currentEdges.filter(edge =>
+        edge.source === pointIdToRemove || edge.target === pointIdToRemove
+      );
+      // Add all connected edges to removal set
+      connectedEdges.forEach(edge => {
+        edgesToRemove.add(edge.id);
+      });
+
+      // BFS to find all CHILDREN (using reverse edge direction)
+      const queue = [pointIdToRemove];
+      while (queue.length > 0) {
+        const currentId = queue.shift()!;
+
+        // Find edges where this node is the TARGET (parent)
+        const childEdges = currentEdges.filter(
+          edge => edge.target === currentId && edge.source !== 'statement'
+        );
+
+        childEdges.forEach(edge => {
+          const childNodeId = edge.source;
+          if (!nodesToRemove.has(childNodeId)) {
+            nodesToRemove.add(childNodeId);
+            queue.push(childNodeId);
+          }
+        });
+      }
+
+      // Update Jotai state directly with a new graph value rather than using a function updater
+      setGraph({
+        nodes: currentNodes.filter((n: { id: string }) => !nodesToRemove.has(n.id)),
+        edges: currentEdges.filter((e: { id: string }) => !edgesToRemove.has(e.id))
+      });
+
+      // Update React Flow
+      const elementsToDelete = {
+        nodes: Array.from(nodesToRemove).map((id: string) => ({ id })),
+        edges: Array.from(edgesToRemove).map((id: string) => ({ id }))
+      };
+
+      deleteElements(elementsToDelete);
+
+      // Get the pointId from the node data
+      const nodeToRemove = currentNodes.find(n => n.id === pointIdToRemove);
+      const pointId =
+        nodeToRemove?.type === "point" ? nodeToRemove.data.pointId : undefined;
+
+      // Add to deletedPointIdsAtom
+      if (pointId) {
+        setDeletedPointIds(prev => {
+          const newSet = new Set(prev).add(pointId);
+          return newSet;
+        });
+      }
+    },
+    [setGraph, deleteElements, reactFlow, setDeletedPointIds]
+  );
 
   return (
     <main className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
@@ -263,15 +375,19 @@ function ViewpointContent() {
                 </span>
                 <Dynamic>
                   {points.map((point) => (
-                    <PointCardWrapper
-                      key={`${point.pointId}-card`}
-                      point={point}
-                      className={cn(
-                        "border-b",
-                        hoveredPointId === point.pointId &&
-                        "shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
-                      )}
-                    />
+                    <div key={`${point.pointId}-card-wrapper`} className="relative">
+                      <PointCardWrapper
+                        key={`${point.pointId}-card`}
+                        point={point}
+                        className={cn(
+                          "border-b",
+                          hoveredPointId === point.pointId &&
+                          "shadow-[inset_0_0_0_2px_hsl(var(--primary))]",
+                          editMode && "pr-10"
+                        )}
+                        onDelete={removePointFromViewpoint}
+                      />
+                    </div>
                   ))}
                 </Dynamic>
               </div>
@@ -307,6 +423,7 @@ function ViewpointContent() {
             "!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset]  !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md: !z-10 md:z-auto",
             !canvasEnabled && isMobile && "hidden"
           )}
+          onDeleteNode={removePointFromViewpoint}
         />
       </Dynamic>
 

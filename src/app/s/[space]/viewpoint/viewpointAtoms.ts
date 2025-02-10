@@ -69,3 +69,5 @@ export const viewpointGraphStorageAtom = atomWithStorage<string>(
   storage,
   { getOnInit: true }
 );
+
+export const deletedPointIdsAtom = atom<Set<number>>(new Set<number>());
