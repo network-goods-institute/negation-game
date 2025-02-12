@@ -24,6 +24,9 @@ import {
 import { XIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useCallback, useMemo } from "react";
+import { useEditMode } from "./EditModeContext";
+import { useOriginalPoster } from "./OriginalPosterContext";
+import { useUser } from "@/queries/useUser";
 
 export interface GraphViewProps extends ReactFlowProps<AppNode> {
   rootPointId?: number;
@@ -46,32 +49,45 @@ export const GraphView = ({
   const [nodes, , onNodesChangeDefault] = useNodesState<AppNode>([]);
   const [edges, , onEdgesChangeDefault] = useEdgesState<Edge>([]);
   const { theme } = useTheme();
+  const editMode = useEditMode();
+  const { originalPosterId } = useOriginalPoster();
+  const { data: user } = useUser();
+
+  // Check if current user is the original poster
+  const isOriginalPoster = user?.id === originalPosterId;
+
+  // Only allow modifications if in edit mode AND user is original poster
+  const canModify = editMode && isOriginalPoster;
 
   const onNodesChange = useCallback(
     (nodes: NodeChange<AppNode>[]) => {
-      onNodesChangeDefault(nodes);
-      onNodesChangeProp?.(nodes);
+      if (canModify) {
+        onNodesChangeDefault(nodes);
+        onNodesChangeProp?.(nodes);
+      }
     },
-    [onNodesChangeDefault, onNodesChangeProp]
+    [onNodesChangeDefault, onNodesChangeProp, canModify]
   );
 
   const onEdgesChange = useCallback(
     (edges: EdgeChange[]) => {
-      onEdgesChangeDefault(edges);
-      onEdgesChangeProp?.(edges);
+      if (canModify) {
+        onEdgesChangeDefault(edges);
+        onEdgesChangeProp?.(edges);
+      }
     },
-    [onEdgesChangeDefault, onEdgesChangeProp]
+    [onEdgesChangeDefault, onEdgesChangeProp, canModify]
   );
 
   const nodeTypes = useMemo(
     () => ({
       point: (props: any) => (
-        <PointNode {...props} onDelete={onDeleteNode} />
+        <PointNode {...props} onDelete={canModify ? onDeleteNode : undefined} />
       ),
       statement: StatementNode,
       addPoint: AddPointNode,
     }),
-    [onDeleteNode]
+    [onDeleteNode, canModify]
   );
   const edgeTypes = useMemo(() => ({ negation: NegationEdge }), []);
 

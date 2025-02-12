@@ -226,10 +226,14 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
       <Dynamic>
         <GraphView
           onInit={(reactFlow) => {
-            reactFlow.setNodes(graph.nodes);
-            reactFlow.setEdges(graph.edges);
-            reactFlow.fitView();
+            if (viewpoint?.graph) {
+              reactFlow.setNodes(viewpoint.graph.nodes);
+              reactFlow.setEdges(viewpoint.graph.edges);
+              reactFlow.fitView();
+            }
           }}
+          defaultNodes={viewpoint?.graph.nodes}
+          defaultEdges={viewpoint?.graph.edges}
           onClose={
             isMobile
               ? () => {
