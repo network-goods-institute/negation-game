@@ -16,17 +16,19 @@ import {
   Position,
   useHandleConnections,
   useReactFlow,
-  useStore,
-  useStoreApi,
   useUpdateNodeInternals,
 } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
 import { Trash2Icon, XIcon } from "lucide-react";
+import { Edge } from "@xyflow/react";
 import { nanoid } from "nanoid";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { find } from "remeda";
 import { AuthenticatedActionButton } from "@/components/ui/button";
 import { deletedPointIdsAtom } from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { useViewpoint } from "@/queries/useViewpoint";
+import { useParams } from "next/navigation";
+import { collapsedPointIdsAtom } from "@/app/s/[space]/viewpoint/viewpointAtoms";
 
 export type PointNodeData = {
   pointId: number;
@@ -38,7 +40,7 @@ export type PointNode = Node<PointNodeData, "point">;
 
 export interface PointNodeProps extends Omit<NodeProps, "data"> {
   data: PointNodeData;
-  onDelete?: (nodeId: string) => void;
+  onDelete?: (params: { nodes: Node[]; edges: Edge[] }) => void;
 }
 
 export const PointNode = ({
@@ -55,10 +57,6 @@ export const PointNode = ({
     nodeId: id,
   });
 
-  const outgoingConnections = useHandleConnections({
-    type: "source",
-    nodeId: id,
-  });
 
   const updateNodeInternals = useUpdateNodeInternals();
   const setNegatedPointId = useSetAtom(negatedPointIdAtom);
@@ -68,10 +66,22 @@ export const PointNode = ({
     getNode,
     getNodes,
     getHandleConnections,
-
+    getEdges,
     deleteElements,
   } = useReactFlow();
 
+  const params = useParams();
+  const viewpointId = params.viewpointId as string;
+  const editMode = useEditMode();
+  const isViewpointContext = !!viewpointId;
+  const { data: originalViewpoint } = useViewpoint(isViewpointContext ? viewpointId : "DISABLED");
+  const { originalPosterId } = useOriginalPoster();
+
+  const wasInOriginalViewpoint = isViewpointContext ? originalViewpoint?.originalPointIds?.includes(pointId) : true;
+
+  const isAddressingStatement = parentId === "statement";
+  // When in edit mode, allow expansion for all nodes; otherwise, use the normal filtering logic.
+  const canExpand = editMode ? true : wasInOriginalViewpoint;
 
   const isRedundant = useMemo(() => {
     const firstOccurence = find(
@@ -90,7 +100,6 @@ export const PointNode = ({
   const prefetchUserEndorsements = usePrefetchUserEndorsements();
 
   const { isLoading, data: pointData } = usePointData(pointId);
-  const { originalPosterId } = useOriginalPoster();
   const { data: opCred } = useUserEndorsement(originalPosterId, pointId);
 
   const endorsedByOp = opCred && opCred > 0;
@@ -113,15 +122,56 @@ export const PointNode = ({
     prefetchUserEndorsements,
   ]);
 
-  const isAddressingStatement = parentId === "statement";
-  const editMode = useEditMode();
-
-  const [deletedPointIds] = useAtom(deletedPointIdsAtom);
+  const [deletedPointIds, setDeletedPointIds] = useAtom(deletedPointIdsAtom);
+  const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
 
   const expandNegations = useCallback(() => {
-    if (!pointData) return;
+    if (!isViewpointContext || editMode) {
+      const nonDeletedNegationIds =
+        pointData?.negationIds.filter((id) => !deletedPointIds.has(id)) ?? [];
 
-    const expandedNegationIds = [
+      const localExpandedNegationIds = [
+        ...getHandleConnections({ type: "target", nodeId: id }).map((c) => {
+          const node = getNode(c.source)! as PointNode;
+          return node.data.pointId;
+        }),
+        ...(parentId ? [parentId] : []),
+      ];
+
+      const currentNode = getNode(id)!;
+
+      for (const [i, negationId] of nonDeletedNegationIds.entries()) {
+        if (localExpandedNegationIds.includes(negationId)) continue;
+        const nodeId = nanoid();
+        addNodes({
+          id: nodeId,
+          data: { pointId: negationId, parentId: pointId },
+          type: "point",
+          position: {
+            x: currentNode.position.x + i * 20,
+            y:
+              currentNode.position.y +
+              (currentNode?.measured?.height ?? 200) +
+              100 +
+              20 * i,
+          },
+        });
+        addEdges({
+          id: nanoid(),
+          target: id,
+          source: nodeId,
+          type: "negation",
+        });
+      }
+      return;
+    }
+
+    if (!pointData || (!editMode && !canExpand)) {
+      return;
+    }
+
+    const currentNode = getNode(id)!;
+    const localExpandedNegationIds = [
       ...getHandleConnections({ type: "target", nodeId: id }).map((c) => {
         const node = getNode(c.source)! as PointNode;
         return node.data.pointId;
@@ -129,15 +179,12 @@ export const PointNode = ({
       ...(parentId ? [parentId] : []),
     ];
 
-    const currentNode = getNode(id)!;
+    const expandableNegationIds = pointData.negationIds
+      .filter((id) => !deletedPointIds.has(id))
+      .filter((id) => originalViewpoint?.originalPointIds?.includes(id))
+      .filter((id) => !localExpandedNegationIds.includes(id));
 
-    // Filter out deleted points before expanding
-    const nonDeletedNegationIds = pointData.negationIds.filter(
-      (id) => !deletedPointIds.has(id)
-    );
-
-    for (const [i, negationId] of nonDeletedNegationIds.entries()) {
-      if (expandedNegationIds.includes(negationId)) continue;
+    for (const [i, negationId] of expandableNegationIds.entries()) {
       const nodeId = nanoid();
       addNodes({
         id: nodeId,
@@ -152,7 +199,6 @@ export const PointNode = ({
             20 * i,
         },
       });
-
       addEdges({
         id: nanoid(),
         target: id,
@@ -160,16 +206,33 @@ export const PointNode = ({
         type: "negation",
       });
     }
+
+    setCollapsedPointIds((prev) => {
+      const newSet = new Set(prev);
+      localExpandedNegationIds.forEach((id) => {
+        const numId = typeof id === "string" ? parseInt(id) : id;
+        if (!isNaN(numId)) {
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
+          newSet.delete(numId);
+        }
+      });
+      return newSet;
+    });
   }, [
+    isViewpointContext,
+    editMode,
     pointData,
+    deletedPointIds,
     getHandleConnections,
     id,
-    parentId,
     getNode,
+    parentId,
     addNodes,
-    pointId,
     addEdges,
-    deletedPointIds,
+    setCollapsedPointIds,
+    originalViewpoint,
+    canExpand,
+    pointId,
   ]);
 
   useEffect(() => {
@@ -180,11 +243,20 @@ export const PointNode = ({
     setShouldExpandOnInit(false);
   }, [shouldExpandOnInit, pointData, expandNegations]);
 
+  const expandedNegationIds = [
+    ...getHandleConnections({ type: "target", nodeId: id }).map((c) => {
+      const node = getNode(c.source)! as PointNode;
+      return node.data.pointId;
+    }),
+    ...(parentId ? [parentId] : []),
+  ];
+
   const collapsedNegations = pointData
-    ? // Filter out deleted negations first
-    (pointData.negationIds.filter(id => !deletedPointIds.has(id)).length -
-      incomingConnections.length -
-      outgoingConnections.filter((c) => c.target !== "statement").length)
+    ? (pointData.negationIds
+      .filter(id => !deletedPointIds.has(id))
+      .filter(id => !isViewpointContext || editMode || originalViewpoint?.originalPointIds?.includes(id))
+      .filter(id => !expandedNegationIds.includes(id))
+      .length)
     : 0;
 
   const collapseSelfAndNegations = useCallback(async () => {
@@ -198,15 +270,38 @@ export const PointNode = ({
 
       if (nodeIds.length > 0) nodeIds.forEach(removeNestedNegations);
 
+      const nodesToCollapse = nodeIds
+        .map((id) => {
+          const node = getNode(id);
+          return node?.type === "point" ? node.data.pointId : null;
+        })
+        .filter((id): id is number => id !== null);
+
+      setCollapsedPointIds((prev) => {
+        const newSet = new Set(prev);
+        nodesToCollapse.forEach((id) => newSet.add(id));
+        return newSet;
+      });
+
+      // Disable rule for deletion in React Flow context
+      // eslint-disable-next-line drizzle/enforce-delete-with-where
       await deleteElements({
         nodes: nodeIds.map((id) => ({ id })),
         edges: edgeIds.map((id) => ({ id })),
       });
     };
 
-    await removeNestedNegations(id).then(() =>
-      deleteElements({ nodes: [{ id }] })
-    );
+    await removeNestedNegations(id).then(() => {
+      if (pointId) {
+        setCollapsedPointIds((prev) => {
+          const newSet = new Set(prev).add(pointId);
+          return newSet;
+        });
+      }
+      // Disable rule for deletion here as well
+      // eslint-disable-next-line drizzle/enforce-delete-with-where
+      deleteElements({ nodes: [{ id }] });
+    });
 
     // Filter out deleted points
     const nonDeletedNegationIds = pointData?.negationIds.filter(
@@ -227,7 +322,66 @@ export const PointNode = ({
     prefetchPoint,
     originalPosterId,
     prefetchUserEndorsements,
+    setCollapsedPointIds,
+    getNode,
+    pointId,
   ]);
+
+  const handleDelete = () => {
+    if (onDelete) {
+      const currentNodes = getNodes();
+      const currentEdges = getEdges();
+
+      // Do not allow deletion of the "statement" node.
+      if (id === "statement") return;
+
+      // Old deletion method: BFS to find all child nodes
+      const nodesToRemove = new Set<string>([id]);
+      const edgesToRemove = new Set<string>();
+
+      // Find all edges connected to this node (both directions)
+      const connectedEdges = currentEdges.filter(edge =>
+        edge.source === id || edge.target === id
+      );
+      // Add all connected edges to removal set
+      connectedEdges.forEach(edge => {
+        edgesToRemove.add(edge.id);
+      });
+
+      // BFS to find all CHILDREN (using reverse edge direction, where this node is the TARGET)
+      const queue = [id];
+      while (queue.length > 0) {
+        const currentId = queue.shift()!;
+        const childEdges = currentEdges.filter(
+          edge => edge.target === currentId && edge.source !== "statement"
+        );
+        childEdges.forEach(edge => {
+          const childNodeId = edge.source;
+          if (!nodesToRemove.has(childNodeId)) {
+            nodesToRemove.add(childNodeId);
+            queue.push(childNodeId);
+          }
+        });
+      }
+
+      const newNodes = currentNodes.filter(node => !nodesToRemove.has(node.id));
+      const newEdges = currentEdges.filter(edge => !edgesToRemove.has(edge.id));
+
+      // Update the deletedPointIds atom with the pointIds from the nodes we're removing.
+      setDeletedPointIds((prev) => {
+        const newSet = new Set(prev);
+        nodesToRemove.forEach(nodeId => {
+          const node = getNode(nodeId);
+          if (node && node.type === "point") {
+            newSet.add(node.data.pointId as number);
+          }
+        });
+        return newSet;
+      });
+
+      onDelete({ nodes: newNodes, edges: newEdges });
+    }
+  };
 
   return (
     <div
@@ -246,7 +400,7 @@ export const PointNode = ({
         isConnectableStart={false}
         position={Position.Bottom}
         className={
-          collapsedNegations === 0
+          collapsedNegations === 0 || !canExpand
             ? "invisible"
             : "pb-0.5 px-4 translate-y-[100%] -translate-x-1/2  size-fit bg-muted text-center border-2 border-t-0 rounded-b-full pointer-events-auto cursor-pointer"
         }
@@ -282,10 +436,7 @@ export const PointNode = ({
           variant="ghost"
           size="icon"
           className="absolute top-1 right-1 z-50"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete?.(id);
-          }}
+          onClick={handleDelete}
         >
           <Trash2Icon className="size-4" />
         </AuthenticatedActionButton>

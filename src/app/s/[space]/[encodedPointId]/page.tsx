@@ -11,7 +11,7 @@ import { PointCard } from "@/components/PointCard";
 import { PointStats } from "@/components/PointStats";
 import { RestakeDialog } from "@/components/RestakeDialog";
 import { SelectNegationDialog } from "@/components/SelectNegationDialog";
-import { GraphView } from "@/components/graph/GraphView";
+import { GraphView } from "@/components/graph/EncodedGraphView";
 import { EndorseIcon } from "@/components/icons/EndorseIcon";
 import { NegateIcon } from "@/components/icons/NegateIcon";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -155,6 +155,7 @@ export default function PointPage({
 
   const { back, push } = useRouter();
   const searchParams = useSearchParams();
+  const viewParam = searchParams.get("view");
 
   const counterpointSuggestions = useCounterpointSuggestions(point?.pointId);
 
@@ -474,7 +475,7 @@ export default function PointPage({
                         }
                         draggable={false}
                         onClick={preventDefaultIfContainsSelection}
-                        href={`${basePath}/${encodeId(negation.pointId)}`}
+                        href={`${basePath}/${encodeId(negation.pointId)}${viewParam ? `?view=${viewParam}` : ""}`}
                         key={negation.pointId}
                         className={cn(
                           "flex cursor-pointer px-4 pt-5 pb-2 border-b hover:bg-accent data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"

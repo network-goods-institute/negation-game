@@ -42,8 +42,8 @@ export const initialViewpointGraph: ViewpointGraph = {
   nodes: [
     {
       id: "statement",
-      position: { x: 100, y: 100 },
       type: "statement",
+      position: { x: 250, y: 250 },
       data: { statement: PLACEHOLDER_STATEMENT },
     },
   ],
@@ -71,3 +71,5 @@ export const viewpointGraphStorageAtom = atomWithStorage<string>(
 );
 
 export const deletedPointIdsAtom = atom<Set<number>>(new Set<number>());
+
+export const collapsedPointIdsAtom = atom<Set<number>>(new Set<number>());

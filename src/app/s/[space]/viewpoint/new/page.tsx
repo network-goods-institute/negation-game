@@ -129,6 +129,7 @@ function ViewpointContent() {
   const [isMobile, setIsMobile] = useState(false);
   const reactFlow = useReactFlow<AppNode>();
   const [graph, setGraph] = useAtom(viewpointGraphAtom);
+  const [graphRevision, setGraphRevision] = useState(0);
   const points = useGraphPoints();
   const [statement, setStatement] = useAtom(viewpointStatementAtom);
   const [reasoning, setReasoning] = useAtom(viewpointReasoningAtom);
@@ -173,6 +174,14 @@ function ViewpointContent() {
       setGraph(initialViewpointGraph);
     }
   }, [pathname, setReasoning, setStatement, setGraph, basePath]);
+
+  useEffect(() => {
+    const hasStatement = graph && graph.nodes.some((node) => node.type === "statement");
+    if (!graph || !hasStatement) {
+      setGraph(initialViewpointGraph);
+      setGraphRevision(prev => prev + 1);
+    }
+  }, [graph, setGraph]);
 
   const clearGraph = () => {
     setReasoning("");
@@ -398,11 +407,14 @@ function ViewpointContent() {
 
       <Dynamic>
         <GraphView
+          key={`graph-${graphRevision}`}
           onInit={(reactFlow) => {
             reactFlow.setNodes(graph.nodes);
             reactFlow.setEdges(graph.edges);
             reactFlow.fitView();
           }}
+          defaultNodes={graph.nodes}
+          defaultEdges={graph.edges}
           onClose={
             isMobile
               ? () => {
