@@ -1,9 +1,10 @@
 import { fetchViewpoint } from "@/actions/fetchViewpoint";
 import { useQuery } from "@tanstack/react-query";
 
-export const useViewpoint = (id: string) => {
+export function useViewpoint(id: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["viewpoint", id],
     queryFn: () => fetchViewpoint(id),
+    enabled: options?.enabled ?? true,
   });
-};
+}

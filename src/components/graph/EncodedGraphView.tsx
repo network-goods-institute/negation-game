@@ -1,5 +1,7 @@
 "use client";
 
+// Do not ever use this for viewpoints, this is specfically for the graph view for plain points only.
+
 import { AddPointNode } from "@/components/graph/AddPointNode";
 import { AppNode } from "@/components/graph/AppNode";
 import { NegationEdge } from "@/components/graph/NegationEdge";

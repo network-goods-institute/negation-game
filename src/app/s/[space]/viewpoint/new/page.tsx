@@ -48,7 +48,7 @@ import remarkGfm from "remark-gfm";
 import { EditModeProvider, useEditMode } from "@/components/graph/EditModeContext";
 import { useGraphPoints } from "@/components/graph/useGraphPoints";
 import { usePublishViewpoint } from "@/mutations/usePublishViewpoint";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Loader } from "@/components/ui/loader";
 import { ErrorBoundary } from "react-error-boundary";
 import { Trash2Icon } from "lucide-react";
@@ -63,7 +63,10 @@ function PointCardWrapper({
   className?: string;
   onDelete: (pointId: string) => void;
 }) {
-  const { data: pointData } = usePointData(point.pointId);
+  const searchParams = useSearchParams();
+  const isForking = searchParams.get('fork') === 'true';
+  const pointDataQuery = usePointData(point.pointId);
+  const pointData = isForking ? null : pointDataQuery.data;
   const { originalPosterId } = useOriginalPoster();
   const setNegatedPointId = useSetAtom(negatedPointIdAtom);
   const reactFlow = useReactFlow<AppNode>();
@@ -124,7 +127,11 @@ function ViewpointContent() {
   const { data: user } = useUser();
   const { push } = useRouter();
   const basePath = useBasePath();
-  const space = useSpace();
+  const isForking = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).has('fork')
+    : false;
+  const spaceQuery = useSpace();
+  const space = isForking ? null : spaceQuery;
   const [canvasEnabled, setCanvasEnabled] = useAtom(canvasEnabledAtom);
   const [isMobile, setIsMobile] = useState(false);
   const reactFlow = useReactFlow<AppNode>();
@@ -167,21 +174,38 @@ function ViewpointContent() {
       return;
     }
 
-    if (localStorage.getItem("justPublished") === "true") {
+    if (!isForking && localStorage.getItem("justPublished") === "true") {
       localStorage.removeItem("justPublished");
       setReasoning("");
       setStatement("");
       setGraph(initialViewpointGraph);
     }
-  }, [pathname, setReasoning, setStatement, setGraph, basePath]);
+  }, [pathname, setReasoning, setStatement, setGraph, basePath, isForking]);
 
   useEffect(() => {
-    const hasStatement = graph && graph.nodes.some((node) => node.type === "statement");
-    if (!graph || !hasStatement) {
-      setGraph(initialViewpointGraph);
-      setGraphRevision(prev => prev + 1);
+    if (isForking) {
+      const search = new URLSearchParams(window.location.search);
+      const graphParam = search.get("graph");
+
+      if (graphParam) {
+        try {
+          const parsedGraph = JSON.parse(decodeURIComponent(graphParam));
+          setGraph(parsedGraph);
+        } catch (error) {
+        }
+      } else {
+        console.warn("[FORK] No graph parameter found in URL");
+      }
     }
-  }, [graph, setGraph]);
+  }, [isForking, setGraph]);
+
+  useEffect(() => {
+    const hasStatement = graph?.nodes?.some(n => n.type === "statement");
+
+    if (!isForking && (!graph || !hasStatement)) {
+      setGraph(initialViewpointGraph);
+    }
+  }, [graph, isForking, setGraph]);
 
   const clearGraph = () => {
     setReasoning("");
@@ -408,6 +432,7 @@ function ViewpointContent() {
       <Dynamic>
         <GraphView
           key={`graph-${graphRevision}`}
+          isNew={true}
           onInit={(reactFlow) => {
             reactFlow.setNodes(graph.nodes);
             reactFlow.setEdges(graph.edges);
@@ -496,11 +521,12 @@ function ViewpointPageContent() {
 
 export default function NewViewpointPage() {
   const { user: privyUser } = usePrivy();
+  const searchParams = useSearchParams();
 
   return (
     <EditModeProvider editMode={true}>
       <OriginalPosterProvider originalPosterId={privyUser?.id}>
-        <ViewpointPageContent />
+        <ViewpointPageContent key={searchParams.toString()} />
       </OriginalPosterProvider>
     </EditModeProvider>
   );

@@ -164,10 +164,25 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
   const [isSaving, setIsSaving] = useState(false);
 
+  const { data: user } = useUser();
+  const isOwner = viewpoint ? user?.id === viewpoint.createdBy : false;
+
   const onSaveChanges = useCallback(async () => {
     try {
       setIsSaving(true);
+      // If the current user is not the owner (i.e. not the creator) then fork instead of trying to update directly
+      if (!isOwner) {
+        if (localGraph && viewpoint) {
+          sessionStorage.setItem('forkGraph', JSON.stringify(localGraph));
+          setStatement(viewpoint.title + " (fork)");
+          setReasoning(viewpoint.description);
+          setGraph(localGraph);
 
+          const encodedGraph = encodeURIComponent(JSON.stringify(localGraph));
+          router.push(`${basePath}/viewpoint/new?fork=true&graph=${encodedGraph}`);
+          return;
+        }
+      }
       setEditModeEnabled(false);
       if (localGraph && viewpoint) {
         queryClient.setQueryData(["viewpoint", viewpoint.id], {
@@ -175,17 +190,10 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
           graph: localGraph,
         });
       }
-      // Reset revision counter to force remount of non-edit GraphView
+      // Reset revision counter to force a remount of the non-edit GraphView
       setGraphRevision(prev => prev + 1);
     } catch (error) {
-      if (error instanceof Error && error.message === "Must be authenticated to update viewpoint") {
-        alert("You must be the owner of this viewpoint to save changes. Forking viewpoints to save changes will be implemented soon.");
-      } else if (error instanceof Error && error.message === "Only the owner can update this viewpoint") {
-        alert("Only the owner can update this viewpoint. Forking viewpoints to save changes will be implemented soon.");
-      } else {
-        alert("Failed to save changes. Please try again.");
-      }
-      // Revert changes on error
+      alert("Failed to save changes. Please try again.");
       if (originalGraph) {
         setLocalGraph(originalGraph);
         setGraph(originalGraph);
@@ -194,7 +202,20 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     } finally {
       setIsSaving(false);
     }
-  }, [localGraph, queryClient, setEditModeEnabled, viewpoint, originalGraph, setGraph]);
+  }, [
+    localGraph,
+    queryClient,
+    setEditModeEnabled,
+    viewpoint,
+    originalGraph,
+    setLocalGraph,
+    setGraph,
+    isOwner,
+    router,
+    basePath,
+    setStatement,
+    setReasoning
+  ]);
 
   const [editFlowInstance, setEditFlowInstance] = useState<ReactFlowInstance<AppNode> | null>(null);
 
@@ -359,11 +380,11 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
           {editModeEnabled ? (
             <GraphView
               key="graph-edit"
+              canModify={isOwner}
               onInit={(instance) => {
                 console.log("[ViewpointPage] Setting editFlowInstance:", instance);
                 setEditFlowInstance(instance);
               }}
-              // In edit mode we supply the initial state via defaultNodes/defaultEdges
               defaultNodes={localGraph ? localGraph.nodes : []}
               defaultEdges={localGraph ? localGraph.edges : []}
               statement={title}

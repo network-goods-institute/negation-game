@@ -26,14 +26,16 @@ import { XIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useCallback, useMemo, useEffect, useState } from "react";
 import { useEditMode as localEditMode } from "./EditModeContext";
-import { useOriginalPoster } from "./OriginalPosterContext";
-import { useUser } from "@/queries/useUser";
 import { useSetAtom, useAtom } from "jotai";
 import { deletedPointIdsAtom } from "@/app/s/[space]/viewpoint/viewpointAtoms";
 import { ViewpointGraph } from "@/app/s/[space]/viewpoint/viewpointAtoms";
 import React from "react";
 import { updateViewpointGraph } from "@/actions/updateViewpointGraph";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useBasePath } from "@/hooks/useBasePath";
+import { viewpointStatementAtom, viewpointReasoningAtom, viewpointGraphAtom } from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { useViewpoint } from "@/queries/useViewpoint";
+import { AuthenticatedActionButton } from "@/components/ui/button";
 
 function debounce<T extends (...args: any[]) => any>(
   func: T,
@@ -64,6 +66,7 @@ function debounce<T extends (...args: any[]) => any>(
 
 export interface GraphViewProps extends ReactFlowProps<AppNode> {
   onSaveChanges?: () => void;
+  canModify?: boolean;
   rootPointId?: number;
   statement?: string;
   onClose?: () => void;
@@ -72,6 +75,7 @@ export interface GraphViewProps extends ReactFlowProps<AppNode> {
   editFlowInstance?: ReactFlowInstance<AppNode> | null;
   setLocalGraph?: (graph: ViewpointGraph) => void;
   isSaving?: boolean;
+  isNew?: boolean;
 }
 
 export const GraphView = ({
@@ -85,6 +89,8 @@ export const GraphView = ({
   onSaveChanges,
   setLocalGraph,
   isSaving,
+  canModify,
+  isNew,
   ...props
 }: GraphViewProps) => {
   const [deletedPointIds] = useAtom(deletedPointIdsAtom);
@@ -93,16 +99,21 @@ export const GraphView = ({
   const [edges, setEdges, onEdgesChangeDefault] = useEdgesState<Edge>([]);
   const { theme } = useTheme();
   const editMode = localEditMode();
-  const { originalPosterId } = useOriginalPoster();
-  const { data: user } = useUser();
   const setDeletedPointIds = useSetAtom(deletedPointIdsAtom);
+  const router = useRouter();
+  const basePath = useBasePath();
+  const setStatement = useSetAtom(viewpointStatementAtom);
+  const setReasoning = useSetAtom(viewpointReasoningAtom);
+  const setNewGraph = useSetAtom(viewpointGraphAtom);
 
-  // Get the current viewpoint ID from the route params
+  // Get the current viewpoint ID from the route params first
   const params = useParams();
   const viewpointId = params.viewpointId as string;
 
-  const isOriginalPoster = user?.id === originalPosterId;
-  const canModify = editMode && isOriginalPoster;
+  // Then use it in the hook
+  const { data: viewpoint } = useViewpoint(viewpointId, {
+    enabled: !isNew
+  });
 
   // Debounced function to update localGraph
   const debouncedSetLocalGraph = useMemo(
@@ -124,7 +135,7 @@ export const GraphView = ({
 
   const onNodesChange = useCallback(
     (nodes: NodeChange<AppNode>[]) => {
-      if (canModify) {
+      if (editMode) {
         onNodesChangeDefault(nodes);
         onNodesChangeProp?.(nodes);
         if (flowInstance && setLocalGraph) {
@@ -139,12 +150,12 @@ export const GraphView = ({
         }
       }
     },
-    [onNodesChangeDefault, onNodesChangeProp, canModify, flowInstance, setLocalGraph]
+    [onNodesChangeDefault, onNodesChangeProp, editMode, flowInstance, setLocalGraph]
   );
 
   const onEdgesChange = useCallback(
     (edges: EdgeChange[]) => {
-      if (canModify) {
+      if (editMode) {
         onEdgesChangeDefault(edges);
         onEdgesChangeProp?.(edges);
         if (flowInstance && setLocalGraph) {
@@ -156,11 +167,10 @@ export const GraphView = ({
     [
       onEdgesChangeDefault,
       onEdgesChangeProp,
-      canModify,
+      setLocalGraph,
+      editMode,
       flowInstance,
       debouncedSetLocalGraph,
-      props.defaultNodes,
-      props.defaultEdges,
     ]
   );
 
@@ -186,21 +196,20 @@ export const GraphView = ({
       point: (props: any) => (
         <PointNode
           {...props}
-          onDelete={canModify ? handleNodeDelete : undefined}
+          onDelete={editMode ? handleNodeDelete : undefined}
         />
       ),
       statement: StatementNode,
       addPoint: AddPointNode,
     }),
-    [handleNodeDelete, canModify]
+    [handleNodeDelete, editMode]
   );
   const edgeTypes = useMemo(() => ({ negation: NegationEdge }), []);
 
-  const { defaultNodes, defaultEdges, onInit, ...restProps } = props;
-
+  const { defaultNodes, defaultEdges, onInit, ...otherProps } = props;
   const effectiveProps = editMode
-    ? restProps
-    : { ...restProps, defaultNodes, defaultEdges, ...(onInit && { onInit }) };
+    ? otherProps
+    : { ...otherProps, defaultNodes, defaultEdges, ...(onInit && { onInit }) };
 
   useEffect(() => {
     if (editMode) {
@@ -215,7 +224,34 @@ export const GraphView = ({
 
   const handleSave = useCallback(async () => {
     if (!canModify) {
-      alert("You do not have permission to edit and save changes on this viewpoint.");
+      // Instead of showing alert, fork the viewpoint
+      if (!flowInstance) return;
+
+      // Filter out nodes marked as deleted
+      const filteredNodes = nodes.filter(n => {
+        return n.type !== "point" || !deletedPointIds.has(n.data.pointId as number);
+      });
+
+      // Filter out edges that reference deleted nodes
+      const filteredEdges = edges.filter(e =>
+        filteredNodes.some(n => n.id === e.source) &&
+        filteredNodes.some(n => n.id === e.target)
+      );
+
+      const filteredGraph = {
+        nodes: filteredNodes,
+        edges: filteredEdges,
+      };
+
+      // Set up the new viewpoint data
+      if (viewpoint) {
+        setStatement(viewpoint.title + " (fork)");
+        setReasoning(viewpoint.description);
+        setNewGraph(filteredGraph);
+
+        // Navigate to new viewpoint page
+        router.push(`${basePath}/viewpoint/new`);
+      }
       return;
     }
 
@@ -266,7 +302,24 @@ export const GraphView = ({
       }
       throw error; // Re-throw so onSaveChanges can handle it too
     }
-  }, [nodes, edges, flowInstance, onSaveChanges, deletedPointIds, setLocalGraph, viewpointId, canModify, props.defaultNodes, props.defaultEdges]);
+  }, [
+    nodes,
+    edges,
+    flowInstance,
+    onSaveChanges,
+    deletedPointIds,
+    setLocalGraph,
+    viewpointId,
+    canModify,
+    router,
+    basePath,
+    setStatement,
+    setReasoning,
+    setNewGraph,
+    viewpoint,
+    props.defaultNodes,
+    props.defaultEdges
+  ]);
 
   return (
     <ReactFlow
@@ -307,10 +360,9 @@ export const GraphView = ({
           style={{ top: "95%", left: "50%", transform: "translate(-50%, -50%)" }}
           className="z-50"
         >
-          <Button
+          <AuthenticatedActionButton
             variant="default"
-            onClick={async (e) => {
-              e.preventDefault();
+            onClick={async () => {
               try {
                 await handleSave();
               } catch (error) {
@@ -318,16 +370,14 @@ export const GraphView = ({
               }
             }}
             disabled={isSaving}
+            rightLoading={isSaving}
           >
-            {isSaving ? (
-              <div className="flex items-center gap-2">
-                <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
-                <span>Saving...</span>
-              </div>
+            {canModify ? (
+              isSaving ? "Saving..." : "Save Changes"
             ) : (
-              "Save Changes"
+              isSaving ? "Forking..." : "Fork Viewpoint"
             )}
-          </Button>
+          </AuthenticatedActionButton>
         </Panel>
       )}
     </ReactFlow>
