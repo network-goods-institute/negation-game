@@ -1,11 +1,13 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useQuery } from "@tanstack/react-query";
 import { useFeed } from "@/queries/useFeed";
 import { useAllUsers } from "@/queries/useAllUsers";
 import { TrophyIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useUser } from "@/queries/useUser";
+import { fetchSpaceViewpoints } from "@/actions/fetchSpaceViewpoints";
 
 export const LeaderboardDialog = ({
     open,
@@ -18,12 +20,16 @@ export const LeaderboardDialog = ({
 }) => {
     const { data: feed } = useFeed();
     const { data: allUsers } = useAllUsers();
+    const { data: spaceViewpoints } = useQuery({
+        queryKey: ["spaceViewpoints", space],
+        queryFn: () => fetchSpaceViewpoints(space),
+    });
     const { data: user } = useUser();
-    const [sortBy, setSortBy] = useState<"points" | "cred">("points");
+    const [sortBy, setSortBy] = useState<"points" | "cred" | "viewpoints">("points");
     const [sortDescending, setSortDescending] = useState(true);
 
     const leaderboardData = useMemo(() => {
-        if (!feed || !allUsers) return [];
+        if (!feed || !allUsers || !spaceViewpoints) return [];
 
         // Count points per user in this space
         const pointsCount = feed.reduce((acc, point) => {
@@ -33,17 +39,25 @@ export const LeaderboardDialog = ({
             return acc;
         }, {} as Record<string, number>);
 
+        // Calculate viewpoints count
+        const viewpointsCount = spaceViewpoints.reduce((acc, viewpoint) => {
+            acc[viewpoint.createdBy] = (acc[viewpoint.createdBy] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+
         // Merge with user data - include all users
         return allUsers.map(user => ({
             ...user,
-            points: pointsCount[user.id] || 0
+            points: pointsCount[user.id] || 0,
+            viewpoints: viewpointsCount[user.id] || 0,
         }));
 
-    }, [feed, allUsers, space]);
+    }, [feed, allUsers, spaceViewpoints, space]);
 
     const sortedUsers = [...leaderboardData].sort((a, b) => {
-        const valueA = (sortBy === "points" ? a.points : a.cred) || 0;
-        const valueB = (sortBy === "points" ? b.points : b.cred) || 0;
+        const valueA =
+            (sortBy === "points" ? a.points : sortBy === "cred" ? a.cred : a.viewpoints) || 0;
+        const valueB = (sortBy === "points" ? b.points : sortBy === "cred" ? b.cred : b.viewpoints) || 0;
         return sortDescending ? valueB - valueA : valueA - valueB;
     });
 
@@ -85,6 +99,13 @@ export const LeaderboardDialog = ({
                                     Sort by Cred
                                 </Button>
                                 <Button
+                                    variant={sortBy === "viewpoints" ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => setSortBy("viewpoints")}
+                                >
+                                    Sort by Viewpoints
+                                </Button>
+                                <Button
                                     variant="outline"
                                     size="sm"
                                     onClick={() => setSortDescending(!sortDescending)}
@@ -100,6 +121,7 @@ export const LeaderboardDialog = ({
                                             <th className="text-left py-3 pl-4 pr-2">Rank</th>
                                             <th className="text-left py-3 px-2">User</th>
                                             <th className="text-left py-3 px-2">Points</th>
+                                            <th className="text-left py-3 px-2">Viewpoints</th>
                                             <th className="text-left py-3 pr-6">Cred</th>
                                         </tr>
                                     </thead>
@@ -115,6 +137,7 @@ export const LeaderboardDialog = ({
                                                     </span>
                                                 </td>
                                                 <td className="py-3 px-2">{sortedUsers[currentUserIndex].points}</td>
+                                                <td className="py-3 px-2">{sortedUsers[currentUserIndex].viewpoints}</td>
                                                 <td className="py-3 pr-6">{sortedUsers[currentUserIndex].cred}</td>
                                             </tr>
                                         )}
@@ -136,6 +159,7 @@ export const LeaderboardDialog = ({
                                                     )}
                                                 </td>
                                                 <td className="py-3 px-2">{user.points}</td>
+                                                <td className="py-3 px-2">{user.viewpoints}</td>
                                                 <td className="py-3 pr-6">{user.cred}</td>
                                             </tr>
                                         ))}
