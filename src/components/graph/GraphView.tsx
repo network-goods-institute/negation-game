@@ -138,19 +138,15 @@ export const GraphView = ({
       if (editMode) {
         onNodesChangeDefault(nodes);
         onNodesChangeProp?.(nodes);
+
         if (flowInstance && setLocalGraph) {
           const { viewport, ...graph } = flowInstance.toObject();
-          // Ensure edges reference valid node IDs
-          const validEdges = graph.edges.filter(edge =>
-            graph.nodes.some(n => n.id === edge.source) &&
-            graph.nodes.some(n => n.id === edge.target)
-          );
-          graph.edges = validEdges;
-          setLocalGraph(graph);
+          debouncedSetLocalGraph(graph);
+
         }
       }
     },
-    [onNodesChangeDefault, onNodesChangeProp, editMode, flowInstance, setLocalGraph]
+    [onNodesChangeDefault, onNodesChangeProp, editMode, flowInstance, setLocalGraph, debouncedSetLocalGraph]
   );
 
   const onEdgesChange = useCallback(
@@ -191,19 +187,13 @@ export const GraphView = ({
     }
   }, [setNodes, setEdges, nodes, setDeletedPointIds]);
 
-  const nodeTypes = useMemo(
-    () => ({
-      point: (props: any) => (
-        <PointNode
-          {...props}
-          onDelete={editMode ? handleNodeDelete : undefined}
-        />
-      ),
-      statement: StatementNode,
-      addPoint: AddPointNode,
-    }),
-    [handleNodeDelete, editMode]
-  );
+  // Memoize nodeTypes and edgeTypes so that they do not change on each render.
+  const nodeTypes = useMemo(() => ({
+    point: (props: any) => <PointNode {...props} onDelete={onDeleteNode} />,
+    statement: StatementNode,
+    addPoint: AddPointNode,
+  }), [onDeleteNode]);
+
   const edgeTypes = useMemo(() => ({ negation: NegationEdge }), []);
 
   const { defaultNodes, defaultEdges, onInit, ...otherProps } = props;

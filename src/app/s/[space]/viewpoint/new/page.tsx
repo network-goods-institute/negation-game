@@ -53,6 +53,7 @@ import { Loader } from "@/components/ui/loader";
 import { ErrorBoundary } from "react-error-boundary";
 import { Trash2Icon } from "lucide-react";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
+import { fetchPoints } from "@/actions/fetchPoints";
 
 function PointCardWrapper({
   point,
@@ -143,6 +144,30 @@ function ViewpointContent() {
   const pathname = usePathname();
   const editMode = useEditMode();
   const [_, setDeletedPointIds] = useAtom(deletedPointIdsAtom);
+
+  const spaceObj = space?.data?.id; // current space id
+  const [viewGraph, setViewGraph] = useAtom(viewpointGraphAtom);
+  const [viewpointStatement, setViewpointStatement] = useAtom(viewpointStatementAtom);
+
+  // Validate the persisted draft when the page mounts or when the current space changes.
+  useEffect(() => {
+    if (spaceObj) {
+      // Check if any node of type "point" has a space mismatch
+      const invalidDraft = viewGraph.nodes.some(async (node) => {
+        if (node.type !== "point") return false;
+        // Instead of checking node.data.space, fetch the point's data
+        const pointData = await fetchPoints([node.data.pointId]);
+        // If we can't fetch the point data or if it's from a different space, 
+        // the draft is invalid
+        return !pointData || !pointData.length;
+      });
+      if (invalidDraft) {
+        // If any point doesn't belong to the current space, clear out the draft.
+        setViewGraph(initialViewpointGraph);
+        setViewpointStatement("");
+      }
+    }
+  }, [spaceObj]);
 
   useEffect(() => {
     updateNodeData("statement", {
