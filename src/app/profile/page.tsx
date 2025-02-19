@@ -14,6 +14,9 @@ import { Loader } from "@/components/ui/loader";
 import { ConnectButton } from "@/components/ConnectButton";
 import { useState } from "react";
 import { useProfilePoints } from "@/queries/useProfilePoints";
+import { useUserViewpoints } from "@/queries/useUserViewpoints";
+import { ViewpointCard } from "@/components/ViewpointCard";
+import { Separator } from "@/components/ui/separator";
 
 export default function ProfilePage() {
     const { user: privyUser, ready, login } = usePrivy();
@@ -24,8 +27,9 @@ export default function ProfilePage() {
     const [isTimelineAscending, setIsTimelineAscending] = useState(false);
     const [isEndorsementsAscending, setIsEndorsementsAscending] = useState(false);
     const { data: profilePoints } = useProfilePoints();
+    const { data: userViewpoints, isLoading: isLoadingViewpoints } = useUserViewpoints();
 
-    if (!ready || isLoadingPoints) {
+    if (!ready || isLoadingPoints || isLoadingViewpoints) {
         return (
             <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow bg-background">
                 <div className="w-full sm:col-[2] flex flex-col border-x items-center justify-center min-h-[calc(100vh-var(--header-height))] sm:min-h-0">
@@ -150,6 +154,10 @@ export default function ProfilePage() {
                                                 {endorsedPoints.reduce((sum, point) => sum + (point.viewerCred || 0), 0)}
                                             </p>
                                         </div>
+                                        <div className="p-4 border rounded-lg text-center md:text-left">
+                                            <p className="text-xs md:text-sm text-muted-foreground mb-1">Viewpoints Created</p>
+                                            <p className="text-xl md:text-2xl font-medium">{userViewpoints?.length || 0}</p>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -166,36 +174,76 @@ export default function ProfilePage() {
                                         </Button>
                                     </div>
                                     {myPoints.length === 0 ? (
-                                        <p className="text-muted-foreground text-center py-8">
-                                            No points created yet
-                                        </p>
+                                        <>
+                                            {userViewpoints?.length === 0 ? (
+                                                <p className="text-muted-foreground text-center py-8">
+                                                    No points or viewpoints created yet
+                                                </p>
+                                            ) : (
+                                                <p className="text-muted-foreground text-center py-8">
+                                                    No points created yet
+                                                </p>
+                                            )}
+                                        </>
                                     ) : (
-                                        [...myPoints]
-                                            .sort((a, b) =>
-                                                isTimelineAscending
-                                                    ? a.createdAt.getTime() - b.createdAt.getTime()
-                                                    : b.createdAt.getTime() - a.createdAt.getTime()
-                                            )
-                                            .map((point) => (
-                                                <Link
-                                                    key={point.pointId}
-                                                    href={`${basePath}/${encodeId(point.pointId)}`}
-                                                    className="flex border-b cursor-pointer hover:bg-accent"
-                                                >
-                                                    <PointCard
-                                                        className="flex-grow"
-                                                        pointId={point.pointId}
-                                                        content={point.content}
-                                                        createdAt={point.createdAt}
-                                                        cred={point.cred}
-                                                        favor={point.favor}
-                                                        amountSupporters={point.amountSupporters}
-                                                        amountNegations={point.amountNegations}
-                                                        viewerContext={{ viewerCred: point.viewerCred }}
-                                                        space={point.space ?? undefined}
-                                                    />
-                                                </Link>
-                                            ))
+                                        <>
+                                            {userViewpoints && userViewpoints.length > 0 && (
+                                                <>
+                                                    <h5 className="text-sm font-medium text-muted-foreground ml-2">Viewpoints</h5>
+                                                    {[...(userViewpoints || [])]
+                                                        .sort((a, b) =>
+                                                            isTimelineAscending
+                                                                ? new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+                                                                : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                                                        )
+                                                        .map((viewpoint) => (
+                                                            <ViewpointCard
+                                                                key={viewpoint.id}
+                                                                id={viewpoint.id}
+                                                                title={viewpoint.title}
+                                                                description={viewpoint.description}
+                                                                author={viewpoint.author}
+                                                                createdAt={new Date(viewpoint.createdAt)}
+                                                                className="mb-2 mx-2"
+                                                            />
+                                                        ))}
+                                                </>
+                                            )}
+                                            {myPoints.length > 0 && userViewpoints && userViewpoints.length > 0 && (
+                                                <Separator className="my-4" />
+                                            )}
+                                            {myPoints.length > 0 && (
+                                                <>
+                                                    <h5 className="text-sm font-medium text-muted-foreground ml-2">Points</h5>
+                                                    {[...myPoints]
+                                                        .sort((a, b) =>
+                                                            isTimelineAscending
+                                                                ? a.createdAt.getTime() - b.createdAt.getTime()
+                                                                : b.createdAt.getTime() - a.createdAt.getTime()
+                                                        )
+                                                        .map((point) => (
+                                                            <Link
+                                                                key={point.pointId}
+                                                                href={`${basePath}/${encodeId(point.pointId)}`}
+                                                                className="flex border-b cursor-pointer hover:bg-accent"
+                                                            >
+                                                                <PointCard
+                                                                    className="flex-grow"
+                                                                    pointId={point.pointId}
+                                                                    content={point.content}
+                                                                    createdAt={point.createdAt}
+                                                                    cred={point.cred}
+                                                                    favor={point.favor}
+                                                                    amountSupporters={point.amountSupporters}
+                                                                    amountNegations={point.amountNegations}
+                                                                    viewerContext={{ viewerCred: point.viewerCred }}
+                                                                    space={point.space ?? undefined}
+                                                                />
+                                                            </Link>
+                                                        ))}
+                                                </>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             </div>
@@ -251,35 +299,65 @@ export default function ProfilePage() {
 
                         <TabsContent value="dashboard">
                             <div className="space-y-6">
-                                {pointsBySpace.map(({ space, points }) => (
-                                    <div key={space} className="space-y-4">
-                                        <div className="bg-muted/30 p-3 rounded-lg">
-                                            <h4 className="font-medium text-sm uppercase tracking-wider text-muted-foreground">
-                                                {space === "General" ? "General" : `s/${space}`}
-                                            </h4>
+                                {pointsBySpace.map(({ space, points }) => {
+                                    const spaceViewpoints = userViewpoints?.filter(
+                                        v => v.space === space
+                                    ) || [];
+
+                                    return (
+                                        <div key={space} className="space-y-4">
+                                            <div className="bg-muted/30 p-3 rounded-lg">
+                                                <h4 className="font-medium text-sm uppercase tracking-wider text-muted-foreground">
+                                                    {space === "General" ? "General" : `s/${space}`}
+                                                </h4>
+                                            </div>
+                                            {spaceViewpoints.length > 0 && (
+                                                <>
+                                                    <div className="space-y-2">
+                                                        <h5 className="text-sm font-medium text-muted-foreground ml-2">Viewpoints</h5>
+                                                        {spaceViewpoints.map(viewpoint => (
+                                                            <ViewpointCard
+                                                                key={viewpoint.id}
+                                                                id={viewpoint.id}
+                                                                title={viewpoint.title}
+                                                                description={viewpoint.description}
+                                                                author={viewpoint.author}
+                                                                createdAt={new Date(viewpoint.createdAt)}
+                                                                className="mb-2 mx-2"
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                    <Separator className="my-4" />
+                                                </>
+                                            )}
+                                            {points.length > 0 && (
+                                                <>
+                                                    <h5 className="text-sm font-medium text-muted-foreground ml-2">Points</h5>
+                                                    {points.map((point) => (
+                                                        <Link
+                                                            key={point.pointId}
+                                                            href={`${basePath}/${encodeId(point.pointId)}`}
+                                                            className="flex border-b cursor-pointer hover:bg-accent"
+                                                        >
+                                                            <PointCard
+                                                                className="flex-grow"
+                                                                pointId={point.pointId}
+                                                                content={point.content}
+                                                                createdAt={point.createdAt}
+                                                                cred={point.cred}
+                                                                favor={point.favor}
+                                                                amountSupporters={point.amountSupporters}
+                                                                amountNegations={point.amountNegations}
+                                                                viewerContext={{ viewerCred: point.viewerCred }}
+                                                                space={point.space ?? undefined}
+                                                            />
+                                                        </Link>
+                                                    ))}
+                                                </>
+                                            )}
                                         </div>
-                                        {points.map((point) => (
-                                            <Link
-                                                key={point.pointId}
-                                                href={`${basePath}/${encodeId(point.pointId)}`}
-                                                className="flex border-b cursor-pointer hover:bg-accent"
-                                            >
-                                                <PointCard
-                                                    className="flex-grow"
-                                                    pointId={point.pointId}
-                                                    content={point.content}
-                                                    createdAt={point.createdAt}
-                                                    cred={point.cred}
-                                                    favor={point.favor}
-                                                    amountSupporters={point.amountSupporters}
-                                                    amountNegations={point.amountNegations}
-                                                    viewerContext={{ viewerCred: point.viewerCred }}
-                                                    space={point.space ?? undefined}
-                                                />
-                                            </Link>
-                                        ))}
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </TabsContent>
                     </Tabs>
