@@ -180,7 +180,10 @@ export default function Home() {
           rightLoading={isNavigating}
         >
           {isNavigating ? (
-            "Creating..."
+            <>
+              <span className="hidden sm:block">Creating...</span>
+              <Loader className="sm:hidden size-5 text-primary mx-auto" />
+            </>
           ) : (
             <>
               <GroupIcon className="size-7 sm:size-5" />
