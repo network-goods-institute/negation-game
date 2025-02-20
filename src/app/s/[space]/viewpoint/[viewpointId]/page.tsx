@@ -28,7 +28,7 @@ import { usePointData } from "@/queries/usePointData";
 import { useSpace } from "@/queries/useSpace";
 import { useUser } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
-import { Edge, ReactFlowProvider, useReactFlow } from "@xyflow/react";
+import { Edge, ReactFlowProvider, useReactFlow, Node } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
 import {
   Tooltip,
@@ -60,12 +60,16 @@ const DynamicMarkdown = dynamic(() => import('react-markdown'), {
 function PointCardWrapper({
   point,
   className,
+  onDelete,
 }: {
   point: { pointId: number; parentId?: number | string };
   className?: string;
+  onDelete?: (nodeId: string) => void;
 }) {
   const { data: pointData } = usePointData(point.pointId);
   const { originalPosterId } = useOriginalPoster();
+  const editMode = useEditMode();
+  const reactFlow = useReactFlow();
 
   if (!pointData)
     return (
@@ -83,7 +87,31 @@ function PointCardWrapper({
       amountSupporters={pointData.amountSupporters}
       amountNegations={pointData.amountNegations}
       originalPosterId={originalPosterId}
-    />
+    >
+      {editMode && onDelete && (
+        <AuthenticatedActionButton
+          variant="ghost"
+          size="icon"
+          className="absolute top-2 right-2"
+          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+            e.stopPropagation();
+            const targetNode = reactFlow.getNodes().find((n: Node) =>
+              n.type === "point" &&
+              'pointId' in n.data &&
+              n.data.pointId === point.pointId
+            );
+
+            if (!targetNode) {
+              return;
+            }
+
+            onDelete(targetNode.id);
+          }}
+        >
+          <Trash2Icon className="size-4" />
+        </AuthenticatedActionButton>
+      )}
+    </PointCard>
   );
 }
 
@@ -219,16 +247,82 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
   const [editFlowInstance, setEditFlowInstance] = useState<ReactFlowInstance<AppNode> | null>(null);
 
-  // Handler for node deletion in edit mode
-  // The onDelete callback is expected to receive an object with the updated nodes and edges.
-  const handleNodeDelete = (graph: { nodes: AppNode[]; edges: Edge[] }) => {
-    setLocalGraph(graph);
-    if (editFlowInstance) {
-      editFlowInstance.setNodes(graph.nodes);
-      editFlowInstance.setEdges(graph.edges);
+  const removePointFromViewpoint = useCallback(
+    (pointIdToRemove: string) => {
+      const currentNodes = reactFlow.getNodes();
+      const currentEdges = reactFlow.getEdges();
+
+      if (pointIdToRemove === 'statement') {
+        return;
+      }
+
+      const nodesToRemove = new Set<string>([pointIdToRemove]);
+      const edgesToRemove = new Set<string>();
+
+      // Find all edges connected to this node (both directions)
+      const connectedEdges = currentEdges.filter(edge =>
+        edge.source === pointIdToRemove || edge.target === pointIdToRemove
+      );
+      // Add all connected edges to removal set
+      connectedEdges.forEach(edge => {
+        edgesToRemove.add(edge.id);
+      });
+
+      // BFS to find all CHILDREN (using reverse edge direction)
+      const queue = [pointIdToRemove];
+      while (queue.length > 0) {
+        const currentId = queue.shift()!;
+
+        // Find edges where this node is the TARGET (parent)
+        const childEdges = currentEdges.filter(
+          edge => edge.target === currentId && edge.source !== 'statement'
+        );
+
+        childEdges.forEach(edge => {
+          const childNodeId = edge.source;
+          if (!nodesToRemove.has(childNodeId)) {
+            nodesToRemove.add(childNodeId);
+            queue.push(childNodeId);
+          }
+        });
+      }
+
+      // Update local graph state
+      const newGraph = {
+        nodes: currentNodes.filter(n => !nodesToRemove.has(n.id)),
+        edges: currentEdges.filter(e => !edgesToRemove.has(e.id))
+      };
+      setLocalGraph(newGraph);
+
+      // Update ReactFlow instance
+      if (editFlowInstance) {
+        editFlowInstance.setNodes(newGraph.nodes);
+        editFlowInstance.setEdges(newGraph.edges);
+      }
+
+      // Get the pointId from the node data and update deletedPointIdsAtom
+      const nodeToRemove = currentNodes.find(n => n.id === pointIdToRemove);
+      const pointId = nodeToRemove?.type === "point" ? nodeToRemove.data.pointId : undefined;
+
+      if (pointId) {
+        setDeletedPointIds(prev => new Set([...prev, pointId]));
+      }
+    },
+    [reactFlow, editFlowInstance, setDeletedPointIds]
+  );
+
+  const handleNodeDelete = useCallback(({ nodes, edges }: { nodes: AppNode[]; edges: Edge[] }) => {
+    // Find the node that was deleted and get its ID
+    const deletedNodeId = nodes.length > 0 ? nodes[0].id : null;
+    if (deletedNodeId) {
+      removePointFromViewpoint(deletedNodeId);
     }
-    console.log("[handleNodeDelete] Updated graph:", graph);
-  };
+  }, [removePointFromViewpoint]);
+
+  // Handler specifically for PointCardWrapper deletion
+  const handlePointDelete = useCallback((nodeId: string) => {
+    removePointFromViewpoint(nodeId);
+  }, [removePointFromViewpoint]);
 
   if (!viewpoint)
     return (
@@ -367,8 +461,10 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                     className={cn(
                       "border-b",
                       hoveredPointId === point.pointId &&
-                      "shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
+                      "shadow-[inset_0_0_0_2px_hsl(var(--primary))]",
+                      editModeEnabled && "pr-10"
                     )}
+                    onDelete={handlePointDelete}
                   />
                 ))}
               </Dynamic>

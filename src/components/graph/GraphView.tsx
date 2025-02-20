@@ -181,11 +181,18 @@ export const GraphView = ({
   const handleNodeDelete = useCallback((params: { nodes: AppNode[]; edges: Edge[] }) => {
     setNodes(params.nodes);
     setEdges(params.edges);
+
+    // Update ReactFlow instance
+    if (flowInstance) {
+      flowInstance.setNodes(params.nodes);
+      flowInstance.setEdges(params.edges);
+    }
+
     const deletedNode = nodes.find(node => !params.nodes.some(n => n.id === node.id));
     if (deletedNode?.type === 'point') {
       setDeletedPointIds(prev => new Set([...prev, deletedNode.data.pointId]));
     }
-  }, [setNodes, setEdges, nodes, setDeletedPointIds]);
+  }, [setNodes, setEdges, nodes, setDeletedPointIds, flowInstance]);
 
   // Memoize nodeTypes and edgeTypes so that they do not change on each render.
   const nodeTypes = useMemo(() => ({

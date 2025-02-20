@@ -40,7 +40,7 @@ export type PointNode = Node<PointNodeData, "point">;
 
 export interface PointNodeProps extends Omit<NodeProps, "data"> {
   data: PointNodeData;
-  onDelete?: (params: { nodes: Node[]; edges: Edge[] }) => void;
+  onDelete?: (nodeId: string) => void;
 }
 
 export const PointNode = ({
@@ -329,57 +329,8 @@ export const PointNode = ({
 
   const handleDelete = () => {
     if (onDelete) {
-      const currentNodes = getNodes();
-      const currentEdges = getEdges();
-
-      // Do not allow deletion of the "statement" node.
       if (id === "statement") return;
-
-      // Old deletion method: BFS to find all child nodes
-      const nodesToRemove = new Set<string>([id]);
-      const edgesToRemove = new Set<string>();
-
-      // Find all edges connected to this node (both directions)
-      const connectedEdges = currentEdges.filter(edge =>
-        edge.source === id || edge.target === id
-      );
-      // Add all connected edges to removal set
-      connectedEdges.forEach(edge => {
-        edgesToRemove.add(edge.id);
-      });
-
-      // BFS to find all CHILDREN (using reverse edge direction, where this node is the TARGET)
-      const queue = [id];
-      while (queue.length > 0) {
-        const currentId = queue.shift()!;
-        const childEdges = currentEdges.filter(
-          edge => edge.target === currentId && edge.source !== "statement"
-        );
-        childEdges.forEach(edge => {
-          const childNodeId = edge.source;
-          if (!nodesToRemove.has(childNodeId)) {
-            nodesToRemove.add(childNodeId);
-            queue.push(childNodeId);
-          }
-        });
-      }
-
-      const newNodes = currentNodes.filter(node => !nodesToRemove.has(node.id));
-      const newEdges = currentEdges.filter(edge => !edgesToRemove.has(edge.id));
-
-      // Update the deletedPointIds atom with the pointIds from the nodes we're removing.
-      setDeletedPointIds((prev) => {
-        const newSet = new Set(prev);
-        nodesToRemove.forEach(nodeId => {
-          const node = getNode(nodeId);
-          if (node && node.type === "point") {
-            newSet.add(node.data.pointId as number);
-          }
-        });
-        return newSet;
-      });
-
-      onDelete({ nodes: newNodes, edges: newEdges });
+      onDelete(id);
     }
   };
 
