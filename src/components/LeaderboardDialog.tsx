@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useQuery } from "@tanstack/react-query";
 import { useFeed } from "@/queries/useFeed";
 import { useAllUsers } from "@/queries/useAllUsers";
-import { TrophyIcon } from "lucide-react";
+import { TrophyIcon, ArrowLeftIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useUser } from "@/queries/useUser";
 import { fetchSpaceViewpoints } from "@/actions/fetchSpaceViewpoints";
@@ -75,10 +75,17 @@ export const LeaderboardDialog = ({
             <DialogContent className="max-w-2xl h-[90vh] sm:h-[80vh] flex flex-col">
                 <div className="flex flex-col h-full">
                     <DialogHeader className="mb-4">
-                        <DialogTitle className="flex items-center gap-2">
-                            <TrophyIcon className="size-5" />
-                            s/{space} Leaderboard
-                        </DialogTitle>
+                        <div className="flex items-center gap-2">
+                            <DialogClose asChild>
+                                <Button variant="ghost" size="icon" className="text-primary -ml-2">
+                                    <ArrowLeftIcon className="size-5" />
+                                </Button>
+                            </DialogClose>
+                            <DialogTitle className="flex items-center gap-2">
+                                <TrophyIcon className="size-5" />
+                                s/{space} Leaderboard
+                            </DialogTitle>
+                        </div>
                     </DialogHeader>
 
                     <div className="flex-1 overflow-auto">
