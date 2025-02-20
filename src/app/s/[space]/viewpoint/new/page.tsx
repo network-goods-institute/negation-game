@@ -485,7 +485,7 @@ function ViewpointContent() {
             "!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset]  !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md: !z-10 md:z-auto",
             !canvasEnabled && isMobile && "hidden"
           )}
-          onDeleteNode={removePointFromViewpoint}
+          onDelete={removePointFromViewpoint}
         />
       </Dynamic>
 

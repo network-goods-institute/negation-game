@@ -272,12 +272,10 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
       const queue = [pointIdToRemove];
       while (queue.length > 0) {
         const currentId = queue.shift()!;
-
         // Find edges where this node is the TARGET (parent)
         const childEdges = currentEdges.filter(
-          edge => edge.target === currentId && edge.source !== 'statement'
+          edge => edge.target === currentId && edge.source !== "statement"
         );
-
         childEdges.forEach(edge => {
           const childNodeId = edge.source;
           if (!nodesToRemove.has(childNodeId)) {
@@ -300,29 +298,25 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
         editFlowInstance.setEdges(newGraph.edges);
       }
 
-      // Get the pointId from the node data and update deletedPointIdsAtom
-      const nodeToRemove = currentNodes.find(n => n.id === pointIdToRemove);
-      const pointId = nodeToRemove?.type === "point" ? nodeToRemove.data.pointId : undefined;
-
-      if (pointId) {
-        setDeletedPointIds(prev => new Set([...prev, pointId]));
-      }
+      // Update deletedPointIds for all removed nodes
+      const removedNodes = currentNodes.filter(n => nodesToRemove.has(n.id));
+      setDeletedPointIds(prev => {
+        const newSet = new Set(prev);
+        removedNodes.forEach(node => {
+          if (node.type === "point") {
+            newSet.add(node.data.pointId);
+          }
+        });
+        return newSet;
+      });
     },
-    [reactFlow, editFlowInstance, setDeletedPointIds]
+    [reactFlow, editFlowInstance, setDeletedPointIds, setLocalGraph]
   );
-
-  const handleNodeDelete = useCallback(({ nodes, edges }: { nodes: AppNode[]; edges: Edge[] }) => {
-    // Find the node that was deleted and get its ID
-    const deletedNodeId = nodes.length > 0 ? nodes[0].id : null;
-    if (deletedNodeId) {
-      removePointFromViewpoint(deletedNodeId);
-    }
-  }, [removePointFromViewpoint]);
-
-  // Handler specifically for PointCardWrapper deletion
-  const handlePointDelete = useCallback((nodeId: string) => {
+  const handleNodeDelete = useCallback((nodeId: string) => {
     removePointFromViewpoint(nodeId);
   }, [removePointFromViewpoint]);
+
+  const handlePointDelete = removePointFromViewpoint;
 
   if (!viewpoint)
     return (

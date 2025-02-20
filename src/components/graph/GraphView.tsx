@@ -64,14 +64,14 @@ function debounce<T extends (...args: any[]) => any>(
   return debounced;
 }
 
-export interface GraphViewProps extends ReactFlowProps<AppNode> {
+export interface GraphViewProps extends Omit<ReactFlowProps<AppNode>, 'onDelete'> {
   onSaveChanges?: () => void;
   canModify?: boolean;
   rootPointId?: number;
   statement?: string;
   onClose?: () => void;
   closeButtonClassName?: string;
-  onDeleteNode?: (nodeId: string) => void;
+  onDelete?: (nodeId: string) => void;
   editFlowInstance?: ReactFlowInstance<AppNode> | null;
   setLocalGraph?: (graph: ViewpointGraph) => void;
   isSaving?: boolean;
@@ -85,7 +85,7 @@ export const GraphView = ({
   closeButtonClassName,
   onNodesChange: onNodesChangeProp,
   onEdgesChange: onEdgesChangeProp,
-  onDeleteNode,
+  onDelete,
   onSaveChanges,
   setLocalGraph,
   isSaving,
@@ -133,6 +133,22 @@ export const GraphView = ({
     [setLocalGraph]
   );
 
+  // Filter nodes and edges based on deletedPointIds
+  const filteredNodes = useMemo(() => {
+    if (!editMode) return nodes;
+    return nodes.filter(n => {
+      return n.type !== "point" || !deletedPointIds.has(n.data.pointId as number);
+    });
+  }, [nodes, deletedPointIds, editMode]);
+
+  const filteredEdges = useMemo(() => {
+    if (!editMode) return edges;
+    return edges.filter(e =>
+      filteredNodes.some(n => n.id === e.source) &&
+      filteredNodes.some(n => n.id === e.target)
+    );
+  }, [edges, filteredNodes, editMode]);
+
   const onNodesChange = useCallback(
     (nodes: NodeChange<AppNode>[]) => {
       if (editMode) {
@@ -178,28 +194,12 @@ export const GraphView = ({
     };
   }, [debouncedSetLocalGraph, debouncedSetGraph]);
 
-  const handleNodeDelete = useCallback((params: { nodes: AppNode[]; edges: Edge[] }) => {
-    setNodes(params.nodes);
-    setEdges(params.edges);
-
-    // Update ReactFlow instance
-    if (flowInstance) {
-      flowInstance.setNodes(params.nodes);
-      flowInstance.setEdges(params.edges);
-    }
-
-    const deletedNode = nodes.find(node => !params.nodes.some(n => n.id === node.id));
-    if (deletedNode?.type === 'point') {
-      setDeletedPointIds(prev => new Set([...prev, deletedNode.data.pointId]));
-    }
-  }, [setNodes, setEdges, nodes, setDeletedPointIds, flowInstance]);
-
   // Memoize nodeTypes and edgeTypes so that they do not change on each render.
   const nodeTypes = useMemo(() => ({
-    point: (props: any) => <PointNode {...props} onDelete={onDeleteNode} />,
+    point: (props: any) => <PointNode {...props} onDelete={onDelete} />,
     statement: StatementNode,
     addPoint: AddPointNode,
-  }), [onDeleteNode]);
+  }), [onDelete]);
 
   const edgeTypes = useMemo(() => ({ negation: NegationEdge }), []);
 
@@ -323,9 +323,9 @@ export const GraphView = ({
       onInit={setFlowInstance}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
-      nodes={nodes}
+      nodes={filteredNodes}
       onNodesChange={onNodesChange}
-      edges={edges}
+      edges={filteredEdges}
       onEdgesChange={onEdgesChange}
       panOnScroll
       zoomOnPinch
