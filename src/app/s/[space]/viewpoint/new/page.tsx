@@ -65,9 +65,9 @@ function PointCardWrapper({
   onDelete: (pointId: string) => void;
 }) {
   const searchParams = useSearchParams();
-  const isForking = searchParams.get('fork') === 'true';
+  const isCopying = searchParams.get('copy') === 'true';
   const pointDataQuery = usePointData(point.pointId);
-  const pointData = isForking ? null : pointDataQuery.data;
+  const pointData = isCopying ? null : pointDataQuery.data;
   const { originalPosterId } = useOriginalPoster();
   const setNegatedPointId = useSetAtom(negatedPointIdAtom);
   const reactFlow = useReactFlow<AppNode>();
@@ -128,11 +128,11 @@ function ViewpointContent() {
   const { data: user } = useUser();
   const { push } = useRouter();
   const basePath = useBasePath();
-  const isForking = typeof window !== "undefined"
-    ? new URLSearchParams(window.location.search).has('fork')
+  const isCopying = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).has('copy')
     : false;
   const spaceQuery = useSpace();
-  const space = isForking ? null : spaceQuery;
+  const space = isCopying ? null : spaceQuery;
   const [canvasEnabled, setCanvasEnabled] = useAtom(canvasEnabledAtom);
   const [isMobile, setIsMobile] = useState(false);
   const reactFlow = useReactFlow<AppNode>();
@@ -199,16 +199,16 @@ function ViewpointContent() {
       return;
     }
 
-    if (!isForking && localStorage.getItem("justPublished") === "true") {
+    if (!isCopying && localStorage.getItem("justPublished") === "true") {
       localStorage.removeItem("justPublished");
       setReasoning("");
       setStatement("");
       setGraph(initialViewpointGraph);
     }
-  }, [pathname, setReasoning, setStatement, setGraph, basePath, isForking]);
+  }, [pathname, setReasoning, setStatement, setGraph, basePath, isCopying]);
 
   useEffect(() => {
-    if (isForking) {
+    if (isCopying) {
       const search = new URLSearchParams(window.location.search);
       const graphParam = search.get("graph");
 
@@ -219,18 +219,18 @@ function ViewpointContent() {
         } catch (error) {
         }
       } else {
-        console.warn("[FORK] No graph parameter found in URL");
+        console.warn("[COPY] No graph parameter found in URL");
       }
     }
-  }, [isForking, setGraph]);
+  }, [isCopying, setGraph]);
 
   useEffect(() => {
     const hasStatement = graph?.nodes?.some(n => n.type === "statement");
 
-    if (!isForking && (!graph || !hasStatement)) {
+    if (!isCopying && (!graph || !hasStatement)) {
       setGraph(initialViewpointGraph);
     }
-  }, [graph, isForking, setGraph]);
+  }, [graph, isCopying, setGraph]);
 
   const clearGraph = () => {
     setReasoning("");

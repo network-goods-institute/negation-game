@@ -36,7 +36,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Portal } from "@radix-ui/react-portal";
-import { GroupIcon, NetworkIcon, SplitIcon, Edit2Icon, Trash2Icon } from "lucide-react";
+import { GroupIcon, NetworkIcon, CopyIcon, Edit2Icon, Trash2Icon } from "lucide-react";
 import React from 'react';
 import { useEffect, useState, useMemo, useCallback } from "react";
 import dynamic from 'next/dynamic';
@@ -202,12 +202,12 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
       if (!isOwner) {
         if (localGraph && viewpoint) {
           sessionStorage.setItem('forkGraph', JSON.stringify(localGraph));
-          setStatement(viewpoint.title + " (fork)");
+          setStatement(viewpoint.title + " (copy)");
           setReasoning(viewpoint.description);
           setGraph(localGraph);
 
           const encodedGraph = encodeURIComponent(JSON.stringify(localGraph));
-          router.push(`${basePath}/viewpoint/new?fork=true&graph=${encodedGraph}`);
+          router.push(`${basePath}/viewpoint/new?copy=true&graph=${encodedGraph}`);
           return;
         }
       }
@@ -380,12 +380,12 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                       size={"icon"}
                       onClick={() => {
                         setReasoning("");
-                        setStatement(title + " (fork)");
+                        setStatement(title + " (copy)");
                         setGraph(graph);
                         router.push(`${basePath}/viewpoint/new`);
                       }}
                     >
-                      <SplitIcon />
+                      <CopyIcon />
                     </AuthenticatedActionButton>
                   </TooltipTrigger>
                   <Portal>
@@ -395,7 +395,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                       sideOffset={5}
                       className="z-[100]"
                     >
-                      <p>Fork this viewpoint</p>
+                      <p>Copy this viewpoint</p>
                     </TooltipContent>
                   </Portal>
                 </Tooltip>
