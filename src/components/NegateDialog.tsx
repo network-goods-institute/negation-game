@@ -247,7 +247,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
       open={!!negatedPointId}
       onOpenChange={(isOpen) => !isOpen && setNegatedPointId(undefined)}
     >
-      <DialogContent className="@container sm:top-xl flex flex-col overflow-auto sm:translate-y-0 h-full rounded-none sm:rounded-md sm:h-fit gap-0  bg-background  p-4 sm:p-8 shadow-sm w-full max-w-xl">
+      <DialogContent className="@container sm:top-xl flex flex-col overflow-hidden sm:translate-y-0 h-full rounded-none sm:rounded-md sm:h-fit gap-0 bg-background p-4 sm:p-8 shadow-sm w-full max-w-xl max-h-[90vh]">
         <div className="w-full flex items-center justify-between mb-xl">
           <DialogTitle>Negate</DialogTitle>
           <DialogDescription hidden>

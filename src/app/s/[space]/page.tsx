@@ -21,6 +21,9 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 import { LeaderboardDialog } from "@/components/LeaderboardDialog";
 import { useRouter } from "next/navigation";
+import { useViewpoints } from "@/queries/useViewpoints";
+import { ViewpointCard } from "@/components/ViewpointCard";
+import { cn } from "@/lib/cn";
 
 export default function Home() {
   const { user, login } = usePrivy();
@@ -29,8 +32,9 @@ export default function Home() {
   const space = useSpace();
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const { push } = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
+  const { data: viewpoints, isLoading: viewpointsLoading } = useViewpoints(space.data?.id || "global");
+  const [selectedTab, setSelectedTab] = useState<"points" | "viewpoints">("points");
 
   const loginOrMakePoint = useCallback(() => {
     if (user !== null) {
@@ -74,51 +78,90 @@ export default function Home() {
             </div>
           </>
         )}
-        {points === undefined ? (
-          <Loader className="absolute self-center my-auto top-0 bottom-0" />
-        ) : (
-          <>
-            {points.length === 0 ? (
-              <div className="flex flex-col flex-grow items-center justify-center">
-                <span>Nothing here yet</span>
-                <Button
-                  variant={"link"}
-                  className="p-0 text-base"
-                  onClick={loginOrMakePoint}
-                >
-                  Make a Point
-                </Button>
-              </div>
-            ) : (
-              points.map((point, i) => (
-                <Link
-                  draggable={false}
-                  onClick={preventDefaultIfContainsSelection}
-                  href={`${basePath}/${encodeId(point.pointId)}`}
-                  className="flex border-b cursor-pointer hover:bg-accent "
-                  key={point.pointId}
-                >
-                  <PointCard
-                    className="flex-grow p-6"
-                    amountSupporters={point.amountSupporters}
-                    createdAt={point.createdAt}
-                    cred={point.cred}
-                    pointId={point.pointId}
-                    favor={point.favor}
-                    amountNegations={point.amountNegations}
-                    content={point.content}
-                    viewerContext={{ viewerCred: point.viewerCred }}
-                    onNegate={(e) => {
-                      e.preventDefault();
-                      user !== null
-                        ? setNegatedPointId(point.pointId)
-                        : login();
-                    }}
-                  />
-                </Link>
-              ))
+        <div className="flex gap-4 px-lg py-sm border-b">
+          <button
+            onClick={() => setSelectedTab("points")}
+            className={cn(
+              "py-2 px-4 rounded focus:outline-none",
+              selectedTab === "points" ? "bg-primary text-white" : "bg-transparent text-primary"
             )}
-          </>
+          >
+            Points
+          </button>
+          <button
+            onClick={() => setSelectedTab("viewpoints")}
+            className={cn(
+              "py-2 px-4 rounded focus:outline-none",
+              selectedTab === "viewpoints" ? "bg-primary text-white" : "bg-transparent text-primary"
+            )}
+          >
+            Viewpoints
+          </button>
+        </div>
+        {selectedTab === "points" ? (
+          points === undefined || isLoading ? (
+            <Loader className="absolute self-center my-auto top-0 bottom-0" />
+          ) : points.length === 0 ? (
+            <div className="flex flex-col flex-grow items-center justify-center">
+              <span>Nothing here yet</span>
+              <Button variant={"link"} className="p-0 text-base" onClick={loginOrMakePoint}>
+                Make a Point
+              </Button>
+            </div>
+          ) : (
+            points.map((point) => (
+              <Link
+                draggable={false}
+                onClick={preventDefaultIfContainsSelection}
+                href={`${basePath}/${encodeId(point.pointId)}`}
+                className="flex border-b cursor-pointer hover:bg-accent "
+                key={point.pointId}
+              >
+                <PointCard
+                  className="flex-grow p-6"
+                  amountSupporters={point.amountSupporters}
+                  createdAt={point.createdAt}
+                  cred={point.cred}
+                  pointId={point.pointId}
+                  favor={point.favor}
+                  amountNegations={point.amountNegations}
+                  content={point.content}
+                  viewerContext={{ viewerCred: point.viewerCred }}
+                  onNegate={(e) => {
+                    e.preventDefault();
+                    user !== null ? setNegatedPointId(point.pointId) : login();
+                  }}
+                />
+              </Link>
+            ))
+          )
+        ) : (
+          viewpoints === undefined || viewpointsLoading ? (
+            <Loader className="absolute self-center my-auto top-0 bottom-0" />
+          ) : viewpoints.length === 0 ? (
+            <div className="flex flex-col flex-grow items-center justify-center">
+              <span>Nothing here yet</span>
+              <Button
+                variant={"link"}
+                className="p-0 text-base"
+                onClick={handleNewViewpoint}
+              >
+                Create a Viewpoint
+              </Button>
+            </div>
+          ) : (
+            viewpoints.map((viewpoint) => (
+              <ViewpointCard
+                key={viewpoint.id}
+                id={viewpoint.id}
+                title={viewpoint.title}
+                description={viewpoint.description}
+                author={viewpoint.author}
+                createdAt={new Date(viewpoint.createdAt)}
+                className="m-4"
+              />
+            ))
+          )
         )}
       </div>
       <div className="fixed bottom-md right-sm sm:right-md flex flex-col items-end gap-3">
@@ -137,7 +180,10 @@ export default function Home() {
           rightLoading={isNavigating}
         >
           {isNavigating ? (
-            "Creating..."
+            <>
+              <span className="hidden sm:block">Creating...</span>
+              <Loader className="sm:hidden size-5 text-primary mx-auto" />
+            </>
           ) : (
             <>
               <GroupIcon className="size-7 sm:size-5" />

@@ -27,6 +27,7 @@ import { Handle, Node, NodeProps, Position, useReactFlow } from "@xyflow/react";
 import { XIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useState } from "react";
+import { useEditMode } from "@/components/graph/EditModeContext";
 
 export type AddPointNodeData = {
   parentId: string;
@@ -44,10 +45,11 @@ export const AddPointNode = ({
   positionAbsoluteX,
   positionAbsoluteY,
 }: AddPointNodeProps) => {
-  const { deleteElements, addEdges, addNodes } = useReactFlow();
+  const { deleteElements, addEdges, addNodes, getNode } = useReactFlow();
   const [content, setContent] = useState("");
   const debouncedContent = useDebounce(content, 1000);
   const { credInput, setCredInput } = useCredInput();
+  const editMode = useEditMode();
 
   const { data: similarPoints, isLoading } = useQuery({
     queryKey: ["similarPoints", debouncedContent] as const,
@@ -68,6 +70,7 @@ export const AddPointNode = ({
   const canMakePoint = content.length >= POINT_MIN_LENGTH && !isMakingPoint;
 
   const prefetchPoint = usePrefetchPoint();
+
 
   return (
     <div
@@ -100,11 +103,11 @@ export const AddPointNode = ({
         <div className="flex gap-2">
           <AuthenticatedActionButton
             className="rounded-md"
-            onClick={() =>
+            onClick={() => {
               makePoint({ content, cred: credInput }).then((pointId) => {
-                const nodeId = nanoid();
+                const newId = nanoid();
                 addNodes({
-                  id: nodeId,
+                  id: newId,
                   data: { pointId, parentId },
                   type: "point",
                   position: {
@@ -112,14 +115,21 @@ export const AddPointNode = ({
                     y: positionAbsoluteY,
                   },
                 });
+                const parentNode = editMode ? getNode(parentId) : null;
+                const edgeId = nanoid();
                 addEdges({
-                  id: nanoid(),
-                  target: parentId,
-                  source: nodeId,
+                  id: edgeId,
+                  source: newId,
+                  target: parentNode ? parentNode.id : parentId,
+                  type: "negation",
                 });
-                deleteElements({ nodes: [{ id }] });
-              })
-            }
+                // Delayed needed to avoid race condition
+                setTimeout(() => {
+                  deleteElements({ nodes: [{ id }] });
+                }, 50);
+              }).catch(error => {
+              });
+            }}
             disabled={!canMakePoint}
             rightLoading={isMakingPoint}
           >
@@ -155,9 +165,9 @@ export const AddPointNode = ({
                       key={point.pointId}
                       className="flex flex-col gap-2 p-4  hover:border-muted-foreground  w-full bg-background cursor-pointer border rounded-md"
                       onClick={() => {
-                        const nodeId = nanoid();
+                        const newId = nanoid();
                         addNodes({
-                          id: nodeId,
+                          id: newId,
                           data: { pointId: point.pointId, parentId },
                           type: "point",
                           position: {
@@ -168,8 +178,9 @@ export const AddPointNode = ({
 
                         addEdges({
                           id: nanoid(),
+                          source: newId,
                           target: parentId,
-                          source: nodeId,
+                          type: "negation",
                         });
 
                         deleteElements({ nodes: [{ id }] });

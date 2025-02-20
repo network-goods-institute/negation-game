@@ -48,11 +48,12 @@ import remarkGfm from "remark-gfm";
 import { EditModeProvider, useEditMode } from "@/components/graph/EditModeContext";
 import { useGraphPoints } from "@/components/graph/useGraphPoints";
 import { usePublishViewpoint } from "@/mutations/usePublishViewpoint";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Loader } from "@/components/ui/loader";
 import { ErrorBoundary } from "react-error-boundary";
 import { Trash2Icon } from "lucide-react";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
+import { fetchPoints } from "@/actions/fetchPoints";
 
 function PointCardWrapper({
   point,
@@ -63,7 +64,10 @@ function PointCardWrapper({
   className?: string;
   onDelete: (pointId: string) => void;
 }) {
-  const { data: pointData } = usePointData(point.pointId);
+  const searchParams = useSearchParams();
+  const isCopying = searchParams.get('copy') === 'true';
+  const pointDataQuery = usePointData(point.pointId);
+  const pointData = isCopying ? null : pointDataQuery.data;
   const { originalPosterId } = useOriginalPoster();
   const setNegatedPointId = useSetAtom(negatedPointIdAtom);
   const reactFlow = useReactFlow<AppNode>();
@@ -124,17 +128,46 @@ function ViewpointContent() {
   const { data: user } = useUser();
   const { push } = useRouter();
   const basePath = useBasePath();
-  const space = useSpace();
+  const isCopying = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).has('copy')
+    : false;
+  const spaceQuery = useSpace();
+  const space = isCopying ? null : spaceQuery;
   const [canvasEnabled, setCanvasEnabled] = useAtom(canvasEnabledAtom);
   const [isMobile, setIsMobile] = useState(false);
   const reactFlow = useReactFlow<AppNode>();
   const [graph, setGraph] = useAtom(viewpointGraphAtom);
+  const [graphRevision, setGraphRevision] = useState(0);
   const points = useGraphPoints();
   const [statement, setStatement] = useAtom(viewpointStatementAtom);
   const [reasoning, setReasoning] = useAtom(viewpointReasoningAtom);
   const pathname = usePathname();
   const editMode = useEditMode();
   const [_, setDeletedPointIds] = useAtom(deletedPointIdsAtom);
+
+  const spaceObj = space?.data?.id; // current space id
+  const [viewGraph, setViewGraph] = useAtom(viewpointGraphAtom);
+  const [viewpointStatement, setViewpointStatement] = useAtom(viewpointStatementAtom);
+
+  // Validate the persisted draft when the page mounts or when the current space changes.
+  useEffect(() => {
+    if (spaceObj) {
+      // Check if any node of type "point" has a space mismatch
+      const invalidDraft = viewGraph.nodes.some(async (node) => {
+        if (node.type !== "point") return false;
+        // Instead of checking node.data.space, fetch the point's data
+        const pointData = await fetchPoints([node.data.pointId]);
+        // If we can't fetch the point data or if it's from a different space, 
+        // the draft is invalid
+        return !pointData || !pointData.length;
+      });
+      if (invalidDraft) {
+        // If any point doesn't belong to the current space, clear out the draft.
+        setViewGraph(initialViewpointGraph);
+        setViewpointStatement("");
+      }
+    }
+  }, [spaceObj]);
 
   useEffect(() => {
     updateNodeData("statement", {
@@ -166,13 +199,38 @@ function ViewpointContent() {
       return;
     }
 
-    if (localStorage.getItem("justPublished") === "true") {
+    if (!isCopying && localStorage.getItem("justPublished") === "true") {
       localStorage.removeItem("justPublished");
       setReasoning("");
       setStatement("");
       setGraph(initialViewpointGraph);
     }
-  }, [pathname, setReasoning, setStatement, setGraph, basePath]);
+  }, [pathname, setReasoning, setStatement, setGraph, basePath, isCopying]);
+
+  useEffect(() => {
+    if (isCopying) {
+      const search = new URLSearchParams(window.location.search);
+      const graphParam = search.get("graph");
+
+      if (graphParam) {
+        try {
+          const parsedGraph = JSON.parse(decodeURIComponent(graphParam));
+          setGraph(parsedGraph);
+        } catch (error) {
+        }
+      } else {
+        console.warn("[COPY] No graph parameter found in URL");
+      }
+    }
+  }, [isCopying, setGraph]);
+
+  useEffect(() => {
+    const hasStatement = graph?.nodes?.some(n => n.type === "statement");
+
+    if (!isCopying && (!graph || !hasStatement)) {
+      setGraph(initialViewpointGraph);
+    }
+  }, [graph, isCopying, setGraph]);
 
   const clearGraph = () => {
     setReasoning("");
@@ -398,11 +456,15 @@ function ViewpointContent() {
 
       <Dynamic>
         <GraphView
+          key={`graph-${graphRevision}`}
+          isNew={true}
           onInit={(reactFlow) => {
             reactFlow.setNodes(graph.nodes);
             reactFlow.setEdges(graph.edges);
             reactFlow.fitView();
           }}
+          defaultNodes={graph.nodes}
+          defaultEdges={graph.edges}
           onClose={
             isMobile
               ? () => {
@@ -423,7 +485,7 @@ function ViewpointContent() {
             "!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset]  !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md: !z-10 md:z-auto",
             !canvasEnabled && isMobile && "hidden"
           )}
-          onDeleteNode={removePointFromViewpoint}
+          onDelete={removePointFromViewpoint}
         />
       </Dynamic>
 
@@ -484,11 +546,12 @@ function ViewpointPageContent() {
 
 export default function NewViewpointPage() {
   const { user: privyUser } = usePrivy();
+  const searchParams = useSearchParams();
 
   return (
     <EditModeProvider editMode={true}>
       <OriginalPosterProvider originalPosterId={privyUser?.id}>
-        <ViewpointPageContent />
+        <ViewpointPageContent key={searchParams.toString()} />
       </OriginalPosterProvider>
     </EditModeProvider>
   );
