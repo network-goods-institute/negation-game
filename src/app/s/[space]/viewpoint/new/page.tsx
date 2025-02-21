@@ -167,7 +167,7 @@ function ViewpointContent() {
         setViewpointStatement("");
       }
     }
-  }, [spaceObj]);
+  }, [spaceObj, viewGraph.nodes, setViewGraph, setViewpointStatement]);
 
   useEffect(() => {
     updateNodeData("statement", {

@@ -6,7 +6,8 @@
     "dev": "next dev --turbo",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "rebuild": "node-gyp rebuild"
   },
   "dependencies": {
     "@ai-sdk/google": "^1.0.3",
@@ -14,9 +15,9 @@
     "@headlessui/react": "^2.2.0",
     "@hookform/resolvers": "^3.9.0",
     "@lucide/lab": "^0.1.2",
-    "@next/env": "15.0.0",
-    "@privy-io/react-auth": "^1.99.1",
-    "@privy-io/server-auth": "^1.15.0",
+    "@next/env": "15.1.2",
+    "@privy-io/react-auth": "^2.4.5",
+    "@privy-io/server-auth": "^1.18.9",
     "@radix-ui/react-accordion": "^1.2.1",
     "@radix-ui/react-avatar": "^1.1.1",
     "@radix-ui/react-collapsible": "^1.1.1",
@@ -41,6 +42,7 @@
     "@xyflow/react": "^12.3.6",
     "@yornaath/batshit": "^0.10.1",
     "ai": "^4.0.4",
+    "bigint-buffer": "^1.1.5",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "date-fns": "^4.1.0",
@@ -51,8 +53,8 @@
     "jotai": "^2.10.1",
     "lucide-react": "^0.452.0",
     "memoize": "^10.0.0",
-    "nanoid": "^5.0.9",
-    "next": "15.1.0",
+    "nanoid": "^5.0.6",
+    "next": "^15.1.2",
     "next-mdx-remote": "^5.0.0",
     "next-themes": "^0.3.0",
     "postgres": "^3.4.4",
@@ -66,11 +68,14 @@
     "remeda": "^2.16.0",
     "sonner": "^1.4.41",
     "sqids": "^0.3.0",
-    "tailwind-merge": "^2.2.2",
+    "tailwind-merge": "^2.4.0",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.0",
-    "viem": "^2.21.17",
+    "viem": "^2.21.36",
     "zod": "^3.23.5"
+  },
+  "optionalDependencies": {
+    "bigint-buffer": "^1.1.5"
   },
   "pnpm": {
     "overrides": {
@@ -89,13 +94,13 @@
     "@types/react-dom": "npm:types-react-dom@19.0.0-rc.1",
     "autoprefixer": "^10.4.17",
     "drizzle-kit": "^0.30.4",
-    "eslint": "^8.56.0",
+    "eslint": "^8.57.0",
     "eslint-config-next": "15.0.0",
     "eslint-plugin-storybook": "^0.8.0",
     "fluid-tailwind": "^1.0.3",
     "postcss": "^8.4.35",
     "prettier": "^3.4.2",
-    "storybook": "^8.2.9",
+    "storybook": "^8.5.8",
     "tailwindcss": "^3.4.3",
     "type-fest": "^4.26.1",
     "typescript": "^5.3.3"

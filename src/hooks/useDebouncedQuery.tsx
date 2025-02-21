@@ -21,7 +21,7 @@ export function useDebouncedQuery<
 }: UseQueryOptions<TQueryFnData, TError, TData, TQueryKey> & {
   delay?: number;
 }): UseQueryResult<TData, TError> {
-  const [debouncedEnabled, setDebouncedEnabled] = useState(enabled);
+  const [debouncedEnabled, setDebouncedEnabled] = useState(false);
 
   const queryKeyHash = useMemo(
     () => queryKeyHashFn(queryKey),
@@ -40,9 +40,9 @@ export function useDebouncedQuery<
   }, [queryKeyHash, delay]);
 
   return useQuery({
-    enabled: debouncedEnabled && enabled,
+    ...options,
     queryKey,
     queryKeyHashFn,
-    ...options,
+    enabled: debouncedEnabled && (typeof enabled === 'function' ? enabled({} as any) : enabled),
   });
 }
