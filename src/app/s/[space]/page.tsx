@@ -158,6 +158,7 @@ export default function Home() {
                 description={viewpoint.description}
                 author={viewpoint.author}
                 createdAt={new Date(viewpoint.createdAt)}
+                space={space.data?.id || "global"}
                 className="m-4"
               />
             ))

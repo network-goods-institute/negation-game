@@ -205,6 +205,7 @@ export default function ProfilePage() {
                                                                 author={viewpoint.author}
                                                                 createdAt={new Date(viewpoint.createdAt)}
                                                                 className="mb-2 mx-2"
+                                                                space={viewpoint.space ?? "global"}
                                                             />
                                                         ))}
                                                 </>
@@ -323,6 +324,7 @@ export default function ProfilePage() {
                                                                 description={viewpoint.description}
                                                                 author={viewpoint.author}
                                                                 createdAt={new Date(viewpoint.createdAt)}
+                                                                space={viewpoint.space ?? "global"}
                                                                 className="mb-2 mx-2"
                                                             />
                                                         ))}

@@ -128,9 +128,9 @@ function ViewpointContent() {
   const { data: user } = useUser();
   const { push } = useRouter();
   const basePath = useBasePath();
-  const isCopying = typeof window !== "undefined"
-    ? new URLSearchParams(window.location.search).has('copy')
-    : false;
+  const searchParams = useSearchParams();
+  const isCopying = searchParams.get('copy') === 'true';
+
   const spaceQuery = useSpace();
   const space = isCopying ? null : spaceQuery;
   const [canvasEnabled, setCanvasEnabled] = useAtom(canvasEnabledAtom);
@@ -145,29 +145,23 @@ function ViewpointContent() {
   const editMode = useEditMode();
   const [_, setDeletedPointIds] = useAtom(deletedPointIdsAtom);
 
-  const spaceObj = space?.data?.id; // current space id
+  const spaceObj = space?.data?.id;
   const [viewGraph, setViewGraph] = useAtom(viewpointGraphAtom);
   const [viewpointStatement, setViewpointStatement] = useAtom(viewpointStatementAtom);
 
-  // Validate the persisted draft when the page mounts or when the current space changes.
   useEffect(() => {
-    if (spaceObj) {
-      // Check if any node of type "point" has a space mismatch
-      const invalidDraft = viewGraph.nodes.some(async (node) => {
+    if (spaceObj && isCopying) {
+      const invalidDraft = viewGraph.nodes.some((node) => {
         if (node.type !== "point") return false;
-        // Instead of checking node.data.space, fetch the point's data
-        const pointData = await fetchPoints([node.data.pointId]);
-        // If we can't fetch the point data or if it's from a different space, 
-        // the draft is invalid
-        return !pointData || !pointData.length;
+        return false;
       });
+
       if (invalidDraft) {
-        // If any point doesn't belong to the current space, clear out the draft.
         setViewGraph(initialViewpointGraph);
         setViewpointStatement("");
       }
     }
-  }, [spaceObj, viewGraph.nodes, setViewGraph, setViewpointStatement]);
+  }, [spaceObj, viewGraph.nodes, setViewGraph, setViewpointStatement, isCopying]);
 
   useEffect(() => {
     updateNodeData("statement", {
@@ -211,18 +205,28 @@ function ViewpointContent() {
     if (isCopying) {
       const search = new URLSearchParams(window.location.search);
       const graphParam = search.get("graph");
+      const titleParam = search.get("title");
+      const reasoningParam = search.get("reasoning");
 
       if (graphParam) {
         try {
           const parsedGraph = JSON.parse(decodeURIComponent(graphParam));
           setGraph(parsedGraph);
+
+          if (titleParam) {
+            setStatement(decodeURIComponent(titleParam));
+          }
+          if (reasoningParam) {
+            setReasoning(decodeURIComponent(reasoningParam));
+          }
         } catch (error) {
+          console.error("Error parsing graph from URL:", error);
         }
       } else {
         console.warn("[COPY] No graph parameter found in URL");
       }
     }
-  }, [isCopying, setGraph]);
+  }, [isCopying, setGraph, setStatement, setReasoning]);
 
   useEffect(() => {
     const hasStatement = graph?.nodes?.some(n => n.type === "statement");

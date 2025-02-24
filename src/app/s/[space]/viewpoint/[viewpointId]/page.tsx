@@ -7,6 +7,7 @@ import {
   deletedPointIdsAtom,
   collapsedPointIdsAtom,
 } from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { AppNode } from "@/components/graph/AppNode";
@@ -70,6 +71,7 @@ function PointCardWrapper({
   const { originalPosterId } = useOriginalPoster();
   const editMode = useEditMode();
   const reactFlow = useReactFlow();
+  const setNegatedPointId = useSetAtom(negatedPointIdAtom);
 
   if (!pointData)
     return (
@@ -87,6 +89,7 @@ function PointCardWrapper({
       amountSupporters={pointData.amountSupporters}
       amountNegations={pointData.amountNegations}
       originalPosterId={originalPosterId}
+      onNegate={() => setNegatedPointId(point.pointId)}
     >
       {editMode && onDelete && (
         <AuthenticatedActionButton
@@ -318,6 +321,16 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
   const handlePointDelete = removePointFromViewpoint;
 
+  const handleCopy = useCallback(() => {
+    if (!viewpoint) return;
+
+    setStatement(viewpoint.title + " (copy)");
+    setReasoning(viewpoint.description);
+    setGraph(viewpoint.graph);
+
+    router.push(`${basePath}/viewpoint/new`);
+  }, [viewpoint, setStatement, setReasoning, setGraph, router, basePath]);
+
   if (!viewpoint)
     return (
       <div className="flex-grow flex items-center justify-center">
@@ -375,15 +388,10 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <AuthenticatedActionButton
-                      variant={"outline"}
-                      className="rounded-full p-2 size-9 active:scale-95 transition-transform"
-                      size={"icon"}
-                      onClick={() => {
-                        setReasoning("");
-                        setStatement(title + " (copy)");
-                        setGraph(graph);
-                        router.push(`${basePath}/viewpoint/new`);
-                      }}
+                      variant="outline"
+                      size="icon"
+                      className="rounded-full p-2 size-9"
+                      onClick={handleCopy}
                     >
                       <CopyIcon />
                     </AuthenticatedActionButton>

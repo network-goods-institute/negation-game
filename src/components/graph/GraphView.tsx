@@ -33,7 +33,11 @@ import React from "react";
 import { updateViewpointGraph } from "@/actions/updateViewpointGraph";
 import { useParams, useRouter } from "next/navigation";
 import { useBasePath } from "@/hooks/useBasePath";
-import { viewpointStatementAtom, viewpointReasoningAtom, viewpointGraphAtom } from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import {
+  viewpointStatementAtom,
+  viewpointReasoningAtom,
+  viewpointGraphAtom,
+} from "@/app/s/[space]/viewpoint/viewpointAtoms";
 import { useViewpoint } from "@/queries/useViewpoint";
 import { AuthenticatedActionButton } from "@/components/ui/button";
 
@@ -64,7 +68,8 @@ function debounce<T extends (...args: any[]) => any>(
   return debounced;
 }
 
-export interface GraphViewProps extends Omit<ReactFlowProps<AppNode>, 'onDelete'> {
+export interface GraphViewProps
+  extends Omit<ReactFlowProps<AppNode>, "onDelete"> {
   onSaveChanges?: () => void;
   canModify?: boolean;
   rootPointId?: number;
@@ -94,7 +99,8 @@ export const GraphView = ({
   ...props
 }: GraphViewProps) => {
   const [deletedPointIds] = useAtom(deletedPointIdsAtom);
-  const [flowInstance, setFlowInstance] = useState<ReactFlowInstance<AppNode> | null>(null);
+  const [flowInstance, setFlowInstance] =
+    useState<ReactFlowInstance<AppNode> | null>(null);
   const [nodes, setNodes, onNodesChangeDefault] = useNodesState<AppNode>([]);
   const [edges, setEdges, onEdgesChangeDefault] = useEdgesState<Edge>([]);
   const { theme } = useTheme();
@@ -112,7 +118,7 @@ export const GraphView = ({
 
   // Then use it in the hook
   const { data: viewpoint } = useViewpoint(viewpointId, {
-    enabled: !isNew
+    enabled: !isNew,
   });
 
   // Debounced function to update localGraph
@@ -136,16 +142,17 @@ export const GraphView = ({
   // Filter nodes and edges based on deletedPointIds
   const filteredNodes = useMemo(() => {
     if (!editMode) return nodes;
-    return nodes.filter(n => {
+    return nodes.filter((n) => {
       return n.type !== "point" || !deletedPointIds.has(n.data.pointId as number);
     });
   }, [nodes, deletedPointIds, editMode]);
 
   const filteredEdges = useMemo(() => {
     if (!editMode) return edges;
-    return edges.filter(e =>
-      filteredNodes.some(n => n.id === e.source) &&
-      filteredNodes.some(n => n.id === e.target)
+    return edges.filter(
+      (e) =>
+        filteredNodes.some((n) => n.id === e.source) &&
+        filteredNodes.some((n) => n.id === e.target)
     );
   }, [edges, filteredNodes, editMode]);
 
@@ -158,11 +165,17 @@ export const GraphView = ({
         if (flowInstance && setLocalGraph) {
           const { viewport, ...graph } = flowInstance.toObject();
           debouncedSetLocalGraph(graph);
-
         }
       }
     },
-    [onNodesChangeDefault, onNodesChangeProp, editMode, flowInstance, setLocalGraph, debouncedSetLocalGraph]
+    [
+      onNodesChangeDefault,
+      onNodesChangeProp,
+      editMode,
+      flowInstance,
+      setLocalGraph,
+      debouncedSetLocalGraph,
+    ]
   );
 
   const onEdgesChange = useCallback(
@@ -194,129 +207,138 @@ export const GraphView = ({
     };
   }, [debouncedSetLocalGraph, debouncedSetGraph]);
 
-  // Memoize nodeTypes and edgeTypes so that they do not change on each render.
-  const nodeTypes = useMemo(() => ({
-    point: (props: any) => <PointNode {...props} onDelete={onDelete} />,
-    statement: StatementNode,
-    addPoint: AddPointNode,
-  }), [onDelete]);
+  // Memoize nodeTypes and edgeTypes
+  const nodeTypes = useMemo(
+    () => ({
+      point: (props: any) => <PointNode {...props} onDelete={onDelete} />,
+      statement: StatementNode,
+      addPoint: AddPointNode,
+    }),
+    [onDelete]
+  );
 
   const edgeTypes = useMemo(() => ({ negation: NegationEdge }), []);
 
   const { defaultNodes, defaultEdges, onInit, ...otherProps } = props;
   const effectiveProps = editMode
     ? otherProps
-    : { ...otherProps, defaultNodes, defaultEdges, ...(onInit && { onInit }) };
+    : {
+      ...otherProps,
+      defaultNodes,
+      defaultEdges,
+      ...(onInit && { onInit }),
+    };
 
   useEffect(() => {
     if (editMode) {
-      if ((!nodes || nodes.length === 0) && defaultNodes && defaultNodes.length > 0) {
+      if (
+        (!nodes || nodes.length === 0) &&
+        defaultNodes &&
+        defaultNodes.length > 0
+      ) {
         setNodes(defaultNodes);
       }
-      if ((!edges || edges.length === 0) && defaultEdges && defaultEdges.length > 0) {
+      if (
+        (!edges || edges.length === 0) &&
+        defaultEdges &&
+        defaultEdges.length > 0
+      ) {
         setEdges(defaultEdges);
       }
     }
   }, [editMode, nodes, edges, defaultNodes, defaultEdges, setNodes, setEdges]);
 
-  const handleSave = useCallback(async () => {
-    if (!canModify) {
-      // Instead of showing alert, fork the viewpoint
+  const handleSave = useCallback(
+    async () => {
+      if (!canModify) {
+        if (!flowInstance || !viewpoint) return;
+
+        // Filter out deleted nodes/edges
+        const filteredNodes = nodes.filter((n) => {
+          return n.type !== "point" || !deletedPointIds.has(n.data.pointId as number)
+        });
+        const filteredEdges = edges.filter((e) =>
+          filteredNodes.some((n) => n.id === e.source) &&
+          filteredNodes.some((n) => n.id === e.target)
+        );
+
+        // Set up the new viewpoint data using the atoms
+        setStatement(viewpoint.title + " (copy)");
+        setReasoning(viewpoint.description);
+        setNewGraph({ nodes: filteredNodes, edges: filteredEdges });
+
+        // Navigate to new viewpoint page - no query params needed
+        router.push(`${basePath}/viewpoint/new`);
+        return;
+      }
+
+      // Existing save logic for when canModify is true
       if (!flowInstance) return;
-
-      // Filter out nodes marked as deleted
-      const filteredNodes = nodes.filter(n => {
-        return n.type !== "point" || !deletedPointIds.has(n.data.pointId as number);
+      const filteredNodes = nodes.filter((n) => {
+        return (
+          n.type !== "point" || !deletedPointIds.has(n.data.pointId as number)
+        );
       });
-
-      // Filter out edges that reference deleted nodes
-      const filteredEdges = edges.filter(e =>
-        filteredNodes.some(n => n.id === e.source) &&
-        filteredNodes.some(n => n.id === e.target)
+      const filteredEdges = edges.filter(
+        (e) =>
+          filteredNodes.some((n) => n.id === e.source) &&
+          filteredNodes.some((n) => n.id === e.target)
       );
-
       const filteredGraph = {
         nodes: filteredNodes,
         edges: filteredEdges,
       };
 
-      // Set up the new viewpoint data
-      if (viewpoint) {
-        setStatement(viewpoint.title + " (fork)");
-        setReasoning(viewpoint.description);
-        setNewGraph(filteredGraph);
+      setLocalGraph?.(filteredGraph);
 
-        // Navigate to new viewpoint page
-        router.push(`${basePath}/viewpoint/new`);
-      }
-      return;
-    }
-
-    if (!flowInstance) return;
-
-    // Filter out nodes marked as deleted
-    const filteredNodes = nodes.filter(n => {
-      return n.type !== "point" || !deletedPointIds.has(n.data.pointId as number);
-    });
-
-    // Filter out edges that reference deleted nodes
-    const filteredEdges = edges.filter(e =>
-      filteredNodes.some(n => n.id === e.source) &&
-      filteredNodes.some(n => n.id === e.target)
-    );
-
-    const filteredGraph = {
-      nodes: filteredNodes,
-      edges: filteredEdges,
-    };
-
-    // Update local graph state with the filtered graph if available
-    setLocalGraph?.(filteredGraph);
-
-    try {
-      // IMPORTANT: explicitly update the server with the filtered graph
-      await updateViewpointGraph({ id: viewpointId, graph: filteredGraph });
-
-      // Optionally, inform any other handler about the save completion
-      await onSaveChanges?.();
-    } catch (error) {
-      if (error instanceof Error) {
-        if (error.message === "Must be authenticated to update viewpoint") {
-          alert("You must be logged in to save changes. Forking viewpoints will be implemented soon.");
-        } else if (error.message === "Only the owner can update this viewpoint") {
-          alert("Only the owner can update this viewpoint. Forking viewpoints will be implemented soon.");
-        } else {
-          alert("Failed to save changes. Please try again.");
+      try {
+        await updateViewpointGraph({ id: viewpointId, graph: filteredGraph });
+        await onSaveChanges?.();
+      } catch (error) {
+        if (error instanceof Error) {
+          if (error.message === "Must be authenticated to update viewpoint") {
+            alert(
+              "You must be logged in to save changes. Copying viewpoints will be implemented soon."
+            );
+          } else if (
+            error.message === "Only the owner can update this viewpoint"
+          ) {
+            alert(
+              "Only the owner can update this viewpoint. Copying viewpoints will be implemented soon."
+            );
+          } else {
+            alert("Failed to save changes. Please try again.");
+          }
         }
+        if (setLocalGraph && props.defaultNodes && props.defaultEdges) {
+          const originalGraph = {
+            nodes: props.defaultNodes,
+            edges: props.defaultEdges,
+          };
+          setLocalGraph(originalGraph);
+        }
+        throw error;
       }
-      // Revert changes
-      if (setLocalGraph && props.defaultNodes && props.defaultEdges) {
-        const originalGraph = {
-          nodes: props.defaultNodes,
-          edges: props.defaultEdges
-        };
-        setLocalGraph(originalGraph);
-      }
-      throw error; // Re-throw so onSaveChanges can handle it too
-    }
-  }, [
-    nodes,
-    edges,
-    flowInstance,
-    onSaveChanges,
-    deletedPointIds,
-    setLocalGraph,
-    viewpointId,
-    canModify,
-    router,
-    basePath,
-    setStatement,
-    setReasoning,
-    setNewGraph,
-    viewpoint,
-    props.defaultNodes,
-    props.defaultEdges
-  ]);
+    },
+    [
+      nodes,
+      edges,
+      flowInstance,
+      onSaveChanges,
+      deletedPointIds,
+      setLocalGraph,
+      viewpointId,
+      canModify,
+      router,
+      basePath,
+      setStatement,
+      setReasoning,
+      setNewGraph,
+      viewpoint,
+      props.defaultNodes,
+      props.defaultEdges,
+    ]
+  );
 
   return (
     <ReactFlow
@@ -354,7 +376,11 @@ export const GraphView = ({
       <Controls />
       {editMode && onSaveChanges && (
         <Panel
-          style={{ top: "95%", left: "50%", transform: "translate(-50%, -50%)" }}
+          style={{
+            top: "95%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+          }}
           className="z-50"
         >
           <AuthenticatedActionButton
@@ -372,7 +398,7 @@ export const GraphView = ({
             {canModify ? (
               isSaving ? "Saving..." : "Save Changes"
             ) : (
-              isSaving ? "Forking..." : "Fork Viewpoint"
+              isSaving ? "Copying..." : "Copy Viewpoint"
             )}
           </AuthenticatedActionButton>
         </Panel>

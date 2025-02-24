@@ -10,6 +10,7 @@ export interface ViewpointCardProps extends Omit<React.HTMLAttributes<HTMLAnchor
     author: string;
     createdAt: Date;
     className?: string;
+    space: string;
 }
 
 export const ViewpointCard: React.FC<ViewpointCardProps> = ({
@@ -19,10 +20,11 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
     author,
     createdAt,
     className,
+    space,
 }) => {
     return (
         <Link
-            href={`/viewpoint/${id}`}
+            href={`/s/${space}/viewpoint/${id}`}
             tabIndex={0}
             className={cn("block focus:outline-none", className)}
         >
