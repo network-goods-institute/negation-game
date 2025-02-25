@@ -5,13 +5,15 @@ import {
   Node,
   NodeProps,
   Position,
-  useHandleConnections,
+  useNodeConnections,
   useReactFlow,
   useUpdateNodeInternals,
 } from "@xyflow/react";
 import { PlusIcon } from "lucide-react";
 import { nanoid } from "nanoid";
-import { useEffect } from "react";
+import { useEffect, useCallback, useMemo } from "react";
+import { collapsedPointIdsAtom } from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { useAtom } from "jotai";
 
 export type StatementNodeData = {
   statement: string;
@@ -29,24 +31,101 @@ export const StatementNode = ({
   positionAbsoluteX,
   positionAbsoluteY,
 }: StatementNodeProps) => {
-  const incomingConnections = useHandleConnections({
-    type: "target",
-    nodeId: id,
+  const incomingConnections = useNodeConnections({
+    handleType: "target",
+    id: id,
   });
 
-  const { addEdges, addNodes } = useReactFlow();
+  const { addEdges, addNodes, getNodes, getEdges } = useReactFlow();
   const editing = useEditMode();
-
+  const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
   const updateNodeInternals = useUpdateNodeInternals();
+
+  // Get direct children of this statement node that could be expanded
+  const directChildPointIds = useMemo(() => {
+    const edges = getEdges();
+    const nodes = getNodes();
+
+    // Find all edges where this statement is the target
+    const connectedEdges = edges.filter(edge => edge.target === id);
+
+    // Map to point IDs of direct children
+    return connectedEdges
+      .map(edge => {
+        const sourceNode = nodes.find(n => n.id === edge.source);
+        return sourceNode?.type === 'point' && sourceNode?.data?.pointId
+          ? sourceNode.data.pointId
+          : null;
+      })
+      .filter((id): id is number => id !== null);
+  }, [getEdges, getNodes, id]);
+
+  // Find which direct children are collapsed
+  const collapsedChildren = useMemo(() => {
+    return Array.from(collapsedPointIds)
+      .filter(pointId => directChildPointIds.includes(pointId));
+  }, [collapsedPointIds, directChildPointIds]);
+
+  // Count collapsed direct children
+  const collapsedDirectChildrenCount = collapsedChildren.length;
 
   useEffect(() => {
     updateNodeInternals(id);
-  }, [id, incomingConnections.length, updateNodeInternals]);
+  }, [id, incomingConnections.length, updateNodeInternals, collapsedDirectChildrenCount]);
+
+  const expandDirectChildren = useCallback(() => {
+    if (collapsedChildren.length === 0) return;
+
+    // Create new nodes for each collapsed child
+    for (const [i, pointId] of collapsedChildren.entries()) {
+      const nodeId = nanoid();
+
+      // Add the node back to the graph
+      addNodes({
+        id: nodeId,
+        type: "point",
+        data: {
+          pointId,
+          parentId: id,
+        },
+        position: {
+          x: positionAbsoluteX + (i - collapsedChildren.length / 2) * 100,
+          y: positionAbsoluteY + 150,
+        },
+      });
+
+      addEdges({
+        id: nanoid(),
+        source: nodeId,
+        target: id,
+        type: "negation"
+      });
+    }
+
+    // Remove the points from the collapsed set
+    setCollapsedPointIds(prev => {
+      const newSet = new Set(prev);
+      collapsedChildren.forEach(pointId => {
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        newSet.delete(pointId);
+      });
+      return newSet;
+    });
+
+  }, [
+    collapsedChildren,
+    id,
+    addNodes,
+    addEdges,
+    setCollapsedPointIds,
+    positionAbsoluteX,
+    positionAbsoluteY
+  ]);
 
   return (
     <div
       className={cn(
-        "relative bg-accent rounded-md border-2 min-h-18 w-96 flex items-center p-4 justify-center  flex-grow"
+        "relative bg-accent rounded-md border-2 min-h-18 w-96 flex items-center p-4 justify-center flex-grow"
       )}
     >
       <Handle
@@ -54,11 +133,12 @@ export const StatementNode = ({
         type="target"
         data-editing={editing}
         className={cn(
-          "-z-10 translate-y-[100%]  size-fit bg-muted text-center border-border  border-2  rounded-b-full pointer-events-auto",
+          "-z-10 translate-y-[100%] size-fit bg-muted text-center border-border border-2 rounded-b-full pointer-events-auto",
           editing && "pb-1 pt-0.5 px-2 -translate-x-1/2 !cursor-pointer"
         )}
         isConnectableStart={false}
         position={Position.Bottom}
+        style={{ left: editing ? "40%" : "50%" }} // Move to the left when in edit mode
         onClick={
           editing
             ? () => {
@@ -83,6 +163,22 @@ export const StatementNode = ({
       >
         {editing && <PlusIcon className="size-4" />}
       </Handle>
+
+      {collapsedDirectChildrenCount > 0 && (
+        <Handle
+          id={`${id}-statement-expand-handle`}
+          type="target"
+          className="pb-0.5 px-4 translate-y-[100%] -translate-x-1/2 size-fit bg-muted text-center border-2 border-t-0 rounded-b-full pointer-events-auto cursor-pointer"
+          isConnectableStart={false}
+          position={Position.Bottom}
+          style={{ left: editing ? "60%" : "50%" }} // Position to the right of the add handle in edit mode
+          onClick={expandDirectChildren}
+        >
+          <span className="text-center w-full text-sm">
+            {collapsedDirectChildrenCount}
+          </span>
+        </Handle>
+      )}
 
       <p className="text-accent-foreground font-bold">{statement}</p>
     </div>

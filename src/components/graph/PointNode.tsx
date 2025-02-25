@@ -14,13 +14,12 @@ import {
   Node,
   NodeProps,
   Position,
-  useHandleConnections,
+  useNodeConnections,
   useReactFlow,
   useUpdateNodeInternals,
 } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
 import { Trash2Icon, XIcon } from "lucide-react";
-import { Edge } from "@xyflow/react";
 import { nanoid } from "nanoid";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { find } from "remeda";
@@ -52,9 +51,9 @@ export const PointNode = ({
   const [shouldExpandOnInit, setShouldExpandOnInit] = useState(
     expandOnInit ?? false
   );
-  const incomingConnections = useHandleConnections({
-    type: "target",
-    nodeId: id,
+  const incomingConnections = useNodeConnections({
+    handleType: "target",
+    id: id,
   });
 
 
@@ -65,9 +64,8 @@ export const PointNode = ({
     addEdges,
     getNode,
     getNodes,
-    getHandleConnections,
-    getEdges,
     deleteElements,
+    getEdges,
   } = useReactFlow();
 
   const params = useParams();
@@ -131,7 +129,7 @@ export const PointNode = ({
         pointData?.negationIds.filter((id) => !deletedPointIds.has(id)) ?? [];
 
       const localExpandedNegationIds = [
-        ...getHandleConnections({ type: "target", nodeId: id }).map((c) => {
+        ...incomingConnections.map((c) => {
           const node = getNode(c.source)! as PointNode;
           return node.data.pointId;
         }),
@@ -172,7 +170,7 @@ export const PointNode = ({
 
     const currentNode = getNode(id)!;
     const localExpandedNegationIds = [
-      ...getHandleConnections({ type: "target", nodeId: id }).map((c) => {
+      ...incomingConnections.map((c) => {
         const node = getNode(c.source)! as PointNode;
         return node.data.pointId;
       }),
@@ -223,7 +221,7 @@ export const PointNode = ({
     editMode,
     pointData,
     deletedPointIds,
-    getHandleConnections,
+    incomingConnections,
     id,
     getNode,
     parentId,
@@ -244,7 +242,7 @@ export const PointNode = ({
   }, [shouldExpandOnInit, pointData, expandNegations]);
 
   const expandedNegationIds = [
-    ...getHandleConnections({ type: "target", nodeId: id }).map((c) => {
+    ...incomingConnections.map((c) => {
       const node = getNode(c.source)! as PointNode;
       return node.data.pointId;
     }),
@@ -260,15 +258,25 @@ export const PointNode = ({
     : 0;
 
   const collapseSelfAndNegations = useCallback(async () => {
-    const removeNestedNegations = async (nodeId: string) => {
-      const incomingConnections = getHandleConnections({
-        type: "target",
-        nodeId,
-      });
-      const nodeIds = incomingConnections.map((c) => c.source);
-      const edgeIds = incomingConnections.map((c) => c.edgeId);
+    // Helper function to get connections without using hooks
+    const getNodeConnectionsForId = (nodeId: string) => {
+      const edges = getEdges();
+      return edges
+        .filter(edge => edge.target === nodeId)
+        .map(edge => ({ source: edge.source, edgeId: edge.id }));
+    };
 
-      if (nodeIds.length > 0) nodeIds.forEach(removeNestedNegations);
+    const removeNestedNegations = async (nodeId: string) => {
+      // Use our helper function instead of the hook
+      const connections = getNodeConnectionsForId(nodeId);
+      const nodeIds = connections.map((c) => c.source);
+      const edgeIds = connections.map((c) => c.edgeId);
+
+      if (nodeIds.length > 0) {
+        for (const id of nodeIds) {
+          await removeNestedNegations(id);
+        }
+      }
 
       const nodesToCollapse = nodeIds
         .map((id) => {
@@ -315,7 +323,6 @@ export const PointNode = ({
     }
   }, [
     deleteElements,
-    getHandleConnections,
     id,
     pointData,
     deletedPointIds,
@@ -325,6 +332,7 @@ export const PointNode = ({
     setCollapsedPointIds,
     getNode,
     pointId,
+    getEdges
   ]);
 
   const handleDelete = () => {
