@@ -5,7 +5,7 @@ import {
   viewpointGraphAtom,
   viewpointReasoningAtom,
   viewpointStatementAtom,
-  deletedPointIdsAtom,
+  collapsedPointIdsAtom,
 } from "@/app/s/[space]/viewpoint/viewpointAtoms";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
@@ -72,9 +72,9 @@ function PointCardWrapper({
   const setNegatedPointId = useSetAtom(negatedPointIdAtom);
   const reactFlow = useReactFlow<AppNode>();
   const editMode = useEditMode();
-  const [deletedPointIds] = useAtom(deletedPointIdsAtom);
+  const [collapsedPointIds] = useAtom(collapsedPointIdsAtom);
 
-  if (deletedPointIds.has(point.pointId)) {
+  if (collapsedPointIds.has(point.pointId)) {
     return null;
   }
 
@@ -143,7 +143,7 @@ function ViewpointContent() {
   const [reasoning, setReasoning] = useAtom(viewpointReasoningAtom);
   const pathname = usePathname();
   const editMode = useEditMode();
-  const [_, setDeletedPointIds] = useAtom(deletedPointIdsAtom);
+  const [_, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
 
   const spaceObj = space?.data?.id;
   const [viewGraph, setViewGraph] = useAtom(viewpointGraphAtom);
@@ -243,7 +243,7 @@ function ViewpointContent() {
     // Explicitly set nodes and edges in React Flow.
     reactFlow.setNodes(initialViewpointGraph.nodes);
     reactFlow.setEdges(initialViewpointGraph.edges);
-    setDeletedPointIds(new Set()); // Clear deleted points
+    setCollapsedPointIds(new Set()); // Clear collapsed points
   };
 
   const removePointFromViewpoint = useCallback(
@@ -305,15 +305,15 @@ function ViewpointContent() {
       const pointId =
         nodeToRemove?.type === "point" ? nodeToRemove.data.pointId : undefined;
 
-      // Add to deletedPointIdsAtom
+      // Add to collapsedPointIdsAtom
       if (pointId) {
-        setDeletedPointIds(prev => {
+        setCollapsedPointIds(prev => {
           const newSet = new Set(prev).add(pointId);
           return newSet;
         });
       }
     },
-    [setGraph, deleteElements, reactFlow, setDeletedPointIds]
+    [setGraph, deleteElements, reactFlow, setCollapsedPointIds]
   );
 
   return (
@@ -489,7 +489,6 @@ function ViewpointContent() {
             "!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset]  !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md: !z-10 md:z-auto",
             !canvasEnabled && isMobile && "hidden"
           )}
-          onDelete={removePointFromViewpoint}
         />
       </Dynamic>
 

@@ -32,7 +32,6 @@ export interface GraphViewProps extends ReactFlowProps<AppNode> {
     statement?: string;
     onClose?: () => void;
     closeButtonClassName?: string;
-    onDeleteNode?: (nodeId: string) => void;
 }
 
 export const GraphView = ({
@@ -42,7 +41,6 @@ export const GraphView = ({
     closeButtonClassName,
     onNodesChange: onNodesChangeProp,
     onEdgesChange: onEdgesChangeProp,
-    onDeleteNode,
     ...props
 }: GraphViewProps) => {
     const [nodes, , onNodesChangeDefault] = useNodesState<AppNode>([]);
@@ -68,12 +66,12 @@ export const GraphView = ({
     const nodeTypes = useMemo(
         () => ({
             point: (props: any) => (
-                <PointNode {...props} onDelete={onDeleteNode} />
+                <PointNode {...props} />
             ),
             statement: StatementNode,
             addPoint: AddPointNode,
         }),
-        [onDeleteNode]
+        []
     );
     const edgeTypes = useMemo(() => ({ negation: NegationEdge }), []);
 

@@ -65,11 +65,8 @@ export const viewpointGraphAtom = atom(
 export const viewpointGraphStorageAtom = atomWithStorage<string>(
   "viewpointGraph",
   JSON.stringify(initialViewpointGraph),
-
   storage,
   { getOnInit: true }
 );
-
-export const deletedPointIdsAtom = atom<Set<number>>(new Set<number>());
 
 export const collapsedPointIdsAtom = atom<Set<number>>(new Set<number>());

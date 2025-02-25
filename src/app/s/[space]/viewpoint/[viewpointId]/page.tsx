@@ -4,7 +4,6 @@ import {
   viewpointGraphAtom,
   viewpointReasoningAtom,
   viewpointStatementAtom,
-  deletedPointIdsAtom,
   collapsedPointIdsAtom,
 } from "@/app/s/[space]/viewpoint/viewpointAtoms";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
@@ -61,17 +60,16 @@ const DynamicMarkdown = dynamic(() => import('react-markdown'), {
 function PointCardWrapper({
   point,
   className,
-  onDelete,
 }: {
   point: { pointId: number; parentId?: number | string };
   className?: string;
-  onDelete?: (nodeId: string) => void;
 }) {
   const { data: pointData } = usePointData(point.pointId);
   const { originalPosterId } = useOriginalPoster();
   const editMode = useEditMode();
   const reactFlow = useReactFlow();
   const setNegatedPointId = useSetAtom(negatedPointIdAtom);
+  const [hoveredPointId] = useAtom(hoveredPointIdAtom);
 
   if (!pointData)
     return (
@@ -80,7 +78,10 @@ function PointCardWrapper({
 
   return (
     <PointCard
-      className={className}
+      className={cn(
+        className,
+        hoveredPointId === point.pointId && "shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
+      )}
       pointId={point.pointId}
       content={pointData.content}
       createdAt={pointData.createdAt}
@@ -90,31 +91,7 @@ function PointCardWrapper({
       amountNegations={pointData.amountNegations}
       originalPosterId={originalPosterId}
       onNegate={() => setNegatedPointId(point.pointId)}
-    >
-      {editMode && onDelete && (
-        <AuthenticatedActionButton
-          variant="ghost"
-          size="icon"
-          className="absolute top-2 right-2"
-          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-            e.stopPropagation();
-            const targetNode = reactFlow.getNodes().find((n: Node) =>
-              n.type === "point" &&
-              'pointId' in n.data &&
-              n.data.pointId === point.pointId
-            );
-
-            if (!targetNode) {
-              return;
-            }
-
-            onDelete(targetNode.id);
-          }}
-        >
-          <Trash2Icon className="size-4" />
-        </AuthenticatedActionButton>
-      )}
-    </PointCard>
+    />
   );
 }
 
@@ -150,7 +127,6 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
   const setGraph = useSetAtom(viewpointGraphAtom);
   const setStatement = useSetAtom(viewpointStatementAtom);
   const setReasoning = useSetAtom(viewpointReasoningAtom);
-  const setDeletedPointIds = useSetAtom(deletedPointIdsAtom);
   const setCollapsedPointIds = useSetAtom(collapsedPointIdsAtom);
 
   const [hoveredPointId, setHoveredPointId] = useAtom(hoveredPointIdAtom);
@@ -183,8 +159,8 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
         setLocalGraph(originalGraph);
       }
       setEditModeEnabled(false);
-      // Reset deleted points when discarding changes
-      setDeletedPointIds(new Set());
+      // Reset collapsed points when discarding changes
+      setCollapsedPointIds(new Set());
       // Increment the revision counter to force remount of non-edit GraphView.
       setGraphRevision(prev => prev + 1);
     } else {
@@ -221,6 +197,8 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
           graph: localGraph,
         });
       }
+      // Reset collapsed points when saving changes
+      setCollapsedPointIds(new Set());
       // Reset revision counter to force a remount of the non-edit GraphView
       setGraphRevision(prev => prev + 1);
     } catch (error) {
@@ -245,7 +223,9 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     router,
     basePath,
     setStatement,
-    setReasoning
+    setReasoning,
+    setGraphRevision,
+    setCollapsedPointIds
   ]);
 
   const [editFlowInstance, setEditFlowInstance] = useState<ReactFlowInstance<AppNode> | null>(null);
@@ -301,9 +281,9 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
         editFlowInstance.setEdges(newGraph.edges);
       }
 
-      // Update deletedPointIds for all removed nodes
+      // Update collapsedPointIds for all removed nodes
       const removedNodes = currentNodes.filter(n => nodesToRemove.has(n.id));
-      setDeletedPointIds(prev => {
+      setCollapsedPointIds(prev => {
         const newSet = new Set(prev);
         removedNodes.forEach(node => {
           if (node.type === "point") {
@@ -313,13 +293,8 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
         return newSet;
       });
     },
-    [reactFlow, editFlowInstance, setDeletedPointIds, setLocalGraph]
+    [reactFlow, editFlowInstance, setCollapsedPointIds, setLocalGraph]
   );
-  const handleNodeDelete = useCallback((nodeId: string) => {
-    removePointFromViewpoint(nodeId);
-  }, [removePointFromViewpoint]);
-
-  const handlePointDelete = removePointFromViewpoint;
 
   const handleCopy = useCallback(() => {
     if (!viewpoint) return;
@@ -466,7 +441,6 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                       "shadow-[inset_0_0_0_2px_hsl(var(--primary))]",
                       editModeEnabled && "pr-10"
                     )}
-                    onDelete={handlePointDelete}
                   />
                 ))}
               </Dynamic>
@@ -490,7 +464,6 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                 "!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset] !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md:z-auto",
                 !canvasEnabled && isMobile && "hidden"
               )}
-              onDelete={handleNodeDelete}
               setLocalGraph={setLocalGraph}
               onSaveChanges={onSaveChanges}
               isSaving={isSaving}

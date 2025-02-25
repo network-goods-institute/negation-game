@@ -27,7 +27,7 @@ import { useTheme } from "next-themes";
 import { useCallback, useMemo, useEffect, useState } from "react";
 import { useEditMode as localEditMode } from "./EditModeContext";
 import { useSetAtom, useAtom } from "jotai";
-import { deletedPointIdsAtom } from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { collapsedPointIdsAtom } from "@/app/s/[space]/viewpoint/viewpointAtoms";
 import { ViewpointGraph } from "@/app/s/[space]/viewpoint/viewpointAtoms";
 import React from "react";
 import { updateViewpointGraph } from "@/actions/updateViewpointGraph";
@@ -76,7 +76,6 @@ export interface GraphViewProps
   statement?: string;
   onClose?: () => void;
   closeButtonClassName?: string;
-  onDelete?: (nodeId: string) => void;
   editFlowInstance?: ReactFlowInstance<AppNode> | null;
   setLocalGraph?: (graph: ViewpointGraph) => void;
   isSaving?: boolean;
@@ -90,7 +89,6 @@ export const GraphView = ({
   closeButtonClassName,
   onNodesChange: onNodesChangeProp,
   onEdgesChange: onEdgesChangeProp,
-  onDelete,
   onSaveChanges,
   setLocalGraph,
   isSaving,
@@ -98,14 +96,14 @@ export const GraphView = ({
   isNew,
   ...props
 }: GraphViewProps) => {
-  const [deletedPointIds] = useAtom(deletedPointIdsAtom);
+  const [collapsedPointIds] = useAtom(collapsedPointIdsAtom);
   const [flowInstance, setFlowInstance] =
     useState<ReactFlowInstance<AppNode> | null>(null);
   const [nodes, setNodes, onNodesChangeDefault] = useNodesState<AppNode>([]);
   const [edges, setEdges, onEdgesChangeDefault] = useEdgesState<Edge>([]);
   const { theme } = useTheme();
   const editMode = localEditMode();
-  const setDeletedPointIds = useSetAtom(deletedPointIdsAtom);
+  const setCollapsedPointIds = useSetAtom(collapsedPointIdsAtom);
   const router = useRouter();
   const basePath = useBasePath();
   const setStatement = useSetAtom(viewpointStatementAtom);
@@ -139,13 +137,13 @@ export const GraphView = ({
     [setLocalGraph]
   );
 
-  // Filter nodes and edges based on deletedPointIds
+  // Filter nodes and edges based on collapsedPointIds
   const filteredNodes = useMemo(() => {
     if (!editMode) return nodes;
     return nodes.filter((n) => {
-      return n.type !== "point" || !deletedPointIds.has(n.data.pointId as number);
+      return n.type !== "point" || !collapsedPointIds.has(n.data.pointId as number);
     });
-  }, [nodes, deletedPointIds, editMode]);
+  }, [nodes, collapsedPointIds, editMode]);
 
   const filteredEdges = useMemo(() => {
     if (!editMode) return edges;
@@ -210,11 +208,11 @@ export const GraphView = ({
   // Memoize nodeTypes and edgeTypes
   const nodeTypes = useMemo(
     () => ({
-      point: (props: any) => <PointNode {...props} onDelete={onDelete} />,
+      point: (props: any) => <PointNode {...props} />,
       statement: StatementNode,
       addPoint: AddPointNode,
     }),
-    [onDelete]
+    []
   );
 
   const edgeTypes = useMemo(() => ({ negation: NegationEdge }), []);
@@ -253,9 +251,9 @@ export const GraphView = ({
       if (!canModify) {
         if (!flowInstance || !viewpoint) return;
 
-        // Filter out deleted nodes/edges
+        // Filter out collapsed nodes/edges
         const filteredNodes = nodes.filter((n) => {
-          return n.type !== "point" || !deletedPointIds.has(n.data.pointId as number)
+          return n.type !== "point" || !collapsedPointIds.has(n.data.pointId as number)
         });
         const filteredEdges = edges.filter((e) =>
           filteredNodes.some((n) => n.id === e.source) &&
@@ -276,7 +274,7 @@ export const GraphView = ({
       if (!flowInstance) return;
       const filteredNodes = nodes.filter((n) => {
         return (
-          n.type !== "point" || !deletedPointIds.has(n.data.pointId as number)
+          n.type !== "point" || !collapsedPointIds.has(n.data.pointId as number)
         );
       });
       const filteredEdges = edges.filter(
@@ -325,7 +323,7 @@ export const GraphView = ({
       edges,
       flowInstance,
       onSaveChanges,
-      deletedPointIds,
+      collapsedPointIds,
       setLocalGraph,
       viewpointId,
       canModify,

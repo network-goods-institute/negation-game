@@ -19,15 +19,13 @@ import {
   useUpdateNodeInternals,
 } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
-import { Trash2Icon, XIcon } from "lucide-react";
+import { XIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { find } from "remeda";
-import { AuthenticatedActionButton } from "@/components/ui/button";
-import { deletedPointIdsAtom } from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { collapsedPointIdsAtom } from "@/app/s/[space]/viewpoint/viewpointAtoms";
 import { useViewpoint } from "@/queries/useViewpoint";
 import { useParams } from "next/navigation";
-import { collapsedPointIdsAtom } from "@/app/s/[space]/viewpoint/viewpointAtoms";
 
 export type PointNodeData = {
   pointId: number;
@@ -39,13 +37,11 @@ export type PointNode = Node<PointNodeData, "point">;
 
 export interface PointNodeProps extends Omit<NodeProps, "data"> {
   data: PointNodeData;
-  onDelete?: (nodeId: string) => void;
 }
 
 export const PointNode = ({
   data: { pointId, parentId, expandOnInit },
   id,
-  onDelete,
 }: PointNodeProps) => {
   const [hoveredPoint, setHoveredPoint] = useAtom(hoveredPointIdAtom);
   const [shouldExpandOnInit, setShouldExpandOnInit] = useState(
@@ -120,13 +116,22 @@ export const PointNode = ({
     prefetchUserEndorsements,
   ]);
 
-  const [deletedPointIds, setDeletedPointIds] = useAtom(deletedPointIdsAtom);
   const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
 
   const expandNegations = useCallback(() => {
+    // First, remove this point from the collapsed set to ensure it can be expanded
+    if (pointId) {
+      setCollapsedPointIds(prev => {
+        const newSet = new Set(prev);
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        newSet.delete(pointId);
+        return newSet;
+      });
+    }
+
     if (!isViewpointContext || editMode) {
-      const nonDeletedNegationIds =
-        pointData?.negationIds.filter((id) => !deletedPointIds.has(id)) ?? [];
+      const nonCollapsedNegationIds =
+        pointData?.negationIds ?? [];
 
       const localExpandedNegationIds = [
         ...incomingConnections.map((c) => {
@@ -138,7 +143,7 @@ export const PointNode = ({
 
       const currentNode = getNode(id)!;
 
-      for (const [i, negationId] of nonDeletedNegationIds.entries()) {
+      for (const [i, negationId] of nonCollapsedNegationIds.entries()) {
         if (localExpandedNegationIds.includes(negationId)) continue;
         const nodeId = nanoid();
         addNodes({
@@ -160,6 +165,14 @@ export const PointNode = ({
           source: nodeId,
           type: "negation",
         });
+
+        // Remove the expanded negation ID from collapsed set
+        setCollapsedPointIds(prev => {
+          const newSet = new Set(prev);
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
+          newSet.delete(negationId);
+          return newSet;
+        });
       }
       return;
     }
@@ -178,7 +191,6 @@ export const PointNode = ({
     ];
 
     const expandableNegationIds = pointData.negationIds
-      .filter((id) => !deletedPointIds.has(id))
       .filter((id) => originalViewpoint?.originalPointIds?.includes(id))
       .filter((id) => !localExpandedNegationIds.includes(id));
 
@@ -203,10 +215,22 @@ export const PointNode = ({
         source: nodeId,
         type: "negation",
       });
+
+      // Remove the expanded negation ID from collapsed set
+      setCollapsedPointIds(prev => {
+        const newSet = new Set(prev);
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        newSet.delete(negationId);
+        return newSet;
+      });
     }
 
+    // This is now redundant since we're removing IDs as we expand them
+    // but keeping it for safety
     setCollapsedPointIds((prev) => {
       const newSet = new Set(prev);
+
+      // Remove all expanded negation IDs from collapsed set
       localExpandedNegationIds.forEach((id) => {
         const numId = typeof id === "string" ? parseInt(id) : id;
         if (!isNaN(numId)) {
@@ -214,13 +238,14 @@ export const PointNode = ({
           newSet.delete(numId);
         }
       });
+
       return newSet;
     });
   }, [
     isViewpointContext,
     editMode,
     pointData,
-    deletedPointIds,
+    collapsedPointIds,
     incomingConnections,
     id,
     getNode,
@@ -251,7 +276,7 @@ export const PointNode = ({
 
   const collapsedNegations = pointData
     ? (pointData.negationIds
-      .filter(id => !deletedPointIds.has(id))
+      // Don't filter by collapsedPointIds to show all potential negations
       .filter(id => !isViewpointContext || editMode || originalViewpoint?.originalPointIds?.includes(id))
       .filter(id => !expandedNegationIds.includes(id))
       .length)
@@ -311,12 +336,12 @@ export const PointNode = ({
       deleteElements({ nodes: [{ id }] });
     });
 
-    // Filter out deleted points
-    const nonDeletedNegationIds = pointData?.negationIds.filter(
-      (id) => !deletedPointIds.has(id)
+    // Filter out collapsed points
+    const nonCollapsedNegationIds = pointData?.negationIds.filter(
+      (id) => !collapsedPointIds.has(id)
     ) ?? [];
 
-    for (const negationId of nonDeletedNegationIds) {
+    for (const negationId of nonCollapsedNegationIds) {
       prefetchPoint(negationId);
       originalPosterId &&
         prefetchUserEndorsements(originalPosterId, negationId);
@@ -325,7 +350,7 @@ export const PointNode = ({
     deleteElements,
     id,
     pointData,
-    deletedPointIds,
+    collapsedPointIds,
     prefetchPoint,
     originalPosterId,
     prefetchUserEndorsements,
@@ -334,13 +359,6 @@ export const PointNode = ({
     pointId,
     getEdges
   ]);
-
-  const handleDelete = () => {
-    if (onDelete) {
-      if (id === "statement") return;
-      onDelete(id);
-    }
-  };
 
   return (
     <div
@@ -373,32 +391,15 @@ export const PointNode = ({
       </Handle>
       {parentId && (
         <Handle
-          id={`${id}-outgoing-handle`}
-          type="source"
+          id={`${id}-outgoing-handle`} type="source"
           position={Position.Top}
           className={
-            isAddressingStatement && !editMode
-              ? "invisible"
-              : "-z-10 pt-1 pb-0.5 px-2 translate-y-[-100%]  -translate-x-1/2  size-fit bg-muted text-center border-2 border-b-0 rounded-t-full pointer-events-auto !cursor-pointer"
+            "pt-1 pb-0.5 px-2 translate-y-[-100%] -translate-x-1/2 size-fit bg-muted text-center border-2 border-b-0 rounded-t-full pointer-events-auto !cursor-pointer"
           }
-          onClick={
-            isAddressingStatement && !editMode
-              ? undefined
-              : collapseSelfAndNegations
-          }
+          onClick={collapseSelfAndNegations}
         >
           <XIcon className="size-4" />
         </Handle>
-      )}
-      {editMode && (
-        <AuthenticatedActionButton
-          variant="ghost"
-          size="icon"
-          className="absolute top-1 right-1 z-50"
-          onClick={handleDelete}
-        >
-          <Trash2Icon className="size-4" />
-        </AuthenticatedActionButton>
       )}
       {pointData ? (
         <>
@@ -414,8 +415,7 @@ export const PointNode = ({
             viewerContext={{ viewerCred: pointData.viewerCred }}
             className={cn(
               "bg-muted/40 rounded-sm z-10",
-              isRedundant && "opacity-30 hover:opacity-100",
-              editMode && "pr-8"
+              isRedundant && "opacity-30 hover:opacity-100"
             )}
             originalPosterId={originalPosterId}
           ></PointCard>
@@ -426,3 +426,4 @@ export const PointNode = ({
     </div>
   );
 };
+
