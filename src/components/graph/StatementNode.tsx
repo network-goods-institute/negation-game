@@ -36,7 +36,7 @@ export const StatementNode = ({
     id: id,
   });
 
-  const { addEdges, addNodes, getNodes, getEdges } = useReactFlow();
+  const { addEdges, addNodes, getNodes, getEdges, getNode, updateNodeData } = useReactFlow();
   const editing = useEditMode();
   const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
   const updateNodeInternals = useUpdateNodeInternals();
@@ -76,6 +76,14 @@ export const StatementNode = ({
   const expandDirectChildren = useCallback(() => {
     if (collapsedChildren.length === 0) return;
 
+    // Explicitly mark the graph as modified at the beginning to ensure
+    // the save button appears immediately when expanding nodes
+    // @ts-ignore - accessing our custom method
+    if (typeof addNodes.getState?.().flowInstance?.markAsModified === 'function') {
+      // @ts-ignore
+      addNodes.getState().flowInstance.markAsModified();
+    }
+
     // Create new nodes for each collapsed child
     for (const [i, pointId] of collapsedChildren.entries()) {
       const nodeId = nanoid();
@@ -87,6 +95,8 @@ export const StatementNode = ({
         data: {
           pointId,
           parentId: id,
+          // Add a unique timestamp to ensure this is detected as a modification
+          _lastModified: Date.now()
         },
         position: {
           x: positionAbsoluteX + (i - collapsedChildren.length / 2) * 100,
@@ -112,6 +122,14 @@ export const StatementNode = ({
       return newSet;
     });
 
+    // Mark the statement node as modified to trigger the save button
+    // This ensures expanding nodes is considered a modification that needs saving
+    const statementNode = getNode(id);
+    if (statementNode) {
+      const updatedData = { ...statementNode.data, _lastModified: Date.now() };
+      // Update the node data to trigger a change detection
+      updateNodeData(id, updatedData);
+    }
   }, [
     collapsedChildren,
     id,
@@ -119,7 +137,9 @@ export const StatementNode = ({
     addEdges,
     setCollapsedPointIds,
     positionAbsoluteX,
-    positionAbsoluteY
+    positionAbsoluteY,
+    getNode,
+    updateNodeData
   ]);
 
   return (
@@ -134,34 +154,30 @@ export const StatementNode = ({
         data-editing={editing}
         className={cn(
           "-z-10 translate-y-[100%] size-fit bg-muted text-center border-border border-2 rounded-b-full pointer-events-auto",
-          editing && "pb-1 pt-0.5 px-2 -translate-x-1/2 !cursor-pointer"
+          "pb-1 pt-0.5 px-2 -translate-x-1/2 !cursor-pointer"
         )}
         isConnectableStart={false}
         position={Position.Bottom}
-        style={{ left: editing ? "40%" : "50%" }} // Move to the left when in edit mode
-        onClick={
-          editing
-            ? () => {
-              const answerId = nanoid();
-              addNodes({
-                id: answerId,
-                type: "addPoint",
-                position: {
-                  x: positionAbsoluteX,
-                  y: positionAbsoluteY + 100,
-                },
-                data: { parentId: id },
-              });
-              addEdges({
-                id: nanoid(),
-                source: answerId,
-                target: id,
-              });
-            }
-            : undefined
-        }
+        style={{ left: "40%" }}
+        onClick={() => {
+          const answerId = nanoid();
+          addNodes({
+            id: answerId,
+            type: "addPoint",
+            position: {
+              x: positionAbsoluteX,
+              y: positionAbsoluteY + 100,
+            },
+            data: { parentId: id },
+          });
+          addEdges({
+            id: nanoid(),
+            source: answerId,
+            target: id,
+          });
+        }}
       >
-        {editing && <PlusIcon className="size-4" />}
+        <PlusIcon className="size-4" />
       </Handle>
 
       {collapsedDirectChildrenCount > 0 && (
@@ -171,7 +187,7 @@ export const StatementNode = ({
           className="pb-0.5 px-4 translate-y-[100%] -translate-x-1/2 size-fit bg-muted text-center border-2 border-t-0 rounded-b-full pointer-events-auto cursor-pointer"
           isConnectableStart={false}
           position={Position.Bottom}
-          style={{ left: editing ? "60%" : "50%" }} // Position to the right of the add handle in edit mode
+          style={{ left: "60%" }}
           onClick={expandDirectChildren}
         >
           <span className="text-center w-full text-sm">

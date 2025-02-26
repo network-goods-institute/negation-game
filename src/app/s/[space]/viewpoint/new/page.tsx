@@ -6,11 +6,13 @@ import {
   viewpointReasoningAtom,
   viewpointStatementAtom,
   collapsedPointIdsAtom,
+  ViewpointGraph,
 } from "@/app/s/[space]/viewpoint/viewpointAtoms";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { AppNode } from "@/components/graph/AppNode";
+import { AppEdge } from "@/components/graph/AppEdge";
 import { GraphView } from "@/components/graph/GraphView";
 import {
   OriginalPosterProvider,
@@ -53,25 +55,19 @@ import { Loader } from "@/components/ui/loader";
 import { ErrorBoundary } from "react-error-boundary";
 import { Trash2Icon } from "lucide-react";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
-import { fetchPoints } from "@/actions/fetchPoints";
+import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
 
 function PointCardWrapper({
   point,
   className,
-  onDelete,
 }: {
   point: { pointId: number; parentId?: number | string };
   className?: string;
-  onDelete: (pointId: string) => void;
 }) {
-  const searchParams = useSearchParams();
-  const isCopying = searchParams.get('copy') === 'true';
   const pointDataQuery = usePointData(point.pointId);
-  const pointData = isCopying ? null : pointDataQuery.data;
+  const pointData = pointDataQuery.data;
   const { originalPosterId } = useOriginalPoster();
   const setNegatedPointId = useSetAtom(negatedPointIdAtom);
-  const reactFlow = useReactFlow<AppNode>();
-  const editMode = useEditMode();
   const [collapsedPointIds] = useAtom(collapsedPointIdsAtom);
 
   if (collapsedPointIds.has(point.pointId)) {
@@ -96,43 +92,19 @@ function PointCardWrapper({
       viewerContext={{ viewerCred: pointData.viewerCred }}
       onNegate={() => setNegatedPointId(point.pointId)}
       originalPosterId={originalPosterId}
-    >
-      {editMode && (
-        <AuthenticatedActionButton
-          variant="ghost"
-          size="icon"
-          className="absolute top-2 right-2"
-          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-            e.stopPropagation();
-            const targetNode = reactFlow.getNodes().find(
-              (n: AppNode) => n.type === "point" &&
-                n.data?.pointId === point.pointId
-            );
-
-            if (!targetNode) {
-              return;
-            }
-
-            onDelete(targetNode.id);
-          }}
-        >
-          <Trash2Icon className="size-4" />
-        </AuthenticatedActionButton>
-      )}
-    </PointCard>
+    />
   );
 }
 
 function ViewpointContent() {
-  const { updateNodeData, deleteElements } = useReactFlow();
+  const { updateNodeData } = useReactFlow();
   const { data: user } = useUser();
   const { push } = useRouter();
   const basePath = useBasePath();
-  const searchParams = useSearchParams();
-  const isCopying = searchParams.get('copy') === 'true';
+  const [isCopiedFromSessionStorage, setIsCopiedFromSessionStorage] = useState(false);
 
   const spaceQuery = useSpace();
-  const space = isCopying ? null : spaceQuery;
+  const space = spaceQuery;
   const [canvasEnabled, setCanvasEnabled] = useAtom(canvasEnabledAtom);
   const [isMobile, setIsMobile] = useState(false);
   const reactFlow = useReactFlow<AppNode>();
@@ -142,7 +114,6 @@ function ViewpointContent() {
   const [statement, setStatement] = useAtom(viewpointStatementAtom);
   const [reasoning, setReasoning] = useAtom(viewpointReasoningAtom);
   const pathname = usePathname();
-  const editMode = useEditMode();
   const [_, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
 
   const spaceObj = space?.data?.id;
@@ -150,7 +121,7 @@ function ViewpointContent() {
   const [viewpointStatement, setViewpointStatement] = useAtom(viewpointStatementAtom);
 
   useEffect(() => {
-    if (spaceObj && isCopying) {
+    if (spaceObj && !isCopiedFromSessionStorage) {
       const invalidDraft = viewGraph.nodes.some((node) => {
         if (node.type !== "point") return false;
         return false;
@@ -161,7 +132,7 @@ function ViewpointContent() {
         setViewpointStatement("");
       }
     }
-  }, [spaceObj, viewGraph.nodes, setViewGraph, setViewpointStatement, isCopying]);
+  }, [spaceObj, viewGraph.nodes, setViewGraph, setViewpointStatement, isCopiedFromSessionStorage]);
 
   useEffect(() => {
     updateNodeData("statement", {
@@ -193,48 +164,69 @@ function ViewpointContent() {
       return;
     }
 
-    if (!isCopying && localStorage.getItem("justPublished") === "true") {
+    if (!isCopiedFromSessionStorage && localStorage.getItem("justPublished") === "true") {
       localStorage.removeItem("justPublished");
       setReasoning("");
       setStatement("");
       setGraph(initialViewpointGraph);
     }
-  }, [pathname, setReasoning, setStatement, setGraph, basePath, isCopying]);
+  }, [pathname, setReasoning, setStatement, setGraph, basePath, isCopiedFromSessionStorage]);
 
   useEffect(() => {
-    if (isCopying) {
-      const search = new URLSearchParams(window.location.search);
-      const graphParam = search.get("graph");
-      const titleParam = search.get("title");
-      const reasoningParam = search.get("reasoning");
+    // Get the current space
+    const pathname = window.location.pathname;
+    const currentSpace = getSpaceFromPathname(pathname) || 'default';
 
-      if (graphParam) {
-        try {
-          const parsedGraph = JSON.parse(decodeURIComponent(graphParam));
-          setGraph(parsedGraph);
+    // Check if we have copied data in sessionStorage for this space
+    const storageKey = `copyingViewpoint:${currentSpace}`;
+    const viewpointDataStr = sessionStorage.getItem(storageKey);
 
-          if (titleParam) {
-            setStatement(decodeURIComponent(titleParam));
+    if (viewpointDataStr) {
+      try {
+        const viewpointData = JSON.parse(viewpointDataStr);
+
+        // Generate a new graph with unique IDs to prevent duplicate keys
+        const regeneratedGraph = regenerateGraphIds(viewpointData.graph);
+
+        // Set the graph, title, and description
+        setGraph(regeneratedGraph);
+        setStatement(viewpointData.title);
+        setReasoning(viewpointData.description);
+
+        // Remove the data from sessionStorage to prevent reloading it
+        sessionStorage.removeItem(storageKey);
+
+        // Mark that we've loaded from sessionStorage
+        setIsCopiedFromSessionStorage(true);
+
+        // Update the reactFlow nodes and edges if reactFlow is available
+        if (reactFlow) {
+          const nodeIds = regeneratedGraph.nodes.map(n => n.id);
+          const hasDuplicates = new Set(nodeIds).size !== nodeIds.length;
+          if (hasDuplicates) {
+            const idCounts: Record<string, number> = {};
+            nodeIds.forEach(id => {
+              idCounts[id] = (idCounts[id] || 0) + 1;
+            });
+
           }
-          if (reasoningParam) {
-            setReasoning(decodeURIComponent(reasoningParam));
-          }
-        } catch (error) {
-          console.error("Error parsing graph from URL:", error);
+
+          reactFlow.setNodes(regeneratedGraph.nodes);
+          reactFlow.setEdges(regeneratedGraph.edges);
         }
-      } else {
-        console.warn("[COPY] No graph parameter found in URL");
+      } catch (error) {
+        console.error("Error loading copied viewpoint:", error);
       }
     }
-  }, [isCopying, setGraph, setStatement, setReasoning]);
+  }, [setGraph, setStatement, setReasoning, reactFlow]);
 
   useEffect(() => {
     const hasStatement = graph?.nodes?.some(n => n.type === "statement");
 
-    if (!isCopying && (!graph || !hasStatement)) {
+    if (!isCopiedFromSessionStorage && (!graph || !hasStatement)) {
       setGraph(initialViewpointGraph);
     }
-  }, [graph, isCopying, setGraph]);
+  }, [graph, isCopiedFromSessionStorage, setGraph]);
 
   const clearGraph = () => {
     setReasoning("");
@@ -246,75 +238,6 @@ function ViewpointContent() {
     setCollapsedPointIds(new Set()); // Clear collapsed points
   };
 
-  const removePointFromViewpoint = useCallback(
-    (pointIdToRemove: string) => {
-      const currentNodes = reactFlow.getNodes();
-      const currentEdges = reactFlow.getEdges();
-
-      if (pointIdToRemove === 'statement') {
-        return;
-      }
-
-      const nodesToRemove = new Set<string>([pointIdToRemove]);
-      const edgesToRemove = new Set<string>();
-
-      // Find all edges connected to this node (both directions)
-      const connectedEdges = currentEdges.filter(edge =>
-        edge.source === pointIdToRemove || edge.target === pointIdToRemove
-      );
-      // Add all connected edges to removal set
-      connectedEdges.forEach(edge => {
-        edgesToRemove.add(edge.id);
-      });
-
-      // BFS to find all CHILDREN (using reverse edge direction)
-      const queue = [pointIdToRemove];
-      while (queue.length > 0) {
-        const currentId = queue.shift()!;
-
-        // Find edges where this node is the TARGET (parent)
-        const childEdges = currentEdges.filter(
-          edge => edge.target === currentId && edge.source !== 'statement'
-        );
-
-        childEdges.forEach(edge => {
-          const childNodeId = edge.source;
-          if (!nodesToRemove.has(childNodeId)) {
-            nodesToRemove.add(childNodeId);
-            queue.push(childNodeId);
-          }
-        });
-      }
-
-      // Update Jotai state directly with a new graph value rather than using a function updater
-      setGraph({
-        nodes: currentNodes.filter((n: { id: string }) => !nodesToRemove.has(n.id)),
-        edges: currentEdges.filter((e: { id: string }) => !edgesToRemove.has(e.id))
-      });
-
-      // Update React Flow
-      const elementsToDelete = {
-        nodes: Array.from(nodesToRemove).map((id: string) => ({ id })),
-        edges: Array.from(edgesToRemove).map((id: string) => ({ id }))
-      };
-
-      deleteElements(elementsToDelete);
-
-      // Get the pointId from the node data
-      const nodeToRemove = currentNodes.find(n => n.id === pointIdToRemove);
-      const pointId =
-        nodeToRemove?.type === "point" ? nodeToRemove.data.pointId : undefined;
-
-      // Add to collapsedPointIdsAtom
-      if (pointId) {
-        setCollapsedPointIds(prev => {
-          const newSet = new Set(prev).add(pointId);
-          return newSet;
-        });
-      }
-    },
-    [setGraph, deleteElements, reactFlow, setCollapsedPointIds]
-  );
 
   return (
     <main className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
@@ -436,21 +359,27 @@ function ViewpointContent() {
                   Points
                 </span>
                 <Dynamic>
-                  {points.map((point) => (
-                    <div key={`${point.pointId}-card-wrapper`} className="relative">
-                      <PointCardWrapper
-                        key={`${point.pointId}-card`}
-                        point={point}
-                        className={cn(
-                          "border-b",
-                          hoveredPointId === point.pointId &&
-                          "shadow-[inset_0_0_0_2px_hsl(var(--primary))]",
-                          editMode && "pr-10"
-                        )}
-                        onDelete={removePointFromViewpoint}
-                      />
-                    </div>
-                  ))}
+                  {points.map((point) => {
+                    const pointNode = reactFlow.getNodes().find(
+                      (n) => n.type === "point" && n.data?.pointId === point.pointId
+                    );
+                    return (
+                      <div
+                        key={`${point.pointId}-card-wrapper`}
+                        className="relative"
+                      >
+                        <PointCardWrapper
+                          key={`${point.pointId}-card`}
+                          point={point}
+                          className={cn(
+                            "border-b",
+                            hoveredPointId === point.pointId &&
+                            "shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
+                          )}
+                        />
+                      </div>
+                    );
+                  })}
                 </Dynamic>
               </div>
             )}
@@ -465,7 +394,6 @@ function ViewpointContent() {
           onInit={(reactFlow) => {
             reactFlow.setNodes(graph.nodes);
             reactFlow.setEdges(graph.edges);
-            reactFlow.fitView();
           }}
           defaultNodes={graph.nodes}
           defaultEdges={graph.edges}
@@ -476,13 +404,31 @@ function ViewpointContent() {
               }
               : undefined
           }
-          onNodesChange={() => {
+          onNodesChange={(changes) => {
             const { viewport, ...graph } = reactFlow.toObject();
             setGraph(graph);
           }}
-          onEdgesChange={() => {
+          onEdgesChange={(changes) => {
             const { viewport, ...graph } = reactFlow.toObject();
             setGraph(graph);
+          }}
+          onSaveChanges={async () => {
+            try {
+              const id = await publishViewpoint({
+                title: statement,
+                description: reasoning,
+                graph,
+              });
+              localStorage.setItem("justPublished", "true");
+              push(`${basePath}/viewpoint/${id}`);
+              return true; // Return true to indicate successful save
+            } catch (error: any) {
+              console.error("Failed to publish viewpoint:", error);
+              alert(
+                "Failed to publish viewpoint. See console for details."
+              );
+              return false; // Return false to indicate failed save
+            }
           }}
           statement={statement}
           className={cn(
@@ -552,10 +498,69 @@ export default function NewViewpointPage() {
   const searchParams = useSearchParams();
 
   return (
-    <EditModeProvider editMode={true}>
+    <EditModeProvider>
       <OriginalPosterProvider originalPosterId={privyUser?.id}>
         <ViewpointPageContent key={searchParams.toString()} />
       </OriginalPosterProvider>
     </EditModeProvider>
   );
 }
+
+const regenerateGraphIds = (graph: ViewpointGraph): ViewpointGraph => {
+
+  // Create a mapping from old IDs to new IDs
+  const idMap = new Map<string, string>();
+
+  // Keep the statement node ID as is
+  const statementNode = graph.nodes.find(node => node.type === 'statement');
+  if (statementNode) {
+    idMap.set(statementNode.id, 'statement');
+  }
+
+  // Generate new IDs for all other nodes
+  const newNodes = graph.nodes.map((node) => {
+    // Statement node keeps its ID
+    if (node.type === 'statement') {
+      return { ...node, id: 'statement' } as AppNode;
+    }
+
+    // Generate a new unique ID for this node that incorporates the node type
+    // Making sure we don't include any references to other nodes in the ID
+    const newId = `${node.type || 'node'}_${Math.random().toString(36).substring(2, 15)}`;
+    idMap.set(node.id, newId);
+
+    return { ...node, id: newId } as AppNode;
+  });
+
+  // Update edge source and target IDs using the mapping
+  let newEdges = graph.edges.map((edge) => {
+    const newSource = idMap.get(edge.source) || edge.source;
+    const newTarget = idMap.get(edge.target) || edge.target;
+    const newId = `edge_${Math.random().toString(36).substring(2, 15)}`;
+    return {
+      ...edge,
+      id: newId,
+      source: newSource,
+      target: newTarget
+    } as AppEdge;
+  });
+
+  // Check for and remove duplicate edges based on source-target pairs
+  const edgeMap = new Map<string, AppEdge>();
+  const duplicateEdges: string[] = [];
+
+  newEdges.forEach(edge => {
+    const key = `${edge.source}->${edge.target}`;
+    if (edgeMap.has(key)) {
+      duplicateEdges.push(edge.id);
+    } else {
+      edgeMap.set(key, edge);
+    }
+  });
+
+  if (duplicateEdges.length > 0) {
+    newEdges = newEdges.filter(edge => !duplicateEdges.includes(edge.id));
+  }
+
+  return { nodes: newNodes, edges: newEdges };
+};
