@@ -24,20 +24,13 @@ import {
 } from "@xyflow/react";
 import { XIcon } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useCallback, useMemo, useEffect, useState } from "react";
-import { useEditMode as localEditMode } from "./EditModeContext";
-import { useSetAtom, useAtom } from "jotai";
-import { deletedPointIdsAtom } from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { useCallback, useMemo, useEffect, useState, useRef } from "react";
+import { useAtom } from "jotai";
+import { collapsedPointIdsAtom } from "@/app/s/[space]/viewpoint/viewpointAtoms";
 import { ViewpointGraph } from "@/app/s/[space]/viewpoint/viewpointAtoms";
 import React from "react";
 import { updateViewpointGraph } from "@/actions/updateViewpointGraph";
-import { useParams, useRouter } from "next/navigation";
-import { useBasePath } from "@/hooks/useBasePath";
-import {
-  viewpointStatementAtom,
-  viewpointReasoningAtom,
-  viewpointGraphAtom,
-} from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { useParams, usePathname } from "next/navigation";
 import { useViewpoint } from "@/queries/useViewpoint";
 import { AuthenticatedActionButton } from "@/components/ui/button";
 
@@ -70,13 +63,12 @@ function debounce<T extends (...args: any[]) => any>(
 
 export interface GraphViewProps
   extends Omit<ReactFlowProps<AppNode>, "onDelete"> {
-  onSaveChanges?: () => void;
+  onSaveChanges?: () => Promise<boolean | void>;
   canModify?: boolean;
   rootPointId?: number;
   statement?: string;
   onClose?: () => void;
   closeButtonClassName?: string;
-  onDelete?: (nodeId: string) => void;
   editFlowInstance?: ReactFlowInstance<AppNode> | null;
   setLocalGraph?: (graph: ViewpointGraph) => void;
   isSaving?: boolean;
@@ -90,7 +82,6 @@ export const GraphView = ({
   closeButtonClassName,
   onNodesChange: onNodesChangeProp,
   onEdgesChange: onEdgesChangeProp,
-  onDelete,
   onSaveChanges,
   setLocalGraph,
   isSaving,
@@ -98,19 +89,24 @@ export const GraphView = ({
   isNew,
   ...props
 }: GraphViewProps) => {
-  const [deletedPointIds] = useAtom(deletedPointIdsAtom);
+  const [collapsedPointIds] = useAtom(collapsedPointIdsAtom);
   const [flowInstance, setFlowInstance] =
     useState<ReactFlowInstance<AppNode> | null>(null);
-  const [nodes, setNodes, onNodesChangeDefault] = useNodesState<AppNode>([]);
-  const [edges, setEdges, onEdgesChangeDefault] = useEdgesState<Edge>([]);
+  const [nodes, setNodes, onNodesChangeDefault] = useNodesState<AppNode>(
+    props.defaultNodes || []
+  );
+  const [edges, setEdges, onEdgesChangeDefault] = useEdgesState<Edge>(
+    props.defaultEdges || []
+  );
   const { theme } = useTheme();
-  const editMode = localEditMode();
-  const setDeletedPointIds = useSetAtom(deletedPointIdsAtom);
-  const router = useRouter();
-  const basePath = useBasePath();
-  const setStatement = useSetAtom(viewpointStatementAtom);
-  const setReasoning = useSetAtom(viewpointReasoningAtom);
-  const setNewGraph = useSetAtom(viewpointGraphAtom);
+  const pathname = usePathname();
+  const isNewViewpointPage = pathname?.includes('/viewpoint/new');
+
+  // Track if the graph has been modified since loading or last save
+  const [isModified, setIsModified] = useState(false);
+  const [isSaving_local, setIsSaving_local] = useState(false);
+  // Track if this is the first mount
+  const isInitialMount = useRef(true);
 
   // Get the current viewpoint ID from the route params first
   const params = useParams();
@@ -120,6 +116,14 @@ export const GraphView = ({
   const { data: viewpoint } = useViewpoint(viewpointId, {
     enabled: !isNew,
   });
+
+  // reset isModified when viewpoint data changes, but only if not already modified
+  useEffect(() => {
+    if (viewpoint && !isModified) {
+      setIsModified(false);
+    } else if (isModified) {
+    }
+  }, [viewpoint, isModified]);
 
   // Debounced function to update localGraph
   const debouncedSetLocalGraph = useMemo(
@@ -139,63 +143,152 @@ export const GraphView = ({
     [setLocalGraph]
   );
 
-  // Filter nodes and edges based on deletedPointIds
+  // Filter nodes and edges based on collapsedPointIds
   const filteredNodes = useMemo(() => {
-    if (!editMode) return nodes;
-    return nodes.filter((n) => {
-      return n.type !== "point" || !deletedPointIds.has(n.data.pointId as number);
+    const filtered = nodes.filter((n) => {
+      const shouldInclude = n.type !== "point" || !collapsedPointIds.has(n.data.pointId as number);
+      return shouldInclude;
     });
-  }, [nodes, deletedPointIds, editMode]);
+
+    return filtered;
+  }, [nodes, collapsedPointIds]);
 
   const filteredEdges = useMemo(() => {
-    if (!editMode) return edges;
-    return edges.filter(
+    // First filter edges to only include those connected to visible nodes
+    const visibleEdges = edges.filter(
       (e) =>
         filteredNodes.some((n) => n.id === e.source) &&
         filteredNodes.some((n) => n.id === e.target)
     );
-  }, [edges, filteredNodes, editMode]);
+
+    // Then check for and remove duplicate edges based on source-target pairs
+    const edgeMap = new Map<string, Edge>();
+    const uniqueEdges: Edge[] = [];
+    const duplicates: string[] = [];
+
+    visibleEdges.forEach(edge => {
+      const key = `${edge.source}->${edge.target}`;
+      if (edgeMap.has(key)) {
+        duplicates.push(edge.id);
+      } else {
+        edgeMap.set(key, edge);
+        uniqueEdges.push(edge);
+      }
+    });
+
+    return uniqueEdges;
+  }, [edges, filteredNodes]);
+
+  // Make this method available via the React Flow context for children components
+  // This ensures node components can explicitly mark the graph as modified
+  const markAsModified = useCallback(() => {
+    if (!isNew) {
+      setIsModified(true);
+    }
+  }, [isNew]);
+
+  useEffect(() => {
+    if (flowInstance) {
+      // @ts-ignore - adding our custom method to the instance
+      flowInstance.markAsModified = markAsModified;
+    }
+  }, [flowInstance, markAsModified]);
 
   const onNodesChange = useCallback(
-    (nodes: NodeChange<AppNode>[]) => {
-      if (editMode) {
-        onNodesChangeDefault(nodes);
-        onNodesChangeProp?.(nodes);
-
-        if (flowInstance && setLocalGraph) {
-          const { viewport, ...graph } = flowInstance.toObject();
-          debouncedSetLocalGraph(graph);
+    (changes: NodeChange<AppNode>[]) => {
+      // Check if any change is a meaningful modification that should trigger the save button
+      const hasSubstantiveChanges = changes.some((change) => {
+        // Adding/removing nodes is always a substantive change
+        if (change.type === 'add' || change.type === 'remove') {
+          return true;
         }
+
+        // Position changes are substantive only if they're significant
+        // This helps avoid showing the save button during minor adjustments or panning
+        if (change.type === 'position' && change.position) {
+          // For drag events, we only consider it substantive if it's not from panning
+          // We can detect user-initiated drags by checking if there's any dragging going on
+          return change.dragging === true;
+        }
+
+        // Data changes to node content are substantive
+        if ((change as any).data && (change as any).type !== 'select') {
+          return true;
+        }
+
+        // Check for _lastModified timestamp in the data
+        // Some changes might have updated data indicating node expansion
+        if ((change as any).item?.data?._lastModified || (change as any).data?._lastModified) {
+          return true;
+        }
+
+        // Selection changes aren't substantive
+        return false;
+      });
+
+      if (hasSubstantiveChanges && !isNew) {
+        setIsModified(true);
+      }
+
+      onNodesChangeDefault(changes);
+      onNodesChangeProp?.(changes);
+
+      if (flowInstance && setLocalGraph) {
+        const { viewport, ...graph } = flowInstance.toObject();
+        debouncedSetLocalGraph(graph);
       }
     },
     [
       onNodesChangeDefault,
       onNodesChangeProp,
-      editMode,
       flowInstance,
       setLocalGraph,
       debouncedSetLocalGraph,
+      isNew,
     ]
   );
 
   const onEdgesChange = useCallback(
-    (edges: EdgeChange[]) => {
-      if (editMode) {
-        onEdgesChangeDefault(edges);
-        onEdgesChangeProp?.(edges);
-        if (flowInstance && setLocalGraph) {
-          const { viewport, ...graph } = flowInstance.toObject();
-          debouncedSetLocalGraph(graph);
+    (changes: EdgeChange[]) => {
+      // Check for substantive changes to edges
+      const hasSubstantiveChanges = changes.some((change) => {
+        // Adding or removing edges is always a substantive change
+        if (change.type === 'add' || change.type === 'remove') {
+          return true;
         }
+
+        // Changes to edge data (like labels) are substantive
+        if ((change as any).data) {
+          return true;
+        }
+
+        // Selection changes aren't substantive
+        if (change.type === 'select') {
+          return false;
+        }
+
+        // Other changes (like style) are substantive
+        return change.type === 'replace';
+      });
+
+      if (hasSubstantiveChanges && !isNew) {
+        setIsModified(true);
+      }
+
+      onEdgesChangeDefault(changes);
+      onEdgesChangeProp?.(changes);
+      if (flowInstance && setLocalGraph) {
+        const { viewport, ...graph } = flowInstance.toObject();
+        debouncedSetLocalGraph(graph);
       }
     },
     [
       onEdgesChangeDefault,
       onEdgesChangeProp,
       setLocalGraph,
-      editMode,
       flowInstance,
       debouncedSetLocalGraph,
+      isNew,
     ]
   );
 
@@ -210,91 +303,100 @@ export const GraphView = ({
   // Memoize nodeTypes and edgeTypes
   const nodeTypes = useMemo(
     () => ({
-      point: (props: any) => <PointNode {...props} onDelete={onDelete} />,
+      point: (props: any) => <PointNode {...props} />,
       statement: StatementNode,
       addPoint: AddPointNode,
     }),
-    [onDelete]
+    []
   );
 
   const edgeTypes = useMemo(() => ({ negation: NegationEdge }), []);
 
   const { defaultNodes, defaultEdges, onInit, ...otherProps } = props;
-  const effectiveProps = editMode
-    ? otherProps
-    : {
-      ...otherProps,
-      defaultNodes,
-      defaultEdges,
-      ...(onInit && { onInit }),
-    };
+  // With edit mode always on, we'll simplify this, can probably be refactored out completely eventually  
+  const effectiveProps = {
+    ...otherProps,
+    ...(onInit && { onInit }),
+  };
 
   useEffect(() => {
-    if (editMode) {
-      if (
-        (!nodes || nodes.length === 0) &&
-        defaultNodes &&
-        defaultNodes.length > 0
-      ) {
-        setNodes(defaultNodes);
-      }
-      if (
-        (!edges || edges.length === 0) &&
-        defaultEdges &&
-        defaultEdges.length > 0
-      ) {
-        setEdges(defaultEdges);
-      }
+    if (
+      (!nodes || nodes.length === 0) &&
+      defaultNodes &&
+      defaultNodes.length > 0
+    ) {
+      setNodes(defaultNodes);
     }
-  }, [editMode, nodes, edges, defaultNodes, defaultEdges, setNodes, setEdges]);
+    if (
+      (!edges || edges.length === 0) &&
+      defaultEdges &&
+      defaultEdges.length > 0
+    ) {
+      setEdges(defaultEdges);
+    }
+  }, [nodes, edges, defaultNodes, defaultEdges, setNodes, setEdges]);
+
+  // Reset isModified only on initial mount, not when defaultNodes/defaultEdges change
+  // This ensures we don't lose modification state when the graph changes
+  useEffect(() => {
+    if (isInitialMount.current && props.defaultNodes && props.defaultEdges) {
+      setIsModified(false);
+      isInitialMount.current = false;
+    }
+  }, [props.defaultNodes, props.defaultEdges, isModified]);
 
   const handleSave = useCallback(
     async () => {
-      if (!canModify) {
-        if (!flowInstance || !viewpoint) return;
+      setIsSaving_local(true);
 
-        // Filter out deleted nodes/edges
+      try {
+        // Filter out collapsed nodes
         const filteredNodes = nodes.filter((n) => {
-          return n.type !== "point" || !deletedPointIds.has(n.data.pointId as number)
+          const shouldInclude = n.type !== "point" || !collapsedPointIds.has(n.data.pointId);
+          return shouldInclude;
         });
+
         const filteredEdges = edges.filter((e) =>
           filteredNodes.some((n) => n.id === e.source) &&
           filteredNodes.some((n) => n.id === e.target)
         );
+        const filteredGraph = {
+          nodes: filteredNodes,
+          edges: filteredEdges,
+        };
 
-        // Set up the new viewpoint data using the atoms
-        setStatement(viewpoint.title + " (copy)");
-        setReasoning(viewpoint.description);
-        setNewGraph({ nodes: filteredNodes, edges: filteredEdges });
+        // If the user is the owner, update the viewpoint
+        // If not, skip to onSaveChanges which will handle creating a copy
+        let saveSuccess = true;
 
-        // Navigate to new viewpoint page - no query params needed
-        router.push(`${basePath}/viewpoint/new`);
-        return;
-      }
+        if (canModify) {
+          // Actually update the viewpoint
+          console.log(`[GraphView] Calling updateViewpointGraph for viewpointId: ${viewpointId}`);
+          const result = await updateViewpointGraph({
+            id: viewpointId,
+            graph: filteredGraph,
+          });
+        }
 
-      // Existing save logic for when canModify is true
-      if (!flowInstance) return;
-      const filteredNodes = nodes.filter((n) => {
-        return (
-          n.type !== "point" || !deletedPointIds.has(n.data.pointId as number)
-        );
-      });
-      const filteredEdges = edges.filter(
-        (e) =>
-          filteredNodes.some((n) => n.id === e.source) &&
-          filteredNodes.some((n) => n.id === e.target)
-      );
-      const filteredGraph = {
-        nodes: filteredNodes,
-        edges: filteredEdges,
-      };
+        // Call onSaveChanges and get the result
+        try {
+          const saveResult = await onSaveChanges?.();
+          if (saveResult === false) {
+            saveSuccess = false;
+          }
+        } catch (saveError) {
+          saveSuccess = false;
+          console.error("[GraphView] Error in onSaveChanges:", saveError);
+        }
 
-      setLocalGraph?.(filteredGraph);
+        // Only reset isModified if everything was successful
+        if (saveSuccess) {
+          setIsModified(false);
+        }
 
-      try {
-        await updateViewpointGraph({ id: viewpointId, graph: filteredGraph });
-        await onSaveChanges?.();
+        return saveSuccess;
       } catch (error) {
+
         if (error instanceof Error) {
           if (error.message === "Must be authenticated to update viewpoint") {
             alert(
@@ -310,6 +412,7 @@ export const GraphView = ({
             alert("Failed to save changes. Please try again.");
           }
         }
+
         if (setLocalGraph && props.defaultNodes && props.defaultEdges) {
           const originalGraph = {
             nodes: props.defaultNodes,
@@ -317,28 +420,40 @@ export const GraphView = ({
           };
           setLocalGraph(originalGraph);
         }
+
+        // Ensure we preserve the modified state if there was an error
         throw error;
+      } finally {
+        // For non-owners doing a copy operation, we'll let the navigation handle the spinner state
+        // For owners or failed operations, reset the spinner after a small delay
+        if (canModify) {
+          // Add a small delay before resetting the loading state to ensure UI visibility
+          await new Promise(resolve => setTimeout(resolve, 300));
+          setIsSaving_local(false);
+        }
       }
     },
     [
       nodes,
       edges,
-      flowInstance,
+      collapsedPointIds,
       onSaveChanges,
-      deletedPointIds,
       setLocalGraph,
       viewpointId,
-      canModify,
-      router,
-      basePath,
-      setStatement,
-      setReasoning,
-      setNewGraph,
-      viewpoint,
       props.defaultNodes,
       props.defaultEdges,
+      setIsModified,
+      canModify,
     ]
   );
+
+  const handleButtonClick = useCallback(() => {
+    setIsSaving_local(true);
+
+    handleSave().catch(error => {
+      setIsSaving_local(false); // Reset in case of error
+    });
+  }, [handleSave, setIsSaving_local]);
 
   return (
     <ReactFlow
@@ -374,35 +489,24 @@ export const GraphView = ({
         className="[&>svg]:w-[120px] [&>svg]:h-[90px] sm:[&>svg]:w-[200px] sm:[&>svg]:h-[150px]"
       />
       <Controls />
-      {editMode && onSaveChanges && (
-        <Panel
-          style={{
-            top: "95%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-          }}
-          className="z-50"
-        >
+      {(isModified || isNew) && !isNewViewpointPage && (
+        <Panel position="top-center">
           <AuthenticatedActionButton
-            variant="default"
-            onClick={async () => {
-              try {
-                await handleSave();
-              } catch (error) {
-                console.error("[GraphView] Error during save:", error);
-              }
-            }}
-            disabled={isSaving}
-            rightLoading={isSaving}
+            id="save-button"
+            className="dark:text-background z-50"
+            disabled={isSaving || isSaving_local}
+            onClick={handleButtonClick}
+            rightLoading={isSaving || isSaving_local}
           >
-            {canModify ? (
-              isSaving ? "Saving..." : "Save Changes"
-            ) : (
-              isSaving ? "Copying..." : "Copy Viewpoint"
-            )}
+            {canModify
+              ? isNew
+                ? "Publish Viewpoint"
+                : "Save Changes"
+              : "Copy Viewpoint to Save Changes"}
           </AuthenticatedActionButton>
         </Panel>
       )}
     </ReactFlow>
   );
 };
+

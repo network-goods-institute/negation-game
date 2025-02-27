@@ -37,7 +37,7 @@ const buttonVariants = cva(
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
+  VariantProps<typeof buttonVariants> {
   asChild?: boolean;
   leftSlot?: React.ReactNode;
   leftLoading?: boolean;
@@ -97,7 +97,16 @@ Button.displayName = "Button";
 
 const AuthenticatedActionButton = ({ onClick, ...props }: ButtonProps) => {
   const { user, login } = usePrivy();
-  return <Button {...props} onClick={!!user ? onClick : login} />;
+
+  const handleClick = React.useCallback((e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+    if (!!user) {
+      onClick?.(e);
+    } else {
+      login();
+    }
+  }, [user, onClick, login]);
+
+  return <Button {...props} onClick={handleClick} />;
 };
 
 export { AuthenticatedActionButton, Button, buttonVariants };

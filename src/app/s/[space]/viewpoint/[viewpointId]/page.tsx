@@ -4,13 +4,14 @@ import {
   viewpointGraphAtom,
   viewpointReasoningAtom,
   viewpointStatementAtom,
-  deletedPointIdsAtom,
   collapsedPointIdsAtom,
+  ViewpointGraph,
 } from "@/app/s/[space]/viewpoint/viewpointAtoms";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { AppNode } from "@/components/graph/AppNode";
+import { AppEdge } from "@/components/graph/AppEdge";
 import { GraphView } from "@/components/graph/GraphView";
 import {
   OriginalPosterProvider,
@@ -29,7 +30,7 @@ import { usePointData } from "@/queries/usePointData";
 import { useSpace } from "@/queries/useSpace";
 import { useUser } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
-import { Edge, ReactFlowProvider, useReactFlow, Node } from "@xyflow/react";
+import { ReactFlowProvider, useReactFlow, } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
 import {
   Tooltip,
@@ -37,7 +38,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Portal } from "@radix-ui/react-portal";
-import { GroupIcon, NetworkIcon, CopyIcon, Edit2Icon, Trash2Icon } from "lucide-react";
+import { GroupIcon, NetworkIcon, CopyIcon, } from "lucide-react";
 import React from 'react';
 import { useEffect, useState, useMemo, useCallback } from "react";
 import dynamic from 'next/dynamic';
@@ -61,17 +62,14 @@ const DynamicMarkdown = dynamic(() => import('react-markdown'), {
 function PointCardWrapper({
   point,
   className,
-  onDelete,
 }: {
   point: { pointId: number; parentId?: number | string };
   className?: string;
-  onDelete?: (nodeId: string) => void;
 }) {
   const { data: pointData } = usePointData(point.pointId);
   const { originalPosterId } = useOriginalPoster();
-  const editMode = useEditMode();
-  const reactFlow = useReactFlow();
   const setNegatedPointId = useSetAtom(negatedPointIdAtom);
+  const [hoveredPointId] = useAtom(hoveredPointIdAtom);
 
   if (!pointData)
     return (
@@ -80,7 +78,10 @@ function PointCardWrapper({
 
   return (
     <PointCard
-      className={className}
+      className={cn(
+        className,
+        hoveredPointId === point.pointId && "shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
+      )}
       pointId={point.pointId}
       content={pointData.content}
       createdAt={pointData.createdAt}
@@ -90,33 +91,66 @@ function PointCardWrapper({
       amountNegations={pointData.amountNegations}
       originalPosterId={originalPosterId}
       onNegate={() => setNegatedPointId(point.pointId)}
-    >
-      {editMode && onDelete && (
-        <AuthenticatedActionButton
-          variant="ghost"
-          size="icon"
-          className="absolute top-2 right-2"
-          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-            e.stopPropagation();
-            const targetNode = reactFlow.getNodes().find((n: Node) =>
-              n.type === "point" &&
-              'pointId' in n.data &&
-              n.data.pointId === point.pointId
-            );
-
-            if (!targetNode) {
-              return;
-            }
-
-            onDelete(targetNode.id);
-          }}
-        >
-          <Trash2Icon className="size-4" />
-        </AuthenticatedActionButton>
-      )}
-    </PointCard>
+    />
   );
 }
+
+const regenerateGraphIds = (graph: ViewpointGraph): ViewpointGraph => {
+
+  const idMap = new Map<string, string>();
+
+  const statementNode = graph.nodes.find(node => node.type === 'statement');
+  if (statementNode) {
+    idMap.set(statementNode.id, 'statement');
+  }
+
+  const newNodes = graph.nodes.map((node) => {
+    // Statement node keeps its ID
+    if (node.type === 'statement') {
+      return { ...node, id: 'statement' } as AppNode;
+    }
+
+    // Generate a new unique ID for this node that incorporates the node type
+    // Making sure we don't include any references to other nodes in the ID
+    const newId = `${node.type || 'node'}_${Math.random().toString(36).substring(2, 15)}`;
+    idMap.set(node.id, newId);
+
+    return { ...node, id: newId } as AppNode;
+  });
+
+  // Update edge source and target IDs using the mapping
+  let newEdges = graph.edges.map((edge) => {
+    const newSource = idMap.get(edge.source) || edge.source;
+    const newTarget = idMap.get(edge.target) || edge.target;
+    const newId = `edge_${Math.random().toString(36).substring(2, 15)}`;
+
+    return {
+      ...edge,
+      id: newId,
+      source: newSource,
+      target: newTarget
+    } as AppEdge;
+  });
+
+  // Check for and remove duplicate edges based on source-target pairs
+  const edgeMap = new Map<string, AppEdge>();
+  const duplicateEdges: string[] = [];
+
+  newEdges.forEach(edge => {
+    const key = `${edge.source}->${edge.target}`;
+    if (edgeMap.has(key)) {
+      duplicateEdges.push(edge.id);
+    } else {
+      edgeMap.set(key, edge);
+    }
+  });
+
+  if (duplicateEdges.length > 0) {
+    newEdges = newEdges.filter(edge => !duplicateEdges.includes(edge.id));
+  }
+
+  return { nodes: newNodes, edges: newEdges };
+};
 
 function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
   const queryClient = useQueryClient();
@@ -125,6 +159,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
   const space = useSpace();
   const [canvasEnabled, setCanvasEnabled] = useAtom(canvasEnabledAtom);
   const [isMobile, setIsMobile] = useState(false);
+  const [isCopying, setIsCopying] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -150,48 +185,22 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
   const setGraph = useSetAtom(viewpointGraphAtom);
   const setStatement = useSetAtom(viewpointStatementAtom);
   const setReasoning = useSetAtom(viewpointReasoningAtom);
-  const setDeletedPointIds = useSetAtom(deletedPointIdsAtom);
   const setCollapsedPointIds = useSetAtom(collapsedPointIdsAtom);
 
   const [hoveredPointId, setHoveredPointId] = useAtom(hoveredPointIdAtom);
+  const editMode = useEditMode();
 
-  // Local edit mode state; when true, we keep graph state in a local controlled state.
-  const [editModeEnabled, setEditModeEnabled] = useState(false);
   // Save global graph snapshot from viewpoint
   const originalGraph = useMemo(() => viewpoint?.graph, [viewpoint]);
-  // Add a revision state to force re-mount of GraphView in non-edit mode upon toggling
-  const [graphRevision, setGraphRevision] = useState(0);
-
-  // When editing, maintain a local graph state
+  // Local graph state (always maintained since we're always in edit mode)
   const [localGraph, setLocalGraph] = useState(originalGraph);
 
-  // When global graph (from the loaded viewpoint) updates and we're not editing,
-  // sync the localGraph to the new value.
+  // When global graph (from the loaded viewpoint) updates, sync the localGraph
   useEffect(() => {
-    if (!editModeEnabled && originalGraph) {
+    if (originalGraph) {
       setLocalGraph(originalGraph);
-      setCollapsedPointIds(new Set());
     }
-  }, [editModeEnabled, originalGraph, setCollapsedPointIds]);
-
-  // Toggle edit mode and initialize/discard local graph state accordingly.
-  const toggleEditMode = () => {
-    if (editModeEnabled) {
-      // Exiting edit mode: log the current original and local graphs.
-      if (originalGraph) {
-        setGraph(originalGraph);
-        setLocalGraph(originalGraph);
-      }
-      setEditModeEnabled(false);
-      // Reset deleted points when discarding changes
-      setDeletedPointIds(new Set());
-      // Increment the revision counter to force remount of non-edit GraphView.
-      setGraphRevision(prev => prev + 1);
-    } else {
-      setLocalGraph(originalGraph);
-      setEditModeEnabled(true);
-    }
-  };
+  }, [originalGraph]);
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -204,132 +213,132 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
       // If the current user is not the owner (i.e. not the creator) then fork instead of trying to update directly
       if (!isOwner) {
         if (localGraph && viewpoint) {
-          sessionStorage.setItem('forkGraph', JSON.stringify(localGraph));
-          setStatement(viewpoint.title + " (copy)");
-          setReasoning(viewpoint.description);
-          setGraph(localGraph);
+          // Get the current space
+          const currentSpace = space?.data?.id || 'default';
 
-          const encodedGraph = encodeURIComponent(JSON.stringify(localGraph));
-          router.push(`${basePath}/viewpoint/new?copy=true&graph=${encodedGraph}`);
-          return;
+          // Store the viewpoint data in session storage with space information
+          const viewpointData = {
+            title: viewpoint.title + " (copy)",
+            description: viewpoint.description,
+            graph: localGraph,
+            sourceSpace: currentSpace,
+          };
+
+          // Check for duplicate node IDs before storing
+          const nodeIds = localGraph.nodes.map(n => n.id);
+          const hasDuplicates = new Set(nodeIds).size !== nodeIds.length;
+          if (hasDuplicates) {
+            const idCounts: Record<string, number> = {};
+            nodeIds.forEach(id => {
+              idCounts[id] = (idCounts[id] || 0) + 1;
+            });
+
+            // Print out duplicates
+            Object.entries(idCounts).forEach(([id, count]) => {
+              if (count > 1) {
+                console.error(`ID "${id}" appears ${count} times`);
+                // Find the nodes with this ID
+                localGraph.nodes.filter(n => n.id === id).forEach((node, i) => {
+                  console.error(`  Node ${i + 1}: type=${node.type}, data=`, node.data);
+                });
+              }
+            });
+          }
+
+          // Use sessionStorage with space-specific key to avoid conflicts
+          const storageKey = `copyingViewpoint:${currentSpace}`;
+          sessionStorage.setItem(storageKey, JSON.stringify(viewpointData));
+
+          // Add a small delay to ensure the loading state is visible before navigation
+          await new Promise(resolve => setTimeout(resolve, 500));
+
+          // Navigate to the new viewpoint page in the same space
+          router.push(`${basePath}/viewpoint/new`);
+          return true;
         }
       }
-      setEditModeEnabled(false);
       if (localGraph && viewpoint) {
+        // Update local query cache with new graph
         queryClient.setQueryData(["viewpoint", viewpoint.id], {
           ...viewpoint,
           graph: localGraph,
         });
       }
-      // Reset revision counter to force a remount of the non-edit GraphView
-      setGraphRevision(prev => prev + 1);
+      // Reset collapsed points when saving changes
+      setCollapsedPointIds(new Set());
+
+      return true; // Indicate successful save to allow GraphView to reset isModified
     } catch (error) {
       alert("Failed to save changes. Please try again.");
       if (originalGraph) {
         setLocalGraph(originalGraph);
         setGraph(originalGraph);
       }
-      setEditModeEnabled(false);
+      return false; // Indicate failed save to GraphView
     } finally {
       setIsSaving(false);
     }
   }, [
     localGraph,
-    queryClient,
-    setEditModeEnabled,
-    viewpoint,
     originalGraph,
-    setLocalGraph,
+    viewpoint,
+    queryClient,
     setGraph,
     isOwner,
     router,
     basePath,
-    setStatement,
-    setReasoning
+    setCollapsedPointIds,
+    space?.data?.id
   ]);
 
   const [editFlowInstance, setEditFlowInstance] = useState<ReactFlowInstance<AppNode> | null>(null);
 
-  const removePointFromViewpoint = useCallback(
-    (pointIdToRemove: string) => {
-      const currentNodes = reactFlow.getNodes();
-      const currentEdges = reactFlow.getEdges();
-
-      if (pointIdToRemove === 'statement') {
-        return;
-      }
-
-      const nodesToRemove = new Set<string>([pointIdToRemove]);
-      const edgesToRemove = new Set<string>();
-
-      // Find all edges connected to this node (both directions)
-      const connectedEdges = currentEdges.filter(edge =>
-        edge.source === pointIdToRemove || edge.target === pointIdToRemove
-      );
-      // Add all connected edges to removal set
-      connectedEdges.forEach(edge => {
-        edgesToRemove.add(edge.id);
-      });
-
-      // BFS to find all CHILDREN (using reverse edge direction)
-      const queue = [pointIdToRemove];
-      while (queue.length > 0) {
-        const currentId = queue.shift()!;
-        // Find edges where this node is the TARGET (parent)
-        const childEdges = currentEdges.filter(
-          edge => edge.target === currentId && edge.source !== "statement"
-        );
-        childEdges.forEach(edge => {
-          const childNodeId = edge.source;
-          if (!nodesToRemove.has(childNodeId)) {
-            nodesToRemove.add(childNodeId);
-            queue.push(childNodeId);
-          }
-        });
-      }
-
-      // Update local graph state
-      const newGraph = {
-        nodes: currentNodes.filter(n => !nodesToRemove.has(n.id)),
-        edges: currentEdges.filter(e => !edgesToRemove.has(e.id))
-      };
-      setLocalGraph(newGraph);
-
-      // Update ReactFlow instance
-      if (editFlowInstance) {
-        editFlowInstance.setNodes(newGraph.nodes);
-        editFlowInstance.setEdges(newGraph.edges);
-      }
-
-      // Update deletedPointIds for all removed nodes
-      const removedNodes = currentNodes.filter(n => nodesToRemove.has(n.id));
-      setDeletedPointIds(prev => {
-        const newSet = new Set(prev);
-        removedNodes.forEach(node => {
-          if (node.type === "point") {
-            newSet.add(node.data.pointId);
-          }
-        });
-        return newSet;
-      });
-    },
-    [reactFlow, editFlowInstance, setDeletedPointIds, setLocalGraph]
-  );
-  const handleNodeDelete = useCallback((nodeId: string) => {
-    removePointFromViewpoint(nodeId);
-  }, [removePointFromViewpoint]);
-
-  const handlePointDelete = removePointFromViewpoint;
 
   const handleCopy = useCallback(() => {
     if (!viewpoint) return;
 
-    setStatement(viewpoint.title + " (copy)");
-    setReasoning(viewpoint.description);
-    setGraph(viewpoint.graph);
+    // Set copying state to true
+    setIsCopying(true);
 
-    router.push(`${basePath}/viewpoint/new`);
-  }, [viewpoint, setStatement, setReasoning, setGraph, router, basePath]);
+    try {
+      // Get the current space
+      const currentSpace = space?.data?.id || 'default';
+
+      // Generate new IDs to prevent duplicate keys
+      const regeneratedGraph = regenerateGraphIds(viewpoint.graph);
+
+      // Check for duplicate node IDs 
+      const nodeIds = regeneratedGraph.nodes.map(n => n.id);
+      const hasDuplicates = new Set(nodeIds).size !== nodeIds.length;
+      if (hasDuplicates) {
+        const idCounts: Record<string, number> = {};
+        nodeIds.forEach(id => {
+          idCounts[id] = (idCounts[id] || 0) + 1;
+        });
+
+
+      }
+
+      // Store the viewpoint data in session storage with space information
+      const viewpointData = {
+        title: viewpoint.title + " (copy)",
+        description: viewpoint.description,
+        graph: regeneratedGraph,
+        sourceSpace: currentSpace,
+      };
+
+      // Use sessionStorage with space-specific key to avoid conflicts
+      const storageKey = `copyingViewpoint:${currentSpace}`;
+      sessionStorage.setItem(storageKey, JSON.stringify(viewpointData));
+
+      // Navigate to the new viewpoint page in the same space
+      router.push(`${basePath}/viewpoint/new`);
+
+    } catch (error) {
+      alert("Failed to copy viewpoint. Please try again.");
+      setIsCopying(false);
+    }
+  }, [viewpoint, router, basePath, space?.data?.id]);
 
   if (!viewpoint)
     return (
@@ -341,7 +350,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
   const { title, description, graph, author } = viewpoint;
 
   return (
-    <EditModeProvider editMode={editModeEnabled}>
+    <EditModeProvider>
       <main className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
         <div className="w-full sm:col-[2] flex flex-col border-x pb-10 overflow-auto">
           <div className="relative flex-grow bg-background">
@@ -390,10 +399,12 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                     <AuthenticatedActionButton
                       variant="outline"
                       size="icon"
-                      className="rounded-full p-2 size-9"
+                      className="rounded-full p-2 size-9 flex items-center justify-center ml-6"
                       onClick={handleCopy}
+                      disabled={isCopying}
+                      rightLoading={isCopying}
                     >
-                      <CopyIcon />
+                      <CopyIcon className="size-4" />
                     </AuthenticatedActionButton>
                   </TooltipTrigger>
                   <Portal>
@@ -404,28 +415,6 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                       className="z-[100]"
                     >
                       <p>Copy this viewpoint</p>
-                    </TooltipContent>
-                  </Portal>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AuthenticatedActionButton
-                      variant={"outline"}
-                      size={"icon"}
-                      className="rounded-full p-2 size-9"
-                      onClick={toggleEditMode}
-                    >
-                      {editModeEnabled ? <Trash2Icon /> : <Edit2Icon />}
-                    </AuthenticatedActionButton>
-                  </TooltipTrigger>
-                  <Portal>
-                    <TooltipContent
-                      side="bottom"
-                      align="center"
-                      sideOffset={5}
-                      className="z-[100]"
-                    >
-                      <p>{editModeEnabled ? "Discard changes" : "Edit viewpoint"}</p>
                     </TooltipContent>
                   </Portal>
                 </Tooltip>
@@ -464,9 +453,8 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                       "border-b",
                       hoveredPointId === point.pointId &&
                       "shadow-[inset_0_0_0_2px_hsl(var(--primary))]",
-                      editModeEnabled && "pr-10"
+                      editMode && "pr-10"
                     )}
-                    onDelete={handlePointDelete}
                   />
                 ))}
               </Dynamic>
@@ -475,60 +463,23 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
         </div>
 
         <Dynamic>
-          {editModeEnabled ? (
-            <GraphView
-              key="graph-edit"
-              canModify={isOwner}
-              onInit={(instance) => {
-                console.log("[ViewpointPage] Setting editFlowInstance:", instance);
-                setEditFlowInstance(instance);
-              }}
-              defaultNodes={localGraph ? localGraph.nodes : []}
-              defaultEdges={localGraph ? localGraph.edges : []}
-              statement={title}
-              className={cn(
-                "!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset] !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md:z-auto",
-                !canvasEnabled && isMobile && "hidden"
-              )}
-              onDelete={handleNodeDelete}
-              setLocalGraph={setLocalGraph}
-              onSaveChanges={onSaveChanges}
-              isSaving={isSaving}
-            />
-          ) : (
-            <GraphView
-              key={`graph-normal-${graphRevision}`}
-              onInit={(reactFlow) => {
-                if (viewpoint?.graph) {
-                  reactFlow.setNodes(viewpoint.graph.nodes);
-                  reactFlow.setEdges(viewpoint.graph.edges);
-                  reactFlow.fitView();
-                }
-              }}
-              defaultNodes={viewpoint?.graph.nodes}
-              defaultEdges={viewpoint?.graph.edges}
-              onClose={
-                isMobile
-                  ? () => {
-                    setCanvasEnabled(false);
-                  }
-                  : undefined
-              }
-              onNodesChange={() => {
-                const { viewport, ...graph } = reactFlow.toObject();
-                setGraph(graph);
-              }}
-              onEdgesChange={() => {
-                const { viewport, ...graph } = reactFlow.toObject();
-                setGraph(graph);
-              }}
-              statement={title}
-              className={cn(
-                "!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset] !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md:z-auto",
-                !canvasEnabled && isMobile && "hidden"
-              )}
-            />
-          )}
+          <GraphView
+            key="graph-edit"
+            canModify={isOwner}
+            onInit={(instance) => {
+              setEditFlowInstance(instance);
+            }}
+            defaultNodes={localGraph ? localGraph.nodes : []}
+            defaultEdges={localGraph ? localGraph.edges : []}
+            statement={title}
+            className={cn(
+              "!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset] !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md:z-auto",
+              !canvasEnabled && isMobile && "hidden"
+            )}
+            setLocalGraph={setLocalGraph}
+            onSaveChanges={onSaveChanges}
+            isSaving={isSaving}
+          />
         </Dynamic>
 
         <NegateDialog />

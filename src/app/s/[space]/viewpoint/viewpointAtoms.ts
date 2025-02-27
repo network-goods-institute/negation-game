@@ -3,21 +3,50 @@
 import { AppEdge } from "@/components/graph/AppEdge";
 import { AppNode } from "@/components/graph/AppNode";
 import { PLACEHOLDER_STATEMENT } from "@/constants/config";
+import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
 import { ReactFlowJsonObject } from "@xyflow/react";
 import { atom } from "jotai";
 import { atomWithStorage, createJSONStorage } from "jotai/utils";
 
-const storage = createJSONStorage<string>(() => {
-  if (typeof window !== "undefined") {
-    return localStorage;
-  }
-  // Return a dummy storage for SSR
-  return {
-    getItem: () => null,
-    setItem: () => {},
-    removeItem: () => {},
-  };
-});
+const createSpaceSpecificStorage = () => {
+  // Use the built-in JSON storage as the base
+  const baseStorage = typeof window !== "undefined" ? localStorage : null;
+
+  return createJSONStorage<string>(() => ({
+    getItem: (key: string) => {
+      if (!baseStorage) return null;
+
+      const pathname =
+        typeof window !== "undefined" ? window.location.pathname : "";
+      const space = getSpaceFromPathname(pathname);
+      const spaceKey = space ? `${space}:${key}` : key;
+
+      return baseStorage.getItem(spaceKey);
+    },
+    setItem: (key: string, value: string) => {
+      if (!baseStorage) return;
+
+      const pathname =
+        typeof window !== "undefined" ? window.location.pathname : "";
+      const space = getSpaceFromPathname(pathname);
+      const spaceKey = space ? `${space}:${key}` : key;
+
+      baseStorage.setItem(spaceKey, value);
+    },
+    removeItem: (key: string) => {
+      if (!baseStorage) return;
+
+      const pathname =
+        typeof window !== "undefined" ? window.location.pathname : "";
+      const space = getSpaceFromPathname(pathname);
+      const spaceKey = space ? `${space}:${key}` : key;
+
+      baseStorage.removeItem(spaceKey);
+    },
+  }));
+};
+
+const storage = createSpaceSpecificStorage();
 
 export const viewpointStatementAtom = atomWithStorage<string>(
   "viewpointStatement",
@@ -65,11 +94,8 @@ export const viewpointGraphAtom = atom(
 export const viewpointGraphStorageAtom = atomWithStorage<string>(
   "viewpointGraph",
   JSON.stringify(initialViewpointGraph),
-
   storage,
   { getOnInit: true }
 );
-
-export const deletedPointIdsAtom = atom<Set<number>>(new Set<number>());
 
 export const collapsedPointIdsAtom = atom<Set<number>>(new Set<number>());

@@ -1,20 +1,21 @@
+// can probably be refactored out completely eventually, but due to deadline this is how it'll be for now
+
 import { ReactNode, createContext, useContext } from "react";
 
 type EditModeContextType = boolean;
 
-const EditModeContext = createContext<EditModeContextType>(false);
+// Always provide true as the context default value
+const EditModeContext = createContext<EditModeContextType>(true);
 
 interface EditModeProviderProps {
-  editMode: boolean;
   children: ReactNode;
 }
 
 export function EditModeProvider({
-  editMode,
   children,
 }: EditModeProviderProps) {
   return (
-    <EditModeContext.Provider value={editMode}>
+    <EditModeContext.Provider value={true}>
       {children}
     </EditModeContext.Provider>
   );
@@ -24,7 +25,7 @@ export function useEditMode() {
   const context = useContext(EditModeContext);
 
   if (context === undefined) {
-    return false;
+    return true; // Return true as the fallback value
   }
 
   return context;

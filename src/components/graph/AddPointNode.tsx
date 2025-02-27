@@ -27,7 +27,6 @@ import { Handle, Node, NodeProps, Position, useReactFlow } from "@xyflow/react";
 import { XIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useState } from "react";
-import { useEditMode } from "@/components/graph/EditModeContext";
 
 export type AddPointNodeData = {
   parentId: string;
@@ -45,11 +44,11 @@ export const AddPointNode = ({
   positionAbsoluteX,
   positionAbsoluteY,
 }: AddPointNodeProps) => {
+
   const { deleteElements, addEdges, addNodes, getNode } = useReactFlow();
   const [content, setContent] = useState("");
   const debouncedContent = useDebounce(content, 1000);
   const { credInput, setCredInput } = useCredInput();
-  const editMode = useEditMode();
 
   const { data: similarPoints, isLoading } = useQuery({
     queryKey: ["similarPoints", debouncedContent] as const,
@@ -115,7 +114,7 @@ export const AddPointNode = ({
                     y: positionAbsoluteY,
                   },
                 });
-                const parentNode = editMode ? getNode(parentId) : null;
+                const parentNode = getNode(parentId);
                 const edgeId = nanoid();
                 addEdges({
                   id: edgeId,

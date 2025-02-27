@@ -8,7 +8,6 @@ import {
   effectiveRestakesView,
   slashesTable,
   doubtsTable,
-  restakesTable,
 } from "@/db/schema";
 import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
