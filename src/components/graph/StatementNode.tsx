@@ -12,7 +12,7 @@ import {
 import { PlusIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useEffect, useCallback, useMemo } from "react";
-import { collapsedPointIdsAtom } from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { collapsedPointIdsAtom, collapsedNodePositionsAtom } from "@/app/s/[space]/viewpoint/viewpointAtoms";
 import { useAtom } from "jotai";
 
 export type StatementNodeData = {
@@ -23,6 +23,50 @@ export type StatementNode = Node<StatementNodeData, "statement">;
 
 export interface StatementNodeProps extends Omit<NodeProps, "data"> {
   data: StatementNodeData;
+}
+
+function calculateInitialLayout(
+  parentX: number,
+  parentY: number,
+  count: number,
+  spacing = 250,
+  verticalOffset = 200
+): Array<{ x: number; y: number }> {
+  if (count === 0) return [];
+
+  // For a single node, place it directly below
+  if (count === 1) {
+    return [{ x: parentX, y: parentY + verticalOffset }];
+  }
+
+  const positions: Array<{ x: number; y: number }> = [];
+
+  // Calculate the total width needed
+  const totalWidth = (count - 1) * spacing;
+  // Start from the leftmost position
+  const startX = parentX - totalWidth / 2;
+
+  // Calculate vertical offset based on number of nodes
+  // More aggressive scaling for larger numbers of nodes
+  const dynamicVerticalOffset = verticalOffset + (count > 2 ? (count - 2) * 50 : 0);
+
+  // Create a more pronounced arc pattern for better separation
+  for (let i = 0; i < count; i++) {
+    const progress = count > 1 ? i / (count - 1) : 0;
+    const x = startX + (progress * totalWidth);
+
+    // Enhanced arc effect - middle nodes are pushed down more
+    const arcHeight = 60 * Math.sin(Math.PI * progress);
+    // Add slight horizontal offset for even better separation
+    const horizontalVariation = (progress - 0.5) * 30;
+
+    const y = parentY + dynamicVerticalOffset + arcHeight;
+    const adjustedX = x + horizontalVariation;
+
+    positions.push({ x: adjustedX, y });
+  }
+
+  return positions;
 }
 
 export const StatementNode = ({
@@ -39,6 +83,7 @@ export const StatementNode = ({
   const { addEdges, addNodes, getNodes, getEdges, getNode, updateNodeData } = useReactFlow();
   const editing = useEditMode();
   const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
+  const [collapsedNodePositions, setCollapsedNodePositions] = useAtom(collapsedNodePositionsAtom);
   const updateNodeInternals = useUpdateNodeInternals();
 
   // Get direct children of this statement node that could be expanded
@@ -84,9 +129,24 @@ export const StatementNode = ({
       addNodes.getState().flowInstance.markAsModified();
     }
 
+    const layouts = calculateInitialLayout(
+      positionAbsoluteX,
+      positionAbsoluteY,
+      collapsedChildren.length
+    );
+
     // Create new nodes for each collapsed child
     for (const [i, pointId] of collapsedChildren.entries()) {
       const nodeId = nanoid();
+
+      // Find stored position for this node
+      const storedPosition = collapsedNodePositions.find(pos => pos.pointId === pointId && pos.parentId === id);
+
+      // Use stored position if available, otherwise use calculated layout
+      const position = storedPosition ? {
+        x: storedPosition.x,
+        y: storedPosition.y
+      } : layouts[i];
 
       // Add the node back to the graph
       addNodes({
@@ -98,18 +158,18 @@ export const StatementNode = ({
           // Add a unique timestamp to ensure this is detected as a modification
           _lastModified: Date.now()
         },
-        position: {
-          x: positionAbsoluteX + (i - collapsedChildren.length / 2) * 100,
-          y: positionAbsoluteY + 150,
-        },
+        position,
       });
 
       addEdges({
         id: nanoid(),
         source: nodeId,
         target: id,
-        type: "negation"
+        type: "statement"
       });
+
+      // Remove the stored position for this node
+      setCollapsedNodePositions(prev => prev.filter(pos => !(pos.pointId === pointId && pos.parentId === id)));
     }
 
     // Remove the points from the collapsed set
@@ -139,7 +199,9 @@ export const StatementNode = ({
     positionAbsoluteX,
     positionAbsoluteY,
     getNode,
-    updateNodeData
+    updateNodeData,
+    collapsedNodePositions,
+    setCollapsedNodePositions
   ]);
 
   return (

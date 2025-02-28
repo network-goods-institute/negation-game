@@ -99,3 +99,12 @@ export const viewpointGraphStorageAtom = atomWithStorage<string>(
 );
 
 export const collapsedPointIdsAtom = atom<Set<number>>(new Set<number>());
+
+export interface CollapsedNodePosition {
+  pointId: number;
+  x: number;
+  y: number;
+  parentId?: string | number;
+}
+
+export const collapsedNodePositionsAtom = atom<CollapsedNodePosition[]>([]);

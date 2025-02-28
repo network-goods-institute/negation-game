@@ -22,7 +22,7 @@ import { XIcon, CircleIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { find } from "remeda";
-import { collapsedPointIdsAtom } from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { collapsedPointIdsAtom, collapsedNodePositionsAtom, CollapsedNodePosition } from "@/app/s/[space]/viewpoint/viewpointAtoms";
 import { useViewpoint } from "@/queries/useViewpoint";
 import { useParams } from "next/navigation";
 
@@ -111,6 +111,7 @@ export const PointNode = ({
   ]);
 
   const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
+  const [collapsedNodePositions, setCollapsedNodePositions] = useAtom(collapsedNodePositionsAtom);
 
   // Default position values if not provided by props
   const nodePositionX = positionAbsoluteX ?? 0;
@@ -201,7 +202,6 @@ export const PointNode = ({
       }
 
       if (wouldCreateCircle) {
-
         // Still remove the parent from collapsed set to acknowledge the logical relationship
         setCollapsedPointIds(prev => {
           const newSet = new Set(prev);
@@ -212,8 +212,6 @@ export const PointNode = ({
       } else {
         const parentNode = getNodeByPointId(numParentId);
         if (parentNode) {
-
-
           const sourceNode = getNode(parentNode.id);
           if (!sourceNode) {
             return;
@@ -221,8 +219,19 @@ export const PointNode = ({
 
           const nodeId = nanoid();
 
-          // We'll just continue without explicitly marking - the node addition will trigger it
+          // Find stored position for this node
+          const storedPosition = collapsedNodePositions.find(pos => pos.pointId === numParentId && pos.parentId === pointId);
 
+          // Calculate position - use stored position if available, otherwise use default layout
+          const position = storedPosition ? {
+            x: storedPosition.x,
+            y: storedPosition.y
+          } : {
+            x: nodePositionX,
+            y: nodePositionY - 175,
+          };
+
+          // We'll just continue without explicitly marking - the node addition will trigger it
           addNodes({
             id: nodeId,
             data: {
@@ -231,12 +240,18 @@ export const PointNode = ({
               _lastModified: Date.now()
             },
             type: "point",
-            position: {
-              x: nodePositionX,
-              y: nodePositionY - 175,
-            },
+            position,
           });
-          console.log(`[PointNode] Added new node with ID: ${nodeId}, pointId: ${numParentId}, parentId: ${pointId}`);
+
+          addEdges({
+            id: nanoid(),
+            source: nodeId,
+            target: id,
+            type: parentId === 'statement' ? 'statement' : 'negation',
+          });
+
+          // Remove the stored position for this node
+          setCollapsedNodePositions(prev => prev.filter(pos => !(pos.pointId === numParentId && pos.parentId === pointId)));
 
           setCollapsedPointIds(prev => {
             const newSet = new Set(prev);
@@ -244,11 +259,9 @@ export const PointNode = ({
             newSet.delete(numParentId);
             return newSet;
           });
-        } else {
         }
       }
     }
-    const targetNode = getNode(id)!;
 
     // Track what points already exist in the graph
     const allExistingPointIds = pointNodes.map(node => node.data.pointId)
@@ -337,11 +350,35 @@ export const PointNode = ({
     for (const [i, negationId] of expandableNegationIds.entries()) {
       // Double-check again
       if (pointIdMap.has(negationId)) {
-        const existingNodes = pointIdMap.get(negationId)!;
         continue;
       }
 
       const nodeId = nanoid();
+
+      const storedPosition = collapsedNodePositions.find(pos => pos.pointId === negationId && pos.parentId === pointId);
+
+      let position;
+      if (storedPosition) {
+        position = {
+          x: storedPosition.x,
+          y: storedPosition.y
+        };
+      } else {
+        if (i === 0) {
+          const targetNode = getNode(id)!;
+          const layouts = calculateInitialLayout(
+            targetNode.position.x,
+            targetNode.position.y,
+            targetNode?.measured?.height ?? 200,
+            expandableNegationIds.length
+          );
+          // Store the layouts for use in subsequent iterations
+          (expandNegations as any).layoutCache = layouts;
+        }
+
+        // Use the pre-calculated layout
+        position = (expandNegations as any).layoutCache[i];
+      }
 
       addNodes({
         id: nodeId,
@@ -351,14 +388,7 @@ export const PointNode = ({
           _lastModified: Date.now()
         },
         type: "point",
-        position: {
-          x: targetNode.position.x + i * 20,
-          y:
-            targetNode.position.y +
-            (targetNode?.measured?.height ?? 200) +
-            100 +
-            20 * i,
-        },
+        position,
       });
 
       addEdges({
@@ -367,6 +397,9 @@ export const PointNode = ({
         source: nodeId,
         type: parentId === 'statement' ? 'statement' : 'negation',
       });
+
+      // Remove the stored position for this node
+      setCollapsedNodePositions(prev => prev.filter(pos => !(pos.pointId === negationId && pos.parentId === pointId)));
 
       if (!pointIdMap.has(negationId)) {
         pointIdMap.set(negationId, []);
@@ -408,7 +441,9 @@ export const PointNode = ({
     nodePositionY,
     getNodeByPointId,
     isNegatingParent,
-    getNodes
+    getNodes,
+    collapsedNodePositions,
+    setCollapsedNodePositions
   ]);
 
   useEffect(() => {
@@ -459,7 +494,6 @@ export const PointNode = ({
   }, [isViewpointContext, pointData, originalViewpoint, setCollapsedPointIds, pointId, expandedNegationIds]);
 
   const collapseSelfAndNegations = useCallback(async () => {
-
     // Helper function to get connections without using hooks
     const getNodeConnectionsForId = (nodeId: string) => {
       const edges = getEdges();
@@ -483,7 +517,19 @@ export const PointNode = ({
       const nodesToCollapse = nodeIds
         .map((id) => {
           const node = getNode(id);
-          return node?.type === "point" ? node.data.pointId : null;
+          if (node?.type === "point") {
+            const pointNode = node as PointNode;
+            // Store position before collapsing
+            const newPosition: CollapsedNodePosition = {
+              pointId: pointNode.data.pointId,
+              x: node.position.x,
+              y: node.position.y,
+              parentId: pointNode.data.parentId
+            };
+            setCollapsedNodePositions(prev => [...prev, newPosition]);
+            return pointNode.data.pointId;
+          }
+          return null;
         })
         .filter((id): id is number => id !== null);
 
@@ -503,6 +549,17 @@ export const PointNode = ({
 
     await removeNestedNegations(id).then(() => {
       if (pointId) {
+        const node = getNode(id);
+        if (node) {
+          // Store position of the collapsing node itself
+          const newPosition: CollapsedNodePosition = {
+            pointId: pointId as number,
+            x: node.position.x,
+            y: node.position.y,
+            parentId: typeof parentId === 'string' ? parentId : Number(parentId)
+          };
+          setCollapsedNodePositions(prev => [...prev, newPosition]);
+        }
         setCollapsedPointIds((prev) => {
           const newSet = new Set(prev).add(pointId);
           return newSet;
@@ -534,7 +591,9 @@ export const PointNode = ({
     setCollapsedPointIds,
     getNode,
     pointId,
-    getEdges
+    getEdges,
+    setCollapsedNodePositions,
+    parentId
   ]);
 
   return (
@@ -643,6 +702,51 @@ function findPathsBetweenPoints(
 
   dfs(startId, []);
   return paths;
+}
+
+function calculateInitialLayout(
+  parentX: number,
+  parentY: number,
+  parentHeight: number,
+  count: number,
+  spacing = 250,
+  verticalOffset = 200
+): Array<{ x: number; y: number }> {
+  if (count === 0) return [];
+
+  // For a single node, place it directly below
+  if (count === 1) {
+    return [{ x: parentX, y: parentY + parentHeight + verticalOffset }];
+  }
+
+  const positions: Array<{ x: number; y: number }> = [];
+
+  // Calculate the total width needed
+  const totalWidth = (count - 1) * spacing;
+  // Start from the leftmost position
+  const startX = parentX - totalWidth / 2;
+
+  // Calculate vertical offset based on number of nodes
+  // More aggressive scaling for larger numbers of nodes
+  const dynamicVerticalOffset = verticalOffset + (count > 2 ? (count - 2) * 50 : 0);
+
+  // Create a more pronounced arc pattern for better separation
+  for (let i = 0; i < count; i++) {
+    const progress = count > 1 ? i / (count - 1) : 0;
+    const x = startX + (progress * totalWidth);
+
+    // Enhanced arc effect - middle nodes are pushed down more
+    const arcHeight = 60 * Math.sin(Math.PI * progress);
+    // Add slight horizontal offset for even better separation
+    const horizontalVariation = (progress - 0.5) * 30;
+
+    const y = parentY + parentHeight + dynamicVerticalOffset + arcHeight;
+    const adjustedX = x + horizontalVariation;
+
+    positions.push({ x: adjustedX, y });
+  }
+
+  return positions;
 }
 
 
