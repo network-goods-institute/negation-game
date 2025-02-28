@@ -18,7 +18,7 @@ import {
   useUpdateNodeInternals,
 } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
-import { XIcon } from "lucide-react";
+import { XIcon, CircleIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { find } from "remeda";
@@ -365,7 +365,7 @@ export const PointNode = ({
         id: nanoid(),
         target: id,
         source: nodeId,
-        type: "negation",
+        type: parentId === 'statement' ? 'statement' : 'negation',
       });
 
       if (!pointIdMap.has(negationId)) {
@@ -575,7 +575,11 @@ export const PointNode = ({
           }
           onClick={collapseSelfAndNegations}
         >
-          <XIcon className="size-4" />
+          {parentId === 'statement' ? (
+            <CircleIcon className="size-4" />
+          ) : (
+            <XIcon className="size-4" />
+          )}
         </Handle>
       )}
       {pointData ? (

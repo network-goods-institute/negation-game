@@ -158,7 +158,7 @@ export const StatementNode = ({
         )}
         isConnectableStart={false}
         position={Position.Bottom}
-        style={{ left: "40%" }}
+        style={{ left: "85%" }}
         onClick={() => {
           const answerId = nanoid();
           addNodes({
@@ -187,7 +187,7 @@ export const StatementNode = ({
           className="pb-0.5 px-4 translate-y-[100%] -translate-x-1/2 size-fit bg-muted text-center border-2 border-t-0 rounded-b-full pointer-events-auto cursor-pointer"
           isConnectableStart={false}
           position={Position.Bottom}
-          style={{ left: "60%" }}
+          style={{ left: "50%" }}
           onClick={expandDirectChildren}
         >
           <span className="text-center w-full text-sm">
