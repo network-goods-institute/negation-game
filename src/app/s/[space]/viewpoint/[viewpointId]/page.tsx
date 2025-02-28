@@ -212,38 +212,23 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
       setIsSaving(true);
       // If the current user is not the owner (i.e. not the creator) then fork instead of trying to update directly
       if (!isOwner) {
-        if (localGraph && viewpoint) {
+        if (reactFlow && viewpoint) {
           // Get the current space
           const currentSpace = space?.data?.id || 'default';
+
+          // Get the CURRENT graph state directly from React Flow
+          const currentGraph = {
+            nodes: reactFlow.getNodes(),
+            edges: reactFlow.getEdges()
+          };
 
           // Store the viewpoint data in session storage with space information
           const viewpointData = {
             title: viewpoint.title + " (copy)",
             description: viewpoint.description,
-            graph: localGraph,
+            graph: currentGraph,
             sourceSpace: currentSpace,
           };
-
-          // Check for duplicate node IDs before storing
-          const nodeIds = localGraph.nodes.map(n => n.id);
-          const hasDuplicates = new Set(nodeIds).size !== nodeIds.length;
-          if (hasDuplicates) {
-            const idCounts: Record<string, number> = {};
-            nodeIds.forEach(id => {
-              idCounts[id] = (idCounts[id] || 0) + 1;
-            });
-
-            // Print out duplicates
-            Object.entries(idCounts).forEach(([id, count]) => {
-              if (count > 1) {
-                console.error(`ID "${id}" appears ${count} times`);
-                // Find the nodes with this ID
-                localGraph.nodes.filter(n => n.id === id).forEach((node, i) => {
-                  console.error(`  Node ${i + 1}: type=${node.type}, data=`, node.data);
-                });
-              }
-            });
-          }
 
           // Use sessionStorage with space-specific key to avoid conflicts
           const storageKey = `copyingViewpoint:${currentSpace}`;
@@ -279,7 +264,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
       setIsSaving(false);
     }
   }, [
-    localGraph,
+    reactFlow,
     originalGraph,
     viewpoint,
     queryClient,
@@ -288,6 +273,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     router,
     basePath,
     setCollapsedPointIds,
+    localGraph,
     space?.data?.id
   ]);
 
@@ -304,20 +290,8 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
       // Get the current space
       const currentSpace = space?.data?.id || 'default';
 
-      // Generate new IDs to prevent duplicate keys
+      // Use the original viewpoint state from DB, not the edited state
       const regeneratedGraph = regenerateGraphIds(viewpoint.graph);
-
-      // Check for duplicate node IDs 
-      const nodeIds = regeneratedGraph.nodes.map(n => n.id);
-      const hasDuplicates = new Set(nodeIds).size !== nodeIds.length;
-      if (hasDuplicates) {
-        const idCounts: Record<string, number> = {};
-        nodeIds.forEach(id => {
-          idCounts[id] = (idCounts[id] || 0) + 1;
-        });
-
-
-      }
 
       // Store the viewpoint data in session storage with space information
       const viewpointData = {

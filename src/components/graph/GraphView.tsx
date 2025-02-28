@@ -63,7 +63,7 @@ function debounce<T extends (...args: any[]) => any>(
 
 export interface GraphViewProps
   extends Omit<ReactFlowProps<AppNode>, "onDelete"> {
-  onSaveChanges?: () => Promise<boolean | void>;
+  onSaveChanges?: (graph: ViewpointGraph) => Promise<boolean | void>;
   canModify?: boolean;
   rootPointId?: number;
   statement?: string;
@@ -89,7 +89,7 @@ export const GraphView = ({
   isNew,
   ...props
 }: GraphViewProps) => {
-  const [collapsedPointIds] = useAtom(collapsedPointIdsAtom);
+  const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
   const [flowInstance, setFlowInstance] =
     useState<ReactFlowInstance<AppNode> | null>(null);
   const [nodes, setNodes, onNodesChangeDefault] = useNodesState<AppNode>(
@@ -360,7 +360,7 @@ export const GraphView = ({
           filteredNodes.some((n) => n.id === e.source) &&
           filteredNodes.some((n) => n.id === e.target)
         );
-        const filteredGraph = {
+        const filteredGraph: ViewpointGraph = {
           nodes: filteredNodes,
           edges: filteredEdges,
         };
@@ -370,17 +370,22 @@ export const GraphView = ({
         let saveSuccess = true;
 
         if (canModify) {
-          // Actually update the viewpoint
+          // For owners, update the viewpoint in DB
           console.log(`[GraphView] Calling updateViewpointGraph for viewpointId: ${viewpointId}`);
-          const result = await updateViewpointGraph({
+          await updateViewpointGraph({
             id: viewpointId,
             graph: filteredGraph,
           });
         }
 
-        // Call onSaveChanges and get the result
+        // Always update the local graph state to the current filtered state
+        if (setLocalGraph) {
+          setLocalGraph(filteredGraph);
+        }
+
+        // Call onSaveChanges with the filtered graph so that the copy uses the current local state
         try {
-          const saveResult = await onSaveChanges?.();
+          const saveResult = await onSaveChanges?.(filteredGraph);
           if (saveResult === false) {
             saveSuccess = false;
           }
@@ -389,45 +394,30 @@ export const GraphView = ({
           console.error("[GraphView] Error in onSaveChanges:", saveError);
         }
 
-        // Only reset isModified if everything was successful
         if (saveSuccess) {
           setIsModified(false);
         }
 
         return saveSuccess;
       } catch (error) {
-
         if (error instanceof Error) {
           if (error.message === "Must be authenticated to update viewpoint") {
-            alert(
-              "You must be logged in to save changes. Copying viewpoints will be implemented soon."
-            );
-          } else if (
-            error.message === "Only the owner can update this viewpoint"
-          ) {
-            alert(
-              "Only the owner can update this viewpoint. Copying viewpoints will be implemented soon."
-            );
+            alert("You must be logged in to save changes. Copying viewpoints will be implemented soon.");
+          } else if (error.message === "Only the owner can update this viewpoint") {
+            alert("Only the owner can update this viewpoint. Copying viewpoints will be implemented soon.");
           } else {
             alert("Failed to save changes. Please try again.");
           }
         }
 
-        if (setLocalGraph && props.defaultNodes && props.defaultEdges) {
-          const originalGraph = {
-            nodes: props.defaultNodes,
-            edges: props.defaultEdges,
-          };
-          setLocalGraph(originalGraph);
+        // Ensure local graph state uses the current filtered graph
+        if (setLocalGraph) {
+          setLocalGraph({ nodes: filteredNodes, edges: filteredEdges });
         }
 
-        // Ensure we preserve the modified state if there was an error
         throw error;
       } finally {
-        // For non-owners doing a copy operation, we'll let the navigation handle the spinner state
-        // For owners or failed operations, reset the spinner after a small delay
         if (canModify) {
-          // Add a small delay before resetting the loading state to ensure UI visibility
           await new Promise(resolve => setTimeout(resolve, 300));
           setIsSaving_local(false);
         }
@@ -440,10 +430,10 @@ export const GraphView = ({
       onSaveChanges,
       setLocalGraph,
       viewpointId,
-      props.defaultNodes,
-      props.defaultEdges,
       setIsModified,
       canModify,
+      filteredEdges,
+      filteredNodes
     ]
   );
 
@@ -490,20 +480,61 @@ export const GraphView = ({
       />
       <Controls />
       {(isModified || isNew) && !isNewViewpointPage && (
-        <Panel position="top-center">
-          <AuthenticatedActionButton
-            id="save-button"
-            className="dark:text-background z-50"
-            disabled={isSaving || isSaving_local}
-            onClick={handleButtonClick}
-            rightLoading={isSaving || isSaving_local}
-          >
-            {canModify
-              ? isNew
-                ? "Publish Viewpoint"
-                : "Save Changes"
-              : "Copy Viewpoint to Save Changes"}
-          </AuthenticatedActionButton>
+        <Panel position="top-right" className="z-50">
+          <div className="bg-background border rounded-lg shadow-lg p-4 flex flex-col gap-2 min-w-[200px]">
+            <div className="text-sm font-medium text-muted-foreground">
+              Unsaved Changes
+            </div>
+            <div className="flex flex-col gap-2">
+              <AuthenticatedActionButton
+                id="save-button"
+                className="w-full"
+                disabled={isSaving || isSaving_local}
+                onClick={handleButtonClick}
+                rightLoading={isSaving || isSaving_local}
+              >
+                {canModify
+                  ? isNew
+                    ? "Publish Viewpoint"
+                    : "Save Changes"
+                  : "Copy Viewpoint to Save Changes"}
+              </AuthenticatedActionButton>
+              <Button
+                variant="outline"
+                className="w-full"
+                disabled={isSaving || isSaving_local}
+                onClick={() => {
+                  // Reset nodes and edges to their original state
+                  if (props.defaultNodes && props.defaultEdges) {
+                    setNodes(props.defaultNodes);
+                    setEdges(props.defaultEdges);
+
+                    // Reset any local graph state
+                    if (setLocalGraph) {
+                      const originalGraph = {
+                        nodes: props.defaultNodes,
+                        edges: props.defaultEdges,
+                      };
+                      setLocalGraph(originalGraph);
+                    }
+
+                    // Reset collapsed state
+                    setCollapsedPointIds(new Set());
+
+                    // Reset modification flag
+                    setIsModified(false);
+
+                    // Reset any instance state
+                    if (flowInstance) {
+                      flowInstance.setViewport({ x: 0, y: 0, zoom: 1 });
+                    }
+                  }
+                }}
+              >
+                Revert Changes
+              </Button>
+            </div>
+          </div>
         </Panel>
       )}
     </ReactFlow>
