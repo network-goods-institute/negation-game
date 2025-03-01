@@ -7,6 +7,7 @@ import { DialogProps } from "@radix-ui/react-dialog";
 import { FC, useState, useEffect } from "react";
 import { useCollectEarnings } from "@/mutations/useCollectEarnings";
 import { useEarningsPreview } from "@/queries/useEarningsPreview";
+import { PointCard } from "@/components/PointCard";
 
 interface EarningsDialogProps extends DialogProps {
   onOpenChange: (open: boolean) => void;
@@ -97,10 +98,66 @@ export const EarningsDialog: FC<EarningsDialogProps> = ({
                 </div>
                 {showEarningExplanation && (
                   <div className="mt-2 p-3 bg-muted/10 rounded-lg border border-muted/20 text-xs text-left space-y-2">
-                    <p className="mb-2">
+                    <p className="mb-2 font-medium text-sm">
+                      You earn cred by doubting restakes.
+                    </p>
+                    <p className="mb-3">
+                      You doubt by clicking the doubt button on a negation point.
+                    </p>
+
+                    {/* Example PointCard with doubt button highlighted */}
+                    <div className="relative mb-4">
+                      {/* Transparent overlay to prevent interactions */}
+                      <div className="absolute inset-0 z-20 cursor-default" onClick={(e) => e.preventDefault()} />
+
+                      {/* Actual PointCard component with example data */}
+                      <PointCard
+                        pointId={123}
+                        content="This is an example negation point with a restake that you can doubt."
+                        createdAt={new Date()}
+                        cred={42}
+                        favor={0.75}
+                        amountSupporters={5}
+                        amountNegations={2}
+                        isNegation={true}
+                        parentPoint={{
+                          id: 456,
+                          content: "Parent point content",
+                          createdAt: new Date(),
+                          cred: 100,
+                          amountSupporters: 10,
+                          amountNegations: 3,
+                          negationsCred: 50,
+                          stakedAmount: 25,
+                          viewerCred: 0 // Set to 0 to disable endorsement
+                        }}
+                        totalRestakeAmount={30}
+                        restake={{
+                          id: 789,
+                          amount: 20,
+                          originalAmount: 20,
+                          slashedAmount: 0,
+                          doubtedAmount: 15,
+                          isOwner: false,
+                          effectiveAmount: 20
+                        }}
+                        doubt={{
+                          id: 999,
+                          amount: 15,
+                          userAmount: 10,
+                          isUserDoubt: true
+                        }}
+                        className="border"
+                        // Empty handlers to prevent functionality
+                        onNegate={(e) => e.preventDefault()}
+                        onRestake={() => { }}
+                      />
+                    </div>
+
+                    <p className="text-[10px] text-muted-foreground mb-2">
                       When you doubt a restake, you earn cred based on:
                     </p>
-                    <ul className="list-disc pl-4 space-y-1.5 [&>li]:ml-4">
+                    <ul className="list-disc pl-4 space-y-1.5 [&>li]:ml-4 text-[10px] text-muted-foreground">
                       <li>
                         The favor of the negation point that the restake is placed on - higher favor means higher earnings
                       </li>
@@ -111,7 +168,7 @@ export const EarningsDialog: FC<EarningsDialogProps> = ({
                         The time since your last earnings collection - earnings accumulate over time
                       </li>
                     </ul>
-                    <p>
+                    <p className="text-[10px] text-muted-foreground">
                       Earnings are calculated using an APY formula based on the negation&apos;s favor,
                       and are paid out from the parent point of the restake&apos;s endorsement.
                     </p>

@@ -286,7 +286,7 @@ export const PointCard = ({
                 <Button
                   variant="ghost"
                   className={cn(
-                    "p-1 -mb-2 rounded-full size-fit hover:bg-muted/30",
+                    "p-1 pb-3 -mb-2 rounded-full size-fit hover:bg-purple-500/30",
                     showRestakeAmount && "text-endorsed"
                   )}
                   onClick={(e) => {
@@ -314,7 +314,7 @@ export const PointCard = ({
                 <Button
                   variant="ghost"
                   className={cn(
-                    "p-1 -mb-2 rounded-full size-fit hover:bg-muted/30",
+                    "p-1 pb-3 -mb-2 rounded-full size-fit hover:bg-amber-500/30",
                     doubt?.amount !== undefined &&
                     doubt.amount > 0 &&
                     doubt.isUserDoubt &&

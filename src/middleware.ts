@@ -19,9 +19,8 @@ export const config = {
 export default async function middleware(req: NextRequest) {
   const url = req.nextUrl;
 
-  // Handle username-based profile routes
-  const profileMatch = url.pathname.match(/^\/([^/]+)$/);
-  if (profileMatch && profileMatch[1] !== "profile") {
+  // Handle profile routes with /profile/username format
+  if (url.pathname.startsWith("/profile/")) {
     const response = NextResponse.next();
     response.headers.set(SPACE_HEADER, DEFAULT_SPACE);
     return response;

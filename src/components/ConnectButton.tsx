@@ -78,7 +78,7 @@ export const ConnectButton = () => {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href={`/${user.username}`} className="gap-2">
+              <Link href={`/profile/${user.username}`} className="gap-2">
                 <UserIcon className="size-4" />
                 Profile
               </Link>
