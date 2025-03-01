@@ -17,23 +17,71 @@ import { useProfilePoints } from "@/queries/useProfilePoints";
 import { useUserViewpoints } from "@/queries/useUserViewpoints";
 import { ViewpointCard } from "@/components/ViewpointCard";
 import { Separator } from "@/components/ui/separator";
+import type { ProfilePoint } from "@/actions/fetchProfilePoints";
+import React from "react";
+import { useUserEndorsedPoints } from "@/queries/useUserEndorsedPoints";
 
-export default function ProfilePage() {
-    const { user: privyUser, ready, login } = usePrivy();
-    const { data: user } = useUser();
+interface ProfilePageProps {
+    params: Promise<{
+        username: string;
+    }>;
+}
+
+export default function ProfilePage({ params }: ProfilePageProps) {
+    // Unwrap params using React.use()
+    const unwrappedParams = React.use(params as any) as { username: string };
+    const username = unwrappedParams.username;
+
+    const { user: privyUser, ready } = usePrivy();
     const router = useRouter();
     const { data: points, isLoading: isLoadingPoints } = useFeed();
     const basePath = useBasePath();
     const [isTimelineAscending, setIsTimelineAscending] = useState(false);
     const [isEndorsementsAscending, setIsEndorsementsAscending] = useState(false);
-    const { data: profilePoints } = useProfilePoints();
-    const { data: userViewpoints, isLoading: isLoadingViewpoints } = useUserViewpoints();
+    const { data: profilePoints } = useProfilePoints(username);
+    const { data: userViewpoints, isLoading: isLoadingViewpoints } = useUserViewpoints(username);
+    const { data: endorsedPoints, isLoading: isLoadingEndorsedPoints } = useUserEndorsedPoints(username);
 
-    if (!ready || isLoadingPoints || isLoadingViewpoints) {
+    if (!ready || isLoadingPoints || isLoadingViewpoints || isLoadingEndorsedPoints) {
         return (
             <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow bg-background">
                 <div className="w-full sm:col-[2] flex flex-col border-x items-center justify-center min-h-[calc(100vh-var(--header-height))] sm:min-h-0">
                     <Loader className="size-6" />
+                </div>
+            </main>
+        );
+    }
+
+    // Handle invalid username - show not found page
+    if (profilePoints === null) {
+        return (
+            <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow bg-background">
+                <div className="w-full sm:col-[2] flex flex-col border-x">
+                    <div className="sticky top-0 z-10 w-full flex items-center gap-3 px-4 py-3 bg-background/70 backdrop-blur">
+                        <Button
+                            variant="link"
+                            size="icon"
+                            className="text-foreground -ml-3"
+                            onClick={() => {
+                                if (window.history.state?.idx > 0) {
+                                    router.back();
+                                    return;
+                                }
+                                router.push("/");
+                            }}
+                        >
+                            <ArrowLeftIcon />
+                        </Button>
+                    </div>
+                    <div className="flex flex-col items-center justify-center flex-grow gap-3 p-8 text-center">
+                        <h2 className="text-2xl font-semibold">User Not Found</h2>
+                        <p className="text-muted-foreground">
+                            The user &quot;{username}&quot; does not exist
+                        </p>
+                        <Button onClick={() => router.push("/")}>
+                            Return Home
+                        </Button>
+                    </div>
                 </div>
             </main>
         );
@@ -70,26 +118,32 @@ export default function ProfilePage() {
         );
     }
 
-    if (!user || !points) return null;
+    if (!points) return null;
 
     const myPoints = profilePoints || [];
-    const endorsedPoints = points.filter(point => point.viewerCred && point.viewerCred > 0);
+    const userEndorsedPoints = endorsedPoints || [];
+
+    // Get user's cred from the first point or default to 0
+    const userCred = profilePoints?.[0]?.cred || 0;
+
+    // Only proceed with points array if we have valid data
+    const validPoints = Array.isArray(myPoints) ? myPoints : [];
 
     const spaces = Array.from(
         new Set(
-            myPoints.map(p => p.space)
+            validPoints.map((p: ProfilePoint) => p.space)
         )
-    ).filter(space => space !== null && space !== undefined) as string[];
+    ).filter((space): space is string => space !== null && space !== undefined);
 
     const pointsBySpace = spaces.map(space => ({
         space,
-        points: myPoints.filter(p => p.space === space)
+        points: validPoints.filter((p: ProfilePoint) => p.space === space)
     }));
 
-    if (myPoints.some(p => !p.space)) {
+    if (validPoints.some((p: ProfilePoint) => !p.space)) {
         pointsBySpace.push({
             space: "General",
-            points: myPoints.filter(p => !p.space)
+            points: validPoints.filter((p: ProfilePoint) => !p.space)
         });
     }
 
@@ -123,8 +177,8 @@ export default function ProfilePage() {
                 <div className="p-4">
                     <div className="flex items-center gap-4 mb-6">
                         <div>
-                            <h2 className="text-lg font-medium">{user.username}</h2>
-                            <p className="text-sm text-muted-foreground">{user.cred} cred</p>
+                            <h2 className="text-lg font-medium">{username}</h2>
+                            <p className="text-sm text-muted-foreground">{userCred} cred</p>
                         </div>
                     </div>
 
@@ -142,16 +196,18 @@ export default function ProfilePage() {
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div className="p-4 border rounded-lg text-center md:text-left">
                                             <p className="text-xs md:text-sm text-muted-foreground mb-1">Points Created</p>
-                                            <p className="text-xl md:text-2xl font-medium">{myPoints.length}</p>
+                                            <p className="text-xl md:text-2xl font-medium">{validPoints.length}</p>
                                         </div>
                                         <div className="p-4 border rounded-lg text-center md:text-left">
                                             <p className="text-xs md:text-sm text-muted-foreground mb-1">Points Endorsed</p>
-                                            <p className="text-xl md:text-2xl font-medium">{endorsedPoints.length}</p>
+                                            <p className="text-xl md:text-2xl font-medium">{userEndorsedPoints.length}</p>
                                         </div>
                                         <div className="p-4 border rounded-lg text-center md:text-left">
                                             <p className="text-xs md:text-sm text-muted-foreground mb-1">Total Cred Endorsed</p>
                                             <p className="text-xl md:text-2xl font-medium">
-                                                {endorsedPoints.reduce((sum, point) => sum + (point.viewerCred || 0), 0)}
+                                                {userEndorsedPoints.reduce((sum, point) =>
+                                                    sum + (point.endorsedCred || 0)
+                                                    , 0)}
                                             </p>
                                         </div>
                                         <div className="p-4 border rounded-lg text-center md:text-left">
@@ -173,7 +229,7 @@ export default function ProfilePage() {
                                             <ArrowDownIcon className={`size-4 transition-transform ${isTimelineAscending ? 'rotate-180' : ''}`} />
                                         </Button>
                                     </div>
-                                    {myPoints.length === 0 ? (
+                                    {validPoints.length === 0 ? (
                                         <>
                                             {userViewpoints?.length === 0 ? (
                                                 <p className="text-muted-foreground text-center py-8">
@@ -210,13 +266,13 @@ export default function ProfilePage() {
                                                         ))}
                                                 </>
                                             )}
-                                            {myPoints.length > 0 && userViewpoints && userViewpoints.length > 0 && (
+                                            {validPoints.length > 0 && userViewpoints && userViewpoints.length > 0 && (
                                                 <Separator className="my-4" />
                                             )}
-                                            {myPoints.length > 0 && (
+                                            {validPoints.length > 0 && (
                                                 <>
                                                     <h5 className="text-sm font-medium text-muted-foreground ml-2">Points</h5>
-                                                    {[...myPoints]
+                                                    {[...validPoints]
                                                         .sort((a, b) =>
                                                             isTimelineAscending
                                                                 ? a.createdAt.getTime() - b.createdAt.getTime()
@@ -263,12 +319,12 @@ export default function ProfilePage() {
                                         <ArrowDownIcon className={`size-4 transition-transform ${isEndorsementsAscending ? 'rotate-180' : ''}`} />
                                     </Button>
                                 </div>
-                                {endorsedPoints.length === 0 ? (
+                                {userEndorsedPoints.length === 0 ? (
                                     <p className="text-muted-foreground text-center py-8">
                                         No endorsements yet
                                     </p>
                                 ) : (
-                                    [...endorsedPoints]
+                                    [...userEndorsedPoints]
                                         .sort((a, b) =>
                                             isEndorsementsAscending
                                                 ? a.createdAt.getTime() - b.createdAt.getTime()

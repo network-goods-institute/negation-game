@@ -19,7 +19,15 @@ export const config = {
 export default async function middleware(req: NextRequest) {
   const url = req.nextUrl;
 
-  // Allow direct access to /profile without redirection
+  // Handle username-based profile routes
+  const profileMatch = url.pathname.match(/^\/([^/]+)$/);
+  if (profileMatch && profileMatch[1] !== "profile") {
+    const response = NextResponse.next();
+    response.headers.set(SPACE_HEADER, DEFAULT_SPACE);
+    return response;
+  }
+
+  // Legacy /profile route - just set header and let the page handle redirect
   if (url.pathname === "/profile") {
     const response = NextResponse.next();
     response.headers.set(SPACE_HEADER, DEFAULT_SPACE);

@@ -1,20 +1,20 @@
 "use server";
 
-import { db } from "@/services/db";
+import { getSpace } from "@/actions/getSpace";
+import { getUserId } from "@/actions/getUserId";
 import {
-  pointsWithDetailsView,
   endorsementsTable,
+  pointsWithDetailsView,
   effectiveRestakesView,
   doubtsTable,
   usersTable,
 } from "@/db/schema";
-import { getUserId } from "@/actions/getUserId";
-import { eq, and } from "drizzle-orm";
 import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
-import { sql } from "drizzle-orm";
+import { db } from "@/services/db";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
-export type ProfilePoint = {
+export type UserEndorsedPoint = {
   pointId: number;
   content: string;
   createdAt: Date;
@@ -25,7 +25,8 @@ export type ProfilePoint = {
   negationsCred: number;
   favor: number;
   space: string | null;
-  viewerCred?: number;
+  endorsedCred: number;
+  viewerCred: number;
   negationIds: number[];
   restakesByPoint: number;
   slashedAmount: number;
@@ -39,14 +40,16 @@ export type ProfilePoint = {
   } | null;
 };
 
-export const fetchProfilePoints = async (
+export const fetchUserEndorsedPoints = async (
   username?: string
-): Promise<ProfilePoint[] | null> => {
-  const userId = await getUserId();
-  if (!userId) return [];
+): Promise<UserEndorsedPoint[] | null> => {
+  const viewerId = await getUserId();
+  if (!viewerId) return [];
+
+  const space = await getSpace();
 
   // If no username provided, use the current user's ID
-  let targetUserId = userId;
+  let targetUserId = viewerId;
 
   // If username provided, look up the user
   if (username) {
@@ -60,15 +63,40 @@ export const fetchProfilePoints = async (
     targetUserId = user[0].id;
   }
 
+  // First get all points endorsed by the target user
+  const endorsedPointIds = await db
+    .select({ pointId: endorsementsTable.pointId })
+    .from(endorsementsTable)
+    .where(
+      and(
+        eq(endorsementsTable.userId, targetUserId),
+        eq(endorsementsTable.space, space)
+      )
+    );
+
+  if (endorsedPointIds.length === 0) return [];
+
+  // Extract just the IDs into an array
+  const pointIds = endorsedPointIds.map((e) => e.pointId);
+
+  // Then fetch the full details for those points
   return db
     .select({
       ...getColumns(pointsWithDetailsView),
+      endorsedCred: sql<number>`
+        COALESCE((
+          SELECT SUM(${endorsementsTable.cred})
+          FROM ${endorsementsTable}
+          WHERE ${endorsementsTable.pointId} = ${pointsWithDetailsView.pointId}
+            AND ${endorsementsTable.userId} = ${targetUserId}
+        ), 0)
+      `.mapWith(Number),
       viewerCred: sql<number>`
         COALESCE((
           SELECT SUM(${endorsementsTable.cred})
           FROM ${endorsementsTable}
           WHERE ${endorsementsTable.pointId} = ${pointsWithDetailsView.pointId}
-            AND ${endorsementsTable.userId} = ${userId}
+            AND ${endorsementsTable.userId} = ${viewerId}
         ), 0)
       `.mapWith(Number),
       restakesByPoint: sql<number>`
@@ -108,7 +136,7 @@ export const fetchProfilePoints = async (
         id: doubtsTable.id,
         amount: doubtsTable.amount,
         userAmount: doubtsTable.amount,
-        isUserDoubt: sql<boolean>`${doubtsTable.userId} = ${userId}`.as(
+        isUserDoubt: sql<boolean>`${doubtsTable.userId} = ${viewerId}`.as(
           "is_user_doubt"
         ),
       },
@@ -118,9 +146,9 @@ export const fetchProfilePoints = async (
       doubtsTable,
       and(
         eq(doubtsTable.pointId, pointsWithDetailsView.pointId),
-        eq(doubtsTable.userId, userId)
+        eq(doubtsTable.userId, viewerId)
       )
     )
-    .where(eq(pointsWithDetailsView.createdBy, targetUserId))
+    .where(inArray(pointsWithDetailsView.pointId, pointIds))
     .then((points) => addFavor(points));
 };
