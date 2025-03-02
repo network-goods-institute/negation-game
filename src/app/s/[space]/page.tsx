@@ -16,14 +16,17 @@ import { useSpace } from "@/queries/useSpace";
 import { usePrivy } from "@privy-io/react-auth";
 import { useToggle } from "@uidotdev/usehooks";
 import { useSetAtom } from "jotai";
-import { PlusIcon, TrophyIcon, GroupIcon } from "lucide-react";
+import { PlusIcon, TrophyIcon, GroupIcon, SearchIcon } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo } from "react";
 import { LeaderboardDialog } from "@/components/LeaderboardDialog";
 import { useRouter } from "next/navigation";
 import { useViewpoints } from "@/queries/useViewpoints";
 import { ViewpointCard } from "@/components/ViewpointCard";
 import { cn } from "@/lib/cn";
+import { SearchInput } from "@/components/SearchInput";
+import { useSearch } from "@/queries/useSearch";
+import { SearchResultsList } from "@/components/SearchResultsList";
 
 export default function Home() {
   const { user, login } = usePrivy();
@@ -34,7 +37,8 @@ export default function Home() {
   const { push } = useRouter();
   const [isNavigating, setIsNavigating] = useState(false);
   const { data: viewpoints, isLoading: viewpointsLoading } = useViewpoints(space.data?.id || "global");
-  const [selectedTab, setSelectedTab] = useState<"points" | "viewpoints">("points");
+  const [selectedTab, setSelectedTab] = useState<"all" | "points" | "viewpoints" | "search">("all");
+  const { searchQuery, searchResults, isLoading: searchLoading, handleSearch, isActive, hasSearched } = useSearch();
 
   const loginOrMakePoint = useCallback(() => {
     if (user !== null) {
@@ -55,6 +59,55 @@ export default function Home() {
 
   const { data: points, isLoading } = useFeed();
   const setNegatedPointId = useSetAtom(negatedPointIdAtom);
+
+  const combinedFeed = useMemo(() => {
+    if (!points || !viewpoints) return [];
+
+    type PointItem = {
+      type: 'point';
+      id: number;
+      content: string;
+      createdAt: Date;
+      data: typeof points[number];
+    };
+
+    type ViewpointItem = {
+      type: 'viewpoint';
+      id: string;
+      content: string;
+      createdAt: Date;
+      data: typeof viewpoints[number];
+    };
+
+    type FeedItem = PointItem | ViewpointItem;
+
+    const allItems: FeedItem[] = [
+      ...points.map(point => ({
+        type: 'point' as const,
+        id: point.pointId,
+        content: point.content,
+        createdAt: new Date(point.createdAt),
+        data: point
+      })),
+      ...viewpoints.map(viewpoint => ({
+        type: 'viewpoint' as const,
+        id: viewpoint.id,
+        content: viewpoint.title,
+        createdAt: new Date(viewpoint.createdAt),
+        data: viewpoint
+      }))
+    ];
+
+    return allItems.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }, [points, viewpoints]);
+
+  // Handle search input change
+  const handleSearchChange = (value: string) => {
+    handleSearch(value);
+    if (value.trim().length > 0 && selectedTab !== "search") {
+      setSelectedTab("search");
+    }
+  };
 
   return (
     <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow bg-background">
@@ -78,27 +131,140 @@ export default function Home() {
             </div>
           </>
         )}
-        <div className="flex gap-4 px-lg py-sm border-b">
-          <button
-            onClick={() => setSelectedTab("points")}
-            className={cn(
-              "py-2 px-4 rounded focus:outline-none",
-              selectedTab === "points" ? "bg-primary text-white" : "bg-transparent text-primary"
-            )}
-          >
-            Points
-          </button>
-          <button
-            onClick={() => setSelectedTab("viewpoints")}
-            className={cn(
-              "py-2 px-4 rounded focus:outline-none",
-              selectedTab === "viewpoints" ? "bg-primary text-white" : "bg-transparent text-primary"
-            )}
-          >
-            Viewpoints
-          </button>
+        <div className="flex flex-col gap-4 px-lg py-sm border-b">
+          <div className="flex gap-4">
+            <button
+              onClick={() => setSelectedTab("all")}
+              className={cn(
+                "py-2 px-4 rounded focus:outline-none",
+                selectedTab === "all" ? "bg-primary text-white" : "bg-transparent text-primary"
+              )}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setSelectedTab("points")}
+              className={cn(
+                "py-2 px-4 rounded focus:outline-none",
+                selectedTab === "points" ? "bg-primary text-white" : "bg-transparent text-primary"
+              )}
+            >
+              Points
+            </button>
+            <button
+              onClick={() => setSelectedTab("viewpoints")}
+              className={cn(
+                "py-2 px-4 rounded focus:outline-none",
+                selectedTab === "viewpoints" ? "bg-primary text-white" : "bg-transparent text-primary"
+              )}
+            >
+              Viewpoints
+            </button>
+            <button
+              onClick={() => {
+                setSelectedTab("search");
+                // Focus the search input when clicking the search tab
+                setTimeout(() => {
+                  const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
+                  if (searchInput) searchInput.focus();
+                }, 0);
+              }}
+              className={cn(
+                "py-2 px-4 rounded focus:outline-none flex items-center gap-1",
+                selectedTab === "search" ? "bg-primary text-white" : "bg-transparent text-primary"
+              )}
+            >
+              <SearchIcon className="h-4 w-4" />
+              <span>Search</span>
+            </button>
+          </div>
+
+          {selectedTab === "search" && (
+            <div className="pb-2">
+              <SearchInput
+                value={searchQuery}
+                onChange={handleSearchChange}
+                placeholder="Search points, viewpoints, or authors..."
+              />
+            </div>
+          )}
         </div>
-        {selectedTab === "points" ? (
+
+        {selectedTab === "search" ? (
+          <SearchResultsList
+            results={searchResults}
+            isLoading={searchLoading}
+            query={searchQuery}
+            hasSearched={hasSearched}
+          />
+        ) : selectedTab === "all" ? (
+          (!points || !viewpoints || isLoading || viewpointsLoading) ? (
+            <Loader className="absolute self-center my-auto top-0 bottom-0" />
+          ) : points.length === 0 && viewpoints.length === 0 ? (
+            <div className="flex flex-col flex-grow items-center justify-center">
+              <span>Nothing here yet</span>
+              <div className="flex gap-2 mt-2">
+                <Button variant={"link"} className="p-0 text-base" onClick={loginOrMakePoint}>
+                  Make a Point
+                </Button>
+                <span>or</span>
+                <Button
+                  variant={"link"}
+                  className="p-0 text-base"
+                  onClick={handleNewViewpoint}
+                >
+                  Create a Viewpoint
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {combinedFeed.map(item => {
+                if (item.type === 'point') {
+                  const point = item.data;
+                  return (
+                    <Link
+                      draggable={false}
+                      onClick={preventDefaultIfContainsSelection}
+                      href={`${basePath}/${encodeId(point.pointId)}`}
+                      className="flex border-b cursor-pointer hover:bg-accent"
+                      key={`point-${point.pointId}`}
+                    >
+                      <PointCard
+                        className="flex-grow p-6"
+                        amountSupporters={point.amountSupporters}
+                        createdAt={point.createdAt}
+                        cred={point.cred}
+                        pointId={point.pointId}
+                        favor={point.favor}
+                        amountNegations={point.amountNegations}
+                        content={point.content}
+                        viewerContext={{ viewerCred: point.viewerCred }}
+                        onNegate={(e) => {
+                          e.preventDefault();
+                          user !== null ? setNegatedPointId(point.pointId) : login();
+                        }}
+                      />
+                    </Link>
+                  );
+                } else {
+                  const viewpoint = item.data;
+                  return (
+                    <ViewpointCard
+                      key={`viewpoint-${viewpoint.id}`}
+                      id={viewpoint.id}
+                      title={viewpoint.title}
+                      description={viewpoint.description}
+                      author={viewpoint.author}
+                      createdAt={new Date(viewpoint.createdAt)}
+                      space={space.data?.id || "global"}
+                    />
+                  );
+                }
+              })}
+            </>
+          )
+        ) : selectedTab === "points" ? (
           points === undefined || isLoading ? (
             <Loader className="absolute self-center my-auto top-0 bottom-0" />
           ) : points.length === 0 ? (
@@ -159,7 +325,6 @@ export default function Home() {
                 author={viewpoint.author}
                 createdAt={new Date(viewpoint.createdAt)}
                 space={space.data?.id || "global"}
-                className="m-4"
               />
             ))
           )

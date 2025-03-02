@@ -26,7 +26,7 @@ import { useUserEndorsement } from "@/queries/useUserEndorsements";
 import { usePrivy } from "@privy-io/react-auth";
 import { useToggle } from "@uidotdev/usehooks";
 import { useAtom } from "jotai";
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, CircleIcon, DotIcon } from "lucide-react";
 import {
   HTMLAttributes,
   MouseEventHandler,
@@ -37,6 +37,24 @@ import {
 } from "react";
 import { AuthenticatedActionButton, Button } from "./ui/button";
 import { Portal } from "@radix-ui/react-portal";
+
+const PointIcon = () => (
+  <div className="relative flex items-center justify-center w-5 h-5 shrink-0 mt-0.5">
+    <CircleIcon className="size-5 stroke-1" />
+    <DotIcon className="size-3 absolute stroke-[1.5px]" />
+  </div>
+);
+
+// This could be a future CommandIcon component for when commands are implemented
+// Keeping it commented out for future use
+/*
+const CommandIcon = () => (
+  <div className="relative flex items-center justify-center w-5 h-5 shrink-0">
+    <CircleIcon className="size-5 stroke-1" />
+    <TriangleIcon className="size-3 absolute stroke-[1.5px]" />
+  </div>
+);
+*/
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -189,15 +207,18 @@ export const PointCard = ({
       {...props}
     >
       <div className="flex flex-col flex-grow w-full min-w-0">
-        <p className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg -mt-1 mb-sm select-text flex-1 break-words whitespace-normal overflow-hidden">
-          {content}
-          {visited === true && (
-            <CheckIcon className="inline size-4 text-muted-foreground/80 ml-2" />
-          )}
-        </p>
+        <div className="flex items-start gap-2">
+          <PointIcon />
+          <p className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg -mt-1 mb-sm select-text flex-1 break-words whitespace-normal overflow-hidden">
+            {content}
+            {visited === true && (
+              <CheckIcon className="inline size-4 text-muted-foreground/80 ml-2" />
+            )}
+          </p>
+        </div>
 
         <PointStats
-          className="mb-md  select-text"
+          className="mb-md select-text"
           amountNegations={amountNegations}
           amountSupporters={amountSupporters}
           favor={favor}

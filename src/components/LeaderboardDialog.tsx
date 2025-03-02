@@ -198,7 +198,8 @@ export const LeaderboardDialog = ({
                                         <thead className="bg-muted/30">
                                             <tr>
                                                 <th className="text-left py-3 pl-4 pr-2 sm:py-3 sm:pl-4 sm:pr-2 text-xs sm:text-base w-[10%] sm:w-[8%]">Rank</th>
-                                                <th className="text-left py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base w-[40%] sm:w-[42%]">User</th>
+                                                <th className="text-center py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base w-[5%]"></th>
+                                                <th className="text-left py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base w-[35%] sm:w-[37%]">User</th>
                                                 <th className="text-left py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base w-[10%] sm:w-[10%]">Points</th>
                                                 <th className="text-left py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base w-[15%] sm:w-[15%]">Viewpoints</th>
                                                 <th className="text-left py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base w-[10%] sm:w-[10%]">Cred</th>
@@ -228,6 +229,28 @@ export const LeaderboardDialog = ({
                                             {currentUserIndex >= 0 && (
                                                 <tr className="bg-muted/30 border-y-2 border-primary/20">
                                                     <td className="py-2 pl-2 pr-1 sm:py-3 sm:pl-4 sm:pr-2 text-xs sm:text-base">{currentUserRank}</td>
+                                                    <td className="py-2 px-1 sm:py-3 sm:px-2 text-center">
+                                                        {sortedUsers[currentUserIndex].delegationUrl && (
+                                                            <TooltipProvider delayDuration={300}>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <a
+                                                                            href={sortedUsers[currentUserIndex].delegationUrl}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="inline-flex justify-center items-center w-6 h-6 bg-purple-500 rounded-full"
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                        >
+                                                                            <HeartIcon className="size-3.5 text-white" />
+                                                                        </a>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent side="top" sideOffset={5}>
+                                                                        <p className="text-xs">Delegate to this user</p>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                            </TooltipProvider>
+                                                        )}
+                                                    </td>
                                                     <td className="py-2 px-1 sm:py-3 sm:px-2 font-medium text-xs sm:text-base">
                                                         <div className="flex items-center gap-1 sm:gap-2 max-w-full overflow-hidden">
                                                             <span className="truncate">{sortedUsers[currentUserIndex].username}</span>
@@ -247,6 +270,28 @@ export const LeaderboardDialog = ({
                                             {sortedUsers.map((user, index) => (
                                                 <tr key={user.id} className="border-t">
                                                     <td className="py-2 pl-2 pr-1 sm:py-3 sm:pl-4 sm:pr-2 text-xs sm:text-base">{index + 1}</td>
+                                                    <td className="py-2 px-1 sm:py-3 sm:px-2 text-center">
+                                                        {user.delegationUrl && (
+                                                            <TooltipProvider delayDuration={300}>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <a
+                                                                            href={user.delegationUrl}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="inline-flex justify-center items-center w-6 h-6 bg-purple-500 rounded-full"
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                        >
+                                                                            <HeartIcon className="size-3.5 text-white" />
+                                                                        </a>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent side="top" sideOffset={5}>
+                                                                        <p className="text-xs">Delegate to this user</p>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                            </TooltipProvider>
+                                                        )}
+                                                    </td>
                                                     <td className="py-2 px-1 sm:py-3 sm:px-2 font-medium text-xs sm:text-base">
                                                         <div className="flex items-center gap-1 sm:gap-2 max-w-full overflow-hidden">
                                                             <span className="truncate">{user.username}</span>
@@ -254,26 +299,6 @@ export const LeaderboardDialog = ({
                                                                 <span className="text-[10px] sm:text-xs text-primary px-1 sm:px-2 py-0.5 sm:py-1 rounded-full bg-primary/10 whitespace-nowrap flex-shrink-0">
                                                                     You
                                                                 </span>
-                                                            )}
-                                                            {user.delegationUrl && (
-                                                                <TooltipProvider delayDuration={300}>
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <a
-                                                                                href={user.delegationUrl}
-                                                                                target="_blank"
-                                                                                rel="noopener noreferrer"
-                                                                                className="text-primary hover:text-primary/80 flex-shrink-0"
-                                                                                onClick={(e) => e.stopPropagation()}
-                                                                            >
-                                                                                <HeartIcon className="size-4 fill-primary/30" />
-                                                                            </a>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent side="top" sideOffset={5}>
-                                                                            <p className="text-xs">Delegate to this user</p>
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
-                                                                </TooltipProvider>
                                                             )}
                                                         </div>
                                                     </td>
