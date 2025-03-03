@@ -446,12 +446,24 @@ export const PointNode = ({
     setCollapsedNodePositions
   ]);
 
+  const hasExpandedRef = useRef(false);
+  const strictModeMountRef = useRef(0);
+
   useEffect(() => {
     if (!shouldExpandOnInit || pointData === undefined) return;
 
-    // FIXME: this is causing duplicates on strict mode (and weirdly only in encoded graph view, issue might be there.). Couldn't track down the issue
+    // In development, React.StrictMode causes double mounting
+    // We only want to expand on the second mount in strict mode
+    if (process.env.NODE_ENV === 'development') {
+      strictModeMountRef.current += 1;
+      if (strictModeMountRef.current < 2) return;
+    }
+
+    if (hasExpandedRef.current) return;
+
     expandNegations();
     setShouldExpandOnInit(false);
+    hasExpandedRef.current = true;
   }, [shouldExpandOnInit, pointData, expandNegations]);
 
   const expandedNegationIds = useMemo(() => [
