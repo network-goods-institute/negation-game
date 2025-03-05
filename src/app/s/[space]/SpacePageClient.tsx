@@ -16,7 +16,7 @@ import { useSpace } from "@/queries/useSpace";
 import { usePrivy } from "@privy-io/react-auth";
 import { useToggle } from "@uidotdev/usehooks";
 import { useSetAtom } from "jotai";
-import { PlusIcon, TrophyIcon, GroupIcon, SearchIcon } from "lucide-react";
+import { PlusIcon, TrophyIcon, SearchIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState, useMemo } from "react";
 import { LeaderboardDialog } from "@/components/LeaderboardDialog";
@@ -28,6 +28,7 @@ import { SearchInput } from "@/components/SearchInput";
 import { useSearch } from "@/queries/useSearch";
 import { SearchResultsList } from "@/components/SearchResultsList";
 import { usePinnedPoint } from "@/queries/usePinnedPoint";
+import { ViewpointIcon } from "@/components/icons/AppIcons";
 
 interface PageProps {
     params: { space: string };
@@ -80,7 +81,7 @@ export function SpacePageClient({
 
         type PointItem = {
             type: 'point';
-            id: number;
+            id: string;
             content: string;
             createdAt: Date;
             data: typeof points[number];
@@ -99,14 +100,14 @@ export function SpacePageClient({
         const allItems: FeedItem[] = [
             ...points.map(point => ({
                 type: 'point' as const,
-                id: point.pointId,
+                id: `point-${point.pointId}`,
                 content: point.content,
                 createdAt: new Date(point.createdAt),
                 data: point
             })),
             ...viewpoints.map(viewpoint => ({
                 type: 'viewpoint' as const,
-                id: viewpoint.id,
+                id: `viewpoint-${viewpoint.id}`,
                 content: viewpoint.title,
                 createdAt: new Date(viewpoint.createdAt),
                 data: viewpoint
@@ -276,7 +277,7 @@ export function SpacePageClient({
                                             onClick={preventDefaultIfContainsSelection}
                                             href={`${basePath}/${encodeId(point.pointId)}`}
                                             className="flex border-b cursor-pointer hover:bg-accent"
-                                            key={`point-${point.pointId}`}
+                                            key={item.id}
                                         >
                                             <PointCard
                                                 className="flex-grow p-6"
@@ -301,7 +302,7 @@ export function SpacePageClient({
                                     const viewpoint = item.data;
                                     return (
                                         <ViewpointCard
-                                            key={`viewpoint-${viewpoint.id}`}
+                                            key={item.id}
                                             id={viewpoint.id}
                                             title={viewpoint.title}
                                             description={viewpoint.description}
@@ -404,7 +405,7 @@ export function SpacePageClient({
                         </>
                     ) : (
                         <>
-                            <GroupIcon className="size-7 sm:size-5" />
+                            <ViewpointIcon />
                             <span className="hidden sm:block ml-sm">New Viewpoint</span>
                         </>
                     )}

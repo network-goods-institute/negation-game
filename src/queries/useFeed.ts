@@ -21,7 +21,6 @@ export const useFeed = () => {
           doubtedAmount: point.doubtedAmount,
           totalRestakeAmount: point.totalRestakeAmount,
           isPinned: false,
-          isCommand: false,
           pinnedByCommandId: point.pinnedByCommandId,
           restake: {
             id: 0,
@@ -51,7 +50,6 @@ export const useFeed = () => {
         doubtedAmount: point.doubtedAmount,
         totalRestakeAmount: point.totalRestakeAmount,
         isPinned: false,
-        isCommand: false,
         pinnedByCommandId: point.pinnedByCommandId,
         restake: {
           id: 0,

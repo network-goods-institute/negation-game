@@ -8,6 +8,7 @@ import {
   effectiveRestakesView,
   doubtsTable,
   pointsTable,
+  spacesTable,
 } from "@/db/schema";
 import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
@@ -44,6 +45,16 @@ export type FeedPoint = {
 export const fetchFeedPage = async (olderThan?: Timestamp) => {
   const viewerId = await getUserId();
   const space = await getSpace();
+
+  // Get the space's pinnedPointId
+  const spaceDetails = await db.query.spacesTable.findFirst({
+    where: eq(spacesTable.id, space),
+    columns: {
+      pinnedPointId: true,
+    },
+  });
+
+  const pinnedPointId = spaceDetails?.pinnedPointId;
 
   const results = await db
     .select({
@@ -126,7 +137,12 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
         eq(doubtsTable.userId, viewerId ?? "")
       )
     )
-    .where(eq(pointsWithDetailsView.space, space))
+    .where(
+      and(
+        eq(pointsWithDetailsView.space, space),
+        sql`${pointsWithDetailsView.pointId} != ${pinnedPointId || 0}`
+      )
+    )
     .orderBy(desc(pointsWithDetailsView.createdAt))
     .then((points) => {
       return addFavor(points);

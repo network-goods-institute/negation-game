@@ -38,7 +38,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Portal } from "@radix-ui/react-portal";
-import { GroupIcon, NetworkIcon, CopyIcon, } from "lucide-react";
+import { NetworkIcon, CopyIcon } from "lucide-react";
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import dynamic from 'next/dynamic';
 import remarkGfm from 'remark-gfm';
@@ -51,6 +51,7 @@ import { useViewpoint } from "@/queries/useViewpoint";
 import { useRouter } from "next/navigation";
 import { EditModeProvider, useEditMode } from "@/components/graph/EditModeContext";
 import { ReactFlowInstance } from "@xyflow/react";
+import { ViewpointIcon } from "@/components/icons/AppIcons";
 
 // Create dynamic ReactMarkdown component
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
@@ -351,7 +352,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
               )}
 
               <h1 className="text-sm font-bold">
-                <GroupIcon className="inline stroke-1 size-5 align-text-bottom" />{" "}
+                <ViewpointIcon />{" "}
                 Viewpoint
               </h1>
 

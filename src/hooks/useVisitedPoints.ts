@@ -91,9 +91,17 @@ async function bulkReadPoints(
     const transaction = db.transaction(STORE_NAME, "readonly");
     const store = transaction.objectStore(STORE_NAME);
 
+    // Points are unvisited by default
+    pointIds.forEach((pointId) => results.set(pointId, false));
+
     pointIds.forEach((pointId) => {
       const request = store.get(pointId);
-      request.onsuccess = () => results.set(pointId, !!request.result);
+      request.onsuccess = () => {
+        // If we have a record at all, the point was visited
+        if (request.result) {
+          results.set(pointId, true);
+        }
+      };
     });
 
     transaction.oncomplete = () => resolve(results);
@@ -147,12 +155,18 @@ export function useVisitedPoints() {
 
   const isVisited = useCallback(
     async (pointId: number) => {
-      if (!isDbReady) return false;
+      if (!isDbReady) return true;
       if (memoryCache.entries.has(pointId))
         return memoryCache.entries.get(pointId)!;
 
       const results = await bulkReadPoints([pointId]);
-      return results.get(pointId) || false;
+      const visited = results.get(pointId) ?? true;
+
+      // Update memory cache with the result
+      memoryCache.entries.set(pointId, visited);
+      memoryCache.lastUpdated = Date.now();
+
+      return visited;
     },
     [isDbReady]
   );

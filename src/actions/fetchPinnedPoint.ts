@@ -158,10 +158,23 @@ export async function fetchPinnedPoint({ spaceId }: FetchPinnedPointParams) {
           p.created_by as "createdBy",
           p.space,
           p.is_command as "isCommand",
-          COALESCE(SUM(e.cred), 0) as cred,
+          COALESCE((
+            SELECT SUM(e.cred)
+            FROM endorsements e
+            WHERE e.point_id = p.id
+          ), 0) as cred,
           COUNT(DISTINCT e.user_id) as "amountSupporters",
           COUNT(DISTINCT n.id) as "amountNegations",
-          COALESCE(SUM(n_e.cred), 0) as "negationsCred",
+          COALESCE((
+            SELECT SUM(e2.cred)
+            FROM endorsements e2
+            JOIN points p2 ON p2.id = e2.point_id
+            WHERE p2.id IN (
+              SELECT newer_point_id FROM negations WHERE older_point_id = p.id
+              UNION
+              SELECT older_point_id FROM negations WHERE newer_point_id = p.id
+            )
+          ), 0) as "negationsCred",
           (SELECT COALESCE(e2.cred, 0) FROM endorsements e2 WHERE e2.point_id = p.id AND e2.user_id = ${userId || null} LIMIT 1) as "viewerCred",
           ARRAY_AGG(DISTINCT n.id) FILTER (WHERE n.id IS NOT NULL) as "negationIds",
           COALESCE(SUM(CASE WHEN r.user_id = ${userId || null} THEN er.effective_amount ELSE 0 END), 0) as "restakesByPoint",
@@ -171,7 +184,6 @@ export async function fetchPinnedPoint({ spaceId }: FetchPinnedPointParams) {
         FROM points p
         LEFT JOIN endorsements e ON p.id = e.point_id
         LEFT JOIN negations n ON (p.id = n.older_point_id OR p.id = n.newer_point_id)
-        LEFT JOIN endorsements n_e ON (n.newer_point_id = n_e.point_id OR n.older_point_id = n_e.point_id)
         LEFT JOIN restakes r ON (p.id = r.negation_id)
         LEFT JOIN doubts d ON (r.point_id = d.point_id AND r.negation_id = d.negation_id)
         LEFT JOIN effective_restakes_view er ON (r.point_id = er.point_id AND r.negation_id = er.negation_id AND r.user_id = er.user_id)

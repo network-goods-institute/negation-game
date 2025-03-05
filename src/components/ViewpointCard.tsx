@@ -9,20 +9,13 @@ import {
     PopoverTrigger
 } from "@/components/ui/popover";
 import { Portal } from "@radix-ui/react-portal";
-import { CircleIcon, EyeIcon } from "lucide-react";
+import { ViewpointIcon } from "@/components/icons/AppIcons";
 import { useRouter } from "next/navigation";
 
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
     loading: () => <div className="animate-pulse h-32 bg-muted/30 rounded-md" />,
     ssr: false
 });
-
-const ViewpointIcon = () => (
-    <div className="relative flex items-center justify-center w-5 h-5 shrink-0 mt-0.5">
-        <CircleIcon className="size-5 stroke-1" />
-        <EyeIcon className="size-3 absolute stroke-[1.5px]" />
-    </div>
-);
 
 export interface ViewpointCardProps extends Omit<React.HTMLAttributes<HTMLAnchorElement>, keyof React.AnchorHTMLAttributes<HTMLAnchorElement>> {
     id: string;

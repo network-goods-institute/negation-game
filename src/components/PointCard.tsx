@@ -5,6 +5,7 @@ import { DoubtIcon } from "@/components/icons/DoubtIcon";
 import { EndorseIcon } from "@/components/icons/EndorseIcon";
 import { NegateIcon } from "@/components/icons/NegateIcon";
 import { RestakeIcon } from "@/components/icons/RestakeIcon";
+import { PointIcon, PinnedIcon, FeedCommandIcon } from "@/components/icons/AppIcons";
 import { Badge } from "@/components/ui/badge";
 import {
   Popover,
@@ -26,7 +27,7 @@ import { useUserEndorsement } from "@/queries/useUserEndorsements";
 import { usePrivy } from "@privy-io/react-auth";
 import { useToggle } from "@uidotdev/usehooks";
 import { useAtom } from "jotai";
-import { CircleIcon, DotIcon, TriangleIcon, PinIcon } from "lucide-react";
+import { CircleIcon } from "lucide-react";
 import { Portal } from "@radix-ui/react-portal";
 import {
   HTMLAttributes,
@@ -39,28 +40,6 @@ import {
 import { AuthenticatedActionButton, Button } from "./ui/button";
 import { encodeId } from "@/lib/encodeId";
 import { useRouter } from "next/navigation";
-
-const PointIcon = () => (
-  <div className="relative flex items-center justify-center w-5 h-5 shrink-0 mt-0.5">
-    <CircleIcon className="size-5 stroke-1" />
-    <DotIcon className="size-3 absolute stroke-[1.5px]" />
-  </div>
-);
-
-// Command icon for points that represent commands (starting with /)
-const CommandIcon = () => (
-  <div className="relative flex items-center justify-center w-5 h-5 shrink-0 mt-0.5">
-    <CircleIcon className="size-5 stroke-1" />
-    <TriangleIcon className="size-3 absolute stroke-[1.5px]" />
-  </div>
-);
-
-const PinnedIcon = () => (
-  <div className="relative flex items-center justify-center w-5 h-5 shrink-0 mt-0.5">
-    <CircleIcon className="size-5 stroke-1" />
-    <PinIcon className="size-3 absolute stroke-[1.5px]" />
-  </div>
-);
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -153,8 +132,8 @@ export const PointCard = ({
     resetWhen: !endorsePopoverOpen,
   });
   const prefetchRestakeData = usePrefetchRestakeData();
-  const { isVisited } = useVisitedPoints();
-  const [visited, setVisited] = useState<boolean | null>(null);
+  const { isVisited, markPointAsRead } = useVisitedPoints();
+  const [visited, setVisited] = useState(true);
   const router = useRouter();
 
   const [restakePercentage, isOverHundred] = useMemo(() => {
@@ -196,15 +175,16 @@ export const PointCard = ({
     return restake.amount > 0;
   }, [restake]);
 
+  // Only check visited state once on mount
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
     isVisited(pointId).then((result) => {
-      if (isMounted) setVisited(result);
+      if (mounted && !result) {  // Only update state if not visited and component still mounted
+        setVisited(false);
+      }
     });
-    return () => {
-      isMounted = false;
-    };
-  }, [isVisited, pointId]);
+    return () => { mounted = false; };
+  }, [pointId, isVisited]);
 
   const parsePinCommand = useMemo(() => {
     // Prevent showing pin commands when space is undefined or global
@@ -255,13 +235,13 @@ export const PointCard = ({
     >
       <div className="flex flex-col flex-grow w-full min-w-0">
         <div className="flex items-start gap-2">
-          {/* Never show command icon when space is undefined */}
-          {isCommand && space && space !== 'global' ?
-            <CommandIcon /> :
-            isPinned && space && space !== 'global' ?
-              <PinnedIcon /> :
-              <PointIcon />
-          }
+          {isCommand && space && space !== 'global' ? (
+            <FeedCommandIcon />
+          ) : isPinned && space && space !== 'global' ? (
+            <PinnedIcon />
+          ) : (
+            <PointIcon />
+          )}
           <div className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg -mt-1 mb-sm select-text flex-1 break-words whitespace-normal overflow-hidden">
             {content}
             {/* Never show command badges when space is undefined */}
@@ -489,9 +469,17 @@ export const PointCard = ({
       {visited === false && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <div className="absolute bottom-3 right-3">
-              <CircleIcon className="size-3 fill-endorsed text-endorsed animate-pulse" />
-            </div>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                markPointAsRead(pointId);
+                setVisited(true);
+              }}
+              className="absolute top-3 right-3 p-2 -m-2 rounded-full hover:bg-accent"
+            >
+              <CircleIcon className="size-4 fill-endorsed text-endorsed animate-pulse" />
+            </button>
           </TooltipTrigger>
           <Portal>
             <TooltipContent
