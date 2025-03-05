@@ -665,6 +665,8 @@ export const PointNode = ({
             favor={pointData.favor}
             pointId={pointData.pointId}
             viewerContext={{ viewerCred: pointData.viewerCred }}
+            space={pointData.space ?? undefined}
+            isCommand={pointData.isCommand}
             className={cn(
               "bg-muted/40 rounded-sm z-10",
               isRedundant && "opacity-30 hover:opacity-100"

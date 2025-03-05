@@ -7,6 +7,7 @@ import {
   pointsWithDetailsView,
   effectiveRestakesView,
   doubtsTable,
+  pointsTable,
 } from "@/db/schema";
 import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
@@ -30,6 +31,8 @@ export type FeedPoint = {
   slashedAmount: number;
   doubtedAmount: number;
   totalRestakeAmount: number;
+  isCommand?: boolean;
+  pinnedByCommandId?: number | null;
   doubt?: {
     id: number;
     amount: number;
@@ -103,6 +106,17 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
       `
         .mapWith(Number)
         .as("total_restake_amount"),
+      pinnedByCommandId: sql<number | null>`
+        COALESCE((
+          SELECT p.id
+          FROM ${pointsTable} p
+          WHERE p.is_command = true 
+          AND p.space = ${space}
+          AND p.content LIKE '/pin %'
+          ORDER BY p.created_at DESC
+          LIMIT 1
+        ), NULL)
+      `.mapWith((x) => x as number | null),
     })
     .from(pointsWithDetailsView)
     .leftJoin(

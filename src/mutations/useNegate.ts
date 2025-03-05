@@ -12,12 +12,38 @@ export const useNegate = () => {
   return useAuthenticatedMutation({
     mutationFn: negate,
     onSuccess: (_negationId, { negatedPointId, counterpointId }) => {
+      // Invalidate both points involved
       invalidateRelatedPoints(negatedPointId);
       invalidateRelatedPoints(counterpointId);
 
-      //update cred balance
+      // Invalidate point-negations to update relationships
+      queryClient.invalidateQueries({
+        queryKey: [negatedPointId, "point-negations"],
+      });
+
+      // Invalidate favor history since negations affect favor
+      queryClient.invalidateQueries({
+        queryKey: [negatedPointId, "favor-history"],
+        exact: false,
+      });
+      queryClient.invalidateQueries({
+        queryKey: [counterpointId, "favor-history"],
+        exact: false,
+      });
+
+      // Update user's cred balance
       queryClient.invalidateQueries({
         queryKey: userQueryKey(user?.id),
+      });
+
+      // Invalidate feed since negations appear there
+      queryClient.invalidateQueries({
+        queryKey: ["feed"],
+      });
+
+      // Invalidate pinned point in case either point is pinned
+      queryClient.invalidateQueries({
+        queryKey: ["pinnedPoint"],
       });
     },
   });

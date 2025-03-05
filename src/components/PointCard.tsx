@@ -26,7 +26,7 @@ import { useUserEndorsement } from "@/queries/useUserEndorsements";
 import { usePrivy } from "@privy-io/react-auth";
 import { useToggle } from "@uidotdev/usehooks";
 import { useAtom } from "jotai";
-import { CircleIcon, DotIcon } from "lucide-react";
+import { CircleIcon, DotIcon, TriangleIcon, PinIcon } from "lucide-react";
 import { Portal } from "@radix-ui/react-portal";
 import {
   HTMLAttributes,
@@ -37,6 +37,8 @@ import {
   useState,
 } from "react";
 import { AuthenticatedActionButton, Button } from "./ui/button";
+import { encodeId } from "@/lib/encodeId";
+import { useRouter } from "next/navigation";
 
 const PointIcon = () => (
   <div className="relative flex items-center justify-center w-5 h-5 shrink-0 mt-0.5">
@@ -45,16 +47,20 @@ const PointIcon = () => (
   </div>
 );
 
-// This could be a future CommandIcon component for when commands are implemented
-// Keeping it commented out for future use
-/*
+// Command icon for points that represent commands (starting with /)
 const CommandIcon = () => (
-  <div className="relative flex items-center justify-center w-5 h-5 shrink-0">
+  <div className="relative flex items-center justify-center w-5 h-5 shrink-0 mt-0.5">
     <CircleIcon className="size-5 stroke-1" />
     <TriangleIcon className="size-3 absolute stroke-[1.5px]" />
   </div>
 );
-*/
+
+const PinnedIcon = () => (
+  <div className="relative flex items-center justify-center w-5 h-5 shrink-0 mt-0.5">
+    <CircleIcon className="size-5 stroke-1" />
+    <PinIcon className="size-3 absolute stroke-[1.5px]" />
+  </div>
+);
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -100,6 +106,9 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   } | null;
   space?: string;
   originalPosterId?: string;
+  isCommand?: boolean;
+  isPinned?: boolean;
+  pinnedCommandPointId?: number;
 }
 
 export const PointCard = ({
@@ -122,6 +131,9 @@ export const PointCard = ({
   doubt,
   space,
   originalPosterId,
+  isCommand,
+  isPinned,
+  pinnedCommandPointId,
   ...props
 }: PointCardProps) => {
   const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
@@ -143,6 +155,7 @@ export const PointCard = ({
   const prefetchRestakeData = usePrefetchRestakeData();
   const { isVisited } = useVisitedPoints();
   const [visited, setVisited] = useState<boolean | null>(null);
+  const router = useRouter();
 
   const [restakePercentage, isOverHundred] = useMemo(() => {
     if (!isNegation || !parentPoint || !restake?.amount || !restake.isOwner)
@@ -193,10 +206,44 @@ export const PointCard = ({
     };
   }, [isVisited, pointId]);
 
+  const parsePinCommand = useMemo(() => {
+    // Prevent showing pin commands when space is undefined or global
+    if (!space || space === 'global' || !isCommand) {
+      return null;
+    }
+
+    // Check if content exists and is a pin command
+    if (!content || !content.startsWith('/pin ')) {
+      return null;
+    }
+
+    const parts = content.split(' ').filter(Boolean);
+    if (parts.length < 2) {
+      return null;
+    }
+
+    return parts[1];
+  }, [isCommand, content, space]);
+
+  const handleTargetPointClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (parsePinCommand && space && space !== 'global') {
+      router.push(`/s/${space}/${parsePinCommand}`);
+    }
+  };
+
+  const handleCommandClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (pinnedCommandPointId && space && space !== 'global') {
+      router.push(`/s/${space}/${encodeId(pinnedCommandPointId)}`);
+    }
+  };
+
   return (
     <div
       className={cn(
         "@container/point flex gap-3 pt-4 pb-3 px-4 relative rounded-none",
+        isPinned && "border-l-4 border-primary",
         className
       )}
       onMouseOver={() => {
@@ -208,10 +255,41 @@ export const PointCard = ({
     >
       <div className="flex flex-col flex-grow w-full min-w-0">
         <div className="flex items-start gap-2">
-          <PointIcon />
-          <p className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg -mt-1 mb-sm select-text flex-1 break-words whitespace-normal overflow-hidden">
+          {/* Never show command icon when space is undefined */}
+          {isCommand && space && space !== 'global' ?
+            <CommandIcon /> :
+            isPinned && space && space !== 'global' ?
+              <PinnedIcon /> :
+              <PointIcon />
+          }
+          <div className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg -mt-1 mb-sm select-text flex-1 break-words whitespace-normal overflow-hidden">
             {content}
-          </p>
+            {/* Never show command badges when space is undefined */}
+            {pinnedCommandPointId && space && space !== 'global' && (
+              <Badge variant="outline" className="ml-2 text-xs">
+                <Button
+                  type="button"
+                  variant="link"
+                  className="h-auto p-0 text-muted-foreground hover:text-foreground"
+                  onClick={handleCommandClick}
+                >
+                  Pinned by command
+                </Button>
+              </Badge>
+            )}
+            {parsePinCommand && space && space !== 'global' && (
+              <Badge variant="outline" className="ml-2 text-xs">
+                <Button
+                  type="button"
+                  variant="link"
+                  className="h-auto p-0 text-muted-foreground hover:text-foreground"
+                  onClick={handleTargetPointClick}
+                >
+                  Proposal to pin
+                </Button>
+              </Badge>
+            )}
+          </div>
         </div>
 
         <PointStats
@@ -422,7 +500,7 @@ export const PointCard = ({
               sideOffset={5}
               className="z-[100]"
             >
-              <p>You haven't visited this point yet</p>
+              <p>You haven&apos;t viewed this point, yet. Tap to mark seen</p>
             </TooltipContent>
           </Portal>
         </Tooltip>

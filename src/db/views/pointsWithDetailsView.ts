@@ -12,6 +12,7 @@ export const pointsWithDetailsView = pgView("point_with_details_view").as(
         createdAt: pointsTable.createdAt,
         createdBy: pointsTable.createdBy,
         space: pointsTable.space,
+        isCommand: pointsTable.isCommand,
         amountNegations: sql<number>`
         COALESCE((
           SELECT COUNT(*)
@@ -73,7 +74,7 @@ export const pointsWithDetailsView = pgView("point_with_details_view").as(
         `.as("negation_ids"),
       })
       .from(pointsTable)
-      .$dynamic(),
+      .$dynamic()
 );
 
 export type PointWithDetails = InferSelectViewModel<

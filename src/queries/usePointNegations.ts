@@ -16,12 +16,13 @@ export type NegationResult = {
   viewerCred: number;
   negationIds: number[];
   restake: {
-    id: number | null;
-    amount: number | null;
-    originalAmount: number | null;
-    slashedAmount: number | null;
-    doubtedAmount: number | null;
-    totalRestakeAmount: number | null;
+    id: number;
+    amount: number;
+    originalAmount: number;
+    slashedAmount: number;
+    doubtedAmount: number;
+    totalRestakeAmount: number;
+    effectiveAmount: number;
     isOwner: boolean;
   } | null;
   slash: {
@@ -38,6 +39,9 @@ export type NegationResult = {
   restakesByPoint: number;
   slashedAmount: number;
   doubtedAmount: number;
+  isPinned: boolean;
+  isCommand: boolean;
+  pinnedByCommandId: number | null;
 };
 
 export const pointNegationsQueryKey = ({
@@ -53,22 +57,29 @@ export const usePointNegations = (pointId: number) => {
   const setPointData = useSetPointData();
 
   return useQuery({
-    queryKey: pointNegationsQueryKey({ pointId, userId: privyUser?.id }),
+    queryKey: ["point-negations", pointId, privyUser?.id],
     queryFn: async () => {
       const negations = await fetchPointNegations(pointId);
 
-      const transformedNegations = negations.map((negation) => {
+      return negations.map((negation) => {
         const transformedNegation = {
           ...negation,
           restakesByPoint: negation.restakesByPoint,
+          slashedAmount: negation.slashedAmount,
+          doubtedAmount: negation.doubtedAmount,
+          totalRestakeAmount: negation.totalRestakeAmount,
+          isPinned: false,
+          isCommand: false,
+          pinnedByCommandId: negation.pinnedByCommandId,
           restake: negation.restake
             ? {
                 id: negation.restake.id ?? 0,
                 amount: negation.restake.amount ?? 0,
+                originalAmount: negation.restake.originalAmount ?? 0,
                 slashedAmount: negation.restake.slashedAmount ?? 0,
                 doubtedAmount: negation.restake.doubtedAmount ?? 0,
-                originalAmount: negation.restake.originalAmount ?? 0,
                 totalRestakeAmount: negation.restake.totalRestakeAmount ?? 0,
+                effectiveAmount: negation.restake.amount ?? 0,
                 isOwner: negation.restake.isOwner,
               }
             : null,
@@ -77,18 +88,20 @@ export const usePointNegations = (pointId: number) => {
                 id: negation.doubt.id ?? 0,
                 amount: negation.doubt.amount ?? 0,
                 userAmount: negation.doubt.userAmount ?? 0,
-                isUserDoubt: negation.doubt.isUserDoubt,
+                isUserDoubt: negation.doubt.isUserDoubt ?? false,
               }
             : null,
         };
+
         setPointData(
           { pointId: negation.pointId, userId: privyUser?.id },
-          transformedNegation,
+          transformedNegation
         );
         return transformedNegation;
       });
-
-      return transformedNegations;
     },
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 };

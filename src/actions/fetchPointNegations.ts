@@ -10,6 +10,7 @@ import {
   restakesTable,
   negationsTable,
   endorsementsTable,
+  pointsTable,
 } from "@/db/schema";
 import { addFavor } from "@/db/utils/addFavor";
 import { eq, or, and, ne, sql } from "drizzle-orm";
@@ -51,6 +52,7 @@ export type NegationResult = {
   slashedAmount: number;
   doubtedAmount: number;
   totalRestakeAmount: number;
+  pinnedByCommandId: number | null;
 };
 
 export const fetchPointNegations = async (
@@ -162,6 +164,17 @@ export const fetchPointNegations = async (
       `
         .mapWith(Number)
         .as("total_restake_amount"),
+      pinnedByCommandId: sql<number | null>`
+        COALESCE((
+          SELECT p.id
+          FROM ${pointsTable} p
+          WHERE p.is_command = true 
+          AND p.space = ${space}
+          AND p.content LIKE '/pin %'
+          ORDER BY p.created_at DESC
+          LIMIT 1
+        ), NULL)
+      `.mapWith((x) => x as number | null),
     })
     .from(pointsWithDetailsView)
     .innerJoin(

@@ -93,14 +93,15 @@ export function SearchResultsList({ results, isLoading, query, hasSearched = fal
                                 createdAt={result.createdAt}
                                 cred={pointData.cred}
                                 favor={pointData.favor || 0}
-                                amountSupporters={pointData.amountSupporters}
                                 amountNegations={pointData.amountNegations}
+                                amountSupporters={pointData.amountSupporters}
                                 viewerContext={{ viewerCred: pointData.viewerCred }}
                                 onNegate={(e) => {
                                     e.preventDefault();
                                     user !== null ? setNegatedPointId(Number(result.id)) : login();
                                 }}
                                 space={pointData.space}
+                                isCommand={result.content.startsWith('/')}
                             />
                         </Link>
                     );

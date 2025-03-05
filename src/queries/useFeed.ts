@@ -20,6 +20,9 @@ export const useFeed = () => {
           slashedAmount: point.slashedAmount,
           doubtedAmount: point.doubtedAmount,
           totalRestakeAmount: point.totalRestakeAmount,
+          isPinned: false,
+          isCommand: false,
+          pinnedByCommandId: point.pinnedByCommandId,
           restake: {
             id: 0,
             amount: 0,
@@ -47,6 +50,9 @@ export const useFeed = () => {
         slashedAmount: point.slashedAmount,
         doubtedAmount: point.doubtedAmount,
         totalRestakeAmount: point.totalRestakeAmount,
+        isPinned: false,
+        isCommand: false,
+        pinnedByCommandId: point.pinnedByCommandId,
         restake: {
           id: 0,
           amount: 0,

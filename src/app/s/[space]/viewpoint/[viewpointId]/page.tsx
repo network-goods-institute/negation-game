@@ -178,13 +178,11 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
   const points = useGraphPoints();
 
-  const { updateNodeData } = useReactFlow();
   const reactFlow = useReactFlow<AppNode>();
   const { data: viewpoint } = useViewpoint(viewpointId);
 
   const setGraph = useSetAtom(viewpointGraphAtom);
-  const setStatement = useSetAtom(viewpointStatementAtom);
-  const setReasoning = useSetAtom(viewpointReasoningAtom);
+
   const setCollapsedPointIds = useSetAtom(collapsedPointIdsAtom);
 
   const [hoveredPointId, setHoveredPointId] = useAtom(hoveredPointIdAtom);

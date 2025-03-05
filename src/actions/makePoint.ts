@@ -11,6 +11,8 @@ import { getSpace } from "@/actions/getSpace";
 import { InsertEndorsement } from "@/db/tables/endorsementsTable";
 import { InsertPoint, Point } from "@/db/tables/pointsTable";
 import { waitUntil } from "@vercel/functions";
+import { executeCommand } from "@/actions/handleCommand";
+import { revalidatePath } from "next/cache";
 
 export const makePoint = async ({
   content,
@@ -25,10 +27,13 @@ export const makePoint = async ({
     throw new Error("Must be authenticated to add a point");
   }
 
+  // Check if this is a command
+  const isCommand = content.trim().startsWith("/");
+
   return await db.transaction(async (tx) => {
     const newPointId = await tx
       .insert(pointsTable)
-      .values({ content, createdBy: userId, space })
+      .values({ content, createdBy: userId, space, isCommand })
       .returning({ id: pointsTable.id })
       .then(([{ id }]) => id);
 
@@ -50,6 +55,23 @@ export const makePoint = async ({
 
     waitUntil(addEmbedding({ content, id: newPointId }));
     waitUntil(addKeywords({ content, id: newPointId }));
+
+    // If this is a command, execute it after the transaction
+    if (isCommand) {
+      waitUntil(
+        (async () => {
+          try {
+            const result = await executeCommand(space, content);
+
+            if (result.success) {
+              revalidatePath(`/s/${space}`);
+            }
+          } catch (error) {
+            console.error(`Error executing command: ${error}`);
+          }
+        })()
+      );
+    }
 
     return newPointId;
   });

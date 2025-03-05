@@ -12,11 +12,28 @@ export const useEndorse = () => {
   return useAuthenticatedMutation({
     mutationFn: endorse,
     onSuccess: (_endorsementId, { pointId }) => {
+      // Invalidate the endorsed point
       invalidateRelatedPoints(pointId);
 
-      //update cred balance
+      // Invalidate favor history since endorsements affect favor
+      queryClient.invalidateQueries({
+        queryKey: [pointId, "favor-history"],
+        exact: false,
+      });
+
+      // Update user's cred balance
       queryClient.invalidateQueries({
         queryKey: userQueryKey(user?.id),
+      });
+
+      // Invalidate feed since endorsements affect visibility
+      queryClient.invalidateQueries({
+        queryKey: ["feed"],
+      });
+
+      // Invalidate pinned point in case this point is pinned
+      queryClient.invalidateQueries({
+        queryKey: ["pinnedPoint"],
       });
     },
   });
