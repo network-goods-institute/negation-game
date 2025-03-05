@@ -26,7 +26,8 @@ import { useUserEndorsement } from "@/queries/useUserEndorsements";
 import { usePrivy } from "@privy-io/react-auth";
 import { useToggle } from "@uidotdev/usehooks";
 import { useAtom } from "jotai";
-import { CheckIcon, CircleIcon, DotIcon } from "lucide-react";
+import { CircleIcon, DotIcon } from "lucide-react";
+import { Portal } from "@radix-ui/react-portal";
 import {
   HTMLAttributes,
   MouseEventHandler,
@@ -36,7 +37,6 @@ import {
   useState,
 } from "react";
 import { AuthenticatedActionButton, Button } from "./ui/button";
-import { Portal } from "@radix-ui/react-portal";
 
 const PointIcon = () => (
   <div className="relative flex items-center justify-center w-5 h-5 shrink-0 mt-0.5">
@@ -211,9 +211,6 @@ export const PointCard = ({
           <PointIcon />
           <p className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg -mt-1 mb-sm select-text flex-1 break-words whitespace-normal overflow-hidden">
             {content}
-            {visited === true && (
-              <CheckIcon className="inline size-4 text-muted-foreground/80 ml-2" />
-            )}
           </p>
         </div>
 
@@ -407,6 +404,25 @@ export const PointCard = ({
                 </strong>{" "}
                 with {opCred} cred
               </p>
+            </TooltipContent>
+          </Portal>
+        </Tooltip>
+      )}
+      {visited === false && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="absolute bottom-3 right-3">
+              <CircleIcon className="size-3 fill-endorsed text-endorsed animate-pulse" />
+            </div>
+          </TooltipTrigger>
+          <Portal>
+            <TooltipContent
+              side="top"
+              align="center"
+              sideOffset={5}
+              className="z-[100]"
+            >
+              <p>You haven't visited this point yet</p>
             </TooltipContent>
           </Portal>
         </Tooltip>
