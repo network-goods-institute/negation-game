@@ -668,7 +668,7 @@ export const PointNode = ({
             space={pointData.space ?? undefined}
             isCommand={pointData.isCommand}
             className={cn(
-              "bg-muted/40 rounded-sm z-10",
+              "bg-muted/40 rounded-sm z-10 max-w-[300px] break-words",
               isRedundant && "opacity-30 hover:opacity-100"
             )}
             originalPosterId={originalPosterId}

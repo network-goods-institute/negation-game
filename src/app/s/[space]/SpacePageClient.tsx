@@ -131,11 +131,11 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
         return (
             <Link
                 draggable={false}
-                href={`${basePath}/v/${item.id}`}
+                href={`${basePath}/viewpoint/${item.id}`}
                 className="flex border-b cursor-pointer hover:bg-accent"
             >
                 <MemoizedViewpointCard
-                    className="flex-grow p-6"
+                    className="flex-grow p-6 w-full"
                     id={viewpoint.id}
                     title={viewpoint.title || ''}
                     description={viewpoint.description || ''}
@@ -242,19 +242,16 @@ export function SpacePageClient({
         }
     }, [queryClient, user?.id]);
 
-    // Load priority points only when not in search mode and after initial render
     const shouldLoadPriorityPoints = selectedTab !== "search" && selectedTab !== "viewpoints";
-    const [shouldFetchPriority, setShouldFetchPriority] = useState(false);
-    const [priorityPointsVisible, setPriorityPointsVisible] = useState(false);
 
-    useEffect(() => {
-        // Delay loading priority points to improve initial render
-        const timer = setTimeout(() => {
-            setShouldFetchPriority(true);
-            setPriorityPointsVisible(true);
-        }, 200);
-        return () => clearTimeout(timer);
-    }, []);
+    const {
+        data: priorityPoints,
+        isLoading: priorityPointsLoading
+    } = usePriorityPoints(shouldLoadPriorityPoints);
+
+    const { data: pinnedPoint, isLoading: pinnedPointLoading } = usePinnedPoint(
+        shouldLoadPriorityPoints ? space.data?.id : undefined
+    );
 
     const handleNewViewpoint = () => {
         if (user) {
@@ -267,15 +264,6 @@ export function SpacePageClient({
 
     const { data: points, isLoading } = useFeed();
     const setNegatedPointId = useSetAtom(negatedPointIdAtom);
-
-    const { data: pinnedPoint, isLoading: pinnedPointLoading } = usePinnedPoint(
-        shouldFetchPriority ? space.data?.id : undefined
-    );
-
-    const {
-        data: priorityPoints,
-        isLoading: priorityPointsLoading
-    } = usePriorityPoints(shouldFetchPriority);
 
     const pathname = usePathname();
     const isInSpecificSpace = pathname?.includes('/s/') && !pathname.match(/^\/s\/global\//);
@@ -312,48 +300,14 @@ export function SpacePageClient({
             filteredPriorityPoints.forEach(point => pointIds.add(point.pointId));
         }
 
-        // Add pinned point ID
+        // Add pinned point ID - this is the only one we should filter out
         if (pinnedPoint?.pointId) {
             pointIds.add(pinnedPoint.pointId);
         }
 
-        // Add any points targeted by pin commands (more thorough scan)
-        if (points?.length) {
-            // First pass: collect all target IDs from pin commands
-            const targetIds = new Set<number>();
-
-            points.forEach(point => {
-                // If this is a pin command, extract the target point ID and add it
-                if (point.content?.startsWith('/pin ')) {
-                    const parts = point.content.split(' ');
-                    if (parts.length > 1) {
-                        try {
-                            const targetId = decodeId(parts[1]);
-                            if (targetId) targetIds.add(targetId);
-                        } catch (e) {
-                            const parsedId = parseInt(parts[1], 10);
-                            if (!isNaN(parsedId)) targetIds.add(parsedId);
-                        }
-                    }
-                }
-            });
-
-            // Second pass: add both target points and points with pin commands
-            points.forEach(point => {
-                // Add all identified target points
-                if (targetIds.has(point.pointId)) {
-                    pointIds.add(point.pointId);
-                }
-
-                // Add points that have pin commands targeting them
-                if (point.pinCommands?.length) {
-                    pointIds.add(point.pointId);
-                }
-            });
-        }
 
         return pointIds;
-    }, [filteredPriorityPoints, pinnedPoint, points]);
+    }, [filteredPriorityPoints, pinnedPoint]);
 
     const combinedFeed = useMemo(() => {
         if (!points) {
@@ -376,7 +330,7 @@ export function SpacePageClient({
             viewpoints.forEach(viewpoint => {
                 allItems.push({
                     type: 'viewpoint',
-                    id: `viewpoint-${viewpoint.id}`,
+                    id: viewpoint.id,
                     content: viewpoint.title,
                     createdAt: viewpoint.createdAt,
                     data: viewpoint,
@@ -483,10 +437,10 @@ export function SpacePageClient({
                     )}
                 </div>
 
-                {/* Pinned Point - only show in specific spaces and not in search/viewpoints tab */}
+                {/* Pinned Point - with transition */}
                 {selectedTab !== "search" && selectedTab !== "viewpoints" &&
                     pinnedPoint && !pinnedPointLoading && isInSpecificSpace && (
-                        <div className="border-b">
+                        <div className="border-b transition-opacity duration-200 ease-in-out">
                             <div
                                 onClick={(e) => handlePinnedPointClick(e, encodeId(pinnedPoint.pointId))}
                                 className="flex cursor-pointer hover:bg-accent"
@@ -517,22 +471,23 @@ export function SpacePageClient({
                         </div>
                     )}
 
-                {/* Priority Points - only show after both pinned and priority points have loaded */}
+                {/* Priority Points - with transition */}
                 {selectedTab !== "search" && selectedTab !== "viewpoints" &&
                     !priorityPointsLoading &&
                     !pinnedPointLoading &&
-                    filteredPriorityPoints.length > 0 &&
-                    priorityPointsVisible && (
-                        <PriorityPointsSection
-                            filteredPriorityPoints={filteredPriorityPoints}
-                            basePath={basePath}
-                            space={space.data?.id}
-                            setNegatedPointId={setNegatedPointId}
-                            login={login}
-                            user={user}
-                            selectedTab={selectedTab}
-                            pinnedPoint={pinnedPoint}
-                        />
+                    filteredPriorityPoints.length > 0 && (
+                        <div className="border-b transition-opacity duration-200 ease-in-out">
+                            <PriorityPointsSection
+                                filteredPriorityPoints={filteredPriorityPoints}
+                                basePath={basePath}
+                                space={space.data?.id}
+                                setNegatedPointId={setNegatedPointId}
+                                login={login}
+                                user={user}
+                                selectedTab={selectedTab}
+                                pinnedPoint={pinnedPoint}
+                            />
+                        </div>
                     )}
 
                 {selectedTab === "search" ? (

@@ -479,7 +479,7 @@ export const GraphView = ({
         className="[&>svg]:w-[120px] [&>svg]:h-[90px] sm:[&>svg]:w-[200px] sm:[&>svg]:h-[150px]"
       />
       <Controls />
-      {(isModified || isNew) && (
+      {(isModified && !isNew) && (
         <Panel position="top-right" className="z-50 mt-16 sm:mt-0">
           <div className="bg-background border rounded-lg shadow-lg p-4 flex flex-col gap-2 min-w-[200px]">
             <div className="text-sm font-medium text-muted-foreground">

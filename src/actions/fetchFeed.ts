@@ -49,7 +49,7 @@ export type FeedPoint = {
   }>;
 };
 
-export const fetchFeedPage = async (olderThan?: Timestamp, limit = 20) => {
+export const fetchFeedPage = async (olderThan?: Timestamp) => {
   const viewerId = await getUserId();
   const space = await getSpace();
 
@@ -79,8 +79,11 @@ export const fetchFeedPage = async (olderThan?: Timestamp, limit = 20) => {
     conditions.push(ne(pointsWithDetailsView.pointId, pinnedPointId));
   }
 
+  // this is somehow producing duplicates
+  // i have not been able to track it down, it seems to be related to pin commands
+  // but i don't understand why
   const results = await db
-    .select({
+    .selectDistinct({
       ...getColumns(pointsWithDetailsView),
       ...(viewerId
         ? {
@@ -161,8 +164,7 @@ export const fetchFeedPage = async (olderThan?: Timestamp, limit = 20) => {
         viewerId ? eq(doubtsTable.userId, viewerId) : undefined
       )
     )
-    .orderBy(desc(pointsWithDetailsView.createdAt))
-    .limit(limit);
+    .orderBy(desc(pointsWithDetailsView.createdAt));
 
   // Get all pin commands with the highest favor
   const commandPoints = await db.execute(
@@ -287,18 +289,26 @@ export const fetchFeedPage = async (olderThan?: Timestamp, limit = 20) => {
         )
       : [];
 
-  // Format final results
-  const pointsWithCommands = results.map((point: any) => {
-    // Filter commands that target this specific point
-    const targetingCommands = highestFavorCommands.filter(
-      (cmd) => cmd.targetPointId === point.pointId
-    );
+  const pointMap = new Map();
 
-    return {
-      ...point,
-      pinCommands: targetingCommands.length > 0 ? targetingCommands : undefined,
-    };
+  // First pass to collect unique points
+  results.forEach((point) => {
+    pointMap.set(point.pointId, { ...point, pinCommands: [] });
   });
+
+  // Second pass to add commands to points
+  highestFavorCommands.forEach((cmd) => {
+    if (cmd.targetPointId && pointMap.has(cmd.targetPointId)) {
+      const point = pointMap.get(cmd.targetPointId);
+      point.pinCommands.push(cmd);
+    }
+  });
+
+  // Convert map to array and clean up empty pinCommands
+  const pointsWithCommands = Array.from(pointMap.values()).map((point) => ({
+    ...point,
+    pinCommands: point.pinCommands.length > 0 ? point.pinCommands : undefined,
+  }));
 
   return await addFavor(pointsWithCommands);
 };

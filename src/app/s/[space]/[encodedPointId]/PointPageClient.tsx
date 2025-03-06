@@ -73,6 +73,7 @@ import {
 import { usePointData, pointQueryKey } from "@/queries/usePointData";
 import { Badge } from "@/components/ui/badge";
 import { useQueryClient } from "@tanstack/react-query";
+import { usePrefetchRestakeData } from "@/hooks/usePrefetchRestakeData";
 
 type Point = {
     id: number;
@@ -146,9 +147,9 @@ export function PointPageClient({
         openedFromSlashedIcon?: boolean;
     } | null>(null);
     const prefetchPoint = usePrefetchPoint();
+    const prefetchRestakeData = usePrefetchRestakeData();
     const { markPointAsRead } = useVisitedPoints();
     const pathname = usePathname();
-    const [isNavigating, setIsNavigating] = useState(false);
     const { mutate: endorse } = useEndorse();
 
     // Memoized values
@@ -190,6 +191,27 @@ export function PointPageClient({
             );
         }
     }, [queryClient, privyUser?.id, pointId]);
+
+    useEffect(() => {
+        if (!negations || negations.length === 0) return;
+
+        const batchSize = 5;
+        const batches = Math.ceil(negations.length / batchSize);
+
+        for (let i = 0; i < batches; i++) {
+            setTimeout(() => {
+                const start = i * batchSize;
+                const end = Math.min(start + batchSize, negations.length);
+                const batch = negations.slice(start, end);
+
+                batch.forEach(negation => {
+                    if (negation.pointId !== pointId) {
+                        prefetchRestakeData(pointId, negation.pointId);
+                    }
+                });
+            }, i * 10); // 10ms delay between batches
+        }
+    }, [negations, pointId, prefetchRestakeData]);
 
     // Derived state and callbacks
     const isInSpecificSpace = pathname?.includes('/s/') && !pathname.match(/^\/s\/global\//);
@@ -265,6 +287,11 @@ export function PointPageClient({
             push(`/s/${spaceData.data.id}/${encodedCommandId}`);
         }
     };
+
+    const handleNegationHover = useCallback((negationId: number) => {
+        prefetchPoint(negationId);
+        prefetchRestakeData(pointId, negationId);
+    }, [prefetchPoint, prefetchRestakeData, pointId]);
 
     // Early return for loading state
     if (!ready) {
@@ -576,7 +603,7 @@ export function PointPageClient({
                                                 className={cn(
                                                     "flex cursor-pointer px-4 pt-5 pb-2 border-b hover:bg-accent data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
                                                 )}
-                                                onMouseEnter={() => prefetchPoint(negation.pointId)}
+                                                onMouseEnter={() => handleNegationHover(negation.pointId)}
                                             >
                                                 <PointCard
                                                     onNegate={(e) => {

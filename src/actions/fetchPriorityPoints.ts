@@ -100,7 +100,8 @@ export const fetchPriorityPoints = async (limit = 5): Promise<FeedPoint[]> => {
       and(
         eq(endorsementsTable.pointId, pointsWithDetailsView.pointId),
         eq(endorsementsTable.userId, viewerId),
-        eq(endorsementsTable.space, space)
+        eq(endorsementsTable.space, space),
+        eq(pointsWithDetailsView.space, space)
       )
     )
     .leftJoin(

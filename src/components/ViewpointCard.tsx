@@ -122,7 +122,7 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                     <div className="flex flex-col gap-3 pl-3">
                         <div className="flex items-start gap-2">
                             <ViewpointIcon />
-                            <h3 className="text-lg font-semibold">{title}</h3>
+                            <h3 className="text-lg font-semibold -mt-0.5">{title}</h3>
                         </div>
 
                         <div className="text-sm text-muted-foreground mb-1">
