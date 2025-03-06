@@ -104,7 +104,10 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
               ),
             },
           }
-        : {}),
+        : {
+            viewerCred: sql<number>`0`.mapWith(Number),
+            doubt: sql<null>`NULL`.mapWith((x) => x as null),
+          }),
       restakesByPoint: sql<number>`
         COALESCE(
           (SELECT SUM(er1.amount)

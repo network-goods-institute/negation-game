@@ -16,6 +16,7 @@ import { FeedPoint } from "./fetchFeed";
 
 export const fetchPriorityPoints = async (limit = 5): Promise<FeedPoint[]> => {
   const viewerId = await getUserId();
+  // Return empty array for non-logged-in users
   if (!viewerId) return [];
 
   const space = await getSpace();

@@ -8,6 +8,8 @@ export const usePriorityPoints = (shouldFetch = true) => {
   return useQuery({
     queryKey: ["priority-points", user?.id],
     queryFn: async () => {
+      if (!user) return [];
+
       // Add a small delay to prevent this from competing with more critical resources
       if (typeof window !== "undefined") {
         await new Promise((resolve) => {
@@ -21,7 +23,7 @@ export const usePriorityPoints = (shouldFetch = true) => {
       }
       return fetchPriorityPoints();
     },
-    enabled: !!user && shouldFetch,
+    enabled: shouldFetch,
     staleTime: 10 * 60_000,
     gcTime: 15 * 60_000,
     refetchOnWindowFocus: false,

@@ -183,11 +183,17 @@ export async function fetchPinnedPoint({ spaceId }: FetchPinnedPointParams) {
               SELECT older_point_id FROM negations WHERE newer_point_id = p.id
             )
           ), 0) as "negationsCred",
-          COALESCE((SELECT e2.cred FROM endorsements e2 WHERE e2.point_id = p.id AND e2.user_id = ${userId || null} LIMIT 1), 0) as "viewerCred",
+          COALESCE(CASE WHEN ${userId} IS NOT NULL THEN (
+            SELECT e2.cred 
+            FROM endorsements e2 
+            WHERE e2.point_id = p.id 
+            AND e2.user_id = ${userId} 
+            LIMIT 1
+          ) ELSE 0 END, 0) as "viewerCred",
           ARRAY_AGG(DISTINCT n.id) FILTER (WHERE n.id IS NOT NULL) as "negationIds",
-          COALESCE(SUM(CASE WHEN r.user_id = ${userId || null} THEN er.effective_amount ELSE 0 END), 0) as "restakesByPoint",
-          COALESCE(SUM(CASE WHEN r.user_id = ${userId || null} THEN er.slashed_amount ELSE 0 END), 0) as "slashedAmount",
-          COALESCE(SUM(CASE WHEN d.user_id = ${userId || null} THEN d.amount ELSE 0 END), 0) as "doubtedAmount",
+          COALESCE(SUM(CASE WHEN r.user_id = ${userId} THEN er.effective_amount ELSE 0 END), 0) as "restakesByPoint",
+          COALESCE(SUM(CASE WHEN r.user_id = ${userId} THEN er.slashed_amount ELSE 0 END), 0) as "slashedAmount",
+          COALESCE(SUM(CASE WHEN d.user_id = ${userId} THEN d.amount ELSE 0 END), 0) as "doubtedAmount",
           COALESCE(SUM(er.effective_amount), 0) as "totalRestakeAmount"
         FROM points p
         LEFT JOIN endorsements e ON p.id = e.point_id
@@ -202,8 +208,8 @@ export async function fetchPinnedPoint({ spaceId }: FetchPinnedPointParams) {
         SELECT 
           MIN(d.id) as id,
           COALESCE(SUM(d.amount), 0) as amount,
-          COALESCE(SUM(CASE WHEN d.user_id = ${userId || null} THEN d.amount ELSE 0 END), 0) as "userAmount",
-          CASE WHEN COUNT(CASE WHEN d.user_id = ${userId || null} THEN 1 END) > 0 THEN true ELSE false END as "isUserDoubt"
+          COALESCE(SUM(CASE WHEN d.user_id = ${userId} THEN d.amount ELSE 0 END), 0) as "userAmount",
+          CASE WHEN COUNT(CASE WHEN d.user_id = ${userId} THEN 1 END) > 0 THEN true ELSE false END as "isUserDoubt"
         FROM doubts d
         JOIN point_data pd ON pd."pointId" = d.point_id
         JOIN negations n ON (n.older_point_id = pd."pointId" OR n.newer_point_id = pd."pointId")

@@ -38,10 +38,12 @@ export const useFeed = () => {
               },
             };
 
-            setPointData(
-              { pointId: point.pointId, userId: privyUser?.id },
-              transformedPoint
-            );
+            if (privyUser?.id) {
+              setPointData(
+                { pointId: point.pointId, userId: privyUser.id },
+                transformedPoint
+              );
+            }
           }
 
           // Only yield to main thread if we have more batches and every 2 batches
@@ -56,7 +58,7 @@ export const useFeed = () => {
     staleTime: 5 * 60_000,
     gcTime: 10 * 60_000,
     retry: false,
-    enabled: !!privyUser,
+    enabled: true,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
