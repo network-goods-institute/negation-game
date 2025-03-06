@@ -26,9 +26,11 @@ export const usePointData = (pointId?: number) => {
     queryKey: pointQueryKey({ pointId, userId: user?.id }),
     queryFn: () => (pointId ? pointFetcher.fetch(pointId) : null),
     gcTime: Infinity,
-    staleTime: 0,
-    refetchOnMount: true,
+    staleTime: 5 * 60 * 1000,
+    refetchOnMount: false,
     refetchOnWindowFocus: true,
+    refetchOnReconnect: false,
+    networkMode: "offlineFirst",
   });
 };
 

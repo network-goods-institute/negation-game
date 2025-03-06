@@ -87,7 +87,9 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   originalPosterId?: string;
   isCommand?: boolean;
   isPinned?: boolean;
+  isPriority?: boolean;
   pinnedCommandPointId?: number;
+  pinStatus?: string;
 }
 
 export const PointCard = ({
@@ -112,7 +114,9 @@ export const PointCard = ({
   originalPosterId,
   isCommand,
   isPinned,
+  isPriority,
   pinnedCommandPointId,
+  pinStatus,
   ...props
 }: PointCardProps) => {
   const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
@@ -212,10 +216,13 @@ export const PointCard = ({
     }
   };
 
-  const handleCommandClick = (e: React.MouseEvent) => {
+  const handlePinCommandClick = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
-    if (pinnedCommandPointId && space && space !== 'global') {
-      router.push(`/s/${space}/${encodeId(pinnedCommandPointId)}`);
+
+    if (pinnedCommandPointId && router && space && space !== 'global') {
+      const encodedCommandId = encodeId(pinnedCommandPointId);
+      router.push(`/s/${space}/${encodedCommandId}`);
     }
   };
 
@@ -224,6 +231,7 @@ export const PointCard = ({
       className={cn(
         "@container/point flex gap-3 pt-4 pb-3 px-4 relative rounded-none",
         isPinned && "border-l-4 border-primary",
+        isPriority && !isPinned && "border-l-4 border-amber-400",
         className
       )}
       onMouseOver={() => {
@@ -251,9 +259,9 @@ export const PointCard = ({
                   type="button"
                   variant="link"
                   className="h-auto p-0 text-muted-foreground hover:text-foreground"
-                  onClick={handleCommandClick}
+                  onClick={handlePinCommandClick}
                 >
-                  Pinned by command
+                  {pinStatus || "Pinned by command"}
                 </Button>
               </Badge>
             )}

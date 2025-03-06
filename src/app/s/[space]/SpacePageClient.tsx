@@ -18,7 +18,7 @@ import { useToggle } from "@uidotdev/usehooks";
 import { useSetAtom } from "jotai";
 import { PlusIcon, TrophyIcon, SearchIcon } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useState, useMemo, memo, useEffect } from "react";
 import { LeaderboardDialog } from "@/components/LeaderboardDialog";
 import { useRouter, usePathname } from "next/navigation";
 import { useViewpoints } from "@/queries/useViewpoints";
@@ -29,15 +29,197 @@ import { useSearch } from "@/queries/useSearch";
 import { SearchResultsList } from "@/components/SearchResultsList";
 import { usePinnedPoint } from "@/queries/usePinnedPoint";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
+import { usePriorityPoints } from "@/queries/usePriorityPoints";
+import { decodeId } from "@/lib/decodeId";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface PageProps {
     params: { space: string };
     searchParams: { [key: string]: string | string[] | undefined };
 }
 
+type PointItem = {
+    type: 'point';
+    id: string;
+    content: string;
+    createdAt: Date;
+    data: any;
+};
+
+type ViewpointItem = {
+    type: 'viewpoint';
+    id: string;
+    content: string;
+    createdAt: Date;
+    data: any;
+};
+
+type FeedItem = PointItem | ViewpointItem;
+
+const MemoizedPointCard = memo(PointCard);
+const MemoizedViewpointCard = memo(ViewpointCard);
+
+const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, pinnedPoint }: any) => {
+    if (item.type === 'point') {
+        const point = item.data;
+        const isProposalToPin = point.content?.startsWith('/pin ');
+        const isPinnedPoint = pinnedPoint && pinnedPoint.pointId === point.pointId;
+
+        // Extract target point ID if this is a pin command
+        let targetPointId;
+        if (isProposalToPin) {
+            const parts = point.content.split(' ');
+            if (parts.length > 1) {
+                try {
+                    targetPointId = decodeId(parts[1]);
+                } catch (e) {
+                    const parsedId = parseInt(parts[1], 10);
+                    if (!isNaN(parsedId)) {
+                        targetPointId = parsedId;
+                    }
+                }
+            }
+        }
+
+        // Determine the pinStatus based on conditions
+        let pinStatus;
+        if (isProposalToPin) {
+            pinStatus = targetPointId
+                ? `Proposal to pin point ${targetPointId}`
+                : "Proposal to pin";
+        } else if (point.pinCommands?.length > 1) {
+            pinStatus = `Proposal to pin (${point.pinCommands.length} proposals)`;
+        } else if (point.pinCommands?.length === 1) {
+            pinStatus = "Proposal to pin";
+        }
+
+        // Only use command point IDs for actual pin commands, not for targets
+        const pinnedCommandPointId = isProposalToPin
+            ? undefined
+            : point.pinCommands?.[0]?.id;
+
+        return (
+            <Link
+                draggable={false}
+                onClick={preventDefaultIfContainsSelection}
+                href={`${basePath}/${encodeId(point.pointId)}`}
+                className="flex border-b cursor-pointer hover:bg-accent"
+            >
+                <MemoizedPointCard
+                    className="flex-grow p-6"
+                    amountSupporters={point.amountSupporters}
+                    createdAt={point.createdAt}
+                    cred={point.cred}
+                    pointId={point.pointId}
+                    favor={point.favor}
+                    amountNegations={point.amountNegations}
+                    content={point.content}
+                    viewerContext={{ viewerCred: point.viewerCred }}
+                    isCommand={point.isCommand}
+                    space={space}
+                    onNegate={(e) => {
+                        e.preventDefault();
+                        user !== null ? setNegatedPointId(point.pointId) : login();
+                    }}
+                    pinnedCommandPointId={pinnedCommandPointId}
+                    pinStatus={pinStatus}
+                />
+            </Link>
+        );
+    } else if (item.type === 'viewpoint') {
+        const viewpoint = item.data;
+        return (
+            <Link
+                draggable={false}
+                href={`${basePath}/v/${item.id}`}
+                className="flex border-b cursor-pointer hover:bg-accent"
+            >
+                <MemoizedViewpointCard
+                    className="flex-grow p-6"
+                    id={viewpoint.id}
+                    title={viewpoint.title || ''}
+                    description={viewpoint.description || ''}
+                    author={viewpoint.author || ''}
+                    createdAt={new Date(viewpoint.createdAt)}
+                    space={space || "global"}
+                />
+            </Link>
+        );
+    }
+
+    return null;
+});
+FeedItem.displayName = 'FeedItem';
+
+const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, login, user, pinnedPoint }: any) => {
+    let pinStatus;
+    if (point.pinCommands?.length > 1) {
+        pinStatus = `Proposal to pin (${point.pinCommands.length} proposals)`;
+    } else if (point.pinCommands?.length === 1) {
+        pinStatus = "Proposal to pin";
+    }
+
+    // Only use command point IDs for actual pin commands
+    const pinnedCommandPointId = point.pinCommands?.[0]?.id;
+
+    return (
+        <Link
+            key={`priority-${point.pointId}`}
+            draggable={false}
+            onClick={preventDefaultIfContainsSelection}
+            href={`${basePath}/${encodeId(point.pointId)}`}
+            className="flex border-b cursor-pointer hover:bg-accent"
+        >
+            <MemoizedPointCard
+                className="flex-grow p-6"
+                amountSupporters={point.amountSupporters}
+                createdAt={point.createdAt}
+                cred={point.cred}
+                pointId={point.pointId}
+                favor={point.favor}
+                amountNegations={point.amountNegations}
+                content={point.content}
+                viewerContext={{ viewerCred: point.viewerCred }}
+                isCommand={point.isCommand}
+                space={space}
+                isPriority={true}
+                onNegate={(e) => {
+                    e.preventDefault();
+                    user !== null ? setNegatedPointId(point.pointId) : login();
+                }}
+                pinnedCommandPointId={pinnedCommandPointId}
+                pinStatus={pinStatus}
+            />
+        </Link>
+    );
+});
+PriorityPointItem.displayName = 'PriorityPointItem';
+
+const PriorityPointsSection = memo(({ filteredPriorityPoints, basePath, space, setNegatedPointId, login, user, selectedTab, pinnedPoint }: any) => {
+    if (!filteredPriorityPoints || filteredPriorityPoints.length === 0) return null;
+
+    return (
+        <div className="border-b">
+            {filteredPriorityPoints.map((point: any) => (
+                <PriorityPointItem
+                    key={`${selectedTab}-priority-${point.pointId}`}
+                    point={point}
+                    basePath={basePath}
+                    space={space}
+                    setNegatedPointId={setNegatedPointId}
+                    login={login}
+                    user={user}
+                    pinnedPoint={pinnedPoint}
+                />
+            ))}
+        </div>
+    );
+});
+PriorityPointsSection.displayName = 'PriorityPointsSection';
+
 export function SpacePageClient({
     params,
-    searchParams,
+    searchParams: initialSearchParams,
 }: PageProps) {
     const { user, login } = usePrivy();
     const [makePointOpen, onMakePointOpenChange] = useToggle(false);
@@ -45,24 +227,34 @@ export function SpacePageClient({
     const space = useSpace(params.space);
     const [leaderboardOpen, setLeaderboardOpen] = useState(false);
     const router = useRouter();
+    const queryClient = useQueryClient();
     const [isNavigating, setIsNavigating] = useState(false);
     const { data: viewpoints, isLoading: viewpointsLoading } = useViewpoints(space.data?.id || "global");
     const [selectedTab, setSelectedTab] = useState<"all" | "points" | "viewpoints" | "search">("all");
     const { searchQuery, searchResults, isLoading: searchLoading, handleSearch, isActive, hasSearched } = useSearch();
 
-    // Fetch the pinned point for this space
-    const { data: pinnedPoint, isLoading: pinnedPointLoading } = usePinnedPoint(space.data?.id);
-
-    const pathname = usePathname();
-    const isInSpecificSpace = pathname?.includes('/s/') && !pathname.match(/^\/s\/global\//);
-
-    const loginOrMakePoint = useCallback(() => {
-        if (user !== null) {
-            onMakePointOpenChange(true);
-        } else {
-            login();
+    // Prevent feed from reloading when navigating back to it
+    useEffect(() => {
+        // Mark the feed data as fresh when this component mounts
+        // This prevents unnecessary refetches when navigating back from a point page
+        if (user?.id) {
+            queryClient.setQueryData(["feed", user?.id], (oldData: any) => oldData);
         }
-    }, [user, login, onMakePointOpenChange]);
+    }, [queryClient, user?.id]);
+
+    // Load priority points only when not in search mode and after initial render
+    const shouldLoadPriorityPoints = selectedTab !== "search" && selectedTab !== "viewpoints";
+    const [shouldFetchPriority, setShouldFetchPriority] = useState(false);
+    const [priorityPointsVisible, setPriorityPointsVisible] = useState(false);
+
+    useEffect(() => {
+        // Delay loading priority points to improve initial render
+        const timer = setTimeout(() => {
+            setShouldFetchPriority(true);
+            setPriorityPointsVisible(true);
+        }, 200);
+        return () => clearTimeout(timer);
+    }, []);
 
     const handleNewViewpoint = () => {
         if (user) {
@@ -76,46 +268,124 @@ export function SpacePageClient({
     const { data: points, isLoading } = useFeed();
     const setNegatedPointId = useSetAtom(negatedPointIdAtom);
 
+    const { data: pinnedPoint, isLoading: pinnedPointLoading } = usePinnedPoint(
+        shouldFetchPriority ? space.data?.id : undefined
+    );
+
+    const {
+        data: priorityPoints,
+        isLoading: priorityPointsLoading
+    } = usePriorityPoints(shouldFetchPriority);
+
+    const pathname = usePathname();
+    const isInSpecificSpace = pathname?.includes('/s/') && !pathname.match(/^\/s\/global\//);
+
+    const loginOrMakePoint = useCallback(() => {
+        if (user !== null) {
+            onMakePointOpenChange(true);
+        } else {
+            login();
+        }
+    }, [user, login, onMakePointOpenChange]);
+
+    // Filter priority points to remove duplicates with pinnedPoint - with memoization
+    const filteredPriorityPoints = useMemo(() => {
+        if (!priorityPoints || priorityPointsLoading || !shouldLoadPriorityPoints) return [];
+
+        // First remove any duplicate points within priority points itself
+        const uniquePriorityPoints = Array.from(
+            new Map(priorityPoints.map(point => [point.pointId, point])).values()
+        );
+
+        // Then filter out the pinned point if it exists
+        return uniquePriorityPoints.filter(point => {
+            return !pinnedPoint || point.pointId !== pinnedPoint.pointId;
+        });
+    }, [priorityPoints, pinnedPoint, priorityPointsLoading, shouldLoadPriorityPoints]);
+
+    // Add all pin command target points to the exclusion list
+    const pinnedAndPriorityPoints = useMemo(() => {
+        const pointIds = new Set<number>();
+
+        // Add priority points IDs
+        if (filteredPriorityPoints?.length) {
+            filteredPriorityPoints.forEach(point => pointIds.add(point.pointId));
+        }
+
+        // Add pinned point ID
+        if (pinnedPoint?.pointId) {
+            pointIds.add(pinnedPoint.pointId);
+        }
+
+        // Add any points targeted by pin commands (more thorough scan)
+        if (points?.length) {
+            // First pass: collect all target IDs from pin commands
+            const targetIds = new Set<number>();
+
+            points.forEach(point => {
+                // If this is a pin command, extract the target point ID and add it
+                if (point.content?.startsWith('/pin ')) {
+                    const parts = point.content.split(' ');
+                    if (parts.length > 1) {
+                        try {
+                            const targetId = decodeId(parts[1]);
+                            if (targetId) targetIds.add(targetId);
+                        } catch (e) {
+                            const parsedId = parseInt(parts[1], 10);
+                            if (!isNaN(parsedId)) targetIds.add(parsedId);
+                        }
+                    }
+                }
+            });
+
+            // Second pass: add both target points and points with pin commands
+            points.forEach(point => {
+                // Add all identified target points
+                if (targetIds.has(point.pointId)) {
+                    pointIds.add(point.pointId);
+                }
+
+                // Add points that have pin commands targeting them
+                if (point.pinCommands?.length) {
+                    pointIds.add(point.pointId);
+                }
+            });
+        }
+
+        return pointIds;
+    }, [filteredPriorityPoints, pinnedPoint, points]);
+
     const combinedFeed = useMemo(() => {
-        if (!points || !viewpoints) return [];
+        if (!points) {
+            return [];
+        }
+        const allItems: FeedItem[] = [];
 
-        type PointItem = {
-            type: 'point';
-            id: string;
-            content: string;
-            createdAt: Date;
-            data: typeof points[number];
-        };
-
-        type ViewpointItem = {
-            type: 'viewpoint';
-            id: string;
-            content: string;
-            createdAt: Date;
-            data: typeof viewpoints[number];
-        };
-
-        type FeedItem = PointItem | ViewpointItem;
-
-        const allItems: FeedItem[] = [
-            ...points.map(point => ({
-                type: 'point' as const,
+        // Add all points to the feed, except those in pinnedAndPriorityPoints
+        points.filter(point => !pinnedAndPriorityPoints.has(point.pointId)).forEach(point => {
+            allItems.push({
+                type: 'point',
                 id: `point-${point.pointId}`,
                 content: point.content,
-                createdAt: new Date(point.createdAt),
-                data: point
-            })),
-            ...viewpoints.map(viewpoint => ({
-                type: 'viewpoint' as const,
-                id: `viewpoint-${viewpoint.id}`,
-                content: viewpoint.title,
-                createdAt: new Date(viewpoint.createdAt),
-                data: viewpoint
-            }))
-        ];
+                createdAt: point.createdAt,
+                data: point,
+            });
+        });
+
+        if (viewpoints && (selectedTab === 'all' || selectedTab === 'viewpoints')) {
+            viewpoints.forEach(viewpoint => {
+                allItems.push({
+                    type: 'viewpoint',
+                    id: `viewpoint-${viewpoint.id}`,
+                    content: viewpoint.title,
+                    createdAt: viewpoint.createdAt,
+                    data: viewpoint,
+                });
+            });
+        }
 
         return allItems.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    }, [points, viewpoints]);
+    }, [points, viewpoints, pinnedAndPriorityPoints, selectedTab]);
 
     // Handle search input change
     const handleSearchChange = (value: string) => {
@@ -213,31 +483,57 @@ export function SpacePageClient({
                     )}
                 </div>
 
-                {/* Pinned Point - only show in specific spaces and not in search tab */}
-                {selectedTab !== "search" && pinnedPoint && !pinnedPointLoading && isInSpecificSpace && (
-                    <div className="border-b">
-                        <div
-                            onClick={(e) => handlePinnedPointClick(e, encodeId(pinnedPoint.pointId))}
-                            className="flex cursor-pointer hover:bg-accent"
-                        >
-                            <PointCard
-                                className="flex-grow p-6"
-                                amountSupporters={pinnedPoint.amountSupporters}
-                                createdAt={pinnedPoint.createdAt}
-                                cred={pinnedPoint.cred}
-                                pointId={pinnedPoint.pointId}
-                                favor={pinnedPoint.favor}
-                                amountNegations={pinnedPoint.amountNegations}
-                                content={pinnedPoint.content}
-                                viewerContext={{ viewerCred: pinnedPoint.viewerCred }}
-                                isPinned={true}
-                                isCommand={pinnedPoint.isCommand}
-                                space={space.data?.id}
-                                pinnedCommandPointId={pinnedPoint.pinnedByCommandId ?? undefined}
-                            />
+                {/* Pinned Point - only show in specific spaces and not in search/viewpoints tab */}
+                {selectedTab !== "search" && selectedTab !== "viewpoints" &&
+                    pinnedPoint && !pinnedPointLoading && isInSpecificSpace && (
+                        <div className="border-b">
+                            <div
+                                onClick={(e) => handlePinnedPointClick(e, encodeId(pinnedPoint.pointId))}
+                                className="flex cursor-pointer hover:bg-accent"
+                            >
+                                <PointCard
+                                    className="flex-grow p-6"
+                                    amountSupporters={pinnedPoint.amountSupporters}
+                                    createdAt={pinnedPoint.createdAt}
+                                    cred={pinnedPoint.cred}
+                                    pointId={pinnedPoint.pointId}
+                                    favor={pinnedPoint.favor}
+                                    amountNegations={pinnedPoint.amountNegations}
+                                    content={pinnedPoint.content}
+                                    viewerContext={{ viewerCred: pinnedPoint.viewerCred }}
+                                    isPinned={true}
+                                    isCommand={pinnedPoint.isCommand}
+                                    space={space.data?.id}
+                                    pinnedCommandPointId={pinnedPoint.pinCommands?.[0]?.id}
+                                    pinStatus={
+                                        pinnedPoint.pinCommands?.length > 1
+                                            ? `Pinned by command (${pinnedPoint.pinCommands.length} competing proposals)`
+                                            : pinnedPoint.pinCommands?.length === 1
+                                                ? "Pinned by command"
+                                                : "Pinned by command"
+                                    }
+                                />
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
+
+                {/* Priority Points - only show after both pinned and priority points have loaded */}
+                {selectedTab !== "search" && selectedTab !== "viewpoints" &&
+                    !priorityPointsLoading &&
+                    !pinnedPointLoading &&
+                    filteredPriorityPoints.length > 0 &&
+                    priorityPointsVisible && (
+                        <PriorityPointsSection
+                            filteredPriorityPoints={filteredPriorityPoints}
+                            basePath={basePath}
+                            space={space.data?.id}
+                            setNegatedPointId={setNegatedPointId}
+                            login={login}
+                            user={user}
+                            selectedTab={selectedTab}
+                            pinnedPoint={pinnedPoint}
+                        />
+                    )}
 
                 {selectedTab === "search" ? (
                     <SearchResultsList
@@ -268,51 +564,18 @@ export function SpacePageClient({
                         </div>
                     ) : (
                         <>
-                            {combinedFeed.map(item => {
-                                if (item.type === 'point') {
-                                    const point = item.data;
-                                    return (
-                                        <Link
-                                            draggable={false}
-                                            onClick={preventDefaultIfContainsSelection}
-                                            href={`${basePath}/${encodeId(point.pointId)}`}
-                                            className="flex border-b cursor-pointer hover:bg-accent"
-                                            key={item.id}
-                                        >
-                                            <PointCard
-                                                className="flex-grow p-6"
-                                                amountSupporters={point.amountSupporters}
-                                                createdAt={point.createdAt}
-                                                cred={point.cred}
-                                                pointId={point.pointId}
-                                                favor={point.favor}
-                                                amountNegations={point.amountNegations}
-                                                content={point.content}
-                                                viewerContext={{ viewerCred: point.viewerCred }}
-                                                isCommand={point.isCommand}
-                                                space={space.data?.id}
-                                                onNegate={(e) => {
-                                                    e.preventDefault();
-                                                    user !== null ? setNegatedPointId(point.pointId) : login();
-                                                }}
-                                            />
-                                        </Link>
-                                    );
-                                } else {
-                                    const viewpoint = item.data;
-                                    return (
-                                        <ViewpointCard
-                                            key={item.id}
-                                            id={viewpoint.id}
-                                            title={viewpoint.title}
-                                            description={viewpoint.description}
-                                            author={viewpoint.author}
-                                            createdAt={new Date(viewpoint.createdAt)}
-                                            space={space.data?.id || "global"}
-                                        />
-                                    );
-                                }
-                            })}
+                            {combinedFeed.map(item => (
+                                <FeedItem
+                                    key={item.id}
+                                    item={item}
+                                    basePath={basePath}
+                                    space={space.data?.id}
+                                    setNegatedPointId={setNegatedPointId}
+                                    login={login}
+                                    user={user}
+                                    pinnedPoint={pinnedPoint}
+                                />
+                            ))}
                         </>
                     )
                 ) : selectedTab === "points" ? (
@@ -326,33 +589,34 @@ export function SpacePageClient({
                             </Button>
                         </div>
                     ) : (
-                        points.map((point) => (
-                            <Link
-                                draggable={false}
-                                onClick={preventDefaultIfContainsSelection}
-                                href={`${basePath}/${encodeId(point.pointId)}`}
-                                className="flex border-b cursor-pointer hover:bg-accent "
-                                key={point.pointId}
-                            >
-                                <PointCard
-                                    className="flex-grow p-6"
-                                    amountSupporters={point.amountSupporters}
-                                    createdAt={point.createdAt}
-                                    cred={point.cred}
-                                    pointId={point.pointId}
-                                    favor={point.favor}
-                                    amountNegations={point.amountNegations}
-                                    content={point.content}
-                                    viewerContext={{ viewerCred: point.viewerCred }}
-                                    isCommand={point.isCommand}
-                                    space={space.data?.id}
-                                    onNegate={(e) => {
-                                        e.preventDefault();
-                                        user !== null ? setNegatedPointId(point.pointId) : login();
-                                    }}
-                                />
-                            </Link>
-                        ))
+                        points.filter(point => !pinnedAndPriorityPoints.has(point.pointId))
+                            .map((point) => (
+                                <Link
+                                    draggable={false}
+                                    onClick={preventDefaultIfContainsSelection}
+                                    href={`${basePath}/${encodeId(point.pointId)}`}
+                                    className="flex border-b cursor-pointer hover:bg-accent "
+                                    key={`points-tab-${point.pointId}`}
+                                >
+                                    <PointCard
+                                        className="flex-grow p-6"
+                                        amountSupporters={point.amountSupporters}
+                                        createdAt={point.createdAt}
+                                        cred={point.cred}
+                                        pointId={point.pointId}
+                                        favor={point.favor}
+                                        amountNegations={point.amountNegations}
+                                        content={point.content}
+                                        viewerContext={{ viewerCred: point.viewerCred }}
+                                        isCommand={point.isCommand}
+                                        space={space.data?.id}
+                                        onNegate={(e) => {
+                                            e.preventDefault();
+                                            user !== null ? setNegatedPointId(point.pointId) : login();
+                                        }}
+                                    />
+                                </Link>
+                            ))
                     )
                 ) : (
                     viewpoints === undefined || viewpointsLoading ? (
@@ -371,7 +635,7 @@ export function SpacePageClient({
                     ) : (
                         viewpoints.map((viewpoint) => (
                             <ViewpointCard
-                                key={viewpoint.id}
+                                key={`viewpoints-tab-${viewpoint.id}`}
                                 id={viewpoint.id}
                                 title={viewpoint.title}
                                 description={viewpoint.description}

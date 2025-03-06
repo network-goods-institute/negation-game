@@ -6,16 +6,12 @@ export const usePinnedPoint = (spaceId?: string) => {
   const pathname = usePathname();
   const isInSpecificSpace =
     pathname?.includes("/s/") && !pathname.match(/^\/s\/global\//);
-
-  // Don't fetch pinned points unless we're in a specific space
-  const enabled = !!spaceId && isInSpecificSpace;
-
   return useQuery({
-    queryKey: ["pinnedPoint", spaceId, enabled],
-    queryFn: () => (enabled ? fetchPinnedPoint({ spaceId }) : null),
-    enabled,
-    staleTime: 0,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
+    queryKey: ["pinned-point", spaceId],
+    queryFn: () => fetchPinnedPoint({ spaceId: spaceId || "global" }),
+    staleTime: 5 * 60 * 1000, // 5 minutes - pin changes are infrequent
+    gcTime: 10 * 60 * 1000, // Keep cached for 10 minutes after unmount
+    refetchOnWindowFocus: false,
+    enabled: !!spaceId,
   });
 };

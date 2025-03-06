@@ -1,6 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
+import { useMemo, useState, useEffect } from "react";
 
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
@@ -58,7 +59,7 @@ import {
 import { nanoid } from "nanoid";
 import Link from "next/link";
 import { notFound, useRouter, useSearchParams, usePathname } from "next/navigation";
-import { Fragment, useEffect, useMemo, useState, useCallback } from "react";
+import { Fragment, useCallback } from "react";
 import {
     Dot,
     Line,
@@ -69,8 +70,9 @@ import {
     XAxis,
     YAxis,
 } from "recharts";
-import { usePointData } from "@/queries/usePointData";
+import { usePointData, pointQueryKey } from "@/queries/usePointData";
 import { Badge } from "@/components/ui/badge";
+import { useQueryClient } from "@tanstack/react-query";
 
 type Point = {
     id: number;
@@ -102,6 +104,7 @@ export function PointPageClient({
     const { encodedPointId, space } = params;
     const pointId = decodeId(encodedPointId);
     const setNegatedPointId = useSetAtom(negatedPointIdAtom);
+    const queryClient = useQueryClient();
     const setNegationContent = useAtomCallback(
         (_get, set, negatedPointId: number, content: string) => {
             set(negationContentAtom(negatedPointId), content);
@@ -176,6 +179,18 @@ export function PointPageClient({
         setCanvasEnabled(searchParams?.get("view") === "graph");
     }, [searchParams, setCanvasEnabled]);
 
+    // Add this effect to mark point data as fresh when navigating back to this page
+    useEffect(() => {
+        // Mark the point data as fresh when this component mounts
+        // This prevents unnecessary refetches when navigating back from feed
+        if (privyUser?.id) {
+            queryClient.setQueryData(
+                pointQueryKey({ pointId, userId: privyUser?.id }),
+                (oldData: any) => oldData
+            );
+        }
+    }, [queryClient, privyUser?.id, pointId]);
+
     // Derived state and callbacks
     const isInSpecificSpace = pathname?.includes('/s/') && !pathname.match(/^\/s\/global\//);
     const isGlobalSpace = spaceData.data?.id === 'global' || spaceData.data?.id === 'global/';
@@ -241,9 +256,13 @@ export function PointPageClient({
     };
 
     const handleCommandPointClick = (e: React.MouseEvent) => {
+        e.preventDefault();
         e.stopPropagation();
-        if (point?.pinnedByCommandId && spaceData.data?.id && isInSpecificSpace) {
-            push(`/s/${spaceData.data.id}/${encodeId(point.pinnedByCommandId)}`);
+
+        // Navigate to the command point only if this is actually pinned
+        if (point?.pinnedByCommandId && spaceData.data?.id && isInSpecificSpace && isPinned) {
+            const encodedCommandId = encodeId(point.pinnedByCommandId);
+            push(`/s/${spaceData.data.id}/${encodedCommandId}`);
         }
     };
 

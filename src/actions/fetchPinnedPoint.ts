@@ -2,10 +2,11 @@
 
 import { getUserId } from "@/actions/getUserId";
 import { db } from "@/services/db";
-import { spacesTable, pointsTable } from "@/db/schema";
+import { spacesTable } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { addFavor } from "@/db/utils/addFavor";
 import { FeedPoint } from "@/actions/fetchFeed";
+import { decodeId } from "@/lib/decodeId";
 
 export interface FetchPinnedPointParams {
   spaceId: string;
@@ -31,17 +32,8 @@ export async function fetchPinnedPoint({ spaceId }: FetchPinnedPointParams) {
     return null;
   }
 
-  // Get the pinned point details
-  const pinnedPoint = await db.query.pointsTable.findFirst({
-    where: eq(pointsTable.id, space.pinnedPointId),
-  });
-
-  if (!pinnedPoint) {
-    return null;
-  }
-
-  // Find the command point that pinned this point with the highest favor
-  const commandPoint = await db.execute(
+  // Get all pin commands with the highest favor
+  const commandPoints = await db.execute(
     sql`
     WITH RECURSIVE command_points AS (
       SELECT 
@@ -89,7 +81,12 @@ export async function fetchPinnedPoint({ spaceId }: FetchPinnedPointParams) {
           JOIN slashes s ON s.id = sh.slash_id
           JOIN restakes r ON r.id = s.restake_id
           WHERE r.point_id = p.id
-        ), 0) as total_slashes
+        ), 0) as total_slashes,
+        CASE 
+          WHEN ARRAY_LENGTH(regexp_split_to_array(content, '\\s+'), 1) >= 2 
+          THEN (regexp_split_to_array(content, '\\s+'))[2]
+          ELSE NULL
+        END as target_point_id_encoded
       FROM points p
       LEFT JOIN endorsements e ON p.id = e.point_id
       WHERE p.is_command = true 
@@ -115,37 +112,48 @@ export async function fetchPinnedPoint({ spaceId }: FetchPinnedPointParams) {
         END as favor
       FROM command_points cp
     ),
-    valid_commands AS (
-      -- Start with the most recent command
-      SELECT *,
-        favor as highest_favor,
-        1 as command_rank
+    highest_favor_commands AS (
+      SELECT *
       FROM command_points_with_favor
-      WHERE created_at = (
-        SELECT MAX(created_at)
+      WHERE favor = (
+        SELECT MAX(favor)
         FROM command_points_with_favor
       )
-      
-      UNION ALL
-      
-      -- Add older commands only if they have higher favor than all newer commands
-      SELECT 
-        c.*,
-        GREATEST(v.highest_favor, c.favor) as highest_favor,
-        v.command_rank + 1
-      FROM command_points_with_favor c
-      JOIN valid_commands v ON c.created_at < v.created_at
-      WHERE c.favor >= v.highest_favor
+      ORDER BY created_at DESC
     )
-    SELECT *
-    FROM valid_commands
-    WHERE favor = highest_favor
-    ORDER BY created_at DESC
-    LIMIT 1
+    SELECT id, favor, created_at as "createdAt", target_point_id_encoded as "targetPointIdEncoded"
+    FROM highest_favor_commands
   `
   );
 
-  const highestFavorCommand = commandPoint.length > 0 ? commandPoint[0] : null;
+  // Convert all encoded IDs to numerical IDs
+  const highestFavorCommands =
+    commandPoints.length > 0
+      ? await Promise.all(
+          commandPoints.map(async (cmd: any) => {
+            let targetPointId = null;
+            if (cmd.targetPointIdEncoded) {
+              try {
+                // Try to decode as an encoded ID
+                targetPointId = decodeId(cmd.targetPointIdEncoded);
+              } catch (e) {
+                // If decoding fails, check if it's already a number
+                const parsedId = parseInt(cmd.targetPointIdEncoded, 10);
+                if (!isNaN(parsedId)) {
+                  targetPointId = parsedId;
+                }
+              }
+            }
+
+            return {
+              id: cmd.id,
+              favor: cmd.favor,
+              createdAt: cmd.createdAt,
+              targetPointId,
+            };
+          })
+        )
+      : [];
 
   // Get the complete point data with favor, etc.
   const result = await db.execute(
@@ -175,7 +183,7 @@ export async function fetchPinnedPoint({ spaceId }: FetchPinnedPointParams) {
               SELECT older_point_id FROM negations WHERE newer_point_id = p.id
             )
           ), 0) as "negationsCred",
-          (SELECT COALESCE(e2.cred, 0) FROM endorsements e2 WHERE e2.point_id = p.id AND e2.user_id = ${userId || null} LIMIT 1) as "viewerCred",
+          COALESCE((SELECT e2.cred FROM endorsements e2 WHERE e2.point_id = p.id AND e2.user_id = ${userId || null} LIMIT 1), 0) as "viewerCred",
           ARRAY_AGG(DISTINCT n.id) FILTER (WHERE n.id IS NOT NULL) as "negationIds",
           COALESCE(SUM(CASE WHEN r.user_id = ${userId || null} THEN er.effective_amount ELSE 0 END), 0) as "restakesByPoint",
           COALESCE(SUM(CASE WHEN r.user_id = ${userId || null} THEN er.slashed_amount ELSE 0 END), 0) as "slashedAmount",
@@ -208,15 +216,45 @@ export async function fetchPinnedPoint({ spaceId }: FetchPinnedPointParams) {
         dd.amount as "doubtAmount",
         dd."userAmount" as "doubtUserAmount",
         dd."isUserDoubt",
-        ${highestFavorCommand?.id || null} as "pinnedByCommandId"
+        ${
+          highestFavorCommands.length > 0
+            ? sql`jsonb_agg(
+          jsonb_build_object(
+            'id', cmd.id,
+            'favor', cmd.favor,
+            'createdAt', cmd.createdAt,
+            'targetPointId', cmd.targetPointId
+          )
+        )`
+            : "NULL"
+        } as "pinCommands"
       FROM point_data pd
       LEFT JOIN doubt_data dd ON true
+      CROSS JOIN (
+        SELECT id, favor, createdAt, targetPointId
+        FROM json_to_recordset(${JSON.stringify(highestFavorCommands)}::json)
+        AS cmd(id int, favor int, createdAt timestamp, targetPointId int)
+      ) cmd
+      GROUP BY 
+        pd."pointId", pd.content, pd."createdAt", pd."createdBy", pd.space,
+        pd."isCommand", pd.cred, pd."amountSupporters", pd."amountNegations",
+        pd."negationsCred", pd."viewerCred", pd."negationIds", pd."restakesByPoint",
+        pd."slashedAmount", pd."doubtedAmount", pd."totalRestakeAmount",
+        dd.id, dd.amount, dd."userAmount", dd."isUserDoubt"
     `
   );
 
   // Extract the results
   const points = result as unknown as Array<
-    FeedPoint & { pinnedByCommandId: number | null }
+    FeedPoint & {
+      pinnedByCommandId: number | null;
+      pinCommands: Array<{
+        id: number;
+        favor: number;
+        createdAt: Date;
+        targetPointId: number | null;
+      }>;
+    }
   >;
 
   if (!points || points.length === 0) {

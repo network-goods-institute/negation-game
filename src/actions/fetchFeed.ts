@@ -14,7 +14,8 @@ import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
 import { Timestamp } from "@/types/Timestamp";
-import { desc, eq, sql, and } from "drizzle-orm";
+import { desc, eq, sql, and, ne } from "drizzle-orm";
+import { decodeId } from "@/lib/decodeId";
 
 export type FeedPoint = {
   pointId: number;
@@ -34,19 +35,25 @@ export type FeedPoint = {
   totalRestakeAmount: number;
   isCommand?: boolean;
   pinnedByCommandId?: number | null;
+  favor: number;
   doubt?: {
     id: number;
     amount: number;
     userAmount: number;
     isUserDoubt: boolean;
   } | null;
+  pinCommands?: Array<{
+    id: number;
+    favor: number;
+    createdAt: Date;
+  }>;
 };
 
-export const fetchFeedPage = async (olderThan?: Timestamp) => {
+export const fetchFeedPage = async (olderThan?: Timestamp, limit = 20) => {
   const viewerId = await getUserId();
   const space = await getSpace();
 
-  // Get the space's pinnedPointId
+  // Get the space's pinnedPointId - do this first to avoid a subquery in main query
   const spaceDetails = await db.query.spacesTable.findFirst({
     where: eq(spacesTable.id, space),
     columns: {
@@ -55,6 +62,22 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
   });
 
   const pinnedPointId = spaceDetails?.pinnedPointId;
+
+  // Prepare base conditions
+  const conditions = [eq(pointsWithDetailsView.space, space)];
+
+  // Add timestamp condition if provided - use prepared parameter
+  if (olderThan && !isNaN(Number(olderThan))) {
+    const timestamp = new Date(Number(olderThan));
+    if (!isNaN(timestamp.getTime())) {
+      conditions.push(sql`${pointsWithDetailsView.createdAt} < ${timestamp}`);
+    }
+  }
+
+  // Exclude pinned point to avoid duplication - use SQL operator for better performance
+  if (pinnedPointId) {
+    conditions.push(ne(pointsWithDetailsView.pointId, pinnedPointId));
+  }
 
   const results = await db
     .select({
@@ -130,23 +153,152 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
       `.mapWith((x) => x as number | null),
     })
     .from(pointsWithDetailsView)
+    .where(and(...conditions))
     .leftJoin(
       doubtsTable,
       and(
         eq(doubtsTable.pointId, pointsWithDetailsView.pointId),
-        eq(doubtsTable.userId, viewerId ?? "")
-      )
-    )
-    .where(
-      and(
-        eq(pointsWithDetailsView.space, space),
-        sql`${pointsWithDetailsView.pointId} != ${pinnedPointId || 0}`
+        viewerId ? eq(doubtsTable.userId, viewerId) : undefined
       )
     )
     .orderBy(desc(pointsWithDetailsView.createdAt))
-    .then((points) => {
-      return addFavor(points);
-    });
+    .limit(limit);
 
-  return results;
+  // Get all pin commands with the highest favor
+  const commandPoints = await db.execute(
+    sql`
+    WITH RECURSIVE command_points AS (
+      SELECT 
+        p.*,
+        COALESCE(SUM(e.cred), 0) as total_cred,
+        COALESCE(
+          (
+            SELECT SUM(e2.cred)
+            FROM endorsements e2
+            JOIN points p2 ON p2.id = e2.point_id
+            WHERE p2.id IN (
+              SELECT newer_point_id FROM negations WHERE older_point_id = p.id
+              UNION
+              SELECT older_point_id FROM negations WHERE newer_point_id = p.id
+            )
+          ),
+          0
+        ) as negations_cred,
+        COALESCE((
+          SELECT SUM(rh.new_amount)
+          FROM restake_history rh
+          JOIN restakes r ON r.id = rh.restake_id
+          WHERE r.point_id = p.id
+        ), 0) as total_restakes,
+        COALESCE((
+          SELECT SUM(
+            LEAST(
+              dh.new_amount,
+              (
+                SELECT COALESCE(SUM(rh2.new_amount), 0)
+                FROM restake_history rh2
+                JOIN restakes r2 ON r2.id = rh2.restake_id
+                WHERE r2.point_id = p.id
+                AND rh2.created_at <= dh.created_at
+              )
+            )
+          )
+          FROM doubt_history dh
+          JOIN doubts d ON d.id = dh.doubt_id
+          WHERE d.point_id = p.id
+        ), 0)::integer as effective_doubts,
+        COALESCE((
+          SELECT SUM(sh.new_amount)
+          FROM slash_history sh
+          JOIN slashes s ON s.id = sh.slash_id
+          JOIN restakes r ON r.id = s.restake_id
+          WHERE r.point_id = p.id
+        ), 0) as total_slashes,
+        CASE 
+          WHEN ARRAY_LENGTH(regexp_split_to_array(content, '\\s+'), 1) >= 2 
+          THEN (regexp_split_to_array(content, '\\s+'))[2]
+          ELSE NULL
+        END as target_point_id_encoded
+      FROM points p
+      LEFT JOIN endorsements e ON p.id = e.point_id
+      WHERE p.is_command = true 
+      AND p.space = ${space}
+      AND p.content LIKE ${`/pin %`}
+      GROUP BY p.id
+    ),
+    command_points_with_favor AS (
+      SELECT 
+        cp.*,
+        CASE
+          WHEN total_cred = 0 THEN 0
+          WHEN negations_cred = 0 THEN 100
+          ELSE FLOOR(
+            100.0 * total_cred / (total_cred + negations_cred)
+          ) + GREATEST(0, 
+            total_restakes - 
+            GREATEST(
+              effective_doubts,
+              total_slashes
+            )
+          )
+        END as favor
+      FROM command_points cp
+    ),
+    highest_favor_commands AS (
+      SELECT *
+      FROM command_points_with_favor
+      WHERE favor = (
+        SELECT MAX(favor)
+        FROM command_points_with_favor
+      )
+      ORDER BY created_at DESC
+    )
+    SELECT id, favor, created_at as "createdAt", target_point_id_encoded as "targetPointIdEncoded"
+    FROM highest_favor_commands
+    `
+  );
+
+  // Convert all encoded IDs to numerical IDs
+  const highestFavorCommands =
+    commandPoints.length > 0
+      ? await Promise.all(
+          commandPoints.map(async (cmd: any) => {
+            let targetPointId = null;
+            if (cmd.targetPointIdEncoded) {
+              try {
+                // Try to decode as an encoded ID
+                targetPointId = decodeId(cmd.targetPointIdEncoded);
+              } catch (e) {
+                // If decoding fails, check if it's already a number
+                const parsedId = parseInt(cmd.targetPointIdEncoded, 10);
+                if (!isNaN(parsedId)) {
+                  targetPointId = parsedId;
+                }
+              }
+            }
+
+            return {
+              id: cmd.id,
+              favor: cmd.favor,
+              createdAt: cmd.createdAt,
+              targetPointId,
+            };
+          })
+        )
+      : [];
+
+  // Format final results
+  const pointsWithCommands = results.map((point: any) => {
+    // Filter commands that target this specific point
+    const targetingCommands = highestFavorCommands.filter(
+      (cmd) => cmd.targetPointId === point.pointId
+    );
+
+    return {
+      ...point,
+      pinCommands: targetingCommands.length > 0 ? targetingCommands : undefined,
+    };
+  });
+
+  return await addFavor(pointsWithCommands);
 };
