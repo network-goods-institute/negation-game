@@ -85,32 +85,17 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
   const results = await db
     .selectDistinct({
       ...getColumns(pointsWithDetailsView),
-      ...(viewerId
-        ? {
-            viewerCred: sql<number>`
-              COALESCE((
-                SELECT SUM(${endorsementsTable.cred})
-                FROM ${endorsementsTable}
-                WHERE ${endorsementsTable.pointId} = ${pointsWithDetailsView.pointId}
-                  AND ${endorsementsTable.userId} = ${viewerId}
-              ), 0)
-            `.mapWith(Number),
-            doubt: {
-              id: doubtsTable.id,
-              amount: doubtsTable.amount,
-              userAmount: doubtsTable.amount,
-              isUserDoubt: sql<boolean>`${doubtsTable.userId} = ${viewerId}`.as(
-                "is_user_doubt"
-              ),
-            },
-          }
-        : {
-            viewerCred: sql<number>`0`.mapWith(Number),
-            doubt: sql<null>`NULL`.mapWith((x) => x as null),
-          }),
+      viewerCred: sql<number>`
+        COALESCE((
+          SELECT SUM(${endorsementsTable.cred})
+          FROM ${endorsementsTable}
+          WHERE ${endorsementsTable.pointId} = ${pointsWithDetailsView.pointId}
+            AND ${endorsementsTable.userId} = ${viewerId || sql`NULL`}
+        ), 0)
+      `.mapWith(Number),
       restakesByPoint: sql<number>`
         COALESCE(
-          (SELECT SUM(er1.amount)
+          (SELECT SUM(CASE WHEN ${viewerId ? sql`er1.user_id = ${viewerId}` : sql`FALSE`} THEN er1.amount ELSE 0 END)
            FROM ${effectiveRestakesView} AS er1
            WHERE er1.point_id = ${pointsWithDetailsView.pointId}
            AND er1.slashed_amount < er1.amount), 
@@ -119,7 +104,7 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
       `.mapWith(Number),
       slashedAmount: sql<number>`
         COALESCE(
-          (SELECT SUM(er1.slashed_amount)
+          (SELECT SUM(CASE WHEN ${viewerId ? sql`er1.user_id = ${viewerId}` : sql`FALSE`} THEN er1.slashed_amount ELSE 0 END)
            FROM ${effectiveRestakesView} AS er1
            WHERE er1.point_id = ${pointsWithDetailsView.pointId}), 
           0
@@ -127,7 +112,7 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
       `.mapWith(Number),
       doubtedAmount: sql<number>`
         COALESCE(
-          (SELECT SUM(er1.doubted_amount)
+          (SELECT SUM(CASE WHEN ${viewerId ? sql`er1.user_id = ${viewerId}` : sql`FALSE`} THEN er1.doubted_amount ELSE 0 END)
            FROM ${effectiveRestakesView} AS er1
            WHERE er1.point_id = ${pointsWithDetailsView.pointId}), 
           0
@@ -157,15 +142,27 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
           LIMIT 1
         ), NULL)
       `.mapWith((x) => x as number | null),
+      doubt: viewerId
+        ? {
+            id: doubtsTable.id,
+            amount: doubtsTable.amount,
+            userAmount: doubtsTable.amount,
+            isUserDoubt: sql<boolean>`${doubtsTable.userId} = ${viewerId}`.as(
+              "is_user_doubt"
+            ),
+          }
+        : sql<null>`NULL`.mapWith((x) => x as null),
     })
     .from(pointsWithDetailsView)
     .where(and(...conditions))
     .leftJoin(
       doubtsTable,
-      and(
-        eq(doubtsTable.pointId, pointsWithDetailsView.pointId),
-        viewerId ? eq(doubtsTable.userId, viewerId) : undefined
-      )
+      viewerId
+        ? and(
+            eq(doubtsTable.pointId, pointsWithDetailsView.pointId),
+            eq(doubtsTable.userId, viewerId)
+          )
+        : sql`false`
     )
     .orderBy(desc(pointsWithDetailsView.createdAt));
 

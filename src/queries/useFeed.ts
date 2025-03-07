@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { usePrivy } from "@privy-io/react-auth";
 
 export const useFeed = () => {
-  const { user: privyUser } = usePrivy();
+  const { user: privyUser, ready } = usePrivy();
   const setPointData = useSetPointData();
 
   return useQuery({
@@ -12,7 +12,7 @@ export const useFeed = () => {
     queryFn: async () => {
       const page = await fetchFeedPage();
 
-      if (page.length > 0) {
+      if (page.length > 0 && privyUser?.id) {
         const batchSize = 10;
         const batches = Math.ceil(page.length / batchSize);
 
@@ -38,12 +38,10 @@ export const useFeed = () => {
               },
             };
 
-            if (privyUser?.id) {
-              setPointData(
-                { pointId: point.pointId, userId: privyUser.id },
-                transformedPoint
-              );
-            }
+            setPointData(
+              { pointId: point.pointId, userId: privyUser.id },
+              transformedPoint
+            );
           }
 
           // Only yield to main thread if we have more batches and every 2 batches
@@ -58,7 +56,7 @@ export const useFeed = () => {
     staleTime: 5 * 60_000,
     gcTime: 10 * 60_000,
     retry: false,
-    enabled: true,
+    enabled: ready,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,

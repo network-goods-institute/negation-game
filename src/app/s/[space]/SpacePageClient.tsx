@@ -501,18 +501,16 @@ export function SpacePageClient({
                     (!points || !viewpoints || isLoading || viewpointsLoading) ? (
                         <Loader className="absolute self-center my-auto top-0 bottom-0" />
                     ) : points.length === 0 && viewpoints.length === 0 ? (
-                        <div className="flex flex-col flex-grow items-center justify-center">
-                            <span>Nothing here yet</span>
-                            <div className="flex gap-2 mt-2">
-                                <Button variant={"link"} className="p-0 text-base" onClick={loginOrMakePoint}>
+                        <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
+                            <span className="text-muted-foreground">Nothing here yet</span>
+                            <div className="flex items-center justify-center gap-3">
+                                <Button variant="outline" onClick={loginOrMakePoint}>
+                                    <PlusIcon className="mr-2 size-4" />
                                     Make a Point
                                 </Button>
-                                <span>or</span>
-                                <Button
-                                    variant={"link"}
-                                    className="p-0 text-base"
-                                    onClick={handleNewViewpoint}
-                                >
+                                <span className="text-muted-foreground">or</span>
+                                <Button variant="outline" onClick={handleNewViewpoint}>
+                                    <ViewpointIcon className="mr-2.5 size-4" />
                                     Create a Viewpoint
                                 </Button>
                             </div>
@@ -537,9 +535,10 @@ export function SpacePageClient({
                     points === undefined || isLoading ? (
                         <Loader className="absolute self-center my-auto top-0 bottom-0" />
                     ) : points.length === 0 ? (
-                        <div className="flex flex-col flex-grow items-center justify-center">
-                            <span>Nothing here yet</span>
-                            <Button variant={"link"} className="p-0 text-base" onClick={loginOrMakePoint}>
+                        <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
+                            <span className="text-muted-foreground">Nothing here yet</span>
+                            <Button variant="outline" onClick={loginOrMakePoint}>
+                                <PlusIcon className="mr-2 size-4" />
                                 Make a Point
                             </Button>
                         </div>
@@ -577,13 +576,10 @@ export function SpacePageClient({
                     viewpoints === undefined || viewpointsLoading ? (
                         <Loader className="absolute self-center my-auto top-0 bottom-0" />
                     ) : viewpoints.length === 0 ? (
-                        <div className="flex flex-col flex-grow items-center justify-center">
-                            <span>Nothing here yet</span>
-                            <Button
-                                variant={"link"}
-                                className="p-0 text-base"
-                                onClick={handleNewViewpoint}
-                            >
+                        <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
+                            <span className="text-muted-foreground">Nothing here yet</span>
+                            <Button variant="outline" onClick={handleNewViewpoint}>
+                                <ViewpointIcon className="mr-2.5 size-4" />
                                 Create a Viewpoint
                             </Button>
                         </div>
