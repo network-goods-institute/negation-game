@@ -6,7 +6,7 @@ export const usePriorityPoints = (shouldFetch = true) => {
   const { user } = usePrivy();
 
   return useQuery({
-    queryKey: ["priority-points", user?.id],
+    queryKey: ["priority-points", user?.id, user],
     queryFn: async () => {
       if (!user) return [];
 

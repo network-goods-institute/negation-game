@@ -1,4 +1,5 @@
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
+import { visitedPointsAtom } from "@/atoms/visitedPointsAtom";
 import { CredInput } from "@/components/CredInput";
 import { PointStats } from "@/components/PointStats";
 import { DoubtIcon } from "@/components/icons/DoubtIcon";
@@ -137,7 +138,8 @@ export const PointCard = ({
   });
   const prefetchRestakeData = usePrefetchRestakeData();
   const { isVisited, markPointAsRead } = useVisitedPoints();
-  const [visited, setVisited] = useState(true);
+  const [visitedPoints, setVisitedPoints] = useAtom(visitedPointsAtom);
+  const visited = visitedPoints.has(pointId);
   const router = useRouter();
 
   const [restakePercentage, isOverHundred] = useMemo(() => {
@@ -184,11 +186,22 @@ export const PointCard = ({
     let mounted = true;
     isVisited(pointId).then((result) => {
       if (mounted && !result) {  // Only update state if not visited and component still mounted
-        setVisited(false);
+        setVisitedPoints(prev => {
+          const newSet = new Set(prev);
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
+          newSet.delete(pointId);
+          return newSet;
+        });
+      } else if (mounted && result) {
+        setVisitedPoints(prev => {
+          const newSet = new Set(prev);
+          newSet.add(pointId);
+          return newSet;
+        });
       }
     });
     return () => { mounted = false; };
-  }, [pointId, isVisited]);
+  }, [pointId, isVisited, setVisitedPoints]);
 
   const parsePinCommand = useMemo(() => {
     // Prevent showing pin commands when space is undefined or global
@@ -474,7 +487,7 @@ export const PointCard = ({
           </Portal>
         </Tooltip>
       )}
-      {visited === false && (
+      {!visited && (
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -482,7 +495,11 @@ export const PointCard = ({
                 e.preventDefault();
                 e.stopPropagation();
                 markPointAsRead(pointId);
-                setVisited(true);
+                setVisitedPoints(prev => {
+                  const newSet = new Set(prev);
+                  newSet.add(pointId);
+                  return newSet;
+                });
               }}
               className="absolute top-3 right-3 p-2 -m-2 rounded-full hover:bg-accent"
             >

@@ -74,6 +74,7 @@ import { usePointData, pointQueryKey } from "@/queries/usePointData";
 import { Badge } from "@/components/ui/badge";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePrefetchRestakeData } from "@/hooks/usePrefetchRestakeData";
+import { visitedPointsAtom } from "@/atoms/visitedPointsAtom";
 
 type Point = {
     id: number;
@@ -151,6 +152,7 @@ export function PointPageClient({
     const { markPointAsRead } = useVisitedPoints();
     const pathname = usePathname();
     const { mutate: endorse } = useEndorse();
+    const [_, setVisitedPoints] = useAtom(visitedPointsAtom);
 
     // Memoized values
     const initialNodes = useMemo(
@@ -173,8 +175,13 @@ export function PointPageClient({
     useEffect(() => {
         if (pointId) {
             markPointAsRead(pointId);
+            setVisitedPoints(prev => {
+                const newSet = new Set(prev);
+                newSet.add(pointId);
+                return newSet;
+            });
         }
-    }, [pointId, markPointAsRead]);
+    }, [pointId, markPointAsRead, setVisitedPoints]);
 
     useEffect(() => {
         setCanvasEnabled(searchParams?.get("view") === "graph");
