@@ -16,6 +16,7 @@ import { db } from "@/services/db";
 import { Timestamp } from "@/types/Timestamp";
 import { desc, eq, sql, and, ne } from "drizzle-orm";
 import { decodeId } from "@/lib/decodeId";
+import { deduplicatePoints } from "@/db/utils/deduplicatePoints";
 
 export type FeedPoint = {
   pointId: number;
@@ -289,23 +290,33 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
         )
       : [];
 
-  const pointMap = new Map();
+  const uniquePoints = deduplicatePoints(results);
 
-  // First pass to collect unique points
-  results.forEach((point) => {
-    pointMap.set(point.pointId, { ...point, pinCommands: [] });
-  });
+  // Add pinCommands array to each point
+  const pointsWithCommandsInit = uniquePoints.map((point) => ({
+    ...point,
+    pinCommands: [] as Array<{
+      id: number;
+      favor: number;
+      createdAt: Date;
+      targetPointId: number | null;
+    }>,
+  }));
 
-  // Second pass to add commands to points
+  // Add commands to points
   highestFavorCommands.forEach((cmd) => {
-    if (cmd.targetPointId && pointMap.has(cmd.targetPointId)) {
-      const point = pointMap.get(cmd.targetPointId);
-      point.pinCommands.push(cmd);
+    if (cmd.targetPointId) {
+      const point = pointsWithCommandsInit.find(
+        (p) => p.pointId === cmd.targetPointId
+      );
+      if (point) {
+        point.pinCommands.push(cmd);
+      }
     }
   });
 
-  // Convert map to array and clean up empty pinCommands
-  const pointsWithCommands = Array.from(pointMap.values()).map((point) => ({
+  // Clean up empty pinCommands
+  const pointsWithCommands = pointsWithCommandsInit.map((point) => ({
     ...point,
     pinCommands: point.pinCommands.length > 0 ? point.pinCommands : undefined,
   }));

@@ -184,11 +184,10 @@ export async function fetchPinnedPoint({ spaceId }: FetchPinnedPointParams) {
             )
           ), 0) as "negationsCred",
           COALESCE(CASE WHEN ${sql.raw(userId ? "true" : "false")} THEN (
-            SELECT e2.cred 
+            SELECT SUM(e2.cred)
             FROM endorsements e2 
             WHERE e2.point_id = p.id 
             AND e2.user_id = ${userId}::TEXT
-            LIMIT 1
           ) ELSE 0 END, 0) as "viewerCred",
           ARRAY_AGG(DISTINCT n.id) FILTER (WHERE n.id IS NOT NULL) as "negationIds",
           COALESCE(SUM(CASE WHEN r.user_id = ${userId}::TEXT THEN er.effective_amount ELSE 0 END), 0) as "restakesByPoint",

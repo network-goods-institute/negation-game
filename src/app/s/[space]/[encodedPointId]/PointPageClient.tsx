@@ -2,6 +2,7 @@
 
 import { format } from "date-fns";
 import { useMemo, useState, useEffect } from "react";
+import Link from "next/link";
 
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
@@ -57,7 +58,6 @@ import {
     SparklesIcon,
 } from "lucide-react";
 import { nanoid } from "nanoid";
-import Link from "next/link";
 import { notFound, useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Fragment, useCallback } from "react";
 import {
@@ -468,26 +468,70 @@ export function PointPageClient({
                                 {/* Show different badges based on pin status */}
                                 {isPinned && isInSpecificSpace && spaceData.data?.id !== 'global' && point?.pinnedByCommandId && (
                                     <Badge variant="outline" className="text-xs shrink-0">
-                                        <Button
-                                            type="button"
-                                            variant="link"
-                                            className="h-auto p-0 text-muted-foreground hover:text-foreground"
-                                            onClick={handleCommandPointClick}
-                                        >
-                                            Pinned by command
-                                        </Button>
+                                        {spaceData.data?.id ? (
+                                            <Link
+                                                href={`/s/${spaceData.data.id}/${encodeId(point.pinnedByCommandId)}`}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    e.preventDefault();
+                                                }}
+                                                className="inline-block w-full h-full"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                            >
+                                                <Button
+                                                    type="button"
+                                                    variant="link"
+                                                    className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
+                                                    onClick={handleCommandPointClick}
+                                                >
+                                                    Pinned by command
+                                                </Button>
+                                            </Link>
+                                        ) : (
+                                            <Button
+                                                type="button"
+                                                variant="link"
+                                                className="h-auto p-0 text-muted-foreground hover:text-foreground"
+                                                onClick={handleCommandPointClick}
+                                            >
+                                                Pinned by command
+                                            </Button>
+                                        )}
                                     </Badge>
                                 )}
                                 {parsePinCommand && !isPinned && isInSpecificSpace && spaceData.data?.id !== 'global' && (
                                     <Badge variant="outline" className="text-xs shrink-0">
-                                        <Button
-                                            type="button"
-                                            variant="link"
-                                            className="h-auto p-0 text-muted-foreground hover:text-foreground"
-                                            onClick={handleTargetPointClick}
-                                        >
-                                            Proposal to pin
-                                        </Button>
+                                        {spaceData.data?.id ? (
+                                            <Link
+                                                href={`/s/${spaceData.data.id}/${parsePinCommand}`}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    e.preventDefault();
+                                                }}
+                                                className="inline-block w-full h-full"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                            >
+                                                <Button
+                                                    type="button"
+                                                    variant="link"
+                                                    className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
+                                                    onClick={handleTargetPointClick}
+                                                >
+                                                    Proposal to pin
+                                                </Button>
+                                            </Link>
+                                        ) : (
+                                            <Button
+                                                type="button"
+                                                variant="link"
+                                                className="h-auto p-0 text-muted-foreground hover:text-foreground"
+                                                onClick={handleTargetPointClick}
+                                            >
+                                                Proposal to pin
+                                            </Button>
+                                        )}
                                     </Badge>
                                 )}
                             </div>

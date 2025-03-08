@@ -11,6 +11,7 @@ import {
 import { Portal } from "@radix-ui/react-portal";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
     loading: () => <div className="animate-pulse h-32 bg-muted/30 rounded-md" />,
@@ -25,6 +26,7 @@ export interface ViewpointCardProps extends Omit<React.HTMLAttributes<HTMLAnchor
     createdAt: Date;
     className?: string;
     space: string;
+    linkable?: boolean;
 }
 
 export const ViewpointCard: React.FC<ViewpointCardProps> = ({
@@ -35,6 +37,7 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
     createdAt,
     className,
     space,
+    linkable = true,
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const router = useRouter();
@@ -61,54 +64,75 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
     };
 
     const handleCardClick = () => {
-        setIsOpen(false);
-        router.push(`/s/${space}/viewpoint/${id}`);
+        if (linkable) {
+            setIsOpen(false);
+            router.push(`/s/${space}/viewpoint/${id}`);
+        }
     };
+
+    const linkHref = `/s/${space}/viewpoint/${id}`;
+
+    const cardContent = (
+        <div className="@container/point flex gap-3 pt-4 pb-3 px-4 border-b cursor-pointer hover:bg-accent">
+            <div className="flex flex-col flex-grow w-full min-w-0 pl-2.5">
+                <div className="flex items-start gap-2">
+                    <ViewpointIcon />
+                    <h3 className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg font-semibold -mt-1 mb-sm select-text flex-1 break-words whitespace-normal overflow-hidden">
+                        {title}
+                    </h3>
+                </div>
+
+                <div className="text-sm text-muted-foreground line-clamp-2 mb-2 h-10 overflow-hidden">
+                    {description}
+                </div>
+
+                <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
+                    <span>By <span className="font-bold text-yellow-500">{author}</span></span>
+                    <Badge variant="secondary" className="text-xs">
+                        {new Date(createdAt).toLocaleDateString()}
+                    </Badge>
+                </div>
+            </div>
+        </div>
+    );
+
+    const wrappedContent = linkable ? (
+        <Link
+            href={linkHref}
+            className={cn("block focus:outline-none", className)}
+            onMouseEnter={handleHoverStart}
+            onMouseLeave={handleHoverEnd}
+            onClick={() => setIsOpen(false)}
+        >
+            {cardContent}
+        </Link>
+    ) : (
+        <div
+            role="button"
+            tabIndex={0}
+            className={cn("block focus:outline-none", className)}
+            onMouseEnter={handleHoverStart}
+            onMouseLeave={handleHoverEnd}
+            onClick={handleCardClick}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    handleCardClick();
+                }
+            }}
+        >
+            {cardContent}
+        </div>
+    );
 
     return (
         <Popover
             open={isOpen}
             onOpenChange={(open) => {
-                // Only handle external changes (like Escape key)
                 if (!open) setIsOpen(false);
             }}
         >
             <PopoverTrigger asChild>
-                <div
-                    role="button"
-                    tabIndex={0}
-                    className={cn("block focus:outline-none", className)}
-                    onMouseEnter={handleHoverStart}
-                    onMouseLeave={handleHoverEnd}
-                    onClick={handleCardClick}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                            handleCardClick();
-                        }
-                    }}
-                >
-                    <div className="@container/point flex gap-3 pt-4 pb-3 px-4 border-b cursor-pointer hover:bg-accent">
-                        <div className="flex flex-col flex-grow w-full min-w-0 pl-2.5">
-                            <div className="flex items-start gap-2">
-                                <ViewpointIcon />
-                                <h3 className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg font-semibold -mt-1 mb-sm select-text flex-1 break-words whitespace-normal overflow-hidden">
-                                    {title}
-                                </h3>
-                            </div>
-
-                            <div className="text-sm text-muted-foreground line-clamp-2 mb-2 h-10 overflow-hidden">
-                                {description}
-                            </div>
-
-                            <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
-                                <span>By <span className="font-bold text-yellow-500">{author}</span></span>
-                                <Badge variant="secondary" className="text-xs">
-                                    {new Date(createdAt).toLocaleDateString()}
-                                </Badge>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                {wrappedContent}
             </PopoverTrigger>
             <Portal>
                 <PopoverContent

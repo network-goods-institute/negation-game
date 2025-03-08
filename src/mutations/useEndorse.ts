@@ -4,11 +4,15 @@ import { useInvalidateRelatedPoints } from "@/queries/usePointData";
 import { userQueryKey } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
+import { userEndorsementsQueryKey } from "@/queries/useUserEndorsements";
+import { useSpace } from "@/queries/useSpace";
 
 export const useEndorse = () => {
   const queryClient = useQueryClient();
   const { user } = usePrivy();
   const invalidateRelatedPoints = useInvalidateRelatedPoints();
+  const space = useSpace();
+
   return useAuthenticatedMutation({
     mutationFn: endorse,
     onSuccess: (_endorsementId, { pointId }) => {
@@ -26,14 +30,55 @@ export const useEndorse = () => {
         queryKey: userQueryKey(user?.id),
       });
 
-      // Invalidate feed since endorsements affect visibility
+      // Force invalidate feed queries with refetchType: 'all' to bypass staleTime
       queryClient.invalidateQueries({
-        queryKey: ["feed"],
+        queryKey: ["feed", user?.id],
+        refetchType: "all", // Force refetch even if within staleTime
       });
 
-      // Invalidate pinned point in case this point is pinned
+      // Also invalidate any feed query without user ID for good measure
+      queryClient.invalidateQueries({
+        queryKey: ["feed"],
+        exact: false,
+        refetchType: "all",
+      });
+
+      // Invalidate the user's endorsement data for this point
+      queryClient.invalidateQueries({
+        queryKey: userEndorsementsQueryKey({ pointId, userId: user?.id }),
+        exact: false,
+      });
+
+      // Invalidate pinned point query with exact space ID match
+      queryClient.invalidateQueries({
+        queryKey: ["pinned-point", space.data?.id],
+        refetchType: "all",
+      });
+
+      // Also invalidate any pinned point query
+      queryClient.invalidateQueries({
+        queryKey: ["pinned-point"],
+        exact: false,
+        refetchType: "all",
+      });
+
+      // Invalidate priority points query matching the query key structure exactly
+      queryClient.invalidateQueries({
+        queryKey: ["priority-points", user?.id, user],
+        refetchType: "all",
+      });
+
+      // Also invalidate any priority points query
+      queryClient.invalidateQueries({
+        queryKey: ["priority-points"],
+        exact: false,
+        refetchType: "all",
+      });
+
+      // Legacy pinnedPoint invalidation
       queryClient.invalidateQueries({
         queryKey: ["pinnedPoint"],
+        exact: false,
       });
     },
   });

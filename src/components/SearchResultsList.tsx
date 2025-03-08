@@ -115,6 +115,7 @@ export function SearchResultsList({ results, isLoading, query, hasSearched = fal
                             author={result.author}
                             createdAt={result.createdAt}
                             space={result.space || "global"}
+                            linkable={true}
                         />
                     );
                 }

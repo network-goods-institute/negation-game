@@ -116,6 +116,7 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                     content={point.content}
                     viewerContext={{ viewerCred: point.viewerCred }}
                     isCommand={point.isCommand}
+                    isPinned={isPinnedPoint}
                     space={space}
                     onNegate={(e) => {
                         e.preventDefault();
@@ -123,6 +124,11 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                     }}
                     pinnedCommandPointId={pinnedCommandPointId}
                     pinStatus={pinStatus}
+                    onPinBadgeClickCapture={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }}
+                    linkDisabled={true}
                 />
             </Link>
         );
@@ -142,6 +148,7 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                     author={viewpoint.author || ''}
                     createdAt={new Date(viewpoint.createdAt)}
                     space={space || "global"}
+                    linkable={false}
                 />
             </Link>
         );
@@ -189,6 +196,11 @@ const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, log
                 }}
                 pinnedCommandPointId={pinnedCommandPointId}
                 pinStatus={pinStatus}
+                onPinBadgeClickCapture={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }}
+                linkDisabled={true}
             />
         </Link>
     );
@@ -235,12 +247,12 @@ export function SpacePageClient({
 
     // Prevent feed from reloading when navigating back to it
     useEffect(() => {
-        // Mark the feed data as fresh when this component mounts
-        // This prevents unnecessary refetches when navigating back from a point page
-        if (user?.id) {
+        // Only prevent refetching if we're not actively using the feed
+        // This allows mutations like endorsements to trigger refetches
+        if (user?.id && isNavigating) {
             queryClient.setQueryData(["feed", user?.id], (oldData: any) => oldData);
         }
-    }, [queryClient, user?.id]);
+    }, [queryClient, user?.id, isNavigating]);
 
     const shouldLoadPriorityPoints = selectedTab !== "search" && selectedTab !== "viewpoints";
 
@@ -441,8 +453,10 @@ export function SpacePageClient({
                 {selectedTab !== "search" && selectedTab !== "viewpoints" &&
                     pinnedPoint && !pinnedPointLoading && isInSpecificSpace && (
                         <div className="border-b transition-opacity duration-200 ease-in-out">
-                            <div
-                                onClick={(e) => handlePinnedPointClick(e, encodeId(pinnedPoint.pointId))}
+                            <Link
+                                draggable={false}
+                                onClick={preventDefaultIfContainsSelection}
+                                href={`${basePath}/${encodeId(pinnedPoint.pointId)}`}
                                 className="flex cursor-pointer hover:bg-accent"
                             >
                                 <PointCard
@@ -459,6 +473,10 @@ export function SpacePageClient({
                                     isCommand={pinnedPoint.isCommand}
                                     space={space.data?.id}
                                     pinnedCommandPointId={pinnedPoint.pinCommands?.[0]?.id}
+                                    onPinBadgeClickCapture={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                    }}
                                     pinStatus={
                                         pinnedPoint.pinCommands?.length > 1
                                             ? `Pinned by command (${pinnedPoint.pinCommands.length} competing proposals)`
@@ -466,8 +484,9 @@ export function SpacePageClient({
                                                 ? "Pinned by command"
                                                 : "Pinned by command"
                                     }
+                                    linkDisabled={true}
                                 />
-                            </div>
+                            </Link>
                         </div>
                     )}
 
@@ -532,7 +551,7 @@ export function SpacePageClient({
                         </>
                     )
                 ) : selectedTab === "points" ? (
-                    points === undefined || isLoading ? (
+                    !points || isLoading ? (
                         <Loader className="absolute self-center my-auto top-0 bottom-0" />
                     ) : points.length === 0 ? (
                         <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
@@ -543,33 +562,19 @@ export function SpacePageClient({
                             </Button>
                         </div>
                     ) : (
-                        points.filter(point => !pinnedAndPriorityPoints.has(point.pointId))
-                            .map((point) => (
-                                <Link
-                                    draggable={false}
-                                    onClick={preventDefaultIfContainsSelection}
-                                    href={`${basePath}/${encodeId(point.pointId)}`}
-                                    className="flex border-b cursor-pointer hover:bg-accent "
-                                    key={`points-tab-${point.pointId}`}
-                                >
-                                    <PointCard
-                                        className="flex-grow p-6"
-                                        amountSupporters={point.amountSupporters}
-                                        createdAt={point.createdAt}
-                                        cred={point.cred}
-                                        pointId={point.pointId}
-                                        favor={point.favor}
-                                        amountNegations={point.amountNegations}
-                                        content={point.content}
-                                        viewerContext={{ viewerCred: point.viewerCred }}
-                                        isCommand={point.isCommand}
-                                        space={space.data?.id}
-                                        onNegate={(e) => {
-                                            e.preventDefault();
-                                            user !== null ? setNegatedPointId(point.pointId) : login();
-                                        }}
-                                    />
-                                </Link>
+                        combinedFeed
+                            .filter(item => item.type === 'point')
+                            .map(item => (
+                                <FeedItem
+                                    key={item.id}
+                                    item={item}
+                                    basePath={basePath}
+                                    space={space.data?.id}
+                                    setNegatedPointId={setNegatedPointId}
+                                    login={login}
+                                    user={user}
+                                    pinnedPoint={pinnedPoint}
+                                />
                             ))
                     )
                 ) : (
@@ -593,6 +598,7 @@ export function SpacePageClient({
                                 author={viewpoint.author}
                                 createdAt={new Date(viewpoint.createdAt)}
                                 space={space.data?.id || "global"}
+                                linkable={true}
                             />
                         ))
                     )

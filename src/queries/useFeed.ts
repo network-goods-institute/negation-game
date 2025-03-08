@@ -53,7 +53,7 @@ export const useFeed = () => {
 
       return page;
     },
-    staleTime: 5 * 60_000,
+    staleTime: 30_000,
     gcTime: 10 * 60_000,
     retry: false,
     enabled: ready,

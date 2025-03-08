@@ -41,6 +41,7 @@ import {
 import { AuthenticatedActionButton, Button } from "./ui/button";
 import { encodeId } from "@/lib/encodeId";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -91,6 +92,8 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   isPriority?: boolean;
   pinnedCommandPointId?: number;
   pinStatus?: string;
+  onPinBadgeClickCapture?: React.MouseEventHandler;
+  linkDisabled?: boolean;
 }
 
 export const PointCard = ({
@@ -118,6 +121,8 @@ export const PointCard = ({
   isPriority,
   pinnedCommandPointId,
   pinStatus,
+  onPinBadgeClickCapture,
+  linkDisabled,
   ...props
 }: PointCardProps) => {
   const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
@@ -129,8 +134,7 @@ export const PointCard = ({
   const [isOPTooltipOpen, toggleOPTooltip] = useToggle();
 
   const [_, setHoveredPointId] = useAtom(hoveredPointIdAtom);
-  const endorsedByViewer =
-    viewerContext?.viewerCred !== undefined && viewerContext.viewerCred > 0;
+  const endorsedByViewer = viewerContext?.viewerCred !== undefined && viewerContext.viewerCred > 0;
   const { user: privyUser, login } = usePrivy();
   const [endorsePopoverOpen, toggleEndorsePopoverOpen] = useToggle(false);
   const { credInput, setCredInput, notEnoughCred } = useCredInput({
@@ -268,26 +272,74 @@ export const PointCard = ({
             {/* Never show command badges when space is undefined */}
             {pinnedCommandPointId && space && space !== 'global' && (
               <Badge variant="outline" className="ml-2 text-xs">
-                <Button
-                  type="button"
-                  variant="link"
-                  className="h-auto p-0 text-muted-foreground hover:text-foreground"
-                  onClick={handlePinCommandClick}
-                >
-                  {pinStatus || "Pinned by command"}
-                </Button>
+                {space && !linkDisabled ? (
+                  <Link
+                    href={`/s/${space}/${encodeId(pinnedCommandPointId)}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onPinBadgeClickCapture) {
+                        onPinBadgeClickCapture(e);
+                      }
+                    }}
+                    className="inline-block w-full h-full"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
+                      onClick={handlePinCommandClick}
+                    >
+                      {pinStatus || "Pinned by command"}
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="h-auto p-0 text-muted-foreground hover:text-foreground"
+                    onClick={handlePinCommandClick}
+                  >
+                    {pinStatus || "Pinned by command"}
+                  </Button>
+                )}
               </Badge>
             )}
             {parsePinCommand && space && space !== 'global' && (
               <Badge variant="outline" className="ml-2 text-xs">
-                <Button
-                  type="button"
-                  variant="link"
-                  className="h-auto p-0 text-muted-foreground hover:text-foreground"
-                  onClick={handleTargetPointClick}
-                >
-                  Proposal to pin
-                </Button>
+                {space && !linkDisabled ? (
+                  <Link
+                    href={`/s/${space}/${parsePinCommand}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onPinBadgeClickCapture) {
+                        onPinBadgeClickCapture(e);
+                      }
+                    }}
+                    className="inline-block w-full h-full"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
+                      onClick={handleTargetPointClick}
+                    >
+                      Proposal to pin
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="h-auto p-0 text-muted-foreground hover:text-foreground"
+                    onClick={handleTargetPointClick}
+                  >
+                    Proposal to pin
+                  </Button>
+                )}
               </Badge>
             )}
           </div>
@@ -337,7 +389,7 @@ export const PointCard = ({
                   <EndorseIcon
                     className={cn(endorsedByViewer && "fill-current")}
                   />{" "}
-                  {endorsedByViewer && (
+                  {endorsedByViewer && viewerContext?.viewerCred && (
                     <span>{viewerContext.viewerCred} cred</span>
                   )}
                 </Button>

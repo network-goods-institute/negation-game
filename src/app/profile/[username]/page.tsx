@@ -296,6 +296,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                                 createdAt={new Date(viewpoint.createdAt)}
                                                                 className="mb-2 mx-2"
                                                                 space={viewpoint.space ?? "global"}
+                                                                linkable={true}
                                                             />
                                                         ))}
                                                 </>
@@ -416,6 +417,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                                 createdAt={new Date(viewpoint.createdAt)}
                                                                 space={viewpoint.space ?? "global"}
                                                                 className="mb-2 mx-2"
+                                                                linkable={true}
                                                             />
                                                         ))}
                                                     </div>

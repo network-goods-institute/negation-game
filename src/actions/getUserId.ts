@@ -12,9 +12,17 @@ export const getUserId = async (): Promise<string | null> => {
   const privyClient = await getPrivyClient();
 
   try {
-    return (await privyClient.verifyAuthToken(privyToken)).userId;
+    const verificationResult = await privyClient.verifyAuthToken(privyToken);
+    return verificationResult.userId;
   } catch (error) {
-    console.error("error when verifying user privy token", error);
+    // If we get an invalid auth token error, return null to trigger re-auth
+    if (
+      error instanceof Error &&
+      error.message.toLowerCase().includes("invalid auth token")
+    ) {
+      return null;
+    }
+
     return null;
   }
 };

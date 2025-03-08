@@ -732,7 +732,7 @@ export const PointNode = ({
           <AlertDialogHeader>
             <AlertDialogTitle>Disconnect Point</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to disconnect this point? You won't be able to reopen it from the statement node, but you can always use keywords to find and add it again later via the add point button.
+              Are you sure you want to disconnect this point? You won&apos;t be able to reopen it from the statement node, but you can always use keywords to find and add it again later via the add point button.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
