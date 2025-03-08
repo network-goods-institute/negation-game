@@ -26,7 +26,7 @@ import { useDebounce } from "@uidotdev/usehooks";
 import { Handle, Node, NodeProps, Position, useReactFlow } from "@xyflow/react";
 import { XIcon } from "lucide-react";
 import { nanoid } from "nanoid";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 export type AddPointNodeData = {
   parentId: string;
@@ -45,10 +45,20 @@ export const AddPointNode = ({
   positionAbsoluteY,
 }: AddPointNodeProps) => {
 
-  const { deleteElements, addEdges, addNodes, getNode } = useReactFlow();
+  const { deleteElements, addEdges, addNodes, getNode, getNodes } = useReactFlow();
   const [content, setContent] = useState("");
   const debouncedContent = useDebounce(content, 1000);
   const { credInput, setCredInput } = useCredInput();
+
+  const existingPointIds = useMemo(() => {
+    return new Set(
+      getNodes()
+        .filter((node): node is Node<{ pointId: number }> =>
+          node.type === "point" && typeof node.data?.pointId === "number"
+        )
+        .map(node => node.data.pointId)
+    );
+  }, [getNodes]);
 
   const { data: similarPoints, isLoading } = useQuery({
     queryKey: ["similarPoints", debouncedContent] as const,
@@ -57,12 +67,15 @@ export const AddPointNode = ({
 
       const similarPoints = await fetchSimilarPoints({ query });
 
-      similarPoints.forEach((point) => {
+      const filteredPoints = similarPoints.filter(point => !existingPointIds.has(point.pointId));
+
+      filteredPoints.forEach((point) => {
         prefetchPoint(point.pointId);
       });
 
-      return similarPoints;
+      return filteredPoints;
     },
+    enabled: debouncedContent.length >= POINT_MIN_LENGTH,
   });
 
   const { mutateAsync: makePoint, isPending: isMakingPoint } = useMakePoint();
@@ -70,6 +83,7 @@ export const AddPointNode = ({
 
   const prefetchPoint = usePrefetchPoint();
 
+  const filteredSimilarPoints = similarPoints ?? [];
 
   return (
     <div
@@ -136,10 +150,10 @@ export const AddPointNode = ({
           </AuthenticatedActionButton>
         </div>
         {isLoading && <Loader className="m-2" />}
-        {similarPoints && similarPoints.length > 0 && (
+        {filteredSimilarPoints.length > 0 && (
           <Dialog>
             <DialogTrigger asChild>
-              <Button size={"icon"}>{similarPoints.length}</Button>
+              <Button size={"icon"}>{filteredSimilarPoints.length}</Button>
             </DialogTrigger>
             <DialogContent className="w-96 p-2  bg-muted rounded-md overflow-clip">
               <DialogTitle className="text-center mt-2">
@@ -159,7 +173,7 @@ export const AddPointNode = ({
               </DialogClose>
               <div className="overflow-y-auto max-h-96 shadow-inner rounded-md">
                 <div className="flex flex-col gap-2 z-10">
-                  {similarPoints.map((point) => (
+                  {filteredSimilarPoints.map((point: SimilarPointsResult) => (
                     <div
                       key={point.pointId}
                       className="flex flex-col gap-2 p-4  hover:border-muted-foreground  w-full bg-background cursor-pointer border rounded-md"
