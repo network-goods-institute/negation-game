@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ArrowLeftIcon, ExternalLinkIcon } from "lucide-react";
+import DOMPurify from 'dompurify';
 import { useState } from "react";
 import { updateUserProfile } from "@/actions/updateUserProfile";
 import { toast } from "sonner";
@@ -151,7 +152,7 @@ export const ProfileEditDialog = ({
                                     <div className="flex items-center gap-2">
                                         <span className="text-sm font-medium">Preview:</span>
                                         <a
-                                            href={delegationUrl.startsWith("http") ? delegationUrl : `https://${delegationUrl}`}
+                                            href={DOMPurify.sanitize(delegationUrl.startsWith("http") ? delegationUrl : `https://${delegationUrl}`)}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="text-primary flex items-center gap-1 ml-auto text-xs hover:underline"
