@@ -1,10 +1,12 @@
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
+import { visitedPointsAtom } from "@/atoms/visitedPointsAtom";
 import { CredInput } from "@/components/CredInput";
 import { PointStats } from "@/components/PointStats";
 import { DoubtIcon } from "@/components/icons/DoubtIcon";
 import { EndorseIcon } from "@/components/icons/EndorseIcon";
 import { NegateIcon } from "@/components/icons/NegateIcon";
 import { RestakeIcon } from "@/components/icons/RestakeIcon";
+import { PointIcon, PinnedIcon, FeedCommandIcon } from "@/components/icons/AppIcons";
 import { Badge } from "@/components/ui/badge";
 import {
   Popover,
@@ -26,7 +28,8 @@ import { useUserEndorsement } from "@/queries/useUserEndorsements";
 import { usePrivy } from "@privy-io/react-auth";
 import { useToggle } from "@uidotdev/usehooks";
 import { useAtom } from "jotai";
-import { CheckIcon } from "lucide-react";
+import { CircleIcon } from "lucide-react";
+import { Portal } from "@radix-ui/react-portal";
 import {
   HTMLAttributes,
   MouseEventHandler,
@@ -36,7 +39,9 @@ import {
   useState,
 } from "react";
 import { AuthenticatedActionButton, Button } from "./ui/button";
-import { Portal } from "@radix-ui/react-portal";
+import { encodeId } from "@/lib/encodeId";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -82,6 +87,13 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   } | null;
   space?: string;
   originalPosterId?: string;
+  isCommand?: boolean;
+  isPinned?: boolean;
+  isPriority?: boolean;
+  pinnedCommandPointId?: number;
+  pinStatus?: string;
+  onPinBadgeClickCapture?: React.MouseEventHandler;
+  linkDisabled?: boolean;
 }
 
 export const PointCard = ({
@@ -104,6 +116,13 @@ export const PointCard = ({
   doubt,
   space,
   originalPosterId,
+  isCommand,
+  isPinned,
+  isPriority,
+  pinnedCommandPointId,
+  pinStatus,
+  onPinBadgeClickCapture,
+  linkDisabled,
   ...props
 }: PointCardProps) => {
   const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
@@ -115,16 +134,17 @@ export const PointCard = ({
   const [isOPTooltipOpen, toggleOPTooltip] = useToggle();
 
   const [_, setHoveredPointId] = useAtom(hoveredPointIdAtom);
-  const endorsedByViewer =
-    viewerContext?.viewerCred !== undefined && viewerContext.viewerCred > 0;
+  const endorsedByViewer = viewerContext?.viewerCred !== undefined && viewerContext.viewerCred > 0;
   const { user: privyUser, login } = usePrivy();
   const [endorsePopoverOpen, toggleEndorsePopoverOpen] = useToggle(false);
   const { credInput, setCredInput, notEnoughCred } = useCredInput({
     resetWhen: !endorsePopoverOpen,
   });
   const prefetchRestakeData = usePrefetchRestakeData();
-  const { isVisited } = useVisitedPoints();
-  const [visited, setVisited] = useState<boolean | null>(null);
+  const { isVisited, markPointAsRead } = useVisitedPoints();
+  const [visitedPoints, setVisitedPoints] = useAtom(visitedPointsAtom);
+  const visited = visitedPoints.has(pointId);
+  const router = useRouter();
 
   const [restakePercentage, isOverHundred] = useMemo(() => {
     if (!isNegation || !parentPoint || !restake?.amount || !restake.isOwner)
@@ -165,20 +185,70 @@ export const PointCard = ({
     return restake.amount > 0;
   }, [restake]);
 
+  // Only check visited state once on mount
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
     isVisited(pointId).then((result) => {
-      if (isMounted) setVisited(result);
+      if (mounted && !result) {  // Only update state if not visited and component still mounted
+        setVisitedPoints(prev => {
+          const newSet = new Set(prev);
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
+          newSet.delete(pointId);
+          return newSet;
+        });
+      } else if (mounted && result) {
+        setVisitedPoints(prev => {
+          const newSet = new Set(prev);
+          newSet.add(pointId);
+          return newSet;
+        });
+      }
     });
-    return () => {
-      isMounted = false;
-    };
-  }, [isVisited, pointId]);
+    return () => { mounted = false; };
+  }, [pointId, isVisited, setVisitedPoints]);
+
+  const parsePinCommand = useMemo(() => {
+    // Prevent showing pin commands when space is undefined or global
+    if (!space || space === 'global' || !isCommand) {
+      return null;
+    }
+
+    // Check if content exists and is a pin command
+    if (!content || !content.startsWith('/pin ')) {
+      return null;
+    }
+
+    const parts = content.split(' ').filter(Boolean);
+    if (parts.length < 2) {
+      return null;
+    }
+
+    return parts[1];
+  }, [isCommand, content, space]);
+
+  const handleTargetPointClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (parsePinCommand && space && space !== 'global') {
+      router.push(`/s/${space}/${parsePinCommand}`);
+    }
+  };
+
+  const handlePinCommandClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (pinnedCommandPointId && router && space && space !== 'global') {
+      const encodedCommandId = encodeId(pinnedCommandPointId);
+      router.push(`/s/${space}/${encodedCommandId}`);
+    }
+  };
 
   return (
     <div
       className={cn(
         "@container/point flex gap-3 pt-4 pb-3 px-4 relative rounded-none",
+        isPinned && "border-l-4 border-primary",
+        isPriority && !isPinned && "border-l-4 border-amber-400",
         className
       )}
       onMouseOver={() => {
@@ -189,15 +259,94 @@ export const PointCard = ({
       {...props}
     >
       <div className="flex flex-col flex-grow w-full min-w-0">
-        <p className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg -mt-1 mb-sm select-text flex-1 break-words whitespace-normal overflow-hidden">
-          {content}
-          {visited === true && (
-            <CheckIcon className="inline size-4 text-muted-foreground/80 ml-2" />
+        <div className="flex items-start gap-2">
+          {isCommand && space && space !== 'global' ? (
+            <FeedCommandIcon />
+          ) : isPinned && space && space !== 'global' ? (
+            <PinnedIcon />
+          ) : (
+            <PointIcon />
           )}
-        </p>
+          <div className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg -mt-1 mb-sm select-text flex-1 break-words whitespace-normal overflow-hidden">
+            {content}
+            {/* Never show command badges when space is undefined */}
+            {pinnedCommandPointId && space && space !== 'global' && (
+              <Badge variant="outline" className="ml-2 text-xs">
+                {space && !linkDisabled ? (
+                  <Link
+                    href={`/s/${space}/${encodeId(pinnedCommandPointId)}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onPinBadgeClickCapture) {
+                        onPinBadgeClickCapture(e);
+                      }
+                    }}
+                    className="inline-block w-full h-full"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
+                      onClick={handlePinCommandClick}
+                    >
+                      {pinStatus || "Pinned by command"}
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="h-auto p-0 text-muted-foreground hover:text-foreground"
+                    onClick={handlePinCommandClick}
+                  >
+                    {pinStatus || "Pinned by command"}
+                  </Button>
+                )}
+              </Badge>
+            )}
+            {parsePinCommand && space && space !== 'global' && (
+              <Badge variant="outline" className="ml-2 text-xs">
+                {space && !linkDisabled ? (
+                  <Link
+                    href={`/s/${space}/${parsePinCommand}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onPinBadgeClickCapture) {
+                        onPinBadgeClickCapture(e);
+                      }
+                    }}
+                    className="inline-block w-full h-full"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
+                      onClick={handleTargetPointClick}
+                    >
+                      Proposal to pin
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="h-auto p-0 text-muted-foreground hover:text-foreground"
+                    onClick={handleTargetPointClick}
+                  >
+                    Proposal to pin
+                  </Button>
+                )}
+              </Badge>
+            )}
+          </div>
+        </div>
 
         <PointStats
-          className="mb-md  select-text"
+          className="mb-md select-text"
           amountNegations={amountNegations}
           amountSupporters={amountSupporters}
           favor={favor}
@@ -240,7 +389,7 @@ export const PointCard = ({
                   <EndorseIcon
                     className={cn(endorsedByViewer && "fill-current")}
                   />{" "}
-                  {endorsedByViewer && (
+                  {endorsedByViewer && viewerContext?.viewerCred && (
                     <span>{viewerContext.viewerCred} cred</span>
                   )}
                 </Button>
@@ -386,6 +535,37 @@ export const PointCard = ({
                 </strong>{" "}
                 with {opCred} cred
               </p>
+            </TooltipContent>
+          </Portal>
+        </Tooltip>
+      )}
+      {!visited && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                markPointAsRead(pointId);
+                setVisitedPoints(prev => {
+                  const newSet = new Set(prev);
+                  newSet.add(pointId);
+                  return newSet;
+                });
+              }}
+              className="absolute top-3 right-3 p-2 -m-2 rounded-full hover:bg-accent"
+            >
+              <CircleIcon className="size-4 fill-endorsed text-endorsed animate-pulse" />
+            </button>
+          </TooltipTrigger>
+          <Portal>
+            <TooltipContent
+              side="top"
+              align="center"
+              sideOffset={5}
+              className="z-[100]"
+            >
+              <p>You haven&apos;t viewed this point, yet. Tap to mark seen</p>
             </TooltipContent>
           </Portal>
         </Tooltip>

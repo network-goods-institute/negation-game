@@ -38,9 +38,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Portal } from "@radix-ui/react-portal";
-import { GroupIcon, NetworkIcon, CopyIcon, } from "lucide-react";
-import React from 'react';
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { NetworkIcon, CopyIcon } from "lucide-react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import dynamic from 'next/dynamic';
 import remarkGfm from 'remark-gfm';
 import { use } from "react";
@@ -52,6 +51,7 @@ import { useViewpoint } from "@/queries/useViewpoint";
 import { useRouter } from "next/navigation";
 import { EditModeProvider, useEditMode } from "@/components/graph/EditModeContext";
 import { ReactFlowInstance } from "@xyflow/react";
+import { ViewpointIcon } from "@/components/icons/AppIcons";
 
 // Create dynamic ReactMarkdown component
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
@@ -163,7 +163,8 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 640); // 640px is tailwind's sm breakpoint
+      const isMobileView = window.innerWidth < 640; // 640px is tailwind's sm breakpoint
+      setIsMobile(isMobileView);
     };
 
     // Check initially
@@ -178,13 +179,11 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
   const points = useGraphPoints();
 
-  const { updateNodeData } = useReactFlow();
   const reactFlow = useReactFlow<AppNode>();
   const { data: viewpoint } = useViewpoint(viewpointId);
 
   const setGraph = useSetAtom(viewpointGraphAtom);
-  const setStatement = useSetAtom(viewpointStatementAtom);
-  const setReasoning = useSetAtom(viewpointReasoningAtom);
+
   const setCollapsedPointIds = useSetAtom(collapsedPointIdsAtom);
 
   const [hoveredPointId, setHoveredPointId] = useAtom(hoveredPointIdAtom);
@@ -330,30 +329,28 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
           <div className="relative flex-grow bg-background">
             <div className="sticky top-0 z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
               {space?.data && space.data.id !== DEFAULT_SPACE ? (
-                <div className="flex items-center gap-1">
-                  <>
-                    <Avatar className="border-4 border-background size-8">
-                      {space.data.icon && (
-                        <AvatarImage
-                          src={space.data.icon}
-                          alt={`s/${space.data.id} icon`}
-                        />
-                      )}
-                      <AvatarFallback className="text-xl font-bold text-muted-foreground">
-                        {space.data.id.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-md  font-semibold">
-                      s/{space.data.id}
-                    </span>
-                  </>
+                <div className="flex items-center gap-2">
+                  <Avatar className="border-4 border-background size-8">
+                    {space.data.icon && (
+                      <AvatarImage
+                        src={space.data.icon}
+                        alt={`s/${space.data.id} icon`}
+                      />
+                    )}
+                    <AvatarFallback className="text-xl font-bold text-muted-foreground">
+                      {space.data.id.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-md font-semibold">
+                    s/{space.data.id}
+                  </span>
                 </div>
               ) : (
                 <div />
               )}
 
-              <h1 className="text-sm font-bold">
-                <GroupIcon className="inline stroke-1 size-5 align-text-bottom" />{" "}
+              <h1 className="text-sm font-bold flex items-center gap-2">
+                <ViewpointIcon className="size-4" />
                 Viewpoint
               </h1>
 
@@ -363,7 +360,8 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                   variant={canvasEnabled ? "default" : "outline"}
                   className="rounded-full p-2 size-9 sm:hidden"
                   onClick={() => {
-                    setCanvasEnabled(true);
+                    const newState = !canvasEnabled;
+                    setCanvasEnabled(newState);
                   }}
                 >
                   <NetworkIcon className="" />
@@ -395,6 +393,12 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
               </div>
             </div>
             <Separator />
+            {/* Add mobile-only separator that appears under the mobile buttons when canvas is enabled */}
+            {canvasEnabled && (
+              <div className="sm:hidden">
+                <Separator />
+              </div>
+            )}
 
             <div className="flex flex-col p-2 gap-0">
               <h2 className="font-semibold">{title}</h2>
@@ -448,11 +452,19 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
             statement={title}
             className={cn(
               "!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset] !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md:z-auto",
-              !canvasEnabled && isMobile && "hidden"
+              !canvasEnabled && isMobile ? "hidden" : ""
             )}
             setLocalGraph={setLocalGraph}
             onSaveChanges={onSaveChanges}
             isSaving={isSaving}
+            onClose={
+              isMobile
+                ? () => {
+                  setCanvasEnabled(false);
+                }
+                : undefined
+            }
+            closeButtonClassName="top-4 right-4"
           />
         </Dynamic>
 

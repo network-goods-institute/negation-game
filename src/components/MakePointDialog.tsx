@@ -2,6 +2,7 @@ import { CredInput } from "@/components/CredInput";
 import { PointEditor } from "@/components/PointEditor";
 import { PointStats } from "@/components/PointStats";
 import { Button } from "@/components/ui/button";
+import { MakePointCommandIcon } from "@/components/icons/AppIcons";
 import {
   Dialog,
   DialogClose,
@@ -153,12 +154,19 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({
 
         <div className="flex w-full gap-3 mb-lg">
           <div className="flex flex-col items-center">
-            <DiscIcon
-              className={cn(
-                "size-6 text-muted-foreground stroke-1",
+            {content.startsWith('/') ? (
+              <MakePointCommandIcon className={cn(
+                "w-6 h-6 text-muted-foreground",
                 !selectedPoint && "text-endorsed"
-              )}
-            />
+              )} />
+            ) : (
+              <DiscIcon
+                className={cn(
+                  "size-6 text-muted-foreground stroke-1",
+                  !selectedPoint && "text-endorsed"
+                )}
+              />
+            )}
             {cred > 0 && (
               <span className="relative text-endorsed text-xs">
                 <span className="absolute -left-2">+</span>

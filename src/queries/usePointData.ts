@@ -26,7 +26,11 @@ export const usePointData = (pointId?: number) => {
     queryKey: pointQueryKey({ pointId, userId: user?.id }),
     queryFn: () => (pointId ? pointFetcher.fetch(pointId) : null),
     gcTime: Infinity,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 5 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: false,
+    networkMode: "offlineFirst",
   });
 };
 
@@ -50,9 +54,9 @@ export const useSetPointData = () => {
         pointId: number;
         userId?: string;
       },
-      data: PointData,
+      data: PointData
     ) => queryClient.setQueryData(pointQueryKey(key), data),
-    [queryClient],
+    [queryClient]
   );
 };
 
@@ -64,15 +68,44 @@ export const useInvalidateRelatedPoints = () => {
     (pointId: number) => {
       const pointData: PointData | undefined =
         queryClient.getQueryData(
-          pointQueryKey({ pointId, userId: user?.id }),
+          pointQueryKey({ pointId, userId: user?.id })
         ) ?? queryClient.getQueryData(pointQueryKey({ pointId }));
-      queryClient.invalidateQueries({ queryKey: [pointId] });
+
+      queryClient.invalidateQueries({
+        queryKey: pointQueryKey({ pointId, userId: user?.id }),
+        exact: false,
+      });
+
+      // Invalidate point-negations
+      queryClient.invalidateQueries({
+        queryKey: ["point-negations", pointId],
+        exact: false,
+      });
+
+      // Invalidate favor history
+      queryClient.invalidateQueries({
+        queryKey: [pointId, "favor-history"],
+        exact: false,
+      });
+
       if (!pointData) return;
 
+      // Invalidate related negations with proper query keys
       pointData.negationIds.forEach((negationId) => {
-        queryClient.invalidateQueries({ queryKey: [negationId] });
+        queryClient.invalidateQueries({
+          queryKey: pointQueryKey({ pointId: negationId, userId: user?.id }),
+          exact: false,
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["point-negations", negationId],
+          exact: false,
+        });
+        queryClient.invalidateQueries({
+          queryKey: [negationId, "favor-history"],
+          exact: false,
+        });
       });
     },
-    [queryClient, user?.id],
+    [queryClient, user?.id]
   );
 };

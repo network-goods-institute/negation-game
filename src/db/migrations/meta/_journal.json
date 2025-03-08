@@ -246,6 +246,27 @@
       "when": 1738346512701,
       "tag": "0034_lowly_wonder_man",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1740907230490,
+      "tag": "0035_powerful_silver_sable",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1741140041429,
+      "tag": "0036_curvy_mystique",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1741141679364,
+      "tag": "0037_careful_marvel_apes",
+      "breakpoints": true
     }
   ]
 }

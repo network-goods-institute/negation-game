@@ -13,6 +13,7 @@ import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
+import { deduplicatePoints } from "@/db/utils/deduplicatePoints";
 
 export type UserEndorsedPoint = {
   pointId: number;
@@ -150,5 +151,8 @@ export const fetchUserEndorsedPoints = async (
       )
     )
     .where(inArray(pointsWithDetailsView.pointId, pointIds))
-    .then((points) => addFavor(points));
+    .then((results) => {
+      const uniquePoints = deduplicatePoints(results);
+      return addFavor(uniquePoints);
+    });
 };

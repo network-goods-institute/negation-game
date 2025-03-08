@@ -1,9 +1,10 @@
 import { InferColumnsDataTypes } from "drizzle-orm";
-import { pgTable, varchar } from "drizzle-orm/pg-core";
+import { pgTable, varchar, integer } from "drizzle-orm/pg-core";
 
 export const spacesTable = pgTable("spaces", {
   id: varchar("space_id").primaryKey(),
   icon: varchar("icon"),
+  pinnedPointId: integer("pinned_point_id"),
 });
 
 export type InsertSpace = typeof spacesTable.$inferInsert;

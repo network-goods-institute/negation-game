@@ -1,6 +1,7 @@
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import * as React from "react";
+import { useState } from "react";
 
 import { Loader } from "@/components/ui/loader";
 import { cn } from "@/lib/cn";
@@ -96,17 +97,39 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 Button.displayName = "Button";
 
 const AuthenticatedActionButton = ({ onClick, ...props }: ButtonProps) => {
-  const { user, login } = usePrivy();
+  const { user, login, authenticated, ready, getAccessToken } = usePrivy();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const handleClick = React.useCallback((e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
-    if (!!user) {
-      onClick?.(e);
+  const handleClick = React.useCallback(async (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+    // Prevent default to handle auth flow
+    e.preventDefault();
+
+    // Check if auth is ready and user is authenticated
+    if (ready && authenticated) {
+      try {
+        setIsRefreshing(true);
+        const token = await getAccessToken();
+
+        if (!token) {
+          login();
+          return;
+        }
+
+        onClick?.(e);
+      } catch (error) {
+        login();
+      } finally {
+        setIsRefreshing(false);
+      }
     } else {
+      // Force a login refresh
       login();
     }
-  }, [user, onClick, login]);
+  }, [authenticated, ready, onClick, login, getAccessToken]);
 
-  return <Button {...props} onClick={handleClick} />;
+  const rightLoading = props.rightLoading || isRefreshing;
+
+  return <Button {...props} onClick={handleClick} rightLoading={rightLoading} />;
 };
 
 export { AuthenticatedActionButton, Button, buttonVariants };

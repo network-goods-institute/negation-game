@@ -24,7 +24,17 @@ import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { find } from "remeda";
 import { collapsedPointIdsAtom, collapsedNodePositionsAtom, CollapsedNodePosition } from "@/app/s/[space]/viewpoint/viewpointAtoms";
 import { useViewpoint } from "@/queries/useViewpoint";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export type PointNodeData = {
   pointId: number;
@@ -376,8 +386,21 @@ export const PointNode = ({
           (expandNegations as any).layoutCache = layouts;
         }
 
-        // Use the pre-calculated layout
-        position = (expandNegations as any).layoutCache[i];
+        // Use the pre-calculated layout with a fallback if layoutCache is undefined
+        if ((expandNegations as any).layoutCache && i < (expandNegations as any).layoutCache.length) {
+          position = (expandNegations as any).layoutCache[i];
+        } else {
+          // Recalculate layout using the same function if cache is missing
+          const targetNode = getNode(id)!;
+          const layouts = calculateInitialLayout(
+            targetNode.position.x,
+            targetNode.position.y,
+            targetNode?.measured?.height ?? 200,
+            expandableNegationIds.length
+          );
+          // Take the position for this index
+          position = layouts[i];
+        }
       }
 
       addNodes({
@@ -446,12 +469,24 @@ export const PointNode = ({
     setCollapsedNodePositions
   ]);
 
+  const hasExpandedRef = useRef(false);
+  const strictModeMountRef = useRef(0);
+
   useEffect(() => {
     if (!shouldExpandOnInit || pointData === undefined) return;
 
-    // FIXME: this is causing duplicates on strict mode (and weirdly only in encoded graph view, issue might be there.). Couldn't track down the issue
+    // In development, React.StrictMode causes double mounting
+    // We only want to expand on the second mount in strict mode
+    if (process.env.NODE_ENV === 'development') {
+      strictModeMountRef.current += 1;
+      if (strictModeMountRef.current < 2) return;
+    }
+
+    if (hasExpandedRef.current) return;
+
     expandNegations();
     setShouldExpandOnInit(false);
+    hasExpandedRef.current = true;
   }, [shouldExpandOnInit, pointData, expandNegations]);
 
   const expandedNegationIds = useMemo(() => [
@@ -596,6 +631,33 @@ export const PointNode = ({
     parentId
   ]);
 
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+
+  // Get the pathname once and memoize the check
+  const pathname = usePathname();
+  const isNewViewpointPage = useMemo(() =>
+    pathname?.includes('/viewpoint/new'),
+    [pathname]
+  );
+
+  const handleCollapseClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Single combined check to determine if we show confirmation
+    if (parentId === 'statement' && isNewViewpointPage) {
+      setIsConfirmDialogOpen(true);
+    } else if (parentId) {
+      // For all other cases, collapse without confirmation
+      collapseSelfAndNegations();
+    }
+  }, [parentId, collapseSelfAndNegations, isNewViewpointPage]);
+
+  const confirmCollapse = useCallback(() => {
+    setIsConfirmDialogOpen(false);
+    collapseSelfAndNegations();
+  }, [collapseSelfAndNegations]);
+
   return (
     <div
       data-loading={pointData === undefined}
@@ -632,7 +694,7 @@ export const PointNode = ({
           className={
             "pt-1 pb-0.5 px-2 translate-y-[-100%] -translate-x-1/2 size-fit bg-muted text-center border-2 border-b-0 rounded-t-full pointer-events-auto !cursor-pointer"
           }
-          onClick={collapseSelfAndNegations}
+          onClick={handleCollapseClick}
         >
           {parentId === 'statement' ? (
             <CircleIcon className="size-4" />
@@ -653,8 +715,10 @@ export const PointNode = ({
             favor={pointData.favor}
             pointId={pointData.pointId}
             viewerContext={{ viewerCred: pointData.viewerCred }}
+            space={pointData.space ?? undefined}
+            isCommand={pointData.isCommand}
             className={cn(
-              "bg-muted/40 rounded-sm z-10",
+              "bg-muted/40 rounded-sm z-10 max-w-[300px] break-words",
               isRedundant && "opacity-30 hover:opacity-100"
             )}
             originalPosterId={originalPosterId}
@@ -663,6 +727,22 @@ export const PointNode = ({
       ) : (
         <div className="w-full flex-grow h-32 bg-muted/40 animate-pulse" />
       )}
+      <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disconnect Point</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to disconnect this point? You won&apos;t be able to reopen it from the statement node, but you can always use keywords to find and add it again later via the add point button.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmCollapse}>
+              Yes, disconnect it
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

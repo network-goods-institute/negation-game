@@ -4,6 +4,7 @@ import { useInvalidateRelatedPoints } from "@/queries/usePointData";
 import { userQueryKey } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
+import { pointQueryKey } from "@/queries/usePointData";
 
 export const useSlash = () => {
   const queryClient = useQueryClient();
@@ -17,20 +18,23 @@ export const useSlash = () => {
       invalidateRelatedPoints(pointId);
       invalidateRelatedPoints(negationId);
 
-      // Invalidate restake and slash queries
-      queryClient.invalidateQueries({
-        queryKey: ["restake", pointId, negationId],
-      });
+      // Invalidate slash-specific queries
       queryClient.invalidateQueries({
         queryKey: ["slash", pointId, negationId],
+        exact: false,
       });
 
-      // Also invalidate point-negations to update percentages
+      // Invalidate point-negations to update relationships and icons
       queryClient.invalidateQueries({
-        queryKey: [pointId, "point-negations"],
+        queryKey: ["point-negations", pointId],
+        exact: false,
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["point-negations", negationId],
+        exact: false,
       });
 
-      // Invalidate favor history to update percentages
+      // Invalidate favor history
       queryClient.invalidateQueries({
         queryKey: [pointId, "favor-history"],
         exact: false,
@@ -48,6 +52,22 @@ export const useSlash = () => {
       // Invalidate feed
       queryClient.invalidateQueries({
         queryKey: ["feed"],
+      });
+
+      // Invalidate pinned point in case either point is pinned
+      queryClient.invalidateQueries({
+        queryKey: ["pinnedPoint"],
+        exact: false,
+      });
+
+      // Force refetch of point data
+      queryClient.refetchQueries({
+        queryKey: pointQueryKey({ pointId, userId: user?.id }),
+        exact: true,
+      });
+      queryClient.refetchQueries({
+        queryKey: pointQueryKey({ pointId: negationId, userId: user?.id }),
+        exact: true,
       });
     },
   });

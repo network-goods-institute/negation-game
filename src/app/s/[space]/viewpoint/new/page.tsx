@@ -8,7 +8,7 @@ import {
   collapsedPointIdsAtom,
   ViewpointGraph,
 } from "@/app/s/[space]/viewpoint/viewpointAtoms";
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useTransition } from "react";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { AppNode } from "@/components/graph/AppNode";
@@ -56,6 +56,16 @@ import { ErrorBoundary } from "react-error-boundary";
 import { Trash2Icon } from "lucide-react";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 function PointCardWrapper({
   point,
@@ -101,10 +111,14 @@ function ViewpointContent() {
   const { data: user } = useUser();
   const { push } = useRouter();
   const basePath = useBasePath();
+  const pathname = usePathname();
   const [isCopiedFromSessionStorage, setIsCopiedFromSessionStorage] = useState(false);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   const spaceQuery = useSpace();
   const space = spaceQuery;
+  const currentSpace = getSpaceFromPathname(pathname);
   const [canvasEnabled, setCanvasEnabled] = useAtom(canvasEnabledAtom);
   const [isMobile, setIsMobile] = useState(false);
   const reactFlow = useReactFlow<AppNode>();
@@ -113,7 +127,6 @@ function ViewpointContent() {
   const points = useGraphPoints();
   const [statement, setStatement] = useAtom(viewpointStatementAtom);
   const [reasoning, setReasoning] = useAtom(viewpointReasoningAtom);
-  const pathname = usePathname();
   const [_, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
 
   const spaceObj = space?.data?.id;
@@ -228,16 +241,38 @@ function ViewpointContent() {
     }
   }, [graph, isCopiedFromSessionStorage, setGraph]);
 
-  const clearGraph = () => {
-    setReasoning("");
-    setStatement("");
-    setGraph(initialViewpointGraph);
-    // Explicitly set nodes and edges in React Flow.
-    reactFlow.setNodes(initialViewpointGraph.nodes);
-    reactFlow.setEdges(initialViewpointGraph.edges);
-    setCollapsedPointIds(new Set()); // Clear collapsed points
-  };
+  const clearGraph = useCallback(() => {
+    startTransition(() => {
+      setReasoning("");
+      setStatement("");
+      setGraph(initialViewpointGraph);
+      setCollapsedPointIds(new Set());
 
+      if (reactFlow) {
+        reactFlow.setNodes(initialViewpointGraph.nodes);
+        reactFlow.setEdges(initialViewpointGraph.edges);
+      }
+
+      setIsConfirmDialogOpen(false);
+
+      // Clear any session storage data
+      if (currentSpace) {
+        const storageKey = `copyingViewpoint:${currentSpace}`;
+        sessionStorage.removeItem(storageKey);
+      }
+
+      // Navigate back to the correct page based on space
+      if (currentSpace && currentSpace !== "null" && currentSpace !== "undefined") {
+        push(`/s/${currentSpace}`);
+      } else {
+        push("/");
+      }
+    });
+  }, [setReasoning, setStatement, setGraph, reactFlow, setCollapsedPointIds, push, currentSpace]);
+
+  const openConfirmDialog = useCallback(() => {
+    setIsConfirmDialogOpen(true);
+  }, []);
 
   return (
     <main className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
@@ -245,23 +280,21 @@ function ViewpointContent() {
         <div className="relative flex-grow bg-background">
           <div className="sticky top-0 z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
             {space?.data && space.data.id !== DEFAULT_SPACE ? (
-              <div className="flex items-center gap-1">
-                <>
-                  <Avatar className="border-4 border-background size-8">
-                    {space.data.icon && (
-                      <AvatarImage
-                        src={space.data.icon}
-                        alt={`s/${space.data.id} icon`}
-                      />
-                    )}
-                    <AvatarFallback className="text-xl font-bold text-muted-foreground">
-                      {space.data.id.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-md font-semibold">
-                    s/{space.data.id}
-                  </span>
-                </>
+              <div className="flex items-center gap-2">
+                <Avatar className="border-4 border-background size-8">
+                  {space.data.icon && (
+                    <AvatarImage
+                      src={space.data.icon}
+                      alt={`s/${space.data.id} icon`}
+                    />
+                  )}
+                  <AvatarFallback className="text-xl font-bold text-muted-foreground">
+                    {space.data.id.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-md font-semibold">
+                  s/{space.data.id}
+                </span>
               </div>
             ) : (
               <div />
@@ -284,7 +317,7 @@ function ViewpointContent() {
                 variant={"ghost"}
                 size={"icon"}
                 className="mr-2"
-                onClick={clearGraph}
+                onClick={openConfirmDialog}
               >
                 <Trash2Icon />
               </Button>
@@ -439,6 +472,23 @@ function ViewpointContent() {
       </Dynamic>
 
       <NegateDialog />
+
+      <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Abandon Viewpoint</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to abandon this viewpoint? All your work will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={clearGraph} disabled={isPending}>
+              {isPending ? "Abandoning..." : "Yes, abandon it"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }

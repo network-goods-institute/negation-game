@@ -13,6 +13,7 @@ import { eq, and } from "drizzle-orm";
 import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
 import { sql } from "drizzle-orm";
+import { deduplicatePoints } from "@/db/utils/deduplicatePoints";
 
 export type ProfilePoint = {
   pointId: number;
@@ -122,5 +123,8 @@ export const fetchProfilePoints = async (
       )
     )
     .where(eq(pointsWithDetailsView.createdBy, targetUserId))
-    .then((points) => addFavor(points));
+    .then((results) => {
+      const uniquePoints = deduplicatePoints(results);
+      return addFavor(uniquePoints);
+    });
 };

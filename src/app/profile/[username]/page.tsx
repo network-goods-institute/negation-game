@@ -9,7 +9,7 @@ import Link from "next/link";
 import { encodeId } from "@/lib/encodeId";
 import { useBasePath } from "@/hooks/useBasePath";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftIcon, ArrowDownIcon } from "lucide-react";
+import { ArrowLeftIcon, ArrowDownIcon, PencilIcon, ExternalLinkIcon } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { ConnectButton } from "@/components/ConnectButton";
 import { useState } from "react";
@@ -20,6 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import type { ProfilePoint } from "@/actions/fetchProfilePoints";
 import React from "react";
 import { useUserEndorsedPoints } from "@/queries/useUserEndorsedPoints";
+import { ProfileEditDialog } from "@/components/ProfileEditDialog";
 
 interface ProfilePageProps {
     params: Promise<{
@@ -41,6 +42,8 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     const { data: profilePoints } = useProfilePoints(username);
     const { data: userViewpoints, isLoading: isLoadingViewpoints } = useUserViewpoints(username);
     const { data: endorsedPoints, isLoading: isLoadingEndorsedPoints } = useUserEndorsedPoints(username);
+    const { data: userData } = useUser(username);
+    const [editProfileOpen, setEditProfileOpen] = useState(false);
 
     if (!ready || isLoadingPoints || isLoadingViewpoints || isLoadingEndorsedPoints) {
         return (
@@ -123,8 +126,9 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     const myPoints = profilePoints || [];
     const userEndorsedPoints = endorsedPoints || [];
 
-    // Get user's cred from the first point or default to 0
     const userCred = profilePoints?.[0]?.cred || 0;
+
+    const isOwnProfile = privyUser?.id === userData?.id;
 
     // Only proceed with points array if we have valid data
     const validPoints = Array.isArray(myPoints) ? myPoints : [];
@@ -175,12 +179,42 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                 </div>
 
                 <div className="p-4">
-                    <div className="flex items-center gap-4 mb-6">
+                    <div className="flex items-center justify-between mb-4">
                         <div>
                             <h2 className="text-lg font-medium">{username}</h2>
                             <p className="text-sm text-muted-foreground">{userCred} cred</p>
                         </div>
+                        {isOwnProfile && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEditProfileOpen(true)}
+                                className="gap-1"
+                            >
+                                <PencilIcon className="size-3" />
+                                Edit Profile
+                            </Button>
+                        )}
                     </div>
+
+                    {userData?.bio && (
+                        <div className="mb-4 p-3 bg-muted/30 rounded-lg">
+                            <p className="text-sm whitespace-pre-wrap">{userData.bio}</p>
+                        </div>
+                    )}
+
+                    {userData?.delegationUrl && (
+                        <div className="mb-4 flex items-center gap-2">
+                            <a
+                                href={userData.delegationUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary text-sm flex items-center gap-1 hover:underline"
+                            >
+                                Delegate to this user <ExternalLinkIcon className="size-3" />
+                            </a>
+                        </div>
+                    )}
 
                     <Tabs defaultValue="profile" className="w-full">
                         <TabsList>
@@ -262,6 +296,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                                 createdAt={new Date(viewpoint.createdAt)}
                                                                 className="mb-2 mx-2"
                                                                 space={viewpoint.space ?? "global"}
+                                                                linkable={true}
                                                             />
                                                         ))}
                                                 </>
@@ -382,6 +417,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                                 createdAt={new Date(viewpoint.createdAt)}
                                                                 space={viewpoint.space ?? "global"}
                                                                 className="mb-2 mx-2"
+                                                                linkable={true}
                                                             />
                                                         ))}
                                                     </div>
@@ -421,6 +457,15 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                     </Tabs>
                 </div>
             </div>
+
+            {isOwnProfile && (
+                <ProfileEditDialog
+                    open={editProfileOpen}
+                    onOpenChange={setEditProfileOpen}
+                    currentBio={userData?.bio}
+                    currentDelegationUrl={userData?.delegationUrl}
+                />
+            )}
         </main>
     );
 } 

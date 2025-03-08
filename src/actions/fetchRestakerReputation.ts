@@ -19,7 +19,7 @@ export type RestakerReputation = {
 
 export const fetchRestakerReputation = async (
   pointId: number,
-  negationId: number,
+  negationId: number
 ) => {
   // Get all active restakers for this point-negation pair
   const restakers = await db
@@ -96,7 +96,7 @@ export const fetchRestakerReputation = async (
     .from(sql`${restakesTable} r`)
     .leftJoin(usersTable, eq(usersTable.id, sql`r.user_id`))
     .where(
-      and(eq(sql`r.point_id`, pointId), eq(sql`r.negation_id`, negationId)),
+      and(eq(sql`r.point_id`, pointId), eq(sql`r.negation_id`, negationId))
     )
     .groupBy(sql`r.user_id`, usersTable.username);
 
@@ -111,15 +111,15 @@ export const fetchRestakerReputation = async (
 
   const totalAmount = restakersWithHashedIds.reduce(
     (sum, r) => sum + r.amount,
-    0,
+    0
   );
   const aggregateReputation =
     totalAmount > 0
       ? Math.round(
           restakersWithHashedIds.reduce(
             (sum, r) => sum + r.reputation * r.amount,
-            0,
-          ) / totalAmount,
+            0
+          ) / totalAmount
         )
       : 50; // Default to 50% if no restakers, although this should never happen
 
