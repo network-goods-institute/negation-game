@@ -5,7 +5,7 @@ import { viewpointsTable } from "@/db/tables/viewpointsTable";
 import { db } from "@/services/db";
 import { eq } from "drizzle-orm";
 import { AppNode } from "@/components/graph/AppNode";
-import { ViewpointGraph } from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { pick } from "remeda";
 
 export interface UpdateViewpointGraphArgs {

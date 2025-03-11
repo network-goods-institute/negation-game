@@ -7,7 +7,7 @@ import {
   viewpointStatementAtom,
   collapsedPointIdsAtom,
   ViewpointGraph,
-} from "@/app/s/[space]/viewpoint/viewpointAtoms";
+} from "@/atoms/viewpointAtoms";
 import { useEffect, useMemo, useState, useCallback, useTransition } from "react";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";

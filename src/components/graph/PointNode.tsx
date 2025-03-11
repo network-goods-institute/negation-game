@@ -22,7 +22,7 @@ import { XIcon, CircleIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { find } from "remeda";
-import { collapsedPointIdsAtom, collapsedNodePositionsAtom, CollapsedNodePosition } from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { collapsedPointIdsAtom, collapsedNodePositionsAtom, CollapsedNodePosition } from "@/atoms/viewpointAtoms";
 import { useViewpoint } from "@/queries/useViewpoint";
 import { useParams, usePathname } from "next/navigation";
 import {
@@ -639,6 +639,7 @@ export const PointNode = ({
               isRedundant && "opacity-30 hover:opacity-100"
             )}
             originalPosterId={originalPosterId}
+            inGraphNode={true}
           ></PointCard>
         </>
       ) : (

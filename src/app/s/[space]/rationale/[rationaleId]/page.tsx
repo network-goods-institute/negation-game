@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  viewpointGraphAtom,
-  collapsedPointIdsAtom,
-  ViewpointGraph,
-} from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { viewpointGraphAtom, collapsedPointIdsAtom, ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
@@ -30,12 +26,6 @@ import { useUser } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { ReactFlowProvider, useReactFlow, } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Portal } from "@radix-ui/react-portal";
 import { NetworkIcon, CopyIcon } from "lucide-react";
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import dynamic from 'next/dynamic';
@@ -352,7 +342,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                 Rationale
               </h1>
 
-              <div className="flex gap-sm items-center text-muted-foreground">
+              <div className="flex items-center gap-2">
                 <Button
                   size={"icon"}
                   variant={canvasEnabled ? "default" : "outline"}
@@ -364,30 +354,19 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                 >
                   <NetworkIcon className="" />
                 </Button>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AuthenticatedActionButton
-                      variant="outline"
-                      size="icon"
-                      className="rounded-full p-2 size-9 flex items-center justify-center ml-6"
-                      onClick={handleCopy}
-                      disabled={isCopying}
-                      rightLoading={isCopying}
-                    >
-                      <CopyIcon className="size-4" />
-                    </AuthenticatedActionButton>
-                  </TooltipTrigger>
-                  <Portal>
-                    <TooltipContent
-                      side="bottom"
-                      align="center"
-                      sideOffset={5}
-                      className="z-[100]"
-                    >
-                      <p>Copy this rationale</p>
-                    </TooltipContent>
-                  </Portal>
-                </Tooltip>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold">Make a Copy</span>
+                  <AuthenticatedActionButton
+                    variant="outline"
+                    size="icon"
+                    className="rounded-full p-2 size-9 flex items-center justify-center"
+                    onClick={handleCopy}
+                    disabled={isCopying}
+                    rightLoading={isCopying}
+                  >
+                    <CopyIcon className="size-4" />
+                  </AuthenticatedActionButton>
+                </div>
               </div>
             </div>
             <Separator />

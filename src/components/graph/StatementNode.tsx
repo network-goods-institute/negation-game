@@ -12,7 +12,7 @@ import {
 import { PlusIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useEffect, useCallback, useMemo } from "react";
-import { collapsedPointIdsAtom, collapsedNodePositionsAtom } from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { collapsedPointIdsAtom, collapsedNodePositionsAtom } from "@/atoms/viewpointAtoms";
 import { useAtom } from "jotai";
 
 export type StatementNodeData = {

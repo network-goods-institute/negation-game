@@ -94,6 +94,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pinStatus?: string;
   onPinBadgeClickCapture?: React.MouseEventHandler;
   linkDisabled?: boolean;
+  inGraphNode?: boolean;
 }
 
 export const PointCard = ({
@@ -123,6 +124,7 @@ export const PointCard = ({
   pinStatus,
   onPinBadgeClickCapture,
   linkDisabled,
+  inGraphNode,
   ...props
 }: PointCardProps) => {
   const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
@@ -249,6 +251,7 @@ export const PointCard = ({
         "@container/point flex gap-3 pt-4 pb-3 px-4 relative rounded-none",
         isPinned && "border-l-4 border-primary",
         isPriority && !isPinned && "border-l-4 border-amber-400",
+        inGraphNode && "pt-2.5",
         className
       )}
       onMouseOver={() => {
@@ -259,7 +262,7 @@ export const PointCard = ({
       {...props}
     >
       <div className="flex flex-col flex-grow w-full min-w-0">
-        <div className="flex items-start gap-2">
+        <div className={cn("flex items-start gap-2", inGraphNode && "pt-4")}>
           {isCommand && space && space !== 'global' ? (
             <FeedCommandIcon />
           ) : isPinned && space && space !== 'global' ? (
@@ -540,35 +543,27 @@ export const PointCard = ({
         </Tooltip>
       )}
       {!visited && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                markPointAsRead(pointId);
-                setVisitedPoints(prev => {
-                  const newSet = new Set(prev);
-                  newSet.add(pointId);
-                  return newSet;
-                });
-              }}
-              className="absolute top-3 right-3 p-2 -m-2 rounded-full hover:bg-accent"
-            >
-              <CircleIcon className="size-4 fill-endorsed text-endorsed animate-pulse" />
-            </button>
-          </TooltipTrigger>
-          <Portal>
-            <TooltipContent
-              side="top"
-              align="center"
-              sideOffset={5}
-              className="z-[100]"
-            >
-              <p>You haven&apos;t viewed this point, yet. Tap to mark seen</p>
-            </TooltipContent>
-          </Portal>
-        </Tooltip>
+        <div className="absolute top-0.5 right-3 group flex items-center gap-2">
+          <span className="text-sm text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+            Tap to mark seen
+          </span>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              markPointAsRead(pointId);
+              setVisitedPoints(prev => {
+                const newSet = new Set(prev);
+                newSet.add(pointId);
+                return newSet;
+              });
+            }}
+            className="relative size-3 rounded-full flex items-center justify-center"
+          >
+            <div className="absolute inset-0 bg-endorsed/20 rounded-full scale-0 group-hover:scale-150 transition-transform" />
+            <CircleIcon className="size-full fill-endorsed text-endorsed relative" />
+          </button>
+        </div>
       )}
       {props.children}
     </div>

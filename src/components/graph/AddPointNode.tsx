@@ -27,7 +27,7 @@ import { Handle, Node, NodeProps, Position, useReactFlow } from "@xyflow/react";
 import { XIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useState, useMemo } from "react";
-import { collapsedPointIdsAtom } from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { collapsedPointIdsAtom } from "@/atoms/viewpointAtoms";
 import { useAtomValue, useSetAtom } from "jotai";
 
 export type AddPointNodeData = {
