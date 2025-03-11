@@ -47,7 +47,7 @@ type PointItem = {
 };
 
 type ViewpointItem = {
-    type: 'viewpoint';
+    type: 'rationale';
     id: string;
     content: string;
     createdAt: Date;
@@ -132,12 +132,12 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                 />
             </Link>
         );
-    } else if (item.type === 'viewpoint') {
+    } else if (item.type === 'rationale') {
         const viewpoint = item.data;
         return (
             <Link
                 draggable={false}
-                href={`${basePath}/viewpoint/${item.id}`}
+                href={`${basePath}/rationale/${item.id}`}
                 className="flex border-b cursor-pointer hover:bg-accent"
             >
                 <MemoizedViewpointCard
@@ -242,7 +242,7 @@ export function SpacePageClient({
     const queryClient = useQueryClient();
     const [isNavigating, setIsNavigating] = useState(false);
     const { data: viewpoints, isLoading: viewpointsLoading } = useViewpoints(space.data?.id || "global");
-    const [selectedTab, setSelectedTab] = useState<"all" | "points" | "viewpoints" | "search">("all");
+    const [selectedTab, setSelectedTab] = useState<"all" | "points" | "rationales" | "search">("all");
     const { searchQuery, searchResults, isLoading: searchLoading, handleSearch, isActive, hasSearched } = useSearch();
 
     // Prevent feed from reloading when navigating back to it
@@ -254,7 +254,7 @@ export function SpacePageClient({
         }
     }, [queryClient, user?.id, isNavigating]);
 
-    const shouldLoadPriorityPoints = selectedTab !== "search" && selectedTab !== "viewpoints";
+    const shouldLoadPriorityPoints = selectedTab !== "search" && selectedTab !== "rationales";
 
     const {
         data: priorityPoints,
@@ -268,7 +268,7 @@ export function SpacePageClient({
     const handleNewViewpoint = () => {
         if (user) {
             setIsNavigating(true);
-            router.push(`${basePath}/viewpoint/new`);
+            router.push(`${basePath}/rationale/new`);
         } else {
             login();
         }
@@ -338,10 +338,10 @@ export function SpacePageClient({
             });
         });
 
-        if (viewpoints && (selectedTab === 'all' || selectedTab === 'viewpoints')) {
+        if (viewpoints && (selectedTab === 'all' || selectedTab === 'rationales')) {
             viewpoints.forEach(viewpoint => {
                 allItems.push({
-                    type: 'viewpoint',
+                    type: 'rationale',
                     id: viewpoint.id,
                     content: viewpoint.title,
                     createdAt: viewpoint.createdAt,
@@ -411,13 +411,13 @@ export function SpacePageClient({
                             Points
                         </button>
                         <button
-                            onClick={() => setSelectedTab("viewpoints")}
+                            onClick={() => setSelectedTab("rationales")}
                             className={cn(
                                 "py-2 px-4 rounded focus:outline-none",
-                                selectedTab === "viewpoints" ? "bg-primary text-white" : "bg-transparent text-primary"
+                                selectedTab === "rationales" ? "bg-primary text-white" : "bg-transparent text-primary"
                             )}
                         >
-                            Viewpoints
+                            Rationales
                         </button>
                         <button
                             onClick={() => {
@@ -443,14 +443,14 @@ export function SpacePageClient({
                             <SearchInput
                                 value={searchQuery}
                                 onChange={handleSearchChange}
-                                placeholder="Search points, viewpoints, or authors..."
+                                placeholder="Search points, rationales, or authors..."
                             />
                         </div>
                     )}
                 </div>
 
                 {/* Pinned Point - with transition */}
-                {selectedTab !== "search" && selectedTab !== "viewpoints" &&
+                {selectedTab !== "search" && selectedTab !== "rationales" &&
                     pinnedPoint && !pinnedPointLoading && isInSpecificSpace && (
                         <div className="border-b transition-opacity duration-200 ease-in-out">
                             <Link
@@ -491,7 +491,7 @@ export function SpacePageClient({
                     )}
 
                 {/* Priority Points - with transition */}
-                {selectedTab !== "search" && selectedTab !== "viewpoints" &&
+                {selectedTab !== "search" && selectedTab !== "rationales" &&
                     !priorityPointsLoading &&
                     !pinnedPointLoading &&
                     filteredPriorityPoints.length > 0 && (
@@ -530,7 +530,7 @@ export function SpacePageClient({
                                 <span className="text-muted-foreground">or</span>
                                 <Button variant="outline" onClick={handleNewViewpoint}>
                                     <ViewpointIcon className="mr-2.5 size-4" />
-                                    Create a Viewpoint
+                                    Create a Rationale
                                 </Button>
                             </div>
                         </div>
@@ -585,13 +585,13 @@ export function SpacePageClient({
                             <span className="text-muted-foreground">Nothing here yet</span>
                             <Button variant="outline" onClick={handleNewViewpoint}>
                                 <ViewpointIcon className="mr-2.5 size-4" />
-                                Create a Viewpoint
+                                Create a Rationale
                             </Button>
                         </div>
                     ) : (
                         viewpoints.map((viewpoint) => (
                             <ViewpointCard
-                                key={`viewpoints-tab-${viewpoint.id}`}
+                                key={`rationales-tab-${viewpoint.id}`}
                                 id={viewpoint.id}
                                 title={viewpoint.title}
                                 description={viewpoint.description}
@@ -627,7 +627,7 @@ export function SpacePageClient({
                     ) : (
                         <>
                             <ViewpointIcon />
-                            <span className="hidden sm:block ml-sm">New Viewpoint</span>
+                            <span className="hidden sm:block ml-sm">New Rationale</span>
                         </>
                     )}
                 </Button>

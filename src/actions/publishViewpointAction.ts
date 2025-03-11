@@ -23,7 +23,7 @@ export const publishViewpoint = async ({
   const space = await getSpace();
 
   if (!userId) {
-    throw new Error("Must be authenticated to publish a viewpoint");
+    throw new Error("Must be authenticated to publish a rationale");
   }
 
   const id = nanoid();

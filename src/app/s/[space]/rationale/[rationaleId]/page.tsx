@@ -475,14 +475,14 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 export default function NewViewpointPage({
   params,
 }: {
-  params: Promise<{ viewpointId: string; space: string }>;
+  params: Promise<{ rationaleId: string; space: string }>;
 }) {
   const { user: privyUser } = usePrivy();
-  const { viewpointId } = use(params);
+  const { rationaleId } = use(params);
   return (
     <OriginalPosterProvider originalPosterId={privyUser?.id}>
       <ReactFlowProvider>
-        <ViewpointPageContent viewpointId={viewpointId} />
+        <ViewpointPageContent viewpointId={rationaleId} />
       </ReactFlowProvider>
     </OriginalPosterProvider>
   );

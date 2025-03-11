@@ -245,7 +245,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                             </p>
                                         </div>
                                         <div className="p-4 border rounded-lg text-center md:text-left">
-                                            <p className="text-xs md:text-sm text-muted-foreground mb-1">Viewpoints Created</p>
+                                            <p className="text-xs md:text-sm text-muted-foreground mb-1">Rationales Created</p>
                                             <p className="text-xl md:text-2xl font-medium">{userViewpoints?.length || 0}</p>
                                         </div>
                                     </div>
@@ -267,7 +267,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                         <>
                                             {userViewpoints?.length === 0 ? (
                                                 <p className="text-muted-foreground text-center py-8">
-                                                    No points or viewpoints created yet
+                                                    No points or rationales created yet
                                                 </p>
                                             ) : (
                                                 <p className="text-muted-foreground text-center py-8">
@@ -279,7 +279,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                         <>
                                             {userViewpoints && userViewpoints.length > 0 && (
                                                 <>
-                                                    <h5 className="text-sm font-medium text-muted-foreground ml-2">Viewpoints</h5>
+                                                    <h5 className="text-sm font-medium text-muted-foreground ml-2">Rationales</h5>
                                                     {[...(userViewpoints || [])]
                                                         .sort((a, b) =>
                                                             isTimelineAscending
@@ -406,7 +406,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                             {spaceViewpoints.length > 0 && (
                                                 <>
                                                     <div className="space-y-2">
-                                                        <h5 className="text-sm font-medium text-muted-foreground ml-2">Viewpoints</h5>
+                                                        <h5 className="text-sm font-medium text-muted-foreground ml-2">Rationales</h5>
                                                         {spaceViewpoints.map(viewpoint => (
                                                             <ViewpointCard
                                                                 key={viewpoint.id}

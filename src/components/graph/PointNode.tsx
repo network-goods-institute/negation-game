@@ -76,9 +76,9 @@ export const PointNode = ({
   } = useReactFlow();
 
   const params = useParams();
-  const viewpointId = params.viewpointId as string;
-  const isViewpointContext = !!viewpointId;
-  const { data: originalViewpoint } = useViewpoint(isViewpointContext ? viewpointId : "DISABLED");
+  const rationaleId = (params.rationaleId || params.viewpointId) as string;
+  const isViewpointContext = !!rationaleId;
+  const { data: originalViewpoint } = useViewpoint(isViewpointContext ? rationaleId : "DISABLED");
   const { originalPosterId } = useOriginalPoster();
 
   const isRedundant = useMemo(() => {
@@ -549,7 +549,7 @@ export const PointNode = ({
   // Get the pathname once and memoize the check
   const pathname = usePathname();
   const isNewViewpointPage = useMemo(() =>
-    pathname?.includes('/viewpoint/new'),
+    pathname?.includes('/rationale/new'),
     [pathname]
   );
 

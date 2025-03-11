@@ -19,6 +19,13 @@ export const config = {
 export default async function middleware(req: NextRequest) {
   const url = req.nextUrl;
 
+  // Replace 'viewpoint' with 'rationale' in the URL
+  if (url.pathname.includes("viewpoint")) {
+    const newPathname = url.pathname.replace(/viewpoint/g, "rationale");
+    const response = NextResponse.redirect(new URL(newPathname, req.url));
+    return response;
+  }
+
   // Handle profile routes with /profile/username format
   if (url.pathname.startsWith("/profile/")) {
     const response = NextResponse.next();
