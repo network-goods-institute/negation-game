@@ -7,7 +7,7 @@ import {
   viewpointStatementAtom,
   collapsedPointIdsAtom,
   ViewpointGraph,
-} from "@/app/s/[space]/viewpoint/viewpointAtoms";
+} from "@/atoms/viewpointAtoms";
 import { useEffect, useMemo, useState, useCallback, useTransition } from "react";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
@@ -228,7 +228,7 @@ function ViewpointContent() {
           reactFlow.setEdges(regeneratedGraph.edges);
         }
       } catch (error) {
-        console.error("Error loading copied viewpoint:", error);
+        console.error("Error loading copied rationale:", error);
       }
     }
   }, [setGraph, setStatement, setReasoning, reactFlow]);
@@ -300,7 +300,7 @@ function ViewpointContent() {
               <div />
             )}
 
-            <h1 className="text-sm font-bold">New Viewpoint</h1>
+            <h1 className="text-sm font-bold">New Rationale</h1>
 
             <div className="flex gap-sm items-center text-muted-foreground">
               <Button
@@ -334,11 +334,11 @@ function ViewpointContent() {
                       graph,
                     });
                     localStorage.setItem("justPublished", "true");
-                    push(`${basePath}/viewpoint/${id}`);
+                    push(`${basePath}/rationale/${id}`);
                   } catch (error) {
-                    console.error("Failed to publish viewpoint:", error);
+                    console.error("Failed to publish rationale:", error);
                     alert(
-                      "Failed to publish viewpoint. See console for details."
+                      "Failed to publish rationale. See console for details."
                     );
                   }
                 }}
@@ -453,12 +453,12 @@ function ViewpointContent() {
                 graph,
               });
               localStorage.setItem("justPublished", "true");
-              push(`${basePath}/viewpoint/${id}`);
+              push(`${basePath}/rationale/${id}`);
               return true; // Return true to indicate successful save
             } catch (error: any) {
-              console.error("Failed to publish viewpoint:", error);
+              console.error("Failed to publish rationale:", error);
               alert(
-                "Failed to publish viewpoint. See console for details."
+                "Failed to publish rationale. See console for details."
               );
               return false; // Return false to indicate failed save
             }
@@ -476,9 +476,9 @@ function ViewpointContent() {
       <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Abandon Viewpoint</AlertDialogTitle>
+            <AlertDialogTitle>Abandon Rationale</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to abandon this viewpoint? All your work will be lost.
+              Are you sure you want to abandon this rationale? All your work will be lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

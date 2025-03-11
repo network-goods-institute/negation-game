@@ -66,11 +66,11 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
     const handleCardClick = () => {
         if (linkable) {
             setIsOpen(false);
-            router.push(`/s/${space}/viewpoint/${id}`);
+            router.push(`/s/${space}/rationale/${id}`);
         }
     };
 
-    const linkHref = `/s/${space}/viewpoint/${id}`;
+    const linkHref = `/s/${space}/rationale/${id}`;
 
     const cardContent = (
         <div className="@container/point flex gap-3 pt-4 pb-3 px-4 border-b cursor-pointer hover:bg-accent">

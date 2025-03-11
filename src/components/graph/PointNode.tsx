@@ -22,7 +22,7 @@ import { XIcon, CircleIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { find } from "remeda";
-import { collapsedPointIdsAtom, collapsedNodePositionsAtom, CollapsedNodePosition } from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { collapsedPointIdsAtom, collapsedNodePositionsAtom, CollapsedNodePosition } from "@/atoms/viewpointAtoms";
 import { useViewpoint } from "@/queries/useViewpoint";
 import { useParams, usePathname } from "next/navigation";
 import {
@@ -76,9 +76,9 @@ export const PointNode = ({
   } = useReactFlow();
 
   const params = useParams();
-  const viewpointId = params.viewpointId as string;
-  const isViewpointContext = !!viewpointId;
-  const { data: originalViewpoint } = useViewpoint(isViewpointContext ? viewpointId : "DISABLED");
+  const rationaleId = (params.rationaleId || params.viewpointId) as string;
+  const isViewpointContext = !!rationaleId;
+  const { data: originalViewpoint } = useViewpoint(isViewpointContext ? rationaleId : "DISABLED");
   const { originalPosterId } = useOriginalPoster();
 
   const isRedundant = useMemo(() => {
@@ -549,7 +549,7 @@ export const PointNode = ({
   // Get the pathname once and memoize the check
   const pathname = usePathname();
   const isNewViewpointPage = useMemo(() =>
-    pathname?.includes('/viewpoint/new'),
+    pathname?.includes('/rationale/new'),
     [pathname]
   );
 
@@ -639,6 +639,7 @@ export const PointNode = ({
               isRedundant && "opacity-30 hover:opacity-100"
             )}
             originalPosterId={originalPosterId}
+            inGraphNode={true}
           ></PointCard>
         </>
       ) : (

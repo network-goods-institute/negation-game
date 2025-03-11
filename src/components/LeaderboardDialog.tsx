@@ -23,11 +23,11 @@ export const LeaderboardDialog = ({
     const { data: feed } = useFeed();
     const { data: allUsers } = useAllUsers();
     const { data: spaceViewpoints } = useQuery({
-        queryKey: ["spaceViewpoints", space],
+        queryKey: ["spaceRationales", space],
         queryFn: () => fetchSpaceViewpoints(space),
     });
     const { data: user } = useUser();
-    const [sortBy, setSortBy] = useState<"points" | "cred" | "viewpoints" | "reputation">("points");
+    const [sortBy, setSortBy] = useState<"points" | "cred" | "rationales" | "reputation">("points");
     const [sortDescending, setSortDescending] = useState(true);
 
     const leaderboardData = useMemo(() => {
@@ -112,7 +112,7 @@ export const LeaderboardDialog = ({
                 valueA = a.cred || 0;
                 valueB = b.cred || 0;
                 break;
-            case "viewpoints":
+            case "rationales":
                 valueA = a.viewpoints || 0;
                 valueB = b.viewpoints || 0;
                 break;
@@ -170,11 +170,11 @@ export const LeaderboardDialog = ({
                                     Sort by Cred
                                 </Button>
                                 <Button
-                                    variant={sortBy === "viewpoints" ? "default" : "outline"}
+                                    variant={sortBy === "rationales" ? "default" : "outline"}
                                     size="sm"
-                                    onClick={() => setSortBy("viewpoints")}
+                                    onClick={() => setSortBy("rationales")}
                                 >
-                                    Sort by Viewpoints
+                                    Sort by Rationales
                                 </Button>
                                 <Button
                                     variant={sortBy === "reputation" ? "default" : "outline"}
@@ -201,7 +201,7 @@ export const LeaderboardDialog = ({
                                                 <th className="text-center py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base w-[5%]"></th>
                                                 <th className="text-left py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base w-[35%] sm:w-[37%]">User</th>
                                                 <th className="text-left py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base w-[10%] sm:w-[10%]">Points</th>
-                                                <th className="text-left py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base w-[15%] sm:w-[15%]">Viewpoints</th>
+                                                <th className="text-left py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base w-[15%] sm:w-[15%]">Rationales</th>
                                                 <th className="text-left py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base w-[10%] sm:w-[10%]">Cred</th>
                                                 <th className="text-left py-2 pr-3 sm:py-3 sm:pr-6 text-xs sm:text-base w-[15%] sm:w-[15%]">
                                                     <TooltipProvider delayDuration={300}>

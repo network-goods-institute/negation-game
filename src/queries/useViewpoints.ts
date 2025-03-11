@@ -3,7 +3,7 @@ import { fetchViewpoints } from "@/actions/fetchViewpoints";
 
 export const useViewpoints = (space: string) => {
   return useQuery({
-    queryKey: ["viewpoints", space],
+    queryKey: ["rationales", space],
     queryFn: () => fetchViewpoints(space),
   });
 };

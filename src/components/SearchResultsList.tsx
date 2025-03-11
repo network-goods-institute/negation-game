@@ -105,10 +105,10 @@ export function SearchResultsList({ results, isLoading, query, hasSearched = fal
                             />
                         </Link>
                     );
-                } else if (result.type === "viewpoint" && result.title) {
+                } else if (result.type === "rationale" && result.title) {
                     return (
                         <ViewpointCard
-                            key={`viewpoint-${result.id}`}
+                            key={`rationale-${result.id}`}
                             id={result.id.toString()}
                             title={result.title}
                             description={result.description || ""}

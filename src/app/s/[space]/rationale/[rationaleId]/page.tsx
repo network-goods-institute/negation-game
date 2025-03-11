@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  viewpointGraphAtom,
-  viewpointReasoningAtom,
-  viewpointStatementAtom,
-  collapsedPointIdsAtom,
-  ViewpointGraph,
-} from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { viewpointGraphAtom, collapsedPointIdsAtom, ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
@@ -32,12 +26,6 @@ import { useUser } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { ReactFlowProvider, useReactFlow, } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Portal } from "@radix-ui/react-portal";
 import { NetworkIcon, CopyIcon } from "lucide-react";
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import dynamic from 'next/dynamic';
@@ -237,7 +225,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
           await new Promise(resolve => setTimeout(resolve, 500));
 
           // Navigate to the new viewpoint page in the same space
-          router.push(`${basePath}/viewpoint/new`);
+          router.push(`${basePath}/rationale/new`);
           return true;
         }
       }
@@ -305,10 +293,10 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
       sessionStorage.setItem(storageKey, JSON.stringify(viewpointData));
 
       // Navigate to the new viewpoint page in the same space
-      router.push(`${basePath}/viewpoint/new`);
+      router.push(`${basePath}/rationale/new`);
 
     } catch (error) {
-      alert("Failed to copy viewpoint. Please try again.");
+      alert("Failed to copy rationale. Please try again.");
       setIsCopying(false);
     }
   }, [viewpoint, router, basePath, space?.data?.id]);
@@ -351,10 +339,10 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
               <h1 className="text-sm font-bold flex items-center gap-2">
                 <ViewpointIcon className="size-4" />
-                Viewpoint
+                Rationale
               </h1>
 
-              <div className="flex gap-sm items-center text-muted-foreground">
+              <div className="flex items-center gap-2">
                 <Button
                   size={"icon"}
                   variant={canvasEnabled ? "default" : "outline"}
@@ -366,30 +354,19 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                 >
                   <NetworkIcon className="" />
                 </Button>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AuthenticatedActionButton
-                      variant="outline"
-                      size="icon"
-                      className="rounded-full p-2 size-9 flex items-center justify-center ml-6"
-                      onClick={handleCopy}
-                      disabled={isCopying}
-                      rightLoading={isCopying}
-                    >
-                      <CopyIcon className="size-4" />
-                    </AuthenticatedActionButton>
-                  </TooltipTrigger>
-                  <Portal>
-                    <TooltipContent
-                      side="bottom"
-                      align="center"
-                      sideOffset={5}
-                      className="z-[100]"
-                    >
-                      <p>Copy this viewpoint</p>
-                    </TooltipContent>
-                  </Portal>
-                </Tooltip>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold">Make a Copy</span>
+                  <AuthenticatedActionButton
+                    variant="outline"
+                    size="icon"
+                    className="rounded-full p-2 size-9 flex items-center justify-center"
+                    onClick={handleCopy}
+                    disabled={isCopying}
+                    rightLoading={isCopying}
+                  >
+                    <CopyIcon className="size-4" />
+                  </AuthenticatedActionButton>
+                </div>
               </div>
             </div>
             <Separator />
@@ -477,14 +454,14 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 export default function NewViewpointPage({
   params,
 }: {
-  params: Promise<{ viewpointId: string; space: string }>;
+  params: Promise<{ rationaleId: string; space: string }>;
 }) {
   const { user: privyUser } = usePrivy();
-  const { viewpointId } = use(params);
+  const { rationaleId } = use(params);
   return (
     <OriginalPosterProvider originalPosterId={privyUser?.id}>
       <ReactFlowProvider>
-        <ViewpointPageContent viewpointId={viewpointId} />
+        <ViewpointPageContent viewpointId={rationaleId} />
       </ReactFlowProvider>
     </OriginalPosterProvider>
   );

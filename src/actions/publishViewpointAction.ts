@@ -2,7 +2,7 @@
 
 import { getSpace } from "@/actions/getSpace";
 import { getUserId } from "@/actions/getUserId";
-import { ViewpointGraph } from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { AppNode } from "@/components/graph/AppNode";
 import { InsertViewpoint, viewpointsTable } from "@/db/tables/viewpointsTable";
 import { db } from "@/services/db";
@@ -23,7 +23,7 @@ export const publishViewpoint = async ({
   const space = await getSpace();
 
   if (!userId) {
-    throw new Error("Must be authenticated to publish a viewpoint");
+    throw new Error("Must be authenticated to publish a rationale");
   }
 
   const id = nanoid();

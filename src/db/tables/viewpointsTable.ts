@@ -1,4 +1,4 @@
-import { ViewpointGraph } from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { DEFAULT_SPACE } from "@/constants/config";
 import { spacesTable } from "@/db/schema";
 import { InferColumnsDataTypes } from "drizzle-orm";

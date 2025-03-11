@@ -6,7 +6,7 @@ import { sql } from "drizzle-orm";
 import { addFavor } from "@/db/utils/addFavor";
 
 export type SearchResult = {
-  type: "point" | "viewpoint";
+  type: "point" | "rationale";
   id: number | string;
   content: string;
   title?: string;
@@ -101,7 +101,7 @@ export const searchContent = async (query: string): Promise<SearchResult[]> => {
 
   const viewpointSearchResults: SearchResult[] = viewpointResults.map(
     (viewpoint: any) => ({
-      type: "viewpoint",
+      type: "rationale",
       id: viewpoint.id,
       title: viewpoint.title,
       content: viewpoint.description,

@@ -44,6 +44,8 @@ export interface ButtonProps
   leftLoading?: boolean;
   rightLoading?: boolean;
   rightSlot?: React.ReactNode;
+  text?: string;
+  textPosition?: 'left' | 'right';
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
@@ -57,6 +59,8 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       rightSlot,
       rightLoading,
       asChild = false,
+      text,
+      textPosition = 'left',
       children,
       ...props
     },
@@ -69,6 +73,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         {...props}
       >
+        {textPosition === 'left' && text && <span className="text-sm font-bold mr-2">{text}</span>}
         {leftSlot ||
           (leftLoading && (
             <span className="mr-2">
@@ -90,6 +95,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
               )}
             </span>
           ))}
+        {textPosition === 'right' && text && <span className="text-sm font-bold ml-2">{text}</span>}
       </Comp>
     );
   },

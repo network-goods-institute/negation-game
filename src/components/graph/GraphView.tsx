@@ -26,11 +26,10 @@ import { XIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useCallback, useMemo, useEffect, useState, useRef } from "react";
 import { useAtom } from "jotai";
-import { collapsedPointIdsAtom } from "@/app/s/[space]/viewpoint/viewpointAtoms";
-import { ViewpointGraph } from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { collapsedPointIdsAtom, ViewpointGraph } from "@/atoms/viewpointAtoms";
 import React from "react";
 import { updateViewpointGraph } from "@/actions/updateViewpointGraph";
-import { useParams, usePathname } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useViewpoint } from "@/queries/useViewpoint";
 import { AuthenticatedActionButton } from "@/components/ui/button";
 
@@ -106,12 +105,12 @@ export const GraphView = ({
   // Track if this is the first mount
   const isInitialMount = useRef(true);
 
-  // Get the current viewpoint ID from the route params first
+  // Get the current rationale ID from the route params first
   const params = useParams();
-  const viewpointId = params.viewpointId as string;
+  const rationaleId = (params.rationaleId || params.viewpointId) as string;
 
   // Then use it in the hook
-  const { data: viewpoint } = useViewpoint(viewpointId, {
+  const { data: viewpoint } = useViewpoint(rationaleId, {
     enabled: !isNew,
   });
 
@@ -369,9 +368,8 @@ export const GraphView = ({
 
         if (canModify) {
           // For owners, update the viewpoint in DB
-          console.log(`[GraphView] Calling updateViewpointGraph for viewpointId: ${viewpointId}`);
           await updateViewpointGraph({
-            id: viewpointId,
+            id: rationaleId,
             graph: filteredGraph,
           });
         }
@@ -399,10 +397,10 @@ export const GraphView = ({
         return saveSuccess;
       } catch (error) {
         if (error instanceof Error) {
-          if (error.message === "Must be authenticated to update viewpoint") {
-            alert("You must be logged in to save changes. Copying viewpoints will be implemented soon.");
-          } else if (error.message === "Only the owner can update this viewpoint") {
-            alert("Only the owner can update this viewpoint. Copying viewpoints will be implemented soon.");
+          if (error.message === "Must be authenticated to update rationale") {
+            alert("You must be logged in to save changes. Copying rationales will be implemented soon.");
+          } else if (error.message === "Only the owner can update this rationale") {
+            alert("Only the owner can update this rationale. Copying rationales will be implemented soon.");
           } else {
             alert("Failed to save changes. Please try again.");
           }
@@ -427,7 +425,7 @@ export const GraphView = ({
       collapsedPointIds,
       onSaveChanges,
       setLocalGraph,
-      viewpointId,
+      rationaleId,
       setIsModified,
       canModify,
       filteredEdges,
@@ -495,9 +493,9 @@ export const GraphView = ({
               >
                 {canModify
                   ? isNew
-                    ? "Publish Viewpoint"
+                    ? "Publish Rationale"
                     : "Save Changes"
-                  : "Copy Viewpoint to Save Changes"}
+                  : "Copy Rationale to Save Changes"}
               </AuthenticatedActionButton>
               <Button
                 variant="outline"

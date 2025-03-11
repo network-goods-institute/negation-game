@@ -17,6 +17,7 @@ import { SelectNegationDialog } from "@/components/SelectNegationDialog";
 import { GraphView } from "@/components/graph/EncodedGraphView";
 import { EndorseIcon } from "@/components/icons/EndorseIcon";
 import { NegateIcon } from "@/components/icons/NegateIcon";
+import { PointIcon } from "@/components/icons/AppIcons";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
@@ -357,7 +358,7 @@ export function PointPageClient({
                                     </>
                                 ) : (
                                     <>
-                                        <DiscIcon className="shrink-0 size-6 text-muted-foreground stroke-1" />
+                                        <PointIcon />
                                         <h1 className="text-xl font-medium">Point</h1>
                                     </>
                                 )}

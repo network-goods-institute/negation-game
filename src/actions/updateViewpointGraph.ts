@@ -5,7 +5,7 @@ import { viewpointsTable } from "@/db/tables/viewpointsTable";
 import { db } from "@/services/db";
 import { eq } from "drizzle-orm";
 import { AppNode } from "@/components/graph/AppNode";
-import { ViewpointGraph } from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { pick } from "remeda";
 
 export interface UpdateViewpointGraphArgs {
@@ -29,7 +29,7 @@ export const updateViewpointGraph = async ({
 }: UpdateViewpointGraphArgs) => {
   const userId = await getUserId();
   if (!userId) {
-    throw new Error("Must be authenticated to update viewpoint");
+    throw new Error("Must be authenticated to update rationale");
   }
 
   // Check if user is the owner of this viewpoint
@@ -40,7 +40,7 @@ export const updateViewpointGraph = async ({
     .then((rows) => rows[0]);
 
   if (!viewpoint || viewpoint.createdBy !== userId) {
-    throw new Error("Only the owner can update this viewpoint");
+    throw new Error("Only the owner can update this rationale");
   }
 
   const cleanedGraph = cleanupForPublishing(graph);

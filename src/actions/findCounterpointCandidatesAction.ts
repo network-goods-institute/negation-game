@@ -35,7 +35,6 @@ export interface FindCounterpointCandidatesArgs {
 
 export const findCounterpointCandidatesAction = async ({
   negatedPointId,
-  negatedPointContent,
   counterpointContent,
 }: FindCounterpointCandidatesArgs) => {
   const space = await getSpace();

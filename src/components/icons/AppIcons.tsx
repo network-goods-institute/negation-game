@@ -1,4 +1,4 @@
-import { CircleIcon, DotIcon, EyeIcon, TriangleIcon, PinIcon } from "lucide-react";
+import { CircleIcon, EyeIcon, TriangleIcon, PinIcon, DiscIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 interface IconProps {
@@ -6,9 +6,8 @@ interface IconProps {
 }
 
 export const PointIcon = ({ className }: IconProps) => (
-    <div className="relative flex items-center justify-center w-5 h-5 shrink-0 mt-0.5">
-        <CircleIcon className="size-5 stroke-1" />
-        <DotIcon className="size-3 absolute stroke-[1.5px]" />
+    <div className="relative flex items-center justify-center shrink-0">
+        <DiscIcon className={cn("size-6 text-muted-foreground stroke-1", className)} />
     </div>
 );
 
