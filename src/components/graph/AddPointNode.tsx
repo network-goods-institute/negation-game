@@ -27,6 +27,8 @@ import { Handle, Node, NodeProps, Position, useReactFlow } from "@xyflow/react";
 import { XIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useState, useMemo } from "react";
+import { collapsedPointIdsAtom } from "@/app/s/[space]/viewpoint/viewpointAtoms";
+import { useAtomValue, useSetAtom } from "jotai";
 
 export type AddPointNodeData = {
   parentId: string;
@@ -45,20 +47,25 @@ export const AddPointNode = ({
   positionAbsoluteY,
 }: AddPointNodeProps) => {
 
-  const { deleteElements, addEdges, addNodes, getNode, getNodes } = useReactFlow();
+  const { deleteElements, addEdges, addNodes, getNode, getNodes, getEdges } = useReactFlow();
   const [content, setContent] = useState("");
   const debouncedContent = useDebounce(content, 1000);
   const { credInput, setCredInput } = useCredInput();
+  const collapsedPointIds = useAtomValue(collapsedPointIdsAtom);
+  const setCollapsedPointIds = useSetAtom(collapsedPointIdsAtom);
 
   const existingPointIds = useMemo(() => {
+    const nodes = getNodes().filter((node): node is Node<{ pointId: number }> =>
+      node.type === "point" && typeof node.data?.pointId === "number"
+    );
+
+    // Get IDs of points that are visible (not collapsed)
     return new Set(
-      getNodes()
-        .filter((node): node is Node<{ pointId: number }> =>
-          node.type === "point" && typeof node.data?.pointId === "number"
-        )
+      nodes
+        .filter(node => !collapsedPointIds.has(node.data.pointId))
         .map(node => node.data.pointId)
     );
-  }, [getNodes]);
+  }, [getNodes, collapsedPointIds]);
 
   const { data: similarPoints, isLoading } = useQuery({
     queryKey: ["similarPoints", debouncedContent] as const,
@@ -67,6 +74,7 @@ export const AddPointNode = ({
 
       const similarPoints = await fetchSimilarPoints({ query });
 
+      // Filter out points that are visible in the graph (not collapsed)
       const filteredPoints = similarPoints.filter(point => !existingPointIds.has(point.pointId));
 
       filteredPoints.forEach((point) => {
@@ -178,6 +186,31 @@ export const AddPointNode = ({
                       key={point.pointId}
                       className="flex flex-col gap-2 p-4  hover:border-muted-foreground  w-full bg-background cursor-pointer border rounded-md"
                       onClick={() => {
+                        // First find and remove any existing instances of this point
+                        const existingNodes = getNodes().filter((node): node is Node<{ pointId: number }> =>
+                          node.type === "point" && node.data.pointId === point.pointId
+                        );
+                        const existingEdges = getEdges().filter(edge =>
+                          existingNodes.some(node => node.id === edge.source || node.id === edge.target)
+                        );
+
+                        if (existingNodes.length > 0) {
+                          // Remove existing nodes and their edges
+                          deleteElements({
+                            nodes: existingNodes.map(n => ({ id: n.id })),
+                            edges: existingEdges.map(e => ({ id: e.id }))
+                          });
+                        }
+
+                        // Remove from collapsed set if it was there
+                        setCollapsedPointIds(prev => {
+                          const newSet = new Set(prev);
+                          // eslint-disable-next-line drizzle/enforce-delete-with-where
+                          newSet.delete(point.pointId);
+                          return newSet;
+                        });
+
+                        // Add the point in its new position
                         const newId = nanoid();
                         addNodes({
                           id: newId,
@@ -196,6 +229,7 @@ export const AddPointNode = ({
                           type: "negation",
                         });
 
+                        // Remove the add point node
                         deleteElements({ nodes: [{ id }] });
                       }}
                     >

@@ -90,10 +90,6 @@ export const PointNode = ({
     return firstOccurence ? firstOccurence.id !== id : false;
   }, [getNodes, id, pointId]);
 
-  useEffect(() => {
-    updateNodeInternals(id);
-  }, [id, incomingConnections.length, updateNodeInternals]);
-
   const prefetchPoint = usePrefetchPoint();
   const prefetchUserEndorsements = usePrefetchUserEndorsements();
 
@@ -140,6 +136,7 @@ export const PointNode = ({
   }, [parentId, pointData]);
 
   const expandNegations = useCallback(() => {
+
     const allNodes = getNodes();
     const pointNodes = allNodes.filter((n): n is PointNode => n.type === "point");
 
@@ -153,6 +150,7 @@ export const PointNode = ({
       pointIdMap.get(pid)!.push(node.id);
     });
 
+    // Track parent-child relationships for cycle detection
     const parentChildMap = new Map<number, { parentIds: Set<string | number>, childIds: Set<number> }>();
     pointNodes.forEach(node => {
       const pid = node.data.pointId;
@@ -178,104 +176,6 @@ export const PointNode = ({
       }
     });
 
-    if (pointData) {
-      // pass
-    } else {
-      return;
-    }
-
-    if (isNegatingParent) {
-      if (!parentId) {
-        return;
-      }
-
-      const numParentId = typeof parentId === 'string' ? parseInt(parentId) : parentId;
-      if (isNaN(numParentId)) {
-        return;
-      }
-
-      // Check if creating a node for the parent would form a circle
-      // This happens when A negates B and B negates A
-      let wouldCreateCircle = false;
-
-      // Check if this point appears in the parent's children or descendants
-      if (parentChildMap.has(numParentId)) {
-        // Check direct child relationship
-        if (parentChildMap.get(numParentId)?.childIds.has(pointId)) {
-          wouldCreateCircle = true;
-          // Check indirect relationship (ancestor-descendant)
-          const paths = findPathsBetweenPoints(numParentId, pointId, parentChildMap);
-          if (paths.length > 0) {
-            wouldCreateCircle = true;
-          }
-        }
-      }
-
-      if (wouldCreateCircle) {
-        // Still remove the parent from collapsed set to acknowledge the logical relationship
-        setCollapsedPointIds(prev => {
-          const newSet = new Set(prev);
-          // eslint-disable-next-line drizzle/enforce-delete-with-where
-          newSet.delete(numParentId);
-          return newSet;
-        });
-      } else {
-        const parentNode = getNodeByPointId(numParentId);
-        if (parentNode) {
-          const sourceNode = getNode(parentNode.id);
-          if (!sourceNode) {
-            return;
-          }
-
-          const nodeId = nanoid();
-
-          // Find stored position for this node
-          const storedPosition = collapsedNodePositions.find(pos => pos.pointId === numParentId && pos.parentId === pointId);
-
-          // Calculate position - use stored position if available, otherwise use default layout
-          const position = storedPosition ? {
-            x: storedPosition.x,
-            y: storedPosition.y
-          } : {
-            x: nodePositionX,
-            y: nodePositionY - 175,
-          };
-
-          // We'll just continue without explicitly marking - the node addition will trigger it
-          addNodes({
-            id: nodeId,
-            data: {
-              pointId: numParentId,
-              parentId: pointId,
-              _lastModified: Date.now()
-            },
-            type: "point",
-            position,
-          });
-
-          addEdges({
-            id: nanoid(),
-            source: nodeId,
-            target: id,
-            type: parentId === 'statement' ? 'statement' : 'negation',
-          });
-
-          // Remove the stored position for this node
-          setCollapsedNodePositions(prev => prev.filter(pos => !(pos.pointId === numParentId && pos.parentId === pointId)));
-
-          setCollapsedPointIds(prev => {
-            const newSet = new Set(prev);
-            // eslint-disable-next-line drizzle/enforce-delete-with-where
-            newSet.delete(numParentId);
-            return newSet;
-          });
-        }
-      }
-    }
-
-    // Track what points already exist in the graph
-    const allExistingPointIds = pointNodes.map(node => node.data.pointId)
-
     // Track points directly connected to this node
     const localExpandedNegationIds = [
       ...incomingConnections.map((c) => {
@@ -289,42 +189,42 @@ export const PointNode = ({
     const expandableNegationIds: number[] = [];
     const skippedNegationIds: { id: number, reason: string }[] = [];
 
-    pointData.negationIds.forEach(negId => {
+    pointData?.negationIds.forEach(negId => {
+      // Skip if it's this node's own ID
+      if (negId === pointId) {
+        skippedNegationIds.push({ id: negId, reason: "self-negation" });
+        return;
+      }
+
       // Check if already connected to this node
       if (localExpandedNegationIds.includes(negId)) {
         skippedNegationIds.push({ id: negId, reason: "already connected" });
         return;
       }
 
-      // Check if exists elsewhere in graph
-      if (allExistingPointIds.includes(negId)) {
+      // Get all nodes in the graph that contain this point ID
+      const nodesWithThisId = pointNodes.filter(n => n.data.pointId === negId);
+
+      // If any of these nodes are visible (not collapsed), skip this negation
+      const hasVisibleInstance = nodesWithThisId.some(node =>
+        !collapsedPointIds.has(node.data.pointId)
+      );
+
+      if (hasVisibleInstance) {
         const existingNodes = pointIdMap.get(negId) || [];
         skippedNegationIds.push({
           id: negId,
-          reason: `exists in ${existingNodes.length} other nodes: ${existingNodes.join(", ")}`
+          reason: `exists as visible node elsewhere: ${existingNodes.join(", ")}`
         });
-
-        // Still remove from collapsed set
-        setCollapsedPointIds(prev => {
-          const newSet = new Set(prev);
-          // eslint-disable-next-line drizzle/enforce-delete-with-where
-          newSet.delete(negId);
-          return newSet;
-        });
-
         return;
       }
 
       // Check if this would create a circular parent-child relationship
-      // This happens in bidirectional negation relationships
-
-      // 1. Check if this point already appears in a path from the negation
       let wouldCreateCircle = false;
 
       // Check if the negation ID exists in the relationship map
       if (parentChildMap.has(negId)) {
         // Check if this point is already a child or descendant of the negation
-        // First, see if we're a direct child
         if (parentChildMap.get(negId)?.childIds.has(pointId)) {
           wouldCreateCircle = true;
         } else {
@@ -341,16 +241,6 @@ export const PointNode = ({
           id: negId,
           reason: "would create circular parent-child relationship"
         });
-
-        // Even if we don't create the node, we should still remove it from collapsed set
-        // This ensures we acknowledge the logical negation relationship
-        setCollapsedPointIds(prev => {
-          const newSet = new Set(prev);
-          // eslint-disable-next-line drizzle/enforce-delete-with-where
-          newSet.delete(negId);
-          return newSet;
-        });
-
         return;
       }
 
@@ -366,7 +256,6 @@ export const PointNode = ({
       const nodeId = nanoid();
 
       const storedPosition = collapsedNodePositions.find(pos => pos.pointId === negationId && pos.parentId === pointId);
-
       let position;
       if (storedPosition) {
         position = {
@@ -460,14 +349,52 @@ export const PointNode = ({
     addEdges,
     setCollapsedPointIds,
     pointId,
-    nodePositionX,
-    nodePositionY,
-    getNodeByPointId,
-    isNegatingParent,
     getNodes,
     collapsedNodePositions,
-    setCollapsedNodePositions
+    setCollapsedNodePositions,
+    collapsedPointIds
   ]);
+
+  const expandedNegationIds = useMemo(() => [
+    ...incomingConnections.map((c) => {
+      const node = getNode(c.source)! as PointNode;
+      return node.data.pointId;
+    }),
+    ...(parentId ? [parentId] : []),
+  ], [incomingConnections, getNode, parentId]);
+
+  const collapsedNegations = useMemo(() => {
+    if (!pointData) return 0;
+
+    // Get all negation IDs that could be connected to this point
+    const possibleNegationIds = pointData.negationIds.filter(id =>
+      // Don't include self-negations
+      id !== pointId &&
+      // Don't include already connected negations
+      !expandedNegationIds.includes(id)
+    );
+
+    // Filter to only those that are in the collapsed set
+    const expandableIds = possibleNegationIds.filter(id =>
+      !expandedNegationIds.includes(id)
+    );
+
+    const count = expandableIds.length;
+
+    return count;
+  }, [pointData, expandedNegationIds, pointId]);
+
+  // Update node internals when pointData changes to reflect new negations
+  useEffect(() => {
+    if (pointData) {
+      updateNodeInternals(id);
+    }
+  }, [id, pointData, updateNodeInternals]);
+
+  // Keep existing effect for connection changes
+  useEffect(() => {
+    updateNodeInternals(id);
+  }, [id, incomingConnections.length, updateNodeInternals, collapsedNegations]);
 
   const hasExpandedRef = useRef(false);
   const strictModeMountRef = useRef(0);
@@ -488,20 +415,6 @@ export const PointNode = ({
     setShouldExpandOnInit(false);
     hasExpandedRef.current = true;
   }, [shouldExpandOnInit, pointData, expandNegations]);
-
-  const expandedNegationIds = useMemo(() => [
-    ...incomingConnections.map((c) => {
-      const node = getNode(c.source)! as PointNode;
-      return node.data.pointId;
-    }),
-    ...(parentId ? [parentId] : []),
-  ], [incomingConnections, getNode, parentId]);
-
-  const collapsedNegations = pointData
-    ? (pointData.negationIds
-      .filter(id => !expandedNegationIds.includes(id))
-      .length)
-    : 0;
 
   const hasInitializedCollapsedState = useRef(false);
 
@@ -658,6 +571,11 @@ export const PointNode = ({
     collapseSelfAndNegations();
   }, [collapseSelfAndNegations]);
 
+  const handleExpandNegationsClick = useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+    expandNegations();
+  }, [expandNegations]);
+
   return (
     <div
       data-loading={pointData === undefined}
@@ -674,14 +592,13 @@ export const PointNode = ({
         type="target"
         isConnectableStart={false}
         position={Position.Bottom}
-        className={
-          collapsedNegations === 0
-            ? "invisible"
-            : "pb-0.5 px-4 translate-y-[100%] -translate-x-1/2  size-fit bg-muted text-center border-2 border-t-0 rounded-b-full pointer-events-auto cursor-pointer"
-        }
-        onClick={expandNegations}
+        className={cn(
+          "pb-0.5 px-4 translate-y-[100%] -translate-x-1/2 size-fit bg-muted text-center border-2 border-t-0 rounded-b-full pointer-events-auto cursor-pointer",
+          collapsedNegations === 0 && "invisible"
+        )}
+        onClick={handleExpandNegationsClick}
       >
-        {pointData && (
+        {pointData && collapsedNegations > 0 && (
           <span className="text-center w-full text-sm">
             {collapsedNegations}
           </span>
