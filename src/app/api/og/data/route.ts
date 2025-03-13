@@ -1,6 +1,6 @@
 import { db } from "@/services/db";
 import { pointsWithDetailsView, usersTable } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { addFavor } from "@/db/utils/addFavor";
 import { NextResponse } from "next/server";
 
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     .select({
       pointId: pointsWithDetailsView.pointId,
       content: pointsWithDetailsView.content,
-      cred: pointsWithDetailsView.cred,
+      cred: sql<number>`"point_with_details_view"."cred"`.mapWith(Number),
       amountSupporters: pointsWithDetailsView.amountSupporters,
       amountNegations: pointsWithDetailsView.amountNegations,
       author: usersTable.username,
