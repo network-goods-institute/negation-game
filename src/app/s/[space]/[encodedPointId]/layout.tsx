@@ -56,9 +56,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         ? point.content.substring(0, 197) + "..."
         : point.content;
 
-    const title = `${point.content} | ${pointWithFavor.favor}% Favor | s/${spaceParam}`;
+    const title = `${point.content} | ${pointWithFavor.favor} Favor | s/${spaceParam}`;
 
-    const description = `${truncatedContent}\n\n${point.amountSupporters} supporters · ${point.cred} cred · ${pointWithFavor.favor}% favor · ${point.amountNegations} negations`;
+    const description = `${truncatedContent}\n\n${point.amountSupporters} supporters · ${point.cred} cred · ${pointWithFavor.favor} favor · ${point.amountNegations} negations`;
 
     const ogImageUrl = `${protocol}://${domain}/api/og/point/${encodedPointId}?space=${spaceParam}`;
 

@@ -35,6 +35,18 @@ export async function GET(request: Request) {
 
     const pointData = await pointDataResponse.json();
 
+    // Calculate graph dimensions
+    const graphWidth = 1000;
+    const graphHeight = 200;
+    const graphPadding = 20;
+
+    // Create graph points
+    const points = pointData.favorHistory.map((point: any, index: number, array: any[]) => {
+        const x = (index / (array.length - 1)) * (graphWidth - 2 * graphPadding) + graphPadding;
+        const y = graphHeight - (point.favor / 100) * (graphHeight - 2 * graphPadding) - graphPadding;
+        return `${x},${y}`;
+    }).join(' ');
+
     return new ImageResponse(
         (
             <div
@@ -43,8 +55,8 @@ export async function GET(request: Request) {
                     width: '100%',
                     display: 'flex',
                     flexDirection: 'column',
-                    alignItems: 'flex-start',
-                    justifyContent: 'flex-start',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     backgroundColor: '#030711',
                     padding: 48,
                 }}
@@ -52,9 +64,9 @@ export async function GET(request: Request) {
                 <div
                     style={{
                         display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'flex-start',
-                        marginBottom: 24,
+                        alignItems: 'center',
+                        gap: 24,
+                        marginBottom: 40,
                     }}
                 >
                     <div
@@ -63,10 +75,9 @@ export async function GET(request: Request) {
                             fontSize: 48,
                             fontWeight: 700,
                             color: '#60A5FA',
-                            marginBottom: 8,
                         }}
                     >
-                        {pointData.favor} favor
+                        {pointData.favor}
                     </div>
                     <div
                         style={{
@@ -74,11 +85,41 @@ export async function GET(request: Request) {
                             fontSize: 32,
                             fontWeight: 600,
                             color: '#E5E7EB',
-                            maxWidth: 900,
+                            maxWidth: 800,
                         }}
                     >
                         {pointData.content}
                     </div>
+                </div>
+
+                {/* Favor Timeline Graph */}
+                <div
+                    style={{
+                        display: 'flex',
+                        width: graphWidth,
+                        height: graphHeight,
+                        marginBottom: 40,
+                        position: 'relative',
+                    }}
+                >
+                    <svg width={graphWidth} height={graphHeight}>
+                        {/* Graph background */}
+                        <rect
+                            x="0"
+                            y="0"
+                            width={graphWidth}
+                            height={graphHeight}
+                            fill="#1F2937"
+                            rx="4"
+                        />
+                        {/* Favor line */}
+                        <polyline
+                            points={points}
+                            fill="none"
+                            stroke="#60A5FA"
+                            strokeWidth="2"
+                        />
+                    </svg>
                 </div>
 
                 <div

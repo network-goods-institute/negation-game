@@ -1,5 +1,9 @@
 import { db } from "@/services/db";
-import { pointsWithDetailsView, usersTable } from "@/db/schema";
+import {
+  pointsWithDetailsView,
+  usersTable,
+  pointFavorHistoryView,
+} from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { addFavor } from "@/db/utils/addFavor";
 import { NextResponse } from "next/server";
@@ -40,10 +44,21 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Point not found" }, { status: 404 });
   }
 
+  // Get favor history
+  const favorHistory = await db
+    .select({
+      favor: pointFavorHistoryView.favor,
+      eventTime: pointFavorHistoryView.eventTime,
+    })
+    .from(pointFavorHistoryView)
+    .where(eq(pointFavorHistoryView.pointId, pointId))
+    .orderBy(pointFavorHistoryView.eventTime);
+
   const [pointWithFavor] = await addFavor([{ id: point.pointId }]);
 
   return NextResponse.json({
     ...point,
     favor: pointWithFavor.favor,
+    favorHistory,
   });
 }
