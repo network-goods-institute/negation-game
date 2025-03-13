@@ -1,47 +1,39 @@
 import { ImageResponse } from "next/og";
-import { db } from "@/services/db";
-import { pointsWithDetailsView, usersTable } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
 import { decodeId } from "@/lib/decodeId";
-import { addFavor } from "@/db/utils/addFavor";
 import { DEFAULT_SPACE } from "@/constants/config";
 
 export const runtime = "edge";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-export async function GET(request: Request, { params }: { params: { encodedPointId: string } }) {
-    const { encodedPointId } = params;
+export async function GET(request: Request) {
+    // Get encodedPointId from the URL path
+    const encodedPointId = request.url.split('/').pop()?.split('?')[0];
+    if (!encodedPointId) {
+        return new Response("Invalid point ID", { status: 400 });
+    }
+
     const pointId = decodeId(encodedPointId);
-
     const url = new URL(request.url);
     const spaceParam = url.searchParams.get("space") || DEFAULT_SPACE;
     const space = spaceParam === DEFAULT_SPACE ? DEFAULT_SPACE : spaceParam;
 
-    const point = await db
-        .select({
-            pointId: pointsWithDetailsView.pointId,
-            content: pointsWithDetailsView.content,
-            cred: pointsWithDetailsView.cred,
-            amountSupporters: pointsWithDetailsView.amountSupporters,
-            amountNegations: pointsWithDetailsView.amountNegations,
-            author: usersTable.username,
-        })
-        .from(pointsWithDetailsView)
-        .innerJoin(
-            usersTable,
-            eq(usersTable.id, pointsWithDetailsView.createdBy)
-        )
-        .where(and(
-            eq(pointsWithDetailsView.pointId, pointId),
-            eq(pointsWithDetailsView.space, space)
-        ))
-        .limit(1)
-        .then(results => results[0]);
+    // Get the base URL from the request
+    const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
+    const host = request.headers.get('host') || 'localhost:3000';
+    const baseUrl = `${protocol}://${host}`;
 
-    if (!point) {
+    // Fetch point data from the API
+    const pointDataResponse = await fetch(
+        `${baseUrl}/api/og/data?pointId=${pointId}&space=${space}`,
+        { cache: 'no-store' }
+    );
+
+    if (!pointDataResponse.ok) {
         return new Response("Point not found", { status: 404 });
     }
 
-    const [pointWithFavor] = await addFavor([{ id: point.pointId }]);
+    const pointData = await pointDataResponse.json();
 
     return new ImageResponse(
         (
@@ -73,7 +65,7 @@ export async function GET(request: Request, { params }: { params: { encodedPoint
                             marginBottom: 8,
                         }}
                     >
-                        {pointWithFavor.favor}% favor
+                        {pointData.favor}% favor
                     </div>
                     <div
                         style={{
@@ -83,7 +75,7 @@ export async function GET(request: Request, { params }: { params: { encodedPoint
                             maxWidth: 900,
                         }}
                     >
-                        {point.content}
+                        {pointData.content}
                     </div>
                 </div>
 
@@ -96,11 +88,11 @@ export async function GET(request: Request, { params }: { params: { encodedPoint
                         fontSize: 24,
                     }}
                 >
-                    <div>{point.amountSupporters} supporters</div>
+                    <div>{pointData.amountSupporters} supporters</div>
                     <div>·</div>
-                    <div>{point.cred} cred</div>
+                    <div>{pointData.cred} cred</div>
                     <div>·</div>
-                    <div>{point.amountNegations} negations</div>
+                    <div>{pointData.amountNegations} negations</div>
                 </div>
             </div>
         ),
