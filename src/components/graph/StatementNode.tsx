@@ -9,7 +9,7 @@ import {
   useReactFlow,
   useUpdateNodeInternals,
 } from "@xyflow/react";
-import { PlusIcon } from "lucide-react";
+import { ArrowDownIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useEffect, useCallback, useMemo } from "react";
 import { collapsedPointIdsAtom, collapsedNodePositionsAtom } from "@/atoms/viewpointAtoms";
@@ -239,7 +239,7 @@ export const StatementNode = ({
           });
         }}
       >
-        <PlusIcon className="size-4" />
+        <ArrowDownIcon className="size-4" />
       </Handle>
 
       {collapsedDirectChildrenCount > 0 && (
