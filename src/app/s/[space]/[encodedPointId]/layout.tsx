@@ -19,6 +19,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const pointId = decodeId(encodedPointId);
     const space = spaceParam === DEFAULT_SPACE ? DEFAULT_SPACE : spaceParam;
 
+    // Domain handling for development and production
+    const domain = process.env.NODE_ENV === "development"
+        ? "localhost:3000"
+        : process.env.NEXT_PUBLIC_DOMAIN || "negationgame.com";
+    const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
+
     const point = await db
         .select({
             ...getColumns(pointsWithDetailsView),
@@ -54,6 +60,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
     const description = `${truncatedContent}\n\n${point.amountSupporters} supporters · ${point.cred} cred · ${pointWithFavor.favor}% favor · ${point.amountNegations} negations`;
 
+    const ogImageUrl = `${protocol}://${domain}/api/og/point/${encodedPointId}?space=${spaceParam}`;
+
     return {
         title,
         description,
@@ -63,6 +71,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             type: "article",
             authors: [point.author],
             url: `/s/${spaceParam}/${encodedPointId}`,
+            images: [{
+                url: ogImageUrl,
+                width: 1200,
+                height: 630,
+                alt: title
+            }],
         },
         twitter: {
             card: "summary_large_image",
@@ -70,6 +84,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             description,
             creator: point.author,
             site: "@negationgame",
+            images: [ogImageUrl],
         },
     };
 }
