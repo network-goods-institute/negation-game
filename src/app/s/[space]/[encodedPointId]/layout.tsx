@@ -7,15 +7,17 @@ import { decodeId } from "@/lib/decodeId";
 import { addFavor } from "@/db/utils/addFavor";
 
 interface Props {
-    params: {
+    params: Promise<{
         encodedPointId: string;
         space: string;
-    };
+    }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-    const pointId = decodeId(params.encodedPointId);
-    const space = params.space === DEFAULT_SPACE ? null : params.space;
+    const { encodedPointId, space: spaceParam } = await params;
+    const pointId = decodeId(encodedPointId);
+    const space = spaceParam === DEFAULT_SPACE ? null : spaceParam;
+
     const point = await db
         .select({
             pointId: pointsWithDetailsView.pointId,
@@ -40,7 +42,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     if (!point) {
         return {
             title: "Point Not Found",
-            description: `The requested point could not be found in s/${params.space}.`,
+            description: `The requested point could not be found in s/${spaceParam}.`,
         };
     }
 
@@ -50,7 +52,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         ? point.content.substring(0, 197) + "..."
         : point.content;
 
-    const title = `${point.content} | ${pointWithFavor.favor}% Favor | s/${params.space}`;
+    const title = `${point.content} | ${pointWithFavor.favor}% Favor | s/${spaceParam}`;
 
     const description = `${truncatedContent}\n\n${point.amountSupporters} supporters · ${point.cred} cred · ${pointWithFavor.favor}% favor · ${point.amountNegations} negations`;
 
@@ -62,7 +64,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             description,
             type: "article",
             authors: [point.author],
-            url: `/s/${params.space}/${params.encodedPointId}`,
+            url: `/s/${spaceParam}/${encodedPointId}`,
         },
         twitter: {
             card: "summary_large_image",

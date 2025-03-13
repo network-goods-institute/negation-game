@@ -5,13 +5,16 @@ import { eq, and } from "drizzle-orm";
 import { DEFAULT_SPACE } from "@/constants/config";
 
 interface Props {
-    params: {
+    params: Promise<{
         rationaleId: string;
         space: string;
-    };
+    }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+    const { rationaleId, space: spaceParam } = await params;
+    const space = spaceParam === 'global' ? DEFAULT_SPACE : spaceParam;
+
     const viewpoint = await db
         .select({
             id: viewpointsTable.id,
@@ -26,8 +29,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         .innerJoin(usersTable, eq(usersTable.id, viewpointsTable.createdBy))
         .where(
             and(
-                eq(viewpointsTable.id, params.rationaleId),
-                eq(viewpointsTable.space, params.space === 'global' ? DEFAULT_SPACE : params.space)
+                eq(viewpointsTable.id, rationaleId),
+                eq(viewpointsTable.space, space)
             )
         )
         .limit(1)
@@ -36,7 +39,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     if (!viewpoint) {
         return {
             title: "Rationale Not Found",
-            description: "The requested rationale could not be found in this space.",
+            description: `The requested rationale could not be found in s/${spaceParam}.`,
         };
     }
 
@@ -46,7 +49,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             : viewpoint.description
         : "No description available";
 
-    const title = `${viewpoint.title} | s/${params.space}`;
+    const title = `${viewpoint.title} | s/${spaceParam}`;
 
     return {
         title,
@@ -56,7 +59,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             description: truncatedDescription,
             type: "article",
             authors: [viewpoint.author],
-            url: `/s/${params.space}/rationale/${params.rationaleId}`,
+            url: `/s/${spaceParam}/rationale/${rationaleId}`,
         },
         twitter: {
             card: "summary_large_image",
