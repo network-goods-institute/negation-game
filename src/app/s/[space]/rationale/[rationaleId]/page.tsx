@@ -357,19 +357,16 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                 >
                   <NetworkIcon className="" />
                 </Button>
-                <div className="flex items-center gap-2">
+                <AuthenticatedActionButton
+                  variant="outline"
+                  className="rounded-full flex items-center gap-2 px-4"
+                  onClick={handleCopy}
+                  disabled={isCopying}
+                  rightLoading={isCopying}
+                >
                   <span className="text-sm font-bold">Make a Copy</span>
-                  <AuthenticatedActionButton
-                    variant="outline"
-                    size="icon"
-                    className="rounded-full p-2 size-9 flex items-center justify-center"
-                    onClick={handleCopy}
-                    disabled={isCopying}
-                    rightLoading={isCopying}
-                  >
-                    <CopyIcon className="size-4" />
-                  </AuthenticatedActionButton>
-                </div>
+                  <CopyIcon className="size-4" />
+                </AuthenticatedActionButton>
               </div>
             </div>
             <Separator />
