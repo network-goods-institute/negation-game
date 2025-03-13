@@ -32,6 +32,7 @@ import dynamic from 'next/dynamic';
 import remarkGfm from 'remark-gfm';
 import { use } from "react";
 import { useQueryClient } from '@tanstack/react-query';
+import Link from "next/link";
 
 import { useGraphPoints } from "@/components/graph/useGraphPoints";
 import { Loader } from "@/components/ui/loader";
@@ -318,20 +319,22 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
             <div className="sticky top-0 z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
               {space?.data && space.data.id !== DEFAULT_SPACE ? (
                 <div className="flex items-center gap-2">
-                  <Avatar className="border-4 border-background size-8">
-                    {space.data.icon && (
-                      <AvatarImage
-                        src={space.data.icon}
-                        alt={`s/${space.data.id} icon`}
-                      />
-                    )}
-                    <AvatarFallback className="text-xl font-bold text-muted-foreground">
-                      {space.data.id.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-md font-semibold">
-                    s/{space.data.id}
-                  </span>
+                  <Link href={`/s/${space.data.id}`} className="flex items-center gap-2 hover:opacity-80">
+                    <Avatar className="border-4 border-background size-8">
+                      {space.data.icon && (
+                        <AvatarImage
+                          src={space.data.icon}
+                          alt={`s/${space.data.id} icon`}
+                        />
+                      )}
+                      <AvatarFallback className="text-xl font-bold text-muted-foreground">
+                        {space.data.id.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-md font-semibold">
+                      s/{space.data.id}
+                    </span>
+                  </Link>
                 </div>
               ) : (
                 <div />
