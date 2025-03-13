@@ -59,16 +59,18 @@ export async function GET(request: Request) {
                 >
                     <div
                         style={{
+                            display: 'flex',
                             fontSize: 48,
                             fontWeight: 700,
                             color: '#60A5FA',
                             marginBottom: 8,
                         }}
                     >
-                        {pointData.favor}% favor
+                        {pointData.favor} favor
                     </div>
                     <div
                         style={{
+                            display: 'flex',
                             fontSize: 32,
                             fontWeight: 600,
                             color: '#E5E7EB',
@@ -88,11 +90,11 @@ export async function GET(request: Request) {
                         fontSize: 24,
                     }}
                 >
-                    <div>{pointData.amountSupporters} supporters</div>
-                    <div>·</div>
-                    <div>{pointData.cred} cred</div>
-                    <div>·</div>
-                    <div>{pointData.amountNegations} negations</div>
+                    <div style={{ display: 'flex' }}>{pointData.amountSupporters} supporters</div>
+                    <div style={{ display: 'flex' }}>·</div>
+                    <div style={{ display: 'flex' }}>{pointData.cred} cred</div>
+                    <div style={{ display: 'flex' }}>·</div>
+                    <div style={{ display: 'flex' }}>{pointData.amountNegations} negations</div>
                 </div>
             </div>
         ),
