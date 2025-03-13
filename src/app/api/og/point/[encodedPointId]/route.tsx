@@ -145,25 +145,14 @@ export async function GET(request: Request) {
                             stroke="#60A5FA"
                             strokeWidth="2"
                         />
-                        {/* Last point dot with ping animation */}
+                        {/* Last point dot */}
                         {pointData.favorHistory.length > 0 && (
-                            <>
-                                <circle
-                                    cx={lastX}
-                                    cy={lastY}
-                                    r="4"
-                                    fill="#60A5FA"
-                                    style={{
-                                        animation: "ping 1s cubic-bezier(0, 0, 0.2, 1) infinite"
-                                    }}
-                                />
-                                <circle
-                                    cx={lastX}
-                                    cy={lastY}
-                                    r="4"
-                                    fill="#60A5FA"
-                                />
-                            </>
+                            <circle
+                                cx={lastX}
+                                cy={lastY}
+                                r="4"
+                                fill="#60A5FA"
+                            />
                         )}
                     </svg>
                 </div>
