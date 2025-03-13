@@ -242,7 +242,7 @@ export function SpacePageClient({
     const queryClient = useQueryClient();
     const [isNavigating, setIsNavigating] = useState(false);
     const { data: viewpoints, isLoading: viewpointsLoading } = useViewpoints(space.data?.id || "global");
-    const [selectedTab, setSelectedTab] = useState<"all" | "points" | "rationales" | "search">("all");
+    const [selectedTab, setSelectedTab] = useState<"all" | "points" | "rationales" | "search">("rationales");
     const { searchQuery, searchResults, isLoading: searchLoading, handleSearch, isActive, hasSearched } = useSearch();
 
     // Prevent feed from reloading when navigating back to it
