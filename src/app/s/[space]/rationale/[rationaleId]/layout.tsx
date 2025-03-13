@@ -26,7 +26,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             author: usersTable.username,
         })
         .from(viewpointsTable)
-        .innerJoin(usersTable, eq(usersTable.id, viewpointsTable.createdBy))
+        .innerJoin(
+            usersTable,
+            eq(usersTable.id, viewpointsTable.createdBy)
+        )
         .where(
             and(
                 eq(viewpointsTable.id, rationaleId),

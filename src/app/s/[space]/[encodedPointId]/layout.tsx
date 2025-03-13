@@ -1,10 +1,11 @@
 import { Metadata } from "next";
 import { db } from "@/services/db";
 import { pointsWithDetailsView, usersTable } from "@/db/schema";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { DEFAULT_SPACE } from "@/constants/config";
 import { decodeId } from "@/lib/decodeId";
 import { addFavor } from "@/db/utils/addFavor";
+import { getColumns } from "@/db/utils/getColumns";
 
 interface Props {
     params: Promise<{
@@ -16,25 +17,22 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const { encodedPointId, space: spaceParam } = await params;
     const pointId = decodeId(encodedPointId);
-    const space = spaceParam === DEFAULT_SPACE ? null : spaceParam;
+    const space = spaceParam === DEFAULT_SPACE ? DEFAULT_SPACE : spaceParam;
 
     const point = await db
         .select({
-            pointId: pointsWithDetailsView.pointId,
-            content: pointsWithDetailsView.content,
-            createdBy: pointsWithDetailsView.createdBy,
-            createdAt: pointsWithDetailsView.createdAt,
-            cred: pointsWithDetailsView.cred,
-            amountSupporters: pointsWithDetailsView.amountSupporters,
-            amountNegations: pointsWithDetailsView.amountNegations,
+            ...getColumns(pointsWithDetailsView),
             author: usersTable.username,
-            space: pointsWithDetailsView.space,
+            cred: sql<number>`"point_with_details_view"."cred"`.mapWith(Number),
         })
         .from(pointsWithDetailsView)
-        .innerJoin(usersTable, eq(usersTable.id, pointsWithDetailsView.createdBy))
+        .innerJoin(
+            usersTable,
+            eq(usersTable.id, pointsWithDetailsView.createdBy)
+        )
         .where(and(
             eq(pointsWithDetailsView.pointId, pointId),
-            space === null ? isNull(pointsWithDetailsView.space) : eq(pointsWithDetailsView.space, space)
+            eq(pointsWithDetailsView.space, space)
         ))
         .limit(1)
         .then(results => results[0]);

@@ -6,10 +6,7 @@ import { db } from "@/services/db";
 import { eq, sql } from "drizzle-orm";
 
 export const fetchViewpoint = async (id: string) => {
-  console.log("[fetchViewpoint] Starting fetch for id:", id);
-
   if (id === "DISABLED") {
-    console.log("[fetchViewpoint] Returning disabled defaults");
     // Returning safe defaults for encoded pages which do not use viewpoint data.
     return {
       id: "DISABLED",
@@ -24,7 +21,6 @@ export const fetchViewpoint = async (id: string) => {
     };
   }
 
-  console.log("[fetchViewpoint] Querying database...");
   const viewpoint = await db
     .select({
       ...getColumns(viewpointsTable),
@@ -44,15 +40,10 @@ export const fetchViewpoint = async (id: string) => {
     .where(eq(viewpointsTable.id, id))
     .limit(1)
     .then((results) => {
-      console.log(
-        "[fetchViewpoint] Query results:",
-        JSON.stringify(results, null, 2)
-      );
       return results[0] || null;
     });
 
   if (!viewpoint) {
-    console.log("[fetchViewpoint] No viewpoint found, returning defaults");
     // If no viewpoint is found, return safe defaults.
     return {
       id,
@@ -67,14 +58,6 @@ export const fetchViewpoint = async (id: string) => {
       space: null,
     };
   }
-
-  console.log("[fetchViewpoint] Returning viewpoint:", {
-    id: viewpoint.id,
-    title: viewpoint.title,
-    author: viewpoint.author,
-    createdAt: viewpoint.createdAt,
-    space: viewpoint.space,
-  });
 
   return {
     ...viewpoint,
