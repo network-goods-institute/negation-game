@@ -157,9 +157,9 @@ function ViewpointContent() {
     usePublishViewpoint();
   const canPublish = useMemo(() => {
     return (
-      statement.length > 0 && reasoning.length > 0 && graph.edges.length > 0
+      statement.length > 0 && graph.edges.length > 0
     );
-  }, [graph, statement, reasoning]);
+  }, [graph, statement]);
   const [hoveredPointId, setHoveredPointId] = useAtom(hoveredPointIdAtom);
 
   useEffect(() => {

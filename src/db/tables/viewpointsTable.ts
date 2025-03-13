@@ -8,7 +8,7 @@ import { createInsertSchema } from "drizzle-zod";
 export const viewpointsTable = pgTable("viewpoints", {
   id: varchar("id").primaryKey(),
   title: text("title").notNull(),
-  description: text("content").notNull(),
+  description: text("content").notNull().default(""),
   graph: jsonb("graph").$type<ViewpointGraph>().notNull(),
   createdBy: varchar("created_by").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),

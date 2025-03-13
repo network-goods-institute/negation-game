@@ -1,0 +1,1 @@
+ALTER TABLE "viewpoints" ALTER COLUMN "content" SET DEFAULT '';
