@@ -44,8 +44,22 @@ export async function GET(request: Request) {
     const points = pointData.favorHistory.map((point: any, index: number, array: any[]) => {
         const x = (index / (array.length - 1)) * (graphWidth - 2 * graphPadding) + graphPadding;
         const y = graphHeight - (point.favor / 100) * (graphHeight - 2 * graphPadding) - graphPadding;
+
+        if (index < array.length - 1) {
+            const nextPoint = array[index + 1];
+            const nextX = ((index + 1) / (array.length - 1)) * (graphWidth - 2 * graphPadding) + graphPadding;
+            const nextY = graphHeight - (nextPoint.favor / 100) * (graphHeight - 2 * graphPadding) - graphPadding;
+            // First draw horizontal line at current value, then vertical to next value
+            return `${x},${y} ${nextX},${y} ${nextX},${nextY}`;
+        }
+        // For the last point, just return the point
         return `${x},${y}`;
     }).join(' ');
+
+    // Create the animated ping effect for the last point
+    const lastPoint = pointData.favorHistory[pointData.favorHistory.length - 1];
+    const lastX = graphWidth - graphPadding;
+    const lastY = graphHeight - (lastPoint.favor / 100) * (graphHeight - 2 * graphPadding) - graphPadding;
 
     return new ImageResponse(
         (
@@ -75,9 +89,12 @@ export async function GET(request: Request) {
                             fontSize: 48,
                             fontWeight: 700,
                             color: '#60A5FA',
+                            alignItems: 'center',
+                            gap: 12,
                         }}
                     >
-                        {pointData.favor}
+                        <span>{pointData.favor}</span>
+                        <span style={{ fontSize: 32 }}>favor</span>
                     </div>
                     <div
                         style={{
@@ -112,6 +129,15 @@ export async function GET(request: Request) {
                             fill="#1F2937"
                             rx="4"
                         />
+                        {/* Reference line at 50% */}
+                        <line
+                            x1="0"
+                            y1={graphHeight / 2}
+                            x2={graphWidth}
+                            y2={graphHeight / 2}
+                            stroke="#4B5563"
+                            strokeWidth="1"
+                        />
                         {/* Favor line */}
                         <polyline
                             points={points}
@@ -119,6 +145,26 @@ export async function GET(request: Request) {
                             stroke="#60A5FA"
                             strokeWidth="2"
                         />
+                        {/* Last point dot with ping animation */}
+                        {pointData.favorHistory.length > 0 && (
+                            <>
+                                <circle
+                                    cx={lastX}
+                                    cy={lastY}
+                                    r="4"
+                                    fill="#60A5FA"
+                                    style={{
+                                        animation: "ping 1s cubic-bezier(0, 0, 0.2, 1) infinite"
+                                    }}
+                                />
+                                <circle
+                                    cx={lastX}
+                                    cy={lastY}
+                                    r="4"
+                                    fill="#60A5FA"
+                                />
+                            </>
+                        )}
                     </svg>
                 </div>
 
