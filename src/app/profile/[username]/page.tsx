@@ -204,15 +204,22 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                     )}
 
                     {userData?.delegationUrl && (
-                        <div className="mb-4 flex items-center gap-2">
-                            <a
-                                href={userData.delegationUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary text-sm flex items-center gap-1 hover:underline"
-                            >
-                                Delegate to this user <ExternalLinkIcon className="size-3" />
-                            </a>
+                        <div className="mb-6 p-4 bg-primary/5 border rounded-lg">
+                            <div className="flex flex-col items-center text-center space-y-2">
+                                <h3 className="font-medium">Delegate Your Voting Power</h3>
+                                <p className="text-sm text-muted-foreground max-w-md">
+                                    Support {username}&apos;s governance decisions by delegating your voting power
+                                </p>
+                                <a
+                                    href={userData.delegationUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center justify-center gap-2 px-8 py-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                                >
+                                    <span>Delegate Now</span>
+                                    <ExternalLinkIcon className="size-4" />
+                                </a>
+                            </div>
                         </div>
                     )}
 
