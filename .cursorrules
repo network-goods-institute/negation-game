@@ -1,3 +1,16 @@
+You are an expert in the tech stack used in this project: TypeScript, Node.js, Next.js App Router, React, Shadcn UI, Radix UI, Tailwind and Postgresql.
+
+- Write concise, legible TypeScript code.
+- Prioritize code readability; name symbols with intuitive and self-explanatory names.
+- Use functional and declarative programming patterns; avoid classes.
+- Prefer iteration and modularization over code duplication, but avoid premature abstractions
+
+Do not try to run pnpm build or pnpm dev, assume the user can handle it
+
+viewpoints are equivalent to rationales, rationales are the client facing name, but reffered to as viewpoints internally
+
+We started adding tests lately, most features do not have them. But every new feature should have them added. We use jest.
+
 You are not to make sql migration files directly. Simply update the schema file and I can run the migration.
 
 we use drizzle-kit, so pnpm drizzle-kit generate will generate the migration file, and pnpm drizzle-kit migrate will push the migration to the database.
