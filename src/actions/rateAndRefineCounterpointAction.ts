@@ -9,6 +9,7 @@ import { Point } from "@/db/tables/pointsTable";
 import { google } from "@ai-sdk/google";
 import { generateObject } from "ai";
 import { z } from "zod";
+import { withRetry } from "@/lib/withRetry";
 
 export interface EvaluateCounterpointArgs {
   negatedPointContent: Point["content"];
@@ -65,23 +66,25 @@ Also offer 3 rephrasings of the COUNTERPOINT that would make it better according
 Focus on being clear, concise, and easy to understand, as if you're explaining something to a friend in today's world in an accessible way.
 `;
 
-  const { object: counterpointEvaluation } = await generateObject({
-    model: google("gemini-1.5-flash"),
-    schema: z.object({
-      rating: z
-        .number()
-        .min(1)
-        .max(10)
-        .int()
-        .describe("rating of the counterpoint"),
-      suggestions: z
-        .array(z.string())
-        .describe("Suggested rephrasings of the COUNTERPOINT"),
-      feedback: z
-        .string()
-        .describe("Feedback for the user on how to improve the COUNTERPOINT"),
-    }),
-    prompt,
+  const { object: counterpointEvaluation } = await withRetry(async () => {
+    return generateObject({
+      model: google("gemini-2.0-flash"),
+      schema: z.object({
+        rating: z
+          .number()
+          .min(1)
+          .max(10)
+          .int()
+          .describe("rating of the counterpoint"),
+        suggestions: z
+          .array(z.string())
+          .describe("Suggested rephrasings of the COUNTERPOINT"),
+        feedback: z
+          .string()
+          .describe("Feedback for the user on how to improve the COUNTERPOINT"),
+      }),
+      prompt,
+    });
   });
 
   return counterpointEvaluation;

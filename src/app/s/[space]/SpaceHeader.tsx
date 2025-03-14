@@ -37,6 +37,6 @@ export function SpaceHeader({ spaceData }: { spaceData: any }) {
         targetContainer.innerHTML = '';
       }
     };
-  }, [spaceData?.id]);
+  }, [spaceData?.id, spaceData]);
   return null;
 } 

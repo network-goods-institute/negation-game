@@ -8,6 +8,7 @@ import { google } from "@ai-sdk/google";
 import { streamObject } from "ai";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
+import { withRetry } from "@/lib/withRetry";
 
 export const getCounterpointSuggestions = async (pointId: number) => {
   const point = await db
@@ -60,11 +61,13 @@ Generate 3 strong counterpoints that challenge the STATEMENT above. For each cou
 
 Focus on being clear and insightful, as if you're explaining a thoughtful counterargument to a friend in today's world.`;
 
-  const { elementStream } = await streamObject({
-    model: google("gemini-1.5-flash"),
-    output: "array",
-    schema: z.string().describe("Content of the counterpoint"),
-    prompt,
+  const { elementStream } = await withRetry(async () => {
+    return streamObject({
+      model: google("gemini-2.0-flash"),
+      output: "array",
+      schema: z.string().describe("Content of the counterpoint"),
+      prompt,
+    });
   });
 
   return elementStream;

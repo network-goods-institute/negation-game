@@ -229,6 +229,119 @@ const PriorityPointsSection = memo(({ filteredPriorityPoints, basePath, space, s
 });
 PriorityPointsSection.displayName = 'PriorityPointsSection';
 
+const AllTabContent = memo(({ points, viewpoints, isLoading, viewpointsLoading, combinedFeed, basePath, space, setNegatedPointId, login, user, pinnedPoint, loginOrMakePoint, handleNewViewpoint }: any) => {
+    if (!points || !viewpoints || isLoading || viewpointsLoading) {
+        return <Loader className="absolute self-center my-auto top-0 bottom-0" />;
+    }
+
+    if (points.length === 0 && viewpoints.length === 0) {
+        return (
+            <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
+                <span className="text-muted-foreground">Nothing here yet</span>
+                <div className="flex items-center justify-center gap-3">
+                    <Button variant="outline" onClick={loginOrMakePoint}>
+                        <PlusIcon className="mr-2 size-4" />
+                        Make a Point
+                    </Button>
+                    <span className="text-muted-foreground">or</span>
+                    <Button variant="outline" onClick={handleNewViewpoint}>
+                        <ViewpointIcon className="mr-2.5 size-4" />
+                        Create a Rationale
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <>
+            {combinedFeed.map((item: FeedItem) => (
+                <FeedItem
+                    key={item.id}
+                    item={item}
+                    basePath={basePath}
+                    space={space}
+                    setNegatedPointId={setNegatedPointId}
+                    login={login}
+                    user={user}
+                    pinnedPoint={pinnedPoint}
+                />
+            ))}
+        </>
+    );
+});
+AllTabContent.displayName = 'AllTabContent';
+
+const PointsTabContent = memo(({ points, isLoading, combinedFeed, basePath, space, setNegatedPointId, login, user, pinnedPoint, loginOrMakePoint }: any) => {
+    if (!points || isLoading) {
+        return <Loader className="absolute self-center my-auto top-0 bottom-0" />;
+    }
+
+    if (points.length === 0) {
+        return (
+            <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
+                <span className="text-muted-foreground">Nothing here yet</span>
+                <Button variant="outline" onClick={loginOrMakePoint}>
+                    <PlusIcon className="mr-2 size-4" />
+                    Make a Point
+                </Button>
+            </div>
+        );
+    }
+
+    return (
+        combinedFeed
+            .filter((item: FeedItem) => item.type === 'point')
+            .map((item: FeedItem) => (
+                <FeedItem
+                    key={item.id}
+                    item={item}
+                    basePath={basePath}
+                    space={space}
+                    setNegatedPointId={setNegatedPointId}
+                    login={login}
+                    user={user}
+                    pinnedPoint={pinnedPoint}
+                />
+            ))
+    );
+});
+PointsTabContent.displayName = 'PointsTabContent';
+
+const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, space, handleNewViewpoint }: any) => {
+    if (viewpoints === undefined || viewpointsLoading) {
+        return <Loader className="absolute self-center my-auto top-0 bottom-0" />;
+    }
+
+    if (viewpoints.length === 0) {
+        return (
+            <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
+                <span className="text-muted-foreground">Nothing here yet</span>
+                <Button variant="outline" onClick={handleNewViewpoint}>
+                    <ViewpointIcon className="mr-2.5 size-4" />
+                    Create a Rationale
+                </Button>
+            </div>
+        );
+    }
+
+    return (
+        viewpoints.map((viewpoint: { id: string; title: string; description: string; author: string; createdAt: string; space?: string }) => (
+            <ViewpointCard
+                key={`rationales-tab-${viewpoint.id}`}
+                id={viewpoint.id}
+                title={viewpoint.title}
+                description={viewpoint.description}
+                author={viewpoint.author}
+                createdAt={new Date(viewpoint.createdAt)}
+                space={space || "global"}
+                linkable={true}
+            />
+        ))
+    );
+});
+RationalesTabContent.displayName = 'RationalesTabContent';
+
 export function SpacePageClient({
     params,
     searchParams: initialSearchParams,
@@ -393,13 +506,13 @@ export function SpacePageClient({
                 <div className="flex flex-col gap-4 px-lg py-sm border-b">
                     <div className="flex gap-4">
                         <button
-                            onClick={() => setSelectedTab("all")}
+                            onClick={() => setSelectedTab("rationales")}
                             className={cn(
                                 "py-2 px-4 rounded focus:outline-none",
-                                selectedTab === "all" ? "bg-primary text-white" : "bg-transparent text-primary"
+                                selectedTab === "rationales" ? "bg-primary text-white" : "bg-transparent text-primary"
                             )}
                         >
-                            All
+                            Rationales
                         </button>
                         <button
                             onClick={() => setSelectedTab("points")}
@@ -411,13 +524,13 @@ export function SpacePageClient({
                             Points
                         </button>
                         <button
-                            onClick={() => setSelectedTab("rationales")}
+                            onClick={() => setSelectedTab("all")}
                             className={cn(
                                 "py-2 px-4 rounded focus:outline-none",
-                                selectedTab === "rationales" ? "bg-primary text-white" : "bg-transparent text-primary"
+                                selectedTab === "all" ? "bg-primary text-white" : "bg-transparent text-primary"
                             )}
                         >
-                            Rationales
+                            All
                         </button>
                         <button
                             onClick={() => {
@@ -517,91 +630,42 @@ export function SpacePageClient({
                         hasSearched={hasSearched}
                     />
                 ) : selectedTab === "all" ? (
-                    (!points || !viewpoints || isLoading || viewpointsLoading) ? (
-                        <Loader className="absolute self-center my-auto top-0 bottom-0" />
-                    ) : points.length === 0 && viewpoints.length === 0 ? (
-                        <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
-                            <span className="text-muted-foreground">Nothing here yet</span>
-                            <div className="flex items-center justify-center gap-3">
-                                <Button variant="outline" onClick={loginOrMakePoint}>
-                                    <PlusIcon className="mr-2 size-4" />
-                                    Make a Point
-                                </Button>
-                                <span className="text-muted-foreground">or</span>
-                                <Button variant="outline" onClick={handleNewViewpoint}>
-                                    <ViewpointIcon className="mr-2.5 size-4" />
-                                    Create a Rationale
-                                </Button>
-                            </div>
-                        </div>
-                    ) : (
-                        <>
-                            {combinedFeed.map(item => (
-                                <FeedItem
-                                    key={item.id}
-                                    item={item}
-                                    basePath={basePath}
-                                    space={space.data?.id}
-                                    setNegatedPointId={setNegatedPointId}
-                                    login={login}
-                                    user={user}
-                                    pinnedPoint={pinnedPoint}
-                                />
-                            ))}
-                        </>
-                    )
+                    <AllTabContent
+                        points={points}
+                        viewpoints={viewpoints}
+                        isLoading={isLoading}
+                        viewpointsLoading={viewpointsLoading}
+                        combinedFeed={combinedFeed}
+                        basePath={basePath}
+                        space={space.data?.id}
+                        setNegatedPointId={setNegatedPointId}
+                        login={login}
+                        user={user}
+                        pinnedPoint={pinnedPoint}
+                        loginOrMakePoint={loginOrMakePoint}
+                        handleNewViewpoint={handleNewViewpoint}
+                    />
                 ) : selectedTab === "points" ? (
-                    !points || isLoading ? (
-                        <Loader className="absolute self-center my-auto top-0 bottom-0" />
-                    ) : points.length === 0 ? (
-                        <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
-                            <span className="text-muted-foreground">Nothing here yet</span>
-                            <Button variant="outline" onClick={loginOrMakePoint}>
-                                <PlusIcon className="mr-2 size-4" />
-                                Make a Point
-                            </Button>
-                        </div>
-                    ) : (
-                        combinedFeed
-                            .filter(item => item.type === 'point')
-                            .map(item => (
-                                <FeedItem
-                                    key={item.id}
-                                    item={item}
-                                    basePath={basePath}
-                                    space={space.data?.id}
-                                    setNegatedPointId={setNegatedPointId}
-                                    login={login}
-                                    user={user}
-                                    pinnedPoint={pinnedPoint}
-                                />
-                            ))
-                    )
+                    <PointsTabContent
+                        points={points}
+                        isLoading={isLoading}
+                        combinedFeed={combinedFeed}
+                        basePath={basePath}
+                        space={space.data?.id}
+                        setNegatedPointId={setNegatedPointId}
+                        login={login}
+                        user={user}
+                        pinnedPoint={pinnedPoint}
+                        loginOrMakePoint={loginOrMakePoint}
+                    />
                 ) : (
-                    viewpoints === undefined || viewpointsLoading ? (
-                        <Loader className="absolute self-center my-auto top-0 bottom-0" />
-                    ) : viewpoints.length === 0 ? (
-                        <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
-                            <span className="text-muted-foreground">Nothing here yet</span>
-                            <Button variant="outline" onClick={handleNewViewpoint}>
-                                <ViewpointIcon className="mr-2.5 size-4" />
-                                Create a Rationale
-                            </Button>
-                        </div>
-                    ) : (
-                        viewpoints.map((viewpoint) => (
-                            <ViewpointCard
-                                key={`rationales-tab-${viewpoint.id}`}
-                                id={viewpoint.id}
-                                title={viewpoint.title}
-                                description={viewpoint.description}
-                                author={viewpoint.author}
-                                createdAt={new Date(viewpoint.createdAt)}
-                                space={space.data?.id || "global"}
-                                linkable={true}
-                            />
-                        ))
-                    )
+                    <RationalesTabContent
+                        viewpoints={viewpoints}
+                        viewpointsLoading={viewpointsLoading}
+                        basePath={basePath}
+                        space={space.data?.id}
+                        handleNewViewpoint={handleNewViewpoint}
+                    />
                 )}
             </div>
             <div className="fixed bottom-md right-sm sm:right-md flex flex-col items-end gap-3">

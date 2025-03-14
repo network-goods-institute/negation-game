@@ -26,6 +26,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { z } from "zod";
+import { withRetry } from "@/lib/withRetry";
 
 export interface FindCounterpointCandidatesArgs {
   negatedPointId: Point["id"];
@@ -164,11 +165,13 @@ return no results if no statements meet the criteria.
     object: viableCounterpointIds,
     toJsonResponse,
     finishReason,
-  } = await generateObject({
-    model: google("gemini-1.5-flash"),
-    output: "array",
-    schema: z.number().describe("id of the statement"),
-    prompt,
+  } = await withRetry(async () => {
+    return generateObject({
+      model: google("gemini-2.0-flash"),
+      output: "array",
+      schema: z.number().describe("id of the statement"),
+      prompt,
+    });
   });
 
   return similarPoints.filter(({ id }) => viableCounterpointIds.includes(id));

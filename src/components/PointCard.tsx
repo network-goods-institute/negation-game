@@ -248,13 +248,13 @@ export const PointCard = ({
   return (
     <div
       className={cn(
-        "@container/point flex gap-3 pt-4 pb-3 px-4 relative rounded-none",
+        "@container/point flex gap-3 pt-4 pb-3 px-4 relative rounded-none will-change-auto",
         isPinned && "border-l-4 border-primary",
         isPriority && !isPinned && "border-l-4 border-amber-400",
         inGraphNode && "pt-2.5",
         className
       )}
-      onMouseOver={() => {
+      onMouseEnter={() => {
         setHoveredPointId(pointId);
         handleRestakeHover();
       }}
@@ -446,12 +446,10 @@ export const PointCard = ({
                     e.stopPropagation();
                     onRestake?.({ openedFromSlashedIcon: false });
                   }}
-                  onMouseEnter={handleRestakeHover}
                 >
                   <RestakeIcon
                     className={cn(
                       "size-5 stroke-1",
-                      "text-muted-foreground hover:text-foreground transition-colors",
                       showRestakeAmount &&
                       restake?.isOwner &&
                       "text-endorsed fill-current"
@@ -477,13 +475,11 @@ export const PointCard = ({
                     e.stopPropagation();
                     onRestake?.({ openedFromSlashedIcon: true });
                   }}
-                  onMouseEnter={handleRestakeHover}
                 >
                   <div className="flex items-center translate-y-[5px]">
                     <DoubtIcon
                       className={cn(
                         "size-5 stroke-1",
-                        "text-muted-foreground hover:text-foreground transition-colors",
                         doubt?.amount !== undefined &&
                         doubt.amount > 0 &&
                         doubt.isUserDoubt &&

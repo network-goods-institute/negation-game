@@ -6,17 +6,20 @@ import { google } from "@ai-sdk/google";
 import { generateObject } from "ai";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { withRetry } from "@/lib/withRetry";
 
 export const addKeywords = async ({
   content,
   id,
 }: Pick<Point, "content" | "id">) => {
   const keywords = (
-    await generateObject({
-      model: google("gemini-1.5-flash"),
-      output: "array",
-      schema: z.string().describe("Keyword present in the content"),
-      prompt: `Extract only the most relevant keywords from the following statement: ${content}`,
+    await withRetry(async () => {
+      return generateObject({
+        model: google("gemini-2.0-flash"),
+        output: "array",
+        schema: z.string().describe("Keyword present in the content"),
+        prompt: `Extract only the most relevant keywords from the following statement: ${content}`,
+      });
     })
   ).object;
 
