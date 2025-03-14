@@ -13,11 +13,9 @@ import {
 } from "@/components/graph/OriginalPosterContext";
 import { NegateDialog } from "@/components/NegateDialog";
 import { PointCard } from "@/components/PointCard";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AuthenticatedActionButton, Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Dynamic } from "@/components/utils/Dynamic";
-import { DEFAULT_SPACE } from "@/constants/config";
 import { useBasePath } from "@/hooks/useBasePath";
 import { cn } from "@/lib/cn";
 import { usePointData } from "@/queries/usePointData";
@@ -26,13 +24,12 @@ import { useUser } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { ReactFlowProvider, useReactFlow, } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
-import { NetworkIcon, CopyIcon } from "lucide-react";
+import { NetworkIcon, CopyIcon, LinkIcon, CheckIcon } from "lucide-react";
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import dynamic from 'next/dynamic';
 import remarkGfm from 'remark-gfm';
 import { use } from "react";
 import { useQueryClient } from '@tanstack/react-query';
-import Link from "next/link";
 
 import { useGraphPoints } from "@/components/graph/useGraphPoints";
 import { Loader } from "@/components/ui/loader";
@@ -149,6 +146,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
   const [canvasEnabled, setCanvasEnabled] = useAtom(canvasEnabledAtom);
   const [isMobile, setIsMobile] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
+  const [isCopyingUrl, setIsCopyingUrl] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -302,6 +300,19 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     }
   }, [viewpoint, router, basePath, space?.data?.id]);
 
+  const handleCopyUrl = useCallback(() => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url);
+
+    // Show confirmation
+    setIsCopyingUrl(true);
+
+    // Reset after 2 seconds
+    setTimeout(() => {
+      setIsCopyingUrl(false);
+    }, 2000);
+  }, []);
+
   if (!viewpoint)
     return (
       <div className="flex-grow flex items-center justify-center">
@@ -317,29 +328,6 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
         <div className="w-full sm:col-[2] flex flex-col border-x pb-10 overflow-auto">
           <div className="relative flex-grow bg-background">
             <div className="sticky top-0 z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
-              {space?.data && space.data.id !== DEFAULT_SPACE ? (
-                <div className="flex items-center gap-2">
-                  <Link href={`/s/${space.data.id}`} className="flex items-center gap-2 hover:opacity-80">
-                    <Avatar className="border-4 border-background size-8">
-                      {space.data.icon && (
-                        <AvatarImage
-                          src={space.data.icon}
-                          alt={`s/${space.data.id} icon`}
-                        />
-                      )}
-                      <AvatarFallback className="text-xl font-bold text-muted-foreground">
-                        {space.data.id.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-md font-semibold">
-                      s/{space.data.id}
-                    </span>
-                  </Link>
-                </div>
-              ) : (
-                <div />
-              )}
-
               <h1 className="text-sm font-bold flex items-center gap-2">
                 <ViewpointIcon className="size-4" />
                 Rationale
@@ -356,6 +344,21 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                   }}
                 >
                   <NetworkIcon className="" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className={cn(
+                    "rounded-full p-2 size-9",
+                    isCopyingUrl && "text-green-500 border-green-500"
+                  )}
+                  onClick={handleCopyUrl}
+                >
+                  {isCopyingUrl ? (
+                    <CheckIcon className="size-4" />
+                  ) : (
+                    <LinkIcon className="size-4" />
+                  )}
                 </Button>
                 <AuthenticatedActionButton
                   variant="outline"

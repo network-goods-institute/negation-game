@@ -42,10 +42,14 @@ export default function RootLayout({
             <QueryClientProvider>
               <TooltipProvider>
                 <header className="sticky top-0 z-20 border-b py-sm flex justify-between container-padding items-center w-full bg-background h-[var(--header-height)]">
-                  <Link href="/" className="font-bold">
-                    Negation Game
-                  </Link>
-                  {/* <Navigation className="hidden sm:block" /> */}
+                  <div className="flex items-center">
+                    <div className="flex items-center">
+                      <Link href="/" className="font-bold">
+                        Negation Game
+                      </Link>
+                      <div id="space-header" className="flex items-center ml-2"></div>
+                    </div>
+                  </div>
                   <div className="flex gap-sm">
                     <Dynamic>
                       <ModeToggle className="col-start-3 justify-self-end" />
@@ -58,9 +62,6 @@ export default function RootLayout({
 
                 <Toaster />
                 <Analytics />
-                {/* <footer className="sm:hidden sticky bottom-0 border-t border-border bg-background h-2xl content-center">
-                  <Navigation className="sm:hidden" />
-                </footer> */}
               </TooltipProvider>
               <DevOnly>
                 <ToggleableReactQueryDevTools />
