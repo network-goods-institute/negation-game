@@ -10,7 +10,9 @@
     "rebuild": "node-gyp rebuild",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "update-spaces": "tsx scripts/update-spaces-list.ts",
+    "list-spaces": "tsx scripts/print-spaces-list.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^1.0.3",
@@ -102,6 +104,7 @@
     "@types/react": "npm:types-react@19.0.0-rc.1",
     "@types/react-dom": "npm:types-react-dom@19.0.0-rc.1",
     "autoprefixer": "^10.4.17",
+    "dotenv": "^16.4.7",
     "drizzle-kit": "^0.30.5",
     "eslint": "^9.21.0",
     "eslint-config-next": "15.0.0",
@@ -113,6 +116,7 @@
     "prettier": "^3.4.2",
     "storybook": "^8.5.8",
     "tailwindcss": "^3.4.3",
+    "tsx": "^4.19.3",
     "type-fest": "^4.26.1",
     "typescript": "^5.3.3"
   }

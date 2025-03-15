@@ -249,6 +249,9 @@ importers:
       autoprefixer:
         specifier: ^10.4.17
         version: 10.4.20(postcss@8.5.3)
+      dotenv:
+        specifier: ^16.4.7
+        version: 16.4.7
       drizzle-kit:
         specifier: ^0.30.5
         version: 0.30.5
@@ -282,6 +285,9 @@ importers:
       tailwindcss:
         specifier: ^3.4.3
         version: 3.4.17
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.3
       type-fest:
         specifier: ^4.26.1
         version: 4.36.0
@@ -6007,6 +6013,11 @@ packages:
     engines: {node: '>= 6'}
     peerDependencies:
       typescript: '>=2.8.0 || >= 3.2.0-dev || >= 3.3.0-dev || >= 3.4.0-dev || >= 3.5.0-dev || >= 3.6.0-dev || >= 3.6.0-beta || >= 3.7.0-dev || >= 3.7.0-beta'
+
+  tsx@4.19.3:
+    resolution: {integrity: sha512-4H8vUNGNjQ4V2EOoGw005+c+dGuPSnhpPBPHBtsZdGZBk/iJb4kguGlPWaZTZ3q5nMtFOEsY0nRDlh9PJyd6SQ==}
+    engines: {node: '>=18.0.0'}
+    hasBin: true
 
   tweetnacl-util@0.15.1:
     resolution: {integrity: sha512-RKJBIj8lySrShN4w6i/BonWp2Z/uxwC3h4y7xsRrpP59ZboCd0GpEVsOnMDYLMmKBpYhb5TgHzZXy7wTfYFBRw==}
@@ -13553,6 +13564,13 @@ snapshots:
     dependencies:
       tslib: 1.14.1
       typescript: 5.8.2
+
+  tsx@4.19.3:
+    dependencies:
+      esbuild: 0.25.0
+      get-tsconfig: 4.10.0
+    optionalDependencies:
+      fsevents: 2.3.3
 
   tweetnacl-util@0.15.1: {}
 

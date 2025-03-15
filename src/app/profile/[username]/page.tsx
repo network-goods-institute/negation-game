@@ -46,11 +46,17 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     const { data: userData } = useUser(username);
     const [editProfileOpen, setEditProfileOpen] = useState(false);
 
-    const myPoints = profilePoints || [];
-    const userEndorsedPoints = endorsedPoints || [];
+    // Wrap myPoints in useMemo to stabilize it
+    const myPoints = useMemo(() => profilePoints || [], [profilePoints]);
+
+    // Wrap userEndorsedPoints in useMemo to stabilize it
+    const userEndorsedPoints = useMemo(() => endorsedPoints || [], [endorsedPoints]);
+
     const userCred = profilePoints?.[0]?.cred || 0;
     const isOwnProfile = privyUser?.id === userData?.id;
-    const validPoints = Array.isArray(myPoints) ? myPoints : [];
+
+    // Wrap validPoints in useMemo to stabilize it
+    const validPoints = useMemo(() => Array.isArray(myPoints) ? myPoints : [], [myPoints]);
 
     // Handle all space-related logic at the top level
     const spaces = Array.from(
