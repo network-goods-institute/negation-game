@@ -1,0 +1,43 @@
+Negation Game: An Info Market for the Overton Window
+
+InfoFi is on the rise. 
+
+Crypto has been on a decades-long journey to find its killer application. It's been found, and now it's being acknowledged by the wider society: Prediction Markets
+
+The power comes from creating markets where the self-interested objectives of searching for upside produce positive externalities in the form of reliable information. If you make those markets competitive enough, you can trust the bottom-line to reasonably correlate with reality
+
+Prediction Markets work great for betting on outcomes that can be objectively, unambiguously observed. They have proven to be more reliable than traditional polling, etc
+
+The Negation Game is our thesis for how we can expand the scope of InfoFi for subjective things like beliefs. They do so by creating markets where participants can bet on how credible an idea will be in the future (its placement in the Overton Window).
+
+One major concern with that is that bets like those are Keynesian Beauty Contests: The optimal bet for participants is based on the expected average bet from the bulk of the market.
+
+While that could be useful in itself to predict trends and map out the collective vibe, it has limited applications in high-stakes environments like governance and science. The outcome is dominated by rhetoric, and we elicit not the best ideas, but the best memes.
+
+That is what we see in the public sphere all the time: most of the widely accepted ideas can be easily disproven, while the most robust ones face an uphill battle to become mainstream.
+
+We can do better.
+
+Rhetoric works wonders when you're defending an idea in isolation, but if you have to connect that idea with other ones, it starts falling apart.
+
+For example, take the typical dunk on privacy: “If you have nothing to hide, you have nothing to fear”. That is an example of rhetoric that works wonders when uttered in isolation, but it starts falling apart if you acknowledge a couple of counterexamples:
+post image
+
+So this is what we do in the Negation Game: instead of isolated bets, you get a network of bets with mutually exclusive relationships.
+post image
+
+That way, for one idea to do well, its counterpoints can't also do well. So you can't only consider the first-order popularity of an idea, but also the second-order popularity of counterarguments, third-order of their rebuttals, and so on.
+
+That transforms the incentive landscape from the search of the best memes to a systematic search of the best, most defensible ideas. The Schelling point is how well you think the idea will do after its been hashed out.
+
+If you're thoughtful, these are questions you should have:
+
+What if someone offers a counterargument that's accurate but not relevant and so should have no impact on the market price?
+
+What grounds these markets in observations? Why aren't they merely a perpetual popularity contest?
+
+If you're using these for making onchain decisions, how do you ensure the market isn't manipulated to the benefit of the players that would benefit from that decision?
+
+How do we fund the acquisition of new information (e.g. experiments, evidence finding, interviews, data collection, etc)?
+
+But I won't be digging into those rabbit holes now because, if you made it here, you're already in the highest percentiles of attention span. But do expect some follow-ups delving (I swear this is not AI generated) into that.

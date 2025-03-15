@@ -1,0 +1,41 @@
+ The project is a decision-making tool for DAOs using graph-based discussions to measure collective conviction in ideas. It encourages epistemic humility and promotes productive dissent, enhancing governance.
+Negation Game
+
+The Negation Game is a new kind of large-group decision-making tool for DAOs that favors sound arguments and objective knowledge, favoring contributors when they are internally consistent, epistemically humble, and capable of changing their mind.
+
+DAOs can use the Negation Game to do a temperature check on a proposal, as an alternative for platforms like Discord, Discourse and social media. It allows the community to quantify their collective conviction in ideas, and puts arguments to the test by allowing participants to question them from multiple angles, and by focusing attention on the most important ideas.
+How does it work?
+
+One thing that makes the Negation Game different from existing sense-making platforms is that the discussion takes place in a graph structure instead of in a linear or threaded form. image
+
+The main benefit of this format is that all arguments are consolidated and the collective conviction in each of them is quantified, which allows it to inform the decision in a game-theoretically sound way. Another important one is that, instead of eliciting a binary YES/NO answer from the community, the rationale behind every disagreement is mapped out, and all the nuances of the discussion are exposed.
+
+The main innovation in the Negation Game that allows for this is called Epistemic Leverage: It gives additional influence to participants when declare how they could be wrong, or how they could change their mind. This is the principle underlying good Science: a theory is only scientific if it's falsifiable.
+
+By stating “this would change my mind”, DAO members also help map out experiments to run, questions to answer, data to collect, and obstacles to avoid. This approach encourages productive dissent by highlighting actionable next steps that move the conversation forward.
+What's the current state of the project?
+
+We're currently running the first prototype of the Negation Game at negationgame.com. This version was built on top of the Farcaster protocol, and although it helps map out the discussion, it still does not implement the mechanism of Epistemic Leverage.
+
+We're building the next version of it right now, which will bring about several improvements based on our learnings from running the prototype. Aside from offering a mobile-first improved UX, we'll incorporate AI features to help enrich the discussion and to evaluate the results.
+
+image
+What's on the roadmap?
+
+To begin with, we'll soon be announcing some early-stage experiments with DAOs. We want to put the system to the test, starting out in low-stakes environments, and then iterating under progressively more adversarial contexts as we make the game rules more robust.
+
+In the longer term, our ambition is to develop it into a full-fledged governance system, which we'll call Epistocracy.
+
+If we're successful, we've not only created a better governance layer for DAOs, but also a new kind of capital allocation mechanism: one that enables investing in ideas and profitably funding of exploratory science at scale.
+Who are you?
+
+    Connor McCormick Twitter(𝕏)/Farcaster
+    Volky Twitter(𝕏)/Farcaster
+
+I want to contribute
+
+If you're interested in participating in upcoming experiments or potentially running your own, please get in touch with Connor on Twitter (https://twitter.com/connormcmk) or Warpcast (https://warpcast.com/nor)
+Negation Game History
+
+    accepted into GG22 OSS - dApps and Apps 4 months ago.
+

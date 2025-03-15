@@ -1,0 +1,100 @@
+Summary
+
+Content moderation is a problem faced by many digital platforms: social medias like Reddit, Twitter, and Instagram, forums like StackOverflow and Discourse, content hosts like YouTube and Dropbox, message based communication platforms like Discord and Email.
+
+Often, content moderation is not only the act of the company removing content that violates its policies, but more broadly can be viewed as the entire systemic interaction between the users, the platform and its algorithms, and the company that manages it. Content moderation applies anywhere there is more content than attention. The core question is often quite simple: how many people should we show this post to?
+
+The job of content moderation is expensive. Facebook claims to have averaged 2.6 billion per year since 2016 to address safety and security. And when it goes poorly it can cost platforms brand equity, users and revenue, as seen in Reddit’s moderator strike, StackOverflow’s Moderation Strike, Facebook’s congressional hearings. Indeed, insufficient moderation of spam, scams, and signal-to-noise is what almost killed email in the 2010s.
+
+With this protocol improvement grant, we’ll explore how content moderation has been done before, as well as how the Negation Game — an experiment in decentralized governance — might do it in the future.
+
+The Negation Game is a protocol for collective decision making in greater than dunbar groups in the context of financial incentives. It helps groups collectively identify a group’s defensible beliefs and take actions based on them. It can be employed for governance – when the beliefs are policies, for decentralized moderation – when the beliefs are tied to someone’s actions or reputation, or for research – when the beliefs are falsifiable hypothesis. Here we’ll be exploring its applicability to content moderation.
+
+The Negation Game achieves its purpose by employing a graph of the negating relationship between beliefs, financial stakes from players into their held beliefs, and a slashing mechanism that relocates the stakes to the most defensible beliefs over time, compensating players for taking risks and trying to advance the collective inference.
+
+You can see an early pre-mvp version of it at negationgame.com. Here are some example discussions
+image
+image2634×1306 387 KB
+
+see it here
+image
+image1920×1014 124 KB
+
+see it here
+
+Q&A
+
+    What is the existing target protocol you are hoping to improve or enhance? Eg: hand-washing, traffic system, connector standards, carbon trading.
+
+We’re working to improve content moderation for social networks. This includes:
+
+    surfacing quality content
+    marking spam
+    flagging scams / phishing
+    setting and enforcing community guidelines
+    identifying violations of terms of service
+    blocking illicit activity
+
+    What is the core idea or insight about potential improvement you want to pursue?
+
+The Negation Game is predicated on three mechanistic layers of abstraction:
+
+    Intellectual Honesty through Epistemic Leverage short primer deck here
+    Sensemaking through Negations, Relevance, & Veracity live prototypes here
+    Bargaining through the Credence Algorithm criteria and initial approach here
+
+Sometimes it’s fun to think about each of these layers as mapping onto the contributions of Karl Popper, Ludwig Wittgenstein, and Ronald Coase respectively.
+
+    Popper gave us the Theory of Demarcation, which essentially argues that a theory is scientific if it is falsifiable. Epistemic leverage is a mechanism for increasing the influence of a player if their claims are believed to be falsifiable.
+    Wittgenstein argued that language isn’t moored to reality, but rather is a game that we play, wherein we agree on definitions and the relationship between ideas. Negations, relevance and veracity provide a substrate on which to play that game, where meaning emerges through the relationships of the ideas.
+    Finally, Ronald Coase’s work on the problem of social cost argues that if you can solve problems of information asymmetry and strategic stalling, it’s possible for markets to address negative externalities through bargaining. The credence algorithm is a stake-based bargaining mechanism.
+
+This approach perhaps seems plausible due to the insights of prediction markets, category theory, and mechanism design. Prediction markets give us a natural incentive for accuracy arising from a collective, category theory gives us a formalism for expressing definitions as relationships, and mechanism design says that it’s possible to design scoring rules to achieve certain desirable aggregate outcomes.
+
+We’ll use this grant to apply these general mechanisms to the problem of content moderation.
+
+    What is your discovery methodology for investigating the current state of the target protocol? Eg: field observation, expert interviews, historical data analysis, failure event analysis
+
+We’ll review the various historical approaches, as well as interview experts who are dealing with this problem in the real world. We’ll pay special attention to the major failure moments of platforms like Reddit, Twitter, and Facebook. We’ll also review the interesting and sometimes avant garde approaches to governance of less established networks, like Nostr, Mastodon, etc.
+
+    In what form will you prototype your improvement idea? Eg: Code, reference design implementation, draft proposal shared with experts for feedback, A/B test of ideas with a test audience, prototype hardware, etc.
+
+We’ll implement it in a functioning product, as well as document the protocol.
+
+    How will you field-test your improvement idea? Eg: run a restricted pilot at an event, simulation, workshop, etc.
+
+We’ll implement the content management protocol as a governance mechanism for a Farcaster channel (or similar). The channel will be given a unique criteria for what constitutes “good casts” that’s at least partially objective but leaves room for creativity (e.g. “casts’ character length must be divisible by a prime number”). Then we’ll use the negation game to give each cast a score. To ensure the presence of financial incentives, a reward will be given to the top scoring posts. We’ll judge our mechanism on its ability to reward the unique criteria we started with.
+
+    Who will be able to judge the quality of your output? Ideally name a few suitable judges.
+
+People with experience building real world networks that get assaulted by spam, scam, grift, and shit. Also, people that think about governance mechanisms in what Vitalik calls the “economist” variety.
+
+Judges could include:
+Dan Finlay
+Chris Carella
+Glenn Weyl
+Puja Walia
+The Farcaster Core Team
+(probably others, sorry I’m forgetting you)
+
+    How will you publish and evangelize your improvement idea? Eg: Submit proposal to a standards body, publish open-source code, produce and release a software development kit etc.
+
+We’ll release the product for use and the code will be open source, as well as document what we learned and share it with the community.
+
+    What is the success vision for your idea?
+
+Short term: platforms start incorporating the negation game to address content moderation issues in a decentralized way.
+
+Long term: Communities replace vote-based governance with this protocol. The Big Hairy Audacious Goal is for the Negation Game to be the obvious choice of governance for a colonized Mars.
+
+Read more about:
+Epistemic Leverage
+Relevance and Veracity
+The Negation Game as capital allocation
+
+Changelog:
+
+    Apr 1: focus the target protocol from generalized inference → decentralized content moderation
+    Apr 2: minor edits
+
+
