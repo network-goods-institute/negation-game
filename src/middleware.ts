@@ -1,28 +1,130 @@
 import { DEFAULT_SPACE, SPACE_HEADER } from "@/constants/config";
 import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
+import { isValidSpaceId } from "@/lib/negation-game/isValidSpaceId";
 import { spaceBasePath } from "@/lib/negation-game/spaceBasePath";
+import { VALID_SPACE_IDS } from "@/lib/negation-game/staticSpacesList";
 import { NextRequest, NextResponse } from "next/server";
+
+// Special subdomains that shouldn't redirect to a space
+const BLACKLISTED_SUBDOMAINS = new Set(["www", "api", "play", "admin"]);
 
 export const config = {
   matcher: [
-    /*
-     * Match all paths except for:
-     * 1. /api routes
-     * 2. /_next (Next.js internals)
-     * 3. /_static (inside /public)
-     * 4. all root files inside /public (e.g. /favicon.ico)
-     */
-    "/((?!api/|_next/|_static/|img/|_vercel|[\\w-]+\\.\\w+).*)",
+    // Only run the middleware on these specific paths
+    // This is more reliable than trying to exclude specific paths
+    "/",
+    "/((?!_next/|_static/|img/|api/|_vercel|favicon\\.|.*\\.\\w+$).+)",
+
+    // Add a hostname-based matcher to catch all hosts
+    {
+      source: "/(.*)",
+      has: [
+        {
+          type: "host",
+          value: "(.+)",
+        },
+      ],
+    },
   ],
 };
 
-export default async function middleware(req: NextRequest) {
+// Function to check if path should be handled by the middleware
+function shouldHandlePath(pathname: string): boolean {
+  // Skip static assets and API routes
+  if (
+    pathname.startsWith("/_next/") ||
+    pathname.startsWith("/img/") ||
+    pathname.startsWith("/_static/") ||
+    pathname.startsWith("/api/") ||
+    pathname.startsWith("/_vercel/") ||
+    pathname === "/favicon.ico" ||
+    // Skip files with extensions in the root
+    /^\/[^\/]+\.[a-zA-Z0-9]+$/.test(pathname)
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+// Function to handle subdomain routing logic
+function handleSubdomain(
+  req: NextRequest,
+  subdomain: string
+): NextResponse | undefined {
   const url = req.nextUrl;
+
+  // Skip middleware for static assets
+  if (!shouldHandlePath(url.pathname)) {
+    return NextResponse.next();
+  }
+
+  // Skip blacklisted subdomains
+  if (BLACKLISTED_SUBDOMAINS.has(subdomain) || !isValidSpaceId(subdomain)) {
+    // For blacklisted or invalid subdomains, continue with normal request
+    // But if it's play.negationgame.com, handle it specially
+    if (subdomain === "play") {
+      // Let play.negationgame.com handle its own routing
+      const response = NextResponse.next();
+      return response;
+    }
+
+    // For invalid subdomains, redirect to the main site
+    return NextResponse.redirect(new URL("https://negationgame.com"));
+  }
+
+  // Check if the subdomain is a valid space using static list
+  if (VALID_SPACE_IDS.has(subdomain)) {
+    // Redirect to the space page on play subdomain
+    const targetPath = url.pathname === "/" ? "" : url.pathname;
+    const spaceUrl = new URL(
+      `/s/${subdomain}${targetPath}`,
+      "https://play.negationgame.com"
+    );
+
+    // Preserve query parameters
+    for (const [key, value] of url.searchParams.entries()) {
+      spaceUrl.searchParams.set(key, value);
+    }
+
+    const response = NextResponse.redirect(spaceUrl);
+    response.headers.set(SPACE_HEADER, subdomain);
+    return response;
+  } else {
+    // If it's not a valid space, redirect to the main site
+    return NextResponse.redirect(new URL("https://negationgame.com"));
+  }
+}
+
+export default function middleware(req: NextRequest) {
+  const url = req.nextUrl;
+
+  // Skip middleware for static assets
+  if (!shouldHandlePath(url.pathname)) {
+    return NextResponse.next();
+  }
+
+  const host = req.headers.get("host") || "";
+
+  // Check if we're dealing with a subdomain of negationgame.com
+  const domainMatch = host.match(/^([^.]+)\.negationgame\.com$/i);
+  if (domainMatch) {
+    const subdomain = domainMatch[1].toLowerCase();
+    const response = handleSubdomain(req, subdomain);
+    if (response) return response;
+  }
 
   // Replace 'viewpoint' with 'rationale' in the URL
   if (url.pathname.includes("viewpoint")) {
     const newPathname = url.pathname.replace(/viewpoint/g, "rationale");
-    const response = NextResponse.redirect(new URL(newPathname, req.url));
+    const newUrl = new URL(newPathname, req.url);
+
+    // Preserve query parameters
+    for (const [key, value] of url.searchParams.entries()) {
+      newUrl.searchParams.set(key, value);
+    }
+
+    const response = NextResponse.redirect(newUrl);
     return response;
   }
 
