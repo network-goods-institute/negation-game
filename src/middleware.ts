@@ -61,15 +61,13 @@ function handleSubdomain(
 
   // Skip blacklisted subdomains
   if (BLACKLISTED_SUBDOMAINS.has(subdomain) || !isValidSpaceId(subdomain)) {
-    // For blacklisted or invalid subdomains, continue with normal request
-    // But if it's play.negationgame.com, handle it specially
+    // Special handling: if it's play.negationgame.com, allow rewrite to happen
     if (subdomain === "play") {
-      // Let play.negationgame.com handle its own routing
-      const response = NextResponse.next();
-      return response;
+      // Instead of returning early, let the middleware continue to rewrite to /s/global
+      return undefined;
     }
 
-    // For invalid subdomains, redirect to the main site
+    // For other invalid subdomains, redirect to the main site
     return NextResponse.redirect(new URL("https://negationgame.com"));
   }
 
