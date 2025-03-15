@@ -10,6 +10,7 @@ export const effectiveRestakesView = pgView("effective_restakes_view").as(
         pointId: restakesTable.pointId,
         negationId: restakesTable.negationId,
         amount: restakesTable.amount,
+        createdAt: restakesTable.createdAt,
         slashedAmount: sql<number>`
         COALESCE((
           SELECT ${slashesTable.amount}
@@ -25,6 +26,7 @@ export const effectiveRestakesView = pgView("effective_restakes_view").as(
           FROM ${doubtsTable}
           WHERE ${doubtsTable.pointId} = ${restakesTable.pointId}
           AND ${doubtsTable.negationId} = ${restakesTable.negationId}
+          AND ${doubtsTable.createdAt} >= ${restakesTable.createdAt}
         ), 0)
       `.as("doubted_amount"),
         effectiveAmount: sql<number>`
@@ -38,6 +40,15 @@ export const effectiveRestakesView = pgView("effective_restakes_view").as(
           ), 0)
         )
       `.as("effective_amount"),
+        availableForDoubts: sql<boolean>`
+        ${restakesTable.amount} > COALESCE((
+          SELECT ${slashesTable.amount}
+          FROM ${slashesTable}
+          WHERE ${slashesTable.restakeId} = ${restakesTable.id}
+          AND ${slashesTable.amount} > 0 
+          AND ${slashesTable.createdAt} > ${restakesTable.createdAt}
+        ), 0)
+      `.as("available_for_doubts"),
       })
       .from(restakesTable)
       .where(sql`"restakes"."amount" > 0`)

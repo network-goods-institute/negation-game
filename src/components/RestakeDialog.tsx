@@ -220,17 +220,18 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
   // Check if user can place a doubt
   const canDoubt = useMemo(() => {
-
     if (!openedFromSlashedIcon) return true; // Not in doubt mode
     if (isLoadingUserId) return false; // Still loading user
     if (!userId) return false; // No user logged in
 
     // Check if there's any amount available to doubt
     const totalRestakeAmount = existingRestake?.totalRestakeAmount ?? 0;
-    return totalRestakeAmount > 0;
+    const hasAvailableRestakes = existingRestake?.oldestRestakeTimestamp !== null;
+    return totalRestakeAmount > 0 && hasAvailableRestakes;
   }, [
     openedFromSlashedIcon,
     existingRestake?.totalRestakeAmount,
+    existingRestake?.oldestRestakeTimestamp,
     userId,
     isLoadingUserId,
   ]);
@@ -312,7 +313,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
   const maxStakeAmount = useMemo(() => {
     if (openedFromSlashedIcon) {
       // For doubts, use minimum of:
-      // 1. Total restake amount
+      // 1. Total restake amount (only from available restakes)
       // 2. User's available cred + existing doubt amount
       return Math.min(
         existingRestake?.totalRestakeAmount ?? 0,
@@ -855,8 +856,8 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                     <PopoverContent className="w-80">
                       <div className="space-y-2">
                         <p className="text-sm text-muted-foreground">
-                          Reputation scores and APY calculations shown here are
-                          for demonstration purposes only.
+                          You can only doubt restakes that existed when you place your doubt.
+                          Earnings are calculated based on the endorsements that existed at that time.
                         </p>
                         <Separator className="my-2" />
                         <p className="text-sm text-muted-foreground">
@@ -880,11 +881,16 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                 <div className="grid grid-cols-3 gap-2">
                   <div className="flex flex-col p-2 bg-muted/40 rounded-lg">
                     <span className="text-[10px] text-muted-foreground">
-                      Total cred restaked
+                      Total cred available to doubt
                     </span>
                     <span className="text-sm text-muted-foreground mt-1">
                       {effectiveTotalRestaked}
                     </span>
+                    {existingRestake?.oldestRestakeTimestamp && (
+                      <span className="text-[10px] text-muted-foreground mt-1">
+                        since {format(existingRestake.oldestRestakeTimestamp, "MMM d, yyyy")}
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex flex-col p-2 bg-muted/40 rounded-lg">

@@ -1,30 +1,30 @@
 "use server";
 
-import { doubtsTable } from "@/db/schema";
+import { doubtsTable, effectiveRestakesView } from "@/db/schema";
 import { db } from "@/services/db";
 import { and, eq, sql } from "drizzle-orm";
 import { getUserId } from "./getUserId";
 
 export const fetchDoubtForRestake = async (
   pointId: number,
-  negationId: number,
+  negationId: number
 ) => {
   const userId = await getUserId();
 
-  const doubtsExist = await db
-    .select()
-    .from(doubtsTable)
-    .where(
-      and(
-        eq(doubtsTable.pointId, pointId),
-        eq(doubtsTable.negationId, negationId),
-        sql`${doubtsTable.amount} > 0`,
-      ),
-    )
-    .limit(1);
+  // First check if there are any available restakes to doubt
+  const [availableRestakes] = await db
+    .select({
+      hasAvailableRestakes: sql<boolean>`EXISTS (
+        SELECT 1 
+        FROM ${effectiveRestakesView}
+        WHERE point_id = ${pointId}
+        AND negation_id = ${negationId}
+        AND available_for_doubts = true
+      )`,
+    })
+    .from(effectiveRestakesView);
 
-  // If no doubts exist at all, return null instead of zero values
-  if (doubtsExist.length === 0) {
+  if (!availableRestakes?.hasAvailableRestakes) {
     return null;
   }
 
@@ -44,6 +44,14 @@ export const fetchDoubtForRestake = async (
           AND d2.point_id = ${pointId}
           AND d2.negation_id = ${negationId}
           AND d2.amount > 0
+          AND EXISTS (
+            SELECT 1 
+            FROM ${effectiveRestakesView} er
+            WHERE er.point_id = d2.point_id
+            AND er.negation_id = d2.negation_id
+            AND er.created_at <= d2.created_at
+            AND er.available_for_doubts = true
+          )
         ORDER BY d2.created_at DESC
       )
     `,
@@ -55,6 +63,14 @@ export const fetchDoubtForRestake = async (
           AND d2.point_id = ${pointId}
           AND d2.negation_id = ${negationId}
           AND d2.amount > 0
+          AND EXISTS (
+            SELECT 1 
+            FROM ${effectiveRestakesView} er
+            WHERE er.point_id = d2.point_id
+            AND er.negation_id = d2.negation_id
+            AND er.created_at <= d2.created_at
+            AND er.available_for_doubts = true
+          )
       )
     `,
     })
@@ -64,7 +80,16 @@ export const fetchDoubtForRestake = async (
         eq(doubtsTable.pointId, pointId),
         eq(doubtsTable.negationId, negationId),
         sql`${doubtsTable.amount} > 0`,
-      ),
+        // Only include doubts that have corresponding available restakes
+        sql`EXISTS (
+          SELECT 1 
+          FROM ${effectiveRestakesView} er
+          WHERE er.point_id = ${doubtsTable.pointId}
+          AND er.negation_id = ${doubtsTable.negationId}
+          AND er.created_at <= ${doubtsTable.createdAt}
+          AND er.available_for_doubts = true
+        )`
+      )
     );
 
   const userDoubts = result[0].userDoubts || [];

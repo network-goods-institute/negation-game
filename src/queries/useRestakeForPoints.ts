@@ -10,7 +10,10 @@ export type RestakeResponse = {
   originalAmount?: number;
   slashedAmount?: number;
   doubtedAmount?: number;
+  createdAt?: Date;
+  availableForDoubts?: boolean;
   totalRestakeAmount: number;
+  oldestRestakeTimestamp: Date | null;
   isUserRestake: boolean;
 } | null;
 

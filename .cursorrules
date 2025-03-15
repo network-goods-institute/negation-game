@@ -21,6 +21,8 @@ So do not write any sql migration files.
 
 If I tell you to do something, do it. Do not ask for confirmation.
 
+You are never allowed to commit or push via github.
+
 Make sure to avoid ambiguous sql statements. It happens a lot so be as specific as possible. Never be implicit, this is a database. Come on now.
 
 Follow existing code style for the schema, views, and tables.

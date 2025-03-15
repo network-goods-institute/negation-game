@@ -5,6 +5,8 @@ import { userQueryKey } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { pointQueryKey } from "@/queries/usePointData";
+import { doubtForRestakeQueryKey } from "@/queries/useDoubtForRestake";
+import { restakeForPointsQueryKey } from "@/queries/useRestakeForPoints";
 
 export const useRestake = () => {
   const queryClient = useQueryClient();
@@ -13,7 +15,7 @@ export const useRestake = () => {
 
   return useAuthenticatedMutation({
     mutationFn: restake,
-    onSuccess: (_restakeId, { pointId, negationId }) => {
+    onSuccess: async (_restakeId, { pointId, negationId }) => {
       // Invalidate both points involved
       invalidateRelatedPoints(pointId);
       invalidateRelatedPoints(negationId);
@@ -23,6 +25,40 @@ export const useRestake = () => {
         queryKey: ["restake", pointId, negationId],
         exact: false,
       });
+
+      // Add a small delay to ensure database changes are fully committed
+      // This helps prevent race conditions where the UI queries data before it's ready
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Immediately refetch both doubt data and restake data to avoid race conditions
+      // This is critical for the UI to show the doubt option immediately after restaking
+      await Promise.all([
+        // Refresh doubt-for-restake data
+        queryClient.refetchQueries({
+          queryKey: doubtForRestakeQueryKey({
+            pointId,
+            negationId,
+            userId: user?.id,
+          }),
+          exact: true,
+        }),
+
+        // Refresh restake-for-points data which also checks for available restakes
+        queryClient.refetchQueries({
+          queryKey: restakeForPointsQueryKey({
+            pointId,
+            negationId,
+            userId: user?.id,
+          }),
+          exact: true,
+        }),
+
+        // Also refresh any queries that might use the effective-restakes-view
+        queryClient.invalidateQueries({
+          queryKey: ["effective-restakes", pointId, negationId],
+          exact: false,
+        }),
+      ]);
 
       // Invalidate point-negations to update relationships and icons
       queryClient.invalidateQueries({

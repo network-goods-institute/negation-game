@@ -1,0 +1,8 @@
+{
+    "mcpServers": {
+      "server-name": {
+        "command": "python",
+        "args": ["-m", "mcp_server_git"]
+      }
+    }
+  }

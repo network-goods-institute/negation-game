@@ -24,8 +24,13 @@ export const fetchRestakeForPoints = async (
     .select({
       totalRestakeAmount: sql<number>`
         SUM(${effectiveRestakesView.effectiveAmount})
-        FILTER (WHERE ${effectiveRestakesView.slashedAmount} < ${effectiveRestakesView.amount})
+        FILTER (WHERE ${effectiveRestakesView.slashedAmount} < ${effectiveRestakesView.amount}
+          AND ${effectiveRestakesView.availableForDoubts} = true)
       `.as("total_restake_amount"),
+      oldestRestakeTimestamp: sql<Date>`
+        MIN(${effectiveRestakesView.createdAt})
+        FILTER (WHERE ${effectiveRestakesView.availableForDoubts} = true)
+      `.as("oldest_restake_timestamp"),
     })
     .from(effectiveRestakesView)
     .where(
@@ -54,6 +59,8 @@ export const fetchRestakeForPoints = async (
         sql<number>`COALESCE(${effectiveRestakesView.doubtedAmount}, 0)`.mapWith(
           Number
         ),
+      createdAt: effectiveRestakesView.createdAt,
+      availableForDoubts: effectiveRestakesView.availableForDoubts,
     })
     .from(effectiveRestakesView)
     .innerJoin(
@@ -92,13 +99,17 @@ export const fetchRestakeForPoints = async (
       originalAmount: userRestake.originalAmount,
       slashedAmount: userRestake.slashedAmount,
       doubtedAmount: userRestake.doubtedAmount,
+      createdAt: userRestake.createdAt,
+      availableForDoubts: userRestake.availableForDoubts,
       totalRestakeAmount: totals?.totalRestakeAmount || 0,
+      oldestRestakeTimestamp: totals?.oldestRestakeTimestamp || null,
       isUserRestake: true,
     };
   }
 
   return {
     totalRestakeAmount: totals?.totalRestakeAmount || 0,
+    oldestRestakeTimestamp: totals?.oldestRestakeTimestamp || null,
     isUserRestake: false,
   };
 };
