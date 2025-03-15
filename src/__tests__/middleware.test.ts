@@ -140,11 +140,22 @@ describe("Middleware", () => {
       );
     });
 
-    test("allows play subdomain to handle its own routing", () => {
-      mockMiddleware("https://play.negationgame.com", "play.negationgame.com");
+    test("allows play subdomain to continue to rewrite logic", () => {
+      const result = mockMiddleware(
+        "https://play.negationgame.com",
+        "play.negationgame.com"
+      );
 
-      expect(NextResponse.next).toHaveBeenCalled();
+      // For play subdomain, we should eventually rewrite to /s/global
+      // Since we're mocking, let's check that neither next nor redirect were called from handleSubdomain
+      expect(NextResponse.next).not.toHaveBeenCalled();
       expect(NextResponse.redirect).not.toHaveBeenCalled();
+
+      // The middleware should proceed to the rewrite logic after handleSubdomain returns undefined
+      expect(result).toBeDefined();
+      // Check this is a rewrite (to /s/global)
+      expect(result?.type).toBe("rewrite");
+      expect(String((result as any).url)).toContain("/s/global");
     });
 
     test("redirects to negationgame.com for blacklisted subdomains", () => {
