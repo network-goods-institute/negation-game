@@ -12,7 +12,8 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "update-spaces": "tsx scripts/update-spaces-list.ts",
-    "list-spaces": "tsx scripts/print-spaces-list.ts"
+    "list-spaces": "tsx scripts/print-spaces-list.ts",
+    "validate": "pnpm lint && pnpm test && pnpm build"
   },
   "dependencies": {
     "@ai-sdk/google": "^1.0.3",

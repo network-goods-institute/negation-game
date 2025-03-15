@@ -11,6 +11,8 @@ viewpoints are equivalent to rationales, rationales are the client facing name, 
 
 We started adding tests lately, most features do not have them. But every new feature should have them added. We use jest.
 
+Do not propose to delete tests, do not hardcode tests. Tests should be useful and dynamic to their purpose. They are meant to validate the code is working as expected.
+
 You are not to make sql migration files directly. Simply update the schema file and I can run the migration.
 
 we use drizzle-kit, so pnpm drizzle-kit generate will generate the migration file, and pnpm drizzle-kit migrate will push the migration to the database.

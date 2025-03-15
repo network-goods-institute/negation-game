@@ -181,7 +181,7 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                     <div className="mb-8">
                         <div className="flex items-center gap-2 mb-3">
                             <BrainCircuitIcon className="text-blue-500 size-5" />
-                            <h4 className="text-md font-medium">Use an AI Suggestion</h4>
+                            <h4 className="text-md font-medium">AI Suggestions (Optional)</h4>
                         </div>
                         <p className="text-sm text-muted-foreground mb-3">
                             These AI-crafted suggestions may better capture your intent.

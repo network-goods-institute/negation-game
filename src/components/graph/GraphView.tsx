@@ -72,6 +72,8 @@ export interface GraphViewProps
   setLocalGraph?: (graph: ViewpointGraph) => void;
   isSaving?: boolean;
   isNew?: boolean;
+  isContentModified?: boolean;
+  onResetContent?: () => void;
 }
 
 export const GraphView = ({
@@ -86,6 +88,8 @@ export const GraphView = ({
   isSaving,
   canModify,
   isNew,
+  isContentModified,
+  onResetContent,
   ...props
 }: GraphViewProps) => {
   const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
@@ -121,6 +125,12 @@ export const GraphView = ({
     } else if (isModified) {
     }
   }, [viewpoint, isModified]);
+
+  useEffect(() => {
+    if (isContentModified) {
+      setIsModified(true);
+    }
+  }, [isContentModified]);
 
   // Debounced function to update localGraph
   const debouncedSetLocalGraph = useMemo(
@@ -502,7 +512,13 @@ export const GraphView = ({
                 className="w-full"
                 disabled={isSaving || isSaving_local}
                 onClick={() => {
-                  // Reset nodes and edges to their original state
+                  // Always call the content reset first - this is crucial
+                  onResetContent?.();
+
+                  // Reset the modification flag immediately
+                  setIsModified(false);
+
+                  // Now reset nodes and edges if possible
                   if (props.defaultNodes && props.defaultEdges) {
                     setNodes(props.defaultNodes);
                     setEdges(props.defaultEdges);
@@ -518,9 +534,6 @@ export const GraphView = ({
 
                     // Reset collapsed state
                     setCollapsedPointIds(new Set());
-
-                    // Reset modification flag
-                    setIsModified(false);
 
                     // Reset any instance state
                     if (flowInstance) {

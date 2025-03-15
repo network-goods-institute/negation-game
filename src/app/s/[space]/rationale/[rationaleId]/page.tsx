@@ -25,11 +25,14 @@ import { usePrivy } from "@privy-io/react-auth";
 import { ReactFlowProvider, useReactFlow, } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
 import { NetworkIcon, CopyIcon, LinkIcon, CheckIcon } from "lucide-react";
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import dynamic from 'next/dynamic';
 import remarkGfm from 'remark-gfm';
 import { use } from "react";
 import { useQueryClient } from '@tanstack/react-query';
+import { useUpdateViewpointDetails } from "@/mutations/useUpdateViewpointDetails";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 
 import { useGraphPoints } from "@/components/graph/useGraphPoints";
 import { Loader } from "@/components/ui/loader";
@@ -38,6 +41,7 @@ import { useRouter } from "next/navigation";
 import { EditModeProvider, useEditMode } from "@/components/graph/EditModeContext";
 import { ReactFlowInstance } from "@xyflow/react";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Create dynamic ReactMarkdown component
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
@@ -148,6 +152,13 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
   const [isCopying, setIsCopying] = useState(false);
   const [isCopyingUrl, setIsCopyingUrl] = useState(false);
 
+  const [editableTitle, setEditableTitle] = useState("");
+  const [editableDescription, setEditableDescription] = useState("");
+  const [isTitleEditing, setIsTitleEditing] = useState(false);
+  const [isDescriptionEditing, setIsDescriptionEditing] = useState(false);
+
+  const updateDetailsMutation = useUpdateViewpointDetails();
+
   useEffect(() => {
     const checkMobile = () => {
       const isMobileView = window.innerWidth < 640; // 640px is tailwind's sm breakpoint
@@ -193,6 +204,50 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
   const { data: user } = useUser();
   const isOwner = viewpoint ? user?.id === viewpoint.createdBy : false;
 
+  useEffect(() => {
+    if (viewpoint) {
+      setEditableTitle(viewpoint.title);
+      setEditableDescription(viewpoint.description);
+    }
+  }, [viewpoint]);
+
+  const [isContentModified, setIsContentModified] = useState(false);
+
+  const originalTitleRef = useRef<string>("");
+  const originalDescriptionRef = useRef<string>("");
+
+  useEffect(() => {
+    if (viewpoint) {
+      originalTitleRef.current = viewpoint.title;
+      originalDescriptionRef.current = viewpoint.description;
+      console.log("Stored original values from DB:", {
+        title: originalTitleRef.current,
+        description: originalDescriptionRef.current
+      });
+    }
+  }, [viewpoint?.id, viewpoint]); // Only update when viewpoint ID changes
+
+  const handleEditingBlur = useCallback(() => {
+    // Check if content has been modified
+    if (viewpoint && (viewpoint.title !== editableTitle || viewpoint.description !== editableDescription)) {
+      // Mark as modified to show save button
+      setIsContentModified(true);
+
+      // Immediately update the local query cache to show changes visually
+      // This is just for display purposes and will not persist until saved
+      queryClient.setQueryData(["viewpoint", viewpoint.id], {
+        ...viewpoint,
+        title: editableTitle,
+        description: editableDescription,
+        _pendingChanges: true // Mark as having pending changes
+      });
+    }
+
+    // Exit edit mode
+    setIsTitleEditing(false);
+    setIsDescriptionEditing(false);
+  }, [viewpoint, editableTitle, editableDescription, queryClient]);
+
   const onSaveChanges = useCallback(async () => {
     try {
       setIsSaving(true);
@@ -210,8 +265,8 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
           // Store the viewpoint data in session storage with space information
           const viewpointData = {
-            title: viewpoint.title + " (copy)",
-            description: viewpoint.description,
+            title: editableTitle,
+            description: editableDescription,
             graph: currentGraph,
             sourceSpace: currentSpace,
           };
@@ -228,15 +283,40 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
           return true;
         }
       }
+
+      if (viewpoint && (viewpoint.title !== editableTitle || viewpoint.description !== editableDescription)) {
+        await updateDetailsMutation.mutateAsync({
+          id: viewpoint.id,
+          title: editableTitle,
+          description: editableDescription,
+        });
+
+        // Update local query cache with new details
+        queryClient.setQueryData(["viewpoint", viewpoint.id], {
+          ...viewpoint,
+          title: editableTitle,
+          description: editableDescription,
+        });
+
+        // Exit any edit modes
+        setIsTitleEditing(false);
+        setIsDescriptionEditing(false);
+      }
+
       if (localGraph && viewpoint) {
         // Update local query cache with new graph
         queryClient.setQueryData(["viewpoint", viewpoint.id], {
           ...viewpoint,
+          title: editableTitle,
+          description: editableDescription,
           graph: localGraph,
         });
       }
       // Reset collapsed points when saving changes
       setCollapsedPointIds(new Set());
+
+      // Reset modification flag
+      setIsContentModified(false);
 
       return true; // Indicate successful save to allow GraphView to reset isModified
     } catch (error) {
@@ -260,11 +340,13 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     basePath,
     setCollapsedPointIds,
     localGraph,
-    space?.data?.id
+    space?.data?.id,
+    editableTitle,
+    editableDescription,
+    updateDetailsMutation
   ]);
 
   const [editFlowInstance, setEditFlowInstance] = useState<ReactFlowInstance<AppNode> | null>(null);
-
 
   const handleCopy = useCallback(() => {
     if (!viewpoint) return;
@@ -313,6 +395,54 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     }, 2000);
   }, []);
 
+  // Function to check if editing is allowed
+  const canEdit = useCallback(() => {
+    // Editing is always allowed when making a copy
+    // Only current owner can edit the original
+    return isOwner;
+  }, [isOwner]);
+
+  const handleTitleDoubleClick = useCallback(() => {
+    if (canEdit()) {
+      setIsTitleEditing(true);
+    }
+  }, [canEdit]);
+
+  const handleDescriptionDoubleClick = useCallback(() => {
+    if (canEdit()) {
+      setIsDescriptionEditing(true);
+    }
+  }, [canEdit]);
+
+  const resetContentModifications = useCallback(() => {
+    if (viewpoint) {
+
+      setEditableTitle(originalTitleRef.current);
+      setEditableDescription(originalDescriptionRef.current);
+
+      setIsContentModified(false);
+
+      const originalViewpoint = {
+        ...viewpoint,
+        // Force updated values for display using refs
+        title: originalTitleRef.current,
+        description: originalDescriptionRef.current,
+        // Remove any pending changes flag
+        _pendingChanges: false,
+        // Include a timestamp to ensure React detects the change
+        _reverted: Date.now()
+      };
+
+      // Update the query cache with the original values
+      queryClient.setQueryData<typeof viewpoint>(["viewpoint", viewpoint.id], originalViewpoint);
+
+      // Ensure the local graph is also reset to original
+      if (originalGraph) {
+        setLocalGraph(originalGraph);
+      }
+    }
+  }, [viewpoint, queryClient, originalGraph, setLocalGraph]);
+
   if (!viewpoint)
     return (
       <div className="flex-grow flex items-center justify-center">
@@ -320,7 +450,9 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
       </div>
     );
 
-  const { title, description, graph, author } = viewpoint;
+  // Use the most up-to-date data from query cache with proper type checking
+  const latestViewpoint = queryClient.getQueryData<typeof viewpoint>(["viewpoint", viewpoint.id]) || viewpoint;
+  const { title, description, graph, author } = latestViewpoint;
 
   return (
     <EditModeProvider>
@@ -381,7 +513,43 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
             )}
 
             <div className="flex flex-col p-2 gap-0">
-              <h2 className="font-semibold">{title}</h2>
+              {isTitleEditing ? (
+                <Input
+                  value={editableTitle}
+                  onChange={(e) => setEditableTitle(e.target.value)}
+                  className="font-semibold mb-2"
+                  placeholder="Enter title"
+                  autoFocus
+                  onBlur={handleEditingBlur}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleEditingBlur();
+                    }
+                  }}
+                />
+              ) : (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <h2
+                        className={cn(
+                          "font-semibold",
+                          canEdit() && "cursor-pointer hover:bg-accent hover:bg-opacity-50 px-2 py-1 -mx-2 rounded border-dashed border border-transparent hover:border-muted-foreground"
+                        )}
+                        onDoubleClick={handleTitleDoubleClick}
+                      >
+                        {title}
+                      </h2>
+                    </TooltipTrigger>
+                    {canEdit() && (
+                      <TooltipContent side="right" className="bg-accent text-accent-foreground border-accent-foreground/20">
+                        <p><strong>Double-click to edit title</strong></p>
+                        <p className="text-xs text-muted-foreground">Changes will be saved with the graph</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
+              )}
 
               <span className="text-muted-foreground text-sm">
                 by{" "}
@@ -392,11 +560,40 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
               <Separator className="my-2" />
 
-              <div className="prose dark:prose-invert max-w-none [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic">
-                <DynamicMarkdown remarkPlugins={[remarkGfm]}>
-                  {description}
-                </DynamicMarkdown>
-              </div>
+              {isDescriptionEditing ? (
+                <Textarea
+                  value={editableDescription}
+                  onChange={(e) => setEditableDescription(e.target.value)}
+                  className="min-h-[200px] mb-4"
+                  placeholder="Enter description"
+                  autoFocus
+                  onBlur={handleEditingBlur}
+                />
+              ) : (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div
+                        className={cn(
+                          "prose dark:prose-invert max-w-none [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic",
+                          canEdit() && "cursor-pointer hover:bg-accent hover:bg-opacity-50 p-2 -m-2 rounded border-dashed border border-transparent hover:border-muted-foreground"
+                        )}
+                        onDoubleClick={handleDescriptionDoubleClick}
+                      >
+                        <DynamicMarkdown remarkPlugins={[remarkGfm]}>
+                          {description}
+                        </DynamicMarkdown>
+                      </div>
+                    </TooltipTrigger>
+                    {canEdit() && (
+                      <TooltipContent side="right" className="bg-accent text-accent-foreground border-accent-foreground/20">
+                        <p><strong>Double-click to edit description</strong></p>
+                        <p className="text-xs text-muted-foreground">Changes will be saved with the graph</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
             <div className="relative flex flex-col">
               <span className="text-muted-foreground text-xs uppercase font-semibold tracking-widest w-full p-2 border-y text-center">
@@ -436,7 +633,9 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
             )}
             setLocalGraph={setLocalGraph}
             onSaveChanges={onSaveChanges}
+            onResetContent={resetContentModifications}
             isSaving={isSaving}
+            isContentModified={isContentModified}
             onClose={
               isMobile
                 ? () => {
