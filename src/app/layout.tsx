@@ -42,9 +42,9 @@ export default function RootLayout({
             <QueryClientProvider>
               <TooltipProvider>
                 <header className="sticky top-0 z-20 border-b py-sm flex justify-between container-padding items-center w-full bg-background h-[var(--header-height)]">
-                  <div className="flex items-center">
+                  <div className="flex items-center" id="header-container">
                     <div className="flex items-center">
-                      <Link href="/" className="font-bold">
+                      <Link href="/" className="font-bold" id="header-logo">
                         Negation Game
                       </Link>
                       <div id="space-header" className="flex items-center ml-2"></div>

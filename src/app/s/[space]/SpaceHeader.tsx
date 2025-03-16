@@ -1,42 +1,142 @@
 "use client";
 
 import { DEFAULT_SPACE } from "@/constants/config";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 
-export function SpaceHeader({ spaceData }: { spaceData: any }) {
-  const prevSpaceIdRef = useRef<string | null>(null);
+type SpaceData = {
+  id: string;
+  icon?: string | null;
+};
 
+export function SpaceHeader({ spaceData }: { spaceData: SpaceData }) {
   useEffect(() => {
     if (!spaceData || spaceData.id === DEFAULT_SPACE) return;
 
-    // Skip if same space as before to prevent re-renders
-    if (prevSpaceIdRef.current === spaceData.id) return;
+    // Get the original logo and container
+    const headerLogo = document.getElementById('header-logo');
+    const headerContainer = document.getElementById('header-container');
+    const spaceHeader = document.getElementById('space-header');
 
-    prevSpaceIdRef.current = spaceData.id;
+    if (headerLogo && headerContainer && spaceHeader) {
+      // Create a wrapper link for everything
+      const wrapperLink = document.createElement('a');
+      wrapperLink.href = `/s/${spaceData.id}`;
+      wrapperLink.className = 'flex items-center';
 
-    const targetContainer = document.getElementById('space-header');
-    if (!targetContainer) return;
-
-    targetContainer.innerHTML = `
-          <span class="text-muted-foreground mx-1">×</span>
-          <a href="/s/${spaceData.id}" class="flex items-center hover:opacity-80">
-            <div class="relative w-6 h-6 border-2 border-background rounded-full overflow-hidden mr-1">
-              ${spaceData.icon ?
-        `<img src="${spaceData.icon}" alt="s/${spaceData.id} icon" class="w-full h-full object-cover" />` :
-        `<div class="w-full h-full flex items-center justify-center bg-muted text-sm font-bold text-muted-foreground">
-                  ${spaceData.id.charAt(0).toUpperCase()}
-                </div>`
+      // Clone the content of the header logo
+      const logoClone = headerLogo.cloneNode(true) as HTMLElement;
+      logoClone.removeAttribute('id');
+      // Remove the href attribute as we're already wrapping in a link
+      if (logoClone instanceof HTMLAnchorElement) {
+        logoClone.removeAttribute('href');
       }
-            </div>
-            <span class="font-semibold">s/${spaceData.id}</span>
-          </a>
-        `;
 
+      // Remove the original link functionality to avoid nested links
+      headerLogo.style.display = 'none';
+
+      // Create the space part
+      const spaceSeparator = document.createElement('span');
+      spaceSeparator.className = 'text-muted-foreground mx-1';
+      spaceSeparator.textContent = '×';
+
+      const spaceInfo = document.createElement('div');
+      spaceInfo.className = 'flex items-center';
+
+      const iconContainer = document.createElement('div');
+      iconContainer.className = 'relative w-6 h-6 border-2 border-background rounded-full overflow-hidden mr-1';
+
+      if (spaceData.icon) {
+        const img = document.createElement('img');
+        img.src = spaceData.icon;
+        img.alt = `s/${spaceData.id} icon`;
+        img.className = 'w-full h-full object-cover';
+        iconContainer.appendChild(img);
+      } else {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'w-full h-full flex items-center justify-center bg-muted text-sm font-bold text-muted-foreground';
+        placeholder.textContent = spaceData.id.charAt(0).toUpperCase();
+        iconContainer.appendChild(placeholder);
+      }
+
+      const spaceName = document.createElement('span');
+      spaceName.className = 'font-semibold';
+      spaceName.textContent = `s/${spaceData.id}`;
+
+      spaceInfo.appendChild(iconContainer);
+      spaceInfo.appendChild(spaceName);
+
+      // Clear previous content
+      spaceHeader.innerHTML = '';
+
+      // Create new content
+      const contentContainer = document.createElement('div');
+      contentContainer.className = 'flex items-center';
+
+      // Append the new elements
+      wrapperLink.appendChild(logoClone);
+      wrapperLink.appendChild(spaceSeparator);
+      wrapperLink.appendChild(spaceInfo);
+
+      // Replace the first child of the header container with our wrapper
+      const firstChild = headerContainer.firstChild;
+      if (firstChild) {
+        headerContainer.replaceChild(wrapperLink, firstChild);
+      } else {
+        headerContainer.appendChild(wrapperLink);
+      }
+    }
+
+    // Clean up function
     return () => {
-      if (prevSpaceIdRef.current === spaceData.id && targetContainer) {
-        targetContainer.innerHTML = '';
+      const headerLogo = document.getElementById('header-logo');
+      if (headerLogo) {
+        headerLogo.style.display = '';
+      }
+      const spaceHeader = document.getElementById('space-header');
+      if (spaceHeader) {
+        spaceHeader.innerHTML = '';
+      }
+
+      // Restore the original header container structure
+      const headerContainer = document.getElementById('header-container');
+      if (headerContainer) {
+        // Get all children of headerContainer
+        const children = Array.from(headerContainer.children);
+        // Find any wrapper links we created
+        for (const child of children) {
+          if (child instanceof HTMLAnchorElement && child.classList.contains('flex')) {
+            // Replace with the original content structure
+            const origContainer = document.createElement('div');
+            origContainer.className = 'flex items-center';
+
+            // Move the logo back
+            const headerLogo = document.getElementById('header-logo');
+            if (headerLogo) {
+              origContainer.appendChild(headerLogo);
+            } else {
+              const newLogo = document.createElement('a');
+              newLogo.id = 'header-logo';
+              newLogo.href = '/';
+              newLogo.className = 'font-bold';
+              newLogo.textContent = 'Negation Game';
+              origContainer.appendChild(newLogo);
+            }
+
+            // Add the space header container
+            const spaceHeader = document.createElement('div');
+            spaceHeader.id = 'space-header';
+            spaceHeader.className = 'flex items-center ml-2';
+            origContainer.appendChild(spaceHeader);
+
+            // Replace the wrapper with the original structure
+            headerContainer.replaceChild(origContainer, child);
+            break;
+          }
+        }
       }
     };
-  }, [spaceData?.id, spaceData]);
+  }, [spaceData]);
+
+  // Return null unconditionally as the rendering happens in useEffect
   return null;
 } 
