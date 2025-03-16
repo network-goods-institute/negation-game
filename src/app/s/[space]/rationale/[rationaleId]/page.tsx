@@ -359,13 +359,27 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
       // Get the current space
       const currentSpace = space?.data?.id || 'default';
 
-      // Use the original viewpoint state from DB, not the edited state
-      const regeneratedGraph = regenerateGraphIds(viewpoint.graph);
+      // Get the current graph state directly from reactFlow if available
+      // This ensures we capture the exact current state including any changes
+      let currentGraph;
+      if (reactFlow) {
+        currentGraph = {
+          nodes: reactFlow.getNodes(),
+          edges: reactFlow.getEdges()
+        };
+      } else if (localGraph) {
+        // Fallback to localGraph if reactFlow instance isn't available
+        currentGraph = localGraph;
+      } else {
+        currentGraph = viewpoint.graph;
+      }
+
+      const regeneratedGraph = regenerateGraphIds(currentGraph);
 
       // Store the viewpoint data in session storage with space information
       const viewpointData = {
-        title: viewpoint.title,
-        description: viewpoint.description,
+        title: editableTitle,
+        description: editableDescription,
         graph: regeneratedGraph,
         sourceSpace: currentSpace,
       };
@@ -381,7 +395,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
       alert("Failed to copy rationale. Please try again.");
       setIsCopying(false);
     }
-  }, [viewpoint, router, basePath, space?.data?.id]);
+  }, [viewpoint, router, basePath, space?.data?.id, reactFlow, localGraph, editableTitle, editableDescription]);
 
   const handleCopyUrl = useCallback(() => {
     const url = window.location.href;
