@@ -199,6 +199,12 @@ describe("useRestake", () => {
       exact: false,
     });
 
+    // Verify users-reputation invalidation
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["users-reputation"],
+      exact: false,
+    });
+
     // And point data refetch
     expect(mockQueryClient.refetchQueries).toHaveBeenCalledWith(
       expect.objectContaining({

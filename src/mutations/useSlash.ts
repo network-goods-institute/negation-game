@@ -60,6 +60,12 @@ export const useSlash = () => {
         exact: false,
       });
 
+      // Invalidate users-reputation data since slashing affects reputation
+      queryClient.invalidateQueries({
+        queryKey: ["users-reputation"],
+        exact: false,
+      });
+
       // Force refetch of point data
       queryClient.refetchQueries({
         queryKey: pointQueryKey({ pointId, userId: user?.id }),

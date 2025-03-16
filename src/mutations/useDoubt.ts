@@ -60,6 +60,12 @@ export const useDoubt = () => {
         exact: false,
       });
 
+      // Invalidate users-reputation data since doubting affects reputation calculations
+      queryClient.invalidateQueries({
+        queryKey: ["users-reputation"],
+        exact: false,
+      });
+
       // Force refetch of point data
       queryClient.refetchQueries({
         queryKey: pointQueryKey({ pointId, userId: user?.id }),

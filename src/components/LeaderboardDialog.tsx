@@ -4,12 +4,22 @@ import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "@
 import { useQuery } from "@tanstack/react-query";
 import { useFeed } from "@/queries/useFeed";
 import { useAllUsers } from "@/queries/useAllUsers";
-import { TrophyIcon, ArrowLeftIcon, HeartIcon, InfoIcon } from "lucide-react";
+import { TrophyIcon, ArrowLeftIcon, HeartIcon, InfoIcon, ChevronDownIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useUser } from "@/queries/useUser";
 import { fetchSpaceViewpoints } from "@/actions/fetchSpaceViewpoints";
-import { fetchRestakerReputation } from "@/actions/fetchRestakerReputation";
+import { fetchUsersReputation } from "@/actions/fetchUsersReputation";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/cn";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+type SortOption = "points" | "cred" | "rationales" | "reputation";
 
 export const LeaderboardDialog = ({
     open,
@@ -27,8 +37,9 @@ export const LeaderboardDialog = ({
         queryFn: () => fetchSpaceViewpoints(space),
     });
     const { data: user } = useUser();
-    const [sortBy, setSortBy] = useState<"points" | "cred" | "rationales" | "reputation">("points");
+    const [sortBy, setSortBy] = useState<SortOption>("points");
     const [sortDescending, setSortDescending] = useState(true);
+    const [viewMode, setViewMode] = useState<"table" | "cards">("table");
 
     const leaderboardData = useMemo(() => {
         if (!feed || !allUsers || !spaceViewpoints) return [];
@@ -52,7 +63,7 @@ export const LeaderboardDialog = ({
             ...user,
             points: pointsCount[user.id] || 0,
             viewpoints: viewpointsCount[user.id] || 0,
-            reputation: 50,
+            reputation: 50, // Default value, will be updated with actual data
         }));
 
     }, [feed, allUsers, spaceViewpoints, space]);
@@ -61,259 +72,308 @@ export const LeaderboardDialog = ({
         return leaderboardData.map(user => user.id);
     }, [leaderboardData]);
 
-    // Fetch reputation data using the existing fetchRestakerReputation call
-    const { data: reputationData } = useQuery({
+    // Fetch reputation data using fetchUsersReputation
+    const { data: reputationData, isLoading: isReputationLoading } = useQuery({
         queryKey: ["users-reputation", userIds],
         queryFn: async () => {
             if (!userIds.length) return {};
-
-            // Call the existing server action
-            const results = await Promise.all(
-                userIds.map(async (id) => {
-                    try {
-                        // Using default values for point/negation IDs that don't affect overall reputation
-                        const data = await fetchRestakerReputation(0, 0);
-                        return { id, reputation: data.aggregateReputation };
-                    } catch (error) {
-                        console.error("Failed to fetch reputation for user", id, error);
-                        return { id, reputation: 50 }; // Default value
-                    }
-                })
-            );
-
-            // Convert to object with user IDs as keys
-            return results.reduce((acc, { id, reputation }) => {
-                acc[id] = reputation;
-                return acc;
-            }, {} as Record<string, number>);
+            return await fetchUsersReputation(userIds);
         },
         enabled: userIds.length > 0,
+        staleTime: 60 * 1000,
+        retry: 3,
+        retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 10000),
     });
 
     const leaderboardDataWithReputation = useMemo(() => {
-        if (!reputationData) return leaderboardData;
+        if (!leaderboardData?.length || isReputationLoading || !reputationData) {
+            return [];
+        }
 
         return leaderboardData.map(user => ({
             ...user,
-            reputation: reputationData[user.id] || 50,
+            reputation: reputationData[user.id] ?? 50,
         }));
-    }, [leaderboardData, reputationData]);
+    }, [leaderboardData, reputationData, isReputationLoading]);
 
-    const sortedUsers = [...leaderboardDataWithReputation].sort((a, b) => {
-        let valueA = 0;
-        let valueB = 0;
+    const sortedUsers = useMemo(() => {
+        if (!leaderboardDataWithReputation?.length) return [];
 
-        switch (sortBy) {
-            case "points":
-                valueA = a.points || 0;
-                valueB = b.points || 0;
-                break;
-            case "cred":
-                valueA = a.cred || 0;
-                valueB = b.cred || 0;
-                break;
-            case "rationales":
-                valueA = a.viewpoints || 0;
-                valueB = b.viewpoints || 0;
-                break;
-            case "reputation":
-                valueA = a.reputation || 0;
-                valueB = b.reputation || 0;
-                break;
-        }
+        return [...leaderboardDataWithReputation].sort((a, b) => {
+            let valueA = 0;
+            let valueB = 0;
 
-        return sortDescending ? valueB - valueA : valueA - valueB;
-    });
+            switch (sortBy) {
+                case "points":
+                    valueA = a.points || 0;
+                    valueB = b.points || 0;
+                    break;
+                case "cred":
+                    valueA = a.cred || 0;
+                    valueB = b.cred || 0;
+                    break;
+                case "rationales":
+                    valueA = a.viewpoints || 0;
+                    valueB = b.viewpoints || 0;
+                    break;
+                case "reputation":
+                    valueA = a.reputation || 0;
+                    valueB = b.reputation || 0;
+                    break;
+            }
+
+            return sortDescending ? valueB - valueA : valueA - valueB;
+        });
+    }, [leaderboardDataWithReputation, sortBy, sortDescending]);
 
     // Find current user's index in the sorted list
     const currentUserIndex = useMemo(() => {
-        if (!user || !sortedUsers) return -1;
+        if (!user || !sortedUsers?.length) return -1;
         return sortedUsers.findIndex(u => u.id === user.id);
     }, [user, sortedUsers]);
 
     // Get current user's actual rank (index + 1)
-    const currentUserRank = currentUserIndex + 1;
+    const currentUserRank = currentUserIndex >= 0 ? currentUserIndex + 1 : 0;
+    const currentUserData = currentUserIndex >= 0 ? sortedUsers[currentUserIndex] : null;
+
+    // Map of sort options to display text
+    const sortOptionLabels: Record<SortOption, string> = {
+        points: "Points",
+        cred: "Cred",
+        rationales: "Rationales",
+        reputation: "Reputation"
+    };
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-2xl h-[90vh] sm:h-[80vh] flex flex-col">
-                <div className="flex flex-col h-full">
-                    <DialogHeader className="mb-4">
-                        <div className="flex items-center gap-2">
-                            <DialogClose asChild>
-                                <Button variant="ghost" size="icon" className="text-primary -ml-2">
-                                    <ArrowLeftIcon className="size-5" />
-                                </Button>
-                            </DialogClose>
-                            <DialogTitle className="flex items-center gap-2">
-                                <TrophyIcon className="size-5" />
-                                s/{space} Leaderboard
-                            </DialogTitle>
-                        </div>
-                    </DialogHeader>
+            <DialogContent className="max-w-xl md:max-w-2xl h-auto max-h-[85vh] flex flex-col p-4 sm:p-6">
+                <DialogHeader className="space-y-1">
+                    <div className="flex items-center gap-2">
+                        <DialogClose asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <ArrowLeftIcon className="size-4" />
+                            </Button>
+                        </DialogClose>
+                        <DialogTitle className="flex items-center gap-2">
+                            <TrophyIcon className="size-5" />
+                            s/{space} Leaderboard
+                        </DialogTitle>
+                    </div>
+                </DialogHeader>
 
-                    <div className="flex-1 overflow-auto">
-                        <div className="space-y-4 mt-4 pb-4">
-                            <div className="flex gap-2 flex-wrap">
-                                <Button
-                                    variant={sortBy === "points" ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => setSortBy("points")}
-                                >
-                                    Sort by Points
-                                </Button>
-                                <Button
-                                    variant={sortBy === "cred" ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => setSortBy("cred")}
-                                >
-                                    Sort by Cred
-                                </Button>
-                                <Button
-                                    variant={sortBy === "rationales" ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => setSortBy("rationales")}
-                                >
-                                    Sort by Rationales
-                                </Button>
-                                <Button
-                                    variant={sortBy === "reputation" ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => setSortBy("reputation")}
-                                >
-                                    Sort by Reputation
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setSortDescending(!sortDescending)}
-                                >
-                                    {sortDescending ? "Descending" : "Ascending"}
-                                </Button>
+                {/* User stats card */}
+                {currentUserData && (
+                    <div className="mt-4 p-3 rounded-lg bg-muted/30 border border-primary/20">
+                        <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-sm font-medium">
+                                    {currentUserRank}
+                                </div>
+                                <div>
+                                    <div className="font-medium flex items-center gap-1">
+                                        {currentUserData.username}
+                                        <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                                            You
+                                        </span>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground mt-0.5">
+                                        {currentUserData.points} points · {currentUserData.viewpoints} rationales · {currentUserData.reputation}% reputation
+                                    </div>
+                                </div>
                             </div>
+                            <div className="text-sm font-medium">
+                                {currentUserData.cred} cred
+                            </div>
+                        </div>
+                    </div>
+                )}
 
-                            <div className="border rounded-lg overflow-hidden">
-                                <div className="overflow-x-auto max-w-full">
-                                    <table className="w-full table-fixed">
+                {/* Controls */}
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-8">
+                                    <span>Sort by: {sortOptionLabels[sortBy]}</span>
+                                    <ChevronDownIcon className="ml-1 size-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                                {(Object.keys(sortOptionLabels) as SortOption[]).map((option) => (
+                                    <DropdownMenuItem
+                                        key={option}
+                                        onClick={() => setSortBy(option)}
+                                        className={sortBy === option ? "bg-muted" : ""}
+                                    >
+                                        {sortOptionLabels[option]}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8"
+                            onClick={() => setSortDescending(!sortDescending)}
+                        >
+                            {sortDescending ? "↓ Desc" : "↑ Asc"}
+                        </Button>
+                    </div>
+
+                    <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "table" | "cards")}>
+                        <TabsList className="h-8">
+                            <TabsTrigger value="table" className="text-xs px-2">Table</TabsTrigger>
+                            <TabsTrigger value="cards" className="text-xs px-2">Cards</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                </div>
+
+                {/* Leaderboard content */}
+                <div className="mt-2 flex-1 overflow-auto">
+                    {isReputationLoading ? (
+                        <div className="flex justify-center items-center p-6">
+                            <div className="text-sm text-muted-foreground">Loading reputation data...</div>
+                        </div>
+                    ) : (
+                        <Tabs value={viewMode} className="w-full">
+                            <TabsContent value="table" className="mt-0">
+                                <div className="border rounded-lg overflow-hidden">
+                                    <table className="w-full">
                                         <thead className="bg-muted/30">
                                             <tr>
-                                                <th className="text-left py-3 pl-4 pr-2 sm:py-3 sm:pl-4 sm:pr-2 text-xs sm:text-base w-[10%] sm:w-[8%]">Rank</th>
-                                                <th className="text-center py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base w-[5%]"></th>
-                                                <th className="text-left py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base w-[35%] sm:w-[37%]">User</th>
-                                                <th className="text-left py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base w-[10%] sm:w-[10%]">Points</th>
-                                                <th className="text-left py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base w-[15%] sm:w-[15%]">Rationales</th>
-                                                <th className="text-left py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base w-[10%] sm:w-[10%]">Cred</th>
-                                                <th className="text-left py-2 pr-3 sm:py-3 sm:pr-6 text-xs sm:text-base w-[15%] sm:w-[15%]">
+                                                <th className="text-left py-2 pl-3 pr-2 text-xs font-medium w-[10%]">Rank</th>
+                                                <th className="text-left py-2 px-2 text-xs font-medium w-[40%]">User</th>
+                                                <th className="text-right py-2 px-2 text-xs font-medium w-[15%]">Points</th>
+                                                <th className="text-right py-2 px-2 text-xs font-medium w-[20%]">
                                                     <TooltipProvider delayDuration={300}>
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
-                                                                <div className="flex items-center gap-1 cursor-help">
-                                                                    <span className="truncate">Reputation</span>
-                                                                    <InfoIcon className="size-3 text-muted-foreground flex-shrink-0" />
+                                                                <div className="flex items-center justify-end gap-1 cursor-help">
+                                                                    <span>Reputation</span>
+                                                                    <InfoIcon className="size-3 text-muted-foreground" />
                                                                 </div>
                                                             </TooltipTrigger>
-                                                            <TooltipContent side="top" sideOffset={5} className="max-w-[200px]">
-                                                                <p className="text-xs">
-                                                                    Epistemic reputation indicates how likely a user is to
-                                                                    admit when they&apos;re wrong by slashing their restakes
-                                                                    when faced with convincing counterarguments.
-                                                                </p>
+                                                            <TooltipContent side="top" className="max-w-[200px] text-xs">
+                                                                Epistemic reputation indicates how likely a user is to
+                                                                admit when they&apos;re wrong by slashing their restakes
+                                                                when faced with convincing counterarguments. A reputation of 100% means that the user has always slashed their restakes. 50% is the default if a user has not interacted epistemically.
                                                             </TooltipContent>
                                                         </Tooltip>
                                                     </TooltipProvider>
                                                 </th>
+                                                <th className="text-right py-2 px-3 text-xs font-medium w-[15%]">Cred</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {/* Current user row at top */}
-                                            {currentUserIndex >= 0 && (
-                                                <tr className="bg-muted/30 border-y-2 border-primary/20">
-                                                    <td className="py-2 pl-2 pr-1 sm:py-3 sm:pl-4 sm:pr-2 text-xs sm:text-base">{currentUserRank}</td>
-                                                    <td className="py-2 px-1 sm:py-3 sm:px-2 text-center">
-                                                        {sortedUsers[currentUserIndex].delegationUrl && (
-                                                            <TooltipProvider delayDuration={300}>
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <a
-                                                                            href={sortedUsers[currentUserIndex].delegationUrl}
-                                                                            target="_blank"
-                                                                            rel="noopener noreferrer"
-                                                                            className="inline-flex justify-center items-center w-6 h-6 bg-purple-500 rounded-full"
-                                                                            onClick={(e) => e.stopPropagation()}
-                                                                        >
-                                                                            <HeartIcon className="size-3.5 text-white" />
-                                                                        </a>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent side="top" sideOffset={5}>
-                                                                        <p className="text-xs">Delegate to this user</p>
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                            </TooltipProvider>
-                                                        )}
-                                                    </td>
-                                                    <td className="py-2 px-1 sm:py-3 sm:px-2 font-medium text-xs sm:text-base">
-                                                        <div className="flex items-center gap-1 sm:gap-2 max-w-full overflow-hidden">
-                                                            <span className="truncate">{sortedUsers[currentUserIndex].username}</span>
-                                                            <span className="text-[10px] sm:text-xs text-primary px-1 sm:px-2 py-0.5 sm:py-1 rounded-full bg-primary/10 whitespace-nowrap flex-shrink-0">
-                                                                You
-                                                            </span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base">{sortedUsers[currentUserIndex].points}</td>
-                                                    <td className="py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base">{sortedUsers[currentUserIndex].viewpoints}</td>
-                                                    <td className="py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base">{sortedUsers[currentUserIndex].cred}</td>
-                                                    <td className="py-2 pr-2 sm:py-3 sm:pr-6 text-xs sm:text-base">{sortedUsers[currentUserIndex].reputation}%</td>
-                                                </tr>
-                                            )}
-
-                                            {/* Regular leaderboard - showing all users including the current user */}
                                             {sortedUsers.map((user, index) => (
-                                                <tr key={user.id} className="border-t">
-                                                    <td className="py-2 pl-2 pr-1 sm:py-3 sm:pl-4 sm:pr-2 text-xs sm:text-base">{index + 1}</td>
-                                                    <td className="py-2 px-1 sm:py-3 sm:px-2 text-center">
-                                                        {user.delegationUrl && (
-                                                            <TooltipProvider delayDuration={300}>
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <a
-                                                                            href={user.delegationUrl}
-                                                                            target="_blank"
-                                                                            rel="noopener noreferrer"
-                                                                            className="inline-flex justify-center items-center w-6 h-6 bg-purple-500 rounded-full"
-                                                                            onClick={(e) => e.stopPropagation()}
-                                                                        >
-                                                                            <HeartIcon className="size-3.5 text-white" />
-                                                                        </a>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent side="top" sideOffset={5}>
-                                                                        <p className="text-xs">Delegate to this user</p>
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                            </TooltipProvider>
-                                                        )}
-                                                    </td>
-                                                    <td className="py-2 px-1 sm:py-3 sm:px-2 font-medium text-xs sm:text-base">
-                                                        <div className="flex items-center gap-1 sm:gap-2 max-w-full overflow-hidden">
+                                                <tr
+                                                    key={user.id}
+                                                    className={cn(
+                                                        "border-t hover:bg-muted/20 transition-colors",
+                                                        user.id === currentUserData?.id && "bg-primary/5"
+                                                    )}
+                                                >
+                                                    <td className="py-2 pl-3 pr-2 text-sm">{index + 1}</td>
+                                                    <td className="py-2 px-2 font-medium text-sm">
+                                                        <div className="flex items-center gap-2 max-w-full">
+                                                            {user.delegationUrl && (
+                                                                <TooltipProvider delayDuration={300}>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <a
+                                                                                href={user.delegationUrl}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                className="inline-flex justify-center items-center w-6 h-6 bg-purple-500 rounded-full"
+                                                                                onClick={(e) => e.stopPropagation()}
+                                                                            >
+                                                                                <HeartIcon className="size-3.5 text-white" />
+                                                                            </a>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent side="top">
+                                                                            <p className="text-xs">Delegate to this user</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            )}
                                                             <span className="truncate">{user.username}</span>
-                                                            {user.id === sortedUsers[currentUserIndex]?.id && (
-                                                                <span className="text-[10px] sm:text-xs text-primary px-1 sm:px-2 py-0.5 sm:py-1 rounded-full bg-primary/10 whitespace-nowrap flex-shrink-0">
+                                                            {user.id === currentUserData?.id && (
+                                                                <span className="text-xs text-primary px-1.5 py-0.5 rounded-full bg-primary/10 whitespace-nowrap">
                                                                     You
                                                                 </span>
                                                             )}
                                                         </div>
                                                     </td>
-                                                    <td className="py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base">{user.points}</td>
-                                                    <td className="py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base">{user.viewpoints}</td>
-                                                    <td className="py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-base">{user.cred}</td>
-                                                    <td className="py-2 pr-2 sm:py-3 sm:pr-6 text-xs sm:text-base">{user.reputation}%</td>
+                                                    <td className="py-2 px-2 text-sm text-right">{user.points}</td>
+                                                    <td className="py-2 px-2 text-sm text-right">{user.reputation}%</td>
+                                                    <td className="py-2 px-3 text-sm text-right">{user.cred}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                     </table>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
+                            </TabsContent>
+
+                            <TabsContent value="cards" className="mt-0 space-y-2">
+                                {sortedUsers.map((user, index) => (
+                                    <div
+                                        key={user.id}
+                                        className={cn(
+                                            "p-3 rounded-lg border",
+                                            user.id === currentUserData?.id ? "bg-primary/5 border-primary/20" : "bg-card"
+                                        )}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex items-center justify-center min-w-7 h-7 rounded-full bg-muted text-sm font-medium">
+                                                    {index + 1}
+                                                </div>
+                                                <div>
+                                                    <div className="font-medium flex items-center gap-1.5 text-sm">
+                                                        {user.username}
+                                                        {user.id === currentUserData?.id && (
+                                                            <span className="text-xs text-primary px-1.5 py-0.5 rounded-full bg-primary/10 whitespace-nowrap">
+                                                                You
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-2">
+                                                        <span>{user.points} points</span>
+                                                        <span>{user.viewpoints} rationales</span>
+                                                        <span>{user.reputation}% reputation</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-col items-end">
+                                                <div className="text-sm font-medium">{user.cred} cred</div>
+                                                {user.delegationUrl && (
+                                                    <TooltipProvider delayDuration={300}>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <a
+                                                                    href={user.delegationUrl}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="mt-1 inline-flex justify-center items-center w-6 h-6 bg-purple-500 rounded-full"
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                >
+                                                                    <HeartIcon className="size-3.5 text-white" />
+                                                                </a>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="top">
+                                                                <p className="text-xs">Delegate to this user</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </TabsContent>
+                        </Tabs>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>

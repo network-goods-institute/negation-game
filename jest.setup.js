@@ -5,6 +5,8 @@ const { TextEncoder, TextDecoder } = require('util')
 global.TextEncoder = TextEncoder
 global.TextDecoder = TextDecoder
 
+global.setImmediate = (callback) => setTimeout(callback, 0);
+
 // Mock @privy-io/react-auth
 jest.mock('@privy-io/react-auth', () => ({
   usePrivy: () => ({

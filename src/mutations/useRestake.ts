@@ -96,6 +96,12 @@ export const useRestake = () => {
         exact: false,
       });
 
+      // Invalidate users-reputation data since restaking affects reputation calculations
+      queryClient.invalidateQueries({
+        queryKey: ["users-reputation"],
+        exact: false,
+      });
+
       // Force refetch of point data
       queryClient.refetchQueries({
         queryKey: pointQueryKey({ pointId, userId: user?.id }),
