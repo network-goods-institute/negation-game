@@ -363,7 +363,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
       // Store the viewpoint data in session storage with space information
       const viewpointData = {
-        title: viewpoint.title + " (copy)",
+        title: viewpoint.title,
         description: viewpoint.description,
         graph: regeneratedGraph,
         sourceSpace: currentSpace,
