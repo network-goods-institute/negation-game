@@ -660,7 +660,7 @@ export function PointPageClient({
                                                 <PointCard
                                                     onNegate={(e) => {
                                                         e.preventDefault();
-                                                        loginOrMakePoint();
+                                                        handleNegate(negation.pointId);
                                                     }}
                                                     className="flex-grow -mt-3.5 pb-3"
                                                     favor={negation.favor}

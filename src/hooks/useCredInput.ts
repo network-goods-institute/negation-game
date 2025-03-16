@@ -9,7 +9,7 @@ export interface UseCredInputOptions {
 }
 
 export function useCredInput({
-  defaultValue = 1,
+  defaultValue = 0,
   resetWhen: shouldReset = false,
   cred: credOverride,
   setCred: setCredOverride,

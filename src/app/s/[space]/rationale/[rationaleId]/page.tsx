@@ -13,7 +13,8 @@ import {
 } from "@/components/graph/OriginalPosterContext";
 import { NegateDialog } from "@/components/NegateDialog";
 import { PointCard } from "@/components/PointCard";
-import { AuthenticatedActionButton, Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
 import { Separator } from "@/components/ui/separator";
 import { Dynamic } from "@/components/utils/Dynamic";
 import { useBasePath } from "@/hooks/useBasePath";
