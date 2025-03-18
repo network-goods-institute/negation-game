@@ -585,6 +585,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                   <ViewpointStatsBar
                     views={viewpoint.statistics.views}
                     copies={viewpoint.statistics.copies}
+                    pointIds={viewpoint.originalPointIds}
                   />
                 )}
               </div>

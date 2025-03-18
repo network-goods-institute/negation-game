@@ -1,6 +1,57 @@
 import React from "react";
-import { render, screen } from "@/__tests__/utils/test-utils";
+import { render, screen, waitFor } from "@/__tests__/utils/test-utils";
 import { ViewpointStatsBar } from "../ViewpointStatsBar";
+
+// Mock fetchPoints and useQuery
+jest.mock("@/actions/fetchPoints", () => ({
+    fetchPoints: jest.fn().mockImplementation(async (ids: number[]) => {
+        // Return mock points based on ids
+        return ids.map(id => ({
+            pointId: id,
+            cred: id === 1 ? 100 : id === 2 ? 200 : 150,
+            content: `Point ${id}`,
+            createdAt: new Date(),
+            createdBy: "testUser",
+            amountSupporters: 0,
+            amountNegations: 0,
+            negationsCred: 0,
+            favor: 0,
+            space: "test-space",
+            negationIds: [],
+        }));
+    }),
+}));
+
+jest.mock("@tanstack/react-query", () => ({
+    ...jest.requireActual("@tanstack/react-query"),
+    useQuery: jest.fn().mockImplementation(({ queryKey, queryFn, enabled }) => {
+        if (queryKey[0] === 'viewpoint-stats-points') {
+            const pointIds = queryKey[1];
+            if (!enabled || pointIds.length === 0) {
+                return { data: null, isLoading: false };
+            }
+
+            // For testing loading state
+            if (pointIds.includes(999)) {
+                return { data: null, isLoading: true };
+            }
+
+            // Return mock data
+            const mockData = [
+                { pointId: 1, cred: 100 },
+                { pointId: 2, cred: 200 },
+                { pointId: 3, cred: 150 },
+                { pointId: 4, cred: 1000 }
+            ].filter(p => pointIds.includes(p.pointId));
+
+            return {
+                data: mockData,
+                isLoading: false
+            };
+        }
+        return { data: null, isLoading: false };
+    }),
+}));
 
 describe("ViewpointStatsBar", () => {
     it("renders view and copy counts", () => {
@@ -45,5 +96,49 @@ describe("ViewpointStatsBar", () => {
         // Verify icons exist
         expect(eyeIcon).toBeInTheDocument();
         expect(copyIcon).toBeInTheDocument();
+    });
+
+    it("calculates and displays total cred for provided point IDs", async () => {
+        const { container } = render(
+            <ViewpointStatsBar views={100} copies={50} pointIds={[1, 2, 3]} />
+        );
+
+        // Total cred should be 450 (100 + 200 + 150)
+        await waitFor(() => {
+            expect(screen.getByText("450")).toBeInTheDocument();
+        });
+
+        // Check for the coins icon
+        const coinsIcon = container.querySelector('.lucide-coins');
+        expect(coinsIcon).toBeInTheDocument();
+    });
+
+    it("shows loading state while calculating cred", async () => {
+        // Render with special ID 999 that triggers loading state in mock
+        render(<ViewpointStatsBar views={100} copies={50} pointIds={[999]} />);
+
+        // Should show "Calculating..." while loading
+        expect(screen.getByText("Calculating...")).toBeInTheDocument();
+
+        // Check for the coins icon
+        const coinsIcon = screen.getByText("Calculating...").closest('div')?.querySelector('.lucide-coins');
+        expect(coinsIcon).toBeInTheDocument();
+    });
+
+    it("doesn't render cred section when no point IDs are provided", () => {
+        const { container } = render(<ViewpointStatsBar views={100} copies={50} />);
+
+        // Should not find the coins icon
+        const coinsIcon = container.querySelector('.lucide-coins');
+        expect(coinsIcon).not.toBeInTheDocument();
+    });
+
+    it("formats large total cred with appropriate suffix", async () => {
+        render(<ViewpointStatsBar views={100} copies={50} pointIds={[4]} />);
+
+        // Total cred should be 1000 and displayed as 1.0k
+        await waitFor(() => {
+            expect(screen.getByText("1.0k")).toBeInTheDocument();
+        });
     });
 }); 
