@@ -675,10 +675,28 @@ export default function NewViewpointPage({
 }: {
   params: Promise<{ rationaleId: string; space: string }>;
 }) {
-  const { user: privyUser } = usePrivy();
   const { rationaleId } = use(params);
+
   return (
-    <OriginalPosterProvider originalPosterId={privyUser?.id}>
+    <ViewpointPageWrapper rationaleId={rationaleId} />
+  );
+}
+
+function ViewpointPageWrapper({ rationaleId }: { rationaleId: string }) {
+  const { data: viewpoint, isLoading } = useViewpoint(rationaleId);
+
+  if (isLoading) {
+    return (
+      <div className="flex-grow flex items-center justify-center">
+        <Loader className="size-12" />
+      </div>
+    );
+  }
+
+  const creatorId = viewpoint?.createdBy;
+
+  return (
+    <OriginalPosterProvider originalPosterId={creatorId}>
       <ReactFlowProvider>
         <ViewpointPageContent viewpointId={rationaleId} />
       </ReactFlowProvider>
