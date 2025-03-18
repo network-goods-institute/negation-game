@@ -18,7 +18,7 @@ export function useCredInput({
   const { data: user } = useUser();
   const credInput = credOverride ?? internalCred;
   const setCredInput = setCredOverride ?? setInternalCred;
-  const notEnoughCred = !!user && user.cred < credInput;
+  const notEnoughCred = !!user && credInput > 0 && user.cred < credInput;
 
   useEffect(() => {
     return () => {

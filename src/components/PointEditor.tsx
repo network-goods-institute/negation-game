@@ -20,6 +20,7 @@ export interface PointEditorProps extends HTMLAttributes<HTMLDivElement> {
   guidanceNotes?: ReactNode;
   textareaClassName?: string;
   compact?: boolean;
+  allowZero?: boolean;
 }
 
 export const PointEditor: FC<PointEditorProps> = ({
@@ -32,6 +33,7 @@ export const PointEditor: FC<PointEditorProps> = ({
   textareaClassName,
   placeholder = "Make your point",
   compact = false,
+  allowZero = true,
   guidanceNotes = (
     <>
       <CircleCheckBigIcon className="size-3 align-[-1.5px] inline-block " />{" "}
@@ -50,7 +52,7 @@ export const PointEditor: FC<PointEditorProps> = ({
         onChange={(e) => setContent(e.target.value.replace(/\n/g, ""))}
         autoFocus
         className={cn(
-          "w-full rounded-none !ring-0 tracking-tight text-md border-none @sm/point:text-lg p-2",
+          "w-full rounded-none !ring-0 !ring-offset-0 tracking-tight text-md border-none @sm/point:text-lg p-2 focus-visible:outline-none",
           textareaClassName
         )}
         placeholder={placeholder}
@@ -65,6 +67,7 @@ export const PointEditor: FC<PointEditorProps> = ({
           setCredInput={setCred}
           notEnoughCred={notEnoughCred}
           compact={compact}
+          allowZero={allowZero}
         />
 
         <div className="flex gap-sm items-center">

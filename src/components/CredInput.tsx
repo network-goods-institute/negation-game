@@ -18,6 +18,7 @@ export interface CredInputProps
   > {
   compact?: boolean;
   hideLabels?: boolean;
+  allowZero?: boolean;
 }
 
 const DEFAULT_CRED_OPTIONS = [0, 1, 5, 10];
@@ -28,6 +29,7 @@ export const CredInput: FC<CredInputProps> = ({
   notEnoughCred,
   compact = false,
   hideLabels = false,
+  allowZero = false,
   ...props
 }) => {
   const [customMode, setCustomMode] = useToggle(false);
@@ -94,12 +96,12 @@ export const CredInput: FC<CredInputProps> = ({
                 <ToggleGroupItem
                   key={`${value}-cred`}
                   value={value.toString()}
-                  disabled={value === 0}
+                  disabled={value === 0 && !allowZero}
                   className={cn(
                     "flex-1 h-9 px-1 font-medium text-sm flex items-center justify-center rounded-md",
-                    "data-[state=on]:bg-endorsed/15 data-[state=on]:text-endorsed data-[state=on]:border-endorsed/30 border-muted-foreground/20",
+                    "data-[state=on]:bg-accent/80 data-[state=on]:text-accent-foreground data-[state=on]:border-muted/60 border-muted-foreground/20",
                     "hover:bg-muted/50 hover:text-foreground",
-                    value === 0 && "text-muted-foreground/50 pointer-events-none",
+                    value === 0 && !allowZero && "text-muted-foreground/50 pointer-events-none",
                     notEnoughCred && value === cred && "data-[state=on]:text-destructive data-[state=on]:bg-destructive/10 data-[state=on]:border-destructive/30"
                   )}
                 >
@@ -119,7 +121,7 @@ export const CredInput: FC<CredInputProps> = ({
             <Button
               variant="outline"
               size="sm"
-              className="h-9 px-2 text-sm border-muted-foreground/20 text-muted-foreground hover:border-endorsed/30 hover:text-endorsed"
+              className="h-9 px-2 text-sm border-muted-foreground/20 text-muted-foreground hover:border-muted/60 hover:text-foreground"
               onClick={() => {
                 setCustomMode(true);
                 setInputValue(cred > 0 ? cred.toString() : "");
@@ -137,9 +139,9 @@ export const CredInput: FC<CredInputProps> = ({
                 value={inputValue}
                 onChange={(e) => handleInputChange(e.target.value)}
                 className={cn(
-                  "border-none shadow-none h-full w-full pl-0 focus-visible:ring-0",
+                  "border-none shadow-none h-full w-full pl-0 focus-visible:ring-0 focus-visible:ring-offset-0",
                   notEnoughCred && "text-destructive",
-                  "placeholder:text-muted-foreground/50 focus:text-endorsed"
+                  "placeholder:text-muted-foreground/50"
                 )}
                 placeholder="Amount"
                 autoFocus
