@@ -731,9 +731,16 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
               <DialogTitle>Cannot Doubt</DialogTitle>
             </div>
           </div>
-          <p className="text-muted-foreground">
-            There are no active restakes to doubt.
-          </p>
+          {isLoadingRestake || isLoadingDoubt ? (
+            <div className="flex flex-col items-center justify-center py-8">
+              <Loader className="size-6 mb-2" />
+              <p className="text-muted-foreground text-sm">Checking available restakes...</p>
+            </div>
+          ) : (
+            <p className="text-muted-foreground">
+              There are no active restakes to doubt.
+            </p>
+          )}
         </DialogContent>
       </Dialog>
     );
