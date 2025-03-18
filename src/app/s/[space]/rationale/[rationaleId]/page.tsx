@@ -494,13 +494,15 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                 </Button>
                 <Button
                   variant="outline"
-                  size="icon"
                   className={cn(
-                    "rounded-full p-2 size-9",
+                    "rounded-full flex items-center gap-2 px-4",
                     isCopyingUrl && "text-green-500 border-green-500"
                   )}
                   onClick={handleCopyUrl}
                 >
+                  <span className="text-sm font-bold">
+                    {isCopyingUrl ? "Copied!" : "Copy Link"}
+                  </span>
                   {isCopyingUrl ? (
                     <CheckIcon className="size-4" />
                   ) : (
