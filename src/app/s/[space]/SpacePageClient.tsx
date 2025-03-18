@@ -120,7 +120,11 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                     space={space}
                     onNegate={(e) => {
                         e.preventDefault();
-                        user !== null ? setNegatedPointId(point.pointId) : login();
+                        if (user !== null) {
+                            setNegatedPointId(point.pointId);
+                        } else {
+                            login();
+                        }
                     }}
                     pinnedCommandPointId={pinnedCommandPointId}
                     pinStatus={pinStatus}
@@ -192,7 +196,11 @@ const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, log
                 isPriority={true}
                 onNegate={(e) => {
                     e.preventDefault();
-                    user !== null ? setNegatedPointId(point.pointId) : login();
+                    if (user !== null) {
+                        setNegatedPointId(point.pointId);
+                    } else {
+                        login();
+                    }
                 }}
                 pinnedCommandPointId={pinnedCommandPointId}
                 pinStatus={pinStatus}

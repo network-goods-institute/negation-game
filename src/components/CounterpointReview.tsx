@@ -53,7 +53,7 @@ interface CounterpointReviewProps {
     onClose: () => void;
 }
 
-const getPointUrl = (pointId: number) => `/point/${encodeId(pointId)}`;
+const getPointUrl = (pointId: number) => `${encodeId(pointId)}`;
 
 export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
     reviewResults,

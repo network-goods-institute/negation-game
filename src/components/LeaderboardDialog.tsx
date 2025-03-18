@@ -37,9 +37,9 @@ export const LeaderboardDialog = ({
         queryFn: () => fetchSpaceViewpoints(space),
     });
     const { data: user } = useUser();
-    const [sortBy, setSortBy] = useState<SortOption>("points");
+    const [sortBy, setSortBy] = useState<SortOption>("rationales");
     const [sortDescending, setSortDescending] = useState(true);
-    const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+    const [viewMode, setViewMode] = useState<"table" | "cards">("cards");
 
     const leaderboardData = useMemo(() => {
         if (!feed || !allUsers || !spaceViewpoints) return [];
@@ -177,7 +177,7 @@ export const LeaderboardDialog = ({
                                         </span>
                                     </div>
                                     <div className="text-xs text-muted-foreground mt-0.5">
-                                        {currentUserData.points} points · {currentUserData.viewpoints} rationales · {currentUserData.reputation}% reputation
+                                        {currentUserData.viewpoints} rationales · {currentUserData.points} points · {currentUserData.reputation}% reputation
                                     </div>
                                 </div>
                             </div>
@@ -230,7 +230,7 @@ export const LeaderboardDialog = ({
                 </div>
 
                 {/* Leaderboard content */}
-                <div className="mt-2 flex-1 overflow-auto">
+                <div className="mt-2 flex-1 overflow-y-auto">
                     {isReputationLoading ? (
                         <div className="flex justify-center items-center p-6">
                             <div className="text-sm text-muted-foreground">Loading reputation data...</div>
@@ -238,13 +238,14 @@ export const LeaderboardDialog = ({
                     ) : (
                         <Tabs value={viewMode} className="w-full">
                             <TabsContent value="table" className="mt-0">
-                                <div className="border rounded-lg overflow-hidden">
-                                    <table className="w-full">
+                                <div className="border rounded-lg overflow-x-auto">
+                                    <table className="w-full min-w-[600px]">
                                         <thead className="bg-muted/30">
                                             <tr>
                                                 <th className="text-left py-2 pl-3 pr-2 text-xs font-medium w-[10%]">Rank</th>
-                                                <th className="text-left py-2 px-2 text-xs font-medium w-[40%]">User</th>
+                                                <th className="text-left py-2 px-2 text-xs font-medium w-[30%]">User</th>
                                                 <th className="text-right py-2 px-2 text-xs font-medium w-[15%]">Points</th>
+                                                <th className="text-right py-2 px-2 text-xs font-medium w-[15%]">Rationales</th>
                                                 <th className="text-right py-2 px-2 text-xs font-medium w-[20%]">
                                                     <TooltipProvider delayDuration={300}>
                                                         <Tooltip>
@@ -306,6 +307,7 @@ export const LeaderboardDialog = ({
                                                         </div>
                                                     </td>
                                                     <td className="py-2 px-2 text-sm text-right">{user.points}</td>
+                                                    <td className="py-2 px-2 text-sm text-right">{user.viewpoints}</td>
                                                     <td className="py-2 px-2 text-sm text-right">{user.reputation}%</td>
                                                     <td className="py-2 px-3 text-sm text-right">{user.cred}</td>
                                                 </tr>
@@ -315,7 +317,7 @@ export const LeaderboardDialog = ({
                                 </div>
                             </TabsContent>
 
-                            <TabsContent value="cards" className="mt-0 space-y-2">
+                            <TabsContent value="cards" className="mt-0 space-y-2 overflow-x-auto">
                                 {sortedUsers.map((user, index) => (
                                     <div
                                         key={user.id}
@@ -339,8 +341,8 @@ export const LeaderboardDialog = ({
                                                         )}
                                                     </div>
                                                     <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-2">
-                                                        <span>{user.points} points</span>
                                                         <span>{user.viewpoints} rationales</span>
+                                                        <span>{user.points} points</span>
                                                         <span>{user.reputation}% reputation</span>
                                                     </div>
                                                 </div>

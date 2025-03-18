@@ -35,7 +35,7 @@ import {
   DiscIcon,
   TrashIcon,
 } from "lucide-react";
-import { FC, ReactNode, useCallback, useEffect, useState } from "react";
+import { FC, ReactNode, useCallback, useEffect, useState, useMemo } from "react";
 import {
   Tooltip,
   TooltipContent,
@@ -53,6 +53,10 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     negationContentAtom(negatedPoint?.pointId)
   );
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+
+  // Track review state for each unique negated point with a simpler approach
+  const [viewedReviews, setViewedReviews] = useState<Set<number>>(new Set());
+
   const {
     credInput: cred,
     setCredInput: setCred,
@@ -79,6 +83,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
 
   const queryClient = useQueryClient();
 
+  // Reset the query function for better performance
   const {
     data: reviewResults,
     isLoading: isReviewingCounterpoint,
@@ -91,22 +96,32 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     staleTime: 60_000,
     queryKey: [
       "counterpoint-review",
-      negatedPoint,
+      negatedPoint?.pointId,
       counterpointContent,
+      negatedPoint?.content
     ] as const,
-    queryFn: async ({ queryKey: [, negatedPoint, counterpointContent] }) => {
+    queryFn: async ({ queryKey: [, pointId, content] }) => {
+      if (!pointId) throw new Error("No point ID");
+
       const reviewResults = await reviewProposedCounterpointAction({
-        negatedPointId: negatedPoint!.pointId,
+        negatedPointId: pointId,
         negatedPointContent: negatedPoint!.content,
-        counterpointContent,
+        counterpointContent: content,
       });
 
       setGuidanceNotes(undefined);
 
-      //set the review results cache for rephrasings so that the user is not forced to review again if he picks one
+      // More efficient way to mark as viewed
+      setViewedReviews(prev => {
+        const newSet = new Set(prev);
+        newSet.add(pointId);
+        return newSet;
+      });
+
+      // Cache for rephrasings
       reviewResults.suggestions.forEach((selectedSuggestion) =>
         queryClient.setQueryData<typeof reviewResults>(
-          ["counterpoint-review", negatedPoint, selectedSuggestion] as const,
+          ["counterpoint-review", pointId, selectedSuggestion] as const,
           produce(reviewResults, (draft) => {
             draft.rating = 10;
             draft.suggestions = draft.suggestions.filter(
@@ -126,6 +141,11 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     },
   });
 
+  // Simpler and more efficient calculation
+  const hasViewedCurrentPointReview = useMemo(() =>
+    negatedPoint ? viewedReviews.has(negatedPoint.pointId) : false,
+    [viewedReviews, negatedPoint]);
+
   const canReview =
     charactersLeft >= 0 && counterpointContent.length >= POINT_MIN_LENGTH;
 
@@ -133,16 +153,23 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     ? true
     : charactersLeft >= 0 && counterpointContent.length >= POINT_MIN_LENGTH;
 
+  // Only reset necessary state
   const resetForm = useCallback(() => {
     selectCounterpointCandidate(undefined);
     setGuidanceNotes(undefined);
     resetCred();
     setCounterpointContent("");
+    // Don't reset viewed state for points - we want to remember which ones were viewed
   }, [resetCred, setCounterpointContent]);
 
   useEffect(() => {
     if (!negatedPointId) resetForm();
   }, [negatedPointId, resetForm]);
+
+  // Debug effect to track negatedPointId changes
+  useEffect(() => {
+    console.log("negatedPointId changed:", negatedPointId);
+  }, [negatedPointId]);
 
   const handleSubmit = useCallback(() => {
     if (!canSubmit || isSubmitting) return;
@@ -200,11 +227,8 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     // Only submit if we have explicitly selected a counterpoint candidate
     // or if we've reviewed and closed the suggestions popover
     if (
-      counterpointWasReviewed &&
-      !reviewIsStale &&
-      canSubmit &&
-      !isSubmitting &&
-      !reviewDialogOpen
+      (counterpointWasReviewed && !reviewIsStale && canSubmit && !isSubmitting && !reviewDialogOpen) ||
+      (hasViewedCurrentPointReview && canSubmit && !isSubmitting)
     ) {
       handleSubmit();
     }
@@ -217,6 +241,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     canSubmit,
     isSubmitting,
     reviewDialogOpen,
+    hasViewedCurrentPointReview,
     reviewCounterpoint,
     handleSubmit,
   ]);
@@ -233,8 +258,14 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     <>
       <Dialog
         {...props}
-        open={!!negatedPointId}
-        onOpenChange={(isOpen) => !isOpen && setNegatedPointId(undefined)}
+        open={negatedPointId !== undefined}
+        onOpenChange={(open) => {
+          console.log("NegateDialog onOpenChange called with:", open);
+          if (open === false) {
+            console.log("NegateDialog closing, setting negatedPointId to undefined");
+            setNegatedPointId(undefined);
+          }
+        }}
       >
         <DialogContent className="@container sm:top-xl flex flex-col overflow-hidden sm:translate-y-0 h-full rounded-none sm:rounded-md sm:h-fit gap-0 bg-background p-4 sm:p-8 shadow-sm w-full max-w-xl max-h-[90vh]">
           <div className="w-full flex items-center justify-between mb-xl">
@@ -354,11 +385,19 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
 
               {reviewResults && (
                 <Button
+                  variant={hasViewedCurrentPointReview ? "outline" : "default"}
                   className="min-w-28 w-full xs:w-fit"
-                  onClick={() => setReviewDialogOpen(true)}
+                  onClick={() => {
+                    setReviewDialogOpen(true);
+                  }}
                 >
                   Review suggestions{" "}
-                  <Badge className="bg-white text-primary ml-2 px-1.5">
+                  <Badge className={cn(
+                    "ml-2 px-1.5",
+                    hasViewedCurrentPointReview
+                      ? "bg-muted text-muted-foreground border border-muted"
+                      : "bg-white text-primary"
+                  )}>
                     {reviewResults.existingSimilarCounterpoints.length +
                       reviewResults.suggestions.length}
                   </Badge>
@@ -370,18 +409,18 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
               <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
                   <Button
-                    disabled={!canReview || isReviewingCounterpoint || isSubmitting}
+                    disabled={!canReview || (isReviewingCounterpoint && !hasViewedCurrentPointReview) || isSubmitting}
                     className="min-w-28 w-full xs:w-fit"
                     rightLoading={isReviewingCounterpoint || isSubmitting}
                     onClick={(e) => {
-                      if (e.altKey) {
+                      if (e.altKey || hasViewedCurrentPointReview) {
                         handleSubmit();
                         return;
                       }
                       reviewCounterpoint();
                     }}
                   >
-                    {isSubmitting ? "Negating..." : isReviewingCounterpoint ? "Reviewing..." : "Review & Negate"}
+                    {isSubmitting ? "Negating..." : isReviewingCounterpoint ? "Reviewing..." : hasViewedCurrentPointReview ? "Negate" : "Review & Negate"}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="text-xs">
@@ -396,7 +435,9 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
       {reviewResults && (
         <Dialog
           open={reviewDialogOpen}
-          onOpenChange={setReviewDialogOpen}
+          onOpenChange={(open) => {
+            setReviewDialogOpen(open);
+          }}
           modal={true}
         >
           <DialogContent
