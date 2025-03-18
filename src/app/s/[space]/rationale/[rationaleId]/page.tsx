@@ -83,6 +83,7 @@ function PointCardWrapper({
       amountNegations={pointData.amountNegations}
       originalPosterId={originalPosterId}
       onNegate={() => setNegatedPointId(point.pointId)}
+      inRationale={true}
     />
   );
 }

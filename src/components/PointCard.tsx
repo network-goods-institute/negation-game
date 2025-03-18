@@ -41,8 +41,10 @@ import {
 import { AuthenticatedActionButton } from "./ui/AuthenticatedActionButton";
 import { Button } from "./ui/button";
 import { encodeId } from "@/lib/encodeId";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import { ExternalLinkIcon } from "lucide-react";
+import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -96,6 +98,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   onPinBadgeClickCapture?: React.MouseEventHandler;
   linkDisabled?: boolean;
   inGraphNode?: boolean;
+  inRationale?: boolean;
 }
 
 export const PointCard = ({
@@ -126,6 +129,7 @@ export const PointCard = ({
   onPinBadgeClickCapture,
   linkDisabled,
   inGraphNode,
+  inRationale,
   ...props
 }: PointCardProps) => {
   const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
@@ -148,6 +152,8 @@ export const PointCard = ({
   const [visitedPoints, setVisitedPoints] = useAtom(visitedPointsAtom);
   const visited = visitedPoints.has(pointId);
   const router = useRouter();
+  const pathname = usePathname();
+  const currentSpace = getSpaceFromPathname(pathname);
 
   const [restakePercentage, isOverHundred] = useMemo(() => {
     if (!isNegation || !parentPoint || !restake?.amount || !restake.isOwner)
@@ -434,6 +440,22 @@ export const PointCard = ({
                 </div>
               </PopoverContent>
             </Popover>
+
+            {inRationale && !inGraphNode && (
+              <Link
+                href={`/s/${currentSpace || 'global'}/${encodeId(pointId)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Button
+                  variant="ghost"
+                  className="p-1 -mb-2 rounded-full size-fit hover:bg-muted"
+                >
+                  <ExternalLinkIcon className="size-5 translate-y-[2.5px]" />
+                </Button>
+              </Link>
+            )}
 
             {isNegation && parentPoint?.cred && parentPoint.cred > 0 && (
               <>

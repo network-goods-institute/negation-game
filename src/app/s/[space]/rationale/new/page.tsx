@@ -103,6 +103,7 @@ function PointCardWrapper({
       viewerContext={{ viewerCred: pointData.viewerCred }}
       onNegate={() => setNegatedPointId(point.pointId)}
       originalPosterId={originalPosterId}
+      inRationale={true}
     />
   );
 }
