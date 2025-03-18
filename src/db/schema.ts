@@ -11,6 +11,7 @@ export {
 export { spacesTable } from "@/db/tables/spacesTable";
 export { usersTable } from "@/db/tables/usersTable";
 export { viewpointsTable } from "@/db/tables/viewpointsTable";
+export { viewpointInteractionsTable } from "@/db/tables/viewpointInteractionsTable";
 
 export {
   slashActionEnum,

@@ -43,6 +43,7 @@ import { EditModeProvider, useEditMode } from "@/components/graph/EditModeContex
 import { ReactFlowInstance } from "@xyflow/react";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ViewpointStatsBar } from "@/components/ViewpointStatsBar";
 
 // Create dynamic ReactMarkdown component
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
@@ -382,11 +383,16 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
         description: editableDescription,
         graph: regeneratedGraph,
         sourceSpace: currentSpace,
+        sourceId: viewpoint.id // Store the original ID to track copies
       };
 
       // Use sessionStorage with space-specific key to avoid conflicts
       const storageKey = `copyingViewpoint:${currentSpace}`;
       sessionStorage.setItem(storageKey, JSON.stringify(viewpointData));
+
+      // Track the copy action
+      // We don't need to await this as it shouldn't block navigation
+      fetch(`/api/viewpoint/track-copy?id=${viewpoint.id}`, { method: 'POST' });
 
       // Navigate to the new viewpoint page in the same space
       router.push(`${basePath}/rationale/new`);
@@ -568,12 +574,20 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                 </TooltipProvider>
               )}
 
-              <span className="text-muted-foreground text-sm">
-                by{" "}
-                <span className="font-bold text-sm text-yellow-500">
-                  {author}
+              <div className="flex flex-col gap-2">
+                <span className="text-muted-foreground text-sm">
+                  by{" "}
+                  <span className="font-bold text-sm text-yellow-500">
+                    {author}
+                  </span>
                 </span>
-              </span>
+                {viewpoint.statistics && (
+                  <ViewpointStatsBar
+                    views={viewpoint.statistics.views}
+                    copies={viewpoint.statistics.copies}
+                  />
+                )}
+              </div>
 
               <Separator className="my-2" />
 

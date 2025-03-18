@@ -1,9 +1,14 @@
 "use server";
 
-import { usersTable, viewpointsTable } from "@/db/schema";
+import {
+  usersTable,
+  viewpointsTable,
+  viewpointInteractionsTable,
+} from "@/db/schema";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
 import { eq, sql } from "drizzle-orm";
+import { trackViewpointView } from "./trackViewpointView";
 
 export const fetchViewpoint = async (id: string) => {
   if (id === "DISABLED") {
@@ -18,9 +23,14 @@ export const fetchViewpoint = async (id: string) => {
       createdBy: "",
       createdAt: new Date(0),
       space: null,
+      statistics: {
+        views: 0,
+        copies: 0,
+      },
     };
   }
 
+  // Fetch the viewpoint with user and interaction information
   const viewpoint = await db
     .select({
       ...getColumns(viewpointsTable),
@@ -34,9 +44,15 @@ export const fetchViewpoint = async (id: string) => {
           ORDER BY (data->>'pointId')::int
         )
       )`,
+      views: viewpointInteractionsTable.views,
+      copies: viewpointInteractionsTable.copies,
     })
     .from(viewpointsTable)
     .innerJoin(usersTable, eq(usersTable.id, viewpointsTable.createdBy))
+    .leftJoin(
+      viewpointInteractionsTable,
+      eq(viewpointInteractionsTable.viewpointId, viewpointsTable.id)
+    )
     .where(eq(viewpointsTable.id, id))
     .limit(1)
     .then((results) => {
@@ -56,11 +72,21 @@ export const fetchViewpoint = async (id: string) => {
       createdBy: "",
       createdAt: new Date(0),
       space: null,
+      statistics: {
+        views: 0,
+        copies: 0,
+      },
     };
   }
+
+  await trackViewpointView(id);
 
   return {
     ...viewpoint,
     description: viewpoint.description,
+    statistics: {
+      views: viewpoint.views || 0,
+      copies: viewpoint.copies || 0,
+    },
   };
 };
