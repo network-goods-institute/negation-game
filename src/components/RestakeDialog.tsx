@@ -852,6 +852,22 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
 
             {openedFromSlashedIcon && (
               <div className="flex flex-col gap-4 p-4 bg-muted/30 rounded-lg">
+                {dailyEarnings < 5 && stakedCred > 0 && (
+                  <div className="flex flex-col gap-2 text-sm bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-md p-3 mb-2">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="size-4 shrink-0" />
+                      <p className="font-medium">Warning: Low payout detected.</p>
+                    </div>
+                    <p>This could be due to:</p>
+                    <ul className="list-disc pl-5">
+                      <li>Low favor on this counterpoint</li>
+                      <li>Recent negation with limited restakes</li>
+                      <li>Low overall engagement</li>
+                      <li>Improper amount of cred doubted</li>
+                    </ul>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between">
                   <h3 className="font-medium">Doubt Information</h3>
                   <Popover>
@@ -862,6 +878,9 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                     </PopoverTrigger>
                     <PopoverContent className="w-80">
                       <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">
+                          Warning: Low payout detected.
+                        </p>
                         <p className="text-sm text-muted-foreground">
                           You can only doubt restakes that existed when you place your doubt.
                           Earnings are calculated based on the endorsements that existed at that time.
@@ -1163,6 +1182,8 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
               </div>
             )}
 
+
+
             {endorsementReduced && (
               <div className="flex items-center gap-2 text-sm bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-md p-3">
                 <AlertCircle className="size-4 shrink-0" />
@@ -1222,6 +1243,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
                   </span>
                   <span>{dailyEarnings.toFixed(2)} cred</span>
                 </div>
+
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">APY</span>
                   <span>{apy}%</span>
