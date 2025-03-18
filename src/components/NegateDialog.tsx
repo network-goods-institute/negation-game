@@ -1,5 +1,5 @@
 import { reviewProposedCounterpointAction } from "@/actions/reviewProposedCounterpointAction";
-import { negatedPointIdAtom, negatedPointIdDebugAtom } from "@/atoms/negatedPointIdAtom";
+import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { negationContentAtom } from "@/atoms/negationContentAtom";
 import { CredInput } from "@/components/CredInput";
 import { PointEditor } from "@/components/PointEditor";
@@ -35,7 +35,7 @@ import {
   DiscIcon,
   TrashIcon,
 } from "lucide-react";
-import { FC, ReactNode, useCallback, useEffect, useState } from "react";
+import { FC, ReactNode, useCallback, useEffect, useState, useMemo } from "react";
 import {
   Tooltip,
   TooltipContent,
@@ -47,13 +47,16 @@ export interface NegateDialogProps
   extends Omit<DialogProps, "open" | "onOpenChange"> { }
 
 export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
-  const [negatedPointId, setNegatedPointId] = useAtom(negatedPointIdDebugAtom);
+  const [negatedPointId, setNegatedPointId] = useAtom(negatedPointIdAtom);
   const { data: negatedPoint } = usePointData(negatedPointId);
   const [counterpointContent, setCounterpointContent] = useAtom(
     negationContentAtom(negatedPoint?.pointId)
   );
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
-  const [suggestionsViewed, setSuggestionsViewed] = useState(false);
+
+  // Track review state for each unique negated point with a simpler approach
+  const [viewedReviews, setViewedReviews] = useState<Set<number>>(new Set());
+
   const {
     credInput: cred,
     setCredInput: setCred,
@@ -80,6 +83,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
 
   const queryClient = useQueryClient();
 
+  // Reset the query function for better performance
   const {
     data: reviewResults,
     isLoading: isReviewingCounterpoint,
@@ -92,23 +96,32 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     staleTime: 60_000,
     queryKey: [
       "counterpoint-review",
-      negatedPoint,
+      negatedPoint?.pointId,
       counterpointContent,
+      negatedPoint?.content
     ] as const,
-    queryFn: async ({ queryKey: [, negatedPoint, counterpointContent] }) => {
+    queryFn: async ({ queryKey: [, pointId, content] }) => {
+      if (!pointId) throw new Error("No point ID");
+
       const reviewResults = await reviewProposedCounterpointAction({
-        negatedPointId: negatedPoint!.pointId,
+        negatedPointId: pointId,
         negatedPointContent: negatedPoint!.content,
-        counterpointContent,
+        counterpointContent: content,
       });
 
       setGuidanceNotes(undefined);
-      setSuggestionsViewed(false);
 
-      //set the review results cache for rephrasings so that the user is not forced to review again if he picks one
+      // More efficient way to mark as viewed
+      setViewedReviews(prev => {
+        const newSet = new Set(prev);
+        newSet.add(pointId);
+        return newSet;
+      });
+
+      // Cache for rephrasings
       reviewResults.suggestions.forEach((selectedSuggestion) =>
         queryClient.setQueryData<typeof reviewResults>(
-          ["counterpoint-review", negatedPoint, selectedSuggestion] as const,
+          ["counterpoint-review", pointId, selectedSuggestion] as const,
           produce(reviewResults, (draft) => {
             draft.rating = 10;
             draft.suggestions = draft.suggestions.filter(
@@ -128,6 +141,11 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     },
   });
 
+  // Simpler and more efficient calculation
+  const hasViewedCurrentPointReview = useMemo(() =>
+    negatedPoint ? viewedReviews.has(negatedPoint.pointId) : false,
+    [viewedReviews, negatedPoint]);
+
   const canReview =
     charactersLeft >= 0 && counterpointContent.length >= POINT_MIN_LENGTH;
 
@@ -135,12 +153,13 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     ? cred > 0
     : charactersLeft >= 0 && counterpointContent.length >= POINT_MIN_LENGTH;
 
+  // Only reset necessary state
   const resetForm = useCallback(() => {
     selectCounterpointCandidate(undefined);
     setGuidanceNotes(undefined);
     resetCred();
     setCounterpointContent("");
-    setSuggestionsViewed(false);
+    // Don't reset viewed state for points - we want to remember which ones were viewed
   }, [resetCred, setCounterpointContent]);
 
   useEffect(() => {
@@ -209,7 +228,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     // or if we've reviewed and closed the suggestions popover
     if (
       (counterpointWasReviewed && !reviewIsStale && canSubmit && !isSubmitting && !reviewDialogOpen) ||
-      (suggestionsViewed && canSubmit && !isSubmitting)
+      (hasViewedCurrentPointReview && canSubmit && !isSubmitting)
     ) {
       handleSubmit();
     }
@@ -222,7 +241,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     canSubmit,
     isSubmitting,
     reviewDialogOpen,
-    suggestionsViewed,
+    hasViewedCurrentPointReview,
     reviewCounterpoint,
     handleSubmit,
   ]);
@@ -365,7 +384,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
 
               {reviewResults && (
                 <Button
-                  variant={suggestionsViewed ? "outline" : "default"}
+                  variant={hasViewedCurrentPointReview ? "outline" : "default"}
                   className="min-w-28 w-full xs:w-fit"
                   onClick={() => {
                     setReviewDialogOpen(true);
@@ -374,7 +393,9 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                   Review suggestions{" "}
                   <Badge className={cn(
                     "ml-2 px-1.5",
-                    suggestionsViewed ? "bg-muted text-muted-foreground" : "bg-white text-primary"
+                    hasViewedCurrentPointReview
+                      ? "bg-muted text-muted-foreground border border-muted"
+                      : "bg-white text-primary"
                   )}>
                     {reviewResults.existingSimilarCounterpoints.length +
                       reviewResults.suggestions.length}
@@ -387,18 +408,18 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
               <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
                   <Button
-                    disabled={!canReview || (isReviewingCounterpoint && !suggestionsViewed) || isSubmitting}
+                    disabled={!canReview || (isReviewingCounterpoint && !hasViewedCurrentPointReview) || isSubmitting}
                     className="min-w-28 w-full xs:w-fit"
                     rightLoading={isReviewingCounterpoint || isSubmitting}
                     onClick={(e) => {
-                      if (e.altKey || suggestionsViewed) {
+                      if (e.altKey || hasViewedCurrentPointReview) {
                         handleSubmit();
                         return;
                       }
                       reviewCounterpoint();
                     }}
                   >
-                    {isSubmitting ? "Negating..." : isReviewingCounterpoint ? "Reviewing..." : suggestionsViewed ? "Negate" : "Review & Negate"}
+                    {isSubmitting ? "Negating..." : isReviewingCounterpoint ? "Reviewing..." : hasViewedCurrentPointReview ? "Negate" : "Review & Negate"}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="text-xs">
@@ -415,9 +436,6 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
           open={reviewDialogOpen}
           onOpenChange={(open) => {
             setReviewDialogOpen(open);
-            if (!open) {
-              setSuggestionsViewed(true);
-            }
           }}
           modal={true}
         >
