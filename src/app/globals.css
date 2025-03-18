@@ -16,7 +16,7 @@
     --popover-foreground: 224 71.4% 4.1%;
     --primary: 262.1 83.3% 57.8%;
     --primary-foreground: 210 20% 98%;
-    --endorsed: 193 100% 51%;
+    --endorsed: 193 85% 40%;
     --endorsed-foreground: 210 20% 98%;
     --negated: 0 84.2% 60.2%;
     --negated-foreground: 210 20% 98%;
@@ -43,7 +43,7 @@
     --popover-foreground: 210 20% 98%;
     --primary: 263.4 70% 50.4%;
     --primary-foreground: 210 20% 98%;
-    --endorsed: 193 100% 51%;
+    --endorsed: 193 85% 45%;
     --endorsed-foreground: 210 20% 98%;
     --negated: 0 84.2% 60.2%;
     --negated-foreground: 210 20% 98%;
@@ -65,6 +65,7 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
     font-family: "Inter";
@@ -74,6 +75,7 @@
 @layer utilities {
   .ally {
     --primary: 221.2 83.2% 53.3%;
+
     &.dark {
       --primary: 217.2 91.2% 59.8%;
     }
@@ -81,6 +83,7 @@
 
   .enemy {
     --primary: 0 72.2% 50.6%;
+
     &.dark {
       --primary: 0 72.2% 50.6%;
     }
@@ -98,17 +101,19 @@
     @apply grid grid-cols-4 sm:grid-cols-8 lg:grid-cols-12 gap-xs md:gap-sm xl:gap-md;
   }
 
-  .no-scaling-stroke > * {
+  .no-scaling-stroke>* {
     vector-effect: non-scaling-stroke;
   }
 
-  .circle-dashed-1 > circle {
+  .circle-dashed-1>circle {
     stroke-dasharray: 1;
   }
-  .circle-dashed-2 > circle {
+
+  .circle-dashed-2>circle {
     stroke-dasharray: 2;
   }
-  .circle-dashed-3 > circle {
+
+  .circle-dashed-3>circle {
     stroke-dasharray: 3;
   }
 }

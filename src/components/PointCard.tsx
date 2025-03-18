@@ -38,7 +38,8 @@ import {
   useMemo,
   useState,
 } from "react";
-import { AuthenticatedActionButton, Button } from "./ui/button";
+import { AuthenticatedActionButton } from "./ui/AuthenticatedActionButton";
+import { Button } from "./ui/button";
 import { encodeId } from "@/lib/encodeId";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -398,16 +399,17 @@ export const PointCard = ({
                 </Button>
               </PopoverTrigger>
               <PopoverContent
-                className="flex flex-col items-start w-96"
+                className="w-[320px] p-3"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="w-full flex justify-between">
+                <div className="flex flex-col gap-3 w-full">
                   <CredInput
                     credInput={credInput}
                     setCredInput={setCredInput}
                     notEnoughCred={notEnoughCred}
                   />
                   <Button
+                    className="w-full"
                     disabled={credInput === 0 || notEnoughCred || isEndorsing}
                     onClick={() => {
                       endorse({ pointId, cred: credInput }).then(() => {
@@ -416,7 +418,7 @@ export const PointCard = ({
                     }}
                   >
                     {isEndorsing ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center gap-2">
                         <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
                         <span>Endorsing...</span>
                       </div>
@@ -424,12 +426,12 @@ export const PointCard = ({
                       "Endorse"
                     )}
                   </Button>
+                  {notEnoughCred && (
+                    <span className="text-destructive text-sm">
+                      Not enough cred
+                    </span>
+                  )}
                 </div>
-                {notEnoughCred && (
-                  <span className="ml-md text-destructive text-sm h-fit">
-                    not enough cred
-                  </span>
-                )}
               </PopoverContent>
             </Popover>
 

@@ -124,41 +124,45 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                                             </Tooltip>
                                         </div>
 
-                                        <div className="flex justify-between items-start">
-                                            <span className="flex-grow text-md font-medium">
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-md font-medium">
                                                 {counterpointCandidate.content}
                                             </span>
-                                            <div className="flex items-center gap-2 ml-2">
-                                                <Badge className="bg-primary/15 text-primary border-primary hover:bg-primary/20 whitespace-nowrap">
-                                                    Existing
-                                                </Badge>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-6 w-6 p-0 rounded-full external-link-btn"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                window.open(getPointUrl(counterpointCandidate.id), '_blank', 'noopener,noreferrer');
-                                                            }}
-                                                        >
-                                                            <ExternalLinkIcon className="h-3.5 w-3.5" />
-                                                            <span className="sr-only">Open in new tab</span>
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent side="top">
-                                                        <p>Open in new tab</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
+
+                                            <div className="flex justify-end mb-1">
+                                                <div className="flex items-center gap-2">
+                                                    <Badge className="bg-primary/15 text-primary border-primary hover:bg-primary/20 whitespace-nowrap">
+                                                        Existing
+                                                    </Badge>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-6 w-6 p-0 rounded-full external-link-btn"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    window.open(getPointUrl(counterpointCandidate.id), '_blank', 'noopener,noreferrer');
+                                                                }}
+                                                            >
+                                                                <ExternalLinkIcon className="h-3.5 w-3.5" />
+                                                                <span className="sr-only">Open in new tab</span>
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top">
+                                                            <p>Open in new tab</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </div>
                                             </div>
+
+                                            <PointStats
+                                                favor={counterpointCandidate.favor}
+                                                amountNegations={counterpointCandidate.amountNegations}
+                                                amountSupporters={counterpointCandidate.amountSupporters}
+                                                cred={counterpointCandidate.cred}
+                                            />
                                         </div>
-                                        <PointStats
-                                            favor={counterpointCandidate.favor}
-                                            amountNegations={counterpointCandidate.amountNegations}
-                                            amountSupporters={counterpointCandidate.amountSupporters}
-                                            cred={counterpointCandidate.cred}
-                                        />
                                     </div>
                                 )
                             )}

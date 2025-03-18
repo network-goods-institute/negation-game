@@ -13,7 +13,8 @@ import {
 } from "@/components/graph/OriginalPosterContext";
 import { NegateDialog } from "@/components/NegateDialog";
 import { PointCard } from "@/components/PointCard";
-import { AuthenticatedActionButton, Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
 import { Separator } from "@/components/ui/separator";
 import { Dynamic } from "@/components/utils/Dynamic";
 import { useBasePath } from "@/hooks/useBasePath";
@@ -358,13 +359,27 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
       // Get the current space
       const currentSpace = space?.data?.id || 'default';
 
-      // Use the original viewpoint state from DB, not the edited state
-      const regeneratedGraph = regenerateGraphIds(viewpoint.graph);
+      // Get the current graph state directly from reactFlow if available
+      // This ensures we capture the exact current state including any changes
+      let currentGraph;
+      if (reactFlow) {
+        currentGraph = {
+          nodes: reactFlow.getNodes(),
+          edges: reactFlow.getEdges()
+        };
+      } else if (localGraph) {
+        // Fallback to localGraph if reactFlow instance isn't available
+        currentGraph = localGraph;
+      } else {
+        currentGraph = viewpoint.graph;
+      }
+
+      const regeneratedGraph = regenerateGraphIds(currentGraph);
 
       // Store the viewpoint data in session storage with space information
       const viewpointData = {
-        title: viewpoint.title,
-        description: viewpoint.description,
+        title: editableTitle,
+        description: editableDescription,
         graph: regeneratedGraph,
         sourceSpace: currentSpace,
       };
@@ -380,7 +395,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
       alert("Failed to copy rationale. Please try again.");
       setIsCopying(false);
     }
-  }, [viewpoint, router, basePath, space?.data?.id]);
+  }, [viewpoint, router, basePath, space?.data?.id, reactFlow, localGraph, editableTitle, editableDescription]);
 
   const handleCopyUrl = useCallback(() => {
     const url = window.location.href;
@@ -479,13 +494,15 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                 </Button>
                 <Button
                   variant="outline"
-                  size="icon"
                   className={cn(
-                    "rounded-full p-2 size-9",
+                    "rounded-full flex items-center gap-2 px-4",
                     isCopyingUrl && "text-green-500 border-green-500"
                   )}
                   onClick={handleCopyUrl}
                 >
+                  <span className="text-sm font-bold">
+                    {isCopyingUrl ? "Copied!" : "Copy Link"}
+                  </span>
                   {isCopyingUrl ? (
                     <CheckIcon className="size-4" />
                   ) : (

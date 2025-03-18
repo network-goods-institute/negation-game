@@ -150,7 +150,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     charactersLeft >= 0 && counterpointContent.length >= POINT_MIN_LENGTH;
 
   const canSubmit = selectedCounterpointCandidate?.isCounterpoint
-    ? cred > 0
+    ? true
     : charactersLeft >= 0 && counterpointContent.length >= POINT_MIN_LENGTH;
 
   // Only reset necessary state
@@ -286,7 +286,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                   "w-px -my-px flex-grow border-l border-muted-foreground",
                   (!selectedCounterpointCandidate ||
                     !selectedCounterpointCandidate.isCounterpoint) &&
-                  "border-dashed border-endorsed"
+                  "border-dashed border-primary/70"
                 )}
               />
             </div>
@@ -303,11 +303,11 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                 className={cn(
                   "shrink-0 size-6 stroke-1 text-muted-foreground",
                   !selectedCounterpointCandidate &&
-                  "circle-dashed-2 text-endorsed"
+                  "circle-dashed-2 text-primary"
                 )}
               />
               {cred > 0 && (
-                <span className="relative text-endorsed text-xs">
+                <span className="relative text-primary text-xs">
                   <span className="absolute -left-2">+</span>
                   {cred}
                 </span>
@@ -344,6 +344,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                   credInput={cred}
                   setCredInput={setCred}
                   notEnoughCred={notEnoughCred}
+                  allowZero={true}
                 />
               </div>
             ) : (

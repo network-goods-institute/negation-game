@@ -21,7 +21,8 @@ import {
 import { NegateDialog } from "@/components/NegateDialog";
 import { PointCard } from "@/components/PointCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { AuthenticatedActionButton, Button } from "@/components/ui/button";
+import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";

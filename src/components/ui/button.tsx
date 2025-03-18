@@ -1,11 +1,9 @@
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import * as React from "react";
-import { useState } from "react";
 
 import { Loader } from "@/components/ui/loader";
 import { cn } from "@/lib/cn";
-import { usePrivy } from "@privy-io/react-auth";
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
@@ -102,40 +100,5 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 );
 Button.displayName = "Button";
 
-const AuthenticatedActionButton = ({ onClick, ...props }: ButtonProps) => {
-  const { user, login, authenticated, ready, getAccessToken } = usePrivy();
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const handleClick = React.useCallback(async (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
-    // Prevent default to handle auth flow
-    e.preventDefault();
-
-    // Check if auth is ready and user is authenticated
-    if (ready && authenticated) {
-      try {
-        setIsRefreshing(true);
-        const token = await getAccessToken();
-
-        if (!token) {
-          login();
-          return;
-        }
-
-        onClick?.(e);
-      } catch (error) {
-        login();
-      } finally {
-        setIsRefreshing(false);
-      }
-    } else {
-      // Force a login refresh
-      login();
-    }
-  }, [authenticated, ready, onClick, login, getAccessToken]);
-
-  const rightLoading = props.rightLoading || isRefreshing;
-
-  return <Button {...props} onClick={handleClick} rightLoading={rightLoading} />;
-};
-
-export { AuthenticatedActionButton, Button, buttonVariants };
+export { Button, buttonVariants };

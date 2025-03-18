@@ -31,7 +31,7 @@ import React from "react";
 import { updateViewpointGraph } from "@/actions/updateViewpointGraph";
 import { useParams } from "next/navigation";
 import { useViewpoint } from "@/queries/useViewpoint";
-import { AuthenticatedActionButton } from "@/components/ui/button";
+import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
 
 function debounce<T extends (...args: any[]) => any>(
   func: T,
