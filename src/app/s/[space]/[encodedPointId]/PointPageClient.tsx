@@ -448,7 +448,11 @@ export function PointPageClient({
                                         "p-2  rounded-full size-fit hover:bg-primary/30",
                                         "@md/point:border @md/point:px-4"
                                     )}
-                                    onClick={() => handleNegate(point.pointId)}
+                                    onClick={() => {
+                                        if (point?.pointId) {
+                                            handleNegate(point.pointId);
+                                        }
+                                    }}
                                 >
                                     <NegateIcon className="@md/point:hidden" />
                                     <span className="hidden @md/point:inline">Negate</span>
@@ -660,7 +664,11 @@ export function PointPageClient({
                                                 <PointCard
                                                     onNegate={(e) => {
                                                         e.preventDefault();
-                                                        loginOrMakePoint();
+                                                        if (privyUser === null) {
+                                                            login();
+                                                            return;
+                                                        }
+                                                        handleNegate(negation.pointId);
                                                     }}
                                                     className="flex-grow -mt-3.5 pb-3"
                                                     favor={negation.favor}

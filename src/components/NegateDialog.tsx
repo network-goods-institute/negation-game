@@ -1,5 +1,5 @@
 import { reviewProposedCounterpointAction } from "@/actions/reviewProposedCounterpointAction";
-import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
+import { negatedPointIdAtom, negatedPointIdDebugAtom } from "@/atoms/negatedPointIdAtom";
 import { negationContentAtom } from "@/atoms/negationContentAtom";
 import { CredInput } from "@/components/CredInput";
 import { PointEditor } from "@/components/PointEditor";
@@ -47,12 +47,13 @@ export interface NegateDialogProps
   extends Omit<DialogProps, "open" | "onOpenChange"> { }
 
 export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
-  const [negatedPointId, setNegatedPointId] = useAtom(negatedPointIdAtom);
+  const [negatedPointId, setNegatedPointId] = useAtom(negatedPointIdDebugAtom);
   const { data: negatedPoint } = usePointData(negatedPointId);
   const [counterpointContent, setCounterpointContent] = useAtom(
     negationContentAtom(negatedPoint?.pointId)
   );
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [suggestionsViewed, setSuggestionsViewed] = useState(false);
   const {
     credInput: cred,
     setCredInput: setCred,
@@ -102,6 +103,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
       });
 
       setGuidanceNotes(undefined);
+      setSuggestionsViewed(false);
 
       //set the review results cache for rephrasings so that the user is not forced to review again if he picks one
       reviewResults.suggestions.forEach((selectedSuggestion) =>
@@ -138,11 +140,17 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     setGuidanceNotes(undefined);
     resetCred();
     setCounterpointContent("");
+    setSuggestionsViewed(false);
   }, [resetCred, setCounterpointContent]);
 
   useEffect(() => {
     if (!negatedPointId) resetForm();
   }, [negatedPointId, resetForm]);
+
+  // Debug effect to track negatedPointId changes
+  useEffect(() => {
+    console.log("negatedPointId changed:", negatedPointId);
+  }, [negatedPointId]);
 
   const handleSubmit = useCallback(() => {
     if (!canSubmit || isSubmitting) return;
@@ -200,11 +208,8 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     // Only submit if we have explicitly selected a counterpoint candidate
     // or if we've reviewed and closed the suggestions popover
     if (
-      counterpointWasReviewed &&
-      !reviewIsStale &&
-      canSubmit &&
-      !isSubmitting &&
-      !reviewDialogOpen
+      (counterpointWasReviewed && !reviewIsStale && canSubmit && !isSubmitting && !reviewDialogOpen) ||
+      (suggestionsViewed && canSubmit && !isSubmitting)
     ) {
       handleSubmit();
     }
@@ -217,6 +222,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     canSubmit,
     isSubmitting,
     reviewDialogOpen,
+    suggestionsViewed,
     reviewCounterpoint,
     handleSubmit,
   ]);
@@ -233,8 +239,14 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     <>
       <Dialog
         {...props}
-        open={!!negatedPointId}
-        onOpenChange={(isOpen) => !isOpen && setNegatedPointId(undefined)}
+        open={negatedPointId !== undefined}
+        onOpenChange={(open) => {
+          console.log("NegateDialog onOpenChange called with:", open);
+          if (open === false) {
+            console.log("NegateDialog closing, setting negatedPointId to undefined");
+            setNegatedPointId(undefined);
+          }
+        }}
       >
         <DialogContent className="@container sm:top-xl flex flex-col overflow-hidden sm:translate-y-0 h-full rounded-none sm:rounded-md sm:h-fit gap-0 bg-background p-4 sm:p-8 shadow-sm w-full max-w-xl max-h-[90vh]">
           <div className="w-full flex items-center justify-between mb-xl">
@@ -353,11 +365,17 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
 
               {reviewResults && (
                 <Button
+                  variant={suggestionsViewed ? "outline" : "default"}
                   className="min-w-28 w-full xs:w-fit"
-                  onClick={() => setReviewDialogOpen(true)}
+                  onClick={() => {
+                    setReviewDialogOpen(true);
+                  }}
                 >
                   Review suggestions{" "}
-                  <Badge className="bg-white text-primary ml-2 px-1.5">
+                  <Badge className={cn(
+                    "ml-2 px-1.5",
+                    suggestionsViewed ? "bg-muted text-muted-foreground" : "bg-white text-primary"
+                  )}>
                     {reviewResults.existingSimilarCounterpoints.length +
                       reviewResults.suggestions.length}
                   </Badge>
@@ -369,18 +387,18 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
               <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
                   <Button
-                    disabled={!canReview || isReviewingCounterpoint || isSubmitting}
+                    disabled={!canReview || (isReviewingCounterpoint && !suggestionsViewed) || isSubmitting}
                     className="min-w-28 w-full xs:w-fit"
                     rightLoading={isReviewingCounterpoint || isSubmitting}
                     onClick={(e) => {
-                      if (e.altKey) {
+                      if (e.altKey || suggestionsViewed) {
                         handleSubmit();
                         return;
                       }
                       reviewCounterpoint();
                     }}
                   >
-                    {isSubmitting ? "Negating..." : isReviewingCounterpoint ? "Reviewing..." : "Review & Negate"}
+                    {isSubmitting ? "Negating..." : isReviewingCounterpoint ? "Reviewing..." : suggestionsViewed ? "Negate" : "Review & Negate"}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="text-xs">
@@ -395,7 +413,12 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
       {reviewResults && (
         <Dialog
           open={reviewDialogOpen}
-          onOpenChange={setReviewDialogOpen}
+          onOpenChange={(open) => {
+            setReviewDialogOpen(open);
+            if (!open) {
+              setSuggestionsViewed(true);
+            }
+          }}
           modal={true}
         >
           <DialogContent
