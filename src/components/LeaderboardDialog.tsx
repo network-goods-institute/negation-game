@@ -177,7 +177,7 @@ export const LeaderboardDialog = ({
                                         </span>
                                     </div>
                                     <div className="text-xs text-muted-foreground mt-0.5">
-                                        {currentUserData.viewpoints} rationales · {currentUserData.points} points · {currentUserData.reputation}% reputation
+                                        {currentUserData.viewpoints} rationales · {currentUserData.points} points · {Math.round(currentUserData.reputation)}% reputation
                                     </div>
                                 </div>
                             </div>
@@ -308,7 +308,7 @@ export const LeaderboardDialog = ({
                                                     </td>
                                                     <td className="py-2 px-2 text-sm text-right">{user.points}</td>
                                                     <td className="py-2 px-2 text-sm text-right">{user.viewpoints}</td>
-                                                    <td className="py-2 px-2 text-sm text-right">{user.reputation}%</td>
+                                                    <td className="py-2 px-2 text-sm text-right">{Math.round(user.reputation)}%</td>
                                                     <td className="py-2 px-3 text-sm text-right">{user.cred}</td>
                                                 </tr>
                                             ))}
@@ -343,7 +343,7 @@ export const LeaderboardDialog = ({
                                                     <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-2">
                                                         <span>{user.viewpoints} rationales</span>
                                                         <span>{user.points} points</span>
-                                                        <span>{user.reputation}% reputation</span>
+                                                        <span>{Math.round(user.reputation)}% reputation</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -380,4 +380,4 @@ export const LeaderboardDialog = ({
             </DialogContent>
         </Dialog>
     );
-}; 
+};
