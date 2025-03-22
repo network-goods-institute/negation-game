@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/cn";
-import { EyeIcon, CopyIcon, CoinsIcon } from "lucide-react";
+import { EyeIcon, CopyIcon, CoinsIcon, TrendingUpIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { fetchPoints } from "@/actions/fetchPoints";
 import { useQuery } from "@tanstack/react-query";
@@ -19,6 +19,7 @@ export const ViewpointStatsBar: React.FC<ViewpointStatsBarProps> = ({
     className,
 }) => {
     const [totalCred, setTotalCred] = useState<number>(0);
+    const [totalFavor, setTotalFavor] = useState<number>(0);
     const [isCalculating, setIsCalculating] = useState<boolean>(false);
 
     const validPointIds = useMemo(() =>
@@ -35,24 +36,33 @@ export const ViewpointStatsBar: React.FC<ViewpointStatsBarProps> = ({
         staleTime: 5 * 60 * 1000, // 5 minutes
     });
 
-    // Calculate total cred when points data is available
+    // Calculate total cred and favor when points data is available
     useEffect(() => {
         if (isLoading) {
             setIsCalculating(true);
             return;
         }
 
-        if (!pointsData) {
+        if (!pointsData || pointsData.length === 0) {
             setTotalCred(0);
+            setTotalFavor(0);
             setIsCalculating(false);
             return;
         }
 
-        const total = pointsData.reduce((sum, point) => {
+        const totalCredSum = pointsData.reduce((sum, point) => {
             return sum + (point?.cred || 0);
         }, 0);
 
-        setTotalCred(total);
+        // Calculate average favor (sum of all favor divided by number of points)
+        const totalFavorSum = pointsData.reduce((sum, point) => {
+            return sum + (point?.favor || 0);
+        }, 0);
+
+        const avgFavor = pointsData.length > 0 ? Math.round(totalFavorSum / pointsData.length) : 0;
+
+        setTotalCred(totalCredSum);
+        setTotalFavor(avgFavor);
         setIsCalculating(false);
     }, [pointsData, isLoading]);
 
@@ -94,23 +104,43 @@ export const ViewpointStatsBar: React.FC<ViewpointStatsBarProps> = ({
                 </Tooltip>
 
                 {validPointIds.length > 0 && (
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <div className="flex items-center gap-1.5">
-                                <CoinsIcon className="size-3.5" />
-                                <span>
-                                    {isCalculating ? "Calculating..." : formatNumber(totalCred)}
-                                </span>
-                            </div>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" className="text-xs">
-                            <p>
-                                {isCalculating
-                                    ? "Calculating total cred..."
-                                    : `${totalCred} total cred endorsed`}
-                            </p>
-                        </TooltipContent>
-                    </Tooltip>
+                    <>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="flex items-center gap-1.5">
+                                    <CoinsIcon className="size-3.5" />
+                                    <span>
+                                        {isCalculating ? "Calculating..." : formatNumber(totalCred)}
+                                    </span>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="text-xs">
+                                <p>
+                                    {isCalculating
+                                        ? "Calculating total cred..."
+                                        : `${totalCred} total cred endorsed`}
+                                </p>
+                            </TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="flex items-center gap-1.5">
+                                    <TrendingUpIcon className="size-3.5" />
+                                    <span>
+                                        {isCalculating ? "Calculating..." : `${totalFavor}`}
+                                    </span>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="text-xs">
+                                <p>
+                                    {isCalculating
+                                        ? "Calculating average favor..."
+                                        : `Average favor: ${totalFavor}`}
+                                </p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </>
                 )}
             </div>
         </TooltipProvider>

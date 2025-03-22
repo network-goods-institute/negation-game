@@ -3,28 +3,32 @@ import { render, screen, waitFor } from "@/__tests__/utils/test-utils";
 import { ViewpointStatsBar } from "../ViewpointStatsBar";
 
 // Mock fetchPoints and useQuery
+const mockFetchPoints = jest.fn();
 jest.mock("@/actions/fetchPoints", () => ({
-    fetchPoints: jest.fn().mockImplementation(async (ids: number[]) => {
-        // Return mock points based on ids
-        return ids.map(id => ({
-            pointId: id,
-            cred: id === 1 ? 100 : id === 2 ? 200 : 150,
-            content: `Point ${id}`,
-            createdAt: new Date(),
-            createdBy: "testUser",
-            amountSupporters: 0,
-            amountNegations: 0,
-            negationsCred: 0,
-            favor: 0,
-            space: "test-space",
-            negationIds: [],
-        }));
-    }),
+    fetchPoints: (...args: any[]) => mockFetchPoints(...args)
 }));
 
-jest.mock("@tanstack/react-query", () => ({
-    ...jest.requireActual("@tanstack/react-query"),
-    useQuery: jest.fn().mockImplementation(({ queryKey, queryFn, enabled }) => {
+// Initial mock implementation
+mockFetchPoints.mockImplementation(async (ids: number[]) => {
+    // Return mock points based on ids
+    return ids.map(id => ({
+        pointId: id,
+        cred: id === 1 ? 100 : id === 2 ? 200 : 150,
+        content: `Point ${id}`,
+        createdAt: new Date(),
+        createdBy: "testUser",
+        amountSupporters: 0,
+        amountNegations: 0,
+        negationsCred: 0,
+        favor: 0,
+        space: "test-space",
+        negationIds: [],
+    }));
+});
+
+jest.mock("@tanstack/react-query", () => {
+    const original = jest.requireActual("@tanstack/react-query");
+    let mockQueryFn = jest.fn().mockImplementation(({ queryKey, queryFn, enabled }) => {
         if (queryKey[0] === 'viewpoint-stats-points') {
             const pointIds = queryKey[1];
             if (!enabled || pointIds.length === 0) {
@@ -38,10 +42,10 @@ jest.mock("@tanstack/react-query", () => ({
 
             // Return mock data
             const mockData = [
-                { pointId: 1, cred: 100 },
-                { pointId: 2, cred: 200 },
-                { pointId: 3, cred: 150 },
-                { pointId: 4, cred: 1000 }
+                { pointId: 1, cred: 100, favor: 0 },
+                { pointId: 2, cred: 200, favor: 0 },
+                { pointId: 3, cred: 150, favor: 0 },
+                { pointId: 4, cred: 1000, favor: 0 }
             ].filter(p => pointIds.includes(p.pointId));
 
             return {
@@ -50,8 +54,13 @@ jest.mock("@tanstack/react-query", () => ({
             };
         }
         return { data: null, isLoading: false };
-    }),
-}));
+    });
+
+    return {
+        ...original,
+        useQuery: mockQueryFn,
+    };
+});
 
 describe("ViewpointStatsBar", () => {
     it("renders view and copy counts", () => {
@@ -118,10 +127,11 @@ describe("ViewpointStatsBar", () => {
         render(<ViewpointStatsBar views={100} copies={50} pointIds={[999]} />);
 
         // Should show "Calculating..." while loading
-        expect(screen.getByText("Calculating...")).toBeInTheDocument();
+        const credCalculatingElement = screen.getAllByText("Calculating...")[0];
+        expect(credCalculatingElement).toBeInTheDocument();
 
         // Check for the coins icon
-        const coinsIcon = screen.getByText("Calculating...").closest('div')?.querySelector('.lucide-coins');
+        const coinsIcon = credCalculatingElement.closest('div')?.querySelector('.lucide-coins');
         expect(coinsIcon).toBeInTheDocument();
     });
 
@@ -140,5 +150,38 @@ describe("ViewpointStatsBar", () => {
         await waitFor(() => {
             expect(screen.getByText("1.0k")).toBeInTheDocument();
         });
+    });
+
+    it("calculates and displays average favor for provided point IDs", async () => {
+        // Directly populate the actual useEffect logic with our mock data to ensure proper calculation
+        const mockData = [
+            { pointId: 1, cred: 100, favor: 20 },
+            { pointId: 2, cred: 100, favor: 40 },
+            { pointId: 3, cred: 100, favor: 60 }
+        ];
+
+        // Mock the useQuery hook to return our controlled data
+        const useQueryMock = jest.requireMock("@tanstack/react-query").useQuery;
+        useQueryMock.mockImplementation(({ queryKey }: any) => {
+            if (queryKey[0] === 'viewpoint-stats-points') {
+                return {
+                    data: mockData,
+                    isLoading: false
+                };
+            }
+            return { data: null, isLoading: false };
+        });
+
+        render(<ViewpointStatsBar views={100} copies={50} pointIds={[1, 2, 3]} />);
+
+        // The average favor should be 40 (20 + 40 + 60) / 3
+        await waitFor(() => {
+            // Look for the exact value without the % sign
+            expect(screen.getByText("40")).toBeInTheDocument();
+        });
+
+        // Check for the trending up icon
+        const trendingUpIcon = screen.getByText("40").closest('div')?.querySelector('.lucide-trending-up');
+        expect(trendingUpIcon).toBeInTheDocument();
     });
 }); 
