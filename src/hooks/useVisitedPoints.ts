@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { usePrivy } from "@privy-io/react-auth";
 
 const DB_NAME = "appStorage";
 const STORE_NAME = "visitedPoints";
@@ -11,7 +12,7 @@ type VisitedCache = {
   lastUpdated: number;
 };
 
-let dbPromise: Promise<IDBDatabase>;
+let dbPromise: Promise<IDBDatabase> | null = null;
 let writeQueue = new Map<number, number>();
 let writeTimeout: NodeJS.Timeout | null = null;
 let memoryCache: VisitedCache = {
@@ -19,14 +20,21 @@ let memoryCache: VisitedCache = {
   lastUpdated: 0,
 };
 
-// Initialize database connection during app load
-if (typeof window !== "undefined") {
+// Initialize database connection during app load - but only in browser environments
+if (typeof window !== "undefined" && typeof window.indexedDB !== "undefined") {
   initializeDb();
 }
 
 function initializeDb() {
+  if (
+    typeof window === "undefined" ||
+    typeof window.indexedDB === "undefined"
+  ) {
+    return Promise.resolve(null);
+  }
+
   return (dbPromise = new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 2);
+    const request = window.indexedDB.open(DB_NAME, 2);
 
     request.onupgradeneeded = (event) => {
       const db = request.result;
@@ -65,9 +73,11 @@ async function pruneOldEntries(db: IDBDatabase) {
 }
 
 async function bulkWritePoints() {
-  if (writeQueue.size === 0) return;
+  if (writeQueue.size === 0 || !dbPromise) return;
 
   const db = await dbPromise;
+  if (!db) return;
+
   const transaction = db.transaction(STORE_NAME, "readwrite");
   const store = transaction.objectStore(STORE_NAME);
   const entries = Array.from(writeQueue.entries()).map(
@@ -85,7 +95,11 @@ async function bulkWritePoints() {
 async function bulkReadPoints(
   pointIds: number[]
 ): Promise<Map<number, boolean>> {
+  if (!dbPromise) return new Map();
+
   const db = await dbPromise;
+  if (!db) return new Map();
+
   return new Promise((resolve) => {
     const results = new Map<number, boolean>();
     const transaction = db.transaction(STORE_NAME, "readonly");
@@ -111,16 +125,26 @@ async function bulkReadPoints(
 
 export function useVisitedPoints() {
   const [isDbReady, setIsDbReady] = useState(false);
+  const { user } = usePrivy();
 
   useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      typeof window.indexedDB === "undefined"
+    ) {
+      return;
+    }
+
     initializeDb()
-      .then(() => setIsDbReady(true))
+      .then((db) => {
+        if (db) setIsDbReady(true);
+      })
       .catch(console.error);
   }, []);
 
   const markPointAsRead = useCallback(
     (pointId: number) => {
-      if (!isDbReady) return;
+      if (!isDbReady || !user) return;
 
       // Batch writes
       writeQueue.set(pointId, Date.now());
@@ -130,12 +154,12 @@ export function useVisitedPoints() {
       // Optimistic UI update
       memoryCache.entries.set(pointId, true);
     },
-    [isDbReady]
+    [isDbReady, user]
   );
 
   const arePointsVisited = useCallback(
     async (pointIds: number[]) => {
-      if (!isDbReady) return new Map<number, boolean>();
+      if (!isDbReady || !user) return new Map<number, boolean>();
 
       // Cache-first strategy
       if (Date.now() - memoryCache.lastUpdated < CACHE_TTL) {
@@ -150,12 +174,14 @@ export function useVisitedPoints() {
       memoryCache.lastUpdated = Date.now();
       return dbResults;
     },
-    [isDbReady]
+    [isDbReady, user]
   );
 
   const isVisited = useCallback(
     async (pointId: number) => {
-      if (!isDbReady) return true;
+      // Always return true if user is not logged in
+      if (!isDbReady || !user) return true;
+
       if (memoryCache.entries.has(pointId))
         return memoryCache.entries.get(pointId)!;
 
@@ -168,7 +194,7 @@ export function useVisitedPoints() {
 
       return visited;
     },
-    [isDbReady]
+    [isDbReady, user]
   );
 
   return { isVisited, arePointsVisited, markPointAsRead };

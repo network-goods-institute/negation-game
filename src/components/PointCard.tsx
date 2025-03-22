@@ -196,6 +196,9 @@ export const PointCard = ({
 
   // Only check visited state once on mount
   useEffect(() => {
+    // Only check visited state if user is logged in
+    if (!privyUser) return;
+
     let mounted = true;
     isVisited(pointId).then((result) => {
       if (mounted && !result) {  // Only update state if not visited and component still mounted
@@ -214,7 +217,7 @@ export const PointCard = ({
       }
     });
     return () => { mounted = false; };
-  }, [pointId, isVisited, setVisitedPoints]);
+  }, [pointId, isVisited, setVisitedPoints, privyUser]);
 
   const parsePinCommand = useMemo(() => {
     // Prevent showing pin commands when space is undefined or global
@@ -562,7 +565,7 @@ export const PointCard = ({
           </Portal>
         </Tooltip>
       )}
-      {!visited && (
+      {!visited && privyUser && (
         <div className="absolute top-0.5 right-3 group flex items-center gap-2">
           <span className="text-sm text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
             Tap to mark seen
