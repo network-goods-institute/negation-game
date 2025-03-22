@@ -31,6 +31,7 @@ export interface ViewpointCardProps extends Omit<React.HTMLAttributes<HTMLAnchor
     statistics?: {
         views: number;
         copies: number;
+        pointIds?: number[];
     };
 }
 
@@ -95,13 +96,12 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                 <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
                     <span>By <span className="font-bold text-yellow-500">{author}</span></span>
                     <div className="flex items-center gap-2">
-                        {statistics && (
-                            <ViewpointStatsBar
-                                views={statistics.views}
-                                copies={statistics.copies}
-                                className="mr-2"
-                            />
-                        )}
+                        <ViewpointStatsBar
+                            views={statistics?.views || 0}
+                            copies={statistics?.copies || 0}
+                            pointIds={statistics?.pointIds || []}
+                            className="mr-2"
+                        />
                         <Badge variant="secondary" className="text-xs">
                             {new Date(createdAt).toLocaleDateString()}
                         </Badge>
@@ -168,13 +168,12 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                             By <span className="font-bold text-yellow-500">{author}</span>
                         </div>
 
-                        {statistics && (
-                            <ViewpointStatsBar
-                                views={statistics.views}
-                                copies={statistics.copies}
-                                className="mb-2"
-                            />
-                        )}
+                        <ViewpointStatsBar
+                            views={statistics?.views || 0}
+                            copies={statistics?.copies || 0}
+                            pointIds={statistics?.pointIds || []}
+                            className="mb-2"
+                        />
 
                         <div className="prose dark:prose-invert max-w-none text-sm [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic">
                             <DynamicMarkdown remarkPlugins={[remarkGfm]}>

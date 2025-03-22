@@ -138,6 +138,23 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
         );
     } else if (item.type === 'rationale') {
         const viewpoint = item.data;
+
+        let pointIds: number[] = viewpoint.originalPointIds || [];
+
+        if ((!pointIds || pointIds.length === 0) && viewpoint.graph?.nodes) {
+            try {
+                pointIds = viewpoint.graph.nodes
+                    .filter((node: any) => node.type === 'point')
+                    .map((node: any) => {
+                        const id = node.data?.pointId;
+                        return typeof id === 'number' ? id : null;
+                    })
+                    .filter((id: any) => id !== null);
+
+            } catch (error) {
+            }
+        }
+
         return (
             <Link
                 draggable={false}
@@ -152,6 +169,11 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                     author={viewpoint.author || ''}
                     createdAt={new Date(viewpoint.createdAt)}
                     space={space || "global"}
+                    statistics={{
+                        views: viewpoint.statistics?.views || 0,
+                        copies: viewpoint.statistics?.copies || 0,
+                        pointIds: pointIds
+                    }}
                     linkable={false}
                 />
             </Link>
@@ -317,6 +339,18 @@ const PointsTabContent = memo(({ points, isLoading, combinedFeed, basePath, spac
 PointsTabContent.displayName = 'PointsTabContent';
 
 const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, space, handleNewViewpoint }: any) => {
+    useEffect(() => {
+        if (viewpoints && viewpoints.length > 0) {
+
+            const sample = viewpoints[0];
+            if (sample.graph && sample.graph.nodes) {
+                sample.graph.nodes
+                    .filter((node: any) => node.type === 'point')
+                    .map((node: any) => node.data?.pointId)
+            }
+        }
+    }, [viewpoints]);
+
     if (viewpoints === undefined || viewpointsLoading) {
         return <Loader className="absolute self-center my-auto top-0 bottom-0" />;
     }
@@ -334,18 +368,43 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
     }
 
     return (
-        viewpoints.map((viewpoint: { id: string; title: string; description: string; author: string; createdAt: string; space?: string }) => (
-            <ViewpointCard
-                key={`rationales-tab-${viewpoint.id}`}
-                id={viewpoint.id}
-                title={viewpoint.title}
-                description={viewpoint.description}
-                author={viewpoint.author}
-                createdAt={new Date(viewpoint.createdAt)}
-                space={space || "global"}
-                linkable={true}
-            />
-        ))
+        viewpoints.map((viewpoint: any) => {
+
+            let pointIds: number[] = viewpoint.originalPointIds || [];
+
+            if ((!pointIds || pointIds.length === 0) && viewpoint.graph?.nodes) {
+                try {
+                    pointIds = viewpoint.graph.nodes
+                        .filter((node: any) => node.type === 'point')
+                        .map((node: any) => {
+
+                            const id = node.data?.pointId;
+                            return typeof id === 'number' ? id : null;
+                        })
+                        .filter((id: any) => id !== null);
+
+                } catch (error) {
+                }
+            }
+
+            return (
+                <ViewpointCard
+                    key={`rationales-tab-${viewpoint.id}`}
+                    id={viewpoint.id}
+                    title={viewpoint.title}
+                    description={viewpoint.description}
+                    author={viewpoint.author}
+                    createdAt={new Date(viewpoint.createdAt)}
+                    space={space || "global"}
+                    statistics={{
+                        views: viewpoint.statistics?.views || 0,
+                        copies: viewpoint.statistics?.copies || 0,
+                        pointIds: pointIds
+                    }}
+                    linkable={true}
+                />
+            );
+        })
     );
 });
 RationalesTabContent.displayName = 'RationalesTabContent';
