@@ -21,6 +21,7 @@ import type { ProfilePoint } from "@/actions/fetchProfilePoints";
 import React from "react";
 import { useUserEndorsedPoints } from "@/queries/useUserEndorsedPoints";
 import { ProfileEditDialog } from "@/components/ProfileEditDialog";
+import { getBackButtonHandler } from "@/utils/backButtonUtils";
 
 interface ProfilePageProps {
     params: Promise<{
@@ -137,6 +138,8 @@ export default function ProfilePage({ params }: ProfilePageProps) {
         });
     }, [pointsBySpace, userViewpoints]);
 
+    const handleBackClick = getBackButtonHandler(router);
+
     // Loading states should be checked after all hooks are called
     if (!ready || isLoadingPoints || isLoadingViewpoints || isLoadingEndorsedPoints) {
         return (
@@ -155,18 +158,13 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                 <div className="w-full sm:col-[2] flex flex-col border-x">
                     <div className="sticky top-0 z-10 w-full flex items-center gap-3 px-4 py-3 bg-background/70 backdrop-blur">
                         <Button
-                            variant="link"
-                            size="icon"
-                            className="text-foreground -ml-3"
-                            onClick={() => {
-                                if (window.history.state?.idx > 0) {
-                                    router.back();
-                                    return;
-                                }
-                                router.push("/");
-                            }}
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-1.5 px-2 rounded-md -ml-1"
+                            onClick={handleBackClick}
                         >
-                            <ArrowLeftIcon />
+                            <ArrowLeftIcon className="size-4" />
+                            <span className="text-sm">Back</span>
                         </Button>
                     </div>
                     <div className="flex flex-col items-center justify-center flex-grow gap-3 p-8 text-center">
@@ -189,18 +187,13 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                 <div className="w-full sm:col-[2] flex flex-col border-x">
                     <div className="sticky top-0 z-10 w-full flex items-center gap-3 px-4 py-3 bg-background/70 backdrop-blur">
                         <Button
-                            variant="link"
-                            size="icon"
-                            className="text-foreground -ml-3"
-                            onClick={() => {
-                                if (window.history.state?.idx > 0) {
-                                    router.back();
-                                    return;
-                                }
-                                router.push("/");
-                            }}
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-1.5 px-2 rounded-md -ml-1"
+                            onClick={handleBackClick}
                         >
-                            <ArrowLeftIcon />
+                            <ArrowLeftIcon className="size-4" />
+                            <span className="text-sm">Back</span>
                         </Button>
                     </div>
                     <div className="flex flex-col items-center justify-center flex-grow gap-3 p-8 text-center">
@@ -222,18 +215,13 @@ export default function ProfilePage({ params }: ProfilePageProps) {
             <div className="w-full sm:col-[2] flex flex-col border-x">
                 <div className="sticky top-0 z-10 w-full flex items-center gap-3 px-4 py-3 bg-background/70 backdrop-blur">
                     <Button
-                        variant="link"
-                        size="icon"
-                        className="text-foreground -ml-3"
-                        onClick={() => {
-                            if (window.history.state?.idx > 0) {
-                                router.back();
-                                return;
-                            }
-                            router.push("/");
-                        }}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-1.5 px-2 rounded-md -ml-1"
+                        onClick={handleBackClick}
                     >
-                        <ArrowLeftIcon />
+                        <ArrowLeftIcon className="size-4" />
+                        <span className="text-sm">Back</span>
                     </Button>
                     <h1 className="text-xl font-medium">Profile</h1>
                 </div>
