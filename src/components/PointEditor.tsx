@@ -21,6 +21,7 @@ export interface PointEditorProps extends HTMLAttributes<HTMLDivElement> {
   textareaClassName?: string;
   compact?: boolean;
   allowZero?: boolean;
+  parentNodeType?: string;
 }
 
 export const PointEditor: FC<PointEditorProps> = ({
@@ -31,7 +32,8 @@ export const PointEditor: FC<PointEditorProps> = ({
   setCred,
   textareaProps,
   textareaClassName,
-  placeholder = "Make your point",
+  parentNodeType,
+  placeholder,
   compact = false,
   allowZero = true,
   guidanceNotes = (
@@ -41,6 +43,9 @@ export const PointEditor: FC<PointEditorProps> = ({
     </>
   ),
 }) => {
+  const defaultPlaceholder = parentNodeType === "statement" ? "Make your option" : "Make your point";
+  const placeholderText = placeholder || defaultPlaceholder;
+
   const charactersLeft = POINT_MAX_LENGTH - content.length;
   const { notEnoughCred } = useCredInput({ cred, setCred });
 
@@ -55,7 +60,7 @@ export const PointEditor: FC<PointEditorProps> = ({
           "w-full rounded-none !ring-0 !ring-offset-0 tracking-tight text-md border-none @sm/point:text-lg p-2 focus-visible:outline-none",
           textareaClassName
         )}
-        placeholder={placeholder}
+        placeholder={placeholderText}
         {...textareaProps}
       />
       <Separator className="w-full" />

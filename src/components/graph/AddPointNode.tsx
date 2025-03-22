@@ -55,6 +55,10 @@ export const AddPointNode = ({
   const collapsedPointIds = useAtomValue(collapsedPointIdsAtom);
   const setCollapsedPointIds = useSetAtom(collapsedPointIdsAtom);
 
+  const parentNode = getNode(parentId);
+  const isParentStatement = parentNode?.type === "statement";
+  const buttonText = isParentStatement ? "Make Option" : "Make Point";
+
   const existingPointIds = useMemo(() => {
     const nodes = getNodes().filter((node): node is Node<{ pointId: number }> =>
       node.type === "point" && typeof node.data?.pointId === "number"
@@ -120,6 +124,7 @@ export const AddPointNode = ({
         setCred={setCredInput}
         guidanceNotes={<></>}
         compact={true}
+        parentNodeType={isParentStatement ? "statement" : undefined}
       />
       <div className="flex justify-between gap-2">
         <div className="flex gap-2">
@@ -155,7 +160,7 @@ export const AddPointNode = ({
             disabled={!canMakePoint}
             rightLoading={isMakingPoint}
           >
-            Make Point
+            {buttonText}
           </AuthenticatedActionButton>
         </div>
         {isLoading && <Loader className="m-2" />}
