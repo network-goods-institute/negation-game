@@ -4,6 +4,7 @@ import { EyeIcon, CopyIcon, CoinsIcon, TrendingUpIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { fetchPoints } from "@/actions/fetchPoints";
 import { useQuery } from "@tanstack/react-query";
+import { Portal } from "@radix-ui/react-portal";
 
 interface ViewpointStatsBarProps {
     views: number;
@@ -86,9 +87,11 @@ export const ViewpointStatsBar: React.FC<ViewpointStatsBarProps> = ({
                             <span>{formatNumber(views)}</span>
                         </div>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom" className="text-xs">
-                        <p>{views} views</p>
-                    </TooltipContent>
+                    <Portal>
+                        <TooltipContent side="top" className="text-xs z-[100]">
+                            <p>{views} views</p>
+                        </TooltipContent>
+                    </Portal>
                 </Tooltip>
 
                 <Tooltip>
@@ -98,9 +101,11 @@ export const ViewpointStatsBar: React.FC<ViewpointStatsBarProps> = ({
                             <span>{formatNumber(copies)}</span>
                         </div>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom" className="text-xs">
-                        <p>{copies} copies</p>
-                    </TooltipContent>
+                    <Portal>
+                        <TooltipContent side="top" className="text-xs z-[100]">
+                            <p>{copies} copies</p>
+                        </TooltipContent>
+                    </Portal>
                 </Tooltip>
 
                 {validPointIds.length > 0 && (
@@ -114,13 +119,15 @@ export const ViewpointStatsBar: React.FC<ViewpointStatsBarProps> = ({
                                     </span>
                                 </div>
                             </TooltipTrigger>
-                            <TooltipContent side="bottom" className="text-xs">
-                                <p>
-                                    {isCalculating
-                                        ? "Calculating total cred..."
-                                        : `${totalCred} total cred endorsed`}
-                                </p>
-                            </TooltipContent>
+                            <Portal>
+                                <TooltipContent side="top" className="text-xs z-[100]">
+                                    <p>
+                                        {isCalculating
+                                            ? "Calculating total cred..."
+                                            : `${totalCred} total cred endorsed`}
+                                    </p>
+                                </TooltipContent>
+                            </Portal>
                         </Tooltip>
 
                         <Tooltip>
@@ -132,13 +139,15 @@ export const ViewpointStatsBar: React.FC<ViewpointStatsBarProps> = ({
                                     </span>
                                 </div>
                             </TooltipTrigger>
-                            <TooltipContent side="bottom" className="text-xs">
-                                <p>
-                                    {isCalculating
-                                        ? "Calculating average favor..."
-                                        : `Average favor: ${totalFavor}`}
-                                </p>
-                            </TooltipContent>
+                            <Portal>
+                                <TooltipContent side="top" className="text-xs z-[100]">
+                                    <p>
+                                        {isCalculating
+                                            ? "Calculating viewpoint favor..."
+                                            : `Viewpoint favor: ${totalFavor}`}
+                                    </p>
+                                </TooltipContent>
+                            </Portal>
                         </Tooltip>
                     </>
                 )}
