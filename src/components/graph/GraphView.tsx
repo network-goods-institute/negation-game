@@ -450,7 +450,6 @@ export const GraphView = ({
       rationaleId,
       setIsModified,
       canModify,
-      isNew,
       statement
     ]
   );

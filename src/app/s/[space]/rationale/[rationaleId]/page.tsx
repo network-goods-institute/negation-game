@@ -29,7 +29,6 @@ import { NetworkIcon, CopyIcon, LinkIcon, CheckIcon } from "lucide-react";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import dynamic from 'next/dynamic';
 import remarkGfm from 'remark-gfm';
-import { use } from "react";
 import { useQueryClient } from '@tanstack/react-query';
 import { useUpdateViewpointDetails } from "@/mutations/useUpdateViewpointDetails";
 import { Textarea } from "@/components/ui/textarea";
@@ -44,6 +43,7 @@ import { ReactFlowInstance } from "@xyflow/react";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ViewpointStatsBar } from "@/components/ViewpointStatsBar";
+import { use } from "react";
 
 // Create dynamic ReactMarkdown component
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
@@ -146,7 +146,7 @@ const regenerateGraphIds = (graph: ViewpointGraph): ViewpointGraph => {
 };
 
 // Export the component for testing
-export function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
+function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const basePath = useBasePath();

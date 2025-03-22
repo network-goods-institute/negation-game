@@ -99,73 +99,73 @@ export const SelectNegationDialog: FC<SelectNegationDialogProps> = ({
         open={open && !restakeDialogOpen}
         onOpenChange={onOpenChange}
       >
-        <DialogContent className="flex flex-col gap-6 p-4 sm:p-6 max-w-xl">
-          <div className="flex items-center gap-2">
-            <DialogClose asChild>
-              <Button variant="ghost" size="icon" className="text-primary">
-                <ArrowLeftIcon className="size-5" />
-              </Button>
-            </DialogClose>
+        <DialogContent className="sm:top-xl flex flex-col overflow-hidden sm:translate-y-0 h-full rounded-none sm:rounded-md sm:h-fit gap-0 bg-background p-0 shadow-sm w-full max-w-xl max-h-[85vh]">
+          <div className="w-full flex items-center justify-between p-4 sm:p-6 border-b">
             <DialogTitle>Get higher favor</DialogTitle>
+            <DialogClose className="text-primary">
+              <ArrowLeftIcon className="size-5" />
+            </DialogClose>
           </div>
 
-          <div className="space-y-2">
-            <p className="text-lg font-medium">{originalPoint.content}</p>
-            <span className="inline-flex px-3 py-1 rounded-full bg-endorsed/10 text-endorsed text-sm">
-              {currentFavor} favor
-            </span>
-          </div>
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+            <div className="space-y-2 mb-6">
+              <p className="text-lg font-medium">{originalPoint.content}</p>
+              <span className="inline-flex px-3 py-1 rounded-full bg-endorsed/10 text-endorsed text-sm">
+                {currentFavor} favor
+              </span>
+            </div>
 
-          <div className="text-sm text-muted-foreground space-y-2 bg-muted/30 p-3 rounded-md">
-            <p>
-              Get higher favor for this point. Select a counterpoint that would
-              change your mind if it were true.
-            </p>
-          </div>
+            <div className="text-sm text-muted-foreground space-y-2 bg-muted/30 p-3 rounded-md mb-6">
+              <p>
+                Get higher favor for this point. Select a counterpoint that would
+                change your mind if it were true.
+              </p>
+            </div>
 
-          <Button
-            variant="outline"
-            className="flex items-center gap-2 w-full"
-            onClick={handleCreateNegation}
-          >
-            <PlusIcon className="size-4" />
-            Create new negation
-          </Button>
+            <Button
+              variant="outline"
+              className="flex items-center gap-2 w-full mb-6"
+              onClick={handleCreateNegation}
+            >
+              <PlusIcon className="size-4" />
+              Create new negation
+            </Button>
 
-          {isLoading ? (
-            <Loader className="self-center" />
-          ) : negations?.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-8 text-muted-foreground">
-              <CircleXIcon className="size-12 stroke-1" />
-              <div className="text-center space-y-1">
-                <p>No negations available</p>
-                <p className="text-sm">Create a negation to start restaking</p>
+            {isLoading ? (
+              <Loader className="self-center" />
+            ) : negations?.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 py-8 text-muted-foreground">
+                <CircleXIcon className="size-12 stroke-1" />
+                <div className="text-center space-y-1">
+                  <p>No negations available</p>
+                  <p className="text-sm">Create a negation to start restaking</p>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {negations
-                ?.filter((negation) => negation.pointId !== originalPoint.id)
-                ?.map((negation: NegationResult) => (
-                  <div
-                    key={negation.pointId}
-                    className="flex flex-col p-4 rounded-lg border border-dashed border-border hover:bg-muted cursor-pointer"
-                    onClick={() => {
-                      setSelectedNegation(negation);
-                      toggleRestakeDialog(true);
-                    }}
-                  >
-                    <p className="mb-2">{negation.content}</p>
-                    <PointStats
-                      favor={negation.favor}
-                      amountNegations={negation.amountNegations}
-                      amountSupporters={negation.amountSupporters}
-                      cred={negation.cred}
-                    />
-                  </div>
-                ))}
-            </div>
-          )}
+            ) : (
+              <div className="space-y-3">
+                {negations
+                  ?.filter((negation) => negation.pointId !== originalPoint.id)
+                  ?.map((negation: NegationResult) => (
+                    <div
+                      key={negation.pointId}
+                      className="flex flex-col p-4 rounded-lg border border-dashed border-border hover:bg-muted cursor-pointer"
+                      onClick={() => {
+                        setSelectedNegation(negation);
+                        toggleRestakeDialog(true);
+                      }}
+                    >
+                      <p className="mb-2">{negation.content}</p>
+                      <PointStats
+                        favor={negation.favor}
+                        amountNegations={negation.amountNegations}
+                        amountSupporters={negation.amountSupporters}
+                        cred={negation.cred}
+                      />
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 

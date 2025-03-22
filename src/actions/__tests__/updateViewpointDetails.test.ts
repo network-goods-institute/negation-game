@@ -90,6 +90,7 @@ describe("updateViewpointDetails", () => {
     expect(mockGetUserId).toHaveBeenCalled();
     expect(mockDb.select).toHaveBeenCalled();
     expect(mockDb.update).toHaveBeenCalledWith(viewpointsTable);
+    //eslint-disable-next-line drizzle/enforce-update-with-where
     expect(mockDb.update(viewpointsTable).set).toHaveBeenCalledWith({
       title: updateData.title,
       description: updateData.description,
