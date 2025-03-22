@@ -640,6 +640,7 @@ export const PointNode = ({
             )}
             originalPosterId={originalPosterId}
             inGraphNode={true}
+            disablePopover={true}
           ></PointCard>
         </>
       ) : (
