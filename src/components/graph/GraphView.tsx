@@ -33,6 +33,16 @@ import { updateViewpointDetails } from "@/actions/updateViewpointDetails";
 import { useParams } from "next/navigation";
 import { useViewpoint } from "@/queries/useViewpoint";
 import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 function debounce<T extends (...args: any[]) => any>(
   func: T,
@@ -94,6 +104,7 @@ export const GraphView = ({
   ...props
 }: GraphViewProps) => {
   const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
+  const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
   const [flowInstance, setFlowInstance] =
     useState<ReactFlowInstance<AppNode> | null>(null);
   const [nodes, setNodes, onNodesChangeDefault] = useNodesState<AppNode>(
@@ -506,105 +517,121 @@ export const GraphView = ({
     }
   }, [props]);
 
+  const handleDiscard = useCallback(() => {
+    onResetContent?.();
+
+    setIsModified(false);
+
+    if (props.defaultNodes && props.defaultEdges) {
+      setNodes(props.defaultNodes);
+      setEdges(props.defaultEdges);
+      if (setLocalGraph) {
+        const originalGraph = {
+          nodes: props.defaultNodes,
+          edges: props.defaultEdges,
+        };
+        setLocalGraph(originalGraph);
+      }
+
+      setCollapsedPointIds(new Set());
+
+      if (flowInstance) {
+        flowInstance.setViewport({ x: 0, y: 0, zoom: 1 });
+      }
+    }
+
+    setIsDiscardDialogOpen(false);
+  }, [onResetContent, props.defaultNodes, props.defaultEdges, setNodes, setEdges, setLocalGraph, setCollapsedPointIds, flowInstance, setIsModified]);
+
   return (
-    <ReactFlow
-      onInit={handleOnInit}
-      nodeTypes={nodeTypes}
-      edgeTypes={edgeTypes}
-      nodes={filteredNodes}
-      onNodesChange={onNodesChange}
-      edges={filteredEdges}
-      onEdgesChange={onEdgesChange}
-      panOnScroll
-      zoomOnPinch
-      minZoom={0.2}
-      colorMode={theme as ColorMode}
-      proOptions={{ hideAttribution: true }}
-      onPaneClick={handlePaneClick}
-      {...effectiveProps}
-    >
-      {!!onClose && (
-        <Panel position="top-right" className={closeButtonClassName}>
-          <Button size="icon" variant={"ghost"} onClick={() => {
-            onClose();
-          }}>
-            <XIcon />
-          </Button>
-        </Panel>
-      )}
-      <Background
-        bgColor="hsl(var(--background))"
-        color="hsl(var(--muted))"
-        variant={BackgroundVariant.Dots}
-      />
-      <MiniMap
-        zoomable
-        pannable
-        className="[&>svg]:w-[120px] [&>svg]:h-[90px] sm:[&>svg]:w-[200px] sm:[&>svg]:h-[150px]"
-      />
-      <Controls />
-      {(isModified && !isNew) && (
-        <Panel position="top-right" className="z-50 mt-16 sm:mt-0">
-          <div className="bg-background border rounded-lg shadow-lg p-4 flex flex-col gap-2 min-w-[200px]">
-            <div className="text-sm font-medium text-muted-foreground">
-              Unsaved Changes
+    <>
+      <ReactFlow
+        onInit={handleOnInit}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        nodes={filteredNodes}
+        onNodesChange={onNodesChange}
+        edges={filteredEdges}
+        onEdgesChange={onEdgesChange}
+        panOnScroll
+        zoomOnPinch
+        minZoom={0.2}
+        colorMode={theme as ColorMode}
+        proOptions={{ hideAttribution: true }}
+        onPaneClick={handlePaneClick}
+        {...effectiveProps}
+      >
+        {!!onClose && (
+          <Panel position="top-right" className={closeButtonClassName}>
+            <Button size="icon" variant={"ghost"} onClick={() => {
+              onClose();
+            }}>
+              <XIcon />
+            </Button>
+          </Panel>
+        )}
+        <Background
+          bgColor="hsl(var(--background))"
+          color="hsl(var(--muted))"
+          variant={BackgroundVariant.Dots}
+        />
+        <MiniMap
+          zoomable
+          pannable
+          className="[&>svg]:w-[120px] [&>svg]:h-[90px] sm:[&>svg]:w-[200px] sm:[&>svg]:h-[150px]"
+        />
+        <Controls />
+        {(isModified && !isNew) && (
+          <Panel position="top-right" className="z-50 mt-16 sm:mt-0">
+            <div className="bg-background border rounded-lg shadow-lg p-4 flex flex-col gap-2 min-w-[200px]">
+              <div className="text-sm font-medium text-muted-foreground">
+                Unsaved Changes
+              </div>
+              <div className="flex flex-col gap-2">
+                <AuthenticatedActionButton
+                  id="save-button"
+                  className="w-full"
+                  disabled={isSaving || isSaving_local}
+                  onClick={handleButtonClick}
+                  rightLoading={isSaving || isSaving_local}
+                >
+                  {canModify
+                    ? isNew
+                      ? "Publish Rationale"
+                      : "Publish Changes"
+                    : "Copy Rationale to Save Changes"}
+                </AuthenticatedActionButton>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled={isSaving || isSaving_local}
+                  onClick={() => setIsDiscardDialogOpen(true)}
+                >
+                  Discard Changes
+                </Button>
+              </div>
             </div>
-            <div className="flex flex-col gap-2">
-              <AuthenticatedActionButton
-                id="save-button"
-                className="w-full"
-                disabled={isSaving || isSaving_local}
-                onClick={handleButtonClick}
-                rightLoading={isSaving || isSaving_local}
-              >
-                {canModify
-                  ? isNew
-                    ? "Publish Rationale"
-                    : "Save Changes"
-                  : "Copy Rationale to Save Changes"}
-              </AuthenticatedActionButton>
-              <Button
-                variant="outline"
-                className="w-full"
-                disabled={isSaving || isSaving_local}
-                onClick={() => {
-                  // Always call the content reset first - this is crucial
-                  onResetContent?.();
+          </Panel>
+        )}
+      </ReactFlow>
 
-                  // Reset the modification flag immediately
-                  setIsModified(false);
-
-                  // Now reset nodes and edges if possible
-                  if (props.defaultNodes && props.defaultEdges) {
-                    setNodes(props.defaultNodes);
-                    setEdges(props.defaultEdges);
-
-                    // Reset any local graph state
-                    if (setLocalGraph) {
-                      const originalGraph = {
-                        nodes: props.defaultNodes,
-                        edges: props.defaultEdges,
-                      };
-                      setLocalGraph(originalGraph);
-                    }
-
-                    // Reset collapsed state
-                    setCollapsedPointIds(new Set());
-
-                    // Reset any instance state
-                    if (flowInstance) {
-                      flowInstance.setViewport({ x: 0, y: 0, zoom: 1 });
-                    }
-                  }
-                }}
-              >
-                Revert Changes
-              </Button>
-            </div>
-          </div>
-        </Panel>
-      )}
-    </ReactFlow>
+      <AlertDialog open={isDiscardDialogOpen} onOpenChange={setIsDiscardDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to discard your changes? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDiscard}>
+              Yes, discard changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 
