@@ -6,16 +6,29 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { userEndorsementsQueryKey } from "@/queries/useUserEndorsements";
 import { useSpace } from "@/queries/useSpace";
+import { useVisitedPoints } from "@/hooks/useVisitedPoints";
+import { useAtom } from "jotai";
+import { visitedPointsAtom } from "@/atoms/visitedPointsAtom";
 
 export const useEndorse = () => {
   const queryClient = useQueryClient();
   const { user } = usePrivy();
   const invalidateRelatedPoints = useInvalidateRelatedPoints();
   const space = useSpace();
+  const { markPointAsRead } = useVisitedPoints();
+  const [_, setVisitedPoints] = useAtom(visitedPointsAtom);
 
   return useAuthenticatedMutation({
     mutationFn: endorse,
     onSuccess: (_endorsementId, { pointId }) => {
+      // Mark the point as visited/read
+      markPointAsRead(pointId);
+      setVisitedPoints((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(pointId);
+        return newSet;
+      });
+
       // Invalidate the endorsed point
       invalidateRelatedPoints(pointId);
 
