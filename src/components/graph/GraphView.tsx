@@ -464,9 +464,51 @@ export const GraphView = ({
     }
   }, [handleSave, setIsSaving_local]);
 
+  const handlePaneClick = useCallback(() => {
+    const addPointNodes = nodes.filter(node => node.type === 'addPoint');
+
+    if (addPointNodes.length > 0) {
+      const nodeIdsToRemove = new Set<string>();
+
+      addPointNodes.forEach(node => {
+        const nodeData = node.data as { content?: string; hasContent?: boolean; parentId: string };
+
+        const hasContent = nodeData.hasContent === true ||
+          (typeof nodeData.content === 'string' && nodeData.content.trim().length > 0);
+
+        if (!hasContent) {
+          nodeIdsToRemove.add(node.id);
+        }
+      });
+
+      if (nodeIdsToRemove.size > 0) {
+
+        setNodes(currentNodes =>
+          currentNodes.filter(node => !nodeIdsToRemove.has(node.id))
+        );
+
+        // Also remove any edges connected to the removed nodes
+        setEdges(currentEdges =>
+          currentEdges.filter(
+            edge => !nodeIdsToRemove.has(edge.source) && !nodeIdsToRemove.has(edge.target)
+          )
+        );
+      }
+    }
+  }, [nodes, setNodes, setEdges]);
+
+  // Create a combined onInit function that sets the flowInstance and supports existing onInit
+  const handleOnInit = useCallback((instance: ReactFlowInstance<AppNode>) => {
+    setFlowInstance(instance);
+    // Call the original onInit if provided
+    if (props.onInit) {
+      props.onInit(instance);
+    }
+  }, [props]);
+
   return (
     <ReactFlow
-      onInit={setFlowInstance}
+      onInit={handleOnInit}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       nodes={filteredNodes}
@@ -478,6 +520,7 @@ export const GraphView = ({
       minZoom={0.2}
       colorMode={theme as ColorMode}
       proOptions={{ hideAttribution: true }}
+      onPaneClick={handlePaneClick}
       {...effectiveProps}
     >
       {!!onClose && (

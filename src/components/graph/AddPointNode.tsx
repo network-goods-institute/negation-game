@@ -27,12 +27,14 @@ import { useDebounce } from "@uidotdev/usehooks";
 import { Handle, Node, NodeProps, Position, useReactFlow } from "@xyflow/react";
 import { XIcon } from "lucide-react";
 import { nanoid } from "nanoid";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { collapsedPointIdsAtom } from "@/atoms/viewpointAtoms";
 import { useAtomValue, useSetAtom } from "jotai";
 
 export type AddPointNodeData = {
   parentId: string;
+  content: string;
+  hasContent: boolean;
 };
 
 export type AddPointNode = Node<AddPointNodeData, "addPoint">;
@@ -47,13 +49,20 @@ export const AddPointNode = ({
   positionAbsoluteX,
   positionAbsoluteY,
 }: AddPointNodeProps) => {
-
-  const { deleteElements, addEdges, addNodes, getNode, getNodes, getEdges } = useReactFlow();
+  const { deleteElements, addEdges, addNodes, getNode, getNodes, getEdges, updateNodeData } = useReactFlow();
   const [content, setContent] = useState("");
   const debouncedContent = useDebounce(content, 1000);
   const { credInput, setCredInput } = useCredInput();
   const collapsedPointIds = useAtomValue(collapsedPointIdsAtom);
   const setCollapsedPointIds = useSetAtom(collapsedPointIdsAtom);
+
+  useEffect(() => {
+    updateNodeData(id, { parentId, content, hasContent: content.length > 0 });
+  }, [content, id, parentId, updateNodeData]);
+
+  const handleContentChange = (newContent: string) => {
+    setContent(newContent);
+  };
 
   const parentNode = getNode(parentId);
   const isParentStatement = parentNode?.type === "statement";
@@ -119,7 +128,7 @@ export const AddPointNode = ({
       <PointEditor
         className="w-full h-fit"
         content={content}
-        setContent={setContent}
+        setContent={handleContentChange}
         cred={credInput}
         setCred={setCredInput}
         guidanceNotes={<></>}
@@ -136,7 +145,7 @@ export const AddPointNode = ({
                 const newId = nanoid();
                 addNodes({
                   id: newId,
-                  data: { pointId, parentId },
+                  data: { pointId, parentId, content, hasContent: true },
                   type: "point",
                   position: {
                     x: positionAbsoluteX,
@@ -221,7 +230,7 @@ export const AddPointNode = ({
                         const newId = nanoid();
                         addNodes({
                           id: newId,
-                          data: { pointId: point.pointId, parentId },
+                          data: { pointId: point.pointId, parentId, content: point.content, hasContent: true },
                           type: "point",
                           position: {
                             x: positionAbsoluteX,

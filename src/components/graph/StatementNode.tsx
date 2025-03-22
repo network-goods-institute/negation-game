@@ -230,7 +230,11 @@ export const StatementNode = ({
               x: positionAbsoluteX,
               y: positionAbsoluteY + 100,
             },
-            data: { parentId: id },
+            data: {
+              parentId: id,
+              content: "",
+              hasContent: false
+            },
           });
           addEdges({
             id: nanoid(),
