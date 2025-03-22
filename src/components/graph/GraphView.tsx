@@ -29,6 +29,7 @@ import { useAtom } from "jotai";
 import { collapsedPointIdsAtom, ViewpointGraph } from "@/atoms/viewpointAtoms";
 import React from "react";
 import { updateViewpointGraph } from "@/actions/updateViewpointGraph";
+import { updateViewpointDetails } from "@/actions/updateViewpointDetails";
 import { useParams } from "next/navigation";
 import { useViewpoint } from "@/queries/useViewpoint";
 import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
@@ -62,7 +63,7 @@ function debounce<T extends (...args: any[]) => any>(
 
 export interface GraphViewProps
   extends Omit<ReactFlowProps<AppNode>, "onDelete"> {
-  onSaveChanges?: (graph: ViewpointGraph) => Promise<boolean | void>;
+  onSaveChanges?: () => Promise<boolean | void>;
   canModify?: boolean;
   rootPointId?: number;
   statement?: string;
@@ -377,11 +378,18 @@ export const GraphView = ({
         let saveSuccess = true;
 
         if (canModify) {
-          // For owners, update the viewpoint in DB
-          await updateViewpointGraph({
-            id: rationaleId,
-            graph: filteredGraph,
-          });
+          // For owners, update both the graph and details in DB
+          await Promise.all([
+            updateViewpointGraph({
+              id: rationaleId,
+              graph: filteredGraph,
+            }),
+            updateViewpointDetails({
+              id: rationaleId,
+              title: statement || "",
+              description: "",
+            })
+          ]);
         }
 
         // Always update the local graph state to the current filtered state
@@ -389,11 +397,15 @@ export const GraphView = ({
           setLocalGraph(filteredGraph);
         }
 
-        // Call onSaveChanges with the filtered graph so that the copy uses the current local state
+        // Call onSaveChanges without passing the graph parameter - let it handle title/description updates
         try {
-          const saveResult = await onSaveChanges?.(filteredGraph);
-          if (saveResult === false) {
-            saveSuccess = false;
+          // We know onSaveChanges exists here because of the check at the start
+          // But TypeScript doesn't, so we need to check again
+          if (onSaveChanges) {
+            const saveResult = await onSaveChanges();
+            if (saveResult === false) {
+              saveSuccess = false;
+            }
           }
         } catch (saveError) {
           saveSuccess = false;
@@ -418,7 +430,7 @@ export const GraphView = ({
 
         // Ensure local graph state uses the current filtered graph
         if (setLocalGraph) {
-          setLocalGraph({ nodes: filteredNodes, edges: filteredEdges });
+          setLocalGraph({ nodes, edges });
         }
 
         throw error;
@@ -438,17 +450,19 @@ export const GraphView = ({
       rationaleId,
       setIsModified,
       canModify,
-      filteredEdges,
-      filteredNodes
+      isNew,
+      statement
     ]
   );
 
-  const handleButtonClick = useCallback(() => {
+  const handleButtonClick = useCallback(async () => {
     setIsSaving_local(true);
 
-    handleSave().catch(error => {
+    try {
+      await handleSave();
+    } catch (error) {
       setIsSaving_local(false); // Reset in case of error
-    });
+    }
   }, [handleSave, setIsSaving_local]);
 
   return (

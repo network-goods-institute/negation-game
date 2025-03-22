@@ -145,7 +145,8 @@ const regenerateGraphIds = (graph: ViewpointGraph): ViewpointGraph => {
   return { nodes: newNodes, edges: newEdges };
 };
 
-function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
+// Export the component for testing
+export function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const basePath = useBasePath();
@@ -231,19 +232,21 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
   }, [viewpoint?.id, viewpoint]); // Only update when viewpoint ID changes
 
   const handleEditingBlur = useCallback(() => {
-    // Check if content has been modified
-    if (viewpoint && (viewpoint.title !== editableTitle || viewpoint.description !== editableDescription)) {
+    // Check if content has been modified by comparing against original values
+    if (originalTitleRef.current !== editableTitle || originalDescriptionRef.current !== editableDescription) {
       // Mark as modified to show save button
       setIsContentModified(true);
 
       // Immediately update the local query cache to show changes visually
       // This is just for display purposes and will not persist until saved
-      queryClient.setQueryData(["viewpoint", viewpoint.id], {
-        ...viewpoint,
-        title: editableTitle,
-        description: editableDescription,
-        _pendingChanges: true // Mark as having pending changes
-      });
+      if (viewpoint) {
+        queryClient.setQueryData(["viewpoint", viewpoint.id], {
+          ...viewpoint,
+          title: editableTitle,
+          description: editableDescription,
+          _pendingChanges: true // Mark as having pending changes
+        });
+      }
     }
 
     // Exit edit mode
@@ -254,6 +257,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
   const onSaveChanges = useCallback(async () => {
     try {
       setIsSaving(true);
+
       // If the current user is not the owner (i.e. not the creator) then fork instead of trying to update directly
       if (!isOwner) {
         if (reactFlow && viewpoint) {
@@ -287,7 +291,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
         }
       }
 
-      if (viewpoint && (viewpoint.title !== editableTitle || viewpoint.description !== editableDescription)) {
+      if (viewpoint) {
         await updateDetailsMutation.mutateAsync({
           id: viewpoint.id,
           title: editableTitle,
@@ -300,6 +304,9 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
           title: editableTitle,
           description: editableDescription,
         });
+
+        originalTitleRef.current = editableTitle;
+        originalDescriptionRef.current = editableDescription;
 
         // Exit any edit modes
         setIsTitleEditing(false);

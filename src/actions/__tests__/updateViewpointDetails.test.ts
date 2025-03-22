@@ -19,109 +19,133 @@ jest.mock("drizzle-orm", () => ({
 }));
 
 // Mock the db service
-jest.mock("@/services/db", () => {
-  const mockDb = {
-    select: jest.fn(),
-    update: jest.fn(),
-  };
-  return { db: mockDb };
-});
+jest.mock("@/services/db", () => ({
+  db: {
+    select: jest.fn(() => ({
+      from: jest.fn(() => ({
+        where: jest.fn(() => ({
+          limit: jest.fn(() => ({
+            then: jest.fn(),
+          })),
+        })),
+      })),
+    })),
+    update: jest.fn(() => ({
+      set: jest.fn(() => ({
+        where: jest.fn(() => ({
+          returning: jest.fn(() => Promise.resolve([{ id: "viewpoint-1" }])),
+        })),
+      })),
+    })),
+  },
+}));
 
 // Now import the actual implementation and its dependencies
 import { updateViewpointDetails } from "../updateViewpointDetails";
-import { getUserId } from "../getUserId";
+import { getUserId } from "@/actions/getUserId";
 import { db } from "@/services/db";
 import { viewpointsTable } from "@/db/tables/viewpointsTable";
+import { eq } from "drizzle-orm";
+
+jest.mock("@/actions/getUserId");
+jest.mock("@/services/db");
+
+const mockGetUserId = getUserId as jest.MockedFunction<typeof getUserId>;
+const mockDb = db as jest.Mocked<typeof db>;
 
 describe("updateViewpointDetails", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetUserId.mockResolvedValue("test-user");
+
+    // Mock the select query chain
+    const mockSelectChain = {
+      from: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      then: jest
+        .fn()
+        .mockResolvedValue([{ id: "test-id", createdBy: "test-user" }]),
+    };
+    mockDb.select.mockReturnValue(mockSelectChain as any);
+
+    // Mock the update query chain
+    const mockUpdateChain = {
+      set: jest.fn().mockReturnValue({
+        where: jest.fn().mockResolvedValue(undefined),
+      }),
+    };
+    mockDb.update.mockReturnValue(mockUpdateChain as any);
   });
 
-  it("should throw error if user is not authenticated", async () => {
-    // Setup: user is not authenticated
-    (getUserId as jest.Mock).mockResolvedValue(null);
+  it("should update viewpoint details when user is authenticated and owner", async () => {
+    const updateData = {
+      id: "test-id",
+      title: "New Title",
+      description: "New Description",
+    };
 
-    // Execute & Assert
+    const result = await updateViewpointDetails(updateData);
+
+    expect(mockGetUserId).toHaveBeenCalled();
+    expect(mockDb.select).toHaveBeenCalled();
+    expect(mockDb.update).toHaveBeenCalledWith(viewpointsTable);
+    expect(mockDb.update(viewpointsTable).set).toHaveBeenCalledWith({
+      title: updateData.title,
+      description: updateData.description,
+    });
+    expect(result).toBe(updateData.id);
+  });
+
+  it("should throw error when user is not authenticated", async () => {
+    mockGetUserId.mockResolvedValueOnce(null);
+
     await expect(
       updateViewpointDetails({
         id: "test-id",
-        title: "Test Title",
-        description: "Test Description",
+        title: "New Title",
+        description: "New Description",
       })
     ).rejects.toThrow("Must be authenticated to update rationale");
-
-    // Verify dependencies were called correctly
-    expect(getUserId).toHaveBeenCalled();
   });
 
-  it("should throw error if user is not the owner", async () => {
-    // Setup: user is authenticated but not the owner
-    (getUserId as jest.Mock).mockResolvedValue("user-123");
-    // Create a select chain mock for the owner check returning different owner
-    const selectChainMock = {
+  it("should throw error when user is not the owner", async () => {
+    // Override the select mock to return a viewpoint with a different owner
+    const mockSelectDifferentOwner = {
       from: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       limit: jest.fn().mockReturnThis(),
-      then: jest.fn().mockResolvedValue([{ createdBy: "different-user" }]),
+      then: jest
+        .fn()
+        .mockResolvedValue([{ id: "test-id", createdBy: "different-user" }]),
     };
-    (db.select as jest.Mock).mockReturnValueOnce(selectChainMock);
+    mockDb.select.mockReturnValueOnce(mockSelectDifferentOwner as any);
 
-    // Execute & Assert
     await expect(
       updateViewpointDetails({
         id: "test-id",
-        title: "Test Title",
-        description: "Test Description",
+        title: "New Title",
+        description: "New Description",
       })
     ).rejects.toThrow("Only the owner can update this rationale");
-
-    // Verify dependencies were called correctly
-    expect(getUserId).toHaveBeenCalled();
-    expect(db.select).toHaveBeenCalled();
-    expect(selectChainMock.from).toHaveBeenCalledWith(viewpointsTable);
-    expect(selectChainMock.where).toHaveBeenCalled();
   });
 
-  it("should update viewpoint details if user is the owner", async () => {
-    // Setup: user is authenticated and is the owner
-    (getUserId as jest.Mock).mockResolvedValue("owner-id");
-
-    // Create a select chain mock for the owner check returning matching owner
-    const selectChainMock = {
+  it("should throw error when viewpoint is not found", async () => {
+    // Override the select mock to return an empty array (no viewpoint found)
+    const mockSelectEmpty = {
       from: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       limit: jest.fn().mockReturnThis(),
-      then: jest.fn().mockResolvedValue([{ createdBy: "owner-id" }]),
+      then: jest.fn().mockResolvedValue([]),
     };
-    (db.select as jest.Mock).mockReturnValueOnce(selectChainMock);
+    mockDb.select.mockReturnValueOnce(mockSelectEmpty as any);
 
-    // Create an update chain mock for updating the record
-    const updateChainMock = {
-      set: jest.fn().mockReturnThis(),
-      where: jest.fn().mockResolvedValue("test-id"),
-    };
-    (db.update as jest.Mock).mockReturnValueOnce(updateChainMock);
-
-    // Execute
-    const result = await updateViewpointDetails({
-      id: "test-id",
-      title: "Updated Title",
-      description: "Updated Description",
-    });
-
-    // Assert
-    expect(result).toBe("test-id");
-
-    // Verify dependencies were called correctly
-    expect(getUserId).toHaveBeenCalled();
-    expect(db.select).toHaveBeenCalled();
-    expect(selectChainMock.from).toHaveBeenCalledWith(viewpointsTable);
-    expect(db.update).toHaveBeenCalledWith(viewpointsTable);
-    expect(updateChainMock.set).toHaveBeenCalledWith({
-      title: "Updated Title",
-      description: "Updated Description",
-    });
-    expect(updateChainMock.where).toHaveBeenCalled();
+    await expect(
+      updateViewpointDetails({
+        id: "test-id",
+        title: "New Title",
+        description: "New Description",
+      })
+    ).rejects.toThrow("Only the owner can update this rationale");
   });
 });
