@@ -9,6 +9,7 @@ import { cn } from "@/lib/cn";
 import { Analytics } from "@vercel/analytics/react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { GitHubButton } from "@/components/ui/GitHubButton";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DevOnly } from "@/components/utils/DevOnly";
@@ -55,6 +56,9 @@ export default function RootLayout({
                       <ModeToggle className="col-start-3 justify-self-end" />
                     </Dynamic>
                     <ConnectButton />
+                    <Dynamic>
+                      <GitHubButton />
+                    </Dynamic>
                   </div>
                 </header>
 
