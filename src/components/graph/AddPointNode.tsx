@@ -124,6 +124,7 @@ export const AddPointNode = ({
         setCred={setCredInput}
         guidanceNotes={<></>}
         compact={true}
+        extraCompact={isParentStatement}
         parentNodeType={isParentStatement ? "statement" : undefined}
       />
       <div className="flex justify-between gap-2">

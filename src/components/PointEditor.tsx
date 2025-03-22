@@ -22,6 +22,7 @@ export interface PointEditorProps extends HTMLAttributes<HTMLDivElement> {
   compact?: boolean;
   allowZero?: boolean;
   parentNodeType?: string;
+  extraCompact?: boolean;
 }
 
 export const PointEditor: FC<PointEditorProps> = ({
@@ -36,6 +37,7 @@ export const PointEditor: FC<PointEditorProps> = ({
   placeholder,
   compact = false,
   allowZero = true,
+  extraCompact = false,
   guidanceNotes = (
     <>
       <CircleCheckBigIcon className="size-3 align-[-1.5px] inline-block " />{" "}
@@ -66,24 +68,26 @@ export const PointEditor: FC<PointEditorProps> = ({
       <Separator className="w-full" />
       <p className="text-muted-foreground/70 text-xs -mt-1">{guidanceNotes}</p>
 
-      <div className="flex w-full items-center justify-between  gap-sm">
+      <div className="flex w-full items-center justify-between gap-sm">
         <CredInput
           credInput={cred}
           setCredInput={setCred}
           notEnoughCred={notEnoughCred}
           compact={compact}
           allowZero={allowZero}
+          extraCompact={extraCompact}
         />
 
         <div className="flex gap-sm items-center">
           <span
             className={cn(
-              charactersLeft >= 0 ? "text-muted-foreground" : "text-destructive"
+              charactersLeft >= 0 ? "text-muted-foreground" : "text-destructive",
+              extraCompact && "text-xs"
             )}
           >
             {charactersLeft}
           </span>
-          <svg className="size-8" viewBox="0 0 120 120">
+          <svg className={cn("size-8", extraCompact && "size-6")} viewBox="0 0 120 120">
             <circle
               cx="60"
               cy="60"
