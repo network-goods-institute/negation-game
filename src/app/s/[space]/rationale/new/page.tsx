@@ -67,6 +67,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useFavorHistory } from "@/queries/useFavorHistory";
 
 function PointCardWrapper({
   point,
@@ -80,6 +81,12 @@ function PointCardWrapper({
   const { originalPosterId } = useOriginalPoster();
   const setNegatedPointId = useSetAtom(negatedPointIdAtom);
   const [collapsedPointIds] = useAtom(collapsedPointIdsAtom);
+  const [hoveredPointId] = useAtom(hoveredPointIdAtom);
+
+  const { data: favorHistory } = useFavorHistory({
+    pointId: point.pointId,
+    timelineScale: "1W"
+  });
 
   if (collapsedPointIds.has(point.pointId)) {
     return null;
@@ -92,7 +99,11 @@ function PointCardWrapper({
 
   return (
     <PointCard
-      className={className}
+      className={cn(
+        className,
+        hoveredPointId === point.pointId &&
+        "shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
+      )}
       pointId={point.pointId}
       content={pointData.content}
       createdAt={pointData.createdAt}
@@ -104,6 +115,7 @@ function PointCardWrapper({
       onNegate={() => setNegatedPointId(point.pointId)}
       originalPosterId={originalPosterId}
       inRationale={true}
+      favorHistory={favorHistory}
     />
   );
 }

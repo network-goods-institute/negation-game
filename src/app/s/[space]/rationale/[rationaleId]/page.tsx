@@ -33,6 +33,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useUpdateViewpointDetails } from "@/mutations/useUpdateViewpointDetails";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { useFavorHistory } from "@/queries/useFavorHistory";
 
 import { useGraphPoints } from "@/components/graph/useGraphPoints";
 import { Loader } from "@/components/ui/loader";
@@ -63,6 +64,12 @@ function PointCardWrapper({
   const setNegatedPointId = useSetAtom(negatedPointIdAtom);
   const [hoveredPointId] = useAtom(hoveredPointIdAtom);
 
+  // Get favor history data
+  const { data: favorHistory } = useFavorHistory({
+    pointId: point.pointId,
+    timelineScale: "1W"
+  });
+
   if (!pointData)
     return (
       <div className={cn("h-32 w-full bg-muted animate-pulse", className)} />
@@ -84,6 +91,7 @@ function PointCardWrapper({
       originalPosterId={originalPosterId}
       onNegate={() => setNegatedPointId(point.pointId)}
       inRationale={true}
+      favorHistory={favorHistory}
     />
   );
 }

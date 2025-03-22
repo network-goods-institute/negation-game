@@ -18,6 +18,16 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
+  XAxis,
+  YAxis,
+  Dot,
+} from "recharts";
 import { useCredInput } from "@/hooks/useCredInput";
 import { usePrefetchRestakeData } from "@/hooks/usePrefetchRestakeData";
 import { useVisitedPoints } from "@/hooks/useVisitedPoints";
@@ -37,6 +47,8 @@ import {
   useEffect,
   useMemo,
   useState,
+  Fragment,
+  useRef,
 } from "react";
 import { AuthenticatedActionButton } from "./ui/AuthenticatedActionButton";
 import { Button } from "./ui/button";
@@ -99,6 +111,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   linkDisabled?: boolean;
   inGraphNode?: boolean;
   inRationale?: boolean;
+  favorHistory?: Array<{ timestamp: Date; favor: number; }>;
 }
 
 export const PointCard = ({
@@ -130,6 +143,7 @@ export const PointCard = ({
   linkDisabled,
   inGraphNode,
   inRationale,
+  favorHistory,
   ...props
 }: PointCardProps) => {
   const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
@@ -154,6 +168,28 @@ export const PointCard = ({
   const router = useRouter();
   const pathname = usePathname();
   const currentSpace = getSpaceFromPathname(pathname);
+  const [isOpen, setIsOpen] = useState(false);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleHoverStart = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    if (!isOpen) {
+      setIsOpen(true);
+    }
+  };
+
+  const handleHoverEnd = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsOpen(false);
+    }, 100); // Small delay to prevent flickering when moving between elements
+  };
 
   const [restakePercentage, isOverHundred] = useMemo(() => {
     if (!isNegation || !parentPoint || !restake?.amount || !restake.isOwner)
@@ -256,339 +292,435 @@ export const PointCard = ({
   };
 
   return (
-    <div
-      className={cn(
-        "@container/point flex gap-3 pt-4 pb-3 px-4 relative rounded-none will-change-auto",
-        isPinned && "border-l-4 border-primary",
-        isPriority && !isPinned && "border-l-4 border-amber-400",
-        inGraphNode && "pt-2.5",
-        className
-      )}
-      onMouseEnter={() => {
-        setHoveredPointId(pointId);
-        handleRestakeHover();
+    <Popover
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) setIsOpen(false);
       }}
-      onMouseLeave={() => setHoveredPointId(undefined)}
-      {...props}
     >
-      <div className="flex flex-col flex-grow w-full min-w-0">
-        <div className={cn("flex items-start gap-2", inGraphNode && "pt-4")}>
-          {isCommand && space && space !== 'global' ? (
-            <FeedCommandIcon />
-          ) : isPinned && space && space !== 'global' ? (
-            <PinnedIcon />
-          ) : (
-            <PointIcon />
+      <PopoverTrigger asChild>
+        <div
+          className={cn(
+            "@container/point flex gap-3 pt-4 pb-3 px-4 relative rounded-none will-change-auto",
+            isPinned && "border-l-4 border-primary",
+            isPriority && !isPinned && "border-l-4 border-amber-400",
+            inGraphNode && "pt-2.5",
+            className
           )}
-          <div className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg -mt-1 mb-sm select-text flex-1 break-words whitespace-normal overflow-hidden">
-            {content}
-            {/* Never show command badges when space is undefined */}
-            {pinnedCommandPointId && space && space !== 'global' && (
-              <Badge variant="outline" className="ml-2 text-xs">
-                {space && !linkDisabled ? (
-                  <Link
-                    href={`/s/${space}/${encodeId(pinnedCommandPointId)}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (onPinBadgeClickCapture) {
-                        onPinBadgeClickCapture(e);
-                      }
-                    }}
-                    className="inline-block w-full h-full"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Button
-                      type="button"
-                      variant="link"
-                      className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
-                      onClick={handlePinCommandClick}
-                    >
-                      {pinStatus || "Pinned by command"}
-                    </Button>
-                  </Link>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="h-auto p-0 text-muted-foreground hover:text-foreground"
-                    onClick={handlePinCommandClick}
-                  >
-                    {pinStatus || "Pinned by command"}
-                  </Button>
-                )}
-              </Badge>
-            )}
-            {parsePinCommand && space && space !== 'global' && (
-              <Badge variant="outline" className="ml-2 text-xs">
-                {space && !linkDisabled ? (
-                  <Link
-                    href={`/s/${space}/${parsePinCommand}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (onPinBadgeClickCapture) {
-                        onPinBadgeClickCapture(e);
-                      }
-                    }}
-                    className="inline-block w-full h-full"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Button
-                      type="button"
-                      variant="link"
-                      className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
-                      onClick={handleTargetPointClick}
-                    >
-                      Proposal to pin
-                    </Button>
-                  </Link>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="h-auto p-0 text-muted-foreground hover:text-foreground"
-                    onClick={handleTargetPointClick}
-                  >
-                    Proposal to pin
-                  </Button>
-                )}
-              </Badge>
-            )}
-          </div>
-        </div>
-
-        <PointStats
-          className="mb-md select-text"
-          amountNegations={amountNegations}
-          amountSupporters={amountSupporters}
-          favor={favor}
-          cred={cred}
-        />
-
-        <div className="flex gap-sm w-full text-muted-foreground">
-          <div className="flex gap-sm">
-            <AuthenticatedActionButton
-              variant="ghost"
-              className="p-1 -ml-3 -mb-2 rounded-full size-fit hover:bg-negated/30"
-              onClick={(e) => {
-                e.stopPropagation();
-                onNegate?.(e);
-              }}
-            >
-              <NegateIcon />
-            </AuthenticatedActionButton>
-
-            <Popover
-              open={endorsePopoverOpen}
-              onOpenChange={toggleEndorsePopoverOpen}
-            >
-              <PopoverTrigger asChild>
-                <Button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (privyUser === null) {
-                      login();
-                      return;
-                    }
-                    toggleEndorsePopoverOpen();
-                  }}
-                  className={cn(
-                    "p-1 rounded-full -mb-2 size-fit gap-sm hover:bg-endorsed/30",
-                    endorsedByViewer && "text-endorsed pr-3"
-                  )}
-                  variant={"ghost"}
-                >
-                  <EndorseIcon
-                    className={cn(endorsedByViewer && "fill-current")}
-                  />{" "}
-                  {endorsedByViewer && viewerContext?.viewerCred && (
-                    <span>{viewerContext.viewerCred} cred</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="w-[320px] p-3"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex flex-col gap-3 w-full">
-                  <CredInput
-                    credInput={credInput}
-                    setCredInput={setCredInput}
-                    notEnoughCred={notEnoughCred}
-                  />
-                  <Button
-                    className="w-full"
-                    disabled={credInput === 0 || notEnoughCred || isEndorsing}
-                    onClick={() => {
-                      endorse({ pointId, cred: credInput }).then(() => {
-                        toggleEndorsePopoverOpen(false);
-                      });
-                    }}
-                  >
-                    {isEndorsing ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
-                        <span>Endorsing...</span>
-                      </div>
+          onMouseEnter={() => {
+            setHoveredPointId(pointId);
+            handleRestakeHover();
+            handleHoverStart();
+          }}
+          onMouseLeave={() => {
+            setHoveredPointId(undefined);
+            handleHoverEnd();
+          }}
+          {...props}
+        >
+          <div className="flex flex-col flex-grow w-full min-w-0">
+            <div className={cn("flex items-start gap-2", inGraphNode && "pt-4")}>
+              {isCommand && space && space !== 'global' ? (
+                <FeedCommandIcon />
+              ) : isPinned && space && space !== 'global' ? (
+                <PinnedIcon />
+              ) : (
+                <PointIcon />
+              )}
+              <div className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg -mt-1 mb-sm select-text flex-1 break-words whitespace-normal overflow-hidden">
+                {content}
+                {/* Never show command badges when space is undefined */}
+                {pinnedCommandPointId && space && space !== 'global' && (
+                  <Badge variant="outline" className="ml-2 text-xs">
+                    {space && !linkDisabled ? (
+                      <Link
+                        href={`/s/${space}/${encodeId(pinnedCommandPointId)}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onPinBadgeClickCapture) {
+                            onPinBadgeClickCapture(e);
+                          }
+                        }}
+                        className="inline-block w-full h-full"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Button
+                          type="button"
+                          variant="link"
+                          className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
+                          onClick={handlePinCommandClick}
+                        >
+                          {pinStatus || "Pinned by command"}
+                        </Button>
+                      </Link>
                     ) : (
-                      "Endorse"
+                      <Button
+                        type="button"
+                        variant="link"
+                        className="h-auto p-0 text-muted-foreground hover:text-foreground"
+                        onClick={handlePinCommandClick}
+                      >
+                        {pinStatus || "Pinned by command"}
+                      </Button>
                     )}
-                  </Button>
-                  {notEnoughCred && (
-                    <span className="text-destructive text-sm">
-                      Not enough cred
-                    </span>
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
+                  </Badge>
+                )}
+                {parsePinCommand && space && space !== 'global' && (
+                  <Badge variant="outline" className="ml-2 text-xs">
+                    {space && !linkDisabled ? (
+                      <Link
+                        href={`/s/${space}/${parsePinCommand}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onPinBadgeClickCapture) {
+                            onPinBadgeClickCapture(e);
+                          }
+                        }}
+                        className="inline-block w-full h-full"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Button
+                          type="button"
+                          variant="link"
+                          className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
+                          onClick={handleTargetPointClick}
+                        >
+                          Proposal to pin
+                        </Button>
+                      </Link>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="link"
+                        className="h-auto p-0 text-muted-foreground hover:text-foreground"
+                        onClick={handleTargetPointClick}
+                      >
+                        Proposal to pin
+                      </Button>
+                    )}
+                  </Badge>
+                )}
+              </div>
+            </div>
 
-            {inRationale && !inGraphNode && (
-              <Link
-                href={`/s/${currentSpace || 'global'}/${encodeId(pointId)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Button
-                  variant="ghost"
-                  className="p-1 -mb-2 rounded-full size-fit hover:bg-muted"
-                >
-                  <ExternalLinkIcon className="size-5 translate-y-[2.5px]" />
-                </Button>
-              </Link>
-            )}
+            <PointStats
+              className="mb-md select-text"
+              amountNegations={amountNegations}
+              amountSupporters={amountSupporters}
+              favor={favor}
+              cred={cred}
+            />
 
-            {isNegation && parentPoint?.cred && parentPoint.cred > 0 && (
-              <>
-                <Button
+            <div className="flex gap-sm w-full text-muted-foreground">
+              <div className="flex gap-sm">
+                <AuthenticatedActionButton
                   variant="ghost"
-                  className={cn(
-                    "p-1 pb-3 -mb-2 rounded-full size-fit hover:bg-purple-500/30",
-                    showRestakeAmount && "text-endorsed"
-                  )}
+                  className="p-1 -ml-3 -mb-2 rounded-full size-fit hover:bg-negated/30"
                   onClick={(e) => {
-                    e.preventDefault();
                     e.stopPropagation();
-                    onRestake?.({ openedFromSlashedIcon: false });
+                    onNegate?.(e);
                   }}
                 >
-                  <RestakeIcon
-                    className={cn(
-                      "size-5 stroke-1",
-                      showRestakeAmount &&
-                      restake?.isOwner &&
-                      "text-endorsed fill-current"
-                    )}
-                    showPercentage={showRestakeAmount && restake?.isOwner}
-                    percentage={restakePercentage}
-                  />
-                  {showRestakeAmount && isOverHundred && (
-                    <span className="ml-1 translate-y-[5px]">+</span>
-                  )}
-                </Button>
-                <Button
-                  variant="ghost"
-                  className={cn(
-                    "p-1 pb-3 -mb-2 rounded-full size-fit hover:bg-amber-500/30",
-                    doubt?.amount !== undefined &&
-                    doubt.amount > 0 &&
-                    doubt.isUserDoubt &&
-                    "text-endorsed"
-                  )}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onRestake?.({ openedFromSlashedIcon: true });
-                  }}
+                  <NegateIcon />
+                </AuthenticatedActionButton>
+
+                <Popover
+                  open={endorsePopoverOpen}
+                  onOpenChange={toggleEndorsePopoverOpen}
                 >
-                  <div className="flex items-center translate-y-[5px]">
-                    <DoubtIcon
+                  <PopoverTrigger asChild>
+                    <Button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (privyUser === null) {
+                          login();
+                          return;
+                        }
+                        toggleEndorsePopoverOpen();
+                      }}
                       className={cn(
-                        "size-5 stroke-1",
+                        "p-1 rounded-full -mb-2 size-fit gap-sm hover:bg-endorsed/30",
+                        endorsedByViewer && "text-endorsed pr-3"
+                      )}
+                      variant={"ghost"}
+                    >
+                      <EndorseIcon
+                        className={cn(endorsedByViewer && "fill-current")}
+                      />{" "}
+                      {endorsedByViewer && viewerContext?.viewerCred && (
+                        <span>{viewerContext.viewerCred} cred</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="w-[320px] p-3"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex flex-col gap-3 w-full">
+                      <CredInput
+                        credInput={credInput}
+                        setCredInput={setCredInput}
+                        notEnoughCred={notEnoughCred}
+                      />
+                      <Button
+                        className="w-full"
+                        disabled={credInput === 0 || notEnoughCred || isEndorsing}
+                        onClick={() => {
+                          endorse({ pointId, cred: credInput }).then(() => {
+                            toggleEndorsePopoverOpen(false);
+                          });
+                        }}
+                      >
+                        {isEndorsing ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                            <span>Endorsing...</span>
+                          </div>
+                        ) : (
+                          "Endorse"
+                        )}
+                      </Button>
+                      {notEnoughCred && (
+                        <span className="text-destructive text-sm">
+                          Not enough cred
+                        </span>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                {inRationale && !inGraphNode && (
+                  <Link
+                    href={`/s/${currentSpace || 'global'}/${encodeId(pointId)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Button
+                      variant="ghost"
+                      className="p-1 -mb-2 rounded-full size-fit hover:bg-muted"
+                    >
+                      <ExternalLinkIcon className="size-5 translate-y-[2.5px]" />
+                    </Button>
+                  </Link>
+                )}
+
+                {isNegation && parentPoint?.cred && parentPoint.cred > 0 && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      className={cn(
+                        "p-1 pb-3 -mb-2 rounded-full size-fit hover:bg-purple-500/30",
+                        showRestakeAmount && "text-endorsed"
+                      )}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onRestake?.({ openedFromSlashedIcon: false });
+                      }}
+                    >
+                      <RestakeIcon
+                        className={cn(
+                          "size-5 stroke-1",
+                          showRestakeAmount &&
+                          restake?.isOwner &&
+                          "text-endorsed fill-current"
+                        )}
+                        showPercentage={showRestakeAmount && restake?.isOwner}
+                        percentage={restakePercentage}
+                      />
+                      {showRestakeAmount && isOverHundred && (
+                        <span className="ml-1 translate-y-[5px]">+</span>
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className={cn(
+                        "p-1 pb-3 -mb-2 rounded-full size-fit hover:bg-amber-500/30",
                         doubt?.amount !== undefined &&
                         doubt.amount > 0 &&
                         doubt.isUserDoubt &&
-                        "text-endorsed fill-current"
+                        "text-endorsed"
                       )}
-                      isFilled={
-                        doubt?.amount !== undefined &&
-                        doubt.amount > 0 &&
-                        doubt.isUserDoubt
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onRestake?.({ openedFromSlashedIcon: true });
+                      }}
+                    >
+                      <div className="flex items-center translate-y-[5px]">
+                        <DoubtIcon
+                          className={cn(
+                            "size-5 stroke-1",
+                            doubt?.amount !== undefined &&
+                            doubt.amount > 0 &&
+                            doubt.isUserDoubt &&
+                            "text-endorsed fill-current"
+                          )}
+                          isFilled={
+                            doubt?.amount !== undefined &&
+                            doubt.amount > 0 &&
+                            doubt.isUserDoubt
+                          }
+                        />
+                        {doubt?.amount !== undefined &&
+                          doubt.amount > 0 &&
+                          doubt.isUserDoubt && (
+                            <span className="ml-1">
+                              {doubtPercentage}
+                              {doubtPercentage > 100 && "+"}%
+                            </span>
+                          )}
+                      </div>
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+          {endorsedByOp && (
+            <Tooltip
+              open={isOPTooltipOpen}
+              onOpenChange={toggleOPTooltip}
+              delayDuration={0}
+            >
+              <TooltipTrigger asChild>
+                <Badge
+                  className="absolute hover:bg-yellow-600 bottom-1.5 right-1.5 text-yellow-500 text-xs font-medium bg-yellow-500/80 text-background dark:font-bold leading-none px-1 py-0.5 rounded-[6px] align-middle"
+                  onClick={() => toggleOPTooltip()}
+                >
+                  {opCred} cred
+                </Badge>
+              </TooltipTrigger>
+              <Portal>
+                <TooltipContent
+                  side="top"
+                  align="center"
+                  sideOffset={5}
+                  className="z-[100]"
+                >
+                  <p>
+                    Endorsed by{" "}
+                    <strong className="text-yellow-500">
+                      {originalPoster ? originalPoster.username : "poster"}{" "}
+                    </strong>{" "}
+                    with {opCred} cred
+                  </p>
+                </TooltipContent>
+              </Portal>
+            </Tooltip>
+          )}
+          {!visited && privyUser && (
+            <div className="absolute top-0.5 right-3 group flex items-center gap-2">
+              <span className="text-sm text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                Tap to mark seen
+              </span>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  markPointAsRead(pointId);
+                  setVisitedPoints(prev => {
+                    const newSet = new Set(prev);
+                    newSet.add(pointId);
+                    return newSet;
+                  });
+                }}
+                className="relative size-3 rounded-full flex items-center justify-center"
+              >
+                <div className="absolute inset-0 bg-endorsed/20 rounded-full scale-0 group-hover:scale-150 transition-transform" />
+                <CircleIcon className="size-full fill-endorsed text-endorsed relative" />
+              </button>
+            </div>
+          )}
+          {props.children}
+        </div>
+      </PopoverTrigger>
+      <Portal>
+        <PopoverContent
+          className="w-80 sm:w-96 max-h-80 overflow-auto"
+          side="right"
+          align="start"
+          sideOffset={5}
+          onMouseEnter={handleHoverStart}
+          onMouseLeave={handleHoverEnd}
+        >
+          <div className="flex flex-col gap-3">
+            <div className="flex items-start gap-2">
+              {isCommand && space && space !== 'global' ? (
+                <FeedCommandIcon />
+              ) : isPinned && space && space !== 'global' ? (
+                <PinnedIcon />
+              ) : (
+                <PointIcon />
+              )}
+              <h3 className="text-lg font-semibold -mt-0.5 break-words">{content}</h3>
+            </div>
+
+            <PointStats
+              className="mb-md"
+              amountNegations={amountNegations}
+              amountSupporters={amountSupporters}
+              favor={favor}
+              cred={cred}
+            />
+
+            {favorHistory && favorHistory.length > 0 && (
+              <div className="mt-2">
+                <h4 className="text-sm font-semibold mb-2">Favor History</h4>
+                <ResponsiveContainer width="100%" height={100}>
+                  <LineChart
+                    width={300}
+                    height={100}
+                    data={favorHistory}
+                    className="[&>.recharts-surface]:overflow-visible"
+                  >
+                    <XAxis dataKey="timestamp" hide />
+                    <YAxis domain={[0, 100]} hide />
+                    <ReferenceLine
+                      y={50}
+                      className="[&>line]:stroke-muted"
+                    ></ReferenceLine>
+                    <Line
+                      animationDuration={300}
+                      dataKey="favor"
+                      type="stepAfter"
+                      className="overflow-visible text-endorsed"
+                      dot={({ key, ...dot }) =>
+                        favorHistory && dot.index === favorHistory.length - 1 ? (
+                          <Fragment key={key}>
+                            <Dot
+                              {...dot}
+                              fill={dot.stroke}
+                              className="animate-ping"
+                              style={{
+                                transformOrigin: `${dot.cx}px ${dot.cy}px`,
+                              }}
+                            />
+                            <Dot {...dot} fill={dot.stroke} />
+                          </Fragment>
+                        ) : (
+                          <Fragment key={key} />
+                        )
                       }
+                      stroke={"currentColor"}
+                      strokeWidth={2}
                     />
-                    {doubt?.amount !== undefined &&
-                      doubt.amount > 0 &&
-                      doubt.isUserDoubt && (
-                        <span className="ml-1">
-                          {doubtPercentage}
-                          {doubtPercentage > 100 && "+"}%
-                        </span>
-                      )}
-                  </div>
-                </Button>
-              </>
+                    <RechartsTooltip
+                      wrapperClassName="backdrop-blur-sm !bg-transparent !pb-0 rounded-sm"
+                      labelClassName=" -top-3 text-muted-foreground text-xs"
+                      formatter={(value: number) => value.toFixed(2)}
+                      labelFormatter={(timestamp: Date) => timestamp.toLocaleString()}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             )}
           </div>
-        </div>
-      </div>
-      {endorsedByOp && (
-        <Tooltip
-          open={isOPTooltipOpen}
-          onOpenChange={toggleOPTooltip}
-          delayDuration={0}
-        >
-          <TooltipTrigger asChild>
-            <Badge
-              className="absolute hover:bg-yellow-600 bottom-1.5 right-1.5 text-yellow-500 text-xs font-medium bg-yellow-500/80 text-background dark:font-bold leading-none px-1 py-0.5 rounded-[6px] align-middle"
-              onClick={() => toggleOPTooltip()}
-            >
-              {opCred} cred
-            </Badge>
-          </TooltipTrigger>
-          <Portal>
-            <TooltipContent
-              side="top"
-              align="center"
-              sideOffset={5}
-              className="z-[100]"
-            >
-              <p>
-                Endorsed by{" "}
-                <strong className="text-yellow-500">
-                  {originalPoster ? originalPoster.username : "poster"}{" "}
-                </strong>{" "}
-                with {opCred} cred
-              </p>
-            </TooltipContent>
-          </Portal>
-        </Tooltip>
-      )}
-      {!visited && privyUser && (
-        <div className="absolute top-0.5 right-3 group flex items-center gap-2">
-          <span className="text-sm text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-            Tap to mark seen
-          </span>
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              markPointAsRead(pointId);
-              setVisitedPoints(prev => {
-                const newSet = new Set(prev);
-                newSet.add(pointId);
-                return newSet;
-              });
-            }}
-            className="relative size-3 rounded-full flex items-center justify-center"
-          >
-            <div className="absolute inset-0 bg-endorsed/20 rounded-full scale-0 group-hover:scale-150 transition-transform" />
-            <CircleIcon className="size-full fill-endorsed text-endorsed relative" />
-          </button>
-        </div>
-      )}
-      {props.children}
-    </div>
+        </PopoverContent>
+      </Portal>
+    </Popover>
   );
 };

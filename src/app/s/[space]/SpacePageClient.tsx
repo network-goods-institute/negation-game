@@ -32,6 +32,7 @@ import { ViewpointIcon } from "@/components/icons/AppIcons";
 import { usePriorityPoints } from "@/queries/usePriorityPoints";
 import { decodeId } from "@/lib/decodeId";
 import { useQueryClient } from "@tanstack/react-query";
+import { useFavorHistory } from "@/queries/useFavorHistory";
 
 interface PageProps {
     params: { space: string };
@@ -60,6 +61,17 @@ const MemoizedPointCard = memo(PointCard);
 const MemoizedViewpointCard = memo(ViewpointCard);
 
 const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, pinnedPoint }: any) => {
+    const pointId = item.type === 'point' ? item.data.pointId : null;
+    const { data: favorHistory } = useFavorHistory(
+        pointId ? {
+            pointId,
+            timelineScale: "1W"
+        } : {
+            pointId: -1, // Use a dummy ID when not a point
+            timelineScale: "1W"
+        }
+    );
+
     if (item.type === 'point') {
         const point = item.data;
         const isProposalToPin = point.content?.startsWith('/pin ');
@@ -133,6 +145,7 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                         e.stopPropagation();
                     }}
                     linkDisabled={true}
+                    favorHistory={favorHistory}
                 />
             </Link>
         );
@@ -185,6 +198,11 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
 FeedItem.displayName = 'FeedItem';
 
 const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, login, user, pinnedPoint }: any) => {
+    const { data: favorHistory } = useFavorHistory({
+        pointId: point.pointId,
+        timelineScale: "1W"
+    });
+
     let pinStatus;
     if (point.pinCommands?.length > 1) {
         pinStatus = `Proposal to pin (${point.pinCommands.length} proposals)`;
@@ -231,6 +249,7 @@ const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, log
                     e.stopPropagation();
                 }}
                 linkDisabled={true}
+                favorHistory={favorHistory}
             />
         </Link>
     );
@@ -408,6 +427,45 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
     );
 });
 RationalesTabContent.displayName = 'RationalesTabContent';
+
+const PinnedPointWithHistory = memo(({ pinnedPoint, space }: any) => {
+    const { data: favorHistory } = useFavorHistory({
+        pointId: pinnedPoint.pointId,
+        timelineScale: "1W"
+    });
+
+    return (
+        <PointCard
+            className="flex-grow p-6"
+            amountSupporters={pinnedPoint.amountSupporters}
+            createdAt={pinnedPoint.createdAt}
+            cred={pinnedPoint.cred}
+            pointId={pinnedPoint.pointId}
+            favor={pinnedPoint.favor}
+            amountNegations={pinnedPoint.amountNegations}
+            content={pinnedPoint.content}
+            viewerContext={{ viewerCred: pinnedPoint.viewerCred }}
+            isPinned={true}
+            isCommand={pinnedPoint.isCommand}
+            space={space}
+            pinnedCommandPointId={pinnedPoint.pinCommands?.[0]?.id}
+            onPinBadgeClickCapture={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            }}
+            pinStatus={
+                pinnedPoint.pinCommands?.length > 1
+                    ? `Pinned by command (${pinnedPoint.pinCommands.length} competing proposals)`
+                    : pinnedPoint.pinCommands?.length === 1
+                        ? "Pinned by command"
+                        : "Pinned by command"
+            }
+            linkDisabled={true}
+            favorHistory={favorHistory}
+        />
+    );
+});
+PinnedPointWithHistory.displayName = 'PinnedPointWithHistory';
 
 export function SpacePageClient({
     params,
@@ -639,32 +697,9 @@ export function SpacePageClient({
                                 href={`${basePath}/${encodeId(pinnedPoint.pointId)}`}
                                 className="flex cursor-pointer hover:bg-accent"
                             >
-                                <PointCard
-                                    className="flex-grow p-6"
-                                    amountSupporters={pinnedPoint.amountSupporters}
-                                    createdAt={pinnedPoint.createdAt}
-                                    cred={pinnedPoint.cred}
-                                    pointId={pinnedPoint.pointId}
-                                    favor={pinnedPoint.favor}
-                                    amountNegations={pinnedPoint.amountNegations}
-                                    content={pinnedPoint.content}
-                                    viewerContext={{ viewerCred: pinnedPoint.viewerCred }}
-                                    isPinned={true}
-                                    isCommand={pinnedPoint.isCommand}
+                                <PinnedPointWithHistory
+                                    pinnedPoint={pinnedPoint}
                                     space={space.data?.id}
-                                    pinnedCommandPointId={pinnedPoint.pinCommands?.[0]?.id}
-                                    onPinBadgeClickCapture={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                    }}
-                                    pinStatus={
-                                        pinnedPoint.pinCommands?.length > 1
-                                            ? `Pinned by command (${pinnedPoint.pinCommands.length} competing proposals)`
-                                            : pinnedPoint.pinCommands?.length === 1
-                                                ? "Pinned by command"
-                                                : "Pinned by command"
-                                    }
-                                    linkDisabled={true}
                                 />
                             </Link>
                         </div>
