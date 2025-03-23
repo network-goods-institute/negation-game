@@ -18,6 +18,7 @@ import { GraphView } from "@/components/graph/EncodedGraphView";
 import { EndorseIcon } from "@/components/icons/EndorseIcon";
 import { NegateIcon } from "@/components/icons/NegateIcon";
 import { PointIcon } from "@/components/icons/AppIcons";
+import { TrashIcon } from "@/components/icons/TrashIcon";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
@@ -53,7 +54,6 @@ import { useAtomCallback } from "jotai/utils";
 import {
     ArrowLeftIcon,
     CircleXIcon,
-    DiscIcon,
     NetworkIcon,
     Repeat2Icon,
     SparklesIcon,
@@ -76,6 +76,8 @@ import { Badge } from "@/components/ui/badge";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePrefetchRestakeData } from "@/hooks/usePrefetchRestakeData";
 import { visitedPointsAtom } from "@/atoms/visitedPointsAtom";
+import { DeletePointDialog } from "@/components/DeletePointDialog";
+import { isWithinDeletionTimelock } from "@/lib/deleteTimelock";
 
 type Point = {
     id: number;
@@ -91,6 +93,7 @@ type Point = {
     isCommand?: boolean;
     isPinned?: boolean;
     pinnedByCommandId?: number | null;
+    createdBy?: string;
 };
 
 type PageProps = {
@@ -138,7 +141,8 @@ export function PointPageClient({
     } = useCredInput({
         resetWhen: !endorsePopoverOpen,
     });
-    const { back, push } = useRouter();
+    const router = useRouter();
+    const { back, push } = router;
     const searchParams = useSearchParams();
     const viewParam = searchParams?.get("view");
     const counterpointSuggestions = useCounterpointSuggestions(point?.pointId);
@@ -155,6 +159,8 @@ export function PointPageClient({
     const { mutate: endorse } = useEndorse();
     const [_, setVisitedPoints] = useAtom(visitedPointsAtom);
     const [recentlyNegated, setRecentlyNegated] = useState(false);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [isRedirecting, setIsRedirecting] = useState(false);
 
     // Memoized values
     const initialNodes = useMemo(
@@ -169,10 +175,24 @@ export function PointPageClient({
         [pointId]
     );
 
-    // Effects next
     useEffect(() => {
-        if (point === null) notFound();
-    }, [point]);
+        if (!isLoadingPoint && point === null && !isRedirecting) {
+            // Redirect to space root
+            if (window.location.pathname.includes("/s/")) {
+                // Get current space from pathname
+                const spaceMatch = pathname?.match(/^\/s\/([^\/]+)/);
+                const redirectUrl = spaceMatch && spaceMatch[1]
+                    ? `/s/${spaceMatch[1]}`
+                    : "/";
+
+                setIsRedirecting(true);
+
+                window.location.href = redirectUrl;
+            } else {
+                setIsRedirecting(true);
+            }
+        }
+    }, [point, isLoadingPoint, pathname, isRedirecting]);
 
     useEffect(() => {
         if (pointId) {
@@ -318,6 +338,27 @@ export function PointPageClient({
         prefetchRestakeData(pointId, negationId);
     }, [prefetchPoint, prefetchRestakeData, pointId]);
 
+    const isPointOwner = useMemo(() => {
+        return point?.createdBy === privyUser?.id;
+    }, [point?.createdBy, privyUser?.id]);
+
+    const canDeletePoint = useMemo(() => {
+        if (!point?.createdAt || !isPointOwner) return false;
+        return isWithinDeletionTimelock(point.createdAt);
+    }, [point?.createdAt, isPointOwner]);
+
+    if (!isLoadingPoint && point === null && !isRedirecting) {
+        notFound();
+    }
+
+    if (isRedirecting) {
+        return (
+            <main className="flex items-center justify-center flex-grow">
+                <Loader className="size-6" />
+            </main>
+        );
+    }
+
     // Early return for loading state
     if (!ready) {
         return (
@@ -381,6 +422,20 @@ export function PointPageClient({
                                 )}
                             </div>
                             <div className="flex gap-sm items-center text-muted-foreground">
+                                {isPointOwner && (
+                                    <Button
+                                        variant="ghost"
+                                        className="p-2 rounded-full size-fit hover:bg-destructive/30"
+                                        onClick={() => setDeleteDialogOpen(true)}
+                                        title={canDeletePoint
+                                            ? "Delete point"
+                                            : "Points can only be deleted within 8 hours of creation"}
+                                    >
+                                        <TrashIcon
+                                            disabled={!canDeletePoint}
+                                        />
+                                    </Button>
+                                )}
                                 <Button
                                     variant="ghost"
                                     className="p-2 rounded-full size-fit hover:bg-muted/30"
@@ -823,6 +878,15 @@ export function PointPageClient({
                     counterPoint={restakePoint.counterPoint}
                     onEndorseClick={() => toggleEndorsePopoverOpen(true)}
                     openedFromSlashedIcon={restakePoint.openedFromSlashedIcon}
+                />
+            )}
+
+            {point && (
+                <DeletePointDialog
+                    open={deleteDialogOpen}
+                    onOpenChange={setDeleteDialogOpen}
+                    pointId={point.pointId}
+                    createdAt={point.createdAt}
                 />
             )}
         </main>
