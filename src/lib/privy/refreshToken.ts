@@ -1,6 +1,7 @@
 "use client";
 
 import { usePrivy, getAccessToken } from "@privy-io/react-auth";
+import { handleAuthError } from "@/lib/auth/handleAuthError";
 
 /**
  * Refreshes the Privy authentication token using the official SDK method
@@ -11,6 +12,11 @@ import { usePrivy, getAccessToken } from "@privy-io/react-auth";
 export const refreshPrivyToken = async (): Promise<boolean> => {
   try {
     const token = await getAccessToken();
+    if (!token) {
+      console.warn(
+        "Empty token returned from getAccessToken during token refresh"
+      );
+    }
     return token !== null;
   } catch (error) {
     console.error("Failed to refresh Privy token:", error);
@@ -28,9 +34,18 @@ export const useRefreshPrivyToken = () => {
   const refreshToken = async (): Promise<boolean> => {
     try {
       const token = await getAccessToken();
+      if (!token) {
+        console.warn(
+          "Empty token returned from getAccessToken during token refresh in useRefreshPrivyToken"
+        );
+      }
       return token !== null;
     } catch (error) {
-      console.error("Failed to refresh Privy token:", error);
+      console.error(
+        "Failed to refresh Privy token in useRefreshPrivyToken:",
+        error
+      );
+      handleAuthError(error, "refreshing authentication");
       return false;
     }
   };

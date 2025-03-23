@@ -34,6 +34,17 @@ jest.mock('@/components/ui/loader', () => ({
   Loader: () => <div data-testid="loader" />,
 }))
 
+// Mock sonner toast
+jest.mock('sonner', () => ({
+  toast: {
+    error: jest.fn(),
+    success: jest.fn(),
+    info: jest.fn(),
+    warning: jest.fn(),
+  },
+  Toaster: () => <div data-testid="toaster" />,
+}))
+
 // Reset all mocks after each test
 afterEach(() => {
   jest.clearAllMocks()

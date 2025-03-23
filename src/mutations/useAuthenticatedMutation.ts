@@ -2,6 +2,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useState, useCallback } from "react";
 import { refreshPrivyToken } from "@/lib/privy/refreshToken";
+import { handleAuthError, isAuthError } from "@/lib/auth/handleAuthError";
 
 const AUTH_ERROR_MESSAGES = [
   "Must be authenticated",
@@ -80,9 +81,19 @@ export const useAuthenticatedMutation: typeof useMutation = (
           // Retry the original function with the same arguments
           return await (mutationFn as any)(...args);
         } else {
+          // Show error toast if token refresh fails but user appears authenticated
+          handleAuthError(error, "refreshing authentication");
           login();
           throw new Error("Authentication refresh failed");
         }
+      }
+
+      // If it's an auth error but we've exceeded retries, show the error toast
+      if (isAuthError(error) && retryCount >= MAX_RETRIES) {
+        handleAuthError(
+          error,
+          "performing action after multiple retry attempts"
+        );
       }
 
       // If it's not an auth error or we've exceeded retries, rethrow

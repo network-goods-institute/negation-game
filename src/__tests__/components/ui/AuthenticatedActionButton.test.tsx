@@ -2,16 +2,23 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '../../utils/test-utils';
 import { AuthenticatedActionButton } from '@/components/ui/AuthenticatedActionButton';
 import { usePrivy } from '@privy-io/react-auth';
+import { handleAuthError } from '@/lib/auth/handleAuthError';
 
 // Mock the usePrivy hook
 jest.mock('@privy-io/react-auth', () => ({
     usePrivy: jest.fn(),
 }));
 
+// Mock the handleAuthError function to prevent console errors during tests
+jest.mock('@/lib/auth/handleAuthError', () => ({
+    handleAuthError: jest.fn(),
+}));
+
 describe('AuthenticatedActionButton', () => {
     // Set up default mock values for usePrivy
     const mockLogin = jest.fn();
     const mockGetAccessToken = jest.fn();
+    const mockHandleAuthError = handleAuthError as jest.Mock;
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -122,6 +129,7 @@ describe('AuthenticatedActionButton', () => {
 
         await waitFor(() => {
             expect(mockGetAccessToken).toHaveBeenCalledTimes(1);
+            expect(mockHandleAuthError).toHaveBeenCalledTimes(1);
             expect(mockLogin).toHaveBeenCalledTimes(1);
         });
     });
@@ -143,6 +151,7 @@ describe('AuthenticatedActionButton', () => {
 
         await waitFor(() => {
             expect(mockGetAccessToken).toHaveBeenCalledTimes(1);
+            expect(mockHandleAuthError).toHaveBeenCalledTimes(1);
             expect(mockLogin).toHaveBeenCalledTimes(1);
         });
     });
