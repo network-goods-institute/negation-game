@@ -536,10 +536,18 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                   className="rounded-full flex items-center gap-2 px-4"
                   onClick={handleCopy}
                   disabled={isCopying}
-                  rightLoading={isCopying}
                 >
-                  <span className="text-sm font-bold">Make a Copy</span>
-                  <CopyIcon className="size-4" />
+                  {isCopying ? (
+                    <div className="flex items-center gap-2">
+                      <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                      <span className="text-sm font-bold">Copying...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="text-sm font-bold">Make a Copy</span>
+                      <CopyIcon className="size-4" />
+                    </>
+                  )}
                 </AuthenticatedActionButton>
               </div>
             </div>
