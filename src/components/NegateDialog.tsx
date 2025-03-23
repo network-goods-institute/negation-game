@@ -42,6 +42,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import CounterpointReview, { CounterpointCandidate } from "@/components/CounterpointReview";
+import { toast } from "sonner";
 
 export interface NegateDialogProps
   extends Omit<DialogProps, "open" | "onOpenChange"> { }
@@ -193,9 +194,25 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
         })
     )
       .then(() => {
+        // Show success toast
+        if (selectedCounterpointCandidate === undefined) {
+          toast.success("Negation created successfully");
+          // Dispatch custom event for negation creation
+          window.dispatchEvent(new CustomEvent('negation:created'));
+        } else if (selectedCounterpointCandidate.isCounterpoint) {
+          toast.success("Point endorsed successfully");
+        } else {
+          toast.success("Negation created successfully");
+          // Dispatch custom event for negation creation
+          window.dispatchEvent(new CustomEvent('negation:created'));
+        }
+
         queryClient.invalidateQueries({ queryKey: ["feed"] });
         resetForm();
         setNegatedPointId(undefined);
+      })
+      .catch(error => {
+        toast.error("Failed to create negation: " + (error.message || "Unknown error"));
       })
       .finally(() => {
         setIsSubmitting(false);

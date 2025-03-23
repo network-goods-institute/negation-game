@@ -154,6 +154,7 @@ export function PointPageClient({
     const pathname = usePathname();
     const { mutate: endorse } = useEndorse();
     const [_, setVisitedPoints] = useAtom(visitedPointsAtom);
+    const [recentlyNegated, setRecentlyNegated] = useState(false);
 
     // Memoized values
     const initialNodes = useMemo(
@@ -220,6 +221,22 @@ export function PointPageClient({
             }, i * 10); // 10ms delay between batches
         }
     }, [negations, pointId, prefetchRestakeData]);
+
+    useEffect(() => {
+        const handleNegationCreated = () => {
+            setRecentlyNegated(true);
+
+            setTimeout(() => {
+                setRecentlyNegated(false);
+            }, 2000);
+        };
+
+        window.addEventListener('negation:created', handleNegationCreated);
+
+        return () => {
+            window.removeEventListener('negation:created', handleNegationCreated);
+        };
+    }, []);
 
     // Derived state and callbacks
     const isInSpecificSpace = pathname?.includes('/s/') && !pathname.match(/^\/s\/global\//);
@@ -454,7 +471,10 @@ export function PointPageClient({
                                         }
                                     }}
                                 >
-                                    <NegateIcon className="@md/point:hidden" />
+                                    <NegateIcon
+                                        className="@md/point:hidden"
+                                        showSuccess={recentlyNegated}
+                                    />
                                     <span className="hidden @md/point:inline">Negate</span>
                                 </Button>
                             </div>

@@ -4,6 +4,7 @@ import { useInvalidateRelatedPoints } from "@/queries/usePointData";
 import { userQueryKey } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export const useNegate = () => {
   const queryClient = useQueryClient();
@@ -12,6 +13,8 @@ export const useNegate = () => {
   return useAuthenticatedMutation({
     mutationFn: negate,
     onSuccess: (_negationId, { negatedPointId, counterpointId }) => {
+      toast.success("Negation created successfully");
+
       // Invalidate both points involved
       invalidateRelatedPoints(negatedPointId);
       invalidateRelatedPoints(counterpointId);
@@ -45,6 +48,11 @@ export const useNegate = () => {
       queryClient.invalidateQueries({
         queryKey: ["pinnedPoint"],
       });
+    },
+    onError: (error) => {
+      toast.error(
+        "Failed to create negation: " + (error.message || "Unknown error")
+      );
     },
   });
 };
