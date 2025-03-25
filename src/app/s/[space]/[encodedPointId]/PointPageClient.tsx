@@ -295,6 +295,32 @@ export function PointPageClient({
         }
     }, [point, pointId, queryClient, privyUser?.id, isLoadingPoint]);
 
+    useEffect(() => {
+        if (point && !isLoadingPoint && Array.isArray(negations)) {
+            // Delay loading of restake/doubt data to prioritize main content
+            setTimeout(() => {
+                negations.forEach(negation => {
+                    if (negation.pointId !== pointId) {
+                        prefetchRestakeData(pointId, negation.pointId);
+
+                        // Prefetch favor history for the negation
+                        queryClient.prefetchQuery({
+                            queryKey: [negation.pointId, "favor-history", "1W"],
+                            queryFn: async () => {
+                                const { fetchFavorHistory } = await import("@/actions/fetchFavorHistory");
+                                return fetchFavorHistory({
+                                    pointId: negation.pointId,
+                                    scale: "1W"
+                                });
+                            },
+                            staleTime: 15_000,
+                        });
+                    }
+                });
+            }, 1000); // Delay by 1 second to prioritize main content
+        }
+    }, [point, pointId, queryClient, privyUser?.id, isLoadingPoint, negations, prefetchRestakeData]);
+
     // Force show negations after 2.5 seconds to avoid stalled UI
     useEffect(() => {
         if ((isLoadingNegations || !negations) && !forceShowNegations) {
