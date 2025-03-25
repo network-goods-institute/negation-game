@@ -31,7 +31,8 @@ export interface ViewpointCardProps extends Omit<React.HTMLAttributes<HTMLAnchor
     statistics?: {
         views: number;
         copies: number;
-        pointIds?: number[];
+        totalCred?: number;
+        averageFavor?: number;
     };
 }
 
@@ -99,7 +100,8 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                         <ViewpointStatsBar
                             views={statistics?.views || 0}
                             copies={statistics?.copies || 0}
-                            pointIds={statistics?.pointIds || []}
+                            totalCred={statistics?.totalCred}
+                            averageFavor={statistics?.averageFavor}
                             className="mr-2"
                         />
                         <Badge variant="secondary" className="text-xs">
@@ -171,7 +173,8 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                         <ViewpointStatsBar
                             views={statistics?.views || 0}
                             copies={statistics?.copies || 0}
-                            pointIds={statistics?.pointIds || []}
+                            totalCred={statistics?.totalCred}
+                            averageFavor={statistics?.averageFavor}
                             className="mb-2"
                         />
 

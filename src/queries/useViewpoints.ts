@@ -1,9 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
 import { fetchViewpoints } from "@/actions/fetchViewpoints";
+import { useQuery } from "@tanstack/react-query";
 
 export const useViewpoints = (space: string) => {
   return useQuery({
-    queryKey: ["rationales", space],
+    queryKey: ["viewpoints", space],
     queryFn: () => fetchViewpoints(space),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 };

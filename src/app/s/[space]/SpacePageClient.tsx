@@ -198,17 +198,17 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                 <MemoizedViewpointCard
                     className="flex-grow p-6 w-full"
                     id={viewpoint.id}
-                    title={viewpoint.title || ''}
-                    description={viewpoint.description || ''}
-                    author={viewpoint.author || ''}
-                    createdAt={new Date(viewpoint.createdAt)}
-                    space={space || "global"}
+                    title={viewpoint.title}
+                    description={viewpoint.description}
+                    author={viewpoint.author}
+                    createdAt={viewpoint.createdAt}
+                    space={space}
                     statistics={{
                         views: viewpoint.statistics?.views || 0,
                         copies: viewpoint.statistics?.copies || 0,
-                        pointIds: pointIds
+                        totalCred: viewpoint.statistics?.totalCred || 0,
+                        averageFavor: viewpoint.statistics?.averageFavor || 0
                     }}
-                    linkable={false}
                 />
             </Link>
         );
@@ -469,7 +469,8 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
                     statistics={{
                         views: viewpoint.statistics?.views || 0,
                         copies: viewpoint.statistics?.copies || 0,
-                        pointIds: pointIds
+                        totalCred: viewpoint.statistics?.totalCred || 0,
+                        averageFavor: viewpoint.statistics?.averageFavor || 0
                     }}
                     linkable={true}
                 />

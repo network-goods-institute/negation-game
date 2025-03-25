@@ -107,81 +107,42 @@ describe("ViewpointStatsBar", () => {
         expect(copyIcon).toBeInTheDocument();
     });
 
-    it("calculates and displays total cred for provided point IDs", async () => {
-        const { container } = render(
-            <ViewpointStatsBar views={100} copies={50} pointIds={[1, 2, 3]} />
-        );
+    it("shows total cred when provided", () => {
+        render(<ViewpointStatsBar views={100} copies={50} totalCred={450} />);
 
-        // Total cred should be 450 (100 + 200 + 150)
-        await waitFor(() => {
-            expect(screen.getByText("450")).toBeInTheDocument();
-        });
+        // Total cred should be 450
+        expect(screen.getByText("450")).toBeInTheDocument();
 
         // Check for the coins icon
-        const coinsIcon = container.querySelector('.lucide-coins');
+        const coinsIcon = screen.getByText("450").closest('div')?.querySelector('.lucide-coins');
         expect(coinsIcon).toBeInTheDocument();
     });
 
-    it("shows loading state while calculating cred", async () => {
-        // Render with special ID 999 that triggers loading state in mock
-        render(<ViewpointStatsBar views={100} copies={50} pointIds={[999]} />);
+    it("shows average favor when provided", () => {
+        render(<ViewpointStatsBar views={100} copies={50} averageFavor={40} />);
 
-        // Should show "Calculating..." while loading
-        const credCalculatingElement = screen.getAllByText("Calculating...")[0];
-        expect(credCalculatingElement).toBeInTheDocument();
-
-        // Check for the coins icon
-        const coinsIcon = credCalculatingElement.closest('div')?.querySelector('.lucide-coins');
-        expect(coinsIcon).toBeInTheDocument();
-    });
-
-    it("doesn't render cred section when no point IDs are provided", () => {
-        const { container } = render(<ViewpointStatsBar views={100} copies={50} />);
-
-        // Should not find the coins icon
-        const coinsIcon = container.querySelector('.lucide-coins');
-        expect(coinsIcon).not.toBeInTheDocument();
-    });
-
-    it("formats large total cred with appropriate suffix", async () => {
-        render(<ViewpointStatsBar views={100} copies={50} pointIds={[4]} />);
-
-        // Total cred should be 1000 and displayed as 1.0k
-        await waitFor(() => {
-            expect(screen.getByText("1.0k")).toBeInTheDocument();
-        });
-    });
-
-    it("calculates and displays average favor for provided point IDs", async () => {
-        // Directly populate the actual useEffect logic with our mock data to ensure proper calculation
-        const mockData = [
-            { pointId: 1, cred: 100, favor: 20 },
-            { pointId: 2, cred: 100, favor: 40 },
-            { pointId: 3, cred: 100, favor: 60 }
-        ];
-
-        // Mock the useQuery hook to return our controlled data
-        const useQueryMock = jest.requireMock("@tanstack/react-query").useQuery;
-        useQueryMock.mockImplementation(({ queryKey }: any) => {
-            if (queryKey[0] === 'viewpoint-stats-points') {
-                return {
-                    data: mockData,
-                    isLoading: false
-                };
-            }
-            return { data: null, isLoading: false };
-        });
-
-        render(<ViewpointStatsBar views={100} copies={50} pointIds={[1, 2, 3]} />);
-
-        // The average favor should be 40 (20 + 40 + 60) / 3
-        await waitFor(() => {
-            // Look for the exact value without the % sign
-            expect(screen.getByText("40")).toBeInTheDocument();
-        });
+        // The average favor should be 40
+        expect(screen.getByText("40")).toBeInTheDocument();
 
         // Check for the trending up icon
         const trendingUpIcon = screen.getByText("40").closest('div')?.querySelector('.lucide-trending-up');
         expect(trendingUpIcon).toBeInTheDocument();
+    });
+
+    it("formats large total cred with appropriate suffix", () => {
+        render(<ViewpointStatsBar views={100} copies={50} totalCred={1000} />);
+
+        // Total cred should be 1000 and displayed as 1.0k
+        expect(screen.getByText("1.0k")).toBeInTheDocument();
+    });
+
+    it("doesn't render cred and favor sections when zero", () => {
+        const { container } = render(<ViewpointStatsBar views={100} copies={50} totalCred={0} averageFavor={0} />);
+
+        // Should not find the coins or trending up icons
+        const coinsIcon = container.querySelector('.lucide-coins');
+        const trendingUpIcon = container.querySelector('.lucide-trending-up');
+        expect(coinsIcon).not.toBeInTheDocument();
+        expect(trendingUpIcon).not.toBeInTheDocument();
     });
 }); 
