@@ -1,7 +1,10 @@
 import { fetchPointNegations } from "@/actions/fetchPointNegations";
-import { useSetPointData } from "@/queries/usePointData";
 import { usePrivy } from "@privy-io/react-auth";
-import { useQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 export type NegationResult = {
   pointId: number;
@@ -39,10 +42,13 @@ export type NegationResult = {
   restakesByPoint: number;
   slashedAmount: number;
   doubtedAmount: number;
+  totalRestakeAmount: number;
   isPinned: boolean;
   isCommand: boolean;
   pinnedByCommandId: number | null;
 };
+
+type NegationQueryKey = readonly [number, "negations", string | undefined];
 
 export const pointNegationsQueryKey = ({
   pointId,
@@ -50,58 +56,46 @@ export const pointNegationsQueryKey = ({
 }: {
   pointId: number;
   userId?: string;
-}) => [pointId, "point-negations", userId];
+}): NegationQueryKey => [pointId, "negations", userId];
 
-export const usePointNegations = (pointId: number) => {
-  const { user: privyUser } = usePrivy();
-  const setPointData = useSetPointData();
+export const usePointNegations = (pointId: number | undefined) => {
+  const { user } = usePrivy();
 
   return useQuery({
-    queryKey: ["point-negations", pointId, privyUser?.id],
+    queryKey: pointId
+      ? pointNegationsQueryKey({ pointId, userId: user?.id })
+      : [],
     queryFn: async () => {
-      const negations = await fetchPointNegations(pointId);
+      if (!pointId) {
+        return [];
+      }
 
-      return negations.map((negation) => {
-        const transformedNegation = {
-          ...negation,
-          restakesByPoint: negation.restakesByPoint,
-          slashedAmount: negation.slashedAmount,
-          doubtedAmount: negation.doubtedAmount,
-          totalRestakeAmount: negation.totalRestakeAmount,
-          isPinned: false,
-          isCommand: false,
-          pinnedByCommandId: negation.pinnedByCommandId,
-          restake: negation.restake
-            ? {
-                id: negation.restake.id ?? 0,
-                amount: negation.restake.amount ?? 0,
-                originalAmount: negation.restake.originalAmount ?? 0,
-                slashedAmount: negation.restake.slashedAmount ?? 0,
-                doubtedAmount: negation.restake.doubtedAmount ?? 0,
-                totalRestakeAmount: negation.restake.totalRestakeAmount ?? 0,
-                effectiveAmount: negation.restake.amount ?? 0,
-                isOwner: negation.restake.isOwner,
-              }
-            : null,
-          doubt: negation.doubt
-            ? {
-                id: negation.doubt.id ?? 0,
-                amount: negation.doubt.amount ?? 0,
-                userAmount: negation.doubt.userAmount ?? 0,
-                isUserDoubt: negation.doubt.isUserDoubt ?? false,
-              }
-            : null,
-        };
+      const startTime = Date.now();
 
-        setPointData(
-          { pointId: negation.pointId, userId: privyUser?.id },
-          transformedNegation
-        );
-        return transformedNegation;
-      });
+      try {
+        const result = await fetchPointNegations(pointId);
+
+        // Process the result to ensure all fields have defaults
+        const processedResult = Array.isArray(result)
+          ? result.map((n) => ({
+              ...n,
+              // Add defaults for important fields to prevent undefined errors
+              pointId: n.pointId || 0,
+            }))
+          : [];
+
+        return processedResult;
+      } catch (error) {
+        return [];
+      }
     },
-    staleTime: 0,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
+    placeholderData: keepPreviousData,
+    enabled: pointId !== undefined, // Only run the query if pointId is defined
+    refetchInterval: 15000, // 15 seconds - faster refresh
+    staleTime: 1000, // 1 second - almost always refetch when requested
+    gcTime: 15 * 60 * 1000, // Keep in cache for 15 minutes
+    retry: 2, // Limit retries to avoid excessive network requests
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 3000), // Faster retry
+    networkMode: "offlineFirst", // Prioritize cached data
   });
 };

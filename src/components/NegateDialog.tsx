@@ -197,14 +197,49 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
         // Show success toast
         if (selectedCounterpointCandidate === undefined) {
           toast.success("Negation created successfully");
+
+          if (negatedPoint?.pointId) {
+            queryClient.invalidateQueries({
+              queryKey: [negatedPoint.pointId, "negations"],
+              exact: true,
+            });
+
+            queryClient.invalidateQueries({
+              queryKey: ["point", negatedPoint.pointId],
+              type: "all",
+            });
+          }
+
           // Dispatch custom event for negation creation
-          window.dispatchEvent(new CustomEvent('negation:created'));
+          const event = new CustomEvent('negation:created', {
+            detail: { pointId: negatedPoint?.pointId }
+          });
+          window.dispatchEvent(event);
         } else if (selectedCounterpointCandidate.isCounterpoint) {
           toast.success("Point endorsed successfully");
         } else {
           toast.success("Negation created successfully");
+
+
+          if (negatedPoint?.pointId) {
+            // Invalidate the parent point's negations cache
+            queryClient.invalidateQueries({
+              queryKey: [negatedPoint.pointId, "negations"],
+              exact: true,
+            });
+
+            // Invalidate the point data cache to update negation count
+            queryClient.invalidateQueries({
+              queryKey: ["point", negatedPoint.pointId],
+              type: "all",
+            });
+          }
+
           // Dispatch custom event for negation creation
-          window.dispatchEvent(new CustomEvent('negation:created'));
+          const event = new CustomEvent('negation:created', {
+            detail: { pointId: negatedPoint?.pointId }
+          });
+          window.dispatchEvent(event);
         }
 
         queryClient.invalidateQueries({ queryKey: ["feed"] });

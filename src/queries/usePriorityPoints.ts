@@ -2,31 +2,37 @@ import { fetchPriorityPoints } from "@/actions/fetchPriorityPoints";
 import { useQuery } from "@tanstack/react-query";
 import { usePrivy } from "@privy-io/react-auth";
 
-export const usePriorityPoints = (shouldFetch = true) => {
+export const usePriorityPoints = () => {
   const { user } = usePrivy();
 
   return useQuery({
-    queryKey: ["priority-points", user?.id, user],
+    queryKey: ["priority-points", user?.id],
     queryFn: async () => {
-      if (!user) return [];
-
-      // Add a small delay to prevent this from competing with more critical resources
-      if (typeof window !== "undefined") {
-        await new Promise((resolve) => {
-          // Use requestIdleCallback if available, otherwise setTimeout
-          if (window.requestIdleCallback) {
-            window.requestIdleCallback(() => resolve(null));
-          } else {
-            setTimeout(resolve, 100);
-          }
-        });
+      try {
+        if (!user) return [];
+        const points = await fetchPriorityPoints();
+        return points.map((point) => ({
+          ...point,
+          isCommand: point.isCommand || false,
+          pinnedByCommandId: point.pinnedByCommandId || null,
+          restakesByPoint: point.restakesByPoint || 0,
+          slashedAmount: point.slashedAmount || 0,
+          doubtedAmount: point.doubtedAmount || 0,
+          totalRestakeAmount: point.totalRestakeAmount || 0,
+          pinCommands: point.pinCommands || [],
+        }));
+      } catch (error) {
+        console.error("Error fetching priority points:", error);
+        return [];
       }
-      return fetchPriorityPoints();
     },
-    enabled: shouldFetch,
-    staleTime: 10 * 60_000,
-    gcTime: 15 * 60_000,
-    refetchOnWindowFocus: false,
-    retry: false,
+    enabled: !!user,
+    staleTime: 15_000, // 15 seconds - make more responsive
+    gcTime: 60_000, // 1 minute
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Exponential backoff
+    refetchInterval: 30_000, // Refetch every 30 seconds
   });
 };

@@ -15,43 +15,43 @@ export const usePrefetchRestakeData = () => {
 
   return useCallback(
     async (pointId: number, negationId: number) => {
-      const staleTime = 30000; // 30 seconds
+      const staleTime = 10000;
+      const timelineScales = [DEFAULT_TIMESCALE, "1W", "1M"] as const; // Prefetch multiple scales
 
-      await Promise.all([
-        // Favor histories
-        queryClient.prefetchQuery({
-          queryKey: [pointId, "favor-history", DEFAULT_TIMESCALE],
-          queryFn: () =>
-            fetchFavorHistory({ pointId, scale: DEFAULT_TIMESCALE }),
-          staleTime,
-        }),
+      try {
+        // Prefetch in parallel but handle each type of data separately
+        // This way, if one fails, the others can still succeed
 
-        queryClient.prefetchQuery({
-          queryKey: [negationId, "favor-history", DEFAULT_TIMESCALE],
-          queryFn: () =>
-            fetchFavorHistory({
-              pointId: negationId,
-              scale: DEFAULT_TIMESCALE,
-            }),
-          staleTime,
-        }),
+        // 1. Prefetch favor histories for both points with multiple scales
+        const favorPromises = timelineScales.flatMap((scale) => [
+          queryClient.prefetchQuery({
+            queryKey: [pointId, "favor-history", scale],
+            queryFn: () => fetchFavorHistory({ pointId, scale }),
+            staleTime,
+          }),
+          queryClient.prefetchQuery({
+            queryKey: [negationId, "favor-history", scale],
+            queryFn: () => fetchFavorHistory({ pointId: negationId, scale }),
+            staleTime,
+          }),
+        ]);
 
-        // Restaker reputation
-        queryClient.prefetchQuery({
+        // 2. Prefetch restaker reputation
+        const reputationPromise = queryClient.prefetchQuery({
           queryKey: restakerReputationQueryKey(pointId, negationId, user?.id),
           queryFn: () => fetchRestakerReputation(pointId, negationId),
           staleTime,
-        }),
+        });
 
-        // Restake data
-        queryClient.prefetchQuery({
+        // 3. Prefetch restake data
+        const restakePromise = queryClient.prefetchQuery({
           queryKey: ["restake", pointId, negationId, user?.id],
           queryFn: () => fetchRestakeForPoints(pointId, negationId),
           staleTime,
-        }),
+        });
 
-        // Doubt data
-        queryClient.prefetchQuery({
+        // 4. Prefetch doubt data
+        const doubtPromise = queryClient.prefetchQuery({
           queryKey: doubtForRestakeQueryKey({
             pointId,
             negationId,
@@ -59,12 +59,25 @@ export const usePrefetchRestakeData = () => {
           }),
           queryFn: () => fetchDoubtForRestake(pointId, negationId),
           staleTime,
-        }),
-      ]).catch(() => {
+        });
+
+        // Wait for all prefetch operations to complete
+        await Promise.all([
+          // If any individual operation fails, we still continue with the others
+          Promise.allSettled(favorPromises),
+          reputationPromise,
+          restakePromise,
+          doubtPromise,
+        ]);
+      } catch (error) {
+        console.warn(
+          `[Prefetch] Error prefetching restake data for points ${pointId} and ${negationId}:`,
+          error
+        );
         // Silently handle any prefetch errors
-        // The queries will retry when the dialog opens if needed
-      });
+        // The queries will retry when needed
+      }
     },
-    [queryClient, user?.id],
+    [queryClient, user?.id]
   );
 };

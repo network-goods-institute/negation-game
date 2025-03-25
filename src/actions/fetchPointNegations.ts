@@ -52,6 +52,7 @@ export type NegationResult = {
   slashedAmount: number;
   doubtedAmount: number;
   totalRestakeAmount: number;
+  isCommand: boolean;
   pinnedByCommandId: number | null;
 };
 
@@ -72,6 +73,7 @@ export const fetchPointNegations = async (
       amountNegations: pointsWithDetailsView.amountNegations,
       negationsCred: pointsWithDetailsView.negationsCred,
       space: pointsWithDetailsView.space,
+      isCommand: pointsWithDetailsView.isCommand,
       negationIds: pointsWithDetailsView.negationIds,
       viewerCred: userId
         ? sql<number>`
