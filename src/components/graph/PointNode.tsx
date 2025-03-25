@@ -40,6 +40,7 @@ export type PointNodeData = {
   pointId: number;
   parentId?: string;
   expandOnInit?: boolean;
+  isExpanding?: boolean;
 };
 
 export type PointNode = Node<PointNodeData, "point">;
@@ -49,7 +50,7 @@ export interface PointNodeProps extends NodeProps {
 }
 
 export const PointNode = ({
-  data: { pointId, parentId, expandOnInit },
+  data: { pointId, parentId, expandOnInit, isExpanding: dataIsExpanding },
   id,
   positionAbsoluteX,
   positionAbsoluteY,
@@ -59,6 +60,8 @@ export const PointNode = ({
   const [shouldExpandOnInit, setShouldExpandOnInit] = useState(
     expandOnInit ?? false
   );
+  const [isExpanding, setIsExpanding] = useState(true);
+  const [hasAnimationPlayed, setHasAnimationPlayed] = useState(false);
   const incomingConnections = useNodeConnections({
     handleType: "target",
     id: id,
@@ -297,7 +300,8 @@ export const PointNode = ({
         data: {
           pointId: negationId,
           parentId: pointId,
-          _lastModified: Date.now()
+          _lastModified: Date.now(),
+          isExpanding: true
         },
         type: "point",
         position,
@@ -576,13 +580,25 @@ export const PointNode = ({
     expandNegations();
   }, [expandNegations]);
 
+  // Reset animation state after mount
+  useEffect(() => {
+    if (!hasAnimationPlayed && (isExpanding || dataIsExpanding)) {
+      const timer = setTimeout(() => {
+        setIsExpanding(false);
+        setHasAnimationPlayed(true);
+      }, 400); // Match animation duration
+      return () => clearTimeout(timer);
+    }
+  }, [isExpanding, dataIsExpanding, hasAnimationPlayed]);
+
   return (
     <div
       data-loading={pointData === undefined}
       className={cn(
         "relative bg-background rounded-md border-2 min-h-28 w-64",
         endorsedByOp && "border-yellow-500",
-        hoveredPoint === pointId && "border-primary"
+        hoveredPoint === pointId && "border-primary",
+        (!hasAnimationPlayed && (isExpanding || dataIsExpanding)) && "animate-node-expand"
       )}
       onMouseOver={() => setHoveredPoint(pointId)}
       onMouseLeave={() => setHoveredPoint(undefined)}
