@@ -57,6 +57,8 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { ExternalLinkIcon } from "lucide-react";
 import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
+import { usePrefetchPoint } from "@/queries/usePointData";
+import { useQueryClient } from "@tanstack/react-query";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -113,6 +115,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   inRationale?: boolean;
   favorHistory?: Array<{ timestamp: Date; favor: number; }>;
   disablePopover?: boolean;
+  isInPointPage?: boolean;
 }
 
 export const PointCard = ({
@@ -146,6 +149,7 @@ export const PointCard = ({
   inRationale,
   favorHistory,
   disablePopover = false,
+  isInPointPage = false,
   ...props
 }: PointCardProps) => {
   const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
@@ -172,14 +176,88 @@ export const PointCard = ({
   const currentSpace = getSpaceFromPathname(pathname);
   const [isOpen, setIsOpen] = useState(false);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const prefetchPoint = usePrefetchPoint();
+  const [favorLoaded, setFavorLoaded] = useState(false);
+  const queryClient = useQueryClient();
+  const [isLoadingFavorHistory, setIsLoadingFavorHistory] = useState(false);
+  const [popoverFavorHistory, setPopoverFavorHistory] = useState<Array<{ timestamp: Date; favor: number }> | null>(null);
+
+  useEffect(() => {
+    if (pointId) {
+      setIsLoadingFavorHistory(true);
+
+      const cachedData = queryClient.getQueryData([pointId, "favor-history", "1W"]);
+      if (cachedData) {
+        setPopoverFavorHistory(cachedData as any);
+        setIsLoadingFavorHistory(false);
+        setFavorLoaded(true);
+        return;
+      }
+
+      import('@/actions/fetchFavorHistory').then(({ fetchFavorHistory }) => {
+        fetchFavorHistory({ pointId, scale: "1W" })
+          .then(data => {
+            const normalizedData = Array.isArray(data) ? data.map(point => ({
+              timestamp: point.timestamp instanceof Date ? point.timestamp : new Date(point.timestamp),
+              favor: typeof point.favor === 'number' ? point.favor : 50
+            })) : [];
+
+            queryClient.setQueryData([pointId, "favor-history", "1W"], normalizedData);
+
+            setPopoverFavorHistory(normalizedData);
+            setFavorLoaded(true);
+            setIsLoadingFavorHistory(false);
+          })
+          .catch(err => {
+            console.warn(`[PointCard] Failed to prefetch favor history for ${pointId}:`, err);
+            const fallbackData = [{ timestamp: new Date(), favor: favor }];
+            setPopoverFavorHistory(fallbackData);
+            setIsLoadingFavorHistory(false);
+          });
+      });
+    }
+  }, [pointId, queryClient, favor]);
 
   const handleHoverStart = () => {
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
       hoverTimeoutRef.current = null;
     }
+
+    // Use a faster timer for showing than hiding
     if (!isOpen) {
+      // Set this immediately to improve perceived performance
       setIsOpen(true);
+
+      // Aggressively prefetch data when the popover opens
+      if (pointId) {
+        prefetchPoint(pointId);
+
+        // Directly fetch favor history if we don't have it yet
+        if (!favorLoaded && !popoverFavorHistory) {
+          setIsLoadingFavorHistory(true);
+          import('@/actions/fetchFavorHistory').then(({ fetchFavorHistory }) => {
+            fetchFavorHistory({ pointId, scale: "1W" })
+              .then(data => {
+                const normalizedData = Array.isArray(data) ? data.map(point => ({
+                  timestamp: point.timestamp instanceof Date ? point.timestamp : new Date(point.timestamp),
+                  favor: typeof point.favor === 'number' ? point.favor : 50
+                })) : [];
+
+                queryClient.setQueryData([pointId, "favor-history", "1W"], normalizedData);
+                setPopoverFavorHistory(normalizedData);
+                setFavorLoaded(true);
+                setIsLoadingFavorHistory(false);
+              })
+              .catch(err => {
+
+                const fallbackData = [{ timestamp: new Date(), favor: favor }];
+                setPopoverFavorHistory(fallbackData);
+                setIsLoadingFavorHistory(false);
+              });
+          });
+        }
+      }
     }
   };
 
@@ -188,9 +266,10 @@ export const PointCard = ({
       clearTimeout(hoverTimeoutRef.current);
     }
 
+    // Longer timeout for hiding to prevent flicker when moving between elements
     hoverTimeoutRef.current = setTimeout(() => {
       setIsOpen(false);
-    }, 100); // Small delay to prevent flickering when moving between elements
+    }, 300);
   };
 
   const [restakePercentage, isOverHundred] = useMemo(() => {
@@ -257,6 +336,7 @@ export const PointCard = ({
     return () => { mounted = false; };
   }, [pointId, isVisited, setVisitedPoints, privyUser]);
 
+  // memo to avoid recalculating this on every render
   const parsePinCommand = useMemo(() => {
     // Prevent showing pin commands when space is undefined or global
     if (!space || space === 'global' || !isCommand) {
@@ -293,6 +373,30 @@ export const PointCard = ({
     }
   };
 
+  useEffect(() => {
+    // Only prefetch when hovered
+    if (isOpen && pointId) {
+      prefetchPoint(pointId);
+
+      // If it's a negation with parent, prefetch parent too
+      if (isNegation && parentPoint?.id) {
+        prefetchPoint(parentPoint.id);
+      }
+
+      // Prefetch related negations if any
+      if (amountNegations > 0) {
+        // This will trigger the prefetch of negations in usePointNegations
+        prefetchPoint(pointId);
+      }
+    }
+  }, [isOpen, pointId, isNegation, parentPoint?.id, prefetchPoint, amountNegations]);
+
+  const handleCardClick = useCallback((e: React.MouseEvent) => {
+    if (pointId) {
+      prefetchPoint(pointId);
+    }
+  }, [pointId, prefetchPoint]);
+
   const renderCardContent = () => (
     <div
       className={cn(
@@ -302,12 +406,15 @@ export const PointCard = ({
         inGraphNode && "pt-2.5",
         className
       )}
+      onClick={handleCardClick}
       onMouseEnter={() => {
         setHoveredPointId(pointId);
         handleRestakeHover();
         if (!disablePopover) {
           handleHoverStart();
         }
+        // Prefetch on hover too
+        prefetchPoint(pointId);
       }}
       onMouseLeave={() => {
         setHoveredPointId(undefined);
@@ -506,7 +613,8 @@ export const PointCard = ({
               </Link>
             )}
 
-            {isNegation && parentPoint?.cred && parentPoint.cred > 0 && (
+            {/* Show restake/doubt icons if this is a negation with a parent point or if we're in a point page */}
+            {(isInPointPage || (isNegation && parentPoint?.cred && parentPoint.cred > 0)) && (
               <>
                 <Button
                   variant="ghost"
@@ -681,57 +789,149 @@ export const PointCard = ({
               cred={cred}
             />
 
-            {favorHistory && favorHistory.length > 0 && (
-              <div className="mt-2">
-                <h4 className="text-sm font-semibold mb-2">Favor History</h4>
-                <ResponsiveContainer width="100%" height={100}>
-                  <LineChart
-                    width={300}
-                    height={100}
-                    data={favorHistory}
-                    className="[&>.recharts-surface]:overflow-visible"
-                  >
-                    <XAxis dataKey="timestamp" hide />
-                    <YAxis domain={[0, 100]} hide />
-                    <ReferenceLine
-                      y={50}
-                      className="[&>line]:stroke-muted"
-                    ></ReferenceLine>
-                    <Line
-                      animationDuration={300}
-                      dataKey="favor"
-                      type="stepAfter"
-                      className="overflow-visible text-endorsed"
-                      dot={({ key, ...dot }) =>
-                        favorHistory && dot.index === favorHistory.length - 1 ? (
-                          <Fragment key={key}>
-                            <Dot
-                              {...dot}
-                              fill={dot.stroke}
-                              className="animate-ping"
-                              style={{
-                                transformOrigin: `${dot.cx}px ${dot.cy}px`,
-                              }}
-                            />
-                            <Dot {...dot} fill={dot.stroke} />
-                          </Fragment>
-                        ) : (
-                          <Fragment key={key} />
-                        )
-                      }
-                      stroke={"currentColor"}
-                      strokeWidth={2}
-                    />
-                    <RechartsTooltip
-                      wrapperClassName="backdrop-blur-sm !bg-transparent !pb-0 rounded-sm"
-                      labelClassName=" -top-3 text-muted-foreground text-xs"
-                      formatter={(value: number) => value.toFixed(2)}
-                      labelFormatter={(timestamp: Date) => timestamp.toLocaleString()}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
+            {/* Favor History Section */}
+            {(() => {
+              // Choose which data source to use
+              const historyToUse = popoverFavorHistory || favorHistory;
+
+              // If we have valid history data
+              if (Array.isArray(historyToUse)) {
+                // If we only have one point, duplicate it to show a meaningful graph
+                const dataPoints = historyToUse.length === 1
+                  ? [
+                    { timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), favor: historyToUse[0].favor },
+                    historyToUse[0]
+                  ]
+                  : historyToUse;
+
+                return (
+                  <div className="mt-2">
+                    <h4 className="text-sm font-semibold mb-2">Favor History</h4>
+                    <ResponsiveContainer width="100%" height={100}>
+                      <LineChart
+                        width={300}
+                        height={100}
+                        data={dataPoints}
+                        className="[&>.recharts-surface]:overflow-visible"
+                      >
+                        <XAxis dataKey="timestamp" hide />
+                        <YAxis domain={[0, 100]} hide />
+                        <ReferenceLine
+                          y={50}
+                          className="[&>line]:stroke-muted"
+                        ></ReferenceLine>
+                        <Line
+                          animationDuration={300}
+                          dataKey="favor"
+                          type="stepAfter"
+                          className="overflow-visible text-endorsed"
+                          dot={({ key, ...dot }) => {
+                            // Safety check to prevent errors
+                            if (dot.index === undefined) {
+                              return <Fragment key={key} />;
+                            }
+
+                            return dot.index === dataPoints.length - 1 ? (
+                              <Fragment key={key}>
+                                <Dot
+                                  {...dot}
+                                  fill={dot.stroke}
+                                  className="animate-ping"
+                                  style={{
+                                    transformOrigin: `${dot.cx}px ${dot.cy}px`,
+                                  }}
+                                />
+                                <Dot {...dot} fill={dot.stroke} />
+                              </Fragment>
+                            ) : (
+                              <Fragment key={key} />
+                            );
+                          }}
+                          stroke={"currentColor"}
+                          strokeWidth={2}
+                        />
+                        <RechartsTooltip
+                          wrapperClassName="backdrop-blur-sm !bg-transparent !pb-0 rounded-sm"
+                          labelClassName=" -top-3 text-muted-foreground text-xs"
+                          formatter={(value: number) => value.toFixed(2)}
+                          labelFormatter={(timestamp: Date) => timestamp.toLocaleString()}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                );
+              }
+              // If we're still loading
+              else if (isLoadingFavorHistory) {
+                return (
+                  <div className="mt-2 h-[120px] animate-pulse flex flex-col items-center justify-center">
+                    <div className="w-full h-4 bg-muted rounded mb-2"></div>
+                    <div className="w-3/4 h-20 bg-muted/50 rounded"></div>
+                  </div>
+                );
+              }
+              // Default fallback - when no data at all, still show a graph with current favor
+              else {
+                const defaultData = [
+                  { timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), favor },
+                  { timestamp: new Date(), favor }
+                ];
+                return (
+                  <div className="mt-2">
+                    <h4 className="text-sm font-semibold mb-2">Favor History</h4>
+                    <ResponsiveContainer width="100%" height={100}>
+                      <LineChart
+                        width={300}
+                        height={100}
+                        data={defaultData}
+                        className="[&>.recharts-surface]:overflow-visible"
+                      >
+                        <XAxis dataKey="timestamp" hide />
+                        <YAxis domain={[0, 100]} hide />
+                        <ReferenceLine
+                          y={50}
+                          className="[&>line]:stroke-muted"
+                        ></ReferenceLine>
+                        <Line
+                          animationDuration={300}
+                          dataKey="favor"
+                          type="stepAfter"
+                          className="overflow-visible text-endorsed"
+                          dot={({ key, ...dot }) => {
+                            if (dot.index === undefined) {
+                              return <Fragment key={key} />;
+                            }
+                            return dot.index === defaultData.length - 1 ? (
+                              <Fragment key={key}>
+                                <Dot
+                                  {...dot}
+                                  fill={dot.stroke}
+                                  className="animate-ping"
+                                  style={{
+                                    transformOrigin: `${dot.cx}px ${dot.cy}px`,
+                                  }}
+                                />
+                                <Dot {...dot} fill={dot.stroke} />
+                              </Fragment>
+                            ) : (
+                              <Fragment key={key} />
+                            );
+                          }}
+                          stroke={"currentColor"}
+                          strokeWidth={2}
+                        />
+                        <RechartsTooltip
+                          wrapperClassName="backdrop-blur-sm !bg-transparent !pb-0 rounded-sm"
+                          labelClassName=" -top-3 text-muted-foreground text-xs"
+                          formatter={(value: number) => value.toFixed(2)}
+                          labelFormatter={(timestamp: Date) => timestamp.toLocaleString()}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                );
+              }
+            })()}
           </div>
         </PopoverContent>
       </Portal>

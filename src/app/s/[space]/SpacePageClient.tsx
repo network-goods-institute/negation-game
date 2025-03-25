@@ -33,6 +33,7 @@ import { usePriorityPoints } from "@/queries/usePriorityPoints";
 import { decodeId } from "@/lib/decodeId";
 import { useQueryClient } from "@tanstack/react-query";
 import { useFavorHistory } from "@/queries/useFavorHistory";
+import { usePrefetchPoint } from "@/queries/usePointData";
 
 interface PageProps {
     params: { space: string };
@@ -62,6 +63,9 @@ const MemoizedViewpointCard = memo(ViewpointCard);
 
 const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, pinnedPoint }: any) => {
     const pointId = item.type === 'point' ? item.data.pointId : null;
+    const prefetchPoint = usePrefetchPoint();
+    const queryClient = useQueryClient();
+    const { user: privyUser } = usePrivy();
     const { data: favorHistory } = useFavorHistory(
         pointId ? {
             pointId,
@@ -71,6 +75,22 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
             timelineScale: "1W"
         }
     );
+
+    const handlePrefetch = useCallback(() => {
+        if (item.type === 'point' && item.data.pointId) {
+            prefetchPoint(item.data.pointId);
+            import("@/actions/fetchPointNegations").then(({ fetchPointNegations }) => {
+                fetchPointNegations(item.data.pointId).then(negations => {
+                    if (negations) {
+                        queryClient.setQueryData(
+                            [item.data.pointId, "negations", privyUser?.id],
+                            negations
+                        );
+                    }
+                });
+            });
+        }
+    }, [item, prefetchPoint, queryClient, privyUser?.id]);
 
     if (item.type === 'point') {
         const point = item.data;
@@ -116,6 +136,7 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                 onClick={preventDefaultIfContainsSelection}
                 href={`${basePath}/${encodeId(point.pointId)}`}
                 className="flex border-b cursor-pointer hover:bg-accent"
+                onMouseEnter={handlePrefetch}
             >
                 <MemoizedPointCard
                     className="flex-grow p-6"
@@ -145,7 +166,7 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                         e.stopPropagation();
                     }}
                     linkDisabled={true}
-                    favorHistory={favorHistory}
+                    favorHistory={favorHistory as Array<{ timestamp: Date; favor: number; }> | undefined}
                 />
             </Link>
         );
@@ -198,10 +219,17 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
 FeedItem.displayName = 'FeedItem';
 
 const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, login, user, pinnedPoint }: any) => {
+    const prefetchPoint = usePrefetchPoint();
     const { data: favorHistory } = useFavorHistory({
         pointId: point.pointId,
         timelineScale: "1W"
     });
+
+    const handlePrefetch = useCallback(() => {
+        if (point.pointId) {
+            prefetchPoint(point.pointId);
+        }
+    }, [point.pointId, prefetchPoint]);
 
     let pinStatus;
     if (point.pinCommands?.length > 1) {
@@ -220,6 +248,7 @@ const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, log
             onClick={preventDefaultIfContainsSelection}
             href={`${basePath}/${encodeId(point.pointId)}`}
             className="flex border-b cursor-pointer hover:bg-accent"
+            onMouseEnter={handlePrefetch}
         >
             <MemoizedPointCard
                 className="flex-grow p-6"
@@ -249,7 +278,7 @@ const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, log
                     e.stopPropagation();
                 }}
                 linkDisabled={true}
-                favorHistory={favorHistory}
+                favorHistory={favorHistory as Array<{ timestamp: Date; favor: number; }> | undefined}
             />
         </Link>
     );
@@ -322,11 +351,33 @@ const AllTabContent = memo(({ points, viewpoints, isLoading, viewpointsLoading, 
 AllTabContent.displayName = 'AllTabContent';
 
 const PointsTabContent = memo(({ points, isLoading, combinedFeed, basePath, space, setNegatedPointId, login, user, pinnedPoint, loginOrMakePoint }: any) => {
-    if (!points || isLoading) {
-        return <Loader className="absolute self-center my-auto top-0 bottom-0" />;
+    // Memo to avoid unnecessary recalculations of pointItems
+    const pointItems = useMemo(() => {
+        return combinedFeed.filter((item: FeedItem) => item.type === 'point');
+    }, [combinedFeed]);
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col gap-4">
+                {[1, 2, 3].map((i) => (
+                    <div key={i} className="border-b py-4 px-6 min-h-[120px]">
+                        <div className="animate-pulse flex flex-col w-full gap-2">
+                            <div className="h-6 bg-muted rounded w-3/4"></div>
+                            <div className="h-4 bg-muted rounded w-1/2 mt-2"></div>
+                            <div className="h-3 bg-muted rounded w-1/4 mt-2"></div>
+                            <div className="flex gap-2 mt-2">
+                                <div className="h-5 w-5 bg-muted rounded-full"></div>
+                                <div className="h-5 w-5 bg-muted rounded-full"></div>
+                                <div className="h-5 w-5 bg-muted rounded-full"></div>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
     }
 
-    if (points.length === 0) {
+    if (points?.length === 0 && !pinnedPoint && pointItems.length === 0) {
         return (
             <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
                 <span className="text-muted-foreground">Nothing here yet</span>
@@ -339,9 +390,8 @@ const PointsTabContent = memo(({ points, isLoading, combinedFeed, basePath, spac
     }
 
     return (
-        combinedFeed
-            .filter((item: FeedItem) => item.type === 'point')
-            .map((item: FeedItem) => (
+        <>
+            {pointItems.map((item: FeedItem) => (
                 <FeedItem
                     key={item.id}
                     item={item}
@@ -352,7 +402,8 @@ const PointsTabContent = memo(({ points, isLoading, combinedFeed, basePath, spac
                     user={user}
                     pinnedPoint={pinnedPoint}
                 />
-            ))
+            ))}
+        </>
     );
 });
 PointsTabContent.displayName = 'PointsTabContent';
@@ -461,7 +512,7 @@ const PinnedPointWithHistory = memo(({ pinnedPoint, space }: any) => {
                         : "Pinned by command"
             }
             linkDisabled={true}
-            favorHistory={favorHistory}
+            favorHistory={favorHistory as Array<{ timestamp: Date; favor: number; }> | undefined}
         />
     );
 });
@@ -492,15 +543,17 @@ export function SpacePageClient({
         }
     }, [queryClient, user?.id, isNavigating]);
 
-    const shouldLoadPriorityPoints = selectedTab !== "search" && selectedTab !== "rationales";
-
+    // We'll always load priority points now
     const {
         data: priorityPoints,
         isLoading: priorityPointsLoading
-    } = usePriorityPoints(shouldLoadPriorityPoints);
+    } = usePriorityPoints();
+
+    // Only load pinned point for non-global spaces
+    const shouldLoadPinnedPoint = space.data?.id !== "global";
 
     const { data: pinnedPoint, isLoading: pinnedPointLoading } = usePinnedPoint(
-        shouldLoadPriorityPoints ? space.data?.id : undefined
+        shouldLoadPinnedPoint ? space.data?.id : undefined
     );
 
     const handleNewViewpoint = () => {
@@ -528,7 +581,7 @@ export function SpacePageClient({
 
     // Filter priority points to remove duplicates with pinnedPoint - with memoization
     const filteredPriorityPoints = useMemo(() => {
-        if (!priorityPoints || priorityPointsLoading || !shouldLoadPriorityPoints) return [];
+        if (!priorityPoints || priorityPointsLoading) return [];
 
         // First remove any duplicate points within priority points itself
         const uniquePriorityPoints = Array.from(
@@ -539,7 +592,7 @@ export function SpacePageClient({
         return uniquePriorityPoints.filter(point => {
             return !pinnedPoint || point.pointId !== pinnedPoint.pointId;
         });
-    }, [priorityPoints, pinnedPoint, priorityPointsLoading, shouldLoadPriorityPoints]);
+    }, [priorityPoints, pinnedPoint, priorityPointsLoading]);
 
     // Add all pin command target points to the exclusion list
     const pinnedAndPriorityPoints = useMemo(() => {
@@ -559,24 +612,34 @@ export function SpacePageClient({
         return pointIds;
     }, [filteredPriorityPoints, pinnedPoint]);
 
+    // Optimize the combinedFeed logic to be more efficient
     const combinedFeed = useMemo(() => {
         if (!points) {
             return [];
         }
         const allItems: FeedItem[] = [];
 
-        // Add all points to the feed, except those in pinnedAndPriorityPoints
-        points.filter(point => !pinnedAndPriorityPoints.has(point.pointId)).forEach(point => {
-            allItems.push({
-                type: 'point',
-                id: `point-${point.pointId}`,
-                content: point.content,
-                createdAt: point.createdAt,
-                data: point,
-            });
-        });
+        const includePoints = selectedTab !== "rationales";
+        const includeRationales = selectedTab === "all" || selectedTab === "rationales";
 
-        if (viewpoints && (selectedTab === 'all' || selectedTab === 'rationales')) {
+        // Add points when needed
+        if (includePoints) {
+            // Add all points to the feed, except those in pinnedAndPriorityPoints
+            points
+                .filter(point => !pinnedAndPriorityPoints.has(point.pointId))
+                .forEach(point => {
+                    allItems.push({
+                        type: 'point',
+                        id: `point-${point.pointId}`,
+                        content: point.content,
+                        createdAt: point.createdAt,
+                        data: point,
+                    });
+                });
+        }
+
+        // Add rationales when needed
+        if (includeRationales && viewpoints) {
             viewpoints.forEach(viewpoint => {
                 allItems.push({
                     type: 'rationale',
@@ -707,9 +770,20 @@ export function SpacePageClient({
 
                 {/* Priority Points - with transition */}
                 {selectedTab !== "search" && selectedTab !== "rationales" &&
-                    !priorityPointsLoading &&
-                    !pinnedPointLoading &&
-                    filteredPriorityPoints.length > 0 && (
+                    (priorityPointsLoading ? (
+                        <div className="border-b py-4 px-6 min-h-[120px] flex items-center justify-center">
+                            <div className="animate-pulse flex flex-col w-full gap-2">
+                                <div className="h-6 bg-muted rounded w-3/4"></div>
+                                <div className="h-4 bg-muted rounded w-1/2 mt-2"></div>
+                                <div className="h-3 bg-muted rounded w-1/4 mt-2"></div>
+                                <div className="flex gap-2 mt-2">
+                                    <div className="h-5 w-5 bg-muted rounded-full"></div>
+                                    <div className="h-5 w-5 bg-muted rounded-full"></div>
+                                    <div className="h-5 w-5 bg-muted rounded-full"></div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : filteredPriorityPoints.length > 0 ? (
                         <div className="border-b transition-opacity duration-200 ease-in-out">
                             <PriorityPointsSection
                                 filteredPriorityPoints={filteredPriorityPoints}
@@ -722,7 +796,7 @@ export function SpacePageClient({
                                 pinnedPoint={pinnedPoint}
                             />
                         </div>
-                    )}
+                    ) : null)}
 
                 {selectedTab === "search" ? (
                     <SearchResultsList

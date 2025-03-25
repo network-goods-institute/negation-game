@@ -10,56 +10,63 @@ export const useFeed = () => {
   return useQuery({
     queryKey: ["feed", privyUser?.id],
     queryFn: async () => {
-      const page = await fetchFeedPage();
+      try {
+        const page = await fetchFeedPage();
 
-      if (page.length > 0 && privyUser?.id) {
-        const batchSize = 10;
-        const batches = Math.ceil(page.length / batchSize);
+        if (page.length > 0 && privyUser?.id) {
+          const batchSize = 20;
+          const batches = Math.ceil(page.length / batchSize);
 
-        for (let i = 0; i < batches; i++) {
-          const start = i * batchSize;
-          const end = Math.min(start + batchSize, page.length);
-          const batch = page.slice(start, end);
+          for (let i = 0; i < batches; i++) {
+            const start = i * batchSize;
+            const end = Math.min(start + batchSize, page.length);
+            const batch = page.slice(start, end);
 
-          for (const point of batch) {
-            const transformedPoint = {
-              ...point,
-              restakesByPoint: point.restakesByPoint || 0,
-              slashedAmount: point.slashedAmount || 0,
-              doubtedAmount: point.doubtedAmount || 0,
-              totalRestakeAmount: point.totalRestakeAmount || 0,
-              isCommand: point.isCommand || false,
-              isPinned: false,
-              doubt: point.doubt || {
-                id: 0,
-                amount: 0,
-                userAmount: 0,
-                isUserDoubt: false,
-              },
-            };
+            for (const point of batch) {
+              const transformedPoint = {
+                ...point,
+                restakesByPoint: point.restakesByPoint || 0,
+                slashedAmount: point.slashedAmount || 0,
+                doubtedAmount: point.doubtedAmount || 0,
+                totalRestakeAmount: point.totalRestakeAmount || 0,
+                isCommand: point.isCommand || false,
+                isPinned: false,
+                pinnedByCommandId: point.pinnedByCommandId || null,
+                doubt: point.doubt || {
+                  id: 0,
+                  amount: 0,
+                  userAmount: 0,
+                  isUserDoubt: false,
+                },
+                pinCommands: point.pinCommands || [],
+              };
 
-            setPointData(
-              { pointId: point.pointId, userId: privyUser.id },
-              transformedPoint
-            );
-          }
+              setPointData(
+                { pointId: point.pointId, userId: privyUser.id },
+                transformedPoint
+              );
+            }
 
-          // Only yield to main thread if we have more batches and every 2 batches
-          if (i < batches - 1 && i % 2 === 1) {
-            await new Promise((resolve) => setTimeout(resolve, 0));
+            // Only yield to main thread if we have more batches and every 3 batches (reduced frequency)
+            if (i < batches - 1 && i % 3 === 2) {
+              await new Promise((resolve) => setTimeout(resolve, 0));
+            }
           }
         }
-      }
 
-      return page;
+        return page;
+      } catch (error) {
+        return [];
+      }
     },
-    staleTime: 30_000,
+    staleTime: 15_000, // 15 seconds - more aggressive refresh
     gcTime: 10 * 60_000,
-    retry: false,
+    retry: 2,
     enabled: ready,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
+    refetchOnWindowFocus: true, // Enable refresh on window focus
+    refetchOnMount: true, // Enable refresh on mount
+    refetchOnReconnect: true,
     networkMode: "offlineFirst",
+    refetchInterval: 60_000, // Refresh every minute
   });
 };

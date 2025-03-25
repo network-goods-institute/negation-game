@@ -5,12 +5,21 @@ import { create, keyResolver, windowScheduler } from "@yornaath/batshit";
 import { useCallback } from "react";
 
 const pointFetcher = create({
-  fetcher: async (ids: number[]) => await fetchPoints(ids),
+  fetcher: async (ids: number[]) => {
+    const points = await fetchPoints(ids);
+    return points.map((point) => ({
+      ...point,
+      isCommand: point.isCommand || false,
+      pinnedByCommandId: point.pinnedByCommandId || null,
+    }));
+  },
   resolver: keyResolver("pointId"),
-  scheduler: windowScheduler(20),
+  scheduler: windowScheduler(10),
 });
 
 export type PointData = Awaited<ReturnType<typeof fetchPoints>>[number];
+
+type PointQueryKey = readonly [number | undefined, "point", string | undefined];
 
 export const pointQueryKey = ({
   pointId,
@@ -18,19 +27,21 @@ export const pointQueryKey = ({
 }: {
   pointId?: number;
   userId?: string;
-}) => [pointId, "point", userId];
+}): PointQueryKey => [pointId, "point", userId];
 
 export const usePointData = (pointId?: number) => {
   const { user } = usePrivy();
-  return useQuery({
+
+  return useQuery<PointData | null, Error>({
     queryKey: pointQueryKey({ pointId, userId: user?.id }),
     queryFn: () => (pointId ? pointFetcher.fetch(pointId) : null),
-    gcTime: Infinity,
-    staleTime: 5 * 60 * 1000,
-    refetchOnMount: false,
+    gcTime: 10 * 60 * 1000,
+    staleTime: 60 * 1000,
+    refetchOnMount: true,
     refetchOnWindowFocus: true,
-    refetchOnReconnect: false,
+    refetchOnReconnect: true,
     networkMode: "offlineFirst",
+    retry: 3,
   });
 };
 
@@ -38,11 +49,32 @@ export const usePrefetchPoint = () => {
   const { user } = usePrivy();
   const queryClient = useQueryClient();
 
-  return (pointId: number) =>
-    queryClient.prefetchQuery({
-      queryKey: pointQueryKey({ pointId, userId: user?.id }),
-      queryFn: () => pointFetcher.fetch(pointId),
-    });
+  return useCallback(
+    (pointId: number) => {
+      const existingData = queryClient.getQueryData(
+        pointQueryKey({ pointId, userId: user?.id })
+      );
+
+      queryClient.prefetchQuery<PointData>({
+        queryKey: pointQueryKey({ pointId, userId: user?.id }),
+        queryFn: () => pointFetcher.fetch(pointId),
+        staleTime: 60 * 1000,
+        gcTime: existingData ? 0 : 10 * 60 * 1000,
+      });
+
+      queryClient.prefetchQuery({
+        queryKey: ["point-negations", pointId, user?.id],
+        queryFn: async () => {
+          const { fetchPointNegations } = await import(
+            "@/actions/fetchPointNegations"
+          );
+          return fetchPointNegations(pointId);
+        },
+        staleTime: 60 * 1000,
+      });
+    },
+    [queryClient, user?.id]
+  );
 };
 
 export const useSetPointData = () => {
@@ -76,13 +108,11 @@ export const useInvalidateRelatedPoints = () => {
         exact: false,
       });
 
-      // Invalidate point-negations
       queryClient.invalidateQueries({
         queryKey: ["point-negations", pointId],
         exact: false,
       });
 
-      // Invalidate favor history
       queryClient.invalidateQueries({
         queryKey: [pointId, "favor-history"],
         exact: false,
@@ -90,7 +120,6 @@ export const useInvalidateRelatedPoints = () => {
 
       if (!pointData) return;
 
-      // Invalidate related negations with proper query keys
       pointData.negationIds.forEach((negationId) => {
         queryClient.invalidateQueries({
           queryKey: pointQueryKey({ pointId: negationId, userId: user?.id }),
