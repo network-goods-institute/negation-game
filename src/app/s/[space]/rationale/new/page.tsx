@@ -80,17 +80,12 @@ function PointCardWrapper({
   const pointData = pointDataQuery.data;
   const { originalPosterId } = useOriginalPoster();
   const setNegatedPointId = useSetAtom(negatedPointIdAtom);
-  const [collapsedPointIds] = useAtom(collapsedPointIdsAtom);
   const [hoveredPointId] = useAtom(hoveredPointIdAtom);
 
   const { data: favorHistory } = useFavorHistory({
     pointId: point.pointId,
     timelineScale: "1W"
   });
-
-  if (collapsedPointIds.has(point.pointId)) {
-    return null;
-  }
 
   if (!pointData)
     return (
@@ -406,17 +401,17 @@ function ViewpointContent() {
                   Points
                 </span>
                 <Dynamic>
-                  {points.map((point) => {
+                  {points.map((point, index) => {
                     const pointNode = reactFlow.getNodes().find(
                       (n) => n.type === "point" && n.data?.pointId === point.pointId
                     );
                     return (
                       <div
-                        key={`${point.pointId}-card-wrapper`}
+                        key={`${point.pointId}-card-wrapper-${index}`}
                         className="relative"
                       >
                         <PointCardWrapper
-                          key={`${point.pointId}-card`}
+                          key={`${point.pointId}-card-${index}`}
                           point={point}
                           className={cn(
                             "border-b",

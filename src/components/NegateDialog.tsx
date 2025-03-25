@@ -1,6 +1,7 @@
 import { reviewProposedCounterpointAction } from "@/actions/reviewProposedCounterpointAction";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { negationContentAtom } from "@/atoms/negationContentAtom";
+import { recentlyCreatedNegationIdAtom } from "@/atoms/recentlyCreatedNegationIdAtom";
 import { CredInput } from "@/components/CredInput";
 import { PointEditor } from "@/components/PointEditor";
 import { PointStats } from "@/components/PointStats";
@@ -83,6 +84,8 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   const charactersLeft = POINT_MAX_LENGTH - counterpointContent.length;
 
   const queryClient = useQueryClient();
+
+  const [recentlyCreatedNegation, setRecentlyCreatedNegation] = useAtom(recentlyCreatedNegationIdAtom);
 
   // Reset the query function for better performance
   const {
@@ -193,10 +196,19 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
           cred,
         })
     )
-      .then(() => {
+      .then((result) => {
         // Show success toast
         if (selectedCounterpointCandidate === undefined) {
-          toast.success("Negation created successfully");
+          toast.success(
+            "Negation created successfully. It may take a moment to appear in the graph.",
+            { duration: 5000 }
+          );
+
+          setRecentlyCreatedNegation({
+            negationId: result, // The result of addCounterpoint is the new point ID
+            parentPointId: negatedPoint!.pointId,
+            timestamp: Date.now()
+          });
 
           if (negatedPoint?.pointId) {
             queryClient.invalidateQueries({
@@ -218,8 +230,16 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
         } else if (selectedCounterpointCandidate.isCounterpoint) {
           toast.success("Point endorsed successfully");
         } else {
-          toast.success("Negation created successfully");
+          toast.success(
+            "Negation created successfully. It may take a moment to appear in a graph context.",
+            { duration: 5000 }
+          );
 
+          setRecentlyCreatedNegation({
+            negationId: selectedCounterpointCandidate.id,
+            parentPointId: negatedPoint!.pointId,
+            timestamp: Date.now()
+          });
 
           if (negatedPoint?.pointId) {
             // Invalidate the parent point's negations cache
@@ -265,6 +285,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     addCounterpoint,
     endorse,
     negate,
+    setRecentlyCreatedNegation,
   ]);
 
   const handleSubmitOrReview = useCallback(() => {

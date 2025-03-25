@@ -162,22 +162,14 @@ export const GraphView = ({
     [setLocalGraph]
   );
 
-  // Filter nodes and edges based on collapsedPointIds
-  const filteredNodes = useMemo(() => {
-    const filtered = nodes.filter((n) => {
-      const shouldInclude = n.type !== "point" || !collapsedPointIds.has(n.data.pointId as number);
-      return shouldInclude;
-    });
 
-    return filtered;
-  }, [nodes, collapsedPointIds]);
 
   const filteredEdges = useMemo(() => {
     // First filter edges to only include those connected to visible nodes
     const visibleEdges = edges.filter(
       (e) =>
-        filteredNodes.some((n) => n.id === e.source) &&
-        filteredNodes.some((n) => n.id === e.target)
+        nodes.some((n) => n.id === e.source) &&
+        nodes.some((n) => n.id === e.target)
     );
 
     // Then check for and remove duplicate edges based on source-target pairs
@@ -196,7 +188,7 @@ export const GraphView = ({
     });
 
     return uniqueEdges;
-  }, [edges, filteredNodes]);
+  }, [edges, nodes]);
 
   // Make this method available via the React Flow context for children components
   // This ensures node components can explicitly mark the graph as modified
@@ -549,7 +541,7 @@ export const GraphView = ({
         onInit={handleOnInit}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        nodes={filteredNodes}
+        nodes={nodes}
         onNodesChange={onNodesChange}
         edges={filteredEdges}
         onEdgesChange={onEdgesChange}
