@@ -5,11 +5,22 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useState } from "react";
 
 export type FavorHistoryDataPoint = {
   timestamp: Date;
   favor: number;
 };
+
+function generateFallbackData(currentFavor: number): FavorHistoryDataPoint[] {
+  const now = new Date();
+  const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
+
+  return [
+    { timestamp: dayAgo, favor: currentFavor },
+    { timestamp: now, favor: currentFavor },
+  ];
+}
 
 export const useFavorHistory = ({
   pointId,
@@ -19,6 +30,9 @@ export const useFavorHistory = ({
   timelineScale: TimelineScale;
 }) => {
   const queryClient = useQueryClient();
+  const [statusMessage, setStatusMessage] = useState<string | null>(
+    "Limited history available"
+  );
 
   return useQuery<FavorHistoryDataPoint[]>({
     queryKey: [pointId, "favor-history", timelineScale] as const,
@@ -34,6 +48,7 @@ export const useFavorHistory = ({
       ]);
 
       if (cachedData && cachedData.length > 0) {
+        setStatusMessage(null);
         return cachedData;
       }
 
@@ -64,8 +79,10 @@ export const useFavorHistory = ({
             clearTimeout(timeoutId);
 
             if (!data || !Array.isArray(data) || data.length === 0) {
+              setStatusMessage("Limited history available");
               return generateFallbackData(currentFavor);
             }
+
             const processedData = data.map((point) => ({
               timestamp:
                 point.timestamp instanceof Date
@@ -75,6 +92,7 @@ export const useFavorHistory = ({
                 typeof point.favor === "number" ? point.favor : currentFavor,
             }));
 
+            setStatusMessage(null);
             return processedData;
           } catch (error: unknown) {
             // Handle specific timeout error
@@ -85,11 +103,13 @@ export const useFavorHistory = ({
               console.warn(
                 `[FavorHistory] Fetch timed out for ${id}, using fallback data`
               );
+              setStatusMessage("Limited history available");
             } else {
               console.error(
                 `[FavorHistory] Error fetching data for ${id}:`,
                 error
               );
+              setStatusMessage("Error loading history");
             }
 
             return generateFallbackData(currentFavor);
@@ -100,9 +120,11 @@ export const useFavorHistory = ({
           const data = await fetchFavorHistory({ pointId: id, scale });
 
           if (!data || !Array.isArray(data) || data.length === 0) {
+            setStatusMessage("Limited history available");
             return generateFallbackData(currentFavor);
           }
 
+          setStatusMessage(null);
           return data.map((point) => ({
             timestamp:
               point.timestamp instanceof Date
@@ -117,38 +139,35 @@ export const useFavorHistory = ({
           `[FavorHistory] Unexpected error for pointId ${id}:`,
           outerError
         );
+        setStatusMessage("Error loading history");
         return generateFallbackData(50);
       }
     },
     placeholderData: keepPreviousData,
-    refetchInterval: 30000,
+    refetchInterval: (data) => {
+      // If we have real data (more than 2 points), use standard refresh
+      if (data && Array.isArray(data) && data.length > 2) {
+        return 30000; // Regular 30s refresh
+      }
+      // If we only have fallback data, use exponential backoff
+      return Math.min(
+        30000,
+        1000 *
+          Math.pow(
+            2,
+            queryClient.getQueryState([pointId, "favor-history", timelineScale])
+              ?.fetchFailureCount || 0
+          )
+      );
+    },
     staleTime: 10_000,
     gcTime: 10 * 60 * 1000,
-    retry: 1,
-    retryDelay: 2000,
+    retry: 5,
+    retryDelay: (attemptIndex) =>
+      Math.min(1000 * Math.pow(2, attemptIndex), 30000), // Exponential backoff
     networkMode: "offlineFirst",
+    meta: {
+      statusMessage,
+    },
   });
 };
-
-// basically lie to the user until the data is fetched
-function generateFallbackData(currentFavor: number): FavorHistoryDataPoint[] {
-  const now = new Date();
-  const day1 = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
-  const day2 = new Date(now.getTime() - 12 * 60 * 60 * 1000); // 12 hours ago
-
-  const baseFavor = currentFavor || 50;
-  const variation1 = Math.random() * 6 - 3;
-  const variation2 = Math.random() * 4 - 2;
-
-  return [
-    {
-      timestamp: day1,
-      favor: Math.max(0, Math.min(100, baseFavor + variation1)),
-    },
-    {
-      timestamp: day2,
-      favor: Math.max(0, Math.min(100, baseFavor + variation2)),
-    },
-    { timestamp: now, favor: baseFavor },
-  ];
-}

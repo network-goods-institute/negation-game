@@ -147,21 +147,16 @@ export const PointCard = ({
   linkDisabled,
   inGraphNode,
   inRationale,
-  favorHistory,
-  disablePopover = false,
+  favorHistory: initialFavorHistory,
+  disablePopover = !inRationale,
   isInPointPage = false,
   ...props
 }: PointCardProps) => {
   const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
-
   const { data: originalPoster } = useUser(originalPosterId);
   const { data: opCred } = useUserEndorsement(originalPosterId, pointId);
-
-  const endorsedByOp = opCred && opCred > 0;
   const [isOPTooltipOpen, toggleOPTooltip] = useToggle();
-
   const [_, setHoveredPointId] = useAtom(hoveredPointIdAtom);
-  const endorsedByViewer = viewerContext?.viewerCred !== undefined && viewerContext.viewerCred > 0;
   const { user: privyUser, login } = usePrivy();
   const [endorsePopoverOpen, toggleEndorsePopoverOpen] = useToggle(false);
   const { credInput, setCredInput, notEnoughCred } = useCredInput({
@@ -170,27 +165,29 @@ export const PointCard = ({
   const prefetchRestakeData = usePrefetchRestakeData();
   const { isVisited, markPointAsRead } = useVisitedPoints();
   const [visitedPoints, setVisitedPoints] = useAtom(visitedPointsAtom);
-  const visited = visitedPoints.has(pointId);
   const router = useRouter();
   const pathname = usePathname();
   const currentSpace = getSpaceFromPathname(pathname);
-  const [isOpen, setIsOpen] = useState(false);
-  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const prefetchPoint = usePrefetchPoint();
-  const [favorLoaded, setFavorLoaded] = useState(false);
   const queryClient = useQueryClient();
+
+  const [isOpen, setIsOpen] = useState(false);
   const [isLoadingFavorHistory, setIsLoadingFavorHistory] = useState(false);
   const [popoverFavorHistory, setPopoverFavorHistory] = useState<Array<{ timestamp: Date; favor: number }> | null>(null);
 
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const endorsedByViewer = viewerContext?.viewerCred !== undefined && viewerContext.viewerCred > 0;
+  const endorsedByOp = opCred && opCred > 0;
+  const visited = visitedPoints.has(pointId);
+
   useEffect(() => {
-    if (pointId) {
+    if (!disablePopover && pointId && isOpen) {
       setIsLoadingFavorHistory(true);
 
       const cachedData = queryClient.getQueryData([pointId, "favor-history", "1W"]);
       if (cachedData) {
         setPopoverFavorHistory(cachedData as any);
         setIsLoadingFavorHistory(false);
-        setFavorLoaded(true);
         return;
       }
 
@@ -203,75 +200,19 @@ export const PointCard = ({
             })) : [];
 
             queryClient.setQueryData([pointId, "favor-history", "1W"], normalizedData);
-
             setPopoverFavorHistory(normalizedData);
-            setFavorLoaded(true);
             setIsLoadingFavorHistory(false);
           })
           .catch(err => {
-            console.warn(`[PointCard] Failed to prefetch favor history for ${pointId}:`, err);
-            const fallbackData = [{ timestamp: new Date(), favor: favor }];
+            const fallbackData = [{ timestamp: new Date(), favor }];
             setPopoverFavorHistory(fallbackData);
             setIsLoadingFavorHistory(false);
           });
       });
     }
-  }, [pointId, queryClient, favor]);
+  }, [pointId, isOpen, disablePopover, queryClient, favor]);
 
-  const handleHoverStart = () => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = null;
-    }
-
-    // Use a faster timer for showing than hiding
-    if (!isOpen) {
-      // Set this immediately to improve perceived performance
-      setIsOpen(true);
-
-      // Aggressively prefetch data when the popover opens
-      if (pointId) {
-        prefetchPoint(pointId);
-
-        // Directly fetch favor history if we don't have it yet
-        if (!favorLoaded && !popoverFavorHistory) {
-          setIsLoadingFavorHistory(true);
-          import('@/actions/fetchFavorHistory').then(({ fetchFavorHistory }) => {
-            fetchFavorHistory({ pointId, scale: "1W" })
-              .then(data => {
-                const normalizedData = Array.isArray(data) ? data.map(point => ({
-                  timestamp: point.timestamp instanceof Date ? point.timestamp : new Date(point.timestamp),
-                  favor: typeof point.favor === 'number' ? point.favor : 50
-                })) : [];
-
-                queryClient.setQueryData([pointId, "favor-history", "1W"], normalizedData);
-                setPopoverFavorHistory(normalizedData);
-                setFavorLoaded(true);
-                setIsLoadingFavorHistory(false);
-              })
-              .catch(err => {
-
-                const fallbackData = [{ timestamp: new Date(), favor: favor }];
-                setPopoverFavorHistory(fallbackData);
-                setIsLoadingFavorHistory(false);
-              });
-          });
-        }
-      }
-    }
-  };
-
-  const handleHoverEnd = () => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-    }
-
-    // Longer timeout for hiding to prevent flicker when moving between elements
-    hoverTimeoutRef.current = setTimeout(() => {
-      setIsOpen(false);
-    }, 300);
-  };
-
+  // Memoized values
   const [restakePercentage, isOverHundred] = useMemo(() => {
     if (!isNegation || !parentPoint || !restake?.amount || !restake.isOwner)
       return [0, false];
@@ -291,11 +232,47 @@ export const PointCard = ({
     }
 
     const rawPercentage = (doubt.userAmount / totalRestakeAmount) * 100;
-
-    const result = Math.min(100, Math.round(rawPercentage));
-
-    return result;
+    return Math.min(100, Math.round(rawPercentage));
   }, [isNegation, totalRestakeAmount, doubt]);
+
+  const showRestakeAmount = useMemo(() => {
+    if (!restake) return false;
+    if (restake.slashedAmount >= restake.originalAmount) return false;
+    return restake.amount > 0;
+  }, [restake]);
+
+  const parsePinCommand = useMemo(() => {
+    if (!space || space === 'global' || !isCommand) {
+      return null;
+    }
+    if (!content || !content.startsWith('/pin ')) {
+      return null;
+    }
+    const parts = content.split(' ').filter(Boolean);
+    if (parts.length < 2) {
+      return null;
+    }
+    return parts[1];
+  }, [isCommand, content, space]);
+
+  const handleHoverStart = useCallback(() => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    if (!isOpen && !disablePopover) {
+      setIsOpen(true);
+    }
+  }, [isOpen, disablePopover]);
+
+  const handleHoverEnd = useCallback(() => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsOpen(false);
+    }, 300);
+  }, []);
 
   const handleRestakeHover = useCallback(() => {
     if (isNegation && parentPoint?.id && negationId) {
@@ -303,99 +280,21 @@ export const PointCard = ({
     }
   }, [isNegation, parentPoint?.id, negationId, prefetchRestakeData]);
 
-  const showRestakeAmount = useMemo(() => {
-    if (!restake) return false;
-
-    if (restake.slashedAmount >= restake.originalAmount) return false;
-
-    return restake.amount > 0;
-  }, [restake]);
-
-  // Only check visited state once on mount
-  useEffect(() => {
-    // Only check visited state if user is logged in
-    if (!privyUser) return;
-
-    let mounted = true;
-    isVisited(pointId).then((result) => {
-      if (mounted && !result) {  // Only update state if not visited and component still mounted
-        setVisitedPoints(prev => {
-          const newSet = new Set(prev);
-          // eslint-disable-next-line drizzle/enforce-delete-with-where
-          newSet.delete(pointId);
-          return newSet;
-        });
-      } else if (mounted && result) {
-        setVisitedPoints(prev => {
-          const newSet = new Set(prev);
-          newSet.add(pointId);
-          return newSet;
-        });
-      }
-    });
-    return () => { mounted = false; };
-  }, [pointId, isVisited, setVisitedPoints, privyUser]);
-
-  // memo to avoid recalculating this on every render
-  const parsePinCommand = useMemo(() => {
-    // Prevent showing pin commands when space is undefined or global
-    if (!space || space === 'global' || !isCommand) {
-      return null;
-    }
-
-    // Check if content exists and is a pin command
-    if (!content || !content.startsWith('/pin ')) {
-      return null;
-    }
-
-    const parts = content.split(' ').filter(Boolean);
-    if (parts.length < 2) {
-      return null;
-    }
-
-    return parts[1];
-  }, [isCommand, content, space]);
-
-  const handleTargetPointClick = (e: React.MouseEvent) => {
+  const handleTargetPointClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (parsePinCommand && space && space !== 'global') {
       router.push(`/s/${space}/${parsePinCommand}`);
     }
-  };
+  }, [parsePinCommand, space, router]);
 
-  const handlePinCommandClick = (e: React.MouseEvent) => {
+  const handlePinCommandClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
     if (pinnedCommandPointId && router && space && space !== 'global') {
       const encodedCommandId = encodeId(pinnedCommandPointId);
       router.push(`/s/${space}/${encodedCommandId}`);
     }
-  };
-
-  useEffect(() => {
-    // Only prefetch when hovered
-    if (isOpen && pointId) {
-      prefetchPoint(pointId);
-
-      // If it's a negation with parent, prefetch parent too
-      if (isNegation && parentPoint?.id) {
-        prefetchPoint(parentPoint.id);
-      }
-
-      // Prefetch related negations if any
-      if (amountNegations > 0) {
-        // This will trigger the prefetch of negations in usePointNegations
-        prefetchPoint(pointId);
-      }
-    }
-  }, [isOpen, pointId, isNegation, parentPoint?.id, prefetchPoint, amountNegations]);
-
-  const handleCardClick = useCallback((e: React.MouseEvent) => {
-    if (pointId) {
-      prefetchPoint(pointId);
-    }
-  }, [pointId, prefetchPoint]);
+  }, [pinnedCommandPointId, router, space]);
 
   const renderCardContent = () => (
     <div
@@ -406,15 +305,11 @@ export const PointCard = ({
         inGraphNode && "pt-2.5",
         className
       )}
-      onClick={handleCardClick}
       onMouseEnter={() => {
         setHoveredPointId(pointId);
-        handleRestakeHover();
         if (!disablePopover) {
           handleHoverStart();
         }
-        // Prefetch on hover too
-        prefetchPoint(pointId);
       }}
       onMouseLeave={() => {
         setHoveredPointId(undefined);
@@ -435,7 +330,7 @@ export const PointCard = ({
           )}
           <div className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg -mt-1 mb-sm select-text flex-1 break-words whitespace-normal overflow-hidden">
             {content}
-            {/* Never show command badges when space is undefined */}
+            {/* Pin command badges */}
             {pinnedCommandPointId && space && space !== 'global' && (
               <Badge variant="outline" className="ml-2 text-xs">
                 {space && !linkDisabled ? (
@@ -792,7 +687,7 @@ export const PointCard = ({
             {/* Favor History Section */}
             {(() => {
               // Choose which data source to use
-              const historyToUse = popoverFavorHistory || favorHistory;
+              const historyToUse = popoverFavorHistory || initialFavorHistory;
 
               // If we have valid history data
               if (Array.isArray(historyToUse)) {
@@ -804,9 +699,18 @@ export const PointCard = ({
                   ]
                   : historyToUse;
 
+                // Check if we're using the limited fallback data (only 2 points with same favor)
+                const isLimitedHistory = dataPoints.length === 2 &&
+                  dataPoints[0].favor === dataPoints[1].favor;
+
                 return (
                   <div className="mt-2">
-                    <h4 className="text-sm font-semibold mb-2">Favor History</h4>
+                    <div className="flex flex-col mb-2">
+                      <h4 className="text-sm font-semibold">Favor History</h4>
+                      {isLimitedHistory && (
+                        <span className="text-xs text-muted-foreground">Limited history available</span>
+                      )}
+                    </div>
                     <ResponsiveContainer width="100%" height={100}>
                       <LineChart
                         width={300}
@@ -826,11 +730,9 @@ export const PointCard = ({
                           type="stepAfter"
                           className="overflow-visible text-endorsed"
                           dot={({ key, ...dot }) => {
-                            // Safety check to prevent errors
                             if (dot.index === undefined) {
                               return <Fragment key={key} />;
                             }
-
                             return dot.index === dataPoints.length - 1 ? (
                               <Fragment key={key}>
                                 <Dot
@@ -878,7 +780,10 @@ export const PointCard = ({
                 ];
                 return (
                   <div className="mt-2">
-                    <h4 className="text-sm font-semibold mb-2">Favor History</h4>
+                    <div className="flex flex-col mb-2">
+                      <h4 className="text-sm font-semibold">Favor History</h4>
+                      <span className="text-xs text-muted-foreground">Limited history available</span>
+                    </div>
                     <ResponsiveContainer width="100%" height={100}>
                       <LineChart
                         width={300}

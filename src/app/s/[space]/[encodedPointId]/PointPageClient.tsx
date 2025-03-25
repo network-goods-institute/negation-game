@@ -104,108 +104,47 @@ type PageProps = {
 
 // Create an optimized negation card component with improved loading
 const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, handleNegate, point, prefetchRestakeData, setRestakePoint, handleNegationHover, prefetchPoint }: any) => {
-    // Track favor history loading state to provide fallbacks
     const [favorHistoryLoaded, setFavorHistoryLoaded] = useState(false);
     const favorHistoryKey = useMemo(() => [negation.pointId, "favor-history", "1W"], [negation.pointId]);
     const queryClient = useQueryClient();
 
-    // Prefetch on mount
-    useEffect(() => {
-        if (negation.pointId && point.pointId) {
-            // Start prefetching immediately on render - even before user interaction 
-            prefetchRestakeData(point.pointId, negation.pointId);
-            prefetchPoint(negation.pointId);
+    // Only prefetch favor history on hover
+    const handleHover = useCallback(() => {
+        handleNegationHover(negation.pointId);
 
-            // Aggressively prefetch favor history with high priority
-            (async () => {
-                try {
-                    // Import in parallel for faster loading
-                    const [{ fetchFavorHistory }, { fetchPointNegations }] = await Promise.all([
-                        import("@/actions/fetchFavorHistory"),
-                        import("@/actions/fetchPointNegations")
-                    ]);
-
-                    // Start both fetches in parallel
-                    const fetchPromises = [
-                        // Fetch favor history with a timeout
-                        Promise.race([
-                            fetchFavorHistory({
-                                pointId: negation.pointId,
-                                scale: "1W"
-                            }),
-                            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000))
-                        ]).catch(err => {
-                            console.warn(`[NegationCard] Favor history fetch timed out for ${negation.pointId}`, err);
-                            return [];
-                        }),
-
-                        // Fetch negations of this negation with a timeout
-                        Promise.race([
-                            fetchPointNegations(negation.pointId),
-                            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
-                        ]).catch(err => {
-                            console.warn(`[NegationCard] Negations fetch timed out for ${negation.pointId}`, err);
-                            return [];
+        // Try to fetch favor history if not already loaded
+        if (!favorHistoryLoaded) {
+            import("@/actions/fetchFavorHistory")
+                .then(({ fetchFavorHistory }) => {
+                    fetchFavorHistory({
+                        pointId: negation.pointId,
+                        scale: "1W"
+                    })
+                        .then(data => {
+                            if (data) {
+                                queryClient.setQueryData(favorHistoryKey, data);
+                                setFavorHistoryLoaded(true);
+                            }
                         })
-                    ];
-
-                    const [favorData, negationsData] = await Promise.all(fetchPromises);
-
-                    // Cache both results immediately
-                    if (favorData && Array.isArray(favorData)) {
-                        queryClient.setQueryData(favorHistoryKey, favorData);
-                        setFavorHistoryLoaded(true);
-                    }
-
-                    if (negationsData && Array.isArray(negationsData)) {
-                        queryClient.setQueryData(
-                            ["point-negations", negation.pointId, privyUser?.id],
-                            negationsData
-                        );
-                    }
-                } catch (error) {
-                    console.warn(`[NegationCard] Failed to prefetch data for ${negation.pointId}:`, error);
-                }
-            })();
+                        .catch(error => {
+                            console.warn(`[NegationCard] Failed to fetch favor history on hover for ${negation.pointId}:`, error);
+                        });
+                });
         }
-    }, [negation.pointId, point.pointId, prefetchRestakeData, prefetchPoint, queryClient, favorHistoryKey, privyUser?.id]);
+    }, [negation.pointId, handleNegationHover, favorHistoryLoaded, queryClient, favorHistoryKey]);
 
     return (
         <Link
             data-show-hover={false}
             draggable={false}
             onClick={(e) => {
-                // Prefetch everything on click too
                 prefetchPoint(negation.pointId);
-                prefetchRestakeData(point.pointId, negation.pointId);
                 preventDefaultIfContainsSelection(e);
             }}
             href={`${basePath}/${encodeId(negation.pointId)}${viewParam ? `?view=${viewParam}` : ""}`}
             key={negation.pointId}
             className="flex cursor-pointer px-4 pt-5 pb-2 border-b hover:bg-accent"
-            onMouseEnter={() => {
-                handleNegationHover(negation.pointId);
-
-                // Try to fetch favor history again if not already loaded
-                if (!favorHistoryLoaded) {
-                    import("@/actions/fetchFavorHistory")
-                        .then(({ fetchFavorHistory }) => {
-                            fetchFavorHistory({
-                                pointId: negation.pointId,
-                                scale: "1W"
-                            })
-                                .then(data => {
-                                    if (data) {
-                                        queryClient.setQueryData(favorHistoryKey, data);
-                                        setFavorHistoryLoaded(true);
-                                    }
-                                })
-                                .catch(error => {
-                                    console.warn(`[NegationCard] Failed to fetch favor history on hover for ${negation.pointId}:`, error);
-                                });
-                        });
-                }
-            }}
+            onMouseEnter={handleHover}
         >
             <PointCard
                 onNegate={(e) => {
@@ -267,7 +206,6 @@ export function PointPageClient({
     params,
     searchParams: initialSearchParams,
 }: PageProps) {
-    // All hooks first
     const { user: privyUser, login, ready } = usePrivy();
     const { encodedPointId, space } = params;
     const pointId = decodeId(encodedPointId);
@@ -329,6 +267,33 @@ export function PointPageClient({
     const [isRedirecting, setIsRedirecting] = useState(false);
     const [forceShowNegations, setForceShowNegations] = useState(false);
     const [negationsLoadStartTime] = useState(() => Date.now());
+
+    // Load additional data after point data is loaded
+    useEffect(() => {
+        if (point && !isLoadingPoint) {
+            // Load negations
+            queryClient.prefetchQuery({
+                queryKey: ["point-negations", pointId, privyUser?.id],
+                queryFn: async () => {
+                    const { fetchPointNegations } = await import("@/actions/fetchPointNegations");
+                    return fetchPointNegations(pointId);
+                },
+                staleTime: 15_000,
+            });
+
+            queryClient.prefetchQuery({
+                queryKey: [pointId, "favor-history", "1W"],
+                queryFn: async () => {
+                    const { fetchFavorHistory } = await import("@/actions/fetchFavorHistory");
+                    return fetchFavorHistory({
+                        pointId,
+                        scale: "1W"
+                    });
+                },
+                staleTime: 15_000,
+            });
+        }
+    }, [point, pointId, queryClient, privyUser?.id, isLoadingPoint]);
 
     // Force show negations after 2.5 seconds to avoid stalled UI
     useEffect(() => {
@@ -422,15 +387,13 @@ export function PointPageClient({
     useEffect(() => {
         if (!Array.isArray(negations) || negations.length === 0) return;
 
-        // Much more aggressive batching - process all at once 
+        // Only prefetch first-level negations basic data
         negations.forEach((negation: any) => {
             if (negation.pointId !== pointId) {
-                prefetchRestakeData(pointId, negation.pointId);
                 prefetchPoint(negation.pointId);
             }
         });
-
-    }, [negations, pointId, prefetchRestakeData, prefetchPoint]);
+    }, [negations, pointId, prefetchPoint]);
 
     useEffect(() => {
         const handleNegationCreated = () => {
@@ -473,101 +436,6 @@ export function PointPageClient({
             });
         }
     }, [point, pointId, queryClient, privyUser?.id, isLoadingNegations]);
-
-    // Add a new batch prefetching function for second-level negations with more resilience
-    const prefetchSecondLevelNegations = useCallback(() => {
-        if (!Array.isArray(negations) || negations.length === 0) return;
-
-        // Get all unique negation IDs
-        const negationIds = [...new Set(negations.map((n: any) => n.pointId))];
-
-        console.log(`[Prefetch] Batch prefetching ${negationIds.length} second-level negations`);
-
-        // Process negations in smaller batches to avoid overwhelming the network
-        const batchSize = 3; // Process 3 negations at a time
-
-        // Create batches of negation IDs
-        const batches = [];
-        for (let i = 0; i < negationIds.length; i += batchSize) {
-            batches.push(negationIds.slice(i, i + batchSize));
-        }
-
-        // Process each batch with a delay between batches
-        batches.forEach((batch, batchIndex) => {
-            setTimeout(() => {
-                batch.forEach((negationId, itemIndex) => {
-                    // Add some delay between items in the same batch
-                    setTimeout(() => {
-                        // Try to prefetch negations
-                        try {
-                            import("@/actions/fetchPointNegations")
-                                .then(({ fetchPointNegations }) => {
-                                    // Set a timeout for this specific fetch
-                                    const fetchPromise = fetchPointNegations(Number(negationId));
-                                    const timeoutId = setTimeout(() => {
-                                        console.log(`[Prefetch] Timed out fetching negations for ${negationId}`);
-                                    }, 5000);
-
-                                    fetchPromise
-                                        .then(data => {
-                                            clearTimeout(timeoutId);
-                                            queryClient.setQueryData(
-                                                ["point-negations", Number(negationId), privyUser?.id],
-                                                data
-                                            );
-                                        })
-                                        .catch(error => {
-                                            clearTimeout(timeoutId);
-                                            console.warn(`[Prefetch] Failed to prefetch negations for ${negationId}:`, error);
-                                        });
-                                });
-                        } catch (error) {
-                            console.warn(`[Prefetch] Error importing fetchPointNegations:`, error);
-                        }
-
-                        // Try to prefetch favor history
-                        try {
-                            import("@/actions/fetchFavorHistory")
-                                .then(({ fetchFavorHistory }) => {
-                                    // Set a timeout for this specific fetch
-                                    const fetchPromise = fetchFavorHistory({
-                                        pointId: Number(negationId),
-                                        scale: "1W"
-                                    });
-                                    const timeoutId = setTimeout(() => {
-                                        console.log(`[Prefetch] Timed out fetching favor history for ${negationId}`);
-                                    }, 3000);
-
-                                    fetchPromise
-                                        .then(data => {
-                                            clearTimeout(timeoutId);
-                                            queryClient.setQueryData(
-                                                [Number(negationId), "favor-history", "1W"],
-                                                data
-                                            );
-                                        })
-                                        .catch(error => {
-                                            clearTimeout(timeoutId);
-                                            console.warn(`[Prefetch] Failed to prefetch favor history for ${negationId}:`, error);
-                                        });
-                                });
-                        } catch (error) {
-                            console.warn(`[Prefetch] Error importing fetchFavorHistory:`, error);
-                        }
-                    }, itemIndex * 100); // 100ms stagger within a batch
-                });
-            }, batchIndex * 300); // 300ms stagger between batches
-        });
-    }, [negations, queryClient, privyUser?.id]);
-
-    // Call the batch prefetch after initial load
-    useEffect(() => {
-        if (Array.isArray(negations) && negations.length > 0 && !isLoadingNegations) {
-            // Wait a bit to let the first level of rendering complete
-            const timer = setTimeout(prefetchSecondLevelNegations, 1000);
-            return () => clearTimeout(timer);
-        }
-    }, [negations, isLoadingNegations, prefetchSecondLevelNegations]);
 
     // Derived state and callbacks
     const isInSpecificSpace = pathname?.includes('/s/') && !pathname.match(/^\/s\/global\//);
@@ -958,6 +826,14 @@ export function PointPageClient({
                             </span>
 
                             <>
+                                {/* Check if we're using limited fallback data */}
+                                {favorHistory &&
+                                    favorHistory.length === 2 &&
+                                    favorHistory[0].favor === favorHistory[1].favor && (
+                                        <div className="text-sm text-muted-foreground mb-1 mt-4">
+                                            Limited history available
+                                        </div>
+                                    )}
                                 <ResponsiveContainer
                                     width="100%"
                                     height={100}

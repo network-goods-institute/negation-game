@@ -76,22 +76,6 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
         }
     );
 
-    const handlePrefetch = useCallback(() => {
-        if (item.type === 'point' && item.data.pointId) {
-            prefetchPoint(item.data.pointId);
-            import("@/actions/fetchPointNegations").then(({ fetchPointNegations }) => {
-                fetchPointNegations(item.data.pointId).then(negations => {
-                    if (negations) {
-                        queryClient.setQueryData(
-                            [item.data.pointId, "negations", privyUser?.id],
-                            negations
-                        );
-                    }
-                });
-            });
-        }
-    }, [item, prefetchPoint, queryClient, privyUser?.id]);
-
     if (item.type === 'point') {
         const point = item.data;
         const isProposalToPin = point.content?.startsWith('/pin ');
@@ -133,10 +117,12 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
         return (
             <Link
                 draggable={false}
-                onClick={preventDefaultIfContainsSelection}
+                onClick={(e) => {
+                    preventDefaultIfContainsSelection(e);
+                    prefetchPoint(point.pointId);
+                }}
                 href={`${basePath}/${encodeId(point.pointId)}`}
                 className="flex border-b cursor-pointer hover:bg-accent"
-                onMouseEnter={handlePrefetch}
             >
                 <MemoizedPointCard
                     className="flex-grow p-6"
@@ -166,6 +152,7 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                         e.stopPropagation();
                     }}
                     linkDisabled={true}
+                    disablePopover={true}
                     favorHistory={favorHistory as Array<{ timestamp: Date; favor: number; }> | undefined}
                 />
             </Link>

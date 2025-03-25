@@ -61,17 +61,6 @@ export const usePrefetchPoint = () => {
         staleTime: 60 * 1000,
         gcTime: existingData ? 0 : 10 * 60 * 1000,
       });
-
-      queryClient.prefetchQuery({
-        queryKey: ["point-negations", pointId, user?.id],
-        queryFn: async () => {
-          const { fetchPointNegations } = await import(
-            "@/actions/fetchPointNegations"
-          );
-          return fetchPointNegations(pointId);
-        },
-        staleTime: 60 * 1000,
-      });
     },
     [queryClient, user?.id]
   );
