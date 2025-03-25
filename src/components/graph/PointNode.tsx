@@ -533,18 +533,39 @@ export const PointNode = ({
     [pathname]
   );
 
+  const wasInOriginalGraph = useMemo(() => {
+    if (!originalViewpoint?.graph || !parentId || parentId !== 'statement') return false;
+
+    // Check if this specific point was connected to the statement node in the original graph
+    return originalViewpoint.graph.nodes.some(node =>
+      node.type === 'point' &&
+      node.data?.pointId === pointId &&
+      originalViewpoint.graph.edges.some(edge =>
+        edge.source === node.id &&
+        edge.target === 'statement'
+      )
+    );
+  }, [originalViewpoint, pointId, parentId]);
+
   const handleCollapseClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
-    // Single combined check to determine if we show confirmation
-    if (parentId === 'statement' && isNewViewpointPage) {
+    // Show confirmation dialog in two cases:
+    // 1. New viewpoint page: all direct children of statement node
+    // 2. Existing viewpoint: direct children of statement node that either:
+    //    - weren't in the original viewpoint at all, or
+    //    - were in the original viewpoint but not connected to statement node
+    if (parentId === 'statement' && (
+      isNewViewpointPage ||
+      (isViewpointContext && originalViewpoint && !wasInOriginalGraph)
+    )) {
       setIsConfirmDialogOpen(true);
     } else if (parentId) {
       // For all other cases, collapse without confirmation
       collapseSelfAndNegations();
     }
-  }, [parentId, collapseSelfAndNegations, isNewViewpointPage]);
+  }, [parentId, collapseSelfAndNegations, isNewViewpointPage, isViewpointContext, originalViewpoint, wasInOriginalGraph]);
 
   const confirmCollapse = useCallback(() => {
     setIsConfirmDialogOpen(false);
