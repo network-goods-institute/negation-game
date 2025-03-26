@@ -5,7 +5,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export type FavorHistoryDataPoint = {
   timestamp: Date;
@@ -33,10 +33,16 @@ export const useFavorHistory = ({
   const [statusMessage, setStatusMessage] = useState<string | null>(
     "Limited history available"
   );
+  const [retryCount, setRetryCount] = useState(0);
+
+  // Reset retry count when pointId changes
+  useEffect(() => {
+    setRetryCount(0);
+  }, [pointId]);
 
   return useQuery<FavorHistoryDataPoint[]>({
     queryKey: [pointId, "favor-history", timelineScale] as const,
-    queryFn: async ({ queryKey }) => {
+    queryFn: async ({ queryKey, signal }) => {
       const id = queryKey[0] as number;
       const scale = queryKey[2] as TimelineScale;
 
@@ -64,7 +70,7 @@ export const useFavorHistory = ({
         if (typeof window !== "undefined") {
           try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout - more generous
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 
             // Create a fetch that can be aborted
             const data = await Promise.race([
@@ -93,8 +99,9 @@ export const useFavorHistory = ({
             }));
 
             setStatusMessage(null);
+            setRetryCount(0);
             return processedData;
-          } catch (error: unknown) {
+          } catch (error) {
             // Handle specific timeout error
             if (
               error instanceof Error &&
@@ -104,15 +111,18 @@ export const useFavorHistory = ({
                 `[FavorHistory] Fetch timed out for ${id}, using fallback data`
               );
               setStatusMessage("Limited history available");
+
+              // Update retry count but return fallback data instead of throwing
+              setRetryCount((prev) => Math.min(prev + 1, 3));
+              return generateFallbackData(currentFavor);
             } else {
               console.error(
                 `[FavorHistory] Error fetching data for ${id}:`,
                 error
               );
               setStatusMessage("Error loading history");
+              return generateFallbackData(currentFavor);
             }
-
-            return generateFallbackData(currentFavor);
           }
         }
         // Server-side rendering path (no window)
@@ -150,19 +160,11 @@ export const useFavorHistory = ({
         return 30000; // Regular 30s refresh
       }
       // If we only have fallback data, use exponential backoff
-      return Math.min(
-        30000,
-        1000 *
-          Math.pow(
-            2,
-            queryClient.getQueryState([pointId, "favor-history", timelineScale])
-              ?.fetchFailureCount || 0
-          )
-      );
+      return Math.min(30000, 1000 * Math.pow(2, retryCount));
     },
     staleTime: 10_000,
     gcTime: 10 * 60 * 1000,
-    retry: 5,
+    retry: 3,
     retryDelay: (attemptIndex) =>
       Math.min(1000 * Math.pow(2, attemptIndex), 30000), // Exponential backoff
     networkMode: "offlineFirst",
