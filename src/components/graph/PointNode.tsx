@@ -36,6 +36,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { recentlyCreatedNegationIdAtom } from "@/atoms/recentlyCreatedNegationIdAtom";
+import { ExpandPointDialog } from "@/components/graph/ExpandPointDialog";
 
 export type PointNodeData = {
   pointId: number;
@@ -578,10 +579,6 @@ export const PointNode = ({
     }
   }, [collapseSelfAndNegations]);
 
-  const handleExpandNegationsClick = useCallback((event: React.MouseEvent) => {
-    event.stopPropagation();
-    expandNegations();
-  }, [expandNegations]);
 
   // Reset animation state after mount
   useEffect(() => {
@@ -691,76 +688,158 @@ export const PointNode = ({
 
   }, [pointData, recentlyCreatedNegation, pointId, expandSpecificNegation, setRecentlyCreatedNegation]);
 
+  const [isExpandDialogOpen, setIsExpandDialogOpen] = useState(false);
+
+  const handleSelectPoint = useCallback((point: { pointId: number, parentId?: string | number }) => {
+    const uniqueId = `${nanoid()}-${Date.now()}`;
+    const targetNode = getNode(id)!;
+    const layouts = calculateInitialLayout(
+      targetNode.position.x,
+      targetNode.position.y,
+      targetNode?.measured?.height ?? 200,
+      1
+    );
+
+    addNodes({
+      id: uniqueId,
+      data: {
+        pointId: point.pointId,
+        parentId: pointId,
+        _lastModified: Date.now(),
+        isExpanding: true
+      },
+      type: "point",
+      position: layouts[0],
+    });
+
+    addEdges({
+      id: nanoid(),
+      target: id,
+      source: uniqueId,
+      type: parentId === 'statement' ? 'statement' : 'negation',
+    });
+
+    setCollapsedPointIds(prev => {
+      const newSet = new Set(prev);
+      // eslint-disable-next-line drizzle/enforce-delete-with-where
+      newSet.delete(point.pointId);
+      return newSet;
+    });
+
+    setCollapsedNodePositions(prev =>
+      prev.filter(pos => !(pos.pointId === point.pointId && pos.parentId === pointId))
+    );
+  }, [id, pointId, parentId, addNodes, addEdges, setCollapsedPointIds, setCollapsedNodePositions, getNode]);
+
+  const expandablePoints = useMemo(() => {
+    if (!pointData) return [];
+    return pointData.negationIds
+      .filter(id =>
+        id !== pointId &&
+        !expandedNegationIds.includes(id)
+      )
+      .map(id => ({
+        pointId: id,
+        parentId: pointId
+      }));
+  }, [pointData, pointId, expandedNegationIds]);
+
   return (
-    <div
-      data-loading={pointData === undefined}
-      className={cn(
-        "relative bg-background rounded-md border-2 min-h-28 w-64",
-        endorsedByOp && "border-yellow-500",
-        hoveredPoint === pointId && "border-primary",
-        (!hasAnimationPlayed && (isExpanding || dataIsExpanding)) && "animate-node-expand"
-      )}
-      onMouseOver={() => setHoveredPoint(pointId)}
-      onMouseLeave={() => setHoveredPoint(undefined)}
-    >
-      <Handle
-        id={`${id}-incoming-handle`}
-        type="target"
-        isConnectableStart={false}
-        position={Position.Bottom}
+    <>
+      <div
+        data-loading={pointData === undefined}
         className={cn(
-          "pb-0.5 px-4 translate-y-[100%] -translate-x-1/2 size-fit bg-muted text-center border-2 border-t-0 rounded-b-full pointer-events-auto cursor-pointer",
-          collapsedNegations === 0 && "invisible"
+          "relative bg-background rounded-md border-2 min-h-28 w-64",
+          endorsedByOp && "border-yellow-500",
+          hoveredPoint === pointId && "border-primary",
+          (!hasAnimationPlayed && (isExpanding || dataIsExpanding)) && "animate-node-expand"
         )}
-        onClick={handleExpandNegationsClick}
+        onMouseOver={() => setHoveredPoint(pointId)}
+        onMouseLeave={() => setHoveredPoint(undefined)}
       >
-        {pointData && collapsedNegations > 0 && (
-          <span className="text-center w-full text-sm">
-            {collapsedNegations}
-          </span>
-        )}
-      </Handle>
-      {parentId && (
         <Handle
-          id={`${id}-outgoing-handle`} type="source"
-          position={Position.Top}
-          className={
-            "pt-1 pb-0.5 px-2 translate-y-[-100%] -translate-x-1/2 size-fit bg-muted text-center border-2 border-b-0 rounded-t-full pointer-events-auto !cursor-pointer"
-          }
-          onClick={handleCollapseClick}
+          id={`${id}-incoming-handle`}
+          type="target"
+          isConnectableStart={false}
+          position={Position.Bottom}
+          className={cn(
+            "pb-0.5 px-4 translate-y-[100%] -translate-x-1/2 size-fit bg-muted text-center border-2 border-t-0 rounded-b-full pointer-events-auto cursor-pointer",
+            collapsedNegations === 0 && "invisible"
+          )}
+          onClick={(e) => {
+            if (e.altKey) {
+              // Alt-click always expands all points
+              expandNegations();
+            } else {
+              // Normal click shows dialog for 3+ points, expands directly for 2 or fewer
+              if (!pointData) return;
+
+              const possibleNegationIds = pointData.negationIds.filter(id =>
+                // Don't include self-negations
+                id !== pointId &&
+                // Don't include already connected negations
+                !expandedNegationIds.includes(id)
+              );
+
+              // If 2 or fewer points, just expand normally
+              if (possibleNegationIds.length <= 2) {
+                expandNegations();
+              } else {
+                // Show dialog for 3+ points
+                setIsExpandDialogOpen(true);
+              }
+            }
+          }}
         >
-          {parentId === 'statement' ? (
-            <CircleIcon className="size-4" />
-          ) : (
-            <XIcon className="size-4" />
+          {pointData && collapsedNegations > 0 && (
+            <span className="text-center w-full text-sm">
+              {collapsedNegations}
+            </span>
           )}
         </Handle>
-      )}
-      {pointData ? (
-        <>
-          <PointCard
-            onNegate={() => setNegatedPointId(pointId)}
-            amountNegations={pointData.amountNegations}
-            amountSupporters={pointData.amountSupporters}
-            content={pointData.content}
-            createdAt={pointData.createdAt}
-            cred={pointData.cred}
-            favor={pointData.favor}
-            pointId={pointData.pointId}
-            viewerContext={{ viewerCred: pointData.viewerCred }}
-            space={pointData.space ?? undefined}
-            isCommand={pointData.isCommand}
-            className={cn(
-              "bg-muted/40 rounded-sm z-10 max-w-[300px] break-words"
+        {parentId && (
+          <Handle
+            id={`${id}-outgoing-handle`} type="source"
+            position={Position.Top}
+            className={
+              "pt-1 pb-0.5 px-2 translate-y-[-100%] -translate-x-1/2 size-fit bg-muted text-center border-2 border-b-0 rounded-t-full pointer-events-auto !cursor-pointer"
+            }
+            onClick={handleCollapseClick}
+          >
+            {parentId === 'statement' ? (
+              <CircleIcon className="size-4" />
+            ) : (
+              <XIcon className="size-4" />
             )}
-            originalPosterId={originalPosterId}
-            inGraphNode={true}
-            disablePopover={true}
-          ></PointCard>
-        </>
-      ) : (
-        <div className="w-full flex-grow h-32 bg-muted/40 animate-pulse" />
-      )}
+          </Handle>
+        )}
+        {pointData ? (
+          <>
+            <PointCard
+              onNegate={() => setNegatedPointId(pointId)}
+              amountNegations={pointData.amountNegations}
+              amountSupporters={pointData.amountSupporters}
+              content={pointData.content}
+              createdAt={pointData.createdAt}
+              cred={pointData.cred}
+              favor={pointData.favor}
+              pointId={pointData.pointId}
+              viewerContext={{ viewerCred: pointData.viewerCred }}
+              space={pointData.space ?? undefined}
+              isCommand={pointData.isCommand}
+              className={cn(
+                "bg-muted/40 rounded-sm z-10 max-w-[300px] break-words"
+              )}
+              originalPosterId={originalPosterId}
+              inGraphNode={true}
+              disablePopover={true}
+            ></PointCard>
+          </>
+        ) : (
+          <div className="w-full flex-grow h-32 bg-muted/40 animate-pulse" />
+        )}
+      </div>
+
       <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -790,7 +869,16 @@ export const PointNode = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+
+      <ExpandPointDialog
+        open={isExpandDialogOpen}
+        onOpenChange={setIsExpandDialogOpen}
+        points={expandablePoints}
+        onSelectPoint={handleSelectPoint}
+        onClose={() => setIsExpandDialogOpen(false)}
+        parentNodeId={id}
+      />
+    </>
   );
 };
 
