@@ -103,7 +103,7 @@ type PageProps = {
 };
 
 // Create an optimized negation card component with improved loading
-const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, handleNegate, point, prefetchRestakeData, setRestakePoint, handleNegationHover, prefetchPoint }: any) => {
+const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, handleNegate, point, prefetchRestakeData, setRestakePoint, handleNegationHover, prefetchPoint, loadingCardId, onCardClick }: any) => {
     const [favorHistoryLoaded, setFavorHistoryLoaded] = useState(false);
     const favorHistoryKey = useMemo(() => [negation.pointId, "favor-history", "1W"], [negation.pointId]);
     const queryClient = useQueryClient();
@@ -134,70 +134,74 @@ const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, ha
     }, [negation.pointId, handleNegationHover, favorHistoryLoaded, queryClient, favorHistoryKey]);
 
     return (
-        <Link
-            data-show-hover={false}
-            draggable={false}
-            onClick={(e) => {
-                prefetchPoint(negation.pointId);
-                preventDefaultIfContainsSelection(e);
-            }}
-            href={`${basePath}/${encodeId(negation.pointId)}${viewParam ? `?view=${viewParam}` : ""}`}
-            key={negation.pointId}
-            className="flex cursor-pointer px-4 pt-5 pb-2 border-b hover:bg-accent"
-            onMouseEnter={handleHover}
-        >
-            <PointCard
-                onNegate={(e) => {
-                    e.preventDefault();
-                    if (privyUser === null) {
-                        login();
-                        return;
-                    }
-                    handleNegate(negation.pointId);
+        <div className="relative">
+            <Link
+                data-show-hover={false}
+                draggable={false}
+                onClick={(e) => {
+                    prefetchPoint(negation.pointId);
+                    preventDefaultIfContainsSelection(e);
+                    onCardClick(`point-${negation.pointId}`);
                 }}
-                className="flex-grow -mt-3.5 pb-3"
-                favor={negation.favor}
-                content={negation.content}
-                createdAt={negation.createdAt}
-                amountSupporters={negation.amountSupporters}
-                amountNegations={negation.amountNegations}
-                pointId={negation.pointId}
-                cred={negation.cred}
-                viewerContext={{ viewerCred: negation.viewerCred }}
-                isNegation={true}
-                parentPoint={{
-                    ...point,
-                    id: point.pointId,
-                    stakedAmount: point.cred,
-                }}
-                negationId={point.pointId}
-                onRestake={({ openedFromSlashedIcon }) => {
-                    if (privyUser === null) {
-                        login();
-                        return;
-                    }
-                    setRestakePoint({
-                        point: {
-                            ...point,
-                            stakedAmount: point.cred,
-                            pointId: point.pointId,
-                            id: point.pointId,
-                        },
-                        counterPoint: {
-                            ...negation,
-                            stakedAmount: negation.cred,
-                            pointId: negation.pointId,
-                            id: negation.pointId,
-                        },
-                        openedFromSlashedIcon,
-                    });
-                }}
-                restake={negation.restake}
-                doubt={negation.doubt}
-                totalRestakeAmount={negation.totalRestakeAmount}
-                isInPointPage={true}
-            />
-        </Link>
+                href={`${basePath}/${encodeId(negation.pointId)}${viewParam ? `?view=${viewParam}` : ""}`}
+                key={negation.pointId}
+                className="flex border-b cursor-pointer hover:bg-accent"
+                onMouseEnter={handleHover}
+            >
+                <PointCard
+                    onNegate={(e) => {
+                        e.preventDefault();
+                        if (privyUser === null) {
+                            login();
+                            return;
+                        }
+                        handleNegate(negation.pointId);
+                    }}
+                    className="flex-grow p-6"
+                    favor={negation.favor}
+                    content={negation.content}
+                    createdAt={negation.createdAt}
+                    amountSupporters={negation.amountSupporters}
+                    amountNegations={negation.amountNegations}
+                    pointId={negation.pointId}
+                    cred={negation.cred}
+                    viewerContext={{ viewerCred: negation.viewerCred }}
+                    isNegation={true}
+                    parentPoint={{
+                        ...point,
+                        id: point.pointId,
+                        stakedAmount: point.cred,
+                    }}
+                    negationId={point.pointId}
+                    onRestake={({ openedFromSlashedIcon }) => {
+                        if (privyUser === null) {
+                            login();
+                            return;
+                        }
+                        setRestakePoint({
+                            point: {
+                                ...point,
+                                stakedAmount: point.cred,
+                                pointId: point.pointId,
+                                id: point.pointId,
+                            },
+                            counterPoint: {
+                                ...negation,
+                                stakedAmount: negation.cred,
+                                pointId: negation.pointId,
+                                id: negation.pointId,
+                            },
+                            openedFromSlashedIcon,
+                        });
+                    }}
+                    restake={negation.restake}
+                    doubt={negation.doubt}
+                    totalRestakeAmount={negation.totalRestakeAmount}
+                    isInPointPage={true}
+                    isLoading={loadingCardId === `point-${negation.pointId}`}
+                />
+            </Link>
+        </div>
     );
 });
 NegationCard.displayName = 'NegationCard';
@@ -267,6 +271,7 @@ export function PointPageClient({
     const [isRedirecting, setIsRedirecting] = useState(false);
     const [forceShowNegations, setForceShowNegations] = useState(false);
     const [negationsLoadStartTime] = useState(() => Date.now());
+    const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
 
     // Load additional data after point data is loaded
     useEffect(() => {
@@ -579,6 +584,19 @@ export function PointPageClient({
         return isWithinDeletionTimelock(point.createdAt);
     }, [point?.createdAt, isPointOwner]);
 
+    // Reset loading state when route changes
+    useEffect(() => {
+        setLoadingCardId(null);
+        return () => {
+            setLoadingCardId(null);
+        };
+    }, [pathname]);
+
+    // Function to handle card navigation with loading state
+    const handleCardClick = useCallback((id: string) => {
+        setLoadingCardId(id);
+    }, []);
+
     if (!isLoadingPoint && point === null && !isRedirecting) {
         notFound();
     }
@@ -619,12 +637,10 @@ export function PointPageClient({
                                     size={"icon"}
                                     className="text-foreground -ml-3"
                                     onClick={() => {
-                                        if (window.history.state?.idx > 0) {
-                                            back();
-                                            return;
-                                        }
-
-                                        push(`${basePath}/`);
+                                        // Get space from URL
+                                        const spaceMatch = pathname?.match(/^\/s\/([^\/]+)/);
+                                        const space = spaceMatch?.[1] || 'global';
+                                        push(`/s/${space}`);
                                     }}
                                 >
                                     <ArrowLeftIcon />
@@ -1028,6 +1044,8 @@ export function PointPageClient({
                                                     setRestakePoint={setRestakePoint}
                                                     handleNegationHover={handleNegationHover}
                                                     prefetchPoint={prefetchPoint}
+                                                    loadingCardId={loadingCardId}
+                                                    onCardClick={handleCardClick}
                                                 />
                                             ))
                                         }

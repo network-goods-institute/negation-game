@@ -116,6 +116,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   favorHistory?: Array<{ timestamp: Date; favor: number; }>;
   disablePopover?: boolean;
   isInPointPage?: boolean;
+  isLoading?: boolean;
 }
 
 export const PointCard = ({
@@ -150,6 +151,7 @@ export const PointCard = ({
   favorHistory: initialFavorHistory,
   disablePopover = !inRationale,
   isInPointPage = false,
+  isLoading = false,
   ...props
 }: PointCardProps) => {
   const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
@@ -335,6 +337,11 @@ export const PointCard = ({
       }}
       {...props}
     >
+      {isLoading && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
+          <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
       <div className="flex flex-col flex-grow w-full min-w-0">
         <div className={cn("flex items-start gap-2", inGraphNode && "pt-4")}>
           {isCommand && space && space !== 'global' ? (

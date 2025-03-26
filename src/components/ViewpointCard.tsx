@@ -34,6 +34,7 @@ export interface ViewpointCardProps extends Omit<React.HTMLAttributes<HTMLAnchor
         totalCred?: number;
         averageFavor?: number;
     };
+    isLoading?: boolean;
 }
 
 export const ViewpointCard: React.FC<ViewpointCardProps> = ({
@@ -46,6 +47,7 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
     space,
     linkable = true,
     statistics,
+    isLoading = false,
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const router = useRouter();
@@ -82,6 +84,11 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
 
     const cardContent = (
         <div className="@container/point flex gap-3 pt-4 pb-3 px-4 border-b cursor-pointer hover:bg-accent">
+            {isLoading && (
+                <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
+                    <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                </div>
+            )}
             <div className="flex flex-col flex-grow w-full min-w-0 pl-2.5">
                 <div className="flex items-start gap-2">
                     <ViewpointIcon />
