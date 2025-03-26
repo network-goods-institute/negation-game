@@ -10,11 +10,11 @@ import {
 import { cn } from "@/lib/cn";
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogFooter } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { encodeId } from "@/lib/encodeId";
 import { usePointData } from "@/queries/usePointData";
 import { useState } from "react";
 import { nanoid } from "nanoid";
 import { useReactFlow } from "@xyflow/react";
+import { getPointUrl } from "@/lib/getPointUrl";
 
 export interface ExpandablePoint {
     pointId: number;
@@ -103,8 +103,6 @@ interface ExpandPointDialogProps {
     onClose: () => void;
     parentNodeId: string;
 }
-
-const getPointUrl = (pointId: number) => `${encodeId(pointId)}`;
 
 function calculateInitialLayout(
     parentX: number,

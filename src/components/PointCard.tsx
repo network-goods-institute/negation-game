@@ -57,8 +57,8 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { ExternalLinkIcon } from "lucide-react";
 import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
-import { usePrefetchPoint } from "@/queries/usePointData";
 import { useQueryClient } from "@tanstack/react-query";
+import { getPointUrl } from "@/lib/getPointUrl";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -309,8 +309,7 @@ export const PointCard = ({
     e.preventDefault();
     e.stopPropagation();
     if (pinnedCommandPointId && router && space && space !== 'global') {
-      const encodedCommandId = encodeId(pinnedCommandPointId);
-      router.push(`/s/${space}/${encodedCommandId}`);
+      router.push(getPointUrl(pinnedCommandPointId, space));
     }
   }, [pinnedCommandPointId, router, space]);
 
@@ -358,7 +357,7 @@ export const PointCard = ({
               <Badge variant="outline" className="ml-2 text-xs">
                 {space && !linkDisabled ? (
                   <Link
-                    href={`/s/${space}/${encodeId(pinnedCommandPointId)}`}
+                    href={getPointUrl(pinnedCommandPointId, space)}
                     onClick={(e) => {
                       e.stopPropagation();
                       if (onPinBadgeClickCapture) {
@@ -517,7 +516,7 @@ export const PointCard = ({
 
             {inRationale && !inGraphNode && (
               <Link
-                href={`/s/${currentSpace || 'global'}/${encodeId(pointId)}`}
+                href={getPointUrl(pointId, currentSpace || 'global')}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
