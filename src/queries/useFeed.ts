@@ -12,23 +12,7 @@ export const useFeed = () => {
     queryKey: ["feed", privyUser?.id],
     queryFn: async () => {
       try {
-        if (process.env.NODE_ENV === "development") {
-          console.log(
-            `%c[FEED] Fetching feed for user ${privyUser?.id?.substring(0, 8)}...`,
-            "color: #FF9800; font-weight: bold;"
-          );
-          console.time("[FEED] Fetch time");
-        }
-
         const page = await fetchFeedPage();
-
-        if (process.env.NODE_ENV === "development") {
-          console.timeEnd("[FEED] Fetch time");
-          console.log(
-            `%c[FEED] Received ${page.length} items`,
-            "color: #2196F3; font-weight: bold;"
-          );
-        }
 
         if (page.length > 0 && privyUser?.id) {
           processPoints(page, privyUser.id);
@@ -36,14 +20,6 @@ export const useFeed = () => {
 
         return page;
       } catch (error) {
-        if (process.env.NODE_ENV === "development") {
-          console.error(
-            `%c[FEED] Error fetching feed:`,
-            "color: #F44336; font-weight: bold;",
-            error
-          );
-        }
-
         const cachedData = queryClient.getQueryData(["feed", privyUser?.id]);
         if (cachedData) {
           return cachedData;

@@ -102,17 +102,14 @@ type PageProps = {
     searchParams: { [key: string]: string | string[] | undefined };
 };
 
-// Create an optimized negation card component with improved loading
 const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, handleNegate, point, prefetchRestakeData, setRestakePoint, handleNegationHover, prefetchPoint, loadingCardId, onCardClick }: any) => {
     const [favorHistoryLoaded, setFavorHistoryLoaded] = useState(false);
     const favorHistoryKey = useMemo(() => [negation.pointId, "favor-history", "1W"], [negation.pointId]);
     const queryClient = useQueryClient();
 
-    // Only prefetch favor history on hover
     const handleHover = useCallback(() => {
         handleNegationHover(negation.pointId);
 
-        // Try to fetch favor history if not already loaded
         if (!favorHistoryLoaded) {
             import("@/actions/fetchFavorHistory")
                 .then(({ fetchFavorHistory }) => {
@@ -216,53 +213,6 @@ export function PointPageClient({
     const setNegatedPointId = useSetAtom(negatedPointIdAtom);
     const queryClient = useQueryClient();
 
-    // Add render counter to check for excessive renders
-    const renderCount = React.useRef(0);
-    useEffect(() => {
-        renderCount.current += 1;
-        console.log(`%c[RENDER COUNT] PointPageClient rendered ${renderCount.current} times`, 'color: #E91E63; font-weight: bold;');
-    });
-
-    // Add debug logging for network requests
-    useEffect(() => {
-        if (process.env.NODE_ENV === "development") {
-            // Create a debug interceptor for fetch
-            const originalFetch = window.fetch;
-            window.fetch = async function (input, init) {
-                const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-                const method = init?.method || (typeof input !== 'string' && !(input instanceof URL) ? input.method : 'GET');
-
-                // Only log POST requests or requests with specific patterns
-                if (method === 'POST' || url.includes('/api/')) {
-                    console.log(`%c[POINT PAGE FETCH] ${method} ${url.substring(0, 100)}${url.length > 100 ? '...' : ''}`,
-                        'color: #FF9800; font-weight: bold;');
-                    // Log the stack trace for POST requests to find where they're coming from
-                    if (method === 'POST') {
-                        console.trace('%c[POST TRACE]', 'color: #FF5722; font-weight: bold;');
-                    }
-                }
-
-                const start = performance.now();
-                try {
-                    const response = await originalFetch.apply(this, [input, init]);
-                    const end = performance.now();
-                    if (method === 'POST' || url.includes('/api/')) {
-                        console.log(`%c[POINT PAGE RESPONSE] ${response.status} (${(end - start).toFixed(2)}ms)`,
-                            'color: #8BC34A; font-weight: bold;');
-                    }
-                    return response;
-                } catch (error) {
-                    console.error(`%c[POINT PAGE FETCH ERROR] ${error}`, 'color: #F44336; font-weight: bold;');
-                    throw error;
-                }
-            };
-
-            return () => {
-                window.fetch = originalFetch;
-            };
-        }
-    }, []);
-
     const setNegationContent = useAtomCallback(
         (_get, set, negatedPointId: number, content: string) => {
             set(negationContentAtom(negatedPointId), content);
@@ -341,8 +291,6 @@ export function PointPageClient({
                             scale: "1W"
                         })
                     ]);
-
-                    // Update the cache with both results
                     queryClient.setQueryData(["point-negations", pointId, privyUser?.id], negationsData);
                     queryClient.setQueryData([pointId, "favor-history", "1W"], favorHistoryData);
                 } catch (error) {
@@ -357,34 +305,16 @@ export function PointPageClient({
     // Force show negations after 2.5 seconds to avoid stalled UI
     useEffect(() => {
         if ((isLoadingNegations || !negations) && !forceShowNegations) {
-            console.log(`[Negations] Setting force show timer for ${pointId}`);
             const timerId = setTimeout(() => {
-                const elapsed = (Date.now() - negationsLoadStartTime) / 1000;
-                console.log(`[Negations] Force showing negations after timeout, elapsed: ${elapsed.toFixed(2)}s`);
                 setForceShowNegations(true);
-            }, 2000); // Reduced to 2 seconds for even faster feedback
+            }, 2000);
 
             return () => {
-                console.log(`[Negations] Clearing force show timer for ${pointId}`);
                 clearTimeout(timerId);
             };
         }
     }, [isLoadingNegations, forceShowNegations, negationsLoadStartTime, pointId, negations]);
 
-    // Log when negations finish loading
-    useEffect(() => {
-        if (isLoadingNegations) {
-            console.log(`[Negations] Started loading negations for point ${pointId}`);
-        } else if (negations) {
-            const elapsed = (Date.now() - negationsLoadStartTime) / 1000;
-            console.log(`[Negations] Loaded ${Array.isArray(negations) ? negations.length : 0} negations for point ${pointId} in ${elapsed.toFixed(2)}s`);
-            if (forceShowNegations) {
-                console.log(`[Negations] Was force shown before actual data loaded`);
-            }
-        }
-    }, [isLoadingNegations, negations, pointId, negationsLoadStartTime, forceShowNegations]);
-
-    // Memoized values
     const initialNodes = useMemo(
         () => [
             {
@@ -431,7 +361,6 @@ export function PointPageClient({
         setCanvasEnabled(searchParams?.get("view") === "graph");
     }, [searchParams, setCanvasEnabled]);
 
-    // Add this effect to mark point data as fresh when navigating back to this page
     useEffect(() => {
         // Mark the point data as fresh when this component mounts
         // This prevents unnecessary refetches when navigating back from feed
@@ -481,7 +410,6 @@ export function PointPageClient({
         return () => window.removeEventListener("negation-created", handleNegationCreated);
     }, [pointId, queryClient, user?.id]);
 
-    // Derived state and callbacks
     const isInSpecificSpace = pathname?.includes('/s/') && !pathname.match(/^\/s\/global\//);
     const isGlobalSpace = spaceData.data?.id === 'global' || spaceData.data?.id === 'global/';
     const endorsedByViewer = point?.viewerCred !== undefined && point.viewerCred > 0;
@@ -569,11 +497,7 @@ export function PointPageClient({
         // Immediate prefetch - most important data first
         prefetchPoint(negationId);
 
-        // Debug log when in development
-        if (process.env.NODE_ENV === "development") {
-            console.log(`%c[POINT] Prefetching negation data on hover: ${negationId}`,
-                'color: #8BC34A; font-weight: bold;');
-        }
+
     }, [prefetchPoint, queryClient, privyUser?.id]);
 
     const isPointOwner = useMemo(() => {
