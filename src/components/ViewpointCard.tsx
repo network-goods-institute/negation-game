@@ -48,7 +48,6 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
     statistics,
 }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [isNavigating, setIsNavigating] = useState(false);
     const router = useRouter();
     const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -75,7 +74,6 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
     const handleCardClick = () => {
         if (linkable) {
             setIsOpen(false);
-            setIsNavigating(true);
             router.push(`/s/${space}/rationale/${id}`);
         }
     };
@@ -83,7 +81,7 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
     const linkHref = `/s/${space}/rationale/${id}`;
 
     const cardContent = (
-        <div className="@container/point flex gap-3 pt-4 pb-3 px-4 border-b cursor-pointer hover:bg-accent/50 active:scale-[0.99] transition-all duration-100 relative">
+        <div className="@container/point flex gap-3 pt-4 pb-3 px-4 border-b cursor-pointer hover:bg-accent">
             <div className="flex flex-col flex-grow w-full min-w-0 pl-2.5">
                 <div className="flex items-start gap-2">
                     <ViewpointIcon />
@@ -112,28 +110,16 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                     </div>
                 </div>
             </div>
-            {isNavigating && (
-                <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] flex items-center justify-center z-50 animate-in fade-in duration-200">
-                    <div className="flex flex-col items-center gap-2">
-                        <div className="size-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                        <span className="text-sm text-primary animate-pulse">Loading...</span>
-                    </div>
-                </div>
-            )}
         </div>
     );
 
     const wrappedContent = linkable ? (
         <Link
             href={linkHref}
-            className={cn("block focus:outline-none relative", className)}
+            className={cn("block focus:outline-none", className)}
             onMouseEnter={handleHoverStart}
             onMouseLeave={handleHoverEnd}
-            onClick={(e) => {
-                e.preventDefault();
-                setIsNavigating(true);
-                router.push(linkHref);
-            }}
+            onClick={() => setIsOpen(false)}
         >
             {cardContent}
         </Link>
@@ -141,7 +127,7 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
         <div
             role="button"
             tabIndex={0}
-            className={cn("block focus:outline-none relative", className)}
+            className={cn("block focus:outline-none", className)}
             onMouseEnter={handleHoverStart}
             onMouseLeave={handleHoverEnd}
             onClick={handleCardClick}

@@ -57,16 +57,8 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { ExternalLinkIcon } from "lucide-react";
 import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
+import { usePrefetchPoint } from "@/queries/usePointData";
 import { useQueryClient } from "@tanstack/react-query";
-
-const LoadingOverlay = () => (
-  <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] flex items-center justify-center z-50 animate-in fade-in duration-200">
-    <div className="flex flex-col items-center gap-2">
-      <div className="size-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      <span className="text-sm text-primary animate-pulse">Loading...</span>
-    </div>
-  </div>
-);
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -181,7 +173,6 @@ export const PointCard = ({
   const [isOpen, setIsOpen] = useState(false);
   const [isLoadingFavorHistory, setIsLoadingFavorHistory] = useState(false);
   const [popoverFavorHistory, setPopoverFavorHistory] = useState<Array<{ timestamp: Date; favor: number }> | null>(null);
-  const [isNavigating, setIsNavigating] = useState(false);
 
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -289,30 +280,21 @@ export const PointCard = ({
     }
   }, [isNegation, parentPoint?.id, negationId, prefetchRestakeData]);
 
-  const handleNavigation = useCallback((path: string) => {
-    setIsNavigating(true);
-    setTimeout(() => {
-      router.push(path);
-    }, 25);
-  }, [router]);
-
   const handleTargetPointClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    if (parsePinCommand && space) {
-      const path = `/s/${space}/${parsePinCommand}`;
-      handleNavigation(path);
+    if (parsePinCommand && space && space !== 'global') {
+      router.push(`/s/${space}/${parsePinCommand}`);
     }
-  }, [parsePinCommand, space, handleNavigation]);
+  }, [parsePinCommand, space, router]);
 
   const handlePinCommandClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (pinnedCommandPointId && router && space) {
+    if (pinnedCommandPointId && router && space && space !== 'global') {
       const encodedCommandId = encodeId(pinnedCommandPointId);
-      const path = `/s/${space}/${encodedCommandId}`;
-      handleNavigation(path);
+      router.push(`/s/${space}/${encodedCommandId}`);
     }
-  }, [pinnedCommandPointId, space, handleNavigation, router]);
+  }, [pinnedCommandPointId, router, space]);
 
   const renderCardContent = () => (
     <div
@@ -333,23 +315,6 @@ export const PointCard = ({
         setHoveredPointId(undefined);
         if (!disablePopover) {
           handleHoverEnd();
-        }
-      }}
-      onClick={(e: React.MouseEvent) => {
-        if (space) {
-          e.preventDefault();
-          e.stopPropagation();
-          const path = `/s/${space}/${encodeId(pointId)}`;
-          handleNavigation(path);
-        }
-      }}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e: React.KeyboardEvent) => {
-        if (space && (e.key === 'Enter' || e.key === ' ')) {
-          e.preventDefault();
-          const path = `/s/${space}/${encodeId(pointId)}`;
-          handleNavigation(path);
         }
       }}
       {...props}
@@ -532,10 +497,7 @@ export const PointCard = ({
                 href={`/s/${currentSpace || 'global'}/${encodeId(pointId)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={(e: React.MouseEvent) => {
-                  e.stopPropagation();
-                  setIsNavigating(true);
-                }}
+                onClick={(e) => e.stopPropagation()}
               >
                 <Button
                   variant="ghost"
@@ -675,7 +637,6 @@ export const PointCard = ({
           </button>
         </div>
       )}
-      {isNavigating && <LoadingOverlay />}
       {props.children}
     </div>
   );

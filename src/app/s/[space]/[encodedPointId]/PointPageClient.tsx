@@ -105,17 +105,8 @@ type PageProps = {
 // Create an optimized negation card component with improved loading
 const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, handleNegate, point, prefetchRestakeData, setRestakePoint, handleNegationHover, prefetchPoint }: any) => {
     const [favorHistoryLoaded, setFavorHistoryLoaded] = useState(false);
-    const [isNavigating, setIsNavigating] = useState(false);
     const favorHistoryKey = useMemo(() => [negation.pointId, "favor-history", "1W"], [negation.pointId]);
     const queryClient = useQueryClient();
-    const router = useRouter();
-
-    const handleNavigation = useCallback((path: string) => {
-        setIsNavigating(true);
-        setTimeout(() => {
-            router.push(path);
-        }, 25);
-    }, [router]);
 
     // Only prefetch favor history on hover
     const handleHover = useCallback(() => {
@@ -149,13 +140,10 @@ const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, ha
             onClick={(e) => {
                 prefetchPoint(negation.pointId);
                 preventDefaultIfContainsSelection(e);
-                e.preventDefault();
-                const path = `${basePath}/${encodeId(negation.pointId)}${viewParam ? `?view=${viewParam}` : ""}`;
-                handleNavigation(path);
             }}
             href={`${basePath}/${encodeId(negation.pointId)}${viewParam ? `?view=${viewParam}` : ""}`}
             key={negation.pointId}
-            className="flex cursor-pointer px-4 pt-5 pb-2 border-b hover:bg-accent relative"
+            className="flex cursor-pointer px-4 pt-5 pb-2 border-b hover:bg-accent"
             onMouseEnter={handleHover}
         >
             <PointCard
@@ -209,14 +197,6 @@ const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, ha
                 totalRestakeAmount={negation.totalRestakeAmount}
                 isInPointPage={true}
             />
-            {isNavigating && (
-                <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] flex items-center justify-center z-50 animate-in fade-in duration-200">
-                    <div className="flex flex-col items-center gap-2">
-                        <div className="size-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                        <span className="text-sm text-primary animate-pulse">Loading...</span>
-                    </div>
-                </div>
-            )}
         </Link>
     );
 });
@@ -287,7 +267,6 @@ export function PointPageClient({
     const [isRedirecting, setIsRedirecting] = useState(false);
     const [forceShowNegations, setForceShowNegations] = useState(false);
     const [negationsLoadStartTime] = useState(() => Date.now());
-    const [isNavigating, setIsNavigating] = useState(false);
 
     // Load additional data after point data is loaded
     useEffect(() => {
@@ -540,19 +519,11 @@ export function PointPageClient({
         return spaceData.data?.pinnedPointId === point?.pointId;
     }, [spaceData.data?.pinnedPointId, point?.pointId, isInSpecificSpace]);
 
-    const handleNavigation = useCallback((path: string) => {
-        setIsNavigating(true);
-        setTimeout(() => {
-            push(path);
-        }, 25);
-    }, [push]);
-
+    // Event handlers
     const handleTargetPointClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (parsePinCommand && spaceData.data?.id && isInSpecificSpace) {
-            const path = `/s/${spaceData.data.id}/${parsePinCommand}`;
-            console.log('[PointPageClient] Navigating to target point:', path);
-            handleNavigation(path);
+            push(`/s/${spaceData.data.id}/${parsePinCommand}`);
         }
     };
 
@@ -563,8 +534,7 @@ export function PointPageClient({
         // Navigate to the command point only if this is actually pinned
         if (point?.pinnedByCommandId && spaceData.data?.id && isInSpecificSpace && isPinned) {
             const encodedCommandId = encodeId(point.pinnedByCommandId);
-            const path = `/s/${spaceData.data.id}/${encodedCommandId}`;
-            handleNavigation(path);
+            push(`/s/${spaceData.data.id}/${encodedCommandId}`);
         }
     };
 
@@ -609,14 +579,6 @@ export function PointPageClient({
         return isWithinDeletionTimelock(point.createdAt);
     }, [point?.createdAt, isPointOwner]);
 
-    const handleBackNavigation = useCallback(() => {
-        setIsNavigating(true);
-
-        setTimeout(() => {
-            push(`${basePath}/`, { scroll: false });
-        }, 50);
-    }, [push, basePath]);
-
     if (!isLoadingPoint && point === null && !isRedirecting) {
         notFound();
     }
@@ -656,14 +618,16 @@ export function PointPageClient({
                                     variant={"link"}
                                     size={"icon"}
                                     className="text-foreground -ml-3"
-                                    onClick={handleBackNavigation}
-                                    disabled={isNavigating}
+                                    onClick={() => {
+                                        if (window.history.state?.idx > 0) {
+                                            back();
+                                            return;
+                                        }
+
+                                        push(`${basePath}/`);
+                                    }}
                                 >
-                                    {isNavigating ? (
-                                        <div className="size-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                                    ) : (
-                                        <ArrowLeftIcon />
-                                    )}
+                                    <ArrowLeftIcon />
                                 </Button>
                                 {spaceData.data && spaceData.data.id !== DEFAULT_SPACE ? (
                                     <>
@@ -807,7 +771,7 @@ export function PointPageClient({
                             data-show-hover={canvasEnabled && hoveredPointId === pointId}
                             onMouseEnter={() => setHoveredPointId(pointId)}
                             onMouseLeave={() => setHoveredPointId(undefined)}
-                            className="relative px-4 py-3 border-b data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]">
+                            className=" px-4 py-3 border-b data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]">
                             <div className="flex items-start gap-2">
                                 <p className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg mb-sm break-words whitespace-normal min-w-0">
                                     {point?.content}
@@ -904,20 +868,9 @@ export function PointPageClient({
                                     <LineChart
                                         width={300}
                                         height={100}
-                                        data={(() => {
-                                            // If we have valid history data, use it
-                                            if (favorHistory && Array.isArray(favorHistory) && favorHistory.length > 0) {
-                                                return favorHistory;
-                                            }
-
-                                            // Otherwise generate fallback data
-                                            const now = new Date();
-                                            const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-                                            return [
-                                                { timestamp: dayAgo, favor: point?.favor || 50 },
-                                                { timestamp: now, favor: point?.favor || 50 }
-                                            ];
-                                        })()}
+                                        data={favorHistory && Array.isArray(favorHistory) && favorHistory.length > 0
+                                            ? favorHistory
+                                            : [{ timestamp: new Date(), favor: point?.favor || 50 }]}
                                         className="[&>.recharts-surface]:overflow-visible"
                                     >
                                         <XAxis dataKey="timestamp" hide />

@@ -1,6 +1,10 @@
 import { fetchPointNegations } from "@/actions/fetchPointNegations";
 import { usePrivy } from "@privy-io/react-auth";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 export type NegationResult = {
   pointId: number;
@@ -57,7 +61,7 @@ export const pointNegationsQueryKey = ({
 export const usePointNegations = (pointId: number | undefined) => {
   const { user } = usePrivy();
 
-  // warning, this says it's missing a queryKey: pointId, do not fix it.
+  // warning, this says it's missing a queryKey: pointId, do not fix it.pnpm
   return useQuery({
     queryKey: pointId
       ? pointNegationsQueryKey({ pointId, userId: user?.id })
