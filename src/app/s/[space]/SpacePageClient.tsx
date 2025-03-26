@@ -18,7 +18,7 @@ import { useToggle } from "@uidotdev/usehooks";
 import { useSetAtom } from "jotai";
 import { PlusIcon, TrophyIcon, SearchIcon } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useState, useMemo, memo, useEffect } from "react";
+import { useCallback, useState, useMemo, memo, useEffect, useRef } from "react";
 import { LeaderboardDialog } from "@/components/LeaderboardDialog";
 import { useRouter, usePathname } from "next/navigation";
 import { useViewpoints } from "@/queries/useViewpoints";
@@ -34,6 +34,7 @@ import { decodeId } from "@/lib/decodeId";
 import { useQueryClient } from "@tanstack/react-query";
 import { useFavorHistory } from "@/queries/useFavorHistory";
 import { usePrefetchPoint } from "@/queries/usePointData";
+import React from "react";
 
 interface PageProps {
     params: { space: string };
@@ -61,20 +62,51 @@ type FeedItem = PointItem | ViewpointItem;
 const MemoizedPointCard = memo(PointCard);
 const MemoizedViewpointCard = memo(ViewpointCard);
 
-const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, pinnedPoint }: any) => {
+const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, pinnedPoint, handleCardClick, loadingCardId }: {
+    item: FeedItem;
+    basePath: string;
+    space: string;
+    setNegatedPointId: (id: number) => void;
+    login: () => void;
+    user: any;
+    pinnedPoint: any;
+    handleCardClick: (id: string) => void;
+    loadingCardId: string | null;
+}) => {
     const pointId = item.type === 'point' ? item.data.pointId : null;
     const prefetchPoint = usePrefetchPoint();
     const queryClient = useQueryClient();
-    const { user: privyUser } = usePrivy();
-    const { data: favorHistory } = useFavorHistory(
-        pointId ? {
-            pointId,
-            timelineScale: "1W"
-        } : {
-            pointId: -1, // Use a dummy ID when not a point
-            timelineScale: "1W"
+    const [hasStartedLoading, setHasStartedLoading] = useState(false);
+    const favorHistoryKey = useMemo(() => pointId ? [pointId, "favor-history", "1W"] : null, [pointId]);
+
+    // Debounce hover to prevent excessive requests on quick mouse movements
+    const handleHover = useCallback(() => {
+        if (!pointId || !favorHistoryKey || hasStartedLoading) return;
+
+        setHasStartedLoading(true);
+
+        const existingData = queryClient.getQueryData(favorHistoryKey);
+        if (existingData) {
+            return;
         }
-    );
+
+        prefetchPoint(pointId);
+
+        import("@/actions/fetchFavorHistory")
+            .then(({ fetchFavorHistory }) => {
+                return fetchFavorHistory({ pointId, scale: "1W" });
+            })
+            .then(data => {
+                if (data) {
+                    queryClient.setQueryData(favorHistoryKey, data);
+                }
+            })
+            .catch(error => {
+                if (process.env.NODE_ENV === "development") {
+                    console.warn(`[FeedItem] Failed to fetch favor history for ${pointId}:`, error);
+                }
+            });
+    }, [pointId, favorHistoryKey, hasStartedLoading, prefetchPoint, queryClient]);
 
     if (item.type === 'point') {
         const point = item.data;
@@ -117,26 +149,16 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
         return (
             <Link
                 draggable={false}
-                onClick={(e) => {
+                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                     preventDefaultIfContainsSelection(e);
                     prefetchPoint(point.pointId);
+                    handleCardClick(`point-${point.pointId}`);
                 }}
                 href={`${basePath}/${encodeId(point.pointId)}`}
                 className="flex border-b cursor-pointer hover:bg-accent"
+                onMouseEnter={handleHover}
             >
                 <MemoizedPointCard
-                    className="flex-grow p-6"
-                    amountSupporters={point.amountSupporters}
-                    createdAt={point.createdAt}
-                    cred={point.cred}
-                    pointId={point.pointId}
-                    favor={point.favor}
-                    amountNegations={point.amountNegations}
-                    content={point.content}
-                    viewerContext={{ viewerCred: point.viewerCred }}
-                    isCommand={point.isCommand}
-                    isPinned={isPinnedPoint}
-                    space={space}
                     onNegate={(e) => {
                         e.preventDefault();
                         if (user !== null) {
@@ -145,6 +167,18 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                             login();
                         }
                     }}
+                    className="flex-grow p-6"
+                    favor={point.favor}
+                    content={point.content}
+                    createdAt={point.createdAt}
+                    amountSupporters={point.amountSupporters}
+                    amountNegations={point.amountNegations}
+                    pointId={point.pointId}
+                    cred={point.cred}
+                    viewerContext={{ viewerCred: point.viewerCred }}
+                    isCommand={point.isCommand}
+                    isPinned={isPinnedPoint}
+                    space={space || "global"}
                     pinnedCommandPointId={pinnedCommandPointId}
                     pinStatus={pinStatus}
                     onPinBadgeClickCapture={(e) => {
@@ -153,7 +187,7 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                     }}
                     linkDisabled={true}
                     disablePopover={true}
-                    favorHistory={favorHistory as Array<{ timestamp: Date; favor: number; }> | undefined}
+                    isLoading={loadingCardId === `point-${point.pointId}`}
                 />
             </Link>
         );
@@ -181,6 +215,7 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                 draggable={false}
                 href={`${basePath}/rationale/${item.id}`}
                 className="flex border-b cursor-pointer hover:bg-accent"
+                onClick={() => handleCardClick(`rationale-${item.id}`)}
             >
                 <MemoizedViewpointCard
                     className="flex-grow p-6 w-full"
@@ -189,13 +224,14 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                     description={viewpoint.description}
                     author={viewpoint.author}
                     createdAt={viewpoint.createdAt}
-                    space={space}
+                    space={space || "global"}
                     statistics={{
                         views: viewpoint.statistics?.views || 0,
                         copies: viewpoint.statistics?.copies || 0,
                         totalCred: viewpoint.statistics?.totalCred || 0,
                         averageFavor: viewpoint.statistics?.averageFavor || 0
                     }}
+                    isLoading={loadingCardId === `rationale-${item.id}`}
                 />
             </Link>
         );
@@ -205,18 +241,42 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
 });
 FeedItem.displayName = 'FeedItem';
 
-const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, login, user, pinnedPoint }: any) => {
+const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, login, user, pinnedPoint, loadingCardId, handleCardClick }: any) => {
     const prefetchPoint = usePrefetchPoint();
-    const { data: favorHistory } = useFavorHistory({
-        pointId: point.pointId,
-        timelineScale: "1W"
-    });
+    const [hasStartedLoading, setHasStartedLoading] = useState(false);
+    const queryClient = useQueryClient();
+    const favorHistoryKey = useMemo(() => [point.pointId, "favor-history", "1W"], [point.pointId]);
 
     const handlePrefetch = useCallback(() => {
-        if (point.pointId) {
-            prefetchPoint(point.pointId);
+        if (!point.pointId || hasStartedLoading) return;
+
+        setHasStartedLoading(true);
+
+        const existingData = queryClient.getQueryData(favorHistoryKey);
+        if (existingData) {
+            return;
         }
-    }, [point.pointId, prefetchPoint]);
+
+        prefetchPoint(point.pointId);
+
+        import("@/actions/fetchFavorHistory")
+            .then(({ fetchFavorHistory }) => {
+                return fetchFavorHistory({
+                    pointId: point.pointId,
+                    scale: "1W"
+                });
+            })
+            .then(data => {
+                if (data) {
+                    queryClient.setQueryData(favorHistoryKey, data);
+                }
+            })
+            .catch(error => {
+                if (process.env.NODE_ENV === "development") {
+                    console.warn(`[PriorityPointItem] Failed to fetch favor history for ${point.pointId}:`, error);
+                }
+            });
+    }, [point.pointId, prefetchPoint, hasStartedLoading, queryClient, favorHistoryKey]);
 
     let pinStatus;
     if (point.pinCommands?.length > 1) {
@@ -229,50 +289,55 @@ const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, log
     const pinnedCommandPointId = point.pinCommands?.[0]?.id;
 
     return (
-        <Link
-            key={`priority-${point.pointId}`}
-            draggable={false}
-            onClick={preventDefaultIfContainsSelection}
-            href={`${basePath}/${encodeId(point.pointId)}`}
-            className="flex border-b cursor-pointer hover:bg-accent"
-            onMouseEnter={handlePrefetch}
-        >
-            <MemoizedPointCard
-                className="flex-grow p-6"
-                amountSupporters={point.amountSupporters}
-                createdAt={point.createdAt}
-                cred={point.cred}
-                pointId={point.pointId}
-                favor={point.favor}
-                amountNegations={point.amountNegations}
-                content={point.content}
-                viewerContext={{ viewerCred: point.viewerCred }}
-                isCommand={point.isCommand}
-                space={space}
-                isPriority={true}
-                onNegate={(e) => {
-                    e.preventDefault();
-                    if (user !== null) {
-                        setNegatedPointId(point.pointId);
-                    } else {
-                        login();
-                    }
+        <div className="relative">
+            <Link
+                key={`priority-${point.pointId}`}
+                draggable={false}
+                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                    preventDefaultIfContainsSelection(e);
+                    handleCardClick(`point-${point.pointId}`);
                 }}
-                pinnedCommandPointId={pinnedCommandPointId}
-                pinStatus={pinStatus}
-                onPinBadgeClickCapture={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }}
-                linkDisabled={true}
-                favorHistory={favorHistory as Array<{ timestamp: Date; favor: number; }> | undefined}
-            />
-        </Link>
+                href={`${basePath}/${encodeId(point.pointId)}`}
+                className="flex border-b cursor-pointer hover:bg-accent"
+                onMouseEnter={handlePrefetch}
+            >
+                <MemoizedPointCard
+                    className="flex-grow p-6"
+                    amountSupporters={point.amountSupporters}
+                    createdAt={point.createdAt}
+                    cred={point.cred}
+                    pointId={point.pointId}
+                    favor={point.favor}
+                    amountNegations={point.amountNegations}
+                    content={point.content}
+                    viewerContext={{ viewerCred: point.viewerCred }}
+                    isCommand={point.isCommand}
+                    space={space}
+                    isPriority={true}
+                    onNegate={(e) => {
+                        e.preventDefault();
+                        if (user !== null) {
+                            setNegatedPointId(point.pointId);
+                        } else {
+                            login();
+                        }
+                    }}
+                    pinnedCommandPointId={pinnedCommandPointId}
+                    pinStatus={pinStatus}
+                    onPinBadgeClickCapture={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }}
+                    linkDisabled={true}
+                    isLoading={loadingCardId === `point-${point.pointId}`}
+                />
+            </Link>
+        </div>
     );
 });
 PriorityPointItem.displayName = 'PriorityPointItem';
 
-const PriorityPointsSection = memo(({ filteredPriorityPoints, basePath, space, setNegatedPointId, login, user, selectedTab, pinnedPoint }: any) => {
+const PriorityPointsSection = memo(({ filteredPriorityPoints, basePath, space, setNegatedPointId, login, user, selectedTab, pinnedPoint, loadingCardId, handleCardClick }: any) => {
     if (!filteredPriorityPoints || filteredPriorityPoints.length === 0) return null;
 
     return (
@@ -287,6 +352,8 @@ const PriorityPointsSection = memo(({ filteredPriorityPoints, basePath, space, s
                     login={login}
                     user={user}
                     pinnedPoint={pinnedPoint}
+                    loadingCardId={loadingCardId}
+                    handleCardClick={handleCardClick}
                 />
             ))}
         </div>
@@ -294,7 +361,23 @@ const PriorityPointsSection = memo(({ filteredPriorityPoints, basePath, space, s
 });
 PriorityPointsSection.displayName = 'PriorityPointsSection';
 
-const AllTabContent = memo(({ points, viewpoints, isLoading, viewpointsLoading, combinedFeed, basePath, space, setNegatedPointId, login, user, pinnedPoint, loginOrMakePoint, handleNewViewpoint }: any) => {
+const AllTabContent = memo(({ points, viewpoints, isLoading, viewpointsLoading, combinedFeed, basePath, space, setNegatedPointId, login, user, pinnedPoint, loginOrMakePoint, handleNewViewpoint, handleCardClick, loadingCardId }: {
+    points: any[] | undefined;
+    viewpoints: any[] | undefined;
+    isLoading: boolean;
+    viewpointsLoading: boolean;
+    combinedFeed: FeedItem[];
+    basePath: string;
+    space: string;
+    setNegatedPointId: (id: number) => void;
+    login: () => void;
+    user: any;
+    pinnedPoint: any;
+    loginOrMakePoint: () => void;
+    handleNewViewpoint: () => void;
+    handleCardClick: (id: string) => void;
+    loadingCardId: string | null;
+}) => {
     if (!points || !viewpoints || isLoading || viewpointsLoading) {
         return <Loader className="absolute self-center my-auto top-0 bottom-0" />;
     }
@@ -330,6 +413,8 @@ const AllTabContent = memo(({ points, viewpoints, isLoading, viewpointsLoading, 
                     login={login}
                     user={user}
                     pinnedPoint={pinnedPoint}
+                    handleCardClick={handleCardClick}
+                    loadingCardId={loadingCardId}
                 />
             ))}
         </>
@@ -337,7 +422,20 @@ const AllTabContent = memo(({ points, viewpoints, isLoading, viewpointsLoading, 
 });
 AllTabContent.displayName = 'AllTabContent';
 
-const PointsTabContent = memo(({ points, isLoading, combinedFeed, basePath, space, setNegatedPointId, login, user, pinnedPoint, loginOrMakePoint }: any) => {
+const PointsTabContent = memo(({ points, isLoading, combinedFeed, basePath, space, setNegatedPointId, login, user, pinnedPoint, loginOrMakePoint, handleCardClick, loadingCardId }: {
+    points: any[] | undefined;
+    isLoading: boolean;
+    combinedFeed: FeedItem[];
+    basePath: string;
+    space: string;
+    setNegatedPointId: (id: number) => void;
+    login: () => void;
+    user: any;
+    pinnedPoint: any;
+    loginOrMakePoint: () => void;
+    handleCardClick: (id: string) => void;
+    loadingCardId: string | null;
+}) => {
     // Memo to avoid unnecessary recalculations of pointItems
     const pointItems = useMemo(() => {
         return combinedFeed.filter((item: FeedItem) => item.type === 'point');
@@ -388,6 +486,8 @@ const PointsTabContent = memo(({ points, isLoading, combinedFeed, basePath, spac
                     login={login}
                     user={user}
                     pinnedPoint={pinnedPoint}
+                    handleCardClick={handleCardClick}
+                    loadingCardId={loadingCardId}
                 />
             ))}
         </>
@@ -395,10 +495,9 @@ const PointsTabContent = memo(({ points, isLoading, combinedFeed, basePath, spac
 });
 PointsTabContent.displayName = 'PointsTabContent';
 
-const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, space, handleNewViewpoint }: any) => {
+const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, space, handleNewViewpoint, handleCardClick, loadingCardId }: any) => {
     useEffect(() => {
         if (viewpoints && viewpoints.length > 0) {
-
             const sample = viewpoints[0];
             if (sample.graph && sample.graph.nodes) {
                 sample.graph.nodes
@@ -425,53 +524,85 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
     }
 
     return (
-        viewpoints.map((viewpoint: any) => {
+        <div className="flex flex-col">
+            {viewpoints.map((viewpoint: any) => {
+                let pointIds: number[] = viewpoint.originalPointIds || [];
 
-            let pointIds: number[] = viewpoint.originalPointIds || [];
-
-            if ((!pointIds || pointIds.length === 0) && viewpoint.graph?.nodes) {
-                try {
-                    pointIds = viewpoint.graph.nodes
-                        .filter((node: any) => node.type === 'point')
-                        .map((node: any) => {
-
-                            const id = node.data?.pointId;
-                            return typeof id === 'number' ? id : null;
-                        })
-                        .filter((id: any) => id !== null);
-
-                } catch (error) {
+                if ((!pointIds || pointIds.length === 0) && viewpoint.graph?.nodes) {
+                    try {
+                        pointIds = viewpoint.graph.nodes
+                            .filter((node: any) => node.type === 'point')
+                            .map((node: any) => {
+                                const id = node.data?.pointId;
+                                return typeof id === 'number' ? id : null;
+                            })
+                            .filter((id: any) => id !== null);
+                    } catch (error) {
+                    }
                 }
-            }
 
-            return (
-                <ViewpointCard
-                    key={`rationales-tab-${viewpoint.id}`}
-                    id={viewpoint.id}
-                    title={viewpoint.title}
-                    description={viewpoint.description}
-                    author={viewpoint.author}
-                    createdAt={new Date(viewpoint.createdAt)}
-                    space={space || "global"}
-                    statistics={{
-                        views: viewpoint.statistics?.views || 0,
-                        copies: viewpoint.statistics?.copies || 0,
-                        totalCred: viewpoint.statistics?.totalCred || 0,
-                        averageFavor: viewpoint.statistics?.averageFavor || 0
-                    }}
-                    linkable={true}
-                />
-            );
-        })
+                return (
+                    <div key={`rationales-tab-${viewpoint.id}`} className="relative border-b">
+                        <Link
+                            href={`/s/${space || 'global'}/rationale/${viewpoint.id}`}
+                            className="block focus:outline-none"
+                            onClick={() => handleCardClick(`rationale-${viewpoint.id}`)}
+                        >
+                            <ViewpointCard
+                                id={viewpoint.id}
+                                title={viewpoint.title}
+                                description={viewpoint.description}
+                                author={viewpoint.author}
+                                createdAt={new Date(viewpoint.createdAt)}
+                                space={space || "global"}
+                                statistics={{
+                                    views: viewpoint.statistics?.views || 0,
+                                    copies: viewpoint.statistics?.copies || 0,
+                                    totalCred: viewpoint.statistics?.totalCred || 0,
+                                    averageFavor: viewpoint.statistics?.averageFavor || 0
+                                }}
+                                linkable={false}
+                                isLoading={loadingCardId === `rationale-${viewpoint.id}`}
+                            />
+                        </Link>
+                    </div>
+                );
+            })}
+        </div>
     );
 });
 RationalesTabContent.displayName = 'RationalesTabContent';
 
-const PinnedPointWithHistory = memo(({ pinnedPoint, space }: any) => {
-    const { data: favorHistory } = useFavorHistory({
-        pointId: pinnedPoint.pointId,
-        timelineScale: "1W"
-    });
+const PinnedPointWithHistory = memo(({ pinnedPoint, space, loadingCardId }: any) => {
+    const [hasStartedLoading, setHasStartedLoading] = useState(false);
+    const queryClient = useQueryClient();
+    const favorHistoryKey = useMemo(() => [pinnedPoint.pointId, "favor-history", "1W"], [pinnedPoint.pointId]);
+
+    useEffect(() => {
+        if (!pinnedPoint.pointId || hasStartedLoading) return;
+
+        setHasStartedLoading(true);
+
+
+        const existingData = queryClient.getQueryData(favorHistoryKey);
+        if (existingData) {
+            return;
+        }
+        import("@/actions/fetchFavorHistory")
+            .then(({ fetchFavorHistory }) => {
+                return fetchFavorHistory({
+                    pointId: pinnedPoint.pointId,
+                    scale: "1W"
+                });
+            })
+            .then(data => {
+                if (data) {
+                    queryClient.setQueryData(favorHistoryKey, data);
+                }
+            })
+            .catch(error => {
+            });
+    }, [pinnedPoint.pointId, hasStartedLoading, queryClient, favorHistoryKey]);
 
     return (
         <PointCard
@@ -500,7 +631,7 @@ const PinnedPointWithHistory = memo(({ pinnedPoint, space }: any) => {
                         : "Pinned by command"
             }
             linkDisabled={true}
-            favorHistory={favorHistory as Array<{ timestamp: Date; favor: number; }> | undefined}
+            isLoading={loadingCardId === `point-${pinnedPoint.pointId}`}
         />
     );
 });
@@ -510,28 +641,53 @@ export function SpacePageClient({
     params,
     searchParams: initialSearchParams,
 }: PageProps) {
-    const { user, login } = usePrivy();
+    const { user: privyUser, login } = usePrivy();
     const [makePointOpen, onMakePointOpenChange] = useToggle(false);
     const basePath = useBasePath();
     const space = useSpace(params.space);
     const [leaderboardOpen, setLeaderboardOpen] = useState(false);
     const router = useRouter();
+    const pathname = usePathname();
     const queryClient = useQueryClient();
     const [isNavigating, setIsNavigating] = useState(false);
+
+    const lastTabViewTimes = useRef<Record<string, number>>({
+        rationales: 0,
+        points: 0,
+        all: 0,
+        search: 0
+    });
+
     const { data: viewpoints, isLoading: viewpointsLoading } = useViewpoints(space.data?.id || "global");
     const [selectedTab, setSelectedTab] = useState<"all" | "points" | "rationales" | "search">("rationales");
     const { searchQuery, searchResults, isLoading: searchLoading, handleSearch, isActive, hasSearched } = useSearch();
+    const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
+
+    const handleCardClick = useCallback((id: string) => {
+        setLoadingCardId(id);
+    }, []);
+
+    useEffect(() => {
+        setLoadingCardId(null);
+        return () => {
+            setLoadingCardId(null);
+        };
+    }, [pathname]);
 
     // Prevent feed from reloading when navigating back to it
     useEffect(() => {
         // Only prevent refetching if we're not actively using the feed
         // This allows mutations like endorsements to trigger refetches
-        if (user?.id && isNavigating) {
-            queryClient.setQueryData(["feed", user?.id], (oldData: any) => oldData);
+        if (privyUser?.id && isNavigating) {
+            queryClient.setQueryData(["feed", privyUser?.id], (oldData: any) => oldData);
         }
-    }, [queryClient, user?.id, isNavigating]);
+    }, [queryClient, privyUser?.id, isNavigating]);
 
-    // We'll always load priority points now
+
+    // Only load feed data when "all" tab is selected
+    const { data: points, isLoading } = useFeed();
+
+    // We'll always load priority points now, but avoid triggering stale-time refreshes too often
     const {
         data: priorityPoints,
         isLoading: priorityPointsLoading
@@ -544,8 +700,22 @@ export function SpacePageClient({
         shouldLoadPinnedPoint ? space.data?.id : undefined
     );
 
+    const handleTabChange = useCallback((tab: "all" | "points" | "rationales" | "search") => {
+        setSelectedTab(tab);
+
+        lastTabViewTimes.current[tab] = Date.now();
+
+        // If switching to search, focus the search input
+        if (tab === "search") {
+            setTimeout(() => {
+                const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
+                if (searchInput) searchInput.focus();
+            }, 0);
+        }
+    }, []);
+
     const handleNewViewpoint = () => {
-        if (user) {
+        if (privyUser) {
             setIsNavigating(true);
             router.push(`${basePath}/rationale/new`);
         } else {
@@ -553,19 +723,17 @@ export function SpacePageClient({
         }
     };
 
-    const { data: points, isLoading } = useFeed();
     const setNegatedPointId = useSetAtom(negatedPointIdAtom);
 
-    const pathname = usePathname();
     const isInSpecificSpace = pathname?.includes('/s/') && !pathname.match(/^\/s\/global\//);
 
     const loginOrMakePoint = useCallback(() => {
-        if (user !== null) {
+        if (privyUser !== null) {
             onMakePointOpenChange(true);
         } else {
             login();
         }
-    }, [user, login, onMakePointOpenChange]);
+    }, [privyUser, login, onMakePointOpenChange]);
 
     // Filter priority points to remove duplicates with pinnedPoint - with memoization
     const filteredPriorityPoints = useMemo(() => {
@@ -611,11 +779,11 @@ export function SpacePageClient({
         const includeRationales = selectedTab === "all" || selectedTab === "rationales";
 
         // Add points when needed
-        if (includePoints) {
+        if (includePoints && Array.isArray(points)) {
             // Add all points to the feed, except those in pinnedAndPriorityPoints
             points
-                .filter(point => !pinnedAndPriorityPoints.has(point.pointId))
-                .forEach(point => {
+                .filter((point: any) => !pinnedAndPriorityPoints.has(point.pointId))
+                .forEach((point: any) => {
                     allItems.push({
                         type: 'point',
                         id: `point-${point.pointId}`,
@@ -682,7 +850,9 @@ export function SpacePageClient({
                 <div className="flex flex-col gap-4 px-lg py-sm border-b">
                     <div className="flex gap-4">
                         <button
-                            onClick={() => setSelectedTab("rationales")}
+                            onClick={() => {
+                                handleTabChange("rationales");
+                            }}
                             className={cn(
                                 "py-2 px-4 rounded focus:outline-none",
                                 selectedTab === "rationales" ? "bg-primary text-white" : "bg-transparent text-primary"
@@ -691,7 +861,9 @@ export function SpacePageClient({
                             Rationales
                         </button>
                         <button
-                            onClick={() => setSelectedTab("points")}
+                            onClick={() => {
+                                handleTabChange("points");
+                            }}
                             className={cn(
                                 "py-2 px-4 rounded focus:outline-none",
                                 selectedTab === "points" ? "bg-primary text-white" : "bg-transparent text-primary"
@@ -700,7 +872,9 @@ export function SpacePageClient({
                             Points
                         </button>
                         <button
-                            onClick={() => setSelectedTab("all")}
+                            onClick={() => {
+                                handleTabChange("all");
+                            }}
                             className={cn(
                                 "py-2 px-4 rounded focus:outline-none",
                                 selectedTab === "all" ? "bg-primary text-white" : "bg-transparent text-primary"
@@ -710,12 +884,7 @@ export function SpacePageClient({
                         </button>
                         <button
                             onClick={() => {
-                                setSelectedTab("search");
-                                // Focus the search input when clicking the search tab
-                                setTimeout(() => {
-                                    const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
-                                    if (searchInput) searchInput.focus();
-                                }, 0);
+                                handleTabChange("search");
                             }}
                             className={cn(
                                 "py-2 px-4 rounded focus:outline-none flex items-center gap-1",
@@ -744,13 +913,17 @@ export function SpacePageClient({
                         <div className="border-b transition-opacity duration-200 ease-in-out">
                             <Link
                                 draggable={false}
-                                onClick={preventDefaultIfContainsSelection}
+                                onClick={(e) => {
+                                    preventDefaultIfContainsSelection(e);
+                                    handleCardClick(`point-${pinnedPoint.pointId}`);
+                                }}
                                 href={`${basePath}/${encodeId(pinnedPoint.pointId)}`}
                                 className="flex cursor-pointer hover:bg-accent"
                             >
                                 <PinnedPointWithHistory
                                     pinnedPoint={pinnedPoint}
                                     space={space.data?.id}
+                                    loadingCardId={loadingCardId}
                                 />
                             </Link>
                         </div>
@@ -779,9 +952,11 @@ export function SpacePageClient({
                                 space={space.data?.id}
                                 setNegatedPointId={setNegatedPointId}
                                 login={login}
-                                user={user}
+                                user={privyUser}
                                 selectedTab={selectedTab}
                                 pinnedPoint={pinnedPoint}
+                                loadingCardId={loadingCardId}
+                                handleCardClick={handleCardClick}
                             />
                         </div>
                     ) : null)}
@@ -795,32 +970,36 @@ export function SpacePageClient({
                     />
                 ) : selectedTab === "all" ? (
                     <AllTabContent
-                        points={points}
+                        points={Array.isArray(points) ? points : []}
                         viewpoints={viewpoints}
                         isLoading={isLoading}
                         viewpointsLoading={viewpointsLoading}
                         combinedFeed={combinedFeed}
                         basePath={basePath}
-                        space={space.data?.id}
+                        space={space.data?.id ?? "global"}
                         setNegatedPointId={setNegatedPointId}
                         login={login}
-                        user={user}
+                        user={privyUser}
                         pinnedPoint={pinnedPoint}
                         loginOrMakePoint={loginOrMakePoint}
                         handleNewViewpoint={handleNewViewpoint}
+                        handleCardClick={handleCardClick}
+                        loadingCardId={loadingCardId}
                     />
                 ) : selectedTab === "points" ? (
                     <PointsTabContent
-                        points={points}
+                        points={Array.isArray(points) ? points : []}
                         isLoading={isLoading}
                         combinedFeed={combinedFeed}
                         basePath={basePath}
-                        space={space.data?.id}
+                        space={space.data?.id ?? "global"}
                         setNegatedPointId={setNegatedPointId}
                         login={login}
-                        user={user}
+                        user={privyUser}
                         pinnedPoint={pinnedPoint}
                         loginOrMakePoint={loginOrMakePoint}
+                        handleCardClick={handleCardClick}
+                        loadingCardId={loadingCardId}
                     />
                 ) : (
                     <RationalesTabContent
@@ -829,6 +1008,8 @@ export function SpacePageClient({
                         basePath={basePath}
                         space={space.data?.id}
                         handleNewViewpoint={handleNewViewpoint}
+                        handleCardClick={handleCardClick}
+                        loadingCardId={loadingCardId}
                     />
                 )}
             </div>

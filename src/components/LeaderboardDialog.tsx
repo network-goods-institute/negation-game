@@ -45,12 +45,12 @@ export const LeaderboardDialog = ({
         if (!feed || !allUsers || !spaceViewpoints) return [];
 
         // Count points per user in this space
-        const pointsCount = feed.reduce((acc, point) => {
+        const pointsCount = Array.isArray(feed) ? feed.reduce((acc: Record<string, number>, point: any) => {
             if (point.space === space) {
                 acc[point.createdBy] = (acc[point.createdBy] || 0) + 1;
             }
             return acc;
-        }, {} as Record<string, number>);
+        }, {}) : {};
 
         // Calculate viewpoints count
         const viewpointsCount = spaceViewpoints.reduce((acc, viewpoint) => {

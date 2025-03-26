@@ -1,10 +1,6 @@
 import { fetchPointNegations } from "@/actions/fetchPointNegations";
 import { usePrivy } from "@privy-io/react-auth";
-import {
-  keepPreviousData,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 export type NegationResult = {
   pointId: number;
@@ -71,16 +67,12 @@ export const usePointNegations = (pointId: number | undefined) => {
         return [];
       }
 
-      const startTime = Date.now();
-
       try {
         const result = await fetchPointNegations(pointId);
 
-        // Process the result to ensure all fields have defaults
         const processedResult = Array.isArray(result)
           ? result.map((n) => ({
               ...n,
-              // Add defaults for important fields to prevent undefined errors
               pointId: n.pointId || 0,
             }))
           : [];
@@ -91,12 +83,12 @@ export const usePointNegations = (pointId: number | undefined) => {
       }
     },
     placeholderData: keepPreviousData,
-    enabled: pointId !== undefined, // Only run the query if pointId is defined
-    refetchInterval: 15000, // 15 seconds - faster refresh
-    staleTime: 1000, // 1 second - almost always refetch when requested
-    gcTime: 15 * 60 * 1000, // Keep in cache for 15 minutes
-    retry: 2, // Limit retries to avoid excessive network requests
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 3000), // Faster retry
-    networkMode: "offlineFirst", // Prioritize cached data
+    enabled: pointId !== undefined,
+    refetchInterval: 30000,
+    staleTime: 15000,
+    gcTime: 15 * 60 * 1000,
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 3000),
+    networkMode: "offlineFirst",
   });
 };

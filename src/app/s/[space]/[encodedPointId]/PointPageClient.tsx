@@ -3,7 +3,7 @@
 import { format } from "date-fns";
 import { useMemo, useState, useEffect, memo } from "react";
 import Link from "next/link";
-import { Suspense } from "react";
+import React from "react";
 
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
@@ -102,17 +102,14 @@ type PageProps = {
     searchParams: { [key: string]: string | string[] | undefined };
 };
 
-// Create an optimized negation card component with improved loading
-const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, handleNegate, point, prefetchRestakeData, setRestakePoint, handleNegationHover, prefetchPoint }: any) => {
+const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, handleNegate, point, prefetchRestakeData, setRestakePoint, handleNegationHover, prefetchPoint, loadingCardId, onCardClick }: any) => {
     const [favorHistoryLoaded, setFavorHistoryLoaded] = useState(false);
     const favorHistoryKey = useMemo(() => [negation.pointId, "favor-history", "1W"], [negation.pointId]);
     const queryClient = useQueryClient();
 
-    // Only prefetch favor history on hover
     const handleHover = useCallback(() => {
         handleNegationHover(negation.pointId);
 
-        // Try to fetch favor history if not already loaded
         if (!favorHistoryLoaded) {
             import("@/actions/fetchFavorHistory")
                 .then(({ fetchFavorHistory }) => {
@@ -134,70 +131,74 @@ const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, ha
     }, [negation.pointId, handleNegationHover, favorHistoryLoaded, queryClient, favorHistoryKey]);
 
     return (
-        <Link
-            data-show-hover={false}
-            draggable={false}
-            onClick={(e) => {
-                prefetchPoint(negation.pointId);
-                preventDefaultIfContainsSelection(e);
-            }}
-            href={`${basePath}/${encodeId(negation.pointId)}${viewParam ? `?view=${viewParam}` : ""}`}
-            key={negation.pointId}
-            className="flex cursor-pointer px-4 pt-5 pb-2 border-b hover:bg-accent"
-            onMouseEnter={handleHover}
-        >
-            <PointCard
-                onNegate={(e) => {
-                    e.preventDefault();
-                    if (privyUser === null) {
-                        login();
-                        return;
-                    }
-                    handleNegate(negation.pointId);
+        <div className="relative">
+            <Link
+                data-show-hover={false}
+                draggable={false}
+                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                    prefetchPoint(negation.pointId);
+                    preventDefaultIfContainsSelection(e);
+                    onCardClick(`point-${negation.pointId}`);
                 }}
-                className="flex-grow -mt-3.5 pb-3"
-                favor={negation.favor}
-                content={negation.content}
-                createdAt={negation.createdAt}
-                amountSupporters={negation.amountSupporters}
-                amountNegations={negation.amountNegations}
-                pointId={negation.pointId}
-                cred={negation.cred}
-                viewerContext={{ viewerCred: negation.viewerCred }}
-                isNegation={true}
-                parentPoint={{
-                    ...point,
-                    id: point.pointId,
-                    stakedAmount: point.cred,
-                }}
-                negationId={point.pointId}
-                onRestake={({ openedFromSlashedIcon }) => {
-                    if (privyUser === null) {
-                        login();
-                        return;
-                    }
-                    setRestakePoint({
-                        point: {
-                            ...point,
-                            stakedAmount: point.cred,
-                            pointId: point.pointId,
-                            id: point.pointId,
-                        },
-                        counterPoint: {
-                            ...negation,
-                            stakedAmount: negation.cred,
-                            pointId: negation.pointId,
-                            id: negation.pointId,
-                        },
-                        openedFromSlashedIcon,
-                    });
-                }}
-                restake={negation.restake}
-                doubt={negation.doubt}
-                totalRestakeAmount={negation.totalRestakeAmount}
-                isInPointPage={true}
-            />
-        </Link>
+                href={`${basePath}/${encodeId(negation.pointId)}${viewParam ? `?view=${viewParam}` : ""}`}
+                key={negation.pointId}
+                className="flex border-b cursor-pointer hover:bg-accent"
+                onMouseEnter={handleHover}
+            >
+                <PointCard
+                    onNegate={(e) => {
+                        e.preventDefault();
+                        if (privyUser === null) {
+                            login();
+                            return;
+                        }
+                        handleNegate(negation.pointId);
+                    }}
+                    className="flex-grow p-6"
+                    favor={negation.favor}
+                    content={negation.content}
+                    createdAt={negation.createdAt}
+                    amountSupporters={negation.amountSupporters}
+                    amountNegations={negation.amountNegations}
+                    pointId={negation.pointId}
+                    cred={negation.cred}
+                    viewerContext={{ viewerCred: negation.viewerCred }}
+                    isNegation={true}
+                    parentPoint={{
+                        ...point,
+                        id: point.pointId,
+                        stakedAmount: point.cred,
+                    }}
+                    negationId={point.pointId}
+                    onRestake={({ openedFromSlashedIcon }) => {
+                        if (privyUser === null) {
+                            login();
+                            return;
+                        }
+                        setRestakePoint({
+                            point: {
+                                ...point,
+                                stakedAmount: point.cred,
+                                pointId: point.pointId,
+                                id: point.pointId,
+                            },
+                            counterPoint: {
+                                ...negation,
+                                stakedAmount: negation.cred,
+                                pointId: negation.pointId,
+                                id: negation.pointId,
+                            },
+                            openedFromSlashedIcon,
+                        });
+                    }}
+                    restake={negation.restake}
+                    doubt={negation.doubt}
+                    totalRestakeAmount={negation.totalRestakeAmount}
+                    isInPointPage={true}
+                    isLoading={loadingCardId === `point-${negation.pointId}`}
+                />
+            </Link>
+        </div>
     );
 });
 NegationCard.displayName = 'NegationCard';
@@ -211,6 +212,7 @@ export function PointPageClient({
     const pointId = decodeId(encodedPointId);
     const setNegatedPointId = useSetAtom(negatedPointIdAtom);
     const queryClient = useQueryClient();
+
     const setNegationContent = useAtomCallback(
         (_get, set, negatedPointId: number, content: string) => {
             set(negationContentAtom(negatedPointId), content);
@@ -267,91 +269,52 @@ export function PointPageClient({
     const [isRedirecting, setIsRedirecting] = useState(false);
     const [forceShowNegations, setForceShowNegations] = useState(false);
     const [negationsLoadStartTime] = useState(() => Date.now());
+    const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
 
     // Load additional data after point data is loaded
     useEffect(() => {
         if (point && !isLoadingPoint) {
-            // Load negations
-            queryClient.prefetchQuery({
-                queryKey: ["point-negations", pointId, privyUser?.id],
-                queryFn: async () => {
-                    const { fetchPointNegations } = await import("@/actions/fetchPointNegations");
-                    return fetchPointNegations(pointId);
-                },
-                staleTime: 15_000,
-            });
+            // Load essential data only - combine queries to reduce network load
+            const fetchData = async () => {
+                try {
+                    // Use Promise.all to parallelize these essential requests
+                    const [negationsModule, favorHistoryModule] = await Promise.all([
+                        import("@/actions/fetchPointNegations"),
+                        import("@/actions/fetchFavorHistory")
+                    ]);
 
-            queryClient.prefetchQuery({
-                queryKey: [pointId, "favor-history", "1W"],
-                queryFn: async () => {
-                    const { fetchFavorHistory } = await import("@/actions/fetchFavorHistory");
-                    return fetchFavorHistory({
-                        pointId,
-                        scale: "1W"
-                    });
-                },
-                staleTime: 15_000,
-            });
+                    // Then run the actual data fetches in parallel
+                    const [negationsData, favorHistoryData] = await Promise.all([
+                        negationsModule.fetchPointNegations(pointId),
+                        favorHistoryModule.fetchFavorHistory({
+                            pointId,
+                            scale: "1W"
+                        })
+                    ]);
+                    queryClient.setQueryData(["point-negations", pointId, privyUser?.id], negationsData);
+                    queryClient.setQueryData([pointId, "favor-history", "1W"], favorHistoryData);
+                } catch (error) {
+                    console.error("[PointPageClient] Error prefetching essential data:", error);
+                }
+            };
+
+            fetchData();
         }
     }, [point, pointId, queryClient, privyUser?.id, isLoadingPoint]);
-
-    useEffect(() => {
-        if (point && !isLoadingPoint && Array.isArray(negations)) {
-            // Delay loading of restake/doubt data to prioritize main content
-            setTimeout(() => {
-                negations.forEach(negation => {
-                    if (negation.pointId !== pointId) {
-                        prefetchRestakeData(pointId, negation.pointId);
-
-                        // Prefetch favor history for the negation
-                        queryClient.prefetchQuery({
-                            queryKey: [negation.pointId, "favor-history", "1W"],
-                            queryFn: async () => {
-                                const { fetchFavorHistory } = await import("@/actions/fetchFavorHistory");
-                                return fetchFavorHistory({
-                                    pointId: negation.pointId,
-                                    scale: "1W"
-                                });
-                            },
-                            staleTime: 15_000,
-                        });
-                    }
-                });
-            }, 1000); // Delay by 1 second to prioritize main content
-        }
-    }, [point, pointId, queryClient, privyUser?.id, isLoadingPoint, negations, prefetchRestakeData]);
 
     // Force show negations after 2.5 seconds to avoid stalled UI
     useEffect(() => {
         if ((isLoadingNegations || !negations) && !forceShowNegations) {
-            console.log(`[Negations] Setting force show timer for ${pointId}`);
             const timerId = setTimeout(() => {
-                const elapsed = (Date.now() - negationsLoadStartTime) / 1000;
-                console.log(`[Negations] Force showing negations after timeout, elapsed: ${elapsed.toFixed(2)}s`);
                 setForceShowNegations(true);
-            }, 2000); // Reduced to 2 seconds for even faster feedback
+            }, 2000);
 
             return () => {
-                console.log(`[Negations] Clearing force show timer for ${pointId}`);
                 clearTimeout(timerId);
             };
         }
     }, [isLoadingNegations, forceShowNegations, negationsLoadStartTime, pointId, negations]);
 
-    // Log when negations finish loading
-    useEffect(() => {
-        if (isLoadingNegations) {
-            console.log(`[Negations] Started loading negations for point ${pointId}`);
-        } else if (negations) {
-            const elapsed = (Date.now() - negationsLoadStartTime) / 1000;
-            console.log(`[Negations] Loaded ${Array.isArray(negations) ? negations.length : 0} negations for point ${pointId} in ${elapsed.toFixed(2)}s`);
-            if (forceShowNegations) {
-                console.log(`[Negations] Was force shown before actual data loaded`);
-            }
-        }
-    }, [isLoadingNegations, negations, pointId, negationsLoadStartTime, forceShowNegations]);
-
-    // Memoized values
     const initialNodes = useMemo(
         () => [
             {
@@ -398,7 +361,6 @@ export function PointPageClient({
         setCanvasEnabled(searchParams?.get("view") === "graph");
     }, [searchParams, setCanvasEnabled]);
 
-    // Add this effect to mark point data as fresh when navigating back to this page
     useEffect(() => {
         // Mark the point data as fresh when this component mounts
         // This prevents unnecessary refetches when navigating back from feed
@@ -448,22 +410,6 @@ export function PointPageClient({
         return () => window.removeEventListener("negation-created", handleNegationCreated);
     }, [pointId, queryClient, user?.id]);
 
-    // Add a new effect to preload data when point is loaded
-    useEffect(() => {
-        if (point && !isLoadingNegations) {
-            // Attempt to load negations data as soon as point data is available
-            queryClient.prefetchQuery({
-                queryKey: ["point-negations", pointId, privyUser?.id],
-                queryFn: async () => {
-                    const { fetchPointNegations } = await import("@/actions/fetchPointNegations");
-                    return fetchPointNegations(pointId);
-                },
-                staleTime: 15_000, // Consider fresh for only 15 seconds
-            });
-        }
-    }, [point, pointId, queryClient, privyUser?.id, isLoadingNegations]);
-
-    // Derived state and callbacks
     const isInSpecificSpace = pathname?.includes('/s/') && !pathname.match(/^\/s\/global\//);
     const isGlobalSpace = spaceData.data?.id === 'global' || spaceData.data?.id === 'global/';
     const endorsedByViewer = point?.viewerCred !== undefined && point.viewerCred > 0;
@@ -539,36 +485,20 @@ export function PointPageClient({
     };
 
     const handleNegationHover = useCallback((negationId: number) => {
+        // Check if we've already fetched this data
+        const queryKey = [negationId, "point", privyUser?.id];
+        const existingData = queryClient.getQueryData(queryKey);
+
+        if (existingData) {
+            // Data already in cache, no need to refetch
+            return;
+        }
+
         // Immediate prefetch - most important data first
         prefetchPoint(negationId);
-        prefetchRestakeData(pointId, negationId);
 
-        // Prefetch additional related data with a slight delay
-        setTimeout(() => {
-            // Also try to prefetch negations of this negation (2nd level)
-            queryClient.prefetchQuery({
-                queryKey: ["point-negations", negationId, privyUser?.id],
-                queryFn: async () => {
-                    const { fetchPointNegations } = await import("@/actions/fetchPointNegations");
-                    return fetchPointNegations(negationId);
-                },
-                staleTime: 15_000,
-            });
 
-            // Prefetch favor history
-            queryClient.prefetchQuery({
-                queryKey: [negationId, "favor-history", timelineScale],
-                queryFn: async () => {
-                    const { fetchFavorHistory } = await import("@/actions/fetchFavorHistory");
-                    return fetchFavorHistory({
-                        pointId: negationId,
-                        scale: timelineScale
-                    });
-                },
-                staleTime: 15_000,
-            });
-        }, 100); // Small delay to prioritize the main data
-    }, [prefetchPoint, prefetchRestakeData, pointId, queryClient, privyUser?.id, timelineScale]);
+    }, [prefetchPoint, queryClient, privyUser?.id]);
 
     const isPointOwner = useMemo(() => {
         return point?.createdBy === privyUser?.id;
@@ -578,6 +508,19 @@ export function PointPageClient({
         if (!point?.createdAt || !isPointOwner) return false;
         return isWithinDeletionTimelock(point.createdAt);
     }, [point?.createdAt, isPointOwner]);
+
+    // Reset loading state when route changes
+    useEffect(() => {
+        setLoadingCardId(null);
+        return () => {
+            setLoadingCardId(null);
+        };
+    }, [pathname]);
+
+    // Function to handle card navigation with loading state
+    const handleCardClick = useCallback((id: string) => {
+        setLoadingCardId(id);
+    }, []);
 
     if (!isLoadingPoint && point === null && !isRedirecting) {
         notFound();
@@ -619,12 +562,10 @@ export function PointPageClient({
                                     size={"icon"}
                                     className="text-foreground -ml-3"
                                     onClick={() => {
-                                        if (window.history.state?.idx > 0) {
-                                            back();
-                                            return;
-                                        }
-
-                                        push(`${basePath}/`);
+                                        // Get space from URL
+                                        const spaceMatch = pathname?.match(/^\/s\/([^\/]+)/);
+                                        const space = spaceMatch?.[1] || 'global';
+                                        push(`/s/${space}`);
                                     }}
                                 >
                                     <ArrowLeftIcon />
@@ -783,7 +724,7 @@ export function PointPageClient({
                                         {spaceData.data?.id ? (
                                             <Link
                                                 href={`/s/${spaceData.data.id}/${encodeId(point.pinnedByCommandId)}`}
-                                                onClick={(e) => {
+                                                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                                                     e.stopPropagation();
                                                     e.preventDefault();
                                                 }}
@@ -817,7 +758,7 @@ export function PointPageClient({
                                         {spaceData.data?.id ? (
                                             <Link
                                                 href={`/s/${spaceData.data.id}/${parsePinCommand}`}
-                                                onClick={(e) => {
+                                                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                                                     e.stopPropagation();
                                                     e.preventDefault();
                                                 }}
@@ -1028,6 +969,8 @@ export function PointPageClient({
                                                     setRestakePoint={setRestakePoint}
                                                     handleNegationHover={handleNegationHover}
                                                     prefetchPoint={prefetchPoint}
+                                                    loadingCardId={loadingCardId}
+                                                    onCardClick={handleCardClick}
                                                 />
                                             ))
                                         }
