@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useSetPointData } from "@/queries/usePointData";
+import { useSetPointData, PointData } from "@/queries/usePointData";
 import { useQueryClient } from "@tanstack/react-query";
 
 export const useFeedWorker = () => {
@@ -21,57 +21,27 @@ export const useFeedWorker = () => {
       if (e.data.type === "BATCH_PROCESSED") {
         const { points, userId, batchIndex, totalBatches } = e.data;
 
-        // Process all points in the batch at once
-        points.forEach(
-          (
-            point: {
-              restakesByPoint: number;
-              slashedAmount: number;
-              doubtedAmount: number;
-              totalRestakeAmount: number;
-              viewerCred?: number | undefined;
-              restake?:
-                | {
-                    id: number;
-                    amount: number;
-                    originalAmount: number;
-                    slashedAmount: number;
-                    doubtedAmount: number;
-                  }
-                | null
-                | undefined;
-              slash?: { id: number; amount: number } | null | undefined;
-              doubt?:
-                | {
-                    id: number;
-                    amount: number;
-                    userAmount: number;
-                    isUserDoubt: boolean;
-                  }
-                | null
-                | undefined;
-              isPinned: boolean;
-              isCommand: boolean;
-              pinnedByCommandId: any;
-              pointId: number;
-              content: string;
-              createdAt: Date;
-              createdBy: string;
-              space: string | null;
-              amountNegations: number;
-              amountSupporters: number;
-              cred: number;
-              negationsCred: number;
-              negationIds: number[];
-            } & { favor: number }
-          ) => {
-            setPointData({ pointId: point.pointId, userId }, point);
-          }
-        );
+        // Instead of processing each point individually (which causes excessive network requests),
+        // directly update the query cache for each point all at once
+        points.forEach((point: PointData) => {
+          // Update the point data in the cache without triggering network requests
+          const queryKey = [point.pointId, "point", userId];
+          queryClient.setQueryData(queryKey, point);
+        });
 
-        // If this is the last batch, trigger a single refetch
+        // Log the batch processing (only in development)
+        if (process.env.NODE_ENV === "development") {
+          console.log(
+            `%c[FEED] Processed batch ${batchIndex + 1}/${totalBatches} with ${points.length} points`,
+            "color: #4CAF50; font-weight: bold;"
+          );
+        }
+
+        // If this is the last batch, trigger a single refetch of the feed
+        // but not individual points (which would cause more network requests)
         if (batchIndex === totalBatches - 1) {
-          queryClient.invalidateQueries({ queryKey: ["feed", userId] });
+          // Mark the feed query as fresh to avoid refetching
+          queryClient.setQueryData(["feed", userId], (oldData: any) => oldData);
         }
       }
     };
@@ -85,6 +55,13 @@ export const useFeedWorker = () => {
 
   const processPoints = (points: any[], userId: string) => {
     if (!workerRef.current) return;
+
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        `%c[FEED] Processing ${points.length} points in worker`,
+        "color: #2196F3; font-weight: bold;"
+      );
+    }
 
     workerRef.current.postMessage({
       type: "PROCESS_POINTS",

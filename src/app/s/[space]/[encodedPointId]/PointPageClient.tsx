@@ -3,7 +3,7 @@
 import { format } from "date-fns";
 import { useMemo, useState, useEffect, memo } from "react";
 import Link from "next/link";
-import { Suspense } from "react";
+import React from "react";
 
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
@@ -215,6 +215,54 @@ export function PointPageClient({
     const pointId = decodeId(encodedPointId);
     const setNegatedPointId = useSetAtom(negatedPointIdAtom);
     const queryClient = useQueryClient();
+
+    // Add render counter to check for excessive renders
+    const renderCount = React.useRef(0);
+    useEffect(() => {
+        renderCount.current += 1;
+        console.log(`%c[RENDER COUNT] PointPageClient rendered ${renderCount.current} times`, 'color: #E91E63; font-weight: bold;');
+    });
+
+    // Add debug logging for network requests
+    useEffect(() => {
+        if (process.env.NODE_ENV === "development") {
+            // Create a debug interceptor for fetch
+            const originalFetch = window.fetch;
+            window.fetch = async function (input, init) {
+                const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+                const method = init?.method || (typeof input !== 'string' && !(input instanceof URL) ? input.method : 'GET');
+
+                // Only log POST requests or requests with specific patterns
+                if (method === 'POST' || url.includes('/api/')) {
+                    console.log(`%c[POINT PAGE FETCH] ${method} ${url.substring(0, 100)}${url.length > 100 ? '...' : ''}`,
+                        'color: #FF9800; font-weight: bold;');
+                    // Log the stack trace for POST requests to find where they're coming from
+                    if (method === 'POST') {
+                        console.trace('%c[POST TRACE]', 'color: #FF5722; font-weight: bold;');
+                    }
+                }
+
+                const start = performance.now();
+                try {
+                    const response = await originalFetch.apply(this, [input, init]);
+                    const end = performance.now();
+                    if (method === 'POST' || url.includes('/api/')) {
+                        console.log(`%c[POINT PAGE RESPONSE] ${response.status} (${(end - start).toFixed(2)}ms)`,
+                            'color: #8BC34A; font-weight: bold;');
+                    }
+                    return response;
+                } catch (error) {
+                    console.error(`%c[POINT PAGE FETCH ERROR] ${error}`, 'color: #F44336; font-weight: bold;');
+                    throw error;
+                }
+            };
+
+            return () => {
+                window.fetch = originalFetch;
+            };
+        }
+    }, []);
+
     const setNegationContent = useAtomCallback(
         (_get, set, negatedPointId: number, content: string) => {
             set(negationContentAtom(negatedPointId), content);
@@ -276,55 +324,35 @@ export function PointPageClient({
     // Load additional data after point data is loaded
     useEffect(() => {
         if (point && !isLoadingPoint) {
-            // Load negations
-            queryClient.prefetchQuery({
-                queryKey: ["point-negations", pointId, privyUser?.id],
-                queryFn: async () => {
-                    const { fetchPointNegations } = await import("@/actions/fetchPointNegations");
-                    return fetchPointNegations(pointId);
-                },
-                staleTime: 15_000,
-            });
+            // Load essential data only - combine queries to reduce network load
+            const fetchData = async () => {
+                try {
+                    // Use Promise.all to parallelize these essential requests
+                    const [negationsModule, favorHistoryModule] = await Promise.all([
+                        import("@/actions/fetchPointNegations"),
+                        import("@/actions/fetchFavorHistory")
+                    ]);
 
-            queryClient.prefetchQuery({
-                queryKey: [pointId, "favor-history", "1W"],
-                queryFn: async () => {
-                    const { fetchFavorHistory } = await import("@/actions/fetchFavorHistory");
-                    return fetchFavorHistory({
-                        pointId,
-                        scale: "1W"
-                    });
-                },
-                staleTime: 15_000,
-            });
+                    // Then run the actual data fetches in parallel
+                    const [negationsData, favorHistoryData] = await Promise.all([
+                        negationsModule.fetchPointNegations(pointId),
+                        favorHistoryModule.fetchFavorHistory({
+                            pointId,
+                            scale: "1W"
+                        })
+                    ]);
+
+                    // Update the cache with both results
+                    queryClient.setQueryData(["point-negations", pointId, privyUser?.id], negationsData);
+                    queryClient.setQueryData([pointId, "favor-history", "1W"], favorHistoryData);
+                } catch (error) {
+                    console.error("[PointPageClient] Error prefetching essential data:", error);
+                }
+            };
+
+            fetchData();
         }
     }, [point, pointId, queryClient, privyUser?.id, isLoadingPoint]);
-
-    useEffect(() => {
-        if (point && !isLoadingPoint && Array.isArray(negations)) {
-            // Delay loading of restake/doubt data to prioritize main content
-            setTimeout(() => {
-                negations.forEach(negation => {
-                    if (negation.pointId !== pointId) {
-                        prefetchRestakeData(pointId, negation.pointId);
-
-                        // Prefetch favor history for the negation
-                        queryClient.prefetchQuery({
-                            queryKey: [negation.pointId, "favor-history", "1W"],
-                            queryFn: async () => {
-                                const { fetchFavorHistory } = await import("@/actions/fetchFavorHistory");
-                                return fetchFavorHistory({
-                                    pointId: negation.pointId,
-                                    scale: "1W"
-                                });
-                            },
-                            staleTime: 15_000,
-                        });
-                    }
-                });
-            }, 1000); // Delay by 1 second to prioritize main content
-        }
-    }, [point, pointId, queryClient, privyUser?.id, isLoadingPoint, negations, prefetchRestakeData]);
 
     // Force show negations after 2.5 seconds to avoid stalled UI
     useEffect(() => {
@@ -453,21 +481,6 @@ export function PointPageClient({
         return () => window.removeEventListener("negation-created", handleNegationCreated);
     }, [pointId, queryClient, user?.id]);
 
-    // Add a new effect to preload data when point is loaded
-    useEffect(() => {
-        if (point && !isLoadingNegations) {
-            // Attempt to load negations data as soon as point data is available
-            queryClient.prefetchQuery({
-                queryKey: ["point-negations", pointId, privyUser?.id],
-                queryFn: async () => {
-                    const { fetchPointNegations } = await import("@/actions/fetchPointNegations");
-                    return fetchPointNegations(pointId);
-                },
-                staleTime: 15_000, // Consider fresh for only 15 seconds
-            });
-        }
-    }, [point, pointId, queryClient, privyUser?.id, isLoadingNegations]);
-
     // Derived state and callbacks
     const isInSpecificSpace = pathname?.includes('/s/') && !pathname.match(/^\/s\/global\//);
     const isGlobalSpace = spaceData.data?.id === 'global' || spaceData.data?.id === 'global/';
@@ -544,36 +557,24 @@ export function PointPageClient({
     };
 
     const handleNegationHover = useCallback((negationId: number) => {
+        // Check if we've already fetched this data
+        const queryKey = [negationId, "point", privyUser?.id];
+        const existingData = queryClient.getQueryData(queryKey);
+
+        if (existingData) {
+            // Data already in cache, no need to refetch
+            return;
+        }
+
         // Immediate prefetch - most important data first
         prefetchPoint(negationId);
-        prefetchRestakeData(pointId, negationId);
 
-        // Prefetch additional related data with a slight delay
-        setTimeout(() => {
-            // Also try to prefetch negations of this negation (2nd level)
-            queryClient.prefetchQuery({
-                queryKey: ["point-negations", negationId, privyUser?.id],
-                queryFn: async () => {
-                    const { fetchPointNegations } = await import("@/actions/fetchPointNegations");
-                    return fetchPointNegations(negationId);
-                },
-                staleTime: 15_000,
-            });
-
-            // Prefetch favor history
-            queryClient.prefetchQuery({
-                queryKey: [negationId, "favor-history", timelineScale],
-                queryFn: async () => {
-                    const { fetchFavorHistory } = await import("@/actions/fetchFavorHistory");
-                    return fetchFavorHistory({
-                        pointId: negationId,
-                        scale: timelineScale
-                    });
-                },
-                staleTime: 15_000,
-            });
-        }, 100); // Small delay to prioritize the main data
-    }, [prefetchPoint, prefetchRestakeData, pointId, queryClient, privyUser?.id, timelineScale]);
+        // Debug log when in development
+        if (process.env.NODE_ENV === "development") {
+            console.log(`%c[POINT] Prefetching negation data on hover: ${negationId}`,
+                'color: #8BC34A; font-weight: bold;');
+        }
+    }, [prefetchPoint, queryClient, privyUser?.id]);
 
     const isPointOwner = useMemo(() => {
         return point?.createdBy === privyUser?.id;

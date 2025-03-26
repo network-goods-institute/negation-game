@@ -18,7 +18,7 @@ import { useToggle } from "@uidotdev/usehooks";
 import { useSetAtom } from "jotai";
 import { PlusIcon, TrophyIcon, SearchIcon } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useState, useMemo, memo, useEffect } from "react";
+import { useCallback, useState, useMemo, memo, useEffect, useRef } from "react";
 import { LeaderboardDialog } from "@/components/LeaderboardDialog";
 import { useRouter, usePathname } from "next/navigation";
 import { useViewpoints } from "@/queries/useViewpoints";
@@ -34,6 +34,7 @@ import { decodeId } from "@/lib/decodeId";
 import { useQueryClient } from "@tanstack/react-query";
 import { useFavorHistory } from "@/queries/useFavorHistory";
 import { usePrefetchPoint } from "@/queries/usePointData";
+import React from "react";
 
 interface PageProps {
     params: { space: string };
@@ -75,16 +76,44 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
     const pointId = item.type === 'point' ? item.data.pointId : null;
     const prefetchPoint = usePrefetchPoint();
     const queryClient = useQueryClient();
-    const { user: privyUser } = usePrivy();
-    const { data: favorHistory } = useFavorHistory(
-        pointId ? {
-            pointId,
-            timelineScale: "1W"
-        } : {
-            pointId: -1,
-            timelineScale: "1W"
+    const [hasStartedLoading, setHasStartedLoading] = useState(false);
+    const favorHistoryKey = useMemo(() => pointId ? [pointId, "favor-history", "1W"] : null, [pointId]);
+
+    // Debounce hover to prevent excessive requests on quick mouse movements
+    const handleHover = useCallback(() => {
+        if (!pointId || !favorHistoryKey || hasStartedLoading) return;
+
+        // Mark as loading to prevent duplicate requests
+        setHasStartedLoading(true);
+
+        // Check cache first before making any network requests
+        const existingData = queryClient.getQueryData(favorHistoryKey);
+        if (existingData) {
+            // Skip fetch if we already have data
+            return;
         }
-    );
+
+        // Prefetch the point data asynchronously
+        prefetchPoint(pointId);
+
+        // Use dynamic import to avoid loaded unnecessary code upfront
+        import("@/actions/fetchFavorHistory")
+            .then(({ fetchFavorHistory }) => {
+                // Use a single fetch action instead of multiple operations
+                return fetchFavorHistory({ pointId, scale: "1W" });
+            })
+            .then(data => {
+                if (data) {
+                    // Update cache only once
+                    queryClient.setQueryData(favorHistoryKey, data);
+                }
+            })
+            .catch(error => {
+                if (process.env.NODE_ENV === "development") {
+                    console.warn(`[FeedItem] Failed to fetch favor history for ${pointId}:`, error);
+                }
+            });
+    }, [pointId, favorHistoryKey, hasStartedLoading, prefetchPoint, queryClient]);
 
     if (item.type === 'point') {
         const point = item.data;
@@ -134,20 +163,9 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                 }}
                 href={`${basePath}/${encodeId(point.pointId)}`}
                 className="flex border-b cursor-pointer hover:bg-accent"
+                onMouseEnter={handleHover}
             >
                 <MemoizedPointCard
-                    className="flex-grow p-6"
-                    amountSupporters={point.amountSupporters}
-                    createdAt={point.createdAt}
-                    cred={point.cred}
-                    pointId={point.pointId}
-                    favor={point.favor}
-                    amountNegations={point.amountNegations}
-                    content={point.content}
-                    viewerContext={{ viewerCred: point.viewerCred }}
-                    isCommand={point.isCommand}
-                    isPinned={isPinnedPoint}
-                    space={space || "global"}
                     onNegate={(e) => {
                         e.preventDefault();
                         if (user !== null) {
@@ -156,6 +174,18 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                             login();
                         }
                     }}
+                    className="flex-grow p-6"
+                    favor={point.favor}
+                    content={point.content}
+                    createdAt={point.createdAt}
+                    amountSupporters={point.amountSupporters}
+                    amountNegations={point.amountNegations}
+                    pointId={point.pointId}
+                    cred={point.cred}
+                    viewerContext={{ viewerCred: point.viewerCred }}
+                    isCommand={point.isCommand}
+                    isPinned={isPinnedPoint}
+                    space={space || "global"}
                     pinnedCommandPointId={pinnedCommandPointId}
                     pinStatus={pinStatus}
                     onPinBadgeClickCapture={(e) => {
@@ -164,7 +194,6 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                     }}
                     linkDisabled={true}
                     disablePopover={true}
-                    favorHistory={favorHistory as Array<{ timestamp: Date; favor: number; }> | undefined}
                     isLoading={loadingCardId === `point-${point.pointId}`}
                 />
             </Link>
@@ -221,16 +250,45 @@ FeedItem.displayName = 'FeedItem';
 
 const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, login, user, pinnedPoint, loadingCardId, handleCardClick }: any) => {
     const prefetchPoint = usePrefetchPoint();
-    const { data: favorHistory } = useFavorHistory({
-        pointId: point.pointId,
-        timelineScale: "1W"
-    });
+    const [hasStartedLoading, setHasStartedLoading] = useState(false);
+    const queryClient = useQueryClient();
+    const favorHistoryKey = useMemo(() => [point.pointId, "favor-history", "1W"], [point.pointId]);
 
     const handlePrefetch = useCallback(() => {
-        if (point.pointId) {
-            prefetchPoint(point.pointId);
+        if (!point.pointId || hasStartedLoading) return;
+
+        // Mark as loading to prevent duplicate requests
+        setHasStartedLoading(true);
+
+        // Check cache first
+        const existingData = queryClient.getQueryData(favorHistoryKey);
+        if (existingData) {
+            // Skip fetch if data already exists
+            return;
         }
-    }, [point.pointId, prefetchPoint]);
+
+        // Only fetch necessary data on hover
+        prefetchPoint(point.pointId);
+
+        // Fetch favor history only once
+        import("@/actions/fetchFavorHistory")
+            .then(({ fetchFavorHistory }) => {
+                return fetchFavorHistory({
+                    pointId: point.pointId,
+                    scale: "1W"
+                });
+            })
+            .then(data => {
+                if (data) {
+                    queryClient.setQueryData(favorHistoryKey, data);
+                }
+            })
+            .catch(error => {
+                if (process.env.NODE_ENV === "development") {
+                    console.warn(`[PriorityPointItem] Failed to fetch favor history for ${point.pointId}:`, error);
+                }
+            });
+    }, [point.pointId, prefetchPoint, hasStartedLoading, queryClient, favorHistoryKey]);
 
     let pinStatus;
     if (point.pinCommands?.length > 1) {
@@ -249,7 +307,6 @@ const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, log
                 draggable={false}
                 onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                     preventDefaultIfContainsSelection(e);
-                    handlePrefetch();
                     handleCardClick(`point-${point.pointId}`);
                 }}
                 href={`${basePath}/${encodeId(point.pointId)}`}
@@ -284,7 +341,6 @@ const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, log
                         e.stopPropagation();
                     }}
                     linkDisabled={true}
-                    favorHistory={favorHistory as Array<{ timestamp: Date; favor: number; }> | undefined}
                     isLoading={loadingCardId === `point-${point.pointId}`}
                 />
             </Link>
@@ -530,10 +586,43 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
 RationalesTabContent.displayName = 'RationalesTabContent';
 
 const PinnedPointWithHistory = memo(({ pinnedPoint, space, loadingCardId }: any) => {
-    const { data: favorHistory } = useFavorHistory({
-        pointId: pinnedPoint.pointId,
-        timelineScale: "1W"
-    });
+    const [hasStartedLoading, setHasStartedLoading] = useState(false);
+    const queryClient = useQueryClient();
+    const favorHistoryKey = useMemo(() => [pinnedPoint.pointId, "favor-history", "1W"], [pinnedPoint.pointId]);
+
+    // Load favor history only once when component mounts
+    useEffect(() => {
+        if (!pinnedPoint.pointId || hasStartedLoading) return;
+
+        // Mark as loading to prevent duplicate requests
+        setHasStartedLoading(true);
+
+        // Check cache first
+        const existingData = queryClient.getQueryData(favorHistoryKey);
+        if (existingData) {
+            // Skip fetch if data already exists
+            return;
+        }
+
+        // Fetch favor history just once
+        import("@/actions/fetchFavorHistory")
+            .then(({ fetchFavorHistory }) => {
+                return fetchFavorHistory({
+                    pointId: pinnedPoint.pointId,
+                    scale: "1W"
+                });
+            })
+            .then(data => {
+                if (data) {
+                    queryClient.setQueryData(favorHistoryKey, data);
+                }
+            })
+            .catch(error => {
+                if (process.env.NODE_ENV === "development") {
+                    console.warn(`[PinnedPointWithHistory] Failed to fetch favor history for ${pinnedPoint.pointId}:`, error);
+                }
+            });
+    }, [pinnedPoint.pointId, hasStartedLoading, queryClient, favorHistoryKey]);
 
     return (
         <PointCard
@@ -562,7 +651,6 @@ const PinnedPointWithHistory = memo(({ pinnedPoint, space, loadingCardId }: any)
                         : "Pinned by command"
             }
             linkDisabled={true}
-            favorHistory={favorHistory as Array<{ timestamp: Date; favor: number; }> | undefined}
             isLoading={loadingCardId === `point-${pinnedPoint.pointId}`}
         />
     );
@@ -581,7 +669,83 @@ export function SpacePageClient({
     const router = useRouter();
     const pathname = usePathname();
     const queryClient = useQueryClient();
+
+    // Add render counter to check for excessive renders
+    const renderCount = React.useRef(0);
+    useEffect(() => {
+        renderCount.current += 1;
+        console.log(`%c[RENDER COUNT] SpacePageClient rendered ${renderCount.current} times`, 'color: #9C27B0; font-weight: bold;');
+    });
+
+    // Add debug logging for network requests - will identify what's causing the POST spam
+    useEffect(() => {
+        if (process.env.NODE_ENV === "development") {
+            // More prominently log when this effect runs
+            console.log('%c[SPACE PAGE DEBUGGING ENABLED]', 'background: #222; color: #bada55; font-size: 16px; padding: 4px;');
+
+            // Debug log for React Query requests
+            const unsubscribe = queryClient.getQueryCache().subscribe((event: any) => {
+                if (event.type === 'updated' && event.query) {
+                    console.log(`%c[SPACE QUERY] ${event.query.queryKey.join('/')}`, 'color: #2196F3; font-weight: bold;');
+                }
+            });
+
+            // Create a fetch interceptor specifically for POST requests
+            const originalFetch = window.fetch;
+            window.fetch = async function (input, init) {
+                const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+                const method = init?.method || (typeof input !== 'string' && !(input instanceof URL) ? input.method : 'GET');
+
+                // Only log POST requests prominently - these are the ones we're concerned with
+                if (method === 'POST') {
+                    console.log(`%c[SPACE POST REQUEST] ${url.substring(0, 100)}${url.length > 100 ? '...' : ''}`, 'color: #F44336; font-weight: bold;');
+                    // Add stack trace for POST requests to see where they're coming from
+                    console.trace('%c[SPACE POST STACK TRACE]', 'color: #FF5722;');
+
+                    // If it's a particular endpoint, log more details:
+                    if (url.includes('/api/')) {
+                        try {
+                            const bodyContent = init && init.body ?
+                                (typeof init.body === 'string' ? init.body : JSON.stringify(init.body)) :
+                                'No body';
+                            console.log('%c[POST BODY]', 'color: #FF9800;', bodyContent);
+                        } catch (e) {
+                            console.log('%c[POST BODY]', 'color: #FF9800;', 'Could not stringify body:', init?.body);
+                        }
+                    }
+                }
+
+                const start = performance.now();
+                try {
+                    const response = await originalFetch.apply(this, [input, init]);
+                    const end = performance.now();
+                    if (method === 'POST') {
+                        console.log(`%c[SPACE POST RESPONSE] ${response.status} (${(end - start).toFixed(2)}ms)`, 'color: #4CAF50; font-weight: bold;');
+                    }
+                    return response;
+                } catch (error) {
+                    console.error(`%c[SPACE FETCH ERROR] ${error}`, 'color: #F44336; font-weight: bold;');
+                    throw error;
+                }
+            };
+
+            return () => {
+                unsubscribe();
+                window.fetch = originalFetch;
+            };
+        }
+    }, [queryClient]);
+
     const [isNavigating, setIsNavigating] = useState(false);
+
+    // Use refs to track when tabs were last viewed to avoid unnecessary data fetching
+    const lastTabViewTimes = useRef<Record<string, number>>({
+        rationales: 0,
+        points: 0,
+        all: 0,
+        search: 0
+    });
+
     const { data: viewpoints, isLoading: viewpointsLoading } = useViewpoints(space.data?.id || "global");
     const [selectedTab, setSelectedTab] = useState<"all" | "points" | "rationales" | "search">("rationales");
     const { searchQuery, searchResults, isLoading: searchLoading, handleSearch, isActive, hasSearched } = useSearch();
@@ -609,7 +773,13 @@ export function SpacePageClient({
         }
     }, [queryClient, privyUser?.id, isNavigating]);
 
-    // We'll always load priority points now
+    // Use memo for feed data to prevent excessive fetches
+    const feedEnabled = selectedTab === "all";
+
+    // Only load feed data when "all" tab is selected
+    const { data: points, isLoading } = useFeed();
+
+    // We'll always load priority points now, but avoid triggering stale-time refreshes too often
     const {
         data: priorityPoints,
         isLoading: priorityPointsLoading
@@ -622,6 +792,26 @@ export function SpacePageClient({
         shouldLoadPinnedPoint ? space.data?.id : undefined
     );
 
+    const handleTabChange = useCallback((tab: "all" | "points" | "rationales" | "search") => {
+        setSelectedTab(tab);
+
+        // Record when this tab was last viewed to avoid excessive refetches
+        lastTabViewTimes.current[tab] = Date.now();
+
+        // Log tab switches in development mode
+        if (process.env.NODE_ENV === "development") {
+            console.log(`%c[TAB SWITCH] ${tab}`, 'background: #673AB7; color: white; padding: 2px 5px; border-radius: 2px;');
+        }
+
+        // If switching to search, focus the search input
+        if (tab === "search") {
+            setTimeout(() => {
+                const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
+                if (searchInput) searchInput.focus();
+            }, 0);
+        }
+    }, []);
+
     const handleNewViewpoint = () => {
         if (privyUser) {
             setIsNavigating(true);
@@ -631,7 +821,6 @@ export function SpacePageClient({
         }
     };
 
-    const { data: points, isLoading } = useFeed();
     const setNegatedPointId = useSetAtom(negatedPointIdAtom);
 
     const isInSpecificSpace = pathname?.includes('/s/') && !pathname.match(/^\/s\/global\//);
@@ -688,11 +877,11 @@ export function SpacePageClient({
         const includeRationales = selectedTab === "all" || selectedTab === "rationales";
 
         // Add points when needed
-        if (includePoints) {
+        if (includePoints && Array.isArray(points)) {
             // Add all points to the feed, except those in pinnedAndPriorityPoints
             points
-                .filter(point => !pinnedAndPriorityPoints.has(point.pointId))
-                .forEach(point => {
+                .filter((point: any) => !pinnedAndPriorityPoints.has(point.pointId))
+                .forEach((point: any) => {
                     allItems.push({
                         type: 'point',
                         id: `point-${point.pointId}`,
@@ -759,7 +948,9 @@ export function SpacePageClient({
                 <div className="flex flex-col gap-4 px-lg py-sm border-b">
                     <div className="flex gap-4">
                         <button
-                            onClick={() => setSelectedTab("rationales")}
+                            onClick={() => {
+                                handleTabChange("rationales");
+                            }}
                             className={cn(
                                 "py-2 px-4 rounded focus:outline-none",
                                 selectedTab === "rationales" ? "bg-primary text-white" : "bg-transparent text-primary"
@@ -768,7 +959,9 @@ export function SpacePageClient({
                             Rationales
                         </button>
                         <button
-                            onClick={() => setSelectedTab("points")}
+                            onClick={() => {
+                                handleTabChange("points");
+                            }}
                             className={cn(
                                 "py-2 px-4 rounded focus:outline-none",
                                 selectedTab === "points" ? "bg-primary text-white" : "bg-transparent text-primary"
@@ -777,7 +970,9 @@ export function SpacePageClient({
                             Points
                         </button>
                         <button
-                            onClick={() => setSelectedTab("all")}
+                            onClick={() => {
+                                handleTabChange("all");
+                            }}
                             className={cn(
                                 "py-2 px-4 rounded focus:outline-none",
                                 selectedTab === "all" ? "bg-primary text-white" : "bg-transparent text-primary"
@@ -787,12 +982,7 @@ export function SpacePageClient({
                         </button>
                         <button
                             onClick={() => {
-                                setSelectedTab("search");
-                                // Focus the search input when clicking the search tab
-                                setTimeout(() => {
-                                    const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
-                                    if (searchInput) searchInput.focus();
-                                }, 0);
+                                handleTabChange("search");
                             }}
                             className={cn(
                                 "py-2 px-4 rounded focus:outline-none flex items-center gap-1",
@@ -878,7 +1068,7 @@ export function SpacePageClient({
                     />
                 ) : selectedTab === "all" ? (
                     <AllTabContent
-                        points={points}
+                        points={Array.isArray(points) ? points : []}
                         viewpoints={viewpoints}
                         isLoading={isLoading}
                         viewpointsLoading={viewpointsLoading}
@@ -896,7 +1086,7 @@ export function SpacePageClient({
                     />
                 ) : selectedTab === "points" ? (
                     <PointsTabContent
-                        points={points}
+                        points={Array.isArray(points) ? points : []}
                         isLoading={isLoading}
                         combinedFeed={combinedFeed}
                         basePath={basePath}
