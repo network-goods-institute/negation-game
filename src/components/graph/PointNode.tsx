@@ -525,6 +525,7 @@ export const PointNode = ({
   ]);
 
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [isCollapsing, setIsCollapsing] = useState(false);
 
   // Get the pathname once and memoize the check
   const pathname = usePathname();
@@ -567,9 +568,14 @@ export const PointNode = ({
     }
   }, [parentId, collapseSelfAndNegations, isNewViewpointPage, isViewpointContext, originalViewpoint, wasInOriginalGraph]);
 
-  const confirmCollapse = useCallback(() => {
-    setIsConfirmDialogOpen(false);
-    collapseSelfAndNegations();
+  const confirmCollapse = useCallback(async () => {
+    setIsCollapsing(true);
+    try {
+      await collapseSelfAndNegations();
+    } finally {
+      setIsCollapsing(false);
+      setIsConfirmDialogOpen(false);
+    }
   }, [collapseSelfAndNegations]);
 
   const handleExpandNegationsClick = useCallback((event: React.MouseEvent) => {
@@ -764,9 +770,22 @@ export const PointNode = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmCollapse}>
-              Yes, disconnect it
+            <AlertDialogCancel disabled={isCollapsing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmCollapse}
+              disabled={isCollapsing}
+              className="relative"
+            >
+              {isCollapsing ? (
+                <>
+                  <span className="opacity-0">Yes, disconnect it</span>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                  </div>
+                </>
+              ) : (
+                "Yes, disconnect it"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
