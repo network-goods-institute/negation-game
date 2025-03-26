@@ -80,17 +80,12 @@ function PointCardWrapper({
   const pointData = pointDataQuery.data;
   const { originalPosterId } = useOriginalPoster();
   const setNegatedPointId = useSetAtom(negatedPointIdAtom);
-  const [collapsedPointIds] = useAtom(collapsedPointIdsAtom);
   const [hoveredPointId] = useAtom(hoveredPointIdAtom);
 
   const { data: favorHistory } = useFavorHistory({
     pointId: point.pointId,
     timelineScale: "1W"
   });
-
-  if (collapsedPointIds.has(point.pointId)) {
-    return null;
-  }
 
   if (!pointData)
     return (
@@ -129,6 +124,11 @@ function ViewpointContent() {
   const [isCopiedFromSessionStorage, setIsCopiedFromSessionStorage] = useState(false);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [isInitialLoadDialogOpen, setIsInitialLoadDialogOpen] = useState(false);
+  const [hasCheckedInitialLoad, setHasCheckedInitialLoad] = useState(false);
+  const [isReactFlowReady, setIsReactFlowReady] = useState(false);
+  const [isDiscardingWithoutNav, setIsDiscardingWithoutNav] = useState(false);
+  const [isCopyOperation, setIsCopyOperation] = useState(false);
 
   const spaceQuery = useSpace();
   const space = spaceQuery;
@@ -200,6 +200,8 @@ function ViewpointContent() {
   }, [pathname, setReasoning, setStatement, setGraph, basePath, isCopiedFromSessionStorage]);
 
   useEffect(() => {
+    if (!isReactFlowReady || !reactFlow) return;
+
     // Get the current space
     const pathname = window.location.pathname;
     const currentSpace = getSpaceFromPathname(pathname) || 'default';
@@ -212,40 +214,57 @@ function ViewpointContent() {
       try {
         const viewpointData = JSON.parse(viewpointDataStr);
 
-        // Generate a new graph with unique IDs to prevent duplicate keys
-        const regeneratedGraph = regenerateGraphIds(viewpointData.graph);
+        if (viewpointData.sourceSpace === currentSpace) {
+          setIsCopyOperation(true);
 
-        // Set the graph, title, and description
-        setGraph(regeneratedGraph);
-        setStatement(viewpointData.title);
-        setReasoning(viewpointData.description);
+          const regeneratedGraph = regenerateGraphIds(viewpointData.graph);
 
-        // Remove the data from sessionStorage to prevent reloading it
-        sessionStorage.removeItem(storageKey);
+          setGraph(regeneratedGraph);
+          setStatement(viewpointData.title);
+          setReasoning(viewpointData.description);
 
-        // Mark that we've loaded from sessionStorage
-        setIsCopiedFromSessionStorage(true);
+          // Remove the data from sessionStorage to prevent reloading it
+          sessionStorage.removeItem(storageKey);
 
-        // Update the reactFlow nodes and edges if reactFlow is available
-        if (reactFlow) {
-          const nodeIds = regeneratedGraph.nodes.map(n => n.id);
-          const hasDuplicates = new Set(nodeIds).size !== nodeIds.length;
-          if (hasDuplicates) {
-            const idCounts: Record<string, number> = {};
-            nodeIds.forEach(id => {
-              idCounts[id] = (idCounts[id] || 0) + 1;
-            });
+          setIsCopiedFromSessionStorage(true);
 
-          }
-
+          // Update the reactFlow nodes and edges
           reactFlow.setNodes(regeneratedGraph.nodes);
           reactFlow.setEdges(regeneratedGraph.edges);
+        } else {
+          // Clear the session storage if space doesn't match
+          sessionStorage.removeItem(storageKey);
         }
       } catch (error) {
         console.error("Error loading copied rationale:", error);
       }
     }
-  }, [setGraph, setStatement, setReasoning, reactFlow]);
+
+    // Check for existing graph that's more than just statement node
+    // Only do this check once reactFlow is ready and if we haven't checked before
+    // AND if this isn't a copy operation
+    if (!hasCheckedInitialLoad && !isCopiedFromSessionStorage && !isCopyOperation) {
+      const currentNodes = reactFlow.getNodes();
+      const hasMoreThanStatement = currentNodes.length > 1;
+      if (hasMoreThanStatement) {
+        setIsInitialLoadDialogOpen(true);
+      }
+    }
+
+    // Always mark as checked and reset copy operation flag
+    setHasCheckedInitialLoad(true);
+    setIsCopyOperation(false);
+
+  }, [
+    setGraph,
+    setStatement,
+    setReasoning,
+    reactFlow,
+    hasCheckedInitialLoad,
+    isCopiedFromSessionStorage,
+    isReactFlowReady,
+    isCopyOperation
+  ]);
 
   useEffect(() => {
     const hasStatement = graph?.nodes?.some(n => n.type === "statement");
@@ -287,6 +306,33 @@ function ViewpointContent() {
   const openConfirmDialog = useCallback(() => {
     setIsConfirmDialogOpen(true);
   }, []);
+
+  const handleDiscardWithoutNavigation = useCallback(() => {
+    setIsDiscardingWithoutNav(true);
+    startTransition(() => {
+      try {
+        setReasoning("");
+        setStatement("");
+        setGraph(initialViewpointGraph);
+        setCollapsedPointIds(new Set());
+
+        if (reactFlow) {
+          reactFlow.setNodes(initialViewpointGraph.nodes);
+          reactFlow.setEdges(initialViewpointGraph.edges);
+        }
+
+        // Clear any session storage data
+        if (currentSpace) {
+          const storageKey = `copyingViewpoint:${currentSpace}`;
+          sessionStorage.removeItem(storageKey);
+        }
+
+        setIsInitialLoadDialogOpen(false);
+      } finally {
+        setIsDiscardingWithoutNav(false);
+      }
+    });
+  }, [setReasoning, setStatement, setGraph, reactFlow, setCollapsedPointIds, currentSpace]);
 
   return (
     <main className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
@@ -406,17 +452,17 @@ function ViewpointContent() {
                   Points
                 </span>
                 <Dynamic>
-                  {points.map((point) => {
+                  {points.map((point, index) => {
                     const pointNode = reactFlow.getNodes().find(
                       (n) => n.type === "point" && n.data?.pointId === point.pointId
                     );
                     return (
                       <div
-                        key={`${point.pointId}-card-wrapper`}
+                        key={`${point.pointId}-card-wrapper-${index}`}
                         className="relative"
                       >
                         <PointCardWrapper
-                          key={`${point.pointId}-card`}
+                          key={`${point.pointId}-card-${index}`}
                           point={point}
                           className={cn(
                             "border-b",
@@ -438,9 +484,11 @@ function ViewpointContent() {
         <GraphView
           key={`graph-${graphRevision}`}
           isNew={true}
-          onInit={(reactFlow) => {
-            reactFlow.setNodes(graph.nodes);
-            reactFlow.setEdges(graph.edges);
+          onInit={(instance) => {
+            // Set reactFlow as ready after initialization
+            setIsReactFlowReady(true);
+            instance.setNodes(graph.nodes);
+            instance.setEdges(graph.edges);
           }}
           defaultNodes={graph.nodes}
           defaultEdges={graph.edges}
@@ -499,6 +547,41 @@ function ViewpointContent() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={clearGraph} disabled={isPending}>
               {isPending ? "Abandoning..." : "Yes, abandon it"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isInitialLoadDialogOpen} onOpenChange={setIsInitialLoadDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Existing Draft Found</AlertDialogTitle>
+            <AlertDialogDescription>
+              Would you like to keep working on your existing draft or start fresh?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => setIsInitialLoadDialogOpen(false)}
+              disabled={isDiscardingWithoutNav}
+            >
+              Keep Draft
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDiscardWithoutNavigation}
+              disabled={isDiscardingWithoutNav}
+              className="relative"
+            >
+              {isDiscardingWithoutNav ? (
+                <>
+                  <span className="opacity-0">Start Fresh</span>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                  </div>
+                </>
+              ) : (
+                "Start Fresh"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
