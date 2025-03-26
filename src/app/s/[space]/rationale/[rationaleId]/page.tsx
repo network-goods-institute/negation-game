@@ -22,10 +22,9 @@ import { cn } from "@/lib/cn";
 import { usePointData } from "@/queries/usePointData";
 import { useSpace } from "@/queries/useSpace";
 import { useUser } from "@/queries/useUser";
-import { usePrivy } from "@privy-io/react-auth";
 import { ReactFlowProvider, useReactFlow, } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
-import { NetworkIcon, CopyIcon, LinkIcon, CheckIcon } from "lucide-react";
+import { NetworkIcon, CopyIcon, LinkIcon, CheckIcon, ArrowLeftIcon } from "lucide-react";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import dynamic from 'next/dynamic';
 import remarkGfm from 'remark-gfm';
@@ -45,6 +44,7 @@ import { ViewpointIcon } from "@/components/icons/AppIcons";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ViewpointStatsBar } from "@/components/ViewpointStatsBar";
 import { use } from "react";
+import { getBackButtonHandler } from "@/utils/backButtonUtils";
 
 // Create dynamic ReactMarkdown component
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
@@ -480,6 +480,8 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     }
   }, [viewpoint, queryClient, originalGraph, setLocalGraph]);
 
+  const handleBackClick = getBackButtonHandler(router);
+
   if (!viewpoint)
     return (
       <div className="flex-grow flex items-center justify-center">
@@ -496,24 +498,29 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
       <main className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
         <div className="w-full sm:col-[2] flex flex-col border-x pb-10 overflow-auto">
           <div className="relative flex-grow bg-background">
-            <div className="sticky top-0 z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
-              <h1 className="text-sm font-bold flex items-center gap-2">
-                <ViewpointIcon className="size-4" />
-                Rationale
-              </h1>
-
+            {/* New back navigation row */}
+            <div className="sticky top-0 z-10 w-full flex items-center justify-between px-4 py-2 bg-background/70 backdrop-blur">
               <div className="flex items-center gap-2">
                 <Button
-                  size={"icon"}
-                  variant={canvasEnabled ? "default" : "outline"}
-                  className="rounded-full p-2 size-9 sm:hidden"
-                  onClick={() => {
-                    const newState = !canvasEnabled;
-                    setCanvasEnabled(newState);
-                  }}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1.5 px-2 rounded-md -ml-1"
+                  onClick={handleBackClick}
                 >
-                  <NetworkIcon className="" />
+                  <ArrowLeftIcon className="size-4" />
+                  <span className="text-sm">Back</span>
                 </Button>
+                <h1 className="text-sm font-bold flex items-center gap-2 ml-2">
+                  <ViewpointIcon className="size-4" />
+                  Rationale
+                </h1>
+              </div>
+            </div>
+            <Separator />
+
+            {/* Existing header */}
+            <div className="sticky top-[calc(2.5rem+1px)] z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
+              <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   className={cn(
@@ -549,6 +556,21 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                     </>
                   )}
                 </AuthenticatedActionButton>
+              </div>
+
+              {/* Mobile canvas toggle button on the right */}
+              <div className="sm:hidden">
+                <Button
+                  size={"icon"}
+                  variant={canvasEnabled ? "default" : "outline"}
+                  className="rounded-full p-2 size-9"
+                  onClick={() => {
+                    const newState = !canvasEnabled;
+                    setCanvasEnabled(newState);
+                  }}
+                >
+                  <NetworkIcon className="" />
+                </Button>
               </div>
             </div>
             <Separator />

@@ -9,17 +9,23 @@ export default async function SpaceLayout({
   children: React.ReactNode;
   params: Promise<{ space: string }>;
 }>) {
-  const { space } = await params;
-  const spaceData = await fetchSpace(space);
+  try {
+    const { space } = await params;
+    const spaceData = await fetchSpace(space);
 
-  if (!spaceData) {
-    notFound();
+    if (!spaceData) {
+      notFound();
+    }
+
+    return (
+      <>
+        <SpaceHeader spaceData={spaceData} />
+        {children}
+      </>
+    );
+  } catch (error) {
+    console.error("Error in SpaceLayout:", error);
+    // Return children without the SpaceHeader in case of error
+    return <>{children}</>;
   }
-
-  return (
-    <>
-      <SpaceHeader spaceData={spaceData} />
-      {children}
-    </>
-  );
 }

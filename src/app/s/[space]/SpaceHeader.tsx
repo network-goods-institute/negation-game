@@ -8,16 +8,24 @@ type SpaceData = {
   icon?: string | null;
 };
 
-export function SpaceHeader({ spaceData }: { spaceData: SpaceData }) {
+export function SpaceHeader({ spaceData }: { spaceData?: SpaceData | null }) {
   useEffect(() => {
-    if (!spaceData || spaceData.id === DEFAULT_SPACE) return;
+    // Return early if spaceData is null, undefined, or default space
+    if (!spaceData || spaceData.id === DEFAULT_SPACE) {
+      return;
+    }
 
     // Get the original logo and container
     const headerLogo = document.getElementById('header-logo');
     const headerContainer = document.getElementById('header-container');
     const spaceHeader = document.getElementById('space-header');
 
-    if (headerLogo && headerContainer && spaceHeader) {
+    // Return early if any required DOM element is not found
+    if (!headerLogo || !headerContainer || !spaceHeader) {
+      return;
+    }
+
+    try {
       // Create a wrapper link for everything
       const wrapperLink = document.createElement('a');
       wrapperLink.href = `/s/${spaceData.id}`;
@@ -84,55 +92,62 @@ export function SpaceHeader({ spaceData }: { spaceData: SpaceData }) {
       } else {
         headerContainer.appendChild(wrapperLink);
       }
+    } catch (error) {
+      console.error("Error in SpaceHeader:", error);
     }
 
     // Clean up function
     return () => {
-      const headerLogo = document.getElementById('header-logo');
-      if (headerLogo) {
-        headerLogo.style.display = '';
-      }
-      const spaceHeader = document.getElementById('space-header');
-      if (spaceHeader) {
-        spaceHeader.innerHTML = '';
-      }
+      try {
+        const headerLogo = document.getElementById('header-logo');
+        if (headerLogo) {
+          headerLogo.style.display = '';
+        }
 
-      // Restore the original header container structure
-      const headerContainer = document.getElementById('header-container');
-      if (headerContainer) {
-        // Get all children of headerContainer
-        const children = Array.from(headerContainer.children);
-        // Find any wrapper links we created
-        for (const child of children) {
-          if (child instanceof HTMLAnchorElement && child.classList.contains('flex')) {
-            // Replace with the original content structure
-            const origContainer = document.createElement('div');
-            origContainer.className = 'flex items-center';
+        const spaceHeader = document.getElementById('space-header');
+        if (spaceHeader) {
+          spaceHeader.innerHTML = '';
+        }
 
-            // Move the logo back
-            const headerLogo = document.getElementById('header-logo');
-            if (headerLogo) {
-              origContainer.appendChild(headerLogo);
-            } else {
-              const newLogo = document.createElement('a');
-              newLogo.id = 'header-logo';
-              newLogo.href = '/';
-              newLogo.className = 'font-bold';
-              newLogo.textContent = 'Negation Game';
-              origContainer.appendChild(newLogo);
+        // Restore the original header container structure
+        const headerContainer = document.getElementById('header-container');
+        if (headerContainer) {
+          // Get all children of headerContainer
+          const children = Array.from(headerContainer.children);
+          // Find any wrapper links we created
+          for (const child of children) {
+            if (child instanceof HTMLAnchorElement && child.classList.contains('flex')) {
+              // Replace with the original content structure
+              const origContainer = document.createElement('div');
+              origContainer.className = 'flex items-center';
+
+              // Move the logo back
+              const headerLogo = document.getElementById('header-logo');
+              if (headerLogo) {
+                origContainer.appendChild(headerLogo);
+              } else {
+                const newLogo = document.createElement('a');
+                newLogo.id = 'header-logo';
+                newLogo.href = '/';
+                newLogo.className = 'font-bold';
+                newLogo.textContent = 'Negation Game';
+                origContainer.appendChild(newLogo);
+              }
+
+              // Add the space header container
+              const spaceHeader = document.createElement('div');
+              spaceHeader.id = 'space-header';
+              spaceHeader.className = 'flex items-center ml-2';
+              origContainer.appendChild(spaceHeader);
+
+              // Replace the wrapper with the original structure
+              headerContainer.replaceChild(origContainer, child);
+              break;
             }
-
-            // Add the space header container
-            const spaceHeader = document.createElement('div');
-            spaceHeader.id = 'space-header';
-            spaceHeader.className = 'flex items-center ml-2';
-            origContainer.appendChild(spaceHeader);
-
-            // Replace the wrapper with the original structure
-            headerContainer.replaceChild(origContainer, child);
-            break;
           }
         }
+      } catch (error) {
+        console.error("Error in SpaceHeader cleanup:", error);
       }
     };
   }, [spaceData]);

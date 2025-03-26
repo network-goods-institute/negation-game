@@ -44,7 +44,7 @@ import {
   useReactFlow,
 } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
-import { NetworkIcon } from "lucide-react";
+import { NetworkIcon, ArrowLeftIcon } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -68,6 +68,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useFavorHistory } from "@/queries/useFavorHistory";
+import { getBackButtonHandler } from "@/utils/backButtonUtils";
 
 function PointCardWrapper({
   point,
@@ -118,7 +119,8 @@ function PointCardWrapper({
 function ViewpointContent() {
   const { updateNodeData } = useReactFlow();
   const { data: user } = useUser();
-  const { push } = useRouter();
+  const router = useRouter();
+  const { push } = router;
   const basePath = useBasePath();
   const pathname = usePathname();
   const [isCopiedFromSessionStorage, setIsCopiedFromSessionStorage] = useState(false);
@@ -334,11 +336,29 @@ function ViewpointContent() {
     });
   }, [setReasoning, setStatement, setGraph, reactFlow, setCollapsedPointIds, currentSpace]);
 
+  const handleBackClick = getBackButtonHandler(router);
+
   return (
     <main className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
       <div className="w-full sm:col-[2] flex flex-col border-x">
         <div className="relative flex-grow bg-background">
-          <div className="sticky top-0 z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
+          <div className="sticky top-0 z-10 w-full flex items-center justify-between px-4 py-2 bg-background/70 backdrop-blur">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1.5 px-2 rounded-md -ml-1"
+                onClick={handleBackClick}
+              >
+                <ArrowLeftIcon className="size-4" />
+                <span className="text-sm">Back</span>
+              </Button>
+              <h1 className="text-sm font-bold ml-2">New Rationale</h1>
+            </div>
+          </div>
+          <Separator />
+
+          <div className="sticky top-[calc(2.5rem+1px)] z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
             {space?.data && space.data.id !== DEFAULT_SPACE ? (
               <div className="flex items-center gap-2">
                 <Avatar className="border-4 border-background size-8">
@@ -359,8 +379,6 @@ function ViewpointContent() {
             ) : (
               <div />
             )}
-
-            <h1 className="text-sm font-bold">New Rationale</h1>
 
             <div className="flex gap-sm items-center text-muted-foreground">
               <Button
