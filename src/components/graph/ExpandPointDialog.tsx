@@ -21,6 +21,80 @@ export interface ExpandablePoint {
     parentId?: string | number;
 }
 
+interface ExpandablePointCardProps {
+    point: ExpandablePoint;
+    isSelected: boolean;
+    onSelect: (point: ExpandablePoint) => void;
+}
+
+const ExpandablePointCard: React.FC<ExpandablePointCardProps> = ({
+    point,
+    isSelected,
+    onSelect,
+}) => {
+    const { data: pointData } = usePointData(point.pointId);
+
+    if (!pointData) {
+        return (
+            <div className="h-24 w-full bg-muted animate-pulse rounded-md" />
+        );
+    }
+
+    return (
+        <div
+            className={cn(
+                "flex flex-col gap-3 p-4 w-full bg-background cursor-pointer border rounded-md transition-colors shadow-sm hover:border-primary hover:ring-1 hover:ring-primary relative",
+                isSelected && "border-primary ring-1 ring-primary bg-primary/5"
+            )}
+            onClick={() => onSelect(point)}
+        >
+            <div className="flex flex-col gap-1">
+                <span className="text-md font-medium">
+                    {pointData.content}
+                </span>
+
+                <div className="flex justify-end mb-1">
+                    <div className="flex items-center gap-2">
+                        <Badge
+                            className={cn(
+                                "bg-primary/15 text-primary border-primary hover:bg-primary/20 whitespace-nowrap"
+                            )}
+                        >
+                            Existing
+                        </Badge>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 p-0 rounded-full"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        window.open(getPointUrl(point.pointId), '_blank', 'noopener,noreferrer');
+                                    }}
+                                >
+                                    <ExternalLinkIcon className="h-3.5 w-3.5" />
+                                    <span className="sr-only">Open in new tab</span>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                <p>Open in new tab</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
+                </div>
+
+                <PointStats
+                    favor={pointData.favor}
+                    amountNegations={pointData.amountNegations}
+                    amountSupporters={pointData.amountSupporters}
+                    cred={pointData.cred}
+                />
+            </div>
+        </div>
+    );
+};
+
 interface ExpandPointDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -151,30 +225,32 @@ export const ExpandPointDialog: React.FC<ExpandPointDialogProps> = ({
                     </DialogTitle>
                 </DialogHeader>
 
-                <div className="flex flex-col w-full h-full max-h-[80vh] overflow-hidden relative">
-                    <div className="p-6 overflow-auto flex-grow">
-                        <div className="mb-8">
-                            <div className="flex items-center gap-2 mb-3">
-                                <CircleIcon className="text-primary size-5" />
-                                <h4 className="text-md font-medium">Select Points to Add</h4>
-                            </div>
-                            <p className="text-sm text-muted-foreground mb-3">
-                                Select multiple points to add to your rationale. Each point will be added with its own layout position.
-                            </p>
-                            <div className="space-y-3">
-                                {points.map((point) => (
-                                    <ExpandablePointCard
-                                        key={point.pointId}
-                                        point={point}
-                                        isSelected={selectedPoints.has(point.pointId)}
-                                        onSelect={handlePointToggle}
-                                    />
-                                ))}
+                <div className="flex flex-col h-full max-h-[80vh] overflow-hidden">
+                    <div className="flex-grow overflow-y-auto pb-20">
+                        <div className="p-6">
+                            <div className="mb-8">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <CircleIcon className="text-primary size-5" />
+                                    <h4 className="text-md font-medium">Select Points to Add</h4>
+                                </div>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Select multiple points to add to your rationale. Each point will be added with its own layout position.
+                                </p>
+                                <div className="space-y-3">
+                                    {points.map((point) => (
+                                        <ExpandablePointCard
+                                            key={point.pointId}
+                                            point={point}
+                                            isSelected={selectedPoints.has(point.pointId)}
+                                            onSelect={handlePointToggle}
+                                        />
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <DialogFooter className="sm:justify-between gap-2">
+                    <DialogFooter className="sm:justify-between gap-2 border-t bg-background/80 backdrop-blur sticky bottom-0 p-4">
                         <Button
                             variant="outline"
                             className="gap-2"
@@ -207,83 +283,6 @@ export const ExpandPointDialog: React.FC<ExpandPointDialogProps> = ({
                 </div>
             </DialogContent>
         </Dialog>
-    );
-};
-
-interface ExpandablePointCardProps {
-    point: ExpandablePoint;
-    isSelected: boolean;
-    onSelect: (point: ExpandablePoint) => void;
-}
-
-const ExpandablePointCard: React.FC<ExpandablePointCardProps> = ({
-    point,
-    isSelected,
-    onSelect,
-}) => {
-    const { data: pointData } = usePointData(point.pointId);
-
-    if (!pointData) {
-        return (
-            <div className="h-24 w-full bg-muted animate-pulse rounded-md" />
-        );
-    }
-
-    return (
-        <div
-            className={cn(
-                "flex flex-col gap-3 p-4 w-full bg-background cursor-pointer border rounded-md transition-colors shadow-sm hover:border-primary hover:ring-1 hover:ring-primary relative",
-                isSelected && "border-primary ring-1 ring-primary bg-primary/5"
-            )}
-            onClick={() => onSelect(point)}
-        >
-            <div className="flex flex-col gap-1">
-                <span className="text-md font-medium">
-                    {pointData.content}
-                </span>
-
-                <div className="flex justify-end mb-1">
-                    <div className="flex items-center gap-2">
-                        <Badge
-                            className={cn(
-                                "whitespace-nowrap",
-                                isSelected
-                                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                                    : "bg-primary/15 text-primary border-primary hover:bg-primary/20"
-                            )}
-                        >
-                            {isSelected ? "Selected" : "Click to Select"}
-                        </Badge>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 p-0 rounded-full external-link-btn"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        window.open(getPointUrl(point.pointId), '_blank', 'noopener,noreferrer');
-                                    }}
-                                >
-                                    <ExternalLinkIcon className="h-3.5 w-3.5" />
-                                    <span className="sr-only">Open in new tab</span>
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">
-                                <p>Open in new tab</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </div>
-                </div>
-
-                <PointStats
-                    favor={pointData.favor}
-                    amountNegations={pointData.amountNegations}
-                    amountSupporters={pointData.amountSupporters}
-                    cred={pointData.cred}
-                />
-            </div>
-        </div>
     );
 };
 
