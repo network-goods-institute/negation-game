@@ -49,6 +49,18 @@ export const useFavorHistory = ({
 
       if (cachedData && cachedData.length > 0) {
         setStatusMessage(null);
+        // Ensure we have at least 2 points to avoid single dots
+        if (cachedData.length === 1) {
+          return [
+            {
+              timestamp: new Date(
+                cachedData[0].timestamp.getTime() - 24 * 60 * 60 * 1000
+              ),
+              favor: cachedData[0].favor,
+            },
+            cachedData[0],
+          ];
+        }
         return cachedData;
       }
 
@@ -93,6 +105,20 @@ export const useFavorHistory = ({
             }));
 
             setStatusMessage(null);
+
+            // Ensure we have at least 2 points to avoid single dots
+            if (processedData.length === 1) {
+              return [
+                {
+                  timestamp: new Date(
+                    processedData[0].timestamp.getTime() - 24 * 60 * 60 * 1000
+                  ),
+                  favor: processedData[0].favor,
+                },
+                processedData[0],
+              ];
+            }
+
             return processedData;
           } catch (error: unknown) {
             // Handle specific timeout error
@@ -125,13 +151,28 @@ export const useFavorHistory = ({
           }
 
           setStatusMessage(null);
-          return data.map((point) => ({
+          const processedData = data.map((point) => ({
             timestamp:
               point.timestamp instanceof Date
                 ? point.timestamp
                 : new Date(point.timestamp),
             favor: typeof point.favor === "number" ? point.favor : currentFavor,
           }));
+
+          // Ensure we have at least 2 points to avoid single dots
+          if (processedData.length === 1) {
+            return [
+              {
+                timestamp: new Date(
+                  processedData[0].timestamp.getTime() - 24 * 60 * 60 * 1000
+                ),
+                favor: processedData[0].favor,
+              },
+              processedData[0],
+            ];
+          }
+
+          return processedData;
         }
       } catch (outerError: unknown) {
         // Handle any other errors in the outer try block

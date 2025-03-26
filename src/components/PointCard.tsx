@@ -199,12 +199,28 @@ export const PointCard = ({
               favor: typeof point.favor === 'number' ? point.favor : 50
             })) : [];
 
-            queryClient.setQueryData([pointId, "favor-history", "1W"], normalizedData);
-            setPopoverFavorHistory(normalizedData);
+            // Ensure we have at least 2 points to avoid single dots
+            const finalData = normalizedData.length === 1
+              ? [
+                { timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), favor: normalizedData[0].favor },
+                normalizedData[0]
+              ]
+              : normalizedData.length === 0
+                ? [
+                  { timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), favor },
+                  { timestamp: new Date(), favor }
+                ]
+                : normalizedData;
+
+            queryClient.setQueryData([pointId, "favor-history", "1W"], finalData);
+            setPopoverFavorHistory(finalData);
             setIsLoadingFavorHistory(false);
           })
           .catch(err => {
-            const fallbackData = [{ timestamp: new Date(), favor }];
+            const fallbackData = [
+              { timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), favor },
+              { timestamp: new Date(), favor }
+            ];
             setPopoverFavorHistory(fallbackData);
             setIsLoadingFavorHistory(false);
           });
