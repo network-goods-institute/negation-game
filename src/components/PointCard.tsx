@@ -473,7 +473,7 @@ export const PointCard = ({
                     className={cn(endorsedByViewer && "fill-current")}
                   />{" "}
                   {endorsedByViewer && viewerContext?.viewerCred && (
-                    <span>{viewerContext.viewerCred} cred</span>
+                    <span className="translate-y-[-1px]">{viewerContext.viewerCred} cred</span>
                   )}
                 </Button>
               </PopoverTrigger>
@@ -536,7 +536,7 @@ export const PointCard = ({
                 <Button
                   variant="ghost"
                   className={cn(
-                    "p-1 pb-3 -mb-2 rounded-full size-fit hover:bg-purple-500/30",
+                    "p-2 -mb-2 rounded-full size-fit hover:bg-purple-500/30",
                     showRestakeAmount && "text-endorsed"
                   )}
                   onClick={(e) => {
@@ -547,7 +547,6 @@ export const PointCard = ({
                 >
                   <RestakeIcon
                     className={cn(
-                      "size-5 stroke-1",
                       showRestakeAmount &&
                       restake?.isOwner &&
                       "text-endorsed fill-current"
@@ -556,13 +555,13 @@ export const PointCard = ({
                     percentage={restakePercentage}
                   />
                   {showRestakeAmount && isOverHundred && (
-                    <span className="ml-1 translate-y-[5px]">+</span>
+                    <span className="ml-1 translate-y-[-1px]">+</span>
                   )}
                 </Button>
                 <Button
                   variant="ghost"
                   className={cn(
-                    "p-1 pb-3 -mb-2 rounded-full size-fit hover:bg-amber-500/30",
+                    "p-2 -mb-2 -ml-1 rounded-full size-fit hover:bg-amber-500/30",
                     doubt?.amount !== undefined &&
                     doubt.amount > 0 &&
                     doubt.isUserDoubt &&
@@ -574,10 +573,10 @@ export const PointCard = ({
                     onRestake?.({ openedFromSlashedIcon: true });
                   }}
                 >
-                  <div className="flex items-center translate-y-[5px]">
+                  <div className="flex items-center translate-y-[-0.5px]">
                     <DoubtIcon
                       className={cn(
-                        "size-5 stroke-1",
+                        "size-5",
                         doubt?.amount !== undefined &&
                         doubt.amount > 0 &&
                         doubt.isUserDoubt &&
@@ -592,7 +591,7 @@ export const PointCard = ({
                     {doubt?.amount !== undefined &&
                       doubt.amount > 0 &&
                       doubt.isUserDoubt && (
-                        <span className="ml-1">
+                        <span className="ml-1 translate-y-[-1px]">
                           {doubtPercentage}
                           {doubtPercentage > 100 && "+"}%
                         </span>
