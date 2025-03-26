@@ -138,7 +138,7 @@ const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, ha
             <Link
                 data-show-hover={false}
                 draggable={false}
-                onClick={(e) => {
+                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                     prefetchPoint(negation.pointId);
                     preventDefaultIfContainsSelection(e);
                     onCardClick(`point-${negation.pointId}`);
@@ -799,7 +799,7 @@ export function PointPageClient({
                                         {spaceData.data?.id ? (
                                             <Link
                                                 href={`/s/${spaceData.data.id}/${encodeId(point.pinnedByCommandId)}`}
-                                                onClick={(e) => {
+                                                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                                                     e.stopPropagation();
                                                     e.preventDefault();
                                                 }}
@@ -833,7 +833,7 @@ export function PointPageClient({
                                         {spaceData.data?.id ? (
                                             <Link
                                                 href={`/s/${spaceData.data.id}/${parsePinCommand}`}
-                                                onClick={(e) => {
+                                                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                                                     e.stopPropagation();
                                                     e.preventDefault();
                                                 }}

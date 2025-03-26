@@ -127,7 +127,7 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
         return (
             <Link
                 draggable={false}
-                onClick={(e) => {
+                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                     preventDefaultIfContainsSelection(e);
                     prefetchPoint(point.pointId);
                     handleCardClick(`point-${point.pointId}`);
@@ -247,7 +247,7 @@ const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, log
             <Link
                 key={`priority-${point.pointId}`}
                 draggable={false}
-                onClick={(e) => {
+                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                     preventDefaultIfContainsSelection(e);
                     handlePrefetch();
                     handleCardClick(`point-${point.pointId}`);
@@ -573,7 +573,7 @@ export function SpacePageClient({
     params,
     searchParams: initialSearchParams,
 }: PageProps) {
-    const { user, login } = usePrivy();
+    const { user: privyUser, login } = usePrivy();
     const [makePointOpen, onMakePointOpenChange] = useToggle(false);
     const basePath = useBasePath();
     const space = useSpace(params.space);
@@ -604,10 +604,10 @@ export function SpacePageClient({
     useEffect(() => {
         // Only prevent refetching if we're not actively using the feed
         // This allows mutations like endorsements to trigger refetches
-        if (user?.id && isNavigating) {
-            queryClient.setQueryData(["feed", user?.id], (oldData: any) => oldData);
+        if (privyUser?.id && isNavigating) {
+            queryClient.setQueryData(["feed", privyUser?.id], (oldData: any) => oldData);
         }
-    }, [queryClient, user?.id, isNavigating]);
+    }, [queryClient, privyUser?.id, isNavigating]);
 
     // We'll always load priority points now
     const {
@@ -623,7 +623,7 @@ export function SpacePageClient({
     );
 
     const handleNewViewpoint = () => {
-        if (user) {
+        if (privyUser) {
             setIsNavigating(true);
             router.push(`${basePath}/rationale/new`);
         } else {
@@ -637,12 +637,12 @@ export function SpacePageClient({
     const isInSpecificSpace = pathname?.includes('/s/') && !pathname.match(/^\/s\/global\//);
 
     const loginOrMakePoint = useCallback(() => {
-        if (user !== null) {
+        if (privyUser !== null) {
             onMakePointOpenChange(true);
         } else {
             login();
         }
-    }, [user, login, onMakePointOpenChange]);
+    }, [privyUser, login, onMakePointOpenChange]);
 
     // Filter priority points to remove duplicates with pinnedPoint - with memoization
     const filteredPriorityPoints = useMemo(() => {
@@ -860,7 +860,7 @@ export function SpacePageClient({
                                 space={space.data?.id}
                                 setNegatedPointId={setNegatedPointId}
                                 login={login}
-                                user={user}
+                                user={privyUser}
                                 selectedTab={selectedTab}
                                 pinnedPoint={pinnedPoint}
                                 loadingCardId={loadingCardId}
@@ -887,7 +887,7 @@ export function SpacePageClient({
                         space={space.data?.id ?? "global"}
                         setNegatedPointId={setNegatedPointId}
                         login={login}
-                        user={user}
+                        user={privyUser}
                         pinnedPoint={pinnedPoint}
                         loginOrMakePoint={loginOrMakePoint}
                         handleNewViewpoint={handleNewViewpoint}
@@ -903,7 +903,7 @@ export function SpacePageClient({
                         space={space.data?.id ?? "global"}
                         setNegatedPointId={setNegatedPointId}
                         login={login}
-                        user={user}
+                        user={privyUser}
                         pinnedPoint={pinnedPoint}
                         loginOrMakePoint={loginOrMakePoint}
                         handleCardClick={handleCardClick}

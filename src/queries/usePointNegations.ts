@@ -92,8 +92,8 @@ export const usePointNegations = (pointId: number | undefined) => {
     },
     placeholderData: keepPreviousData,
     enabled: pointId !== undefined, // Only run the query if pointId is defined
-    refetchInterval: 15000, // 15 seconds - faster refresh
-    staleTime: 1000, // 1 second - almost always refetch when requested
+    refetchInterval: 30000, // 30 seconds - reasonable refresh
+    staleTime: 15000, // 15 seconds - more reasonable stale time
     gcTime: 15 * 60 * 1000, // Keep in cache for 15 minutes
     retry: 2, // Limit retries to avoid excessive network requests
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 3000), // Faster retry
