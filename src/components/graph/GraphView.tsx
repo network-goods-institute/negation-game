@@ -105,6 +105,7 @@ export const GraphView = ({
 }: GraphViewProps) => {
   const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
+  const [isDiscarding, setIsDiscarding] = useState(false);
   const [flowInstance, setFlowInstance] =
     useState<ReactFlowInstance<AppNode> | null>(null);
   const [nodes, setNodes, onNodesChangeDefault] = useNodesState<AppNode>(
@@ -162,22 +163,14 @@ export const GraphView = ({
     [setLocalGraph]
   );
 
-  // Filter nodes and edges based on collapsedPointIds
-  const filteredNodes = useMemo(() => {
-    const filtered = nodes.filter((n) => {
-      const shouldInclude = n.type !== "point" || !collapsedPointIds.has(n.data.pointId as number);
-      return shouldInclude;
-    });
 
-    return filtered;
-  }, [nodes, collapsedPointIds]);
 
   const filteredEdges = useMemo(() => {
     // First filter edges to only include those connected to visible nodes
     const visibleEdges = edges.filter(
       (e) =>
-        filteredNodes.some((n) => n.id === e.source) &&
-        filteredNodes.some((n) => n.id === e.target)
+        nodes.some((n) => n.id === e.source) &&
+        nodes.some((n) => n.id === e.target)
     );
 
     // Then check for and remove duplicate edges based on source-target pairs
@@ -196,7 +189,7 @@ export const GraphView = ({
     });
 
     return uniqueEdges;
-  }, [edges, filteredNodes]);
+  }, [edges, nodes]);
 
   // Make this method available via the React Flow context for children components
   // This ensures node components can explicitly mark the graph as modified
@@ -517,30 +510,35 @@ export const GraphView = ({
     }
   }, [props]);
 
-  const handleDiscard = useCallback(() => {
-    onResetContent?.();
+  const handleDiscard = useCallback(async () => {
+    setIsDiscarding(true);
+    try {
+      onResetContent?.();
 
-    setIsModified(false);
+      setIsModified(false);
 
-    if (props.defaultNodes && props.defaultEdges) {
-      setNodes(props.defaultNodes);
-      setEdges(props.defaultEdges);
-      if (setLocalGraph) {
-        const originalGraph = {
-          nodes: props.defaultNodes,
-          edges: props.defaultEdges,
-        };
-        setLocalGraph(originalGraph);
+      if (props.defaultNodes && props.defaultEdges) {
+        setNodes(props.defaultNodes);
+        setEdges(props.defaultEdges);
+        if (setLocalGraph) {
+          const originalGraph = {
+            nodes: props.defaultNodes,
+            edges: props.defaultEdges,
+          };
+          setLocalGraph(originalGraph);
+        }
+
+        setCollapsedPointIds(new Set());
+
+        if (flowInstance) {
+          flowInstance.setViewport({ x: 0, y: 0, zoom: 1 });
+        }
       }
 
-      setCollapsedPointIds(new Set());
-
-      if (flowInstance) {
-        flowInstance.setViewport({ x: 0, y: 0, zoom: 1 });
-      }
+      setIsDiscardDialogOpen(false);
+    } finally {
+      setIsDiscarding(false);
     }
-
-    setIsDiscardDialogOpen(false);
   }, [onResetContent, props.defaultNodes, props.defaultEdges, setNodes, setEdges, setLocalGraph, setCollapsedPointIds, flowInstance, setIsModified]);
 
   return (
@@ -549,7 +547,7 @@ export const GraphView = ({
         onInit={handleOnInit}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        nodes={filteredNodes}
+        nodes={nodes}
         onNodesChange={onNodesChange}
         edges={filteredEdges}
         onEdgesChange={onEdgesChange}
@@ -624,9 +622,22 @@ export const GraphView = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDiscard}>
-              Yes, discard changes
+            <AlertDialogCancel disabled={isDiscarding}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDiscard}
+              disabled={isDiscarding}
+              className="relative"
+            >
+              {isDiscarding ? (
+                <>
+                  <span className="opacity-0">Yes, discard changes</span>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                  </div>
+                </>
+              ) : (
+                "Yes, discard changes"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

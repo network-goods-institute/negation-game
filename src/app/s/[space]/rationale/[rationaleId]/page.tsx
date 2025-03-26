@@ -657,9 +657,9 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                 Points
               </span>
               <Dynamic>
-                {points.map((point) => (
+                {points.map((point, index) => (
                   <PointCardWrapper
-                    key={`${point.pointId}-card`}
+                    key={`${point.pointId}-card-${index}`}
                     point={point}
                     className={cn(
                       "border-b",

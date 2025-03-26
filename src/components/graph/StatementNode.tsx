@@ -137,7 +137,8 @@ export const StatementNode = ({
 
     // Create new nodes for each collapsed child
     for (const [i, pointId] of collapsedChildren.entries()) {
-      const nodeId = nanoid();
+      // Generate a guaranteed unique ID by combining nanoid with timestamp and index
+      const uniqueId = `${nanoid()}-${Date.now()}-${i}`;
 
       // Find stored position for this node
       const storedPosition = collapsedNodePositions.find(pos => pos.pointId === pointId && pos.parentId === id);
@@ -150,7 +151,7 @@ export const StatementNode = ({
 
       // Add the node back to the graph
       addNodes({
-        id: nodeId,
+        id: uniqueId,
         type: "point",
         data: {
           pointId,
@@ -163,7 +164,7 @@ export const StatementNode = ({
 
       addEdges({
         id: nanoid(),
-        source: nodeId,
+        source: uniqueId,
         target: id,
         type: "statement"
       });
