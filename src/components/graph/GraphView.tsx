@@ -24,7 +24,7 @@ import {
 } from "@xyflow/react";
 import { XIcon } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useCallback, useMemo, useEffect, useState, useRef } from "react";
+import { useCallback, useMemo, useEffect, useState, useRef, useLayoutEffect } from "react";
 import { useAtom } from "jotai";
 import { collapsedPointIdsAtom, ViewpointGraph } from "@/atoms/viewpointAtoms";
 import React from "react";
@@ -43,6 +43,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { copyViewpointAndNavigate } from "@/utils/copyViewpoint";
 
 function debounce<T extends (...args: any[]) => any>(
   func: T,
@@ -357,6 +358,27 @@ export const GraphView = ({
     }
   }, [props.defaultNodes, props.defaultEdges, isModified]);
 
+  const handleCopy = useCallback(async (graphToCopy: ViewpointGraph) => {
+
+    try {
+      const result = await copyViewpointAndNavigate(graphToCopy, statement || "", "");
+
+      // If there's an error, add an additional safety delay before trying to navigate
+      if (!result) {
+        console.error("Failed to copy viewpoint, forcing navigation");
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const url = `/s/global/rationale/new`;
+        window.location.href = url;
+      }
+
+      return result;
+    } catch (error) {
+      console.error("Error during copy operation:", error);
+      alert("There was an error copying the rationale. Please try again.");
+      return false;
+    }
+  }, [statement]);
+
   const handleSave = useCallback(
     async () => {
       setIsSaving_local(true);
@@ -377,8 +399,6 @@ export const GraphView = ({
           edges: filteredEdges,
         };
 
-        // If the user is the owner, update the viewpoint
-        // If not, skip to onSaveChanges which will handle creating a copy
         let saveSuccess = true;
 
         if (canModify) {
@@ -394,26 +414,32 @@ export const GraphView = ({
               description: "",
             })
           ]);
-        }
 
-        // Always update the local graph state to the current filtered state
-        if (setLocalGraph) {
-          setLocalGraph(filteredGraph);
-        }
-
-        // Call onSaveChanges without passing the graph parameter - let it handle title/description updates
-        try {
-          // We know onSaveChanges exists here because of the check at the start
-          // But TypeScript doesn't, so we need to check again
-          if (onSaveChanges) {
-            const saveResult = await onSaveChanges();
-            if (saveResult === false) {
-              saveSuccess = false;
-            }
+          // Always update the local graph state to the current filtered state
+          if (setLocalGraph) {
+            setLocalGraph(filteredGraph);
           }
-        } catch (saveError) {
-          saveSuccess = false;
-          console.error("[GraphView] Error in onSaveChanges:", saveError);
+
+          // Call onSaveChanges for any additional updates
+          try {
+            if (onSaveChanges) {
+              const saveResult = await onSaveChanges();
+              if (saveResult === false) {
+                saveSuccess = false;
+              }
+            }
+          } catch (saveError) {
+            saveSuccess = false;
+            console.error("[GraphView] Error in onSaveChanges:", saveError);
+          }
+        } else {
+          // For non-owners, treat this as a copy operation
+          // Set a longer timeout to ensure we don't get interrupted
+          setIsSaving_local(true);
+          const copyResult = await handleCopy(filteredGraph);
+
+          // Keep the save button loading while the page navigates
+          return copyResult;
         }
 
         if (saveSuccess) {
@@ -424,9 +450,12 @@ export const GraphView = ({
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === "Must be authenticated to update rationale") {
-            alert("You must be logged in to save changes. Copying rationales will be implemented soon.");
+            alert("You must be logged in to save changes.");
           } else if (error.message === "Only the owner can update this rationale") {
-            alert("Only the owner can update this rationale. Copying rationales will be implemented soon.");
+            alert("Only the owner can update this rationale. Your changes will be copied to a new rationale.");
+            // Trigger copy operation on this error
+            console.log("Owner restriction error, triggering copy fallback");
+            return handleCopy({ nodes, edges });
           } else {
             alert("Failed to save changes. Please try again.");
           }
@@ -454,7 +483,8 @@ export const GraphView = ({
       rationaleId,
       setIsModified,
       canModify,
-      statement
+      statement,
+      handleCopy
     ]
   );
 
@@ -504,10 +534,23 @@ export const GraphView = ({
   // Create a combined onInit function that sets the flowInstance and supports existing onInit
   const handleOnInit = useCallback((instance: ReactFlowInstance<AppNode>) => {
     setFlowInstance(instance);
-    // Call the original onInit if provided
-    if (props.onInit) {
-      props.onInit(instance);
-    }
+
+    // Wait briefly before setting any default nodes/edges (helps with copy operations)
+    setTimeout(() => {
+      // Ensure we load the default nodes/edges here too as a fallback
+      if (props.defaultNodes && props.defaultNodes.length > 0) {
+        instance.setNodes(props.defaultNodes);
+      }
+
+      if (props.defaultEdges && props.defaultEdges.length > 0) {
+        instance.setEdges(props.defaultEdges);
+      }
+
+      // Call the original onInit if provided
+      if (props.onInit) {
+        props.onInit(instance);
+      }
+    }, 50);
   }, [props]);
 
   const handleDiscard = useCallback(async () => {
@@ -540,6 +583,24 @@ export const GraphView = ({
       setIsDiscarding(false);
     }
   }, [onResetContent, props.defaultNodes, props.defaultEdges, setNodes, setEdges, setLocalGraph, setCollapsedPointIds, flowInstance, setIsModified]);
+
+  // Add a special effect to fix nodes that might not have loaded properly in a copy operation
+  useLayoutEffect(() => {
+    if (flowInstance && props.defaultNodes && props.defaultNodes.length > 0 && nodes.length === 0) {
+      // If nodes are missing but we have default nodes, load them
+      setTimeout(() => {
+        if (props.defaultNodes) {
+          setNodes([...props.defaultNodes]);
+          flowInstance.setNodes(props.defaultNodes);
+        }
+
+        if (props.defaultEdges && props.defaultEdges.length > 0) {
+          setEdges([...props.defaultEdges]);
+          flowInstance.setEdges(props.defaultEdges);
+        }
+      }, 100);
+    }
+  }, [flowInstance, props.defaultNodes, props.defaultEdges, nodes.length, setNodes, setEdges]);
 
   return (
     <>

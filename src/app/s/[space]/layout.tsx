@@ -1,5 +1,4 @@
 import { fetchSpace } from "@/actions/fetchSpace";
-import { notFound } from "next/navigation";
 import { SpaceHeader } from "./SpaceHeader";
 
 export default async function SpaceLayout({
@@ -13,13 +12,9 @@ export default async function SpaceLayout({
     const { space } = await params;
     const spaceData = await fetchSpace(space);
 
-    if (!spaceData) {
-      notFound();
-    }
-
     return (
       <>
-        <SpaceHeader spaceData={spaceData} />
+        {spaceData && <SpaceHeader spaceData={spaceData} />}
         {children}
       </>
     );

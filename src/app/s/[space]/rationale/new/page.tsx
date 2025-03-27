@@ -6,13 +6,11 @@ import {
   viewpointReasoningAtom,
   viewpointStatementAtom,
   collapsedPointIdsAtom,
-  ViewpointGraph,
 } from "@/atoms/viewpointAtoms";
-import { useEffect, useMemo, useState, useCallback, useTransition } from "react";
+import { useEffect, useMemo, useState, useCallback, useTransition, useRef } from "react";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { AppNode } from "@/components/graph/AppNode";
-import { AppEdge } from "@/components/graph/AppEdge";
 import { GraphView } from "@/components/graph/GraphView";
 import {
   OriginalPosterProvider,
@@ -133,10 +131,12 @@ function ViewpointContent() {
   const [isReactFlowReady, setIsReactFlowReady] = useState(false);
   const [isDiscardingWithoutNav, setIsDiscardingWithoutNav] = useState(false);
   const [isCopyOperation, setIsCopyOperation] = useState(false);
+  const hasLoadedCopyData = useRef(false);
 
   const spaceQuery = useSpace();
   const space = spaceQuery;
   const currentSpace = getSpaceFromPathname(pathname);
+
   const [canvasEnabled, setCanvasEnabled] = useAtom(canvasEnabledAtom);
   const [isMobile, setIsMobile] = useState(false);
   const reactFlow = useReactFlow<AppNode>();
@@ -146,6 +146,172 @@ function ViewpointContent() {
   const [statement, setStatement] = useAtom(viewpointStatementAtom);
   const [reasoning, setReasoning] = useAtom(viewpointReasoningAtom);
   const [_, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
+
+  useEffect(() => {
+    if (hasLoadedCopyData.current) {
+      return;
+    }
+
+    // Always check for copy data first, regardless of other conditions
+    const effectiveSpace = currentSpace || 'global';
+    const storageKey = `copyingViewpoint:${effectiveSpace}`;
+    const copyData = sessionStorage.getItem(storageKey);
+
+    if (copyData) {
+      try {
+        const parsedData = JSON.parse(copyData);
+
+        if (parsedData && typeof parsedData === 'object' && parsedData.isCopyOperation === true) {
+          setIsCopyOperation(true);
+          setIsCopiedFromSessionStorage(true);
+          setHasCheckedInitialLoad(true);
+
+          // Load the copied data into the graph and other states
+          if (parsedData.graph) {
+            // First, set the internal atom state
+            setGraph(parsedData.graph);
+
+            // Mark that we've loaded the data to prevent reloading
+            hasLoadedCopyData.current = true;
+
+            // Then, if ReactFlow is ready, set its nodes and edges
+            if (reactFlow) {
+
+              // IMPORTANT: Use a longer delay to ensure all initialization is complete
+              setTimeout(() => {
+                // Guard against component unmounting
+                if (!reactFlow) return;
+
+                try {
+                  // First, clear any existing nodes and edges
+                  reactFlow.setNodes([]);
+                  reactFlow.setEdges([]);
+
+                  // Force a layout update between clearing and setting
+                  setTimeout(() => {
+                    // Guard against component unmounting
+                    if (!reactFlow) return;
+
+                    try {
+                      // Set nodes all at once
+                      reactFlow.setNodes(parsedData.graph.nodes);
+
+                      setTimeout(() => {
+                        // Guard against component unmounting
+                        if (!reactFlow) return;
+
+                        try {
+                          reactFlow.setEdges(parsedData.graph.edges);
+
+                          // Force a graph revision update to trigger a remount of the graph component
+                          setGraphRevision(prev => prev + 1);
+
+                          // Also update the statement node
+                          updateNodeData("statement", {
+                            statement: parsedData.title || PLACEHOLDER_STATEMENT,
+                            _lastUpdated: Date.now()
+                          });
+                        } catch (edgeError) {
+                          console.error("Error setting edges:", edgeError);
+                        }
+                      }, 100);
+                    } catch (nodeError) {
+                      console.error("Error setting nodes:", nodeError);
+                    }
+                  }, 100);
+                } catch (clearError) {
+                  console.error("Error clearing nodes/edges:", clearError);
+                }
+              }, 300);
+            } else {
+              console.warn("ReactFlow not ready when trying to set nodes/edges");
+            }
+          }
+
+          if (parsedData.title) {
+            setStatement(parsedData.title);
+          }
+          if (parsedData.description) {
+            setReasoning(parsedData.description);
+          }
+          sessionStorage.removeItem(storageKey);
+
+          return; // Exit early - we're in a copy operation
+        }
+      } catch (e) {
+        console.error("Error parsing copy data from session storage:", e);
+      }
+    }
+
+    // Only proceed with other checks if we have all required conditions
+    if (!isReactFlowReady || !reactFlow || !currentSpace) {
+      return;
+    }
+
+    // If we get here, we're not in a copy operation
+    // Now check for drafts if we haven't already
+    if (!hasCheckedInitialLoad) {
+      const currentNodes = reactFlow.getNodes();
+
+      const hasRealPointNodes = currentNodes.some(node => {
+        const isRealPoint = node.type === "point" && 'pointId' in node.data;
+        return isRealPoint;
+      });
+
+      if (hasRealPointNodes) {
+        setIsInitialLoadDialogOpen(true);
+      }
+    }
+
+    setHasCheckedInitialLoad(true);
+
+    // Cleanup function to reset state when component unmounts
+    return () => {
+      hasLoadedCopyData.current = false;
+      setHasCheckedInitialLoad(false);
+
+      // Only clear these if we're actually leaving the page, not just from effects re-running
+      if (document.visibilityState === 'hidden' || !document.body.contains(document.activeElement)) {
+        setIsCopyOperation(false);
+        setIsCopiedFromSessionStorage(false);
+      }
+    };
+  }, [
+    currentSpace,
+    reactFlow,
+    isReactFlowReady,
+    hasCheckedInitialLoad,
+    setGraph,
+    setStatement,
+    setReasoning,
+    setGraphRevision,
+    updateNodeData
+  ]);
+
+  // Use a dedicated effect to ensure the copy state gets properly reset when leaving the page
+  useEffect(() => {
+    // Setup event listener for when the user is about to leave the page
+    const handleBeforeUnload = () => {
+      // Clean up copy flags in case we're navigating away
+      hasLoadedCopyData.current = false;
+      setIsCopyOperation(false);
+      setIsCopiedFromSessionStorage(false);
+
+      // Also clean session storage to ensure a fresh state on return
+      if (currentSpace) {
+        const storageKey = `copyingViewpoint:${currentSpace}`;
+        sessionStorage.removeItem(storageKey);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // Clean up
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      handleBeforeUnload(); // Also run the cleanup when unmounting
+    };
+  }, [currentSpace, setIsCopyOperation, setIsCopiedFromSessionStorage]);
 
   const spaceObj = space?.data?.id;
   const [viewGraph, setViewGraph] = useAtom(viewpointGraphAtom);
@@ -168,8 +334,27 @@ function ViewpointContent() {
   useEffect(() => {
     updateNodeData("statement", {
       statement: statement.length > 0 ? statement : PLACEHOLDER_STATEMENT,
+      _lastUpdated: Date.now()
     });
   }, [statement, updateNodeData]);
+
+  useEffect(() => {
+    if (isCopiedFromSessionStorage && statement && reactFlow) {
+      setTimeout(() => {
+        updateNodeData("statement", {
+          statement: statement.length > 0 ? statement : PLACEHOLDER_STATEMENT,
+          _lastUpdated: Date.now()
+        });
+
+        // Also set modified to false since this is a fresh copy
+        // We need to use any here because markAsModified is added dynamically
+        const reactFlowWithCustomMethods = reactFlow as any;
+        if (typeof reactFlowWithCustomMethods.markAsModified === 'function') {
+          reactFlow.setNodes(reactFlow.getNodes());
+        }
+      }, 400);
+    }
+  }, [isCopiedFromSessionStorage, statement, updateNodeData, reactFlow]);
 
   const { mutateAsync: publishViewpoint, isPending: isPublishing } =
     usePublishViewpoint();
@@ -190,75 +375,6 @@ function ViewpointContent() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  useEffect(() => {
-    if (!isReactFlowReady || !reactFlow) {
-      return;
-    }
-
-    if (pathname !== `${basePath}/rationale/new`) {
-      return;
-    }
-
-    const justPublished = localStorage.getItem("justPublished");
-
-
-    if (!isCopiedFromSessionStorage && justPublished === "true") {
-      localStorage.removeItem("justPublished");
-      setReasoning("");
-      setStatement("");
-      setGraph(initialViewpointGraph);
-
-      // Update ReactFlow directly
-      reactFlow.setNodes(initialViewpointGraph.nodes);
-      reactFlow.setEdges(initialViewpointGraph.edges);
-
-      // Skip the initial load check since we just cleaned up
-      setHasCheckedInitialLoad(true);
-      return;
-    }
-
-    // Only run initial load check if we haven't checked and aren't in a special state
-    if (!hasCheckedInitialLoad && !isCopiedFromSessionStorage && !isCopyOperation) {
-
-      const currentNodes = reactFlow.getNodes();
-
-      const hasRealPointNodes = currentNodes.some(node => {
-        const isRealPoint = node.type === "point" && 'pointId' in node.data;
-        return isRealPoint;
-      });
-
-
-      if (hasRealPointNodes) {
-        console.log("Opening initial load dialog");
-        setIsInitialLoadDialogOpen(true);
-      }
-    }
-
-    // Mark as checked
-    setHasCheckedInitialLoad(true);
-
-  }, [
-    pathname,
-    basePath,
-    setReasoning,
-    setStatement,
-    setGraph,
-    reactFlow,
-    isReactFlowReady,
-    isCopiedFromSessionStorage,
-    hasCheckedInitialLoad,
-    isCopyOperation,
-    setHasCheckedInitialLoad
-  ]);
-
-  useEffect(() => {
-    const hasStatement = graph?.nodes?.some(n => n.type === "statement");
-
-    if (!isCopiedFromSessionStorage && (!graph || !hasStatement)) {
-      setGraph(initialViewpointGraph);
-    }
-  }, [graph, isCopiedFromSessionStorage, setGraph]);
-
   const clearGraph = useCallback(() => {
     startTransition(() => {
       setReasoning("");
@@ -278,6 +394,10 @@ function ViewpointContent() {
         const storageKey = `copyingViewpoint:${currentSpace}`;
         sessionStorage.removeItem(storageKey);
       }
+
+      // Reset copy operation state
+      setIsCopyOperation(false);
+      setIsCopiedFromSessionStorage(false);
 
       // Navigate back to the correct page based on space
       if (currentSpace && currentSpace !== "null" && currentSpace !== "undefined") {
@@ -311,6 +431,10 @@ function ViewpointContent() {
           const storageKey = `copyingViewpoint:${currentSpace}`;
           sessionStorage.removeItem(storageKey);
         }
+
+        // Reset copy operation state
+        setIsCopyOperation(false);
+        setIsCopiedFromSessionStorage(false);
 
         setIsInitialLoadDialogOpen(false);
       } finally {
@@ -553,7 +677,15 @@ function ViewpointContent() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={isInitialLoadDialogOpen} onOpenChange={setIsInitialLoadDialogOpen}>
+      <AlertDialog
+        open={isInitialLoadDialogOpen && !isCopiedFromSessionStorage}
+        onOpenChange={(open) => {
+          // Only allow changing if we're not in a copy operation
+          if (!isCopiedFromSessionStorage) {
+            setIsInitialLoadDialogOpen(open);
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Existing Draft Found</AlertDialogTitle>
@@ -653,62 +785,3 @@ export default function NewViewpointPage() {
     </EditModeProvider>
   );
 }
-
-const regenerateGraphIds = (graph: ViewpointGraph): ViewpointGraph => {
-
-  // Create a mapping from old IDs to new IDs
-  const idMap = new Map<string, string>();
-
-  // Keep the statement node ID as is
-  const statementNode = graph.nodes.find(node => node.type === 'statement');
-  if (statementNode) {
-    idMap.set(statementNode.id, 'statement');
-  }
-
-  // Generate new IDs for all other nodes
-  const newNodes = graph.nodes.map((node) => {
-    // Statement node keeps its ID
-    if (node.type === 'statement') {
-      return { ...node, id: 'statement' } as AppNode;
-    }
-
-    // Generate a new unique ID for this node that incorporates the node type
-    // Making sure we don't include any references to other nodes in the ID
-    const newId = `${node.type || 'node'}_${Math.random().toString(36).substring(2, 15)}`;
-    idMap.set(node.id, newId);
-
-    return { ...node, id: newId } as AppNode;
-  });
-
-  // Update edge source and target IDs using the mapping
-  let newEdges = graph.edges.map((edge) => {
-    const newSource = idMap.get(edge.source) || edge.source;
-    const newTarget = idMap.get(edge.target) || edge.target;
-    const newId = `edge_${Math.random().toString(36).substring(2, 15)}`;
-    return {
-      ...edge,
-      id: newId,
-      source: newSource,
-      target: newTarget
-    } as AppEdge;
-  });
-
-  // Check for and remove duplicate edges based on source-target pairs
-  const edgeMap = new Map<string, AppEdge>();
-  const duplicateEdges: string[] = [];
-
-  newEdges.forEach(edge => {
-    const key = `${edge.source}->${edge.target}`;
-    if (edgeMap.has(key)) {
-      duplicateEdges.push(edge.id);
-    } else {
-      edgeMap.set(key, edge);
-    }
-  });
-
-  if (duplicateEdges.length > 0) {
-    newEdges = newEdges.filter(edge => !duplicateEdges.includes(edge.id));
-  }
-
-  return { nodes: newNodes, edges: newEdges };
-};
