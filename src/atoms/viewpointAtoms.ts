@@ -108,3 +108,22 @@ export interface CollapsedNodePosition {
 }
 
 export const collapsedNodePositionsAtom = atom<CollapsedNodePosition[]>([]);
+
+export const clearViewpointState = (isPublishing = true) => {
+  // If we have access to the window, handle the justPublished flag
+  if (typeof window !== "undefined") {
+    // Only set justPublished when actually publishing
+    if (isPublishing) {
+      window.localStorage.setItem("justPublished", "true");
+    }
+
+    // The actual clearing of atom state should be done by the
+    // component that calls this function by using the atom setters:
+    //   setStatement("")
+    //   setReasoning("")
+    //   setGraph(initialViewpointGraph)
+    //   setCollapsedPointIds(new Set())
+    //
+    // This ensures a single source of truth through the atoms
+  }
+};

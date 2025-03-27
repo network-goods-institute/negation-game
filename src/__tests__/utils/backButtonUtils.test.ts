@@ -2,6 +2,7 @@ import {
   handleBackNavigation,
   getBackButtonHandler,
   isSameDomain,
+  getSpaceFromUrl,
 } from "@/utils/backButtonUtils";
 
 describe("backButtonUtils", () => {
@@ -54,6 +55,65 @@ describe("backButtonUtils", () => {
 
     test("returns false for invalid URL", () => {
       expect(isSameDomain("not-a-url")).toBe(false);
+    });
+  });
+
+  describe("getSpaceFromUrl", () => {
+    let originalLocation: Location;
+
+    beforeEach(() => {
+      // Save original location
+      originalLocation = window.location;
+    });
+
+    afterEach(() => {
+      // Restore original location if needed
+      if (window.location !== originalLocation) {
+        // @ts-ignore
+        window.location = originalLocation;
+      }
+    });
+
+    test("returns space name from URL path", () => {
+      // Mock location with space in the URL
+      const mockLocation = {
+        ...window.location,
+        pathname: "/s/test-space/some/page",
+      };
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = mockLocation;
+
+      expect(getSpaceFromUrl()).toBe("test-space");
+    });
+
+    test("returns null when no space in the URL", () => {
+      // Mock location with no space in the URL
+      const mockLocation = {
+        ...window.location,
+        pathname: "/some/other/page",
+      };
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = mockLocation;
+
+      expect(getSpaceFromUrl()).toBeNull();
+    });
+
+    test("returns null for invalid space values", () => {
+      // Mock location with invalid space value
+      const mockLocation = {
+        ...window.location,
+        pathname: "/s/null/page",
+      };
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = mockLocation;
+
+      expect(getSpaceFromUrl()).toBeNull();
     });
   });
 
@@ -117,6 +177,17 @@ describe("backButtonUtils", () => {
         value: 2, // Simulate having history
       });
 
+      // Create a mock location with a non-rationale path
+      const mockLocation = {
+        ...window.location,
+        hostname: "example.com",
+        pathname: "/some/path",
+      };
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = mockLocation;
+
       // Call the function
       handleBackNavigation(mockRouter);
 
@@ -143,7 +214,9 @@ describe("backButtonUtils", () => {
 
       // Mock checking hostname
       const mockLocation = {
+        ...window.location,
         hostname: "example.com",
+        pathname: "/some/path",
       };
       // @ts-ignore - overriding readonly property
       delete window.location;
@@ -175,7 +248,9 @@ describe("backButtonUtils", () => {
 
       // Mock checking hostname
       const mockLocation = {
+        ...window.location,
         hostname: "example.com",
+        pathname: "/some/path",
       };
       // @ts-ignore - overriding readonly property
       delete window.location;
@@ -205,11 +280,74 @@ describe("backButtonUtils", () => {
         get: () => "",
       });
 
+      // Create a mock location with a non-rationale path
+      const mockLocation = {
+        ...window.location,
+        hostname: "example.com",
+        pathname: "/some/path",
+      };
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = mockLocation;
+
       // Call the function with custom home path
       handleBackNavigation(mockRouter, "/custom-home");
 
       // Should use router.push with custom path
       expect(mockRouter.push).toHaveBeenCalledWith("/custom-home");
+    });
+
+    test("should navigate to space page from rationale page", () => {
+      // Create a mock location for a rationale page in a space
+      const mockLocation = {
+        ...window.location,
+        hostname: "example.com",
+        pathname: "/s/test-space/rationale/123",
+      };
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = mockLocation;
+
+      // Mock window.history.back to verify it's not called
+      window.history.back = jest.fn();
+
+      // Call the function
+      handleBackNavigation(mockRouter);
+
+      // Should navigate to the space page
+      expect(mockRouter.push).toHaveBeenCalledWith("/s/test-space");
+      expect(window.history.back).not.toHaveBeenCalled();
+      expect(mockRouter.back).not.toHaveBeenCalled();
+    });
+
+    test("should fall back to history when on rationale page but space not found", () => {
+      // Create a mock location for a rationale page without a valid space context
+      const mockLocation = {
+        ...window.location,
+        hostname: "example.com",
+        pathname: "/rationale/123", // No space in path
+      };
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = mockLocation;
+
+      // Set up history to have entries
+      Object.defineProperty(window.history, "length", {
+        configurable: true,
+        value: 2, // Simulate having history
+      });
+      window.history.back = jest.fn();
+
+      // Call the function
+      handleBackNavigation(mockRouter);
+
+      // Should fall back to window.history.back()
+      expect(window.history.back).toHaveBeenCalled();
+      expect(mockRouter.push).not.toHaveBeenCalled();
+      expect(mockRouter.back).not.toHaveBeenCalled();
     });
   });
 
@@ -239,6 +377,17 @@ describe("backButtonUtils", () => {
         value: 2, // Has history
       });
 
+      // Create a mock location with a non-rationale path
+      const mockLocation = {
+        ...window.location,
+        hostname: "example.com",
+        pathname: "/some/path",
+      };
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = mockLocation;
+
       // Get the handler function
       const handler = getBackButtonHandler(mockRouter);
 
@@ -265,14 +414,25 @@ describe("backButtonUtils", () => {
         get: () => "",
       });
 
-      // Get handler with custom path
-      const handler = getBackButtonHandler(mockRouter, "/custom-dashboard");
+      // Create a mock location with a non-rationale path
+      const mockLocation = {
+        ...window.location,
+        hostname: "example.com",
+        pathname: "/some/path",
+      };
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = mockLocation;
+
+      // Get the handler with custom path
+      const handler = getBackButtonHandler(mockRouter, "/custom-home");
 
       // Call the handler
       handler();
 
-      // Should use custom path
-      expect(mockRouter.push).toHaveBeenCalledWith("/custom-dashboard");
+      // Should use router.push with custom home path
+      expect(mockRouter.push).toHaveBeenCalledWith("/custom-home");
     });
   });
 });

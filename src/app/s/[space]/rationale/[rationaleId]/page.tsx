@@ -46,6 +46,7 @@ import { ViewpointStatsBar } from "@/components/ViewpointStatsBar";
 import { use } from "react";
 import { getBackButtonHandler } from "@/utils/backButtonUtils";
 import { useVisitedPoints } from "@/hooks/useVisitedPoints";
+import { copyViewpointAndNavigate } from "@/utils/copyViewpoint";
 
 // Create dynamic ReactMarkdown component
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
@@ -96,63 +97,6 @@ function PointCardWrapper({
     />
   );
 }
-
-const regenerateGraphIds = (graph: ViewpointGraph): ViewpointGraph => {
-
-  const idMap = new Map<string, string>();
-
-  const statementNode = graph.nodes.find(node => node.type === 'statement');
-  if (statementNode) {
-    idMap.set(statementNode.id, 'statement');
-  }
-
-  const newNodes = graph.nodes.map((node) => {
-    // Statement node keeps its ID
-    if (node.type === 'statement') {
-      return { ...node, id: 'statement' } as AppNode;
-    }
-
-    // Generate a new unique ID for this node that incorporates the node type
-    // Making sure we don't include any references to other nodes in the ID
-    const newId = `${node.type || 'node'}_${Math.random().toString(36).substring(2, 15)}`;
-    idMap.set(node.id, newId);
-
-    return { ...node, id: newId } as AppNode;
-  });
-
-  // Update edge source and target IDs using the mapping
-  let newEdges = graph.edges.map((edge) => {
-    const newSource = idMap.get(edge.source) || edge.source;
-    const newTarget = idMap.get(edge.target) || edge.target;
-    const newId = `edge_${Math.random().toString(36).substring(2, 15)}`;
-
-    return {
-      ...edge,
-      id: newId,
-      source: newSource,
-      target: newTarget
-    } as AppEdge;
-  });
-
-  // Check for and remove duplicate edges based on source-target pairs
-  const edgeMap = new Map<string, AppEdge>();
-  const duplicateEdges: string[] = [];
-
-  newEdges.forEach(edge => {
-    const key = `${edge.source}->${edge.target}`;
-    if (edgeMap.has(key)) {
-      duplicateEdges.push(edge.id);
-    } else {
-      edgeMap.set(key, edge);
-    }
-  });
-
-  if (duplicateEdges.length > 0) {
-    newEdges = newEdges.filter(edge => !duplicateEdges.includes(edge.id));
-  }
-
-  return { nodes: newNodes, edges: newEdges };
-};
 
 // Export the component for testing
 function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
@@ -375,9 +319,6 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     setIsCopying(true);
 
     try {
-      // Get the current space
-      const currentSpace = space?.data?.id || 'default';
-
       // Get the current graph state directly from reactFlow if available
       // This ensures we capture the exact current state including any changes
       let currentGraph;
@@ -393,33 +334,25 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
         currentGraph = viewpoint.graph;
       }
 
-      const regeneratedGraph = regenerateGraphIds(currentGraph);
-
-      // Store the viewpoint data in session storage with space information
-      const viewpointData = {
-        title: editableTitle,
-        description: editableDescription,
-        graph: regeneratedGraph,
-        sourceSpace: currentSpace,
-        sourceId: viewpoint.id // Store the original ID to track copies
-      };
-
-      // Use sessionStorage with space-specific key to avoid conflicts
-      const storageKey = `copyingViewpoint:${currentSpace}`;
-      sessionStorage.setItem(storageKey, JSON.stringify(viewpointData));
-
-      // Track the copy action
-      // We don't need to await this as it shouldn't block navigation
-      fetch(`/api/viewpoint/track-copy?id=${viewpoint.id}`, { method: 'POST' });
-
-      // Navigate to the new viewpoint page in the same space
-      router.push(`${basePath}/rationale/new`);
-
+      copyViewpointAndNavigate(
+        currentGraph,
+        editableTitle,
+        editableDescription,
+        viewpoint.id
+      )
+        .then(() => {
+          // Navigation happens in the utility function
+        })
+        .catch(error => {
+          console.error("Error copying viewpoint:", error);
+          alert("Failed to copy rationale. Please try again.");
+          setIsCopying(false);
+        });
     } catch (error) {
       alert("Failed to copy rationale. Please try again.");
       setIsCopying(false);
     }
-  }, [viewpoint, router, basePath, space?.data?.id, reactFlow, localGraph, editableTitle, editableDescription]);
+  }, [viewpoint, reactFlow, localGraph, editableTitle, editableDescription]);
 
   const handleCopyUrl = useCallback(() => {
     const url = window.location.href;
