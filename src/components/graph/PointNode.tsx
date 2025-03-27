@@ -35,6 +35,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { recentlyCreatedNegationIdAtom } from "@/atoms/recentlyCreatedNegationIdAtom";
+import { ExpandPointDialog } from "@/components/graph/ExpandPointDialog";
 
 export type PointNodeData = {
   pointId: number;
@@ -84,15 +86,6 @@ export const PointNode = ({
   const { data: originalViewpoint } = useViewpoint(isViewpointContext ? rationaleId : "DISABLED");
   const { originalPosterId } = useOriginalPoster();
 
-  const isRedundant = useMemo(() => {
-    const firstOccurence = find(
-      getNodes().filter((node): node is PointNode => node.type === "point"),
-      (node) => node.data.pointId === pointId
-    );
-
-    return firstOccurence ? firstOccurence.id !== id : false;
-  }, [getNodes, id, pointId]);
-
   const prefetchPoint = usePrefetchPoint();
   const prefetchUserEndorsements = usePrefetchUserEndorsements();
 
@@ -100,6 +93,8 @@ export const PointNode = ({
   const { data: opCred } = useUserEndorsement(originalPosterId, pointId);
 
   const endorsedByOp = opCred && opCred > 0;
+
+  const [recentlyCreatedNegation, setRecentlyCreatedNegation] = useAtom(recentlyCreatedNegationIdAtom);
 
   useEffect(() => {
     if (!pointData) return;
@@ -205,37 +200,23 @@ export const PointNode = ({
         return;
       }
 
-      // Get all nodes in the graph that contain this point ID
-      const nodesWithThisId = pointNodes.filter(n => n.data.pointId === negId);
-
-      // If any of these nodes are visible (not collapsed), skip this negation
-      const hasVisibleInstance = nodesWithThisId.some(node =>
-        !collapsedPointIds.has(node.data.pointId)
-      );
-
-      if (hasVisibleInstance) {
-        const existingNodes = pointIdMap.get(negId) || [];
-        skippedNegationIds.push({
-          id: negId,
-          reason: `exists as visible node elsewhere: ${existingNodes.join(", ")}`
-        });
-        return;
-      }
-
       // Check if this would create a circular parent-child relationship
       let wouldCreateCircle = false;
 
-      // Check if the negation ID exists in the relationship map
+      // Instead of checking by pointId, check by the actual node ids in the graph
+      // This allows multiple nodes with the same pointId to exist
       if (parentChildMap.has(negId)) {
-        // Check if this point is already a child or descendant of the negation
-        if (parentChildMap.get(negId)?.childIds.has(pointId)) {
+        // Rather than checking if the current node's pointId is a child,
+        // we need to check if this specific node instance is a child
+        // This allows duplicate points to exist in different parts of the graph
+
+        // Check for indirect connections using source/target relationships in the graph
+        // (This only checks the current node's ID against potential cycles)
+        const edges = getEdges();
+        const cycles = findPathsInGraph(edges, negId.toString(), id);
+
+        if (cycles.length > 0) {
           wouldCreateCircle = true;
-        } else {
-          // Check for indirect descendant relationship
-          const paths = findPathsBetweenPoints(negId, pointId, parentChildMap);
-          if (paths.length > 0) {
-            wouldCreateCircle = true;
-          }
         }
       }
 
@@ -251,12 +232,8 @@ export const PointNode = ({
     });
 
     for (const [i, negationId] of expandableNegationIds.entries()) {
-      // Double-check again
-      if (pointIdMap.has(negationId)) {
-        continue;
-      }
 
-      const nodeId = nanoid();
+      const uniqueId = `${nanoid()}-${Date.now()}-${i}`;
 
       const storedPosition = collapsedNodePositions.find(pos => pos.pointId === negationId && pos.parentId === pointId);
       let position;
@@ -296,7 +273,7 @@ export const PointNode = ({
       }
 
       addNodes({
-        id: nodeId,
+        id: uniqueId,
         data: {
           pointId: negationId,
           parentId: pointId,
@@ -310,17 +287,12 @@ export const PointNode = ({
       addEdges({
         id: nanoid(),
         target: id,
-        source: nodeId,
+        source: uniqueId,
         type: parentId === 'statement' ? 'statement' : 'negation',
       });
 
       // Remove the stored position for this node
       setCollapsedNodePositions(prev => prev.filter(pos => !(pos.pointId === negationId && pos.parentId === pointId)));
-
-      if (!pointIdMap.has(negationId)) {
-        pointIdMap.set(negationId, []);
-      }
-      pointIdMap.get(negationId)!.push(nodeId);
 
       setCollapsedPointIds(prev => {
         const newSet = new Set(prev);
@@ -356,7 +328,7 @@ export const PointNode = ({
     getNodes,
     collapsedNodePositions,
     setCollapsedNodePositions,
-    collapsedPointIds
+    getEdges
   ]);
 
   const expandedNegationIds = useMemo(() => [
@@ -378,12 +350,9 @@ export const PointNode = ({
       !expandedNegationIds.includes(id)
     );
 
-    // Filter to only those that are in the collapsed set
-    const expandableIds = possibleNegationIds.filter(id =>
-      !expandedNegationIds.includes(id)
-    );
-
-    const count = expandableIds.length;
+    // No longer filtering based on visibility elsewhere in the graph
+    // Just return the count of all possible negations that aren't directly connected
+    const count = possibleNegationIds.length;
 
     return count;
   }, [pointData, expandedNegationIds, pointId]);
@@ -427,15 +396,19 @@ export const PointNode = ({
     if (hasInitializedCollapsedState.current || !isViewpointContext || !pointData || !originalViewpoint) {
       return;
     }
-    // Add negations that aren't in the original viewpoint to the collapsedPointIds
+
+    // We only want to track which negations aren't in the original viewpoint
+    // for state management purposes, but we no longer use this set for filtering
+    // visible nodes - each node instance is managed independently
     const negationsNotInViewpoint = pointData.negationIds.filter((id: number) => {
-      // Don't collapse if it's already being explicitly shown (connected to this node)
+      // Don't add to tracking if it's already being explicitly shown (connected to this node)
       const isAlreadyExpanded = expandedNegationIds.includes(id);
-      // Only collapse if it's not in the original viewpoint and not already shown
+      // Only track if it's not in the original viewpoint and not already shown
       return !originalViewpoint.originalPointIds.includes(id) && !isAlreadyExpanded;
     });
 
     if (negationsNotInViewpoint.length > 0) {
+      // This is now only used for state tracking, not for controlling visibility
       setCollapsedPointIds(prev => {
         const newSet = new Set(prev);
         negationsNotInViewpoint.forEach(id => newSet.add(id));
@@ -512,22 +485,27 @@ export const PointNode = ({
           };
           setCollapsedNodePositions(prev => [...prev, newPosition]);
         }
-        setCollapsedPointIds((prev) => {
-          const newSet = new Set(prev).add(pointId);
+
+        // We only want to store the collapse state, but not use it to 
+        // automatically hide other instances of the same pointId
+        setCollapsedPointIds(prev => {
+          const newSet = new Set(prev);
+          newSet.add(pointId);
           return newSet;
         });
       }
-      // Disable rule for deletion here as well
+
+      // This only deletes this specific node instance by its unique ID
+      // Other instances of the same pointId will remain visible
       // eslint-disable-next-line drizzle/enforce-delete-with-where
       deleteElements({ nodes: [{ id }] });
     });
 
-    // Filter out collapsed points
-    const nonCollapsedNegationIds = pointData?.negationIds.filter(
-      (id) => !collapsedPointIds.has(id)
-    ) ?? [];
+    // No longer filter out collapsed points
+    // We want to prefetch all of the point's negations
+    const allNegationIds = pointData?.negationIds ?? [];
 
-    for (const negationId of nonCollapsedNegationIds) {
+    for (const negationId of allNegationIds) {
       prefetchPoint(negationId);
       originalPosterId &&
         prefetchUserEndorsements(originalPosterId, negationId);
@@ -536,7 +514,6 @@ export const PointNode = ({
     deleteElements,
     id,
     pointData,
-    collapsedPointIds,
     prefetchPoint,
     originalPosterId,
     prefetchUserEndorsements,
@@ -545,10 +522,11 @@ export const PointNode = ({
     pointId,
     getEdges,
     setCollapsedNodePositions,
-    parentId
+    parentId,
   ]);
 
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [isCollapsing, setIsCollapsing] = useState(false);
 
   // Get the pathname once and memoize the check
   const pathname = usePathname();
@@ -557,28 +535,50 @@ export const PointNode = ({
     [pathname]
   );
 
+  const wasInOriginalGraph = useMemo(() => {
+    if (!originalViewpoint?.graph || !parentId || parentId !== 'statement') return false;
+
+    // Check if this specific point was connected to the statement node in the original graph
+    return originalViewpoint.graph.nodes.some(node =>
+      node.type === 'point' &&
+      node.data?.pointId === pointId &&
+      originalViewpoint.graph.edges.some(edge =>
+        edge.source === node.id &&
+        edge.target === 'statement'
+      )
+    );
+  }, [originalViewpoint, pointId, parentId]);
+
   const handleCollapseClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
-    // Single combined check to determine if we show confirmation
-    if (parentId === 'statement' && isNewViewpointPage) {
+    // Show confirmation dialog in two cases:
+    // 1. New viewpoint page: all direct children of statement node
+    // 2. Existing viewpoint: direct children of statement node that either:
+    //    - weren't in the original viewpoint at all, or
+    //    - were in the original viewpoint but not connected to statement node
+    if (parentId === 'statement' && (
+      isNewViewpointPage ||
+      (isViewpointContext && originalViewpoint && !wasInOriginalGraph)
+    )) {
       setIsConfirmDialogOpen(true);
     } else if (parentId) {
       // For all other cases, collapse without confirmation
       collapseSelfAndNegations();
     }
-  }, [parentId, collapseSelfAndNegations, isNewViewpointPage]);
+  }, [parentId, collapseSelfAndNegations, isNewViewpointPage, isViewpointContext, originalViewpoint, wasInOriginalGraph]);
 
-  const confirmCollapse = useCallback(() => {
-    setIsConfirmDialogOpen(false);
-    collapseSelfAndNegations();
+  const confirmCollapse = useCallback(async () => {
+    setIsCollapsing(true);
+    try {
+      await collapseSelfAndNegations();
+    } finally {
+      setIsCollapsing(false);
+      setIsConfirmDialogOpen(false);
+    }
   }, [collapseSelfAndNegations]);
 
-  const handleExpandNegationsClick = useCallback((event: React.MouseEvent) => {
-    event.stopPropagation();
-    expandNegations();
-  }, [expandNegations]);
 
   // Reset animation state after mount
   useEffect(() => {
@@ -591,77 +591,255 @@ export const PointNode = ({
     }
   }, [isExpanding, dataIsExpanding, hasAnimationPlayed]);
 
+  // Helper function to expand only a specific negation
+  const expandSpecificNegation = useCallback((negationIdToExpand: number) => {
+    if (!pointData || !negationIdToExpand) return;
+
+    // Check if this negation ID is in the point's negations
+    if (!pointData.negationIds.includes(negationIdToExpand)) return;
+
+    // Check if it's already expanded
+    if (expandedNegationIds.includes(negationIdToExpand)) return;
+
+    // Get a unique ID for the new node
+    const uniqueId = `${nanoid()}-${Date.now()}`;
+
+    // Calculate position (similar to expandNegations)
+    const targetNode = getNode(id)!;
+    const position = {
+      x: targetNode.position.x,
+      y: targetNode.position.y + (targetNode?.measured?.height ?? 200) + 200, // Place below
+    };
+
+    // Add the node to the graph
+    addNodes({
+      id: uniqueId,
+      data: {
+        pointId: negationIdToExpand,
+        parentId: pointId,
+        _lastModified: Date.now(),
+        isExpanding: true
+      },
+      type: "point",
+      position,
+    });
+
+    // Add the edge connecting to the parent
+    addEdges({
+      id: nanoid(),
+      target: id,
+      source: uniqueId,
+      type: parentId === 'statement' ? 'statement' : 'negation',
+    });
+
+    // Remove the negation from collapsed state
+    setCollapsedPointIds(prev => {
+      const newSet = new Set(prev);
+      // eslint-disable-next-line drizzle/enforce-delete-with-where
+      newSet.delete(negationIdToExpand);
+      return newSet;
+    });
+
+    // Clean up stored position if it exists
+    setCollapsedNodePositions(prev =>
+      prev.filter(pos => !(pos.pointId === negationIdToExpand && pos.parentId === pointId))
+    );
+
+    // Clear the recently created negation after we've expanded it
+    setRecentlyCreatedNegation({
+      negationId: null,
+      parentPointId: null,
+      timestamp: 0
+    });
+
+  }, [
+    pointData,
+    expandedNegationIds,
+    getNode,
+    id,
+    addNodes,
+    addEdges,
+    setCollapsedPointIds,
+    setCollapsedNodePositions,
+    pointId,
+    parentId,
+    setRecentlyCreatedNegation
+  ]);
+
+  useEffect(() => {
+    if (!pointData || !recentlyCreatedNegation.negationId) return;
+
+    if (recentlyCreatedNegation.parentPointId !== pointId) return;
+
+    const currentTime = Date.now();
+    const timeSinceCreation = currentTime - recentlyCreatedNegation.timestamp;
+    const MAX_AUTO_EXPAND_TIME = 15000;
+
+    if (timeSinceCreation > MAX_AUTO_EXPAND_TIME) {
+      setRecentlyCreatedNegation({
+        negationId: null,
+        parentPointId: null,
+        timestamp: 0
+      });
+      return;
+    }
+
+    expandSpecificNegation(recentlyCreatedNegation.negationId);
+
+  }, [pointData, recentlyCreatedNegation, pointId, expandSpecificNegation, setRecentlyCreatedNegation]);
+
+  const [isExpandDialogOpen, setIsExpandDialogOpen] = useState(false);
+
+  const handleSelectPoint = useCallback((point: { pointId: number, parentId?: string | number }) => {
+    const uniqueId = `${nanoid()}-${Date.now()}`;
+    const targetNode = getNode(id)!;
+    const layouts = calculateInitialLayout(
+      targetNode.position.x,
+      targetNode.position.y,
+      targetNode?.measured?.height ?? 200,
+      1
+    );
+
+    addNodes({
+      id: uniqueId,
+      data: {
+        pointId: point.pointId,
+        parentId: pointId,
+        _lastModified: Date.now(),
+        isExpanding: true
+      },
+      type: "point",
+      position: layouts[0],
+    });
+
+    addEdges({
+      id: nanoid(),
+      target: id,
+      source: uniqueId,
+      type: parentId === 'statement' ? 'statement' : 'negation',
+    });
+
+    setCollapsedPointIds(prev => {
+      const newSet = new Set(prev);
+      // eslint-disable-next-line drizzle/enforce-delete-with-where
+      newSet.delete(point.pointId);
+      return newSet;
+    });
+
+    setCollapsedNodePositions(prev =>
+      prev.filter(pos => !(pos.pointId === point.pointId && pos.parentId === pointId))
+    );
+  }, [id, pointId, parentId, addNodes, addEdges, setCollapsedPointIds, setCollapsedNodePositions, getNode]);
+
+  const expandablePoints = useMemo(() => {
+    if (!pointData) return [];
+    return pointData.negationIds
+      .filter(id =>
+        id !== pointId &&
+        !expandedNegationIds.includes(id)
+      )
+      .map(id => ({
+        pointId: id,
+        parentId: pointId
+      }));
+  }, [pointData, pointId, expandedNegationIds]);
+
   return (
-    <div
-      data-loading={pointData === undefined}
-      className={cn(
-        "relative bg-background rounded-md border-2 min-h-28 w-64",
-        endorsedByOp && "border-yellow-500",
-        hoveredPoint === pointId && "border-primary",
-        (!hasAnimationPlayed && (isExpanding || dataIsExpanding)) && "animate-node-expand"
-      )}
-      onMouseOver={() => setHoveredPoint(pointId)}
-      onMouseLeave={() => setHoveredPoint(undefined)}
-    >
-      <Handle
-        id={`${id}-incoming-handle`}
-        type="target"
-        isConnectableStart={false}
-        position={Position.Bottom}
+    <>
+      <div
+        data-loading={pointData === undefined}
         className={cn(
-          "pb-0.5 px-4 translate-y-[100%] -translate-x-1/2 size-fit bg-muted text-center border-2 border-t-0 rounded-b-full pointer-events-auto cursor-pointer",
-          collapsedNegations === 0 && "invisible"
+          "relative bg-background rounded-md border-2 min-h-28 w-64",
+          endorsedByOp && "border-yellow-500",
+          hoveredPoint === pointId && "border-primary",
+          (!hasAnimationPlayed && (isExpanding || dataIsExpanding)) && "animate-node-expand"
         )}
-        onClick={handleExpandNegationsClick}
+        onMouseOver={() => setHoveredPoint(pointId)}
+        onMouseLeave={() => setHoveredPoint(undefined)}
       >
-        {pointData && collapsedNegations > 0 && (
-          <span className="text-center w-full text-sm">
-            {collapsedNegations}
-          </span>
-        )}
-      </Handle>
-      {parentId && (
         <Handle
-          id={`${id}-outgoing-handle`} type="source"
-          position={Position.Top}
-          className={
-            "pt-1 pb-0.5 px-2 translate-y-[-100%] -translate-x-1/2 size-fit bg-muted text-center border-2 border-b-0 rounded-t-full pointer-events-auto !cursor-pointer"
-          }
-          onClick={handleCollapseClick}
+          id={`${id}-incoming-handle`}
+          type="target"
+          isConnectableStart={false}
+          position={Position.Bottom}
+          className={cn(
+            "pb-0.5 px-4 translate-y-[100%] -translate-x-1/2 size-fit bg-muted text-center border-2 border-t-0 rounded-b-full pointer-events-auto cursor-pointer",
+            collapsedNegations === 0 && "invisible"
+          )}
+          onClick={(e) => {
+            if (e.altKey) {
+              // Alt-click always expands all points
+              expandNegations();
+            } else {
+              // Normal click shows dialog for 3+ points, expands directly for 2 or fewer
+              if (!pointData) return;
+
+              const possibleNegationIds = pointData.negationIds.filter(id =>
+                // Don't include self-negations
+                id !== pointId &&
+                // Don't include already connected negations
+                !expandedNegationIds.includes(id)
+              );
+
+              // If 2 or fewer points, just expand normally
+              if (possibleNegationIds.length <= 2) {
+                expandNegations();
+              } else {
+                // Show dialog for 3+ points
+                setIsExpandDialogOpen(true);
+              }
+            }
+          }}
         >
-          {parentId === 'statement' ? (
-            <CircleIcon className="size-4" />
-          ) : (
-            <XIcon className="size-4" />
+          {pointData && collapsedNegations > 0 && (
+            <span className="text-center w-full text-sm">
+              {collapsedNegations}
+            </span>
           )}
         </Handle>
-      )}
-      {pointData ? (
-        <>
-          <PointCard
-            onNegate={() => setNegatedPointId(pointId)}
-            amountNegations={pointData.amountNegations}
-            amountSupporters={pointData.amountSupporters}
-            content={pointData.content}
-            createdAt={pointData.createdAt}
-            cred={pointData.cred}
-            favor={pointData.favor}
-            pointId={pointData.pointId}
-            viewerContext={{ viewerCred: pointData.viewerCred }}
-            space={pointData.space ?? undefined}
-            isCommand={pointData.isCommand}
-            className={cn(
-              "bg-muted/40 rounded-sm z-10 max-w-[300px] break-words",
-              isRedundant && "opacity-30 hover:opacity-100"
+        {parentId && (
+          <Handle
+            id={`${id}-outgoing-handle`} type="source"
+            position={Position.Top}
+            className={
+              "pt-1 pb-0.5 px-2 translate-y-[-100%] -translate-x-1/2 size-fit bg-muted text-center border-2 border-b-0 rounded-t-full pointer-events-auto !cursor-pointer"
+            }
+            onClick={handleCollapseClick}
+          >
+            {parentId === 'statement' ? (
+              <CircleIcon className="size-4" />
+            ) : (
+              <XIcon className="size-4" />
             )}
-            originalPosterId={originalPosterId}
-            inGraphNode={true}
-            disablePopover={true}
-          ></PointCard>
-        </>
-      ) : (
-        <div className="w-full flex-grow h-32 bg-muted/40 animate-pulse" />
-      )}
+          </Handle>
+        )}
+        {pointData ? (
+          <>
+            <PointCard
+              onNegate={() => setNegatedPointId(pointId)}
+              amountNegations={pointData.amountNegations}
+              amountSupporters={pointData.amountSupporters}
+              content={pointData.content}
+              createdAt={pointData.createdAt}
+              cred={pointData.cred}
+              favor={pointData.favor}
+              pointId={pointData.pointId}
+              viewerContext={{ viewerCred: pointData.viewerCred }}
+              space={pointData.space ?? undefined}
+              isCommand={pointData.isCommand}
+              className={cn(
+                "bg-muted/40 rounded-sm z-10 max-w-[300px] break-words"
+              )}
+              originalPosterId={originalPosterId}
+              inGraphNode={true}
+              disablePopover={true}
+            ></PointCard>
+          </>
+        ) : (
+          <div className="w-full flex-grow h-32 bg-muted/40 animate-pulse" />
+        )}
+      </div>
+
       <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -671,14 +849,36 @@ export const PointNode = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmCollapse}>
-              Yes, disconnect it
+            <AlertDialogCancel disabled={isCollapsing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmCollapse}
+              disabled={isCollapsing}
+              className="relative"
+            >
+              {isCollapsing ? (
+                <>
+                  <span className="opacity-0">Yes, disconnect it</span>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                  </div>
+                </>
+              ) : (
+                "Yes, disconnect it"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+
+      <ExpandPointDialog
+        open={isExpandDialogOpen}
+        onOpenChange={setIsExpandDialogOpen}
+        points={expandablePoints}
+        onSelectPoint={handleSelectPoint}
+        onClose={() => setIsExpandDialogOpen(false)}
+        parentNodeId={id}
+      />
+    </>
   );
 };
 
@@ -762,6 +962,40 @@ function calculateInitialLayout(
   }
 
   return positions;
+}
+
+function findPathsInGraph(
+  edges: any[],
+  startId: string,
+  endId: string
+): number[][] {
+  const paths: number[][] = [];
+  const visited = new Set<string>();
+
+  function dfs(currentId: string, path: string[]): void {
+    if (currentId === endId) {
+      paths.push([...path.map(id => parseInt(id))]);
+      return;
+    }
+
+    visited.add(currentId);
+
+    const neighbors = edges
+      .filter(edge => edge.source === currentId)
+      .map(edge => edge.target);
+
+    for (const neighbor of neighbors) {
+      if (!visited.has(neighbor)) {
+        dfs(neighbor, [...path, neighbor]);
+      }
+    }
+
+    // eslint-disable-next-line drizzle/enforce-delete-with-where
+    visited.delete(currentId);
+  }
+
+  dfs(startId, [startId]);
+  return paths;
 }
 
 

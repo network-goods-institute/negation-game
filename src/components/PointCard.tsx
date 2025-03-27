@@ -57,8 +57,8 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { ExternalLinkIcon } from "lucide-react";
 import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
-import { usePrefetchPoint } from "@/queries/usePointData";
 import { useQueryClient } from "@tanstack/react-query";
+import { getPointUrl } from "@/lib/getPointUrl";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -166,7 +166,7 @@ export const PointCard = ({
   });
   const prefetchRestakeData = usePrefetchRestakeData();
   const { isVisited, markPointAsRead } = useVisitedPoints();
-  const [visitedPoints, setVisitedPoints] = useAtom(visitedPointsAtom);
+  const [visitedPoints] = useAtom(visitedPointsAtom);
   const router = useRouter();
   const pathname = usePathname();
   const currentSpace = getSpaceFromPathname(pathname);
@@ -309,10 +309,15 @@ export const PointCard = ({
     e.preventDefault();
     e.stopPropagation();
     if (pinnedCommandPointId && router && space && space !== 'global') {
-      const encodedCommandId = encodeId(pinnedCommandPointId);
-      router.push(`/s/${space}/${encodedCommandId}`);
+      router.push(getPointUrl(pinnedCommandPointId, space));
     }
   }, [pinnedCommandPointId, router, space]);
+
+  const handleMarkAsRead = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    markPointAsRead(pointId);
+  }, [markPointAsRead, pointId]);
 
   const renderCardContent = () => (
     <div
@@ -358,7 +363,7 @@ export const PointCard = ({
               <Badge variant="outline" className="ml-2 text-xs">
                 {space && !linkDisabled ? (
                   <Link
-                    href={`/s/${space}/${encodeId(pinnedCommandPointId)}`}
+                    href={getPointUrl(pinnedCommandPointId, space)}
                     onClick={(e) => {
                       e.stopPropagation();
                       if (onPinBadgeClickCapture) {
@@ -474,7 +479,7 @@ export const PointCard = ({
                     className={cn(endorsedByViewer && "fill-current")}
                   />{" "}
                   {endorsedByViewer && viewerContext?.viewerCred && (
-                    <span>{viewerContext.viewerCred} cred</span>
+                    <span className="translate-y-[-1px]">{viewerContext.viewerCred} cred</span>
                   )}
                 </Button>
               </PopoverTrigger>
@@ -517,7 +522,7 @@ export const PointCard = ({
 
             {inRationale && !inGraphNode && (
               <Link
-                href={`/s/${currentSpace || 'global'}/${encodeId(pointId)}`}
+                href={getPointUrl(pointId, currentSpace || 'global')}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
@@ -537,7 +542,7 @@ export const PointCard = ({
                 <Button
                   variant="ghost"
                   className={cn(
-                    "p-1 pb-3 -mb-2 rounded-full size-fit hover:bg-purple-500/30",
+                    "p-2 -mb-2 rounded-full size-fit hover:bg-purple-500/30",
                     showRestakeAmount && "text-endorsed"
                   )}
                   onClick={(e) => {
@@ -548,7 +553,6 @@ export const PointCard = ({
                 >
                   <RestakeIcon
                     className={cn(
-                      "size-5 stroke-1",
                       showRestakeAmount &&
                       restake?.isOwner &&
                       "text-endorsed fill-current"
@@ -557,13 +561,13 @@ export const PointCard = ({
                     percentage={restakePercentage}
                   />
                   {showRestakeAmount && isOverHundred && (
-                    <span className="ml-1 translate-y-[5px]">+</span>
+                    <span className="ml-1 translate-y-[-1px]">+</span>
                   )}
                 </Button>
                 <Button
                   variant="ghost"
                   className={cn(
-                    "p-1 pb-3 -mb-2 rounded-full size-fit hover:bg-amber-500/30",
+                    "p-2 -mb-2 -ml-1 rounded-full size-fit hover:bg-amber-500/30",
                     doubt?.amount !== undefined &&
                     doubt.amount > 0 &&
                     doubt.isUserDoubt &&
@@ -575,10 +579,10 @@ export const PointCard = ({
                     onRestake?.({ openedFromSlashedIcon: true });
                   }}
                 >
-                  <div className="flex items-center translate-y-[5px]">
+                  <div className="flex items-center translate-y-[-0.5px]">
                     <DoubtIcon
                       className={cn(
-                        "size-5 stroke-1",
+                        "size-5",
                         doubt?.amount !== undefined &&
                         doubt.amount > 0 &&
                         doubt.isUserDoubt &&
@@ -593,7 +597,7 @@ export const PointCard = ({
                     {doubt?.amount !== undefined &&
                       doubt.amount > 0 &&
                       doubt.isUserDoubt && (
-                        <span className="ml-1">
+                        <span className="ml-1 translate-y-[-1px]">
                           {doubtPercentage}
                           {doubtPercentage > 100 && "+"}%
                         </span>
@@ -643,16 +647,7 @@ export const PointCard = ({
             Tap to mark seen
           </span>
           <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              markPointAsRead(pointId);
-              setVisitedPoints(prev => {
-                const newSet = new Set(prev);
-                newSet.add(pointId);
-                return newSet;
-              });
-            }}
+            onClick={handleMarkAsRead}
             className="relative size-3 rounded-full flex items-center justify-center"
           >
             <div className="absolute inset-0 bg-endorsed/20 rounded-full scale-0 group-hover:scale-150 transition-transform" />

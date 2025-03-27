@@ -2,6 +2,7 @@ import { Button, ButtonProps } from "@/components/ui/button";
 import { usePrivy } from "@privy-io/react-auth";
 import React, { useState, useCallback } from "react";
 import { handleAuthError } from "@/lib/auth/handleAuthError";
+import { setPrivyToken } from "@/lib/privy/setPrivyToken";
 
 /**
  * A button that handles authentication before performing an action.
@@ -20,11 +21,11 @@ export const AuthenticatedActionButton = ({ onClick, ...props }: ButtonProps) =>
         if (ready && authenticated) {
             try {
                 setIsRefreshing(true);
-                const token = await getAccessToken();
+                const success = await setPrivyToken();
 
-                if (!token) {
+                if (!success) {
                     // Show error toast if user appears to be logged in but no token
-                    handleAuthError(new Error("Empty token returned when user appears authenticated"), "refreshing token");
+                    handleAuthError(new Error("Failed to refresh authentication token"), "refreshing token");
                     login();
                     return;
                 }
@@ -41,7 +42,7 @@ export const AuthenticatedActionButton = ({ onClick, ...props }: ButtonProps) =>
             // Force a login refresh
             login();
         }
-    }, [authenticated, ready, onClick, login, getAccessToken]);
+    }, [authenticated, ready, onClick, login]);
 
     const rightLoading = props.rightLoading || isRefreshing;
 

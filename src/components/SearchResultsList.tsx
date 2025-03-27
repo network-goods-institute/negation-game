@@ -1,7 +1,6 @@
 import { Loader } from "@/components/ui/loader";
 import { SearchResult } from "@/actions/searchContent";
 import { ViewpointCard } from "@/components/ViewpointCard";
-import { encodeId } from "@/lib/encodeId";
 import { useBasePath } from "@/hooks/useBasePath";
 import Link from "next/link";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
@@ -9,6 +8,7 @@ import { useSetAtom } from "jotai";
 import { usePrivy } from "@privy-io/react-auth";
 import { PointCard } from "@/components/PointCard";
 import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
+import { getPointUrl } from "@/lib/getPointUrl";
 
 interface SearchResultsListProps {
     results: SearchResult[];
@@ -82,7 +82,7 @@ export function SearchResultsList({ results, isLoading, query, hasSearched = fal
                         <Link
                             draggable={false}
                             onClick={preventDefaultIfContainsSelection}
-                            href={`${basePath}/${encodeId(Number(result.id))}`}
+                            href={getPointUrl(Number(result.id), pointData.space)}
                             className="flex border-b cursor-pointer hover:bg-accent"
                             key={`point-${result.id}`}
                         >

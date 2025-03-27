@@ -18,7 +18,7 @@ import { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { DialogClose } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { encodeId } from "@/lib/encodeId";
+import { getPointUrl } from "@/lib/getPointUrl";
 
 export interface CounterpointCandidate {
     id: number;
@@ -52,8 +52,6 @@ interface CounterpointReviewProps {
     setGuidanceNotes: (notes: ReactNode | undefined) => void;
     onClose: () => void;
 }
-
-const getPointUrl = (pointId: number) => `${encodeId(pointId)}`;
 
 export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
     reviewResults,

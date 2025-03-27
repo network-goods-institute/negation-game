@@ -73,13 +73,10 @@ export const AddPointNode = ({
       node.type === "point" && typeof node.data?.pointId === "number"
     );
 
-    // Get IDs of points that are visible (not collapsed)
     return new Set(
-      nodes
-        .filter(node => !collapsedPointIds.has(node.data.pointId))
-        .map(node => node.data.pointId)
+      nodes.map(node => node.data.pointId)
     );
-  }, [getNodes, collapsedPointIds]);
+  }, [getNodes]);
 
   const { data: similarPoints, isLoading } = useQuery({
     queryKey: ["similarPoints", debouncedContent] as const,
@@ -88,14 +85,11 @@ export const AddPointNode = ({
 
       const similarPoints = await fetchSimilarPoints({ query });
 
-      // Filter out points that are visible in the graph (not collapsed)
-      const filteredPoints = similarPoints.filter(point => !existingPointIds.has(point.pointId));
-
-      filteredPoints.forEach((point) => {
+      similarPoints.forEach((point) => {
         prefetchPoint(point.pointId);
       });
 
-      return filteredPoints;
+      return similarPoints;
     },
     enabled: debouncedContent.length >= POINT_MIN_LENGTH,
   });
@@ -105,7 +99,7 @@ export const AddPointNode = ({
 
   const prefetchPoint = usePrefetchPoint();
 
-  const filteredSimilarPoints = similarPoints ?? [];
+  const similarPointsToShow = similarPoints ?? [];
 
   return (
     <div
@@ -142,9 +136,10 @@ export const AddPointNode = ({
             className="rounded-md"
             onClick={() => {
               makePoint({ content, cred: credInput }).then((pointId) => {
-                const newId = nanoid();
+                // Generate a guaranteed unique ID by combining nanoid with timestamp
+                const uniqueId = `${nanoid()}-${Date.now()}`;
                 addNodes({
-                  id: newId,
+                  id: uniqueId,
                   data: { pointId, parentId, content, hasContent: true },
                   type: "point",
                   position: {
@@ -156,7 +151,7 @@ export const AddPointNode = ({
                 const edgeId = nanoid();
                 addEdges({
                   id: edgeId,
-                  source: newId,
+                  source: uniqueId,
                   target: parentNode ? parentNode.id : parentId,
                   type: "negation",
                 });
@@ -174,10 +169,10 @@ export const AddPointNode = ({
           </AuthenticatedActionButton>
         </div>
         {isLoading && <Loader className="m-2" />}
-        {filteredSimilarPoints.length > 0 && (
+        {similarPointsToShow.length > 0 && (
           <Dialog>
             <DialogTrigger asChild>
-              <Button size={"icon"}>{filteredSimilarPoints.length}</Button>
+              <Button size={"icon"}>{similarPointsToShow.length}</Button>
             </DialogTrigger>
             <DialogContent className="w-96 p-2  bg-muted rounded-md overflow-clip">
               <DialogTitle className="text-center mt-2">
@@ -197,27 +192,11 @@ export const AddPointNode = ({
               </DialogClose>
               <div className="overflow-y-auto max-h-96 shadow-inner rounded-md">
                 <div className="flex flex-col gap-2 z-10">
-                  {filteredSimilarPoints.map((point: SimilarPointsResult) => (
+                  {similarPointsToShow.map((point: SimilarPointsResult, index: number) => (
                     <div
-                      key={point.pointId}
+                      key={`similar-point-${point.pointId}-${index}`}
                       className="flex flex-col gap-2 p-4  hover:border-muted-foreground  w-full bg-background cursor-pointer border rounded-md"
                       onClick={() => {
-                        // First find and remove any existing instances of this point
-                        const existingNodes = getNodes().filter((node): node is Node<{ pointId: number }> =>
-                          node.type === "point" && node.data.pointId === point.pointId
-                        );
-                        const existingEdges = getEdges().filter(edge =>
-                          existingNodes.some(node => node.id === edge.source || node.id === edge.target)
-                        );
-
-                        if (existingNodes.length > 0) {
-                          // Remove existing nodes and their edges
-                          deleteElements({
-                            nodes: existingNodes.map(n => ({ id: n.id })),
-                            edges: existingEdges.map(e => ({ id: e.id }))
-                          });
-                        }
-
                         // Remove from collapsed set if it was there
                         setCollapsedPointIds(prev => {
                           const newSet = new Set(prev);
@@ -226,10 +205,12 @@ export const AddPointNode = ({
                           return newSet;
                         });
 
+                        // Generate a guaranteed unique ID by combining nanoid with timestamp
+                        const uniqueId = `${nanoid()}-${Date.now()}`;
+
                         // Add the point in its new position
-                        const newId = nanoid();
                         addNodes({
-                          id: newId,
+                          id: uniqueId,
                           data: { pointId: point.pointId, parentId, content: point.content, hasContent: true },
                           type: "point",
                           position: {
@@ -240,7 +221,7 @@ export const AddPointNode = ({
 
                         addEdges({
                           id: nanoid(),
-                          source: newId,
+                          source: uniqueId,
                           target: parentId,
                           type: "negation",
                         });

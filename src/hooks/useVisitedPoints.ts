@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { usePrivy } from "@privy-io/react-auth";
+import { useSetAtom } from "jotai";
+import { visitedPointsAtom } from "@/atoms/visitedPointsAtom";
 
 const DB_NAME = "appStorage";
 const STORE_NAME = "visitedPoints";
@@ -123,9 +125,32 @@ async function bulkReadPoints(
   });
 }
 
+async function getAllVisitedPoints(): Promise<Set<number>> {
+  if (!dbPromise) return new Set();
+
+  const db = await dbPromise;
+  if (!db) return new Set();
+
+  return new Promise((resolve) => {
+    const results = new Set<number>();
+    const transaction = db.transaction(STORE_NAME, "readonly");
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.getAll();
+
+    request.onsuccess = () => {
+      request.result.forEach((record: { pointId: number }) => {
+        results.add(record.pointId);
+      });
+      resolve(results);
+    };
+    request.onerror = () => resolve(new Set());
+  });
+}
+
 export function useVisitedPoints() {
   const [isDbReady, setIsDbReady] = useState(false);
   const { user } = usePrivy();
+  const setVisitedPoints = useSetAtom(visitedPointsAtom);
 
   useEffect(() => {
     if (
@@ -136,25 +161,37 @@ export function useVisitedPoints() {
     }
 
     initializeDb()
-      .then((db) => {
-        if (db) setIsDbReady(true);
+      .then(async (db) => {
+        if (db) {
+          setIsDbReady(true);
+          // Initialize atom with all visited points from IndexedDB
+          const allVisited = await getAllVisitedPoints();
+          setVisitedPoints(allVisited);
+        }
       })
       .catch(console.error);
-  }, []);
+  }, [setVisitedPoints]);
 
   const markPointAsRead = useCallback(
     (pointId: number) => {
       if (!isDbReady || !user) return;
 
-      // Batch writes
+      // Batch writes to IndexedDB
       writeQueue.set(pointId, Date.now());
       if (writeTimeout) clearTimeout(writeTimeout);
       writeTimeout = setTimeout(bulkWritePoints, BATCH_DEBOUNCE);
 
-      // Optimistic UI update
+      // Update memory cache
       memoryCache.entries.set(pointId, true);
+
+      // Update atom state
+      setVisitedPoints((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(pointId);
+        return newSet;
+      });
     },
-    [isDbReady, user]
+    [isDbReady, user, setVisitedPoints]
   );
 
   const arePointsVisited = useCallback(

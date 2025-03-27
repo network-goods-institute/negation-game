@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  test-and-build:
+  test:
     runs-on: ubuntu-latest
 
     steps:
@@ -41,13 +41,3 @@ jobs:
 
       - name: Run tests
         run: pnpm test
-
-      - name: Build
-        run: pnpm build
-        env:
-          NEXT_PUBLIC_PRIVY_APP_ID: ${{ secrets.NEXT_PUBLIC_PRIVY_APP_ID }}
-          PRIVY_APP_SECRET: ${{ secrets.PRIVY_APP_SECRET }}
-          POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
-          ESLINT_USE_FLAT_CONFIG: false

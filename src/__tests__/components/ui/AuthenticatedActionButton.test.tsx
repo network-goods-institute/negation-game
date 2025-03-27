@@ -3,6 +3,8 @@ import { render, screen, fireEvent, waitFor } from '../../utils/test-utils';
 import { AuthenticatedActionButton } from '@/components/ui/AuthenticatedActionButton';
 import { usePrivy } from '@privy-io/react-auth';
 import { handleAuthError } from '@/lib/auth/handleAuthError';
+import { setPrivyToken } from '@/lib/privy/setPrivyToken';
+
 
 // Mock the usePrivy hook
 jest.mock('@privy-io/react-auth', () => ({
@@ -14,11 +16,16 @@ jest.mock('@/lib/auth/handleAuthError', () => ({
     handleAuthError: jest.fn(),
 }));
 
+// Mock the setPrivyToken function
+jest.mock('@/lib/privy/setPrivyToken', () => ({
+    setPrivyToken: jest.fn(),
+}));
+
 describe('AuthenticatedActionButton', () => {
     // Set up default mock values for usePrivy
     const mockLogin = jest.fn();
-    const mockGetAccessToken = jest.fn();
     const mockHandleAuthError = handleAuthError as jest.Mock;
+    const mockSetPrivyToken = setPrivyToken as jest.Mock;
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -29,8 +36,10 @@ describe('AuthenticatedActionButton', () => {
             authenticated: false,
             user: null,
             login: mockLogin,
-            getAccessToken: mockGetAccessToken,
         }));
+
+        // Default mock implementation for setPrivyToken
+        mockSetPrivyToken.mockResolvedValue(true);
     });
 
     it('renders correctly with default props', () => {
@@ -45,7 +54,6 @@ describe('AuthenticatedActionButton', () => {
             authenticated: false,
             user: null,
             login: mockLogin,
-            getAccessToken: mockGetAccessToken,
         }));
 
         render(<AuthenticatedActionButton>Login</AuthenticatedActionButton>);
@@ -53,19 +61,18 @@ describe('AuthenticatedActionButton', () => {
         fireEvent.click(screen.getByRole('button'));
 
         expect(mockLogin).toHaveBeenCalledTimes(1);
-        expect(mockGetAccessToken).not.toHaveBeenCalled();
+        expect(mockSetPrivyToken).not.toHaveBeenCalled();
     });
 
     it('refreshes token and calls onClick when user is authenticated', async () => {
         const mockOnClick = jest.fn();
-        mockGetAccessToken.mockResolvedValue('valid-token');
+        mockSetPrivyToken.mockResolvedValue(true);
 
         (usePrivy as jest.Mock).mockImplementation(() => ({
             ready: true,
             authenticated: true,
             user: { id: 'test-user' },
             login: mockLogin,
-            getAccessToken: mockGetAccessToken,
         }));
 
         render(<AuthenticatedActionButton onClick={mockOnClick}>Click Me</AuthenticatedActionButton>);
@@ -74,7 +81,7 @@ describe('AuthenticatedActionButton', () => {
 
         // Wait for the async operations to complete
         await waitFor(() => {
-            expect(mockGetAccessToken).toHaveBeenCalledTimes(1);
+            expect(mockSetPrivyToken).toHaveBeenCalledTimes(1);
             expect(mockOnClick).toHaveBeenCalledTimes(1);
             expect(mockLogin).not.toHaveBeenCalled();
         });
@@ -82,45 +89,44 @@ describe('AuthenticatedActionButton', () => {
 
     it('shows loading state during token refresh', async () => {
         // Create a promise that won't resolve immediately to simulate loading
-        let resolveToken: (value: string) => void;
-        const tokenPromise = new Promise<string>((resolve) => {
+        let resolveToken: (value: boolean) => void;
+        const tokenPromise = new Promise<boolean>((resolve) => {
             resolveToken = resolve;
         });
-        mockGetAccessToken.mockReturnValue(tokenPromise);
+        mockSetPrivyToken.mockReturnValue(tokenPromise);
 
         (usePrivy as jest.Mock).mockImplementation(() => ({
             ready: true,
             authenticated: true,
             user: { id: 'test-user' },
             login: mockLogin,
-            getAccessToken: mockGetAccessToken,
         }));
 
         render(<AuthenticatedActionButton>Loading Test</AuthenticatedActionButton>);
 
         fireEvent.click(screen.getByRole('button'));
 
-        // Check that loader is displayed
-        expect(screen.getByTestId('loader')).toBeInTheDocument();
+        // Check that the loading spinner is displayed
+        const loadingSpinner = screen.getByTestId('loader');
+        expect(loadingSpinner).toBeInTheDocument();
 
         // Resolve the token promise
-        resolveToken!('valid-token');
+        resolveToken!(true);
 
-        // Verify loader is hidden after promise resolves
+        // Verify loading spinner is removed after promise resolves
         await waitFor(() => {
             expect(screen.queryByTestId('loader')).not.toBeInTheDocument();
         });
     });
 
     it('calls login if token refresh fails', async () => {
-        mockGetAccessToken.mockRejectedValue(new Error('Token refresh failed'));
+        mockSetPrivyToken.mockResolvedValue(false);
 
         (usePrivy as jest.Mock).mockImplementation(() => ({
             ready: true,
             authenticated: true,
             user: { id: 'test-user' },
             login: mockLogin,
-            getAccessToken: mockGetAccessToken,
         }));
 
         render(<AuthenticatedActionButton>Error Test</AuthenticatedActionButton>);
@@ -128,29 +134,28 @@ describe('AuthenticatedActionButton', () => {
         fireEvent.click(screen.getByRole('button'));
 
         await waitFor(() => {
-            expect(mockGetAccessToken).toHaveBeenCalledTimes(1);
+            expect(mockSetPrivyToken).toHaveBeenCalledTimes(1);
             expect(mockHandleAuthError).toHaveBeenCalledTimes(1);
             expect(mockLogin).toHaveBeenCalledTimes(1);
         });
     });
 
-    it('calls login if token is null or empty', async () => {
-        mockGetAccessToken.mockResolvedValue('');
+    it('calls login if token refresh throws an error', async () => {
+        mockSetPrivyToken.mockRejectedValue(new Error('Token refresh failed'));
 
         (usePrivy as jest.Mock).mockImplementation(() => ({
             ready: true,
             authenticated: true,
             user: { id: 'test-user' },
             login: mockLogin,
-            getAccessToken: mockGetAccessToken,
         }));
 
-        render(<AuthenticatedActionButton>Empty Token Test</AuthenticatedActionButton>);
+        render(<AuthenticatedActionButton>Error Test</AuthenticatedActionButton>);
 
         fireEvent.click(screen.getByRole('button'));
 
         await waitFor(() => {
-            expect(mockGetAccessToken).toHaveBeenCalledTimes(1);
+            expect(mockSetPrivyToken).toHaveBeenCalledTimes(1);
             expect(mockHandleAuthError).toHaveBeenCalledTimes(1);
             expect(mockLogin).toHaveBeenCalledTimes(1);
         });

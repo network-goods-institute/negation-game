@@ -44,7 +44,7 @@ import {
   useReactFlow,
 } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
-import { NetworkIcon } from "lucide-react";
+import { NetworkIcon, ArrowLeftIcon } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -68,6 +68,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useFavorHistory } from "@/queries/useFavorHistory";
+import { getBackButtonHandler } from "@/utils/backButtonUtils";
+import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 
 function PointCardWrapper({
   point,
@@ -80,17 +82,12 @@ function PointCardWrapper({
   const pointData = pointDataQuery.data;
   const { originalPosterId } = useOriginalPoster();
   const setNegatedPointId = useSetAtom(negatedPointIdAtom);
-  const [collapsedPointIds] = useAtom(collapsedPointIdsAtom);
   const [hoveredPointId] = useAtom(hoveredPointIdAtom);
 
   const { data: favorHistory } = useFavorHistory({
     pointId: point.pointId,
     timelineScale: "1W"
   });
-
-  if (collapsedPointIds.has(point.pointId)) {
-    return null;
-  }
 
   if (!pointData)
     return (
@@ -123,12 +120,19 @@ function PointCardWrapper({
 function ViewpointContent() {
   const { updateNodeData } = useReactFlow();
   const { data: user } = useUser();
-  const { push } = useRouter();
+  const router = useRouter();
+  const { push } = router;
   const basePath = useBasePath();
   const pathname = usePathname();
+  const { markPointAsRead } = useVisitedPoints();
   const [isCopiedFromSessionStorage, setIsCopiedFromSessionStorage] = useState(false);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [isInitialLoadDialogOpen, setIsInitialLoadDialogOpen] = useState(false);
+  const [hasCheckedInitialLoad, setHasCheckedInitialLoad] = useState(false);
+  const [isReactFlowReady, setIsReactFlowReady] = useState(false);
+  const [isDiscardingWithoutNav, setIsDiscardingWithoutNav] = useState(false);
+  const [isCopyOperation, setIsCopyOperation] = useState(false);
 
   const spaceQuery = useSpace();
   const space = spaceQuery;
@@ -187,65 +191,65 @@ function ViewpointContent() {
   }, []);
 
   useEffect(() => {
-    if (pathname !== `${basePath}/viewpoint/new`) {
+    if (!isReactFlowReady || !reactFlow) {
       return;
     }
 
-    if (!isCopiedFromSessionStorage && localStorage.getItem("justPublished") === "true") {
+    if (pathname !== `${basePath}/rationale/new`) {
+      return;
+    }
+
+    const justPublished = localStorage.getItem("justPublished");
+
+
+    if (!isCopiedFromSessionStorage && justPublished === "true") {
       localStorage.removeItem("justPublished");
       setReasoning("");
       setStatement("");
       setGraph(initialViewpointGraph);
+
+      // Update ReactFlow directly
+      reactFlow.setNodes(initialViewpointGraph.nodes);
+      reactFlow.setEdges(initialViewpointGraph.edges);
+
+      // Skip the initial load check since we just cleaned up
+      setHasCheckedInitialLoad(true);
+      return;
     }
-  }, [pathname, setReasoning, setStatement, setGraph, basePath, isCopiedFromSessionStorage]);
 
-  useEffect(() => {
-    // Get the current space
-    const pathname = window.location.pathname;
-    const currentSpace = getSpaceFromPathname(pathname) || 'default';
+    // Only run initial load check if we haven't checked and aren't in a special state
+    if (!hasCheckedInitialLoad && !isCopiedFromSessionStorage && !isCopyOperation) {
 
-    // Check if we have copied data in sessionStorage for this space
-    const storageKey = `copyingViewpoint:${currentSpace}`;
-    const viewpointDataStr = sessionStorage.getItem(storageKey);
+      const currentNodes = reactFlow.getNodes();
 
-    if (viewpointDataStr) {
-      try {
-        const viewpointData = JSON.parse(viewpointDataStr);
+      const hasRealPointNodes = currentNodes.some(node => {
+        const isRealPoint = node.type === "point" && 'pointId' in node.data;
+        return isRealPoint;
+      });
 
-        // Generate a new graph with unique IDs to prevent duplicate keys
-        const regeneratedGraph = regenerateGraphIds(viewpointData.graph);
 
-        // Set the graph, title, and description
-        setGraph(regeneratedGraph);
-        setStatement(viewpointData.title);
-        setReasoning(viewpointData.description);
-
-        // Remove the data from sessionStorage to prevent reloading it
-        sessionStorage.removeItem(storageKey);
-
-        // Mark that we've loaded from sessionStorage
-        setIsCopiedFromSessionStorage(true);
-
-        // Update the reactFlow nodes and edges if reactFlow is available
-        if (reactFlow) {
-          const nodeIds = regeneratedGraph.nodes.map(n => n.id);
-          const hasDuplicates = new Set(nodeIds).size !== nodeIds.length;
-          if (hasDuplicates) {
-            const idCounts: Record<string, number> = {};
-            nodeIds.forEach(id => {
-              idCounts[id] = (idCounts[id] || 0) + 1;
-            });
-
-          }
-
-          reactFlow.setNodes(regeneratedGraph.nodes);
-          reactFlow.setEdges(regeneratedGraph.edges);
-        }
-      } catch (error) {
-        console.error("Error loading copied rationale:", error);
+      if (hasRealPointNodes) {
+        console.log("Opening initial load dialog");
+        setIsInitialLoadDialogOpen(true);
       }
     }
-  }, [setGraph, setStatement, setReasoning, reactFlow]);
+
+    // Mark as checked
+    setHasCheckedInitialLoad(true);
+
+  }, [
+    pathname,
+    basePath,
+    setReasoning,
+    setStatement,
+    setGraph,
+    reactFlow,
+    isReactFlowReady,
+    isCopiedFromSessionStorage,
+    hasCheckedInitialLoad,
+    isCopyOperation,
+    setHasCheckedInitialLoad
+  ]);
 
   useEffect(() => {
     const hasStatement = graph?.nodes?.some(n => n.type === "statement");
@@ -288,11 +292,56 @@ function ViewpointContent() {
     setIsConfirmDialogOpen(true);
   }, []);
 
+  const handleDiscardWithoutNavigation = useCallback(() => {
+    setIsDiscardingWithoutNav(true);
+    startTransition(() => {
+      try {
+        setReasoning("");
+        setStatement("");
+        setGraph(initialViewpointGraph);
+        setCollapsedPointIds(new Set());
+
+        if (reactFlow) {
+          reactFlow.setNodes(initialViewpointGraph.nodes);
+          reactFlow.setEdges(initialViewpointGraph.edges);
+        }
+
+        // Clear any session storage data
+        if (currentSpace) {
+          const storageKey = `copyingViewpoint:${currentSpace}`;
+          sessionStorage.removeItem(storageKey);
+        }
+
+        setIsInitialLoadDialogOpen(false);
+      } finally {
+        setIsDiscardingWithoutNav(false);
+      }
+    });
+  }, [setReasoning, setStatement, setGraph, reactFlow, setCollapsedPointIds, currentSpace]);
+
+  const handleBackClick = getBackButtonHandler(router);
+
   return (
     <main className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
       <div className="w-full sm:col-[2] flex flex-col border-x">
         <div className="relative flex-grow bg-background">
-          <div className="sticky top-0 z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
+          <div className="sticky top-0 z-10 w-full flex items-center justify-between px-4 py-2 bg-background/70 backdrop-blur">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1.5 px-2 rounded-md -ml-1"
+                onClick={handleBackClick}
+              >
+                <ArrowLeftIcon className="size-4" />
+                <span className="text-sm">Back</span>
+              </Button>
+              <h1 className="text-sm font-bold ml-2">New Rationale</h1>
+            </div>
+          </div>
+          <Separator />
+
+          <div className="sticky top-[calc(2.5rem+1px)] z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
             {space?.data && space.data.id !== DEFAULT_SPACE ? (
               <div className="flex items-center gap-2">
                 <Avatar className="border-4 border-background size-8">
@@ -313,8 +362,6 @@ function ViewpointContent() {
             ) : (
               <div />
             )}
-
-            <h1 className="text-sm font-bold">New Rationale</h1>
 
             <div className="flex gap-sm items-center text-muted-foreground">
               <Button
@@ -406,17 +453,17 @@ function ViewpointContent() {
                   Points
                 </span>
                 <Dynamic>
-                  {points.map((point) => {
+                  {points.map((point, index) => {
                     const pointNode = reactFlow.getNodes().find(
                       (n) => n.type === "point" && n.data?.pointId === point.pointId
                     );
                     return (
                       <div
-                        key={`${point.pointId}-card-wrapper`}
+                        key={`${point.pointId}-card-wrapper-${index}`}
                         className="relative"
                       >
                         <PointCardWrapper
-                          key={`${point.pointId}-card`}
+                          key={`${point.pointId}-card-${index}`}
                           point={point}
                           className={cn(
                             "border-b",
@@ -438,9 +485,11 @@ function ViewpointContent() {
         <GraphView
           key={`graph-${graphRevision}`}
           isNew={true}
-          onInit={(reactFlow) => {
-            reactFlow.setNodes(graph.nodes);
-            reactFlow.setEdges(graph.edges);
+          onInit={(instance) => {
+            // Set reactFlow as ready after initialization
+            setIsReactFlowReady(true);
+            instance.setNodes(graph.nodes);
+            instance.setEdges(graph.edges);
           }}
           defaultNodes={graph.nodes}
           defaultEdges={graph.edges}
@@ -499,6 +548,41 @@ function ViewpointContent() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={clearGraph} disabled={isPending}>
               {isPending ? "Abandoning..." : "Yes, abandon it"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isInitialLoadDialogOpen} onOpenChange={setIsInitialLoadDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Existing Draft Found</AlertDialogTitle>
+            <AlertDialogDescription>
+              Would you like to keep working on your existing draft or start fresh?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => setIsInitialLoadDialogOpen(false)}
+              disabled={isDiscardingWithoutNav}
+            >
+              Keep Draft
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDiscardWithoutNavigation}
+              disabled={isDiscardingWithoutNav}
+              className="relative"
+            >
+              {isDiscardingWithoutNav ? (
+                <>
+                  <span className="opacity-0">Start Fresh</span>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                  </div>
+                </>
+              ) : (
+                "Start Fresh"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

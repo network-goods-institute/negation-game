@@ -79,6 +79,7 @@ import { usePrefetchRestakeData } from "@/hooks/usePrefetchRestakeData";
 import { visitedPointsAtom } from "@/atoms/visitedPointsAtom";
 import { DeletePointDialog } from "@/components/DeletePointDialog";
 import { isWithinDeletionTimelock } from "@/lib/deleteTimelock";
+import { getPointUrl } from "@/lib/getPointUrl";
 
 type Point = {
     id: number;
@@ -721,70 +722,47 @@ export function PointPageClient({
                                 {/* Show different badges based on pin status */}
                                 {isPinned && isInSpecificSpace && spaceData.data?.id !== 'global' && point?.pinnedByCommandId && (
                                     <Badge variant="outline" className="text-xs shrink-0">
-                                        {spaceData.data?.id ? (
-                                            <Link
-                                                href={`/s/${spaceData.data.id}/${encodeId(point.pinnedByCommandId)}`}
-                                                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                                                    e.stopPropagation();
-                                                    e.preventDefault();
-                                                }}
-                                                className="inline-block w-full h-full"
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                            >
-                                                <Button
-                                                    type="button"
-                                                    variant="link"
-                                                    className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
-                                                    onClick={handleCommandPointClick}
-                                                >
-                                                    Pinned by command
-                                                </Button>
-                                            </Link>
-                                        ) : (
+                                        <Link
+                                            href={getPointUrl(point.pinnedByCommandId, spaceData.data?.id || 'global')}
+                                            onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                                                e.stopPropagation();
+                                            }}
+                                            className="inline-block w-full h-full"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
                                             <Button
                                                 type="button"
                                                 variant="link"
-                                                className="h-auto p-0 text-muted-foreground hover:text-foreground"
+                                                className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
                                                 onClick={handleCommandPointClick}
                                             >
                                                 Pinned by command
                                             </Button>
-                                        )}
+                                        </Link>
                                     </Badge>
                                 )}
                                 {parsePinCommand && !isPinned && isInSpecificSpace && spaceData.data?.id !== 'global' && (
                                     <Badge variant="outline" className="text-xs shrink-0">
-                                        {spaceData.data?.id ? (
-                                            <Link
-                                                href={`/s/${spaceData.data.id}/${parsePinCommand}`}
-                                                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                                                    e.stopPropagation();
-                                                    e.preventDefault();
-                                                }}
-                                                className="inline-block w-full h-full"
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                            >
-                                                <Button
-                                                    type="button"
-                                                    variant="link"
-                                                    className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
-                                                    onClick={handleTargetPointClick}
-                                                >
-                                                    Proposal to pin
-                                                </Button>
-                                            </Link>
-                                        ) : (
+                                        <Link
+                                            href={getPointUrl(parsePinCommand, spaceData?.data?.id || 'global')}
+                                            onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                                                e.stopPropagation();
+                                                e.preventDefault();
+                                            }}
+                                            className="inline-block w-full h-full"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
                                             <Button
                                                 type="button"
                                                 variant="link"
-                                                className="h-auto p-0 text-muted-foreground hover:text-foreground"
+                                                className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
                                                 onClick={handleTargetPointClick}
                                             >
                                                 Proposal to pin
                                             </Button>
-                                        )}
+                                        </Link>
                                     </Badge>
                                 )}
                             </div>
