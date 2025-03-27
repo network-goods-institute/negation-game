@@ -6,6 +6,7 @@ import {
   viewpointReasoningAtom,
   viewpointStatementAtom,
   collapsedPointIdsAtom,
+  clearViewpointState,
 } from "@/atoms/viewpointAtoms";
 import { useEffect, useMemo, useState, useCallback, useTransition, useRef } from "react";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
@@ -148,12 +149,42 @@ function ViewpointContent() {
   const [_, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
 
   useEffect(() => {
+
+    // If we've already loaded copy data, skip this effect
     if (hasLoadedCopyData.current) {
+      console.log("Already loaded copy data, skipping effect");
       return;
     }
 
-    // Always check for copy data first, regardless of other conditions
+    // Check for the justPublished flag first - if it's set, we're coming
+    // from a publish or save operation and should NOT show the draft dialog
+    const wasJustPublished = localStorage.getItem("justPublished") === "true";
+    if (wasJustPublished) {
+      console.log("Just published flag detected, clearing and skipping draft detection");
+
+      // Clear localStorage flag
+      localStorage.removeItem("justPublished");
+
+      // Reset all state to ensure a clean slate using atoms
+      setStatement("");
+      setReasoning("");
+      setGraph(initialViewpointGraph);
+      setCollapsedPointIds(new Set());
+
+      // Reset ReactFlow nodes and edges directly if available
+      if (reactFlow) {
+        reactFlow.setNodes(initialViewpointGraph.nodes);
+        reactFlow.setEdges(initialViewpointGraph.edges);
+      }
+
+      // Skip draft detection
+      setHasCheckedInitialLoad(true);
+      return;
+    }
+
+    // IMPORTANT: Always treat missing currentSpace as 'global'
     const effectiveSpace = currentSpace || 'global';
+
     const storageKey = `copyingViewpoint:${effectiveSpace}`;
     const copyData = sessionStorage.getItem(storageKey);
 
@@ -162,80 +193,83 @@ function ViewpointContent() {
         const parsedData = JSON.parse(copyData);
 
         if (parsedData && typeof parsedData === 'object' && parsedData.isCopyOperation === true) {
+          console.log("Found copy operation data, loading it");
           setIsCopyOperation(true);
           setIsCopiedFromSessionStorage(true);
           setHasCheckedInitialLoad(true);
 
-          // Load the copied data into the graph and other states
+          // Load the copied data using ONLY atom setters (single source of truth)
           if (parsedData.graph) {
-            // First, set the internal atom state
+            // Set graph using atom
             setGraph(parsedData.graph);
 
             // Mark that we've loaded the data to prevent reloading
             hasLoadedCopyData.current = true;
-
-            // Then, if ReactFlow is ready, set its nodes and edges
-            if (reactFlow) {
-
-              // IMPORTANT: Use a longer delay to ensure all initialization is complete
-              setTimeout(() => {
-                // Guard against component unmounting
-                if (!reactFlow) return;
-
-                try {
-                  // First, clear any existing nodes and edges
-                  reactFlow.setNodes([]);
-                  reactFlow.setEdges([]);
-
-                  // Force a layout update between clearing and setting
-                  setTimeout(() => {
-                    // Guard against component unmounting
-                    if (!reactFlow) return;
-
-                    try {
-                      // Set nodes all at once
-                      reactFlow.setNodes(parsedData.graph.nodes);
-
-                      setTimeout(() => {
-                        // Guard against component unmounting
-                        if (!reactFlow) return;
-
-                        try {
-                          reactFlow.setEdges(parsedData.graph.edges);
-
-                          // Force a graph revision update to trigger a remount of the graph component
-                          setGraphRevision(prev => prev + 1);
-
-                          // Also update the statement node
-                          updateNodeData("statement", {
-                            statement: parsedData.title || PLACEHOLDER_STATEMENT,
-                            _lastUpdated: Date.now()
-                          });
-                        } catch (edgeError) {
-                          console.error("Error setting edges:", edgeError);
-                        }
-                      }, 100);
-                    } catch (nodeError) {
-                      console.error("Error setting nodes:", nodeError);
-                    }
-                  }, 100);
-                } catch (clearError) {
-                  console.error("Error clearing nodes/edges:", clearError);
-                }
-              }, 300);
-            } else {
-              console.warn("ReactFlow not ready when trying to set nodes/edges");
-            }
           }
 
+          // Set statement and reasoning using atoms
           if (parsedData.title) {
             setStatement(parsedData.title);
           }
+
           if (parsedData.description) {
             setReasoning(parsedData.description);
           }
-          sessionStorage.removeItem(storageKey);
 
+          // Then, if ReactFlow is ready, set its nodes and edges
+          if (reactFlow) {
+            // IMPORTANT: Use a longer delay to ensure all initialization is complete
+            setTimeout(() => {
+              // Guard against component unmounting
+              if (!reactFlow) return;
+
+              try {
+                // First, clear any existing nodes and edges
+                reactFlow.setNodes([]);
+                reactFlow.setEdges([]);
+
+                // Force a layout update between clearing and setting
+                setTimeout(() => {
+                  // Guard against component unmounting
+                  if (!reactFlow) return;
+
+                  try {
+                    // Set nodes all at once
+                    reactFlow.setNodes(parsedData.graph.nodes);
+
+                    setTimeout(() => {
+                      // Guard against component unmounting
+                      if (!reactFlow) return;
+
+                      try {
+                        reactFlow.setEdges(parsedData.graph.edges);
+
+                        // Force a graph revision update to trigger a remount of the graph component
+                        setGraphRevision(prev => prev + 1);
+
+                        // Also update the statement node
+                        updateNodeData("statement", {
+                          statement: parsedData.title || PLACEHOLDER_STATEMENT,
+                          _lastUpdated: Date.now()
+                        });
+                      } catch (edgeError) {
+                        console.error("Error setting edges:", edgeError);
+                      }
+                    }, 100);
+                  } catch (nodeError) {
+                    console.error("Error setting nodes:", nodeError);
+                  }
+                }, 100);
+              } catch (clearError) {
+                console.error("Error clearing nodes/edges:", clearError);
+              }
+            }, 300);
+          } else {
+            console.warn("ReactFlow not ready when trying to set nodes/edges");
+          }
+
+          // Clear the session storage data after loading
+          sessionStorage.removeItem(storageKey);
           return; // Exit early - we're in a copy operation
         }
       } catch (e) {
@@ -243,8 +277,8 @@ function ViewpointContent() {
       }
     }
 
-    // Only proceed with other checks if we have all required conditions
-    if (!isReactFlowReady || !reactFlow || !currentSpace) {
+    // Only proceed with other checks if ReactFlow is ready
+    if (!isReactFlowReady || !reactFlow) {
       return;
     }
 
@@ -253,15 +287,24 @@ function ViewpointContent() {
     if (!hasCheckedInitialLoad) {
       const currentNodes = reactFlow.getNodes();
 
+      // Consider draft exists if:
+      // 1. We have a non-empty statement in atom, OR
+      // 2. We have graph edges in atom, OR
+      // 3. We have point nodes in the ReactFlow instance
+      const hasStatement = statement.trim().length > 0;
+      const hasEdges = graph.edges.length > 0;
       const hasRealPointNodes = currentNodes.some(node => {
         const isRealPoint = node.type === "point" && 'pointId' in node.data;
         return isRealPoint;
       });
 
-      if (hasRealPointNodes) {
+      const hasDraft = hasStatement || hasEdges || hasRealPointNodes;
+
+      if (hasDraft) {
         setIsInitialLoadDialogOpen(true);
       }
     }
+
 
     setHasCheckedInitialLoad(true);
 
@@ -285,7 +328,10 @@ function ViewpointContent() {
     setStatement,
     setReasoning,
     setGraphRevision,
-    updateNodeData
+    updateNodeData,
+    statement,
+    reasoning,
+    graph
   ]);
 
   // Use a dedicated effect to ensure the copy state gets properly reset when leaving the page
@@ -298,10 +344,10 @@ function ViewpointContent() {
       setIsCopiedFromSessionStorage(false);
 
       // Also clean session storage to ensure a fresh state on return
-      if (currentSpace) {
-        const storageKey = `copyingViewpoint:${currentSpace}`;
-        sessionStorage.removeItem(storageKey);
-      }
+      // Always treat missing currentSpace as 'global'
+      const effectiveSpace = currentSpace || 'global';
+      const storageKey = `copyingViewpoint:${effectiveSpace}`;
+      sessionStorage.removeItem(storageKey);
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -377,11 +423,13 @@ function ViewpointContent() {
 
   const clearGraph = useCallback(() => {
     startTransition(() => {
+      // Set all atoms back to their defaults
       setReasoning("");
       setStatement("");
       setGraph(initialViewpointGraph);
       setCollapsedPointIds(new Set());
 
+      // Also reset ReactFlow directly if available
       if (reactFlow) {
         reactFlow.setNodes(initialViewpointGraph.nodes);
         reactFlow.setEdges(initialViewpointGraph.edges);
@@ -389,15 +437,18 @@ function ViewpointContent() {
 
       setIsConfirmDialogOpen(false);
 
-      // Clear any session storage data
-      if (currentSpace) {
-        const storageKey = `copyingViewpoint:${currentSpace}`;
-        sessionStorage.removeItem(storageKey);
-      }
+      // Clear any session storage data - always treat missing currentSpace as 'global'
+      const effectiveSpace = currentSpace || 'global';
+      const storageKey = `copyingViewpoint:${effectiveSpace}`;
+      sessionStorage.removeItem(storageKey);
 
       // Reset copy operation state
       setIsCopyOperation(false);
       setIsCopiedFromSessionStorage(false);
+
+      // Set justPublished flag to indicate published state without 
+      // clearing localStorage directly (atom will handle storage via atomWithStorage)
+      clearViewpointState(false);
 
       // Navigate back to the correct page based on space
       if (currentSpace && currentSpace !== "null" && currentSpace !== "undefined") {
@@ -416,25 +467,30 @@ function ViewpointContent() {
     setIsDiscardingWithoutNav(true);
     startTransition(() => {
       try {
+        // Set all atoms back to their defaults
         setReasoning("");
         setStatement("");
         setGraph(initialViewpointGraph);
         setCollapsedPointIds(new Set());
 
+        // Also reset ReactFlow directly if available
         if (reactFlow) {
           reactFlow.setNodes(initialViewpointGraph.nodes);
           reactFlow.setEdges(initialViewpointGraph.edges);
         }
 
-        // Clear any session storage data
-        if (currentSpace) {
-          const storageKey = `copyingViewpoint:${currentSpace}`;
-          sessionStorage.removeItem(storageKey);
-        }
+        // Clear any session storage data - always treat missing currentSpace as 'global'
+        const effectiveSpace = currentSpace || 'global';
+        const storageKey = `copyingViewpoint:${effectiveSpace}`;
+        sessionStorage.removeItem(storageKey);
 
         // Reset copy operation state
         setIsCopyOperation(false);
         setIsCopiedFromSessionStorage(false);
+
+        // Set justPublished flag to indicate published state without 
+        // clearing localStorage directly (atom will handle storage via atomWithStorage)
+        clearViewpointState(false);
 
         setIsInitialLoadDialogOpen(false);
       } finally {
@@ -518,13 +574,26 @@ function ViewpointContent() {
                       description: reasoning,
                       graph,
                     });
-                    localStorage.setItem("justPublished", "true");
+
+                    clearViewpointState(true);
+                    setStatement("");
+                    setReasoning("");
+                    setGraph(initialViewpointGraph);
+                    setCollapsedPointIds(new Set());
+
+                    if (reactFlow) {
+                      reactFlow.setNodes(initialViewpointGraph.nodes);
+                      reactFlow.setEdges(initialViewpointGraph.edges);
+                    }
+
                     push(`${basePath}/rationale/${id}`);
-                  } catch (error) {
+                    return true;
+                  } catch (error: any) {
                     console.error("Failed to publish rationale:", error);
                     alert(
                       "Failed to publish rationale. See console for details."
                     );
+                    return false;
                   }
                 }}
               >
@@ -639,7 +708,16 @@ function ViewpointContent() {
                 description: reasoning,
                 graph,
               });
-              localStorage.setItem("justPublished", "true");
+              clearViewpointState(true);
+              setStatement("");
+              setReasoning("");
+              setGraph(initialViewpointGraph);
+              setCollapsedPointIds(new Set());
+
+              if (reactFlow) {
+                reactFlow.setNodes(initialViewpointGraph.nodes);
+                reactFlow.setEdges(initialViewpointGraph.edges);
+              }
               push(`${basePath}/rationale/${id}`);
               return true; // Return true to indicate successful save
             } catch (error: any) {

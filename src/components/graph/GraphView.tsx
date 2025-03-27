@@ -415,6 +415,10 @@ export const GraphView = ({
             })
           ]);
 
+          // Set the justPublished flag when we successfully save changes
+          // This prevents draft detection on next visit to the new rationale page
+          localStorage.setItem("justPublished", "true");
+
           // Always update the local graph state to the current filtered state
           if (setLocalGraph) {
             setLocalGraph(filteredGraph);
@@ -434,6 +438,7 @@ export const GraphView = ({
           }
         } else {
           // For non-owners, treat this as a copy operation
+          console.log("Non-owner saving changes, triggering copy operation");
           // Set a longer timeout to ensure we don't get interrupted
           setIsSaving_local(true);
           const copyResult = await handleCopy(filteredGraph);

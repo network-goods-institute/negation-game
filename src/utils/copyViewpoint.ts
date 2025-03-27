@@ -82,11 +82,21 @@ export const regenerateGraphIds = (graph: ViewpointGraph): ViewpointGraph => {
  * @returns The space name or 'global' if not found
  */
 export const getSpaceFromUrl = (): string => {
+  if (typeof window === "undefined") return "global";
+
   const urlParts = window.location.pathname.split("/");
   const spaceIndex = urlParts.indexOf("s") + 1;
-  return spaceIndex > 0 && urlParts[spaceIndex]
-    ? urlParts[spaceIndex]
-    : "global";
+
+  if (
+    spaceIndex <= 0 ||
+    !urlParts[spaceIndex] ||
+    urlParts[spaceIndex] === "null" ||
+    urlParts[spaceIndex] === "undefined"
+  ) {
+    return "global";
+  }
+
+  return urlParts[spaceIndex];
 };
 
 /**
@@ -188,13 +198,11 @@ export const copyViewpointToStorage = (
     // Get the current space
     const space = getSpaceFromUrl();
 
-    // Create the copy data - ensure title doesn't get modified
     const copyData = {
       graph: regeneratedGraph,
-      title: title, // Do not modify the title with "copy"
+      title: title,
       description: description,
-      sourceSpace: space,
-      sourceId: sourceId, // Optional tracking ID
+      sourceId: sourceId,
       isCopyOperation: true,
       copyTimestamp: Date.now(),
     };
@@ -206,15 +214,17 @@ export const copyViewpointToStorage = (
     sessionStorage.setItem(storageKey, JSON.stringify(copyData));
 
     console.log(
-      "Stored copy data in session storage with",
+      "[Copy] Stored copy data in session storage:",
       regeneratedGraph.nodes.length,
-      "nodes and",
+      "nodes,",
       regeneratedGraph.edges.length,
-      "edges"
+      "edges,",
+      "key:",
+      storageKey
     );
     return true;
   } catch (error) {
-    console.error("Error copying viewpoint:", error);
+    console.error("[Copy] Error copying viewpoint:", error);
     return false;
   }
 };
@@ -266,39 +276,22 @@ export const copyViewpointAndNavigate = async (
       }
     }
 
-    // Get the space
+    // Navigate to the new page
     const space = getSpaceFromUrl();
-    console.log(`Navigating to new rationale page in space: ${space}`);
+    // Ensure we have a valid space in the URL
+    const url =
+      space === "global"
+        ? "/s/global/rationale/new"
+        : `/s/${space}/rationale/new`;
+    console.log("Navigating to new rationale page:", url);
 
-    // Add a longer delay to ensure storage is properly set before navigation
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Use window.location for a full page reload
+    // This ensures a clean slate for the new rationale
+    window.location.href = url;
 
-    try {
-      // Check one more time that the data is still in storage before navigating
-      const storageKey = getCopyStorageKey(space);
-      const verifyData = sessionStorage.getItem(storageKey);
-      if (!verifyData) {
-        console.warn(
-          "Copy data missing from storage before navigation, re-saving"
-        );
-        copyViewpointToStorage(graphToCopy, title, description, sourceId);
-      }
-
-      // Use a more reliable navigation approach
-      const newUrl = `/s/${space}/rationale/new`;
-      console.log(`Navigating to: ${newUrl}`);
-
-      // Use window.location.assign instead of href for more reliable navigation
-      window.location.assign(newUrl);
-      return true;
-    } catch (error) {
-      console.error("Error during navigation:", error);
-      // Fallback navigation if there's an error
-      window.location.href = `/s/global/rationale/new`;
-      return false;
-    }
-  } catch (mainError) {
-    console.error("Error in copy operation:", mainError);
+    return true;
+  } catch (error) {
+    console.error("Error in copyViewpointAndNavigate:", error);
     return false;
   }
 };
