@@ -166,7 +166,7 @@ export const PointCard = ({
   });
   const prefetchRestakeData = usePrefetchRestakeData();
   const { isVisited, markPointAsRead } = useVisitedPoints();
-  const [visitedPoints, setVisitedPoints] = useAtom(visitedPointsAtom);
+  const [visitedPoints] = useAtom(visitedPointsAtom);
   const router = useRouter();
   const pathname = usePathname();
   const currentSpace = getSpaceFromPathname(pathname);
@@ -312,6 +312,12 @@ export const PointCard = ({
       router.push(getPointUrl(pinnedCommandPointId, space));
     }
   }, [pinnedCommandPointId, router, space]);
+
+  const handleMarkAsRead = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    markPointAsRead(pointId);
+  }, [markPointAsRead, pointId]);
 
   const renderCardContent = () => (
     <div
@@ -641,16 +647,7 @@ export const PointCard = ({
             Tap to mark seen
           </span>
           <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              markPointAsRead(pointId);
-              setVisitedPoints(prev => {
-                const newSet = new Set(prev);
-                newSet.add(pointId);
-                return newSet;
-              });
-            }}
+            onClick={handleMarkAsRead}
             className="relative size-3 rounded-full flex items-center justify-center"
           >
             <div className="absolute inset-0 bg-endorsed/20 rounded-full scale-0 group-hover:scale-150 transition-transform" />

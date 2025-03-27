@@ -45,6 +45,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ViewpointStatsBar } from "@/components/ViewpointStatsBar";
 import { use } from "react";
 import { getBackButtonHandler } from "@/utils/backButtonUtils";
+import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 
 // Create dynamic ReactMarkdown component
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
@@ -163,6 +164,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
   const [isMobile, setIsMobile] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
   const [isCopyingUrl, setIsCopyingUrl] = useState(false);
+  const { markPointAsRead } = useVisitedPoints();
 
   const [editableTitle, setEditableTitle] = useState("");
   const [editableDescription, setEditableDescription] = useState("");

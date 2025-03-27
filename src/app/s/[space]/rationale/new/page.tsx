@@ -69,6 +69,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useFavorHistory } from "@/queries/useFavorHistory";
 import { getBackButtonHandler } from "@/utils/backButtonUtils";
+import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 
 function PointCardWrapper({
   point,
@@ -123,6 +124,7 @@ function ViewpointContent() {
   const { push } = router;
   const basePath = useBasePath();
   const pathname = usePathname();
+  const { markPointAsRead } = useVisitedPoints();
   const [isCopiedFromSessionStorage, setIsCopiedFromSessionStorage] = useState(false);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
