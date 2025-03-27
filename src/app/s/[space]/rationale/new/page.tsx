@@ -191,83 +191,64 @@ function ViewpointContent() {
   }, []);
 
   useEffect(() => {
-    if (pathname !== `${basePath}/viewpoint/new`) {
+    if (!isReactFlowReady || !reactFlow) {
       return;
     }
 
-    if (!isCopiedFromSessionStorage && localStorage.getItem("justPublished") === "true") {
+    if (pathname !== `${basePath}/rationale/new`) {
+      return;
+    }
+
+    const justPublished = localStorage.getItem("justPublished");
+
+
+    if (!isCopiedFromSessionStorage && justPublished === "true") {
       localStorage.removeItem("justPublished");
       setReasoning("");
       setStatement("");
       setGraph(initialViewpointGraph);
-    }
-  }, [pathname, setReasoning, setStatement, setGraph, basePath, isCopiedFromSessionStorage]);
 
-  useEffect(() => {
-    if (!isReactFlowReady || !reactFlow) return;
+      // Update ReactFlow directly
+      reactFlow.setNodes(initialViewpointGraph.nodes);
+      reactFlow.setEdges(initialViewpointGraph.edges);
 
-    // Get the current space
-    const pathname = window.location.pathname;
-    const currentSpace = getSpaceFromPathname(pathname) || 'default';
-
-    // Check if we have copied data in sessionStorage for this space
-    const storageKey = `copyingViewpoint:${currentSpace}`;
-    const viewpointDataStr = sessionStorage.getItem(storageKey);
-
-    if (viewpointDataStr) {
-      try {
-        const viewpointData = JSON.parse(viewpointDataStr);
-
-        if (viewpointData.sourceSpace === currentSpace) {
-          setIsCopyOperation(true);
-
-          const regeneratedGraph = regenerateGraphIds(viewpointData.graph);
-
-          setGraph(regeneratedGraph);
-          setStatement(viewpointData.title);
-          setReasoning(viewpointData.description);
-
-          // Remove the data from sessionStorage to prevent reloading it
-          sessionStorage.removeItem(storageKey);
-
-          setIsCopiedFromSessionStorage(true);
-
-          // Update the reactFlow nodes and edges
-          reactFlow.setNodes(regeneratedGraph.nodes);
-          reactFlow.setEdges(regeneratedGraph.edges);
-        } else {
-          // Clear the session storage if space doesn't match
-          sessionStorage.removeItem(storageKey);
-        }
-      } catch (error) {
-        console.error("Error loading copied rationale:", error);
-      }
+      // Skip the initial load check since we just cleaned up
+      setHasCheckedInitialLoad(true);
+      return;
     }
 
-    // Check for existing graph that's more than just statement node
-    // Only do this check once reactFlow is ready and if we haven't checked before
-    // AND if this isn't a copy operation
+    // Only run initial load check if we haven't checked and aren't in a special state
     if (!hasCheckedInitialLoad && !isCopiedFromSessionStorage && !isCopyOperation) {
+
       const currentNodes = reactFlow.getNodes();
-      const hasMoreThanStatement = currentNodes.length > 1;
-      if (hasMoreThanStatement) {
+
+      const hasRealPointNodes = currentNodes.some(node => {
+        const isRealPoint = node.type === "point" && 'pointId' in node.data;
+        return isRealPoint;
+      });
+
+
+      if (hasRealPointNodes) {
+        console.log("Opening initial load dialog");
         setIsInitialLoadDialogOpen(true);
       }
     }
 
-    // Always mark as checked and reset copy operation flag
+    // Mark as checked
     setHasCheckedInitialLoad(true);
-    setIsCopyOperation(false);
 
   }, [
-    setGraph,
-    setStatement,
+    pathname,
+    basePath,
     setReasoning,
+    setStatement,
+    setGraph,
     reactFlow,
-    hasCheckedInitialLoad,
-    isCopiedFromSessionStorage,
     isReactFlowReady,
-    isCopyOperation
+    isCopiedFromSessionStorage,
+    hasCheckedInitialLoad,
+    isCopyOperation,
+    setHasCheckedInitialLoad
   ]);
 
   useEffect(() => {
