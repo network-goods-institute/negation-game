@@ -58,6 +58,7 @@ import {
     NetworkIcon,
     Repeat2Icon,
     SparklesIcon,
+    MoreVertical
 } from "lucide-react";
 import { nanoid } from "nanoid";
 import { notFound, useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -80,6 +81,12 @@ import { visitedPointsAtom } from "@/atoms/visitedPointsAtom";
 import { DeletePointDialog } from "@/components/DeletePointDialog";
 import { isWithinDeletionTimelock } from "@/lib/deleteTimelock";
 import { getPointUrl } from "@/lib/getPointUrl";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 
 type Point = {
     id: number;
@@ -596,20 +603,6 @@ export function PointPageClient({
                                 )}
                             </div>
                             <div className="flex gap-sm items-center text-muted-foreground">
-                                {isPointOwner && (
-                                    <Button
-                                        variant="ghost"
-                                        className="p-2 rounded-full size-fit hover:bg-destructive/30"
-                                        onClick={() => setDeleteDialogOpen(true)}
-                                        title={canDeletePoint
-                                            ? "Delete point"
-                                            : "Points can only be deleted within 8 hours of creation"}
-                                    >
-                                        <TrashIcon
-                                            disabled={!canDeletePoint}
-                                        />
-                                    </Button>
-                                )}
                                 <Button
                                     variant="ghost"
                                     className="p-2 rounded-full size-fit hover:bg-muted/30"
@@ -706,6 +699,35 @@ export function PointPageClient({
                                     />
                                     <span className="hidden @md/point:inline">Negate</span>
                                 </Button>
+                                {isPointOwner && (
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                className="p-2 rounded-full size-fit hover:bg-muted/30"
+                                                title="More options"
+                                            >
+                                                <MoreVertical className="size-6 stroke-1" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem
+                                                onClick={() => setDeleteDialogOpen(true)}
+                                                disabled={!canDeletePoint}
+                                                className={!canDeletePoint ? "opacity-50 cursor-not-allowed" : "text-destructive"}
+                                                title={!canDeletePoint ? "Points can only be deleted within 8 hours of creation" : "Delete this point"}
+                                            >
+                                                <TrashIcon disabled={!canDeletePoint} />
+                                                <div className="flex flex-col">
+                                                    <span>Delete point</span>
+                                                    {!canDeletePoint && (
+                                                        <span className="text-xs text-muted-foreground">Only available within 8 hours of creation</span>
+                                                    )}
+                                                </div>
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                )}
                             </div>
                         </div>
 
