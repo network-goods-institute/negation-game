@@ -54,6 +54,13 @@ const DynamicMarkdown = dynamic(() => import('react-markdown'), {
   ssr: false // Disable server-side rendering
 });
 
+const markdownPlugins = [remarkGfm];
+
+const customMarkdownComponents = {
+  // coerce h1 to h2
+  h1: (props: React.HTMLAttributes<HTMLHeadingElement>) => <h2 {...props} />
+};
+
 function PointCardWrapper({
   point,
   className,
@@ -380,11 +387,6 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     }
   }, [canEdit]);
 
-  const handleDescriptionDoubleClick = useCallback(() => {
-    if (canEdit()) {
-      setIsDescriptionEditing(true);
-    }
-  }, [canEdit]);
 
   const resetContentModifications = useCallback(() => {
     if (viewpoint) {
@@ -532,27 +534,21 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                   }}
                 />
               ) : (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <h2
-                        className={cn(
-                          "font-semibold",
-                          canEdit() && "cursor-pointer hover:bg-accent hover:bg-opacity-50 px-2 py-1 -mx-2 rounded border-dashed border border-transparent hover:border-muted-foreground"
-                        )}
-                        onDoubleClick={handleTitleDoubleClick}
-                      >
-                        {title}
-                      </h2>
-                    </TooltipTrigger>
-                    {canEdit() && (
-                      <TooltipContent side="right" className="bg-accent text-accent-foreground border-accent-foreground/20">
-                        <p><strong>Double-click to edit title</strong></p>
-                        <p className="text-xs text-muted-foreground">Changes will be saved with the graph</p>
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
-                </TooltipProvider>
+                <div className="relative">
+                  {canEdit() && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 z-10"
+                      onClick={() => setIsTitleEditing(true)}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                  <h2 className="font-semibold pr-16">
+                    {title}
+                  </h2>
+                </div>
               )}
 
               <div className="flex flex-col gap-2">
@@ -584,29 +580,28 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                   onBlur={handleEditingBlur}
                 />
               ) : (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div
-                        className={cn(
-                          "prose dark:prose-invert max-w-none [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic",
-                          canEdit() && "cursor-pointer hover:bg-accent hover:bg-opacity-50 p-2 -m-2 rounded border-dashed border border-transparent hover:border-muted-foreground"
-                        )}
-                        onDoubleClick={handleDescriptionDoubleClick}
-                      >
-                        <DynamicMarkdown remarkPlugins={[remarkGfm]}>
-                          {description}
-                        </DynamicMarkdown>
-                      </div>
-                    </TooltipTrigger>
-                    {canEdit() && (
-                      <TooltipContent side="right" className="bg-accent text-accent-foreground border-accent-foreground/20">
-                        <p><strong>Double-click to edit description</strong></p>
-                        <p className="text-xs text-muted-foreground">Changes will be saved with the graph</p>
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
-                </TooltipProvider>
+                <div className="relative">
+                  {canEdit() && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 z-10"
+                      onClick={() => setIsDescriptionEditing(true)}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                  <div
+                    className="prose dark:prose-invert max-w-none [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic px-2 py-2"
+                  >
+                    <DynamicMarkdown
+                      remarkPlugins={markdownPlugins}
+                      components={customMarkdownComponents}
+                    >
+                      {description}
+                    </DynamicMarkdown>
+                  </div>
+                </div>
               )}
             </div>
             <div className="relative flex flex-col">
