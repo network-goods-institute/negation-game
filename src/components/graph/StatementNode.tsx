@@ -15,6 +15,21 @@ import { useEffect, useCallback, useMemo } from "react";
 import { collapsedPointIdsAtom, collapsedNodePositionsAtom } from "@/atoms/viewpointAtoms";
 import { useAtom } from "jotai";
 
+/**
+ * StatementNode Component
+ * 
+ * This component handles the root statement node in the graph.
+ * 
+ * Important note on handling collapsed points:
+ * - Points can appear in multiple places in the graph with the same pointId
+ * - We only want to make points expandable from the statement node if they were
+ *   directly connected to it before being collapsed
+ * - We use collapsedNodePositions (which tracks parentId relationships) instead of just
+ *   collapsedPointIds to ensure we only expand direct children
+ * - This prevents duplicate point IDs that exist elsewhere in the graph from
+ *   incorrectly appearing as expandable from the statement node
+ */
+
 export type StatementNodeData = {
   statement: string;
 };
@@ -106,10 +121,14 @@ export const StatementNode = ({
   }, [getEdges, getNodes, id]);
 
   // Find which direct children are collapsed
+  // Instead of using the global collapsedPointIds, use collapsedNodePositions
+  // to ensure we only consider points that were directly connected to the statement
   const collapsedChildren = useMemo(() => {
-    return Array.from(collapsedPointIds)
-      .filter(pointId => directChildPointIds.includes(pointId));
-  }, [collapsedPointIds, directChildPointIds]);
+    // Find collapsed points that have this statement node as their direct parent
+    return collapsedNodePositions
+      .filter(pos => pos.parentId === id)
+      .map(pos => pos.pointId);
+  }, [collapsedNodePositions, id]);
 
   // Count collapsed direct children
   const collapsedDirectChildrenCount = collapsedChildren.length;
@@ -171,17 +190,18 @@ export const StatementNode = ({
 
       // Remove the stored position for this node
       setCollapsedNodePositions(prev => prev.filter(pos => !(pos.pointId === pointId && pos.parentId === id)));
-    }
 
-    // Remove the points from the collapsed set
-    setCollapsedPointIds(prev => {
-      const newSet = new Set(prev);
-      collapsedChildren.forEach(pointId => {
-        // eslint-disable-next-line drizzle/enforce-delete-with-where
-        newSet.delete(pointId);
-      });
-      return newSet;
-    });
+      // Also remove from collapsedPointIds set if it's not collapsed elsewhere in the graph
+      // This prevents auto-collapsing other instances of the same point ID elsewhere
+      if (!collapsedNodePositions.some(pos => pos.pointId === pointId && pos.parentId !== id)) {
+        setCollapsedPointIds(prev => {
+          const newSet = new Set(prev);
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
+          newSet.delete(pointId);
+          return newSet;
+        });
+      }
+    }
 
     // Mark the statement node as modified to trigger the save button
     // This ensures expanding nodes is considered a modification that needs saving
