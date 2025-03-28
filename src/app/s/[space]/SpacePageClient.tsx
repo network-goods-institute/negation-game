@@ -155,8 +155,11 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                 draggable={false}
                 onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                     preventDefaultIfContainsSelection(e);
-                    prefetchPoint(point.pointId);
-                    handleCardClick(`point-${point.pointId}`);
+                    const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
+                    if (!isActionButton) {
+                        prefetchPoint(point.pointId);
+                        handleCardClick(`point-${point.pointId}`);
+                    }
                 }}
                 href={`${basePath}/${encodeId(point.pointId)}`}
                 className="flex border-b cursor-pointer hover:bg-accent"
@@ -293,7 +296,10 @@ const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, log
                 draggable={false}
                 onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                     preventDefaultIfContainsSelection(e);
-                    handleCardClick(`point-${point.pointId}`);
+                    const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
+                    if (!isActionButton) {
+                        handleCardClick(`point-${point.pointId}`);
+                    }
                 }}
                 href={`${basePath}/${encodeId(point.pointId)}`}
                 className="flex border-b cursor-pointer hover:bg-accent"
@@ -524,21 +530,6 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
     return (
         <div className="flex flex-col">
             {viewpoints.map((viewpoint: any) => {
-                let pointIds: number[] = viewpoint.originalPointIds || [];
-
-                if ((!pointIds || pointIds.length === 0) && viewpoint.graph?.nodes) {
-                    try {
-                        pointIds = viewpoint.graph.nodes
-                            .filter((node: any) => node.type === 'point')
-                            .map((node: any) => {
-                                const id = node.data?.pointId;
-                                return typeof id === 'number' ? id : null;
-                            })
-                            .filter((id: any) => id !== null);
-                    } catch (error) {
-                    }
-                }
-
                 return (
                     <ViewpointCardWrapper
                         key={`rationales-tab-${viewpoint.id}`}
@@ -924,9 +915,12 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
                         <div className="border-b transition-opacity duration-200 ease-in-out">
                             <Link
                                 draggable={false}
-                                onClick={(e) => {
+                                onClick={(e: React.MouseEvent) => {
                                     preventDefaultIfContainsSelection(e);
-                                    handleCardClick(`point-${pinnedPoint.pointId}`);
+                                    const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
+                                    if (!isActionButton) {
+                                        handleCardClick(`point-${pinnedPoint.pointId}`);
+                                    }
                                 }}
                                 href={`${basePath}/${encodeId(pinnedPoint.pointId)}`}
                                 className="flex cursor-pointer hover:bg-accent"

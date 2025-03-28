@@ -146,9 +146,12 @@ const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, ha
                 data-show-hover={false}
                 draggable={false}
                 onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                    prefetchPoint(negation.pointId);
-                    preventDefaultIfContainsSelection(e);
-                    onCardClick(`point-${negation.pointId}`);
+                    const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
+                    if (!isActionButton) {
+                        prefetchPoint(negation.pointId);
+                        preventDefaultIfContainsSelection(e);
+                        onCardClick(`point-${negation.pointId}`);
+                    }
                 }}
                 href={`${basePath}/${encodeId(negation.pointId)}${viewParam ? `?view=${viewParam}` : ""}`}
                 key={negation.pointId}
@@ -586,6 +589,7 @@ export function PointPageClient({
                                     variant={"link"}
                                     size={"icon"}
                                     className="text-foreground -ml-3"
+                                    data-action-button="true"
                                     onClick={backButtonHandler}
                                 >
                                     <ArrowLeftIcon />
@@ -618,6 +622,7 @@ export function PointPageClient({
                                 <Button
                                     variant="ghost"
                                     className="p-2 rounded-full size-fit hover:bg-muted/30"
+                                    data-action-button="true"
                                     onClick={() => toggleSelectNegationDialog(true)}
                                 >
                                     <Repeat2Icon className="size-6 stroke-1" />
@@ -626,6 +631,7 @@ export function PointPageClient({
                                     size={"icon"}
                                     variant={canvasEnabled ? "default" : "outline"}
                                     className="rounded-full p-2 size-9"
+                                    data-action-button="true"
                                     onClick={() => {
                                         const newParams = new URLSearchParams(searchParams?.toString() || "");
                                         if (!canvasEnabled) {
@@ -656,6 +662,7 @@ export function PointPageClient({
                                                 "@md/point:border @md/point:px-4"
                                             )}
                                             variant={"ghost"}
+                                            data-action-button="true"
                                             onClick={handleEndorse}
                                         >
                                             <EndorseIcon
@@ -699,6 +706,7 @@ export function PointPageClient({
                                         "p-2  rounded-full size-fit hover:bg-primary/30",
                                         "@md/point:border @md/point:px-4"
                                     )}
+                                    data-action-button="true"
                                     onClick={() => {
                                         if (point?.pointId) {
                                             handleNegate(point.pointId);
@@ -717,6 +725,7 @@ export function PointPageClient({
                                             <Button
                                                 variant="ghost"
                                                 className="p-2 rounded-full size-fit hover:bg-muted/30"
+                                                data-action-button="true"
                                                 title="More options"
                                             >
                                                 <MoreVertical className="size-6 stroke-1" />
@@ -769,6 +778,7 @@ export function PointPageClient({
                                                 type="button"
                                                 variant="link"
                                                 className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
+                                                data-action-button="true"
                                                 onClick={handleCommandPointClick}
                                             >
                                                 Pinned by command
@@ -792,6 +802,7 @@ export function PointPageClient({
                                                 type="button"
                                                 variant="link"
                                                 className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
+                                                data-action-button="true"
                                                 onClick={handleTargetPointClick}
                                             >
                                                 Proposal to pin
