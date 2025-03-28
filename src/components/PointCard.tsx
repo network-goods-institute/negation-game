@@ -378,6 +378,7 @@ export const PointCard = ({
                       type="button"
                       variant="link"
                       className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
+                      data-action-button="true"
                       onClick={handlePinCommandClick}
                     >
                       {pinStatus || "Pinned by command"}
@@ -388,6 +389,7 @@ export const PointCard = ({
                     type="button"
                     variant="link"
                     className="h-auto p-0 text-muted-foreground hover:text-foreground"
+                    data-action-button="true"
                     onClick={handlePinCommandClick}
                   >
                     {pinStatus || "Pinned by command"}
@@ -414,6 +416,7 @@ export const PointCard = ({
                       type="button"
                       variant="link"
                       className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
+                      data-action-button="true"
                       onClick={handleTargetPointClick}
                     >
                       Proposal to pin
@@ -424,6 +427,7 @@ export const PointCard = ({
                     type="button"
                     variant="link"
                     className="h-auto p-0 text-muted-foreground hover:text-foreground"
+                    data-action-button="true"
                     onClick={handleTargetPointClick}
                   >
                     Proposal to pin
@@ -447,6 +451,7 @@ export const PointCard = ({
             <AuthenticatedActionButton
               variant="ghost"
               className="p-1 -ml-3 -mb-2 rounded-full size-fit hover:bg-negated/30"
+              data-action-button="true"
               onClick={(e) => {
                 e.stopPropagation();
                 onNegate?.(e);
@@ -461,6 +466,7 @@ export const PointCard = ({
             >
               <PopoverTrigger asChild>
                 <Button
+                  data-action-button="true"
                   onClick={(e) => {
                     e.preventDefault();
                     if (privyUser === null) {
@@ -525,6 +531,7 @@ export const PointCard = ({
                 href={getPointUrl(pointId, currentSpace || 'global')}
                 target="_blank"
                 rel="noopener noreferrer"
+                data-action-button="true"
                 onClick={(e) => e.stopPropagation()}
               >
                 <Button
@@ -545,6 +552,7 @@ export const PointCard = ({
                     "p-2 -mb-2 rounded-full size-fit hover:bg-purple-500/30",
                     showRestakeAmount && "text-endorsed"
                   )}
+                  data-action-button="true"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -573,6 +581,7 @@ export const PointCard = ({
                     doubt.isUserDoubt &&
                     "text-endorsed"
                   )}
+                  data-action-button="true"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();

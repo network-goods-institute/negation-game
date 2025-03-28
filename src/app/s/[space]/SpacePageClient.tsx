@@ -153,8 +153,11 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                 draggable={false}
                 onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                     preventDefaultIfContainsSelection(e);
-                    prefetchPoint(point.pointId);
-                    handleCardClick(`point-${point.pointId}`);
+                    const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
+                    if (!isActionButton) {
+                        prefetchPoint(point.pointId);
+                        handleCardClick(`point-${point.pointId}`);
+                    }
                 }}
                 href={`${basePath}/${encodeId(point.pointId)}`}
                 className="flex border-b cursor-pointer hover:bg-accent"
@@ -217,7 +220,12 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                 draggable={false}
                 href={`${basePath}/rationale/${item.id}`}
                 className="flex border-b cursor-pointer hover:bg-accent"
-                onClick={() => handleCardClick(`rationale-${item.id}`)}
+                onClick={(e: React.MouseEvent) => {
+                    const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
+                    if (!isActionButton) {
+                        handleCardClick(`rationale-${item.id}`);
+                    }
+                }}
             >
                 <MemoizedViewpointCard
                     className="flex-grow p-6 w-full"
@@ -297,7 +305,10 @@ const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, log
                 draggable={false}
                 onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                     preventDefaultIfContainsSelection(e);
-                    handleCardClick(`point-${point.pointId}`);
+                    const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
+                    if (!isActionButton) {
+                        handleCardClick(`point-${point.pointId}`);
+                    }
                 }}
                 href={`${basePath}/${encodeId(point.pointId)}`}
                 className="flex border-b cursor-pointer hover:bg-accent"
@@ -548,7 +559,12 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
                         <Link
                             href={`/s/${space || 'global'}/rationale/${viewpoint.id}`}
                             className="block focus:outline-none"
-                            onClick={() => handleCardClick(`rationale-${viewpoint.id}`)}
+                            onClick={(e: React.MouseEvent) => {
+                                const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
+                                if (!isActionButton) {
+                                    handleCardClick(`rationale-${viewpoint.id}`);
+                                }
+                            }}
                         >
                             <ViewpointCard
                                 id={viewpoint.id}
@@ -925,9 +941,12 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
                         <div className="border-b transition-opacity duration-200 ease-in-out">
                             <Link
                                 draggable={false}
-                                onClick={(e) => {
+                                onClick={(e: React.MouseEvent) => {
                                     preventDefaultIfContainsSelection(e);
-                                    handleCardClick(`point-${pinnedPoint.pointId}`);
+                                    const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
+                                    if (!isActionButton) {
+                                        handleCardClick(`point-${pinnedPoint.pointId}`);
+                                    }
                                 }}
                                 href={`${basePath}/${encodeId(pinnedPoint.pointId)}`}
                                 className="flex cursor-pointer hover:bg-accent"
