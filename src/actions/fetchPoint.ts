@@ -3,5 +3,6 @@
 import { fetchPoints } from "@/actions/fetchPoints";
 
 export const fetchPoint = async (id: number) => {
-  return await fetchPoints([id]).then((points) => points[0]);
+  const points = await fetchPoints([id]);
+  return points.length > 0 ? points[0] : null;
 };

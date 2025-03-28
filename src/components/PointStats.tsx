@@ -12,13 +12,23 @@ export interface PointStatsProps extends HTMLAttributes<HTMLDivElement> {
 
 export const PointStats = ({
   className,
-  favor,
-  amountNegations,
-  amountSupporters,
-  cred,
+  favor = 0,
+  amountNegations = 0,
+  amountSupporters = 0,
+  cred = 0,
   divider = "·",
   ...props
 }: PointStatsProps) => {
+  const safeNumberValue = (value: any) => {
+    const num = Number(value);
+    return isNaN(num) ? 0 : num;
+  };
+
+  const safeFavor = safeNumberValue(favor);
+  const safeNegations = safeNumberValue(amountNegations);
+  const safeSupporters = safeNumberValue(amountSupporters);
+  const safeCred = safeNumberValue(cred);
+
   return (
     <div
       className={cn(
@@ -28,13 +38,13 @@ export const PointStats = ({
       {...props}
     >
       {[
-        [favor, "favor"],
-        [amountNegations, amountNegations === 1 ? "negation" : "negations"],
+        [safeFavor, "favor"],
+        [safeNegations, safeNegations === 1 ? "negation" : "negations"],
         [
-          formatShortNumber(amountSupporters),
-          amountSupporters === 1 ? "supporter" : "supporters",
+          formatShortNumber(safeSupporters),
+          safeSupporters === 1 ? "supporter" : "supporters",
         ],
-        [formatShortNumber(cred), "cred"],
+        [formatShortNumber(safeCred), "cred"],
       ].flatMap(([value, label], i) => [
         ...(i > 0 && divider
           ? [<span key={`divider-${i}`}>{divider}</span>]

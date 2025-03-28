@@ -8,6 +8,26 @@ import { NextRequest, NextResponse } from "next/server";
 // Special subdomains that shouldn't redirect to a space
 const BLACKLISTED_SUBDOMAINS = new Set(["www", "api", "play", "admin"]);
 
+const SENSITIVE_PATTERNS = [
+  /\.env$/i, // Environment files
+  /wp-login\.php$/i, // WordPress login attempts
+  /wp-admin/i, // WordPress admin attempts
+  /\.git/i, // Git repository files
+  /\.htaccess$/i, // Apache config files
+  /\.DS_Store$/i, // macOS system files
+  /\.config$/i, // Config files
+  /\.sql$/i, // SQL files
+  /\/administrator\//i, // Joomla admin
+  /\/phpmyadmin/i, // phpMyAdmin
+  /\/filemanager/i, // File manager
+  /\/config\./i, // Config files
+  /\/passwd$/i, // Password files
+  /\/setup\.php$/i, // Setup scripts
+  /\/debug\.php$/i, // Debug scripts
+  /\/installation\//i, // Installation directories
+  /\/install\.(php|aspx)$/i, // Install scripts
+];
+
 export const config = {
   matcher: [
     // Only run the middleware on these specific paths
@@ -96,6 +116,16 @@ function handleSubdomain(
 
 export default function middleware(req: NextRequest) {
   const url = req.nextUrl;
+  const { pathname } = url;
+
+  if (SENSITIVE_PATTERNS.some((pattern) => pattern.test(pathname))) {
+    console.error(`Blocked attempt to access sensitive path: ${pathname}`);
+
+    return new NextResponse(null, {
+      status: 404,
+      statusText: "Not Found",
+    });
+  }
 
   // Skip middleware for static assets
   if (!shouldHandlePath(url.pathname)) {

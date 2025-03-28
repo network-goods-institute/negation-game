@@ -41,7 +41,16 @@ export async function processPinCommand(
     let pointId: number;
 
     try {
-      pointId = decodeId(targetPointId);
+      const decodedId = decodeId(targetPointId);
+      if (decodedId === null) {
+        pointId = parseInt(targetPointId, 10);
+        if (isNaN(pointId)) {
+          console.error(`Invalid point ID format: ${targetPointId}`);
+          return { success: false, error: "Invalid point ID format" };
+        }
+      } else {
+        pointId = decodedId;
+      }
     } catch (e) {
       // If decoding fails, try to parse as a number directly
       pointId = parseInt(targetPointId, 10);

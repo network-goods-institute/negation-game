@@ -65,6 +65,21 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref,
   ) => {
     const Comp = asChild ? Slot : "button";
+
+    // When asChild is true, pass children directly to Slot
+    if (asChild) {
+      return (
+        <Comp
+          className={cn(buttonVariants({ variant, size, className }))}
+          ref={ref}
+          {...props}
+        >
+          {children}
+        </Comp>
+      );
+    }
+
+    // For regular buttons, include all the additional slots and text
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
