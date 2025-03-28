@@ -14,7 +14,7 @@ jest.mock('@/utils/backButtonUtils', () => {
     return {
         isSameDomain: isSameDomainMock,
         // Create a simple mock implementation of getBackButtonHandler
-        getBackButtonHandler: jest.fn().mockImplementation((router, homePath = '/') => {
+        getBackButtonHandler: jest.fn().mockImplementation((router, setInitialTab, homePath = '/') => {
             return () => {
                 // This is a simplified version that uses the already defined isSameDomainMock
                 if (window.history.length > 1) {
@@ -42,8 +42,10 @@ jest.mock('next/navigation', () => ({
 // Create a simple test component that mimics the back button in profile
 const BackButton: React.FC = () => {
     const router = useRouter();
-    // Use the imported (mocked) handler directly
-    const handleBackClick = getBackButtonHandler(router);
+    // Mock the setInitialTab function to match the actual profile page
+    const mockSetInitialTab = (tab: "points" | "rationales" | null) => { };
+    // Use the imported (mocked) handler directly with both required parameters
+    const handleBackClick = getBackButtonHandler(router, mockSetInitialTab);
 
     return (
         <Button

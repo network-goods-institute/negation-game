@@ -78,7 +78,7 @@ import { useFeed } from '@/queries/useFeed';
 
 // Mock backButtonUtils to avoid any window location issues
 jest.mock('@/utils/backButtonUtils', () => ({
-    getBackButtonHandler: jest.fn().mockImplementation((router, homePath = '/') => {
+    getBackButtonHandler: jest.fn().mockImplementation((router, setInitialTab, homePath = '/') => {
         return () => {
             if (window.history.length > 1) {
                 window.history.back();
