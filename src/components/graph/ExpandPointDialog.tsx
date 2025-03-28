@@ -315,6 +315,7 @@ export const GlobalExpandPointDialog: React.FC = () => {
         setSelectedPoints(prev => {
             const newSet = new Set(prev);
             if (newSet.has(point.pointId)) {
+                // eslint-disable-next-line drizzle/enforce-delete-with-where
                 newSet.delete(point.pointId);
             } else {
                 newSet.add(point.pointId);
