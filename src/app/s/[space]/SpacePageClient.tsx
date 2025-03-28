@@ -15,7 +15,7 @@ import { useFeed } from "@/queries/useFeed";
 import { useSpace } from "@/queries/useSpace";
 import { usePrivy } from "@privy-io/react-auth";
 import { useToggle } from "@uidotdev/usehooks";
-import { useSetAtom } from "jotai";
+import { useSetAtom, useAtom } from "jotai";
 import { PlusIcon, TrophyIcon, SearchIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState, useMemo, memo, useEffect, useRef } from "react";
@@ -32,13 +32,13 @@ import { ViewpointIcon } from "@/components/icons/AppIcons";
 import { usePriorityPoints } from "@/queries/usePriorityPoints";
 import { decodeId } from "@/lib/decodeId";
 import { useQueryClient } from "@tanstack/react-query";
-import { useFavorHistory } from "@/queries/useFavorHistory";
 import { usePrefetchPoint } from "@/queries/usePointData";
 import React from "react";
+import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 
 interface PageProps {
     params: { space: string };
-    searchParams: { [key: string]: string | string[] | undefined };
+    searchParams?: { [key: string]: string | string[] | undefined };
 }
 
 type PointItem = {
@@ -58,6 +58,8 @@ type ViewpointItem = {
 };
 
 type FeedItem = PointItem | ViewpointItem;
+
+type Tab = "all" | "points" | "rationales" | "search";
 
 const MemoizedPointCard = memo(PointCard);
 const MemoizedViewpointCard = memo(ViewpointCard);
@@ -637,10 +639,7 @@ const PinnedPointWithHistory = memo(({ pinnedPoint, space, loadingCardId }: any)
 });
 PinnedPointWithHistory.displayName = 'PinnedPointWithHistory';
 
-export function SpacePageClient({
-    params,
-    searchParams: initialSearchParams,
-}: PageProps) {
+export function SpacePageClient({ params, searchParams }: PageProps) {
     const { user: privyUser, login } = usePrivy();
     const [makePointOpen, onMakePointOpenChange] = useToggle(false);
     const basePath = useBasePath();
@@ -648,8 +647,8 @@ export function SpacePageClient({
     const [leaderboardOpen, setLeaderboardOpen] = useState(false);
     const router = useRouter();
     const pathname = usePathname();
-    const queryClient = useQueryClient();
     const [isNavigating, setIsNavigating] = useState(false);
+    const [initialTabFromAtom, setInitialTabAtom] = useAtom(initialSpaceTabAtom);
 
     const lastTabViewTimes = useRef<Record<string, number>>({
         rationales: 0,
@@ -659,7 +658,19 @@ export function SpacePageClient({
     });
 
     const { data: viewpoints, isLoading: viewpointsLoading } = useViewpoints(space.data?.id || "global");
-    const [selectedTab, setSelectedTab] = useState<"all" | "points" | "rationales" | "search">("rationales");
+
+    const [selectedTab, setSelectedTab] = useState<Tab | null>(null);
+
+
+    useEffect(() => {
+        if (selectedTab === null && initialTabFromAtom) {
+            setSelectedTab(initialTabFromAtom);
+            setInitialTabAtom(null); // Reset after use
+        } else if (selectedTab === null && !initialTabFromAtom) {
+            setSelectedTab("rationales");
+        }
+    }, [initialTabFromAtom, selectedTab, setInitialTabAtom]);
+
     const { searchQuery, searchResults, isLoading: searchLoading, handleSearch, isActive, hasSearched } = useSearch();
     const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
 
@@ -673,16 +684,6 @@ export function SpacePageClient({
             setLoadingCardId(null);
         };
     }, [pathname]);
-
-    // Prevent feed from reloading when navigating back to it
-    useEffect(() => {
-        // Only prevent refetching if we're not actively using the feed
-        // This allows mutations like endorsements to trigger refetches
-        if (privyUser?.id && isNavigating) {
-            queryClient.setQueryData(["feed", privyUser?.id], (oldData: any) => oldData);
-        }
-    }, [queryClient, privyUser?.id, isNavigating]);
-
 
     // Only load feed data when "all" tab is selected
     const { data: points, isLoading } = useFeed();
@@ -700,12 +701,13 @@ export function SpacePageClient({
         shouldLoadPinnedPoint ? space.data?.id : undefined
     );
 
-    const handleTabChange = useCallback((tab: "all" | "points" | "rationales" | "search") => {
+    const handleTabChange = useCallback((tab: Tab) => {
         setSelectedTab(tab);
 
-        lastTabViewTimes.current[tab] = Date.now();
+        if (lastTabViewTimes.current) {
+            lastTabViewTimes.current[tab] = Date.now();
+        }
 
-        // If switching to search, focus the search input
         if (tab === "search") {
             setTimeout(() => {
                 const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
@@ -823,6 +825,16 @@ export function SpacePageClient({
         preventDefaultIfContainsSelection(e);
         router.push(`${basePath}/${encodedId}`);
     };
+
+    if (selectedTab === null) {
+        return (
+            <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow bg-background">
+                <div className="relative w-full sm:col-[2] flex flex-col gap-0 border-x overflow-auto">
+                    <Loader className="absolute self-center my-auto top-0 bottom-0" />
+                </div>
+            </main>
+        );
+    }
 
     return (
         <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow bg-background">

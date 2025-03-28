@@ -11,6 +11,7 @@ import {
 import { useEffect, useMemo, useState, useCallback, useTransition, useRef } from "react";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
+import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 import { AppNode } from "@/components/graph/AppNode";
 import { GraphView } from "@/components/graph/GraphView";
 import {
@@ -116,7 +117,7 @@ function PointCardWrapper({
   );
 }
 
-function ViewpointContent() {
+function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" | "rationales" | null) => void }) {
   const { updateNodeData } = useReactFlow();
   const { data: user } = useUser();
   const router = useRouter();
@@ -320,6 +321,7 @@ function ViewpointContent() {
       }
     };
   }, [
+    setCollapsedPointIds,
     currentSpace,
     reactFlow,
     isReactFlowReady,
@@ -499,7 +501,7 @@ function ViewpointContent() {
     });
   }, [setReasoning, setStatement, setGraph, reactFlow, setCollapsedPointIds, currentSpace]);
 
-  const handleBackClick = getBackButtonHandler(router);
+  const handleBackClick = getBackButtonHandler(router, setInitialTab);
 
   return (
     <main className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
@@ -801,7 +803,7 @@ function ViewpointContent() {
   );
 }
 
-function ViewpointPageContent() {
+function ViewpointPageContent({ setInitialTab }: { setInitialTab: (update: "points" | "rationales" | null) => void }) {
   const { ready } = usePrivy();
   const { data: user, isLoading: isLoadingUser } = useUser();
 
@@ -845,7 +847,7 @@ function ViewpointPageContent() {
       )}
     >
       <ReactFlowProvider>
-        <ViewpointContent />
+        <ViewpointContent setInitialTab={setInitialTab} />
       </ReactFlowProvider>
     </ErrorBoundary>
   );
@@ -854,11 +856,12 @@ function ViewpointPageContent() {
 export default function NewViewpointPage() {
   const { user: privyUser } = usePrivy();
   const searchParams = useSearchParams();
+  const setInitialTab = useSetAtom(initialSpaceTabAtom);
 
   return (
     <EditModeProvider>
       <OriginalPosterProvider originalPosterId={privyUser?.id}>
-        <ViewpointPageContent key={searchParams.toString()} />
+        <ViewpointPageContent key={searchParams.toString()} setInitialTab={setInitialTab} />
       </OriginalPosterProvider>
     </EditModeProvider>
   );

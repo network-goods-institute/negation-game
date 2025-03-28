@@ -87,6 +87,8 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import { getBackButtonHandler } from "@/utils/backButtonUtils";
+import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 
 type Point = {
     id: number;
@@ -278,6 +280,8 @@ export function PointPageClient({
     const [forceShowNegations, setForceShowNegations] = useState(false);
     const [negationsLoadStartTime] = useState(() => Date.now());
     const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
+    const setInitialTab = useSetAtom(initialSpaceTabAtom);
+    const backButtonHandler = getBackButtonHandler(router, setInitialTab);
 
     // Load additional data after point data is loaded
     useEffect(() => {
@@ -569,12 +573,7 @@ export function PointPageClient({
                                     variant={"link"}
                                     size={"icon"}
                                     className="text-foreground -ml-3"
-                                    onClick={() => {
-                                        // Get space from URL
-                                        const spaceMatch = pathname?.match(/^\/s\/([^\/]+)/);
-                                        const space = spaceMatch?.[1] || 'global';
-                                        push(`/s/${space}`);
-                                    }}
+                                    onClick={backButtonHandler}
                                 >
                                     <ArrowLeftIcon />
                                 </Button>
@@ -976,8 +975,28 @@ export function PointPageClient({
                                         }
                                     </div>
                                 ) : (
-                                    <div className="text-center py-6 text-muted-foreground">
-                                        No negations yet. Be the first to create one!
+                                    <div className="flex flex-col items-center justify-center py-12 px-4 text-center animate-fade-in">
+                                        <div className="mb-4 text-muted-foreground">
+                                            <NegateIcon className="size-8 mx-auto mb-2" />
+                                            <h3 className="text-lg font-medium mb-1">No negations yet</h3>
+                                            <p className="text-sm text-muted-foreground max-w-[300px]">
+                                                Challenge this point by creating a negation. It&apos;s a great way to engage in constructive debate.
+                                            </p>
+                                        </div>
+                                        <Button
+                                            variant="outline"
+                                            className="gap-2 items-center"
+                                            onClick={() => {
+                                                if (privyUser === null) {
+                                                    login();
+                                                    return;
+                                                }
+                                                handleNegate(point.pointId);
+                                            }}
+                                        >
+                                            <NegateIcon className="size-4 flex-shrink-0" />
+                                            Create Negation
+                                        </Button>
                                     </div>
                                 )
                             )}

@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 import { useAtom } from "jotai";
 import { visitedPointsAtom } from "@/atoms/visitedPointsAtom";
+import { toast } from "sonner";
 
 export const useMakePoint = () => {
   const queryClient = useQueryClient();
@@ -16,6 +17,8 @@ export const useMakePoint = () => {
   return useAuthenticatedMutation({
     mutationFn: makePoint,
     onSuccess: (pointId) => {
+      toast.success("Point created successfully");
+
       // Mark the point as visited
       markPointAsRead(pointId);
       setVisitedPoints((prev) => {
@@ -31,6 +34,11 @@ export const useMakePoint = () => {
       queryClient.invalidateQueries({
         queryKey: userQueryKey(user?.id),
       });
+    },
+    onError: (error) => {
+      toast.error(
+        "Failed to create point: " + (error.message || "Unknown error")
+      );
     },
   });
 };

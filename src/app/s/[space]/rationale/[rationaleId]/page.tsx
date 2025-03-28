@@ -41,12 +41,12 @@ import { useRouter } from "next/navigation";
 import { EditModeProvider, useEditMode } from "@/components/graph/EditModeContext";
 import { ReactFlowInstance } from "@xyflow/react";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ViewpointStatsBar } from "@/components/ViewpointStatsBar";
 import { use } from "react";
 import { getBackButtonHandler } from "@/utils/backButtonUtils";
 import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 import { copyViewpointAndNavigate } from "@/utils/copyViewpoint";
+import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 
 // Create dynamic ReactMarkdown component
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
@@ -123,6 +123,8 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
   const [isDescriptionEditing, setIsDescriptionEditing] = useState(false);
 
   const updateDetailsMutation = useUpdateViewpointDetails();
+
+  const setInitialTab = useSetAtom(initialSpaceTabAtom);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -417,7 +419,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     }
   }, [viewpoint, queryClient, originalGraph, setLocalGraph]);
 
-  const handleBackClick = getBackButtonHandler(router);
+  const handleBackClick = getBackButtonHandler(router, setInitialTab);
 
   if (!viewpoint)
     return (

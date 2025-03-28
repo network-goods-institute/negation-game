@@ -8,21 +8,17 @@ import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.share
  * @returns boolean indicating if the referrer is from the same domain
  */
 export function isSameDomain(referrer: string): boolean {
-  // Check if referrer exists
   if (!referrer) return false;
 
   try {
-    // Extract hostname from referrer
     const referrerUrl = new URL(referrer);
     const currentHost = window.location.hostname;
 
-    // Consider localhost as same domain (for development environments)
     return (
       referrerUrl.hostname === currentHost ||
       referrerUrl.hostname.includes("localhost")
     );
   } catch (e) {
-    // If URL parsing fails, assume different domain
     return false;
   }
 }
@@ -51,55 +47,102 @@ export function getSpaceFromUrl(): string | null {
 }
 
 /**
- * Handles navigation when a back button is clicked, with multiple fallbacks:
- * 1. For rationale pages, first tries to navigate to current space page
- * 2. Uses window.history.back() if browser history exists
- * 3. Checks if the referrer is from the same domain or localhost
- * 4. Falls back to navigating to the home page as a last resort
+ * Handles navigation when a back button is clicked, using Jotai state for initial tab.
+ * 1. For rationale pages, sets atom to 'rationales' and navigates to space.
+ * 2. For point pages, sets atom to 'points' and navigates to space.
+ * 3. Uses window.history.back() if possible.
+ * 4. Checks referrer.
+ * 5. Falls back to home.
  *
  * @param router Next.js router instance
- * @param homePath Optional homepage path to redirect to (defaults to '/')
+ * @param setInitialTab Jotai setter for initialSpaceTabAtom
+ * @param homePath Optional homepage path
  */
 export function handleBackNavigation(
   router: AppRouterInstance,
+  setInitialTab: (update: "points" | "rationales" | null) => void,
   homePath: string = "/"
 ): void {
-  // For rationale pages, navigate directly to the space page
-  if (
-    typeof window !== "undefined" &&
-    window.location.pathname.includes("/rationale")
-  ) {
+  if (typeof window === "undefined") {
+    router.push(homePath);
+    return;
+  }
+
+  const pathname = window.location.pathname;
+  const pathParts = pathname.split("/").filter(Boolean);
+
+  // Early return for profile pages to prevent recursive calls
+  // This ensures we don't try to navigate to the same profile page
+  if (pathParts[0] === "profile") {
+    setInitialTab(null);
+    // If we have history, just go back
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+    // Otherwise go to home
+    router.push(homePath);
+    return;
+  }
+
+  if (pathname.includes("/rationale")) {
     const currentSpace = getSpaceFromUrl();
     if (currentSpace) {
+      setInitialTab("rationales");
       router.push(`/s/${currentSpace}`);
       return;
     }
   }
 
-  // Try using native browser history as fallback if it exists
+  if (
+    pathParts.length === 3 &&
+    pathParts[0] === "s" &&
+    !pathname.includes("/profile/")
+  ) {
+    const currentSpace = pathParts[1];
+    setInitialTab("points");
+    router.push(`/s/${currentSpace}`);
+    return;
+  }
+
+  const knownTopLevelPaths = ["s", "profile", "settings", "about", "api"];
+  if (
+    pathParts.length === 1 &&
+    !knownTopLevelPaths.includes(pathParts[0]) &&
+    !pathParts[0].includes(".")
+  ) {
+    setInitialTab("points");
+    router.push(`/s/global`);
+    return;
+  }
+
+  setInitialTab(null);
+
   if (window.history.length > 1) {
     window.history.back();
     return;
   }
 
-  // Check if referrer is from the same domain using our helper
   if (isSameDomain(document.referrer)) {
     router.back();
-  } else {
-    router.push(homePath);
+    return;
   }
+
+  router.push(homePath);
 }
 
 /**
- * Returns a click handler function for back button navigation
+ * Returns a click handler function for back button navigation using Jotai state.
  *
  * @param router Next.js router instance
- * @param homePath Optional homepage path to redirect to (defaults to '/')
+ * @param setInitialTab Jotai setter for initialSpaceTabAtom
+ * @param homePath Optional homepage path
  * @returns Click handler function
  */
 export function getBackButtonHandler(
   router: AppRouterInstance,
+  setInitialTab: (update: "points" | "rationales" | null) => void,
   homePath: string = "/"
 ): () => void {
-  return () => handleBackNavigation(router, homePath);
+  return () => handleBackNavigation(router, setInitialTab, homePath);
 }

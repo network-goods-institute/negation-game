@@ -22,6 +22,8 @@ import React from "react";
 import { useUserEndorsedPoints } from "@/queries/useUserEndorsedPoints";
 import { ProfileEditDialog } from "@/components/ProfileEditDialog";
 import { getBackButtonHandler } from "@/utils/backButtonUtils";
+import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
+import { useSetAtom } from "jotai";
 
 interface ProfilePageProps {
     params: Promise<{
@@ -46,6 +48,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     const { data: endorsedPoints, isLoading: isLoadingEndorsedPoints } = useUserEndorsedPoints(username);
     const { data: userData } = useUser(username);
     const [editProfileOpen, setEditProfileOpen] = useState(false);
+    const setInitialTab = useSetAtom(initialSpaceTabAtom);
 
     // Wrap myPoints in useMemo to stabilize it
     const myPoints = useMemo(() => profilePoints || [], [profilePoints]);
@@ -138,7 +141,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
         });
     }, [pointsBySpace, userViewpoints]);
 
-    const handleBackClick = getBackButtonHandler(router);
+    const handleBackClick = getBackButtonHandler(router, setInitialTab);
 
     // Loading states should be checked after all hooks are called
     if (!ready || isLoadingPoints || isLoadingViewpoints || isLoadingEndorsedPoints) {
