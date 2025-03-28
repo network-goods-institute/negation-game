@@ -1,16 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   webpack: (config) => {
-    config.module.rules.push({
-      test: /\.worker\.(js|ts)$/,
-      loader: 'worker-loader',
-      options: {
-        filename: 'static/[hash].worker.js',
-        publicPath: '/_next/',
-      },
-    });
-
+    // Set global object to 'self' for web worker compatibility
+    config.output.globalObject = 'self';
     return config;
+  },
+  // Disable image optimization during build to speed up builds
+  images: {
+    unoptimized: process.env.NODE_ENV === 'development',
   },
 }
 

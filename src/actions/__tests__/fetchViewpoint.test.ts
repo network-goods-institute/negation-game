@@ -226,8 +226,11 @@ describe("fetchViewpoint", () => {
     expect(result).toHaveProperty("createdBy", "user-123");
     expect(result).toHaveProperty("space", "test-space");
 
+    expect(result).not.toBeNull();
+
     // Verify statistics specifically
     expect(result).toHaveProperty("statistics");
+    // @ts-ignore
     expect(result.statistics).toEqual({
       views: 42,
       copies: 7,
@@ -263,23 +266,7 @@ describe("fetchViewpoint", () => {
     const result = await fetchViewpoint("nonexistent-id");
 
     // Assert
-    expect(result).toEqual({
-      id: "nonexistent-id",
-      title: expect.stringContaining("doesn't exist"),
-      author: "",
-      description: "",
-      originalPointIds: [],
-      graph: { nodes: [], edges: [] },
-      createdBy: "",
-      createdAt: expect.any(Date),
-      space: null,
-      statistics: {
-        views: 0,
-        copies: 0,
-        totalCred: 0,
-        averageFavor: 0,
-      },
-    });
+    expect(result).toBeNull();
 
     // View should not be tracked for nonexistent viewpoint
     expect(trackViewpointView).not.toHaveBeenCalled();
@@ -323,7 +310,10 @@ describe("fetchViewpoint", () => {
     // Call the function
     const result = await fetchViewpoint("test-id");
 
+    expect(result).not.toBeNull();
+
     // Assert that missing statistics are defaulted to zero
+    // @ts-ignore
     expect(result.statistics).toEqual({
       views: 0,
       copies: 0,

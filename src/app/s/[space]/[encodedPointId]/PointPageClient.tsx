@@ -222,6 +222,7 @@ export function PointPageClient({
     const pointId = decodeId(encodedPointId);
     const setNegatedPointId = useSetAtom(negatedPointIdAtom);
     const queryClient = useQueryClient();
+    const router = useRouter();
 
     const setNegationContent = useAtomCallback(
         (_get, set, negatedPointId: number, content: string) => {
@@ -235,8 +236,17 @@ export function PointPageClient({
         data: point,
         refetch: refetchPoint,
         isLoading: isLoadingPoint,
+        isError: isPointError
     } = usePointData(pointId);
     const [timelineScale, setTimelineScale] = useState<TimelineScale>(DEFAULT_TIMESCALE);
+
+    useEffect(() => {
+        if (!isLoadingPoint && !point && isPointError) {
+            console.warn(`Point not found: ${pointId}`);
+            router.push('/not-found');
+        }
+    }, [point, isLoadingPoint, isPointError, pointId, router]);
+
     const {
         data: favorHistory,
         refetch: refetchFavorHistory,
@@ -257,7 +267,6 @@ export function PointPageClient({
     } = useCredInput({
         resetWhen: !endorsePopoverOpen,
     });
-    const router = useRouter();
     const { back, push } = router;
     const searchParams = useSearchParams();
     const viewParam = searchParams?.get("view");

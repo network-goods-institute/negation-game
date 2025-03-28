@@ -57,7 +57,7 @@ export const pointNegationsQueryKey = ({
 export const usePointNegations = (pointId: number | undefined) => {
   const { user } = usePrivy();
 
-  // warning, this says it's missing a queryKey: pointId, do not fix it.pnpm
+  // warning, this says it's missing a queryKey: pointId, do not fix it. Every time I have it tried it breaks things.
   return useQuery({
     queryKey: pointId
       ? pointNegationsQueryKey({ pointId, userId: user?.id })

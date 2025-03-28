@@ -7,21 +7,21 @@ import { useFeed } from "@/queries/useFeed";
 import { PointCard } from "@/components/PointCard";
 import Link from "next/link";
 import { encodeId } from "@/lib/encodeId";
-import { useBasePath } from "@/hooks/useBasePath";
 import { Button } from "@/components/ui/button";
 import { ArrowLeftIcon, ArrowDownIcon, PencilIcon, ExternalLinkIcon } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { ConnectButton } from "@/components/ConnectButton";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useProfilePoints } from "@/queries/useProfilePoints";
 import { useUserViewpoints } from "@/queries/useUserViewpoints";
-import { ViewpointCard } from "@/components/ViewpointCard";
 import { Separator } from "@/components/ui/separator";
 import type { ProfilePoint } from "@/actions/fetchProfilePoints";
 import React from "react";
 import { useUserEndorsedPoints } from "@/queries/useUserEndorsedPoints";
 import { ProfileEditDialog } from "@/components/ProfileEditDialog";
 import { getBackButtonHandler } from "@/utils/backButtonUtils";
+import { ViewpointCardWrapper } from "@/components/ViewpointCardWrapper";
+import { usePathname } from "next/navigation";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 import { useSetAtom } from "jotai";
 
@@ -40,7 +40,6 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     const { user: privyUser, ready } = usePrivy();
     const router = useRouter();
     const { data: points, isLoading: isLoadingPoints } = useFeed();
-    const basePath = useBasePath();
     const [isTimelineAscending, setIsTimelineAscending] = useState(false);
     const [isEndorsementsAscending, setIsEndorsementsAscending] = useState(false);
     const { data: profilePoints } = useProfilePoints(username);
@@ -49,6 +48,8 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     const { data: userData } = useUser(username);
     const [editProfileOpen, setEditProfileOpen] = useState(false);
     const setInitialTab = useSetAtom(initialSpaceTabAtom);
+    const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
+    const pathname = usePathname();
 
     // Wrap myPoints in useMemo to stabilize it
     const myPoints = useMemo(() => profilePoints || [], [profilePoints]);
@@ -142,6 +143,17 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     }, [pointsBySpace, userViewpoints]);
 
     const handleBackClick = getBackButtonHandler(router, setInitialTab);
+
+    useEffect(() => {
+        setLoadingCardId(null);
+        return () => {
+            setLoadingCardId(null);
+        };
+    }, [pathname]);
+
+    const handleCardClick = useCallback((id: string) => {
+        setLoadingCardId(id);
+    }, []);
 
     // Loading states should be checked after all hooks are called
     if (!ready || isLoadingPoints || isLoadingViewpoints || isLoadingEndorsedPoints) {
@@ -339,7 +351,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                 <>
                                                     <h5 className="text-sm font-medium text-muted-foreground ml-2">Rationales</h5>
                                                     {filteredViewpoints.map((viewpoint) => (
-                                                        <ViewpointCard
+                                                        <ViewpointCardWrapper
                                                             key={viewpoint.id}
                                                             id={viewpoint.id}
                                                             title={viewpoint.title}
@@ -348,7 +360,14 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                             createdAt={new Date(viewpoint.createdAt)}
                                                             className="mb-2 mx-2"
                                                             space={viewpoint.space ?? "global"}
-                                                            linkable={true}
+                                                            statistics={{
+                                                                views: 0,
+                                                                copies: 0,
+                                                                totalCred: 0,
+                                                                averageFavor: 0
+                                                            }}
+                                                            loadingCardId={loadingCardId}
+                                                            handleCardClick={handleCardClick}
                                                         />
                                                     ))}
                                                 </>
@@ -362,8 +381,9 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                     {filteredPoints.map((point) => (
                                                         <Link
                                                             key={point.pointId}
-                                                            href={`${basePath}/${encodeId(point.pointId)}`}
+                                                            href={`/s/${point.space || 'global'}/${encodeId(point.pointId)}`}
                                                             className="flex border-b cursor-pointer hover:bg-accent"
+                                                            onClick={() => handleCardClick(`point-${point.pointId}`)}
                                                         >
                                                             <PointCard
                                                                 className="flex-grow"
@@ -376,6 +396,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                                 amountNegations={point.amountNegations}
                                                                 viewerContext={{ viewerCred: point.viewerCred }}
                                                                 space={point.space ?? undefined}
+                                                                isLoading={loadingCardId === `point-${point.pointId}`}
                                                             />
                                                         </Link>
                                                     ))}
@@ -408,8 +429,9 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                     filteredEndorsedPoints.map((point) => (
                                         <Link
                                             key={point.pointId}
-                                            href={`${basePath}/${encodeId(point.pointId)}`}
+                                            href={`/s/${point.space || 'global'}/${encodeId(point.pointId)}`}
                                             className="flex border-b cursor-pointer hover:bg-accent"
+                                            onClick={() => handleCardClick(`point-${point.pointId}`)}
                                         >
                                             <PointCard
                                                 className="flex-grow"
@@ -422,6 +444,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                 amountNegations={point.amountNegations}
                                                 viewerContext={{ viewerCred: point.viewerCred }}
                                                 space={point.space ?? undefined}
+                                                isLoading={loadingCardId === `point-${point.pointId}`}
                                             />
                                         </Link>
                                     ))
@@ -443,7 +466,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                 <div className="space-y-2">
                                                     <h5 className="text-sm font-medium text-muted-foreground ml-2">Rationales</h5>
                                                     {spaceViewpoints.map(viewpoint => (
-                                                        <ViewpointCard
+                                                        <ViewpointCardWrapper
                                                             key={viewpoint.id}
                                                             id={viewpoint.id}
                                                             title={viewpoint.title}
@@ -452,7 +475,14 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                             createdAt={new Date(viewpoint.createdAt)}
                                                             space={viewpoint.space ?? "global"}
                                                             className="mb-2 mx-2"
-                                                            linkable={true}
+                                                            statistics={{
+                                                                views: 0,
+                                                                copies: 0,
+                                                                totalCred: 0,
+                                                                averageFavor: 0
+                                                            }}
+                                                            loadingCardId={loadingCardId}
+                                                            handleCardClick={handleCardClick}
                                                         />
                                                     ))}
                                                 </div>
@@ -465,8 +495,9 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                 {points.map((point: ProfilePoint) => (
                                                     <Link
                                                         key={point.pointId}
-                                                        href={`${basePath}/${encodeId(point.pointId)}`}
+                                                        href={`/s/${point.space || 'global'}/${encodeId(point.pointId)}`}
                                                         className="flex border-b cursor-pointer hover:bg-accent"
+                                                        onClick={() => handleCardClick(`point-${point.pointId}`)}
                                                     >
                                                         <PointCard
                                                             className="flex-grow"
@@ -479,6 +510,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                             amountNegations={point.amountNegations}
                                                             viewerContext={{ viewerCred: point.viewerCred }}
                                                             space={point.space ?? undefined}
+                                                            isLoading={loadingCardId === `point-${point.pointId}`}
                                                         />
                                                     </Link>
                                                 ))}

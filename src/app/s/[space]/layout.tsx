@@ -1,26 +1,26 @@
 import { fetchSpace } from "@/actions/fetchSpace";
 import { SpaceHeader } from "./SpaceHeader";
+import { notFound } from "next/navigation";
+import { use } from "react";
 
-export default async function SpaceLayout({
+export default function SpaceLayout({
   children,
   params,
-}: Readonly<{
+}: {
   children: React.ReactNode;
   params: Promise<{ space: string }>;
-}>) {
-  try {
-    const { space } = await params;
-    const spaceData = await fetchSpace(space);
+}) {
+  const { space } = use(params);
+  const spaceData = use(fetchSpace(space));
 
-    return (
-      <>
-        {spaceData && <SpaceHeader spaceData={spaceData} />}
-        {children}
-      </>
-    );
-  } catch (error) {
-    console.error("Error in SpaceLayout:", error);
-    // Return children without the SpaceHeader in case of error
-    return <>{children}</>;
+  if (!spaceData) {
+    notFound();
   }
+
+  return (
+    <>
+      <SpaceHeader spaceData={spaceData} />
+      {children}
+    </>
+  );
 }

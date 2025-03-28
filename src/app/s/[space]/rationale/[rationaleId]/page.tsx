@@ -37,7 +37,7 @@ import { useFavorHistory } from "@/queries/useFavorHistory";
 import { useGraphPoints } from "@/components/graph/useGraphPoints";
 import { Loader } from "@/components/ui/loader";
 import { useViewpoint } from "@/queries/useViewpoint";
-import { useRouter } from "next/navigation";
+import { useRouter, notFound } from "next/navigation";
 import { EditModeProvider, useEditMode } from "@/components/graph/EditModeContext";
 import { ReactFlowInstance } from "@xyflow/react";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
@@ -677,9 +677,17 @@ export default function NewViewpointPage({
 }
 
 function ViewpointPageWrapper({ rationaleId }: { rationaleId: string }) {
-  const { data: viewpoint, isLoading } = useViewpoint(rationaleId);
+  const { data: viewpoint, isLoading, isError } = useViewpoint(rationaleId);
 
   if (isLoading) {
+    return (
+      <div className="flex-grow flex items-center justify-center">
+        <Loader className="size-12" />
+      </div>
+    );
+  }
+  if (!viewpoint || isError) {
+    notFound();
     return (
       <div className="flex-grow flex items-center justify-center">
         <Loader className="size-12" />
