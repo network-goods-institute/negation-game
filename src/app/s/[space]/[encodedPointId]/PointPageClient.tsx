@@ -658,8 +658,8 @@ export function PointPageClient({
                                         </Button>
                                     </PopoverTrigger>
 
-                                    <PopoverContent className="flex flex-col items-start w-96">
-                                        <div className="w-full flex justify-between">
+                                    <PopoverContent className="flex flex-col items-start w-[calc(100vw-2rem)] sm:w-[420px] p-4">
+                                        <div className="w-full flex justify-between gap-4">
                                             <CredInput
                                                 credInput={cred}
                                                 setCredInput={setCred}
@@ -675,7 +675,7 @@ export function PointPageClient({
                                             </Button>
                                         </div>
                                         {notEnoughCred && (
-                                            <span className="ml-md text-destructive text-sm h-fit">
+                                            <span className="mt-2 text-destructive text-sm">
                                                 not enough cred
                                             </span>
                                         )}
