@@ -9,6 +9,7 @@ import { useSpace } from "@/queries/useSpace";
 import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 import { useAtom } from "jotai";
 import { visitedPointsAtom } from "@/atoms/visitedPointsAtom";
+import { toast } from "sonner";
 
 export const useEndorse = () => {
   const queryClient = useQueryClient();
@@ -21,6 +22,8 @@ export const useEndorse = () => {
   return useAuthenticatedMutation({
     mutationFn: endorse,
     onSuccess: (_endorsementId, { pointId }) => {
+      toast.success("Point endorsed successfully");
+
       // Mark the point as visited/read
       markPointAsRead(pointId);
       setVisitedPoints((prev) => {
