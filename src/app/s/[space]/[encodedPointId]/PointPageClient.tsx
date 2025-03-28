@@ -219,7 +219,9 @@ export function PointPageClient({
 }: PageProps) {
     const { user: privyUser, login, ready } = usePrivy();
     const { encodedPointId, space } = params;
-    const pointId = decodeId(encodedPointId);
+    const decodedPointId = decodeId(encodedPointId);
+    // Ensure we have a valid number for pointId, fallback to -1 for invalid IDs
+    const pointId = typeof decodedPointId === 'number' ? decodedPointId : -1;
     const setNegatedPointId = useSetAtom(negatedPointIdAtom);
     const queryClient = useQueryClient();
     const router = useRouter();
@@ -244,6 +246,7 @@ export function PointPageClient({
         if (!isLoadingPoint && !point && isPointError) {
             console.warn(`Point not found: ${pointId}`);
             router.push('/not-found');
+            return;
         }
     }, [point, isLoadingPoint, isPointError, pointId, router]);
 
@@ -252,6 +255,7 @@ export function PointPageClient({
         refetch: refetchFavorHistory,
         isFetching: isFetchingFavorHistory,
     } = useFavorHistory({ pointId, timelineScale });
+
     const {
         data: negations = [],
         isLoading: isLoadingNegations,
@@ -294,7 +298,7 @@ export function PointPageClient({
 
     // Load additional data after point data is loaded
     useEffect(() => {
-        if (point && !isLoadingPoint) {
+        if (point && !isLoadingPoint && !isPointError) {
             // Load essential data only - combine queries to reduce network load
             const fetchData = async () => {
                 try {
@@ -321,7 +325,7 @@ export function PointPageClient({
 
             fetchData();
         }
-    }, [point, pointId, queryClient, privyUser?.id, isLoadingPoint]);
+    }, [point, pointId, queryClient, privyUser?.id, isLoadingPoint, isPointError]);
 
     // Force show negations after 2.5 seconds to avoid stalled UI
     useEffect(() => {
