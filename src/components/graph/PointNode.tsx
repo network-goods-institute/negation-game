@@ -21,7 +21,6 @@ import { useAtom, useSetAtom } from "jotai";
 import { XIcon, CircleIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { find } from "remeda";
 import { collapsedPointIdsAtom, collapsedNodePositionsAtom, CollapsedNodePosition } from "@/atoms/viewpointAtoms";
 import { useViewpoint } from "@/queries/useViewpoint";
 import { useParams, usePathname } from "next/navigation";
@@ -36,7 +35,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { recentlyCreatedNegationIdAtom } from "@/atoms/recentlyCreatedNegationIdAtom";
-import { ExpandPointDialog } from "@/components/graph/ExpandPointDialog";
+import { expandDialogAtom } from "@/components/graph/ExpandPointDialog";
 
 export type PointNodeData = {
   pointId: number;
@@ -331,13 +330,13 @@ export const PointNode = ({
     getEdges
   ]);
 
-  const expandedNegationIds = useMemo(() => [
-    ...incomingConnections.map((c) => {
-      const node = getNode(c.source)! as PointNode;
+  const expandedNegationIds = useMemo(() => {
+    return [...incomingConnections].map((c) => {
+      const node = getNode(c.source);
+      if (!node || node.type !== "point") return null;
       return node.data.pointId;
-    }),
-    ...(parentId ? [parentId] : []),
-  ], [incomingConnections, getNode, parentId]);
+    }).filter(Boolean) as number[];
+  }, [incomingConnections, getNode]);
 
   const collapsedNegations = useMemo(() => {
     if (!pointData) return 0;
@@ -527,6 +526,7 @@ export const PointNode = ({
 
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [isCollapsing, setIsCollapsing] = useState(false);
+  const setExpandDialogState = useSetAtom(expandDialogAtom);
 
   // Get the pathname once and memoize the check
   const pathname = usePathname();
@@ -688,8 +688,6 @@ export const PointNode = ({
 
   }, [pointData, recentlyCreatedNegation, pointId, expandSpecificNegation, setRecentlyCreatedNegation]);
 
-  const [isExpandDialogOpen, setIsExpandDialogOpen] = useState(false);
-
   const handleSelectPoint = useCallback((point: { pointId: number, parentId?: string | number }) => {
     const uniqueId = `${nanoid()}-${Date.now()}`;
     const targetNode = getNode(id)!;
@@ -734,15 +732,12 @@ export const PointNode = ({
   const expandablePoints = useMemo(() => {
     if (!pointData) return [];
     return pointData.negationIds
-      .filter(id =>
-        id !== pointId &&
-        !expandedNegationIds.includes(id)
-      )
+      .filter(id => id !== pointId) // Don't include self-negations
       .map(id => ({
         pointId: id,
         parentId: pointId
       }));
-  }, [pointData, pointId, expandedNegationIds]);
+  }, [pointData, pointId]);
 
   return (
     <>
@@ -774,19 +769,28 @@ export const PointNode = ({
               // Normal click shows dialog for 3+ points, expands directly for 2 or fewer
               if (!pointData) return;
 
+              // Get negation IDs that haven't been expanded yet
               const possibleNegationIds = pointData.negationIds.filter(id =>
                 // Don't include self-negations
                 id !== pointId &&
-                // Don't include already connected negations
+                // Don't include already expanded negations
                 !expandedNegationIds.includes(id)
               );
 
-              // If 2 or fewer points, just expand normally
+              // If 2 or fewer remaining points, just expand normally
               if (possibleNegationIds.length <= 2) {
                 expandNegations();
               } else {
                 // Show dialog for 3+ points
-                setIsExpandDialogOpen(true);
+                setExpandDialogState({
+                  isOpen: true,
+                  points: expandablePoints,
+                  parentNodeId: id,
+                  onClose: () => {
+                    // Do any cleanup needed after dialog closes
+                  },
+                  onSelectPoint: handleSelectPoint
+                });
               }
             }
           }}
@@ -869,15 +873,6 @@ export const PointNode = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <ExpandPointDialog
-        open={isExpandDialogOpen}
-        onOpenChange={setIsExpandDialogOpen}
-        points={expandablePoints}
-        onSelectPoint={handleSelectPoint}
-        onClose={() => setIsExpandDialogOpen(false)}
-        parentNodeId={id}
-      />
     </>
   );
 };

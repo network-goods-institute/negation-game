@@ -55,9 +55,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     negationContentAtom(negatedPoint?.pointId)
   );
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
-
-  // Track review state for each unique negated point with a simpler approach
-  const [viewedReviews, setViewedReviews] = useState<Set<number>>(new Set());
+  const [lastReviewedContent, setLastReviewedContent] = useState<string>("");
 
   const {
     credInput: cred,
@@ -92,12 +90,9 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     data: reviewResults,
     isLoading: isReviewingCounterpoint,
     isSuccess: counterpointWasReviewed,
-    isStale: reviewIsStale,
     refetch: reviewCounterpoint,
-    status,
   } = useQuery({
     enabled: false,
-    staleTime: 60_000,
     queryKey: [
       "counterpoint-review",
       negatedPoint?.pointId,
@@ -114,13 +109,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
       });
 
       setGuidanceNotes(undefined);
-
-      // More efficient way to mark as viewed
-      setViewedReviews(prev => {
-        const newSet = new Set(prev);
-        newSet.add(pointId);
-        return newSet;
-      });
+      setLastReviewedContent(content);
 
       // Cache for rephrasings
       reviewResults.suggestions.forEach((selectedSuggestion) =>
@@ -145,10 +134,8 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     },
   });
 
-  // Simpler and more efficient calculation
-  const hasViewedCurrentPointReview = useMemo(() =>
-    negatedPoint ? viewedReviews.has(negatedPoint.pointId) : false,
-    [viewedReviews, negatedPoint]);
+  // Simple check if content has been reviewed
+  const needsReview = counterpointContent !== lastReviewedContent;
 
   const canReview =
     charactersLeft >= 0 && counterpointContent.length >= POINT_MIN_LENGTH;
@@ -163,7 +150,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     setGuidanceNotes(undefined);
     resetCred();
     setCounterpointContent("");
-    // Don't reset viewed state for points - we want to remember which ones were viewed
+    setLastReviewedContent("");
   }, [resetCred, setCounterpointContent]);
 
   useEffect(() => {
@@ -229,9 +216,29 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
           window.dispatchEvent(event);
         } else if (selectedCounterpointCandidate.isCounterpoint) {
           toast.success("Point endorsed successfully");
+
+          if (negatedPoint?.pointId) {
+            // Invalidate the parent point's negations cache
+            queryClient.invalidateQueries({
+              queryKey: [negatedPoint.pointId, "negations"],
+              exact: true,
+            });
+
+            // Invalidate the point data cache to update negation count
+            queryClient.invalidateQueries({
+              queryKey: ["point", negatedPoint.pointId],
+              type: "all",
+            });
+          }
+
+          // Dispatch custom event for negation creation
+          const event = new CustomEvent('negation:created', {
+            detail: { pointId: negatedPoint?.pointId }
+          });
+          window.dispatchEvent(event);
         } else {
           toast.success(
-            "Negation created successfully. It may take a moment to appear in a graph context.",
+            "Negation link created successfully. It may take a moment to appear in the graph.",
             { duration: 5000 }
           );
 
@@ -291,30 +298,24 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   const handleSubmitOrReview = useCallback(() => {
     if (!negatedPointId) return;
 
-    // If review hasn't been done yet and we can review, trigger review
-    if (!counterpointWasReviewed && canReview && !isReviewingCounterpoint) {
+    // If content hasn't been reviewed yet and we can review, trigger review
+    if (needsReview && canReview && !isReviewingCounterpoint) {
       reviewCounterpoint();
       return;
     }
 
-    // Only submit if we have explicitly selected a counterpoint candidate
-    // or if we've reviewed and closed the suggestions popover
-    if (
-      (counterpointWasReviewed && !reviewIsStale && canSubmit && !isSubmitting && !reviewDialogOpen) ||
-      (hasViewedCurrentPointReview && canSubmit && !isSubmitting)
-    ) {
+    // Only submit if content has been reviewed and dialog is closed
+    if (!needsReview && canSubmit && !isSubmitting && !reviewDialogOpen) {
       handleSubmit();
     }
   }, [
     negatedPointId,
-    counterpointWasReviewed,
+    needsReview,
     canReview,
     isReviewingCounterpoint,
-    reviewIsStale,
     canSubmit,
     isSubmitting,
     reviewDialogOpen,
-    hasViewedCurrentPointReview,
     reviewCounterpoint,
     handleSubmit,
   ]);
@@ -333,18 +334,26 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
         {...props}
         open={negatedPointId !== undefined}
         onOpenChange={(open) => {
-          console.log("NegateDialog onOpenChange called with:", open);
           if (open === false) {
-            console.log("NegateDialog closing, setting negatedPointId to undefined");
             setNegatedPointId(undefined);
           }
         }}
       >
         <DialogContent className="@container sm:top-xl flex flex-col overflow-hidden sm:translate-y-0 h-full rounded-none sm:rounded-md sm:h-fit gap-0 bg-background p-4 sm:p-8 shadow-sm w-full max-w-xl max-h-[90vh]">
           <div className="w-full flex items-center justify-between mb-xl">
-            <DialogTitle>Negate</DialogTitle>
+            <DialogTitle>
+              {selectedCounterpointCandidate?.isCounterpoint
+                ? "Endorse Existing Negation"
+                : selectedCounterpointCandidate
+                  ? "Link Existing Point"
+                  : "Create New Negation"}
+            </DialogTitle>
             <DialogDescription hidden>
-              Add a negation to the Point
+              {selectedCounterpointCandidate?.isCounterpoint
+                ? "Add your cred behind this existing negation"
+                : selectedCounterpointCandidate
+                  ? "Link an existing point as a negation"
+                  : "Add a new negation to the Point"}
             </DialogDescription>
             <DialogClose className="text-primary">
               <ArrowLeftIcon />
@@ -417,7 +426,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                   credInput={cred}
                   setCredInput={setCred}
                   notEnoughCred={notEnoughCred}
-                  allowZero={true}
+                  allowZero={!selectedCounterpointCandidate?.isCounterpoint}
                 />
               </div>
             ) : (
@@ -434,16 +443,11 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
             )}
           </div>
 
-          {counterpointWasReviewed && !reviewIsStale ? (
+          {!needsReview ? (
             <div className="items-end mt-md flex flex-col w-full xs:flex-row justify-end gap-2">
               <Button
                 className="min-w-28 w-full xs:w-fit"
-                rightLoading={
-                  isReviewingCounterpoint ||
-                  isNegating ||
-                  isEndorsing ||
-                  isAddingCounterpoint
-                }
+                rightLoading={isSubmitting}
                 disabled={!canSubmit || isSubmitting}
                 onClick={handleSubmit}
               >
@@ -451,26 +455,25 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                   ? isSubmitting
                     ? "Endorsing"
                     : "Endorse"
-                  : isSubmitting
-                    ? "Negating"
-                    : "Negate"}
+                  : selectedCounterpointCandidate
+                    ? isSubmitting
+                      ? "Linking..."
+                      : "Link"
+                    : isSubmitting
+                      ? "Negating"
+                      : "Negate"}
               </Button>
 
               {reviewResults && (
                 <Button
-                  variant={hasViewedCurrentPointReview ? "outline" : "default"}
+                  variant="outline"
                   className="min-w-28 w-full xs:w-fit"
                   onClick={() => {
                     setReviewDialogOpen(true);
                   }}
                 >
                   Review suggestions{" "}
-                  <Badge className={cn(
-                    "ml-2 px-1.5",
-                    hasViewedCurrentPointReview
-                      ? "bg-muted text-muted-foreground border border-muted"
-                      : "bg-white text-primary"
-                  )}>
+                  <Badge className="ml-2 px-1.5 bg-muted text-muted-foreground border border-muted">
                     {reviewResults.existingSimilarCounterpoints.length +
                       reviewResults.suggestions.length}
                   </Badge>
@@ -482,18 +485,19 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
               <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
                   <Button
-                    disabled={!canReview || (isReviewingCounterpoint && !hasViewedCurrentPointReview) || isSubmitting}
+                    disabled={!canReview || isReviewingCounterpoint || isSubmitting}
                     className="min-w-28 w-full xs:w-fit"
                     rightLoading={isReviewingCounterpoint || isSubmitting}
                     onClick={(e) => {
-                      if (e.altKey || hasViewedCurrentPointReview) {
+                      if (e.altKey) {
+                        setLastReviewedContent(counterpointContent);
                         handleSubmit();
                         return;
                       }
                       reviewCounterpoint();
                     }}
                   >
-                    {isSubmitting ? "Negating..." : isReviewingCounterpoint ? "Reviewing..." : hasViewedCurrentPointReview ? "Negate" : "Review & Negate"}
+                    {isSubmitting ? "Linking..." : isReviewingCounterpoint ? "Reviewing..." : "Review & Negate"}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="text-xs">
