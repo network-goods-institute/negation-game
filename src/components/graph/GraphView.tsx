@@ -44,6 +44,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { copyViewpointAndNavigate } from "@/utils/copyViewpoint";
+import { cn } from "@/lib/cn";
 
 function debounce<T extends (...args: any[]) => any>(
   func: T,
@@ -80,6 +81,7 @@ export interface GraphViewProps
   statement?: string;
   onClose?: () => void;
   closeButtonClassName?: string;
+  unsavedChangesModalClassName?: string;
   editFlowInstance?: ReactFlowInstance<AppNode> | null;
   setLocalGraph?: (graph: ViewpointGraph) => void;
   isSaving?: boolean;
@@ -102,6 +104,7 @@ export const GraphView = ({
   isNew,
   isContentModified,
   onResetContent,
+  unsavedChangesModalClassName,
   ...props
 }: GraphViewProps) => {
   const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
@@ -646,7 +649,7 @@ export const GraphView = ({
         />
         <Controls />
         {(isModified && !isNew) && (
-          <Panel position="top-right" className="z-50 mt-16 sm:mt-0">
+          <Panel position="top-right" className="z-50 mt-16 md:mt-4">
             <div className="bg-background border rounded-lg shadow-lg p-4 flex flex-col gap-2 min-w-[200px]">
               <div className="text-sm font-medium text-muted-foreground">
                 Unsaved Changes
@@ -680,30 +683,25 @@ export const GraphView = ({
       </ReactFlow>
 
       <AlertDialog open={isDiscardDialogOpen} onOpenChange={setIsDiscardDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className={cn("sm:max-w-[425px]", unsavedChangesModalClassName)}>
           <AlertDialogHeader>
-            <AlertDialogTitle>Discard Changes</AlertDialogTitle>
+            <AlertDialogTitle>You have unsaved changes</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to discard your changes? This action cannot be undone.
+              Do you want to save your changes or discard them?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDiscarding}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDiscard}
-              disabled={isDiscarding}
-              className="relative"
+            <AlertDialogCancel
+              disabled={isSaving_local || isDiscarding}
+              onClick={() => handleDiscard()}
             >
-              {isDiscarding ? (
-                <>
-                  <span className="opacity-0">Yes, discard changes</span>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
-                  </div>
-                </>
-              ) : (
-                "Yes, discard changes"
-              )}
+              {isDiscarding ? "Discarding..." : "Discard changes"}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isSaving_local || isDiscarding}
+              onClick={() => handleSave()}
+            >
+              {isSaving_local ? "Saving..." : "Save changes"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

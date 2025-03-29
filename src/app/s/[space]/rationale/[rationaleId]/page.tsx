@@ -1,11 +1,10 @@
 "use client";
 
-import { viewpointGraphAtom, collapsedPointIdsAtom, ViewpointGraph } from "@/atoms/viewpointAtoms";
+import { viewpointGraphAtom, collapsedPointIdsAtom } from "@/atoms/viewpointAtoms";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { AppNode } from "@/components/graph/AppNode";
-import { AppEdge } from "@/components/graph/AppEdge";
 import { GraphView } from "@/components/graph/GraphView";
 import {
   OriginalPosterProvider,
@@ -33,7 +32,6 @@ import { useUpdateViewpointDetails } from "@/mutations/useUpdateViewpointDetails
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useFavorHistory } from "@/queries/useFavorHistory";
-
 import { useGraphPoints } from "@/components/graph/useGraphPoints";
 import { Loader } from "@/components/ui/loader";
 import { useViewpoint } from "@/queries/useViewpoint";
@@ -128,7 +126,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
   useEffect(() => {
     const checkMobile = () => {
-      const isMobileView = window.innerWidth < 640; // 640px is tailwind's sm breakpoint
+      const isMobileView = window.innerWidth < 768; // 768px is tailwind's md breakpoint
       setIsMobile(isMobileView);
     };
 
@@ -196,7 +194,10 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
   const handleEditingBlur = useCallback(() => {
     // Check if content has been modified by comparing against original values
-    if (originalTitleRef.current !== editableTitle || originalDescriptionRef.current !== editableDescription) {
+    const titleChanged = originalTitleRef.current !== editableTitle;
+    const descriptionChanged = originalDescriptionRef.current !== editableDescription;
+
+    if (titleChanged || descriptionChanged) {
       // Mark as modified to show save button
       setIsContentModified(true);
 
@@ -350,10 +351,8 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
         viewpoint.id
       )
         .then(() => {
-          // Navigation happens in the utility function
         })
         .catch(error => {
-          console.error("Error copying viewpoint:", error);
           alert("Failed to copy rationale. Please try again.");
           setIsCopying(false);
         });
@@ -434,11 +433,11 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
   return (
     <EditModeProvider>
-      <main className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
-        <div className="w-full sm:col-[2] flex flex-col border-x pb-10 overflow-auto">
+      <main className="relative flex-grow md:grid md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
+        <div className="w-full md:col-[2] flex flex-col border-x pb-10 overflow-auto">
           <div className="relative flex-grow bg-background">
             {/* New back navigation row */}
-            <div className="sticky top-0 z-10 w-full flex items-center justify-between px-4 py-2 bg-background/70 backdrop-blur">
+            <div className="sticky top-0 z-10 w-full flex items-center justify-between px-4 py-2 bg-background">
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
@@ -449,76 +448,111 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                   <ArrowLeftIcon className="size-4" />
                   <span className="text-sm">Back</span>
                 </Button>
-                <h1 className="text-sm font-bold flex items-center gap-2 ml-2">
+                <h1 className="text-sm font-bold items-center gap-2 ml-2 md:block hidden">
+                  <ViewpointIcon className="size-4" />
+                  Rationale
+                </h1>
+                {/* Graph toggle on mobile */}
+                <div className="md:hidden">
+                  <Button
+                    size={"icon"}
+                    variant={canvasEnabled ? "default" : "outline"}
+                    className="rounded-full p-2 size-9"
+                    onClick={() => setCanvasEnabled(!canvasEnabled)}
+                  >
+                    <NetworkIcon className="" />
+                  </Button>
+                </div>
+                {/* Rationale text on mobile */}
+                <h1 className="text-sm font-bold flex items-center gap-2 md:hidden">
                   <ViewpointIcon className="size-4" />
                   Rationale
                 </h1>
               </div>
-            </div>
-            <Separator />
-
-            {/* Existing header */}
-            <div className="sticky top-[calc(2.5rem+1px)] z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
-              <div className="flex items-center gap-2">
+              {/* Move copy buttons up here on mobile */}
+              <div className="flex items-center gap-2 md:hidden shrink-0">
                 <Button
                   variant="outline"
                   className={cn(
-                    "rounded-full flex items-center gap-2 px-4",
+                    "rounded-full flex items-center gap-2 px-3 shrink-0",
                     isCopyingUrl && "text-green-500 border-green-500"
                   )}
                   onClick={handleCopyUrl}
                 >
-                  <span className="text-sm font-bold">
+                  <span className="text-sm font-bold whitespace-nowrap">
                     {isCopyingUrl ? "Copied!" : "Copy Link"}
                   </span>
                   {isCopyingUrl ? (
-                    <CheckIcon className="size-4" />
+                    <CheckIcon className="size-4 shrink-0" />
                   ) : (
-                    <LinkIcon className="size-4" />
+                    <LinkIcon className="size-4 shrink-0" />
                   )}
                 </Button>
                 <AuthenticatedActionButton
                   variant="outline"
-                  className="rounded-full flex items-center gap-2 px-4"
+                  className="rounded-full flex items-center gap-2 px-3 shrink-0"
                   onClick={handleCopy}
                   disabled={isCopying}
                 >
                   {isCopying ? (
                     <div className="flex items-center gap-2">
-                      <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
-                      <span className="text-sm font-bold">Copying...</span>
+                      <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin shrink-0" />
+                      <span className="text-sm font-bold whitespace-nowrap">Copying...</span>
                     </div>
                   ) : (
                     <>
-                      <span className="text-sm font-bold">Make a Copy</span>
-                      <CopyIcon className="size-4" />
+                      <span className="text-sm font-bold whitespace-nowrap">Make a Copy</span>
+                      <CopyIcon className="size-4 shrink-0" />
                     </>
                   )}
                 </AuthenticatedActionButton>
               </div>
-
-              {/* Mobile canvas toggle button on the right */}
-              <div className="sm:hidden">
-                <Button
-                  size={"icon"}
-                  variant={canvasEnabled ? "default" : "outline"}
-                  className="rounded-full p-2 size-9"
-                  onClick={() => {
-                    const newState = !canvasEnabled;
-                    setCanvasEnabled(newState);
-                  }}
-                >
-                  <NetworkIcon className="" />
-                </Button>
-              </div>
             </div>
             <Separator />
-            {/* Add mobile-only separator that appears under the mobile buttons when canvas is enabled */}
-            {canvasEnabled && (
-              <div className="sm:hidden">
-                <Separator />
+
+            {/* Desktop-only header */}
+            <div className="hidden md:block">
+              <div className="sticky top-[calc(2.5rem+1px)] z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "rounded-full flex items-center gap-2 px-4",
+                      isCopyingUrl && "text-green-500 border-green-500"
+                    )}
+                    onClick={handleCopyUrl}
+                  >
+                    <span className="text-sm font-bold">
+                      {isCopyingUrl ? "Copied!" : "Copy Link"}
+                    </span>
+                    {isCopyingUrl ? (
+                      <CheckIcon className="size-4" />
+                    ) : (
+                      <LinkIcon className="size-4" />
+                    )}
+                  </Button>
+                  <AuthenticatedActionButton
+                    variant="outline"
+                    className="rounded-full flex items-center gap-2 px-4"
+                    onClick={handleCopy}
+                    disabled={isCopying}
+                  >
+                    {isCopying ? (
+                      <div className="flex items-center gap-2">
+                        <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                        <span className="text-sm font-bold">Copying...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="text-sm font-bold">Make a Copy</span>
+                        <CopyIcon className="size-4" />
+                      </>
+                    )}
+                  </AuthenticatedActionButton>
+                </div>
               </div>
-            )}
+              <Separator />
+            </div>
 
             <div className="flex flex-col p-2 gap-0">
               {isTitleEditing ? (
@@ -537,11 +571,21 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                 />
               ) : (
                 <div className="relative">
+                  {canEdit() && !canvasEnabled && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 z-10 md:hidden"
+                      onClick={() => setIsTitleEditing(true)}
+                    >
+                      Edit
+                    </Button>
+                  )}
                   {canEdit() && (
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute right-0 top-0 z-10"
+                      className="absolute right-0 top-0 z-10 hidden md:inline-flex"
                       onClick={() => setIsTitleEditing(true)}
                     >
                       Edit
@@ -583,11 +627,21 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                 />
               ) : (
                 <div className="relative">
+                  {canEdit() && !canvasEnabled && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 z-10 md:hidden"
+                      onClick={() => setIsDescriptionEditing(true)}
+                    >
+                      Edit
+                    </Button>
+                  )}
                   {canEdit() && (
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute right-0 top-0 z-10"
+                      className="absolute right-0 top-0 z-10 hidden md:inline-flex"
                       onClick={() => setIsDescriptionEditing(true)}
                     >
                       Edit
@@ -640,7 +694,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
             statement={title}
             className={cn(
               "!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset] !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md:z-auto",
-              !canvasEnabled && isMobile ? "hidden" : ""
+              !canvasEnabled && "hidden md:block"
             )}
             setLocalGraph={setLocalGraph}
             onSaveChanges={onSaveChanges}
@@ -649,9 +703,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
             isContentModified={isContentModified}
             onClose={
               isMobile
-                ? () => {
-                  setCanvasEnabled(false);
-                }
+                ? () => setCanvasEnabled(false)
                 : undefined
             }
             closeButtonClassName="top-4 right-4"
