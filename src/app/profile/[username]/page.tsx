@@ -24,6 +24,12 @@ import { ViewpointCardWrapper } from "@/components/ViewpointCardWrapper";
 import { usePathname } from "next/navigation";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 import { useSetAtom } from "jotai";
+import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
+import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
+import { useQueryClient } from "@tanstack/react-query";
+import dynamic from "next/dynamic";
+
+const NegateDialog = dynamic(() => import("@/components/NegateDialog").then(mod => mod.NegateDialog), { ssr: false });
 
 interface ProfilePageProps {
     params: Promise<{
@@ -37,7 +43,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     const username = unwrappedParams.username;
 
     // All hooks must be called at the top level, before any conditionals
-    const { user: privyUser, ready } = usePrivy();
+    const { user: privyUser, ready, login } = usePrivy();
     const router = useRouter();
     const { data: points, isLoading: isLoadingPoints } = useFeed();
     const [isTimelineAscending, setIsTimelineAscending] = useState(false);
@@ -50,6 +56,8 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     const setInitialTab = useSetAtom(initialSpaceTabAtom);
     const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
     const pathname = usePathname();
+    const queryClient = useQueryClient();
+    const setNegatedPointId = useSetAtom(negatedPointIdAtom);
 
     // Wrap myPoints in useMemo to stabilize it
     const myPoints = useMemo(() => profilePoints || [], [profilePoints]);
@@ -154,6 +162,30 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     const handleCardClick = useCallback((id: string) => {
         setLoadingCardId(id);
     }, []);
+
+    useEffect(() => {
+        const handleEndorsementChange = (event: Event) => {
+            if (username) {
+                const pointId = (event as CustomEvent)?.detail?.pointId;
+
+                queryClient.invalidateQueries({ queryKey: ["profile-points", username] });
+                queryClient.invalidateQueries({ queryKey: ["user-endorsed-points", username] });
+                queryClient.invalidateQueries({ queryKey: ["user-rationales", username] });
+
+                if (pointId) {
+                    queryClient.invalidateQueries({ queryKey: ["point", pointId] });
+                }
+
+                queryClient.invalidateQueries({ queryKey: ["feed"] });
+            }
+        };
+
+        window.addEventListener("endorse-event", handleEndorsementChange);
+
+        return () => {
+            window.removeEventListener("endorse-event", handleEndorsementChange);
+        };
+    }, [username, queryClient]);
 
     // Loading states should be checked after all hooks are called
     if (!ready || isLoadingPoints || isLoadingViewpoints || isLoadingEndorsedPoints) {
@@ -358,7 +390,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                             description={viewpoint.description}
                                                             author={viewpoint.author}
                                                             createdAt={new Date(viewpoint.createdAt)}
-                                                            className="mb-2 mx-2"
+                                                            className="mb-2"
                                                             space={viewpoint.space ?? "global"}
                                                             statistics={{
                                                                 views: 0,
@@ -383,7 +415,15 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                             key={point.pointId}
                                                             href={`/s/${point.space || 'global'}/${encodeId(point.pointId)}`}
                                                             className="flex border-b cursor-pointer hover:bg-accent"
-                                                            onClick={() => handleCardClick(`point-${point.pointId}`)}
+                                                            draggable={false}
+                                                            onClick={(e) => {
+                                                                preventDefaultIfContainsSelection(e);
+                                                                // Don't navigate if text is selected or if it's an action button
+                                                                const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
+                                                                if (!isActionButton && window.getSelection()?.isCollapsed !== false) {
+                                                                    handleCardClick(`point-${point.pointId}`);
+                                                                }
+                                                            }}
                                                         >
                                                             <PointCard
                                                                 className="flex-grow"
@@ -397,6 +437,14 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                                 viewerContext={{ viewerCred: point.viewerCred }}
                                                                 space={point.space ?? undefined}
                                                                 isLoading={loadingCardId === `point-${point.pointId}`}
+                                                                onNegate={(e) => {
+                                                                    e.preventDefault();
+                                                                    if (privyUser) {
+                                                                        setNegatedPointId(point.pointId);
+                                                                    } else {
+                                                                        login();
+                                                                    }
+                                                                }}
                                                             />
                                                         </Link>
                                                     ))}
@@ -431,7 +479,15 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                             key={point.pointId}
                                             href={`/s/${point.space || 'global'}/${encodeId(point.pointId)}`}
                                             className="flex border-b cursor-pointer hover:bg-accent"
-                                            onClick={() => handleCardClick(`point-${point.pointId}`)}
+                                            draggable={false}
+                                            onClick={(e) => {
+                                                preventDefaultIfContainsSelection(e);
+                                                // Don't navigate if text is selected or if it's an action button
+                                                const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
+                                                if (!isActionButton && window.getSelection()?.isCollapsed !== false) {
+                                                    handleCardClick(`point-${point.pointId}`);
+                                                }
+                                            }}
                                         >
                                             <PointCard
                                                 className="flex-grow"
@@ -445,6 +501,14 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                 viewerContext={{ viewerCred: point.viewerCred }}
                                                 space={point.space ?? undefined}
                                                 isLoading={loadingCardId === `point-${point.pointId}`}
+                                                onNegate={(e) => {
+                                                    e.preventDefault();
+                                                    if (privyUser) {
+                                                        setNegatedPointId(point.pointId);
+                                                    } else {
+                                                        login();
+                                                    }
+                                                }}
                                             />
                                         </Link>
                                     ))
@@ -474,7 +538,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                             author={viewpoint.author}
                                                             createdAt={new Date(viewpoint.createdAt)}
                                                             space={viewpoint.space ?? "global"}
-                                                            className="mb-2 mx-2"
+                                                            className="mb-2"
                                                             statistics={{
                                                                 views: 0,
                                                                 copies: 0,
@@ -497,7 +561,15 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                         key={point.pointId}
                                                         href={`/s/${point.space || 'global'}/${encodeId(point.pointId)}`}
                                                         className="flex border-b cursor-pointer hover:bg-accent"
-                                                        onClick={() => handleCardClick(`point-${point.pointId}`)}
+                                                        draggable={false}
+                                                        onClick={(e) => {
+                                                            preventDefaultIfContainsSelection(e);
+                                                            // Don't navigate if text is selected or if it's an action button
+                                                            const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
+                                                            if (!isActionButton && window.getSelection()?.isCollapsed !== false) {
+                                                                handleCardClick(`point-${point.pointId}`);
+                                                            }
+                                                        }}
                                                     >
                                                         <PointCard
                                                             className="flex-grow"
@@ -511,6 +583,14 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                             viewerContext={{ viewerCred: point.viewerCred }}
                                                             space={point.space ?? undefined}
                                                             isLoading={loadingCardId === `point-${point.pointId}`}
+                                                            onNegate={(e) => {
+                                                                e.preventDefault();
+                                                                if (privyUser) {
+                                                                    setNegatedPointId(point.pointId);
+                                                                } else {
+                                                                    login();
+                                                                }
+                                                            }}
                                                         />
                                                     </Link>
                                                 ))}
@@ -532,6 +612,8 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                     currentDelegationUrl={userData?.delegationUrl}
                 />
             )}
+
+            <NegateDialog />
         </main>
     );
 } 

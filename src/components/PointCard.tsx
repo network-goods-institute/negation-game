@@ -505,6 +505,8 @@ export const PointCard = ({
                     onClick={() => {
                       endorse({ pointId, cred: credInput }).then(() => {
                         toggleEndorsePopoverOpen(false);
+                        // Dispatch an event to notify listeners about the endorsement
+                        window.dispatchEvent(new CustomEvent("endorse-event", { detail: { pointId } }));
                       });
                     }}
                   >

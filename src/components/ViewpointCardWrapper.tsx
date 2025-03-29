@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { ViewpointCard } from "./ViewpointCard";
 
 interface ViewpointCardWrapperProps {
@@ -31,23 +31,26 @@ export function ViewpointCardWrapper({
     handleCardClick,
     className = "flex-grow"
 }: ViewpointCardWrapperProps) {
+    // Card click handler - only triggers navigation when the ViewpointCard
+    // component determines it's a valid click (not a text selection)
+    const onCardClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        handleCardClick?.(`rationale-${id}`);
+    }, [id, handleCardClick]);
+
     return (
-        <div
-            className="relative"
-            onClick={() => handleCardClick?.(`rationale-${id}`)}
-        >
-            <ViewpointCard
-                className={className}
-                id={id}
-                title={title}
-                description={description}
-                author={author}
-                createdAt={createdAt}
-                space={space}
-                statistics={statistics}
-                linkable={true}
-                isLoading={loadingCardId === `rationale-${id}`}
-            />
-        </div>
+        <ViewpointCard
+            className={className}
+            id={id}
+            title={title}
+            description={description}
+            author={author}
+            createdAt={createdAt}
+            space={space}
+            statistics={statistics}
+            linkable={true}
+            isLoading={loadingCardId === `rationale-${id}`}
+            data-rationale-id={id}
+            onClick={onCardClick}
+        />
     );
 } 

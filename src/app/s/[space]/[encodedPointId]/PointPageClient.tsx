@@ -147,9 +147,9 @@ const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, ha
                 draggable={false}
                 onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                     const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
-                    if (!isActionButton) {
+                    preventDefaultIfContainsSelection(e);
+                    if (!isActionButton && window.getSelection()?.isCollapsed !== false) {
                         prefetchPoint(negation.pointId);
-                        preventDefaultIfContainsSelection(e);
                         onCardClick(`point-${negation.pointId}`);
                     }
                 }}

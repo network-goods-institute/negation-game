@@ -85,7 +85,10 @@ export function SearchResultsList({ results, isLoading, query, hasSearched = fal
                             draggable={false}
                             onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                                 preventDefaultIfContainsSelection(e);
-                                handleCardClick?.(`point-${result.id}`);
+                                const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
+                                if (!isActionButton && window.getSelection()?.isCollapsed !== false) {
+                                    handleCardClick?.(`point-${result.id}`);
+                                }
                             }}
                             href={getPointUrl(Number(result.id), pointData.space)}
                             className="flex border-b cursor-pointer hover:bg-accent"

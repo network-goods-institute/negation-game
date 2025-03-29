@@ -155,8 +155,9 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                 draggable={false}
                 onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                     preventDefaultIfContainsSelection(e);
+                    // Don't navigate if text is selected or if it's an action button
                     const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
-                    if (!isActionButton) {
+                    if (!isActionButton && window.getSelection()?.isCollapsed !== false) {
                         prefetchPoint(point.pointId);
                         handleCardClick(`point-${point.pointId}`);
                     }
@@ -296,8 +297,9 @@ const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, log
                 draggable={false}
                 onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                     preventDefaultIfContainsSelection(e);
+                    // Don't navigate if text is selected or if it's an action button
                     const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
-                    if (!isActionButton) {
+                    if (!isActionButton && window.getSelection()?.isCollapsed !== false) {
                         handleCardClick(`point-${point.pointId}`);
                     }
                 }}
@@ -918,7 +920,7 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
                                 onClick={(e: React.MouseEvent) => {
                                     preventDefaultIfContainsSelection(e);
                                     const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
-                                    if (!isActionButton) {
+                                    if (!isActionButton && window.getSelection()?.isCollapsed !== false) {
                                         handleCardClick(`point-${pinnedPoint.pointId}`);
                                     }
                                 }}

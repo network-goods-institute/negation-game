@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mock all privy-related modules before importing ProfilePage
 jest.mock('@privy-io/react-auth', () => ({
@@ -15,6 +16,21 @@ jest.mock('next/navigation', () => ({
     useRouter: jest.fn(),
     usePathname: jest.fn(() => '/profile/testuser'),
     useParams: jest.fn(() => ({ username: 'testuser' }))
+}));
+
+// Mock Jotai atoms
+jest.mock('jotai', () => ({
+    ...jest.requireActual('jotai'),
+    useAtom: jest.fn(() => [new Set(), jest.fn()]),
+    useSetAtom: jest.fn(() => jest.fn()),
+}));
+
+jest.mock('@/atoms/negatedPointIdAtom', () => ({
+    negatedPointIdAtom: {}
+}));
+
+jest.mock('@/atoms/navigationAtom', () => ({
+    initialSpaceTabAtom: {}
 }));
 
 // Create mocks for all necessary backend modules
@@ -39,6 +55,10 @@ jest.mock('@/components/ViewpointCard', () => ({
 
 jest.mock('@/components/ProfileEditDialog', () => ({
     ProfileEditDialog: () => <div data-testid="mock-profile-edit-dialog">Mock Profile Edit Dialog</div>
+}));
+
+jest.mock('@/components/NegateDialog', () => ({
+    NegateDialog: () => <div data-testid="mock-negate-dialog">Mock Negate Dialog</div>
 }));
 
 // Mock React.use to return fake params
@@ -95,11 +115,25 @@ jest.mock('@/utils/backButtonUtils', () => ({
     isSameDomain: jest.fn()
 }));
 
+// Mock React Query
+jest.mock('@tanstack/react-query', () => {
+    const original = jest.requireActual('@tanstack/react-query');
+    return {
+        ...original,
+        useQueryClient: jest.fn(() => ({
+            invalidateQueries: jest.fn(),
+            setQueryData: jest.fn(),
+            getQueryData: jest.fn()
+        }))
+    };
+});
+
 describe('ProfilePage', () => {
     let mockRouter: any;
     let originalHistoryBack: () => void;
     let originalHistoryLength: number;
     let originalReferrer: string;
+    let queryClient: any;
 
     beforeEach(() => {
         // Setup router mock
@@ -108,6 +142,15 @@ describe('ProfilePage', () => {
             push: jest.fn(),
         };
         (useRouter as jest.Mock).mockReturnValue(mockRouter);
+
+        // Setup queryClient
+        queryClient = new QueryClient({
+            defaultOptions: {
+                queries: {
+                    retry: false,
+                },
+            },
+        });
 
         // Mock successful data loading - using the data structure that the component expects
         (useUser as jest.Mock).mockReturnValue({
@@ -182,11 +225,19 @@ describe('ProfilePage', () => {
         jest.clearAllMocks();
     });
 
+    const renderWithProviders = (ui: React.ReactElement) => {
+        return render(
+            <QueryClientProvider client={queryClient}>
+                {ui}
+            </QueryClientProvider>
+        );
+    };
+
     test('renders back button', () => {
         // Use a fake params promise
         const paramsPromise = Promise.resolve({ username: 'testuser' });
 
-        render(<ProfilePage params={paramsPromise} />);
+        renderWithProviders(<ProfilePage params={paramsPromise} />);
         const backButton = screen.getByRole('button', { name: /back/i });
         expect(backButton).toBeInTheDocument();
     });
@@ -200,7 +251,7 @@ describe('ProfilePage', () => {
         });
 
         const paramsPromise = Promise.resolve({ username: 'testuser' });
-        render(<ProfilePage params={paramsPromise} />);
+        renderWithProviders(<ProfilePage params={paramsPromise} />);
         const backButton = screen.getByRole('button', { name: /back/i });
 
         // Click the back button
@@ -227,7 +278,7 @@ describe('ProfilePage', () => {
         });
 
         const paramsPromise = Promise.resolve({ username: 'testuser' });
-        render(<ProfilePage params={paramsPromise} />);
+        renderWithProviders(<ProfilePage params={paramsPromise} />);
         const backButton = screen.getByRole('button', { name: /back/i });
 
         // Click the back button
@@ -246,7 +297,7 @@ describe('ProfilePage', () => {
         });
 
         const paramsPromise = Promise.resolve({ username: 'testuser' });
-        render(<ProfilePage params={paramsPromise} />);
+        renderWithProviders(<ProfilePage params={paramsPromise} />);
 
         // Should still render back button even in not found state
         const backButton = screen.getByRole('button', { name: /back/i });
