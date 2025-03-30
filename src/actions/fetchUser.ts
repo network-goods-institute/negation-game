@@ -1,27 +1,35 @@
 "use server";
 
-import { lower } from "@/db/operators";
 import { usersTable } from "@/db/schema";
 import { db } from "@/services/db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
-export const isUsernameAvailable = async (username: string) => {
-  console.error("[isUsernameAvailable] Checking username:", username);
+export const fetchUser = async (idOrUsername: string) => {
   try {
-    const query = db
-      .select()
+    // Check if this is likely a username (not starting with did:privy:)
+    const isLikelyUsername = !idOrUsername.startsWith("did:privy:");
+
+    let query;
+    if (isLikelyUsername) {
+      query = sql`LOWER(${usersTable.username}) = LOWER(${idOrUsername})`;
+    } else {
+      query = eq(usersTable.id, idOrUsername);
+    }
+
+    const result = await db
+      .select({
+        id: usersTable.id,
+        username: usersTable.username,
+        cred: usersTable.cred,
+        bio: usersTable.bio,
+        delegationUrl: usersTable.delegationUrl,
+      })
       .from(usersTable)
-      .where(eq(lower(usersTable.username), username.toLowerCase()))
+      .where(query)
       .limit(1);
 
-    console.error("[isUsernameAvailable] SQL query:", query.toSQL());
-
-    const result = await query;
-    console.error("[isUsernameAvailable] Query result:", result);
-
-    return result.length === 0;
+    return result.length === 1 ? result[0] : null;
   } catch (error) {
-    console.error("[isUsernameAvailable] Database error:", error);
-    throw error;
+    return null;
   }
 };
