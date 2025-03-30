@@ -2,66 +2,109 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PointStats } from "@/components/PointStats";
 import {
-    CircleIcon,
     ExternalLinkIcon,
-    ArrowLeftIcon,
+    XIcon,
     CheckIcon,
+    SearchIcon,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePointData } from "@/queries/usePointData";
-import { useState } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { nanoid } from "nanoid";
 import { useReactFlow } from "@xyflow/react";
 import { getPointUrl } from "@/lib/getPointUrl";
+import { Portal } from "@radix-ui/react-portal";
+import { atom, useAtom } from "jotai";
 
 export interface ExpandablePoint {
     pointId: number;
     parentId?: string | number;
 }
 
-interface ExpandablePointCardProps {
+interface ExpandablePointNodeProps {
     point: ExpandablePoint;
     isSelected: boolean;
+    isExpanded: boolean;
+    isCollapsed: boolean;
     onSelect: (point: ExpandablePoint) => void;
+    searchTerm: string;
 }
 
-const ExpandablePointCard: React.FC<ExpandablePointCardProps> = ({
+const ExpandablePointNode: React.FC<ExpandablePointNodeProps> = ({
     point,
     isSelected,
+    isExpanded,
+    isCollapsed,
     onSelect,
+    searchTerm
 }) => {
-    const { data: pointData } = usePointData(point.pointId);
+    const { data: pointData, isLoading } = usePointData(point.pointId);
+    const [isVisible, setIsVisible] = useState(true);
 
-    if (!pointData) {
+    useEffect(() => {
+        if (!searchTerm.trim() || !pointData) {
+            setIsVisible(true);
+            return;
+        }
+
+        try {
+            const matches = pointData.content.toLowerCase().includes(searchTerm.toLowerCase());
+            setIsVisible(matches);
+        } catch (e) {
+            console.error(`Error filtering point ${point.pointId}:`, e);
+            setIsVisible(false);
+        }
+    }, [searchTerm, pointData, point.pointId]);
+
+    if (!pointData || isLoading) {
         return (
             <div className="h-24 w-full bg-muted animate-pulse rounded-md" />
         );
     }
 
+    // Hide non-matching items
+    if (!isVisible) {
+        return null;
+    }
+
     return (
         <div
             className={cn(
-                "flex flex-col gap-3 p-4 w-full bg-background cursor-pointer border rounded-md transition-colors shadow-sm hover:border-primary hover:ring-1 hover:ring-primary relative",
-                isSelected && "border-primary ring-1 ring-primary bg-primary/5"
+                "flex flex-col bg-background border-2 rounded-md transition-colors shadow-sm relative min-h-28",
+                isSelected && "border-purple-500 ring-2 ring-purple-500/30",
+                !isSelected && "border-muted-foreground/20",
+                "cursor-pointer hover:border-yellow-500 hover:bg-yellow-500/10"
             )}
-            onClick={() => onSelect(point)}
+            onClick={() => {
+                onSelect(point);
+            }}
+            title={`Point ID: ${point.pointId}`}
         >
-            <div className="flex flex-col gap-1">
-                <span className="text-md font-medium">
+            <div className="p-3 flex flex-col gap-1.5">
+                <span className="text-sm font-medium line-clamp-3">
                     {pointData.content}
                 </span>
 
-                <div className="flex justify-end mb-1">
+                <div className="flex justify-between items-center mt-1">
+                    <PointStats
+                        favor={pointData.favor}
+                        amountNegations={pointData.amountNegations}
+                        amountSupporters={pointData.amountSupporters}
+                        cred={pointData.cred}
+                    />
+
                     <div className="flex items-center gap-2">
-                        <Badge
-                            className={cn(
-                                "bg-primary/15 text-primary border-primary hover:bg-primary/20 whitespace-nowrap"
-                            )}
-                        >
-                            Existing
-                        </Badge>
+                        {isExpanded ? (
+                            <Badge className="bg-muted text-muted-foreground border-muted-foreground whitespace-nowrap">
+                                Expanded
+                            </Badge>
+                        ) : (
+                            <Badge className="bg-muted text-muted-foreground border-muted-foreground whitespace-nowrap">
+                                Collapsed
+                            </Badge>
+                        )}
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
@@ -83,13 +126,6 @@ const ExpandablePointCard: React.FC<ExpandablePointCardProps> = ({
                         </Tooltip>
                     </div>
                 </div>
-
-                <PointStats
-                    favor={pointData.favor}
-                    amountNegations={pointData.amountNegations}
-                    amountSupporters={pointData.amountSupporters}
-                    cred={pointData.cred}
-                />
             </div>
         </div>
     );
@@ -103,6 +139,22 @@ interface ExpandPointDialogProps {
     onClose: () => void;
     parentNodeId: string;
 }
+
+type ExpandDialogState = {
+    isOpen: boolean;
+    points: ExpandablePoint[];
+    parentNodeId: string;
+    onClose: (() => void) | null;
+    onSelectPoint: ((point: ExpandablePoint) => void) | null;
+};
+
+export const expandDialogAtom = atom<ExpandDialogState>({
+    isOpen: false,
+    points: [],
+    parentNodeId: '',
+    onClose: null,
+    onSelectPoint: null
+});
 
 function calculateInitialLayout(
     parentX: number,
@@ -119,7 +171,6 @@ function calculateInitialLayout(
     }
 
     const positions: Array<{ x: number; y: number }> = [];
-
 
     const totalWidth = (count - 1) * spacing;
     const startX = parentX - totalWidth / 2;
@@ -142,19 +193,124 @@ function calculateInitialLayout(
     return positions;
 }
 
+// Main component that manages global dialog state
 export const ExpandPointDialog: React.FC<ExpandPointDialogProps> = ({
     open,
-    onOpenChange,
     points,
     onClose,
     parentNodeId,
+    onSelectPoint
 }) => {
-    const [selectedPoints, setSelectedPoints] = useState<Set<number>>(new Set());
+    // Update global state when this component's props change
+    const [dialogState, setDialogState] = useAtom(expandDialogAtom);
+
+    useEffect(() => {
+        if (open) {
+            setDialogState({
+                isOpen: true,
+                points,
+                parentNodeId,
+                onClose,
+                onSelectPoint
+            });
+        }
+    }, [open, points, parentNodeId, onClose, onSelectPoint, setDialogState]);
+
+    // Empty render since the actual dialog is rendered by GlobalExpandPointDialog
+    return null;
+};
+
+export const GlobalExpandPointDialog: React.FC = () => {
+    const [dialogState, setDialogState] = useAtom(expandDialogAtom);
+    const [unselectedPoints, setUnselectedPoints] = useState<Set<number>>(new Set());
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const { getNode, addNodes, addEdges } = useReactFlow();
+    const [searchTerm, setSearchTerm] = useState('');
+    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [modalSize, setModalSize] = useState({ width: 450, height: 550 });
+    const modalRef = useRef<HTMLDivElement>(null);
+    const isDragging = useRef(false);
+    const dragStart = useRef({ x: 0, y: 0 });
+    const { getNode, addNodes, addEdges, getNodes, getEdges, deleteElements } = useReactFlow();
+
+    const expandedPointIds = useMemo(() => {
+        if (!dialogState.isOpen) return new Set<number>();
+
+
+        const nodes = getNodes();
+        const connectedToParent = new Set<number>();
+
+        const edges = getEdges();
+        const parentNode = getNode(dialogState.parentNodeId);
+
+        if (parentNode) {
+            const incomingEdges = edges.filter(e => e.target === dialogState.parentNodeId);
+
+            incomingEdges.forEach(edge => {
+                const sourceNode = nodes.find(n => n.id === edge.source);
+                if (sourceNode?.type === 'point' && sourceNode?.data?.pointId) {
+                    connectedToParent.add(sourceNode.data.pointId as number);
+                }
+            });
+        }
+
+        return connectedToParent;
+    }, [dialogState.isOpen, dialogState.parentNodeId, getNodes, getEdges, getNode]);
+
+    useEffect(() => {
+        if (dialogState.isOpen) {
+            // Always position in bottom right of viewport
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            // Add padding from edges
+            const rightPadding = 20;
+            const bottomPadding = 20;
+
+            // Ensure the dialog fits within the viewport
+            const xPos = viewportWidth - modalSize.width - rightPadding;
+            const yPos = viewportHeight - modalSize.height - bottomPadding;
+
+            setPosition({
+                x: Math.max(20, xPos),
+                y: Math.max(20, yPos)
+            });
+        }
+    }, [dialogState.isOpen, modalSize]);
+
+    // Update modal size when content changes
+    useEffect(() => {
+        if (modalRef.current) {
+            const newWidth = Math.min(480, window.innerWidth - 40);
+            setModalSize(prev => ({ ...prev, width: newWidth }));
+        }
+    }, [dialogState.isOpen]);
+
+    // Reset selected points when search term changes to avoid selecting hidden points
+    useEffect(() => {
+        if (searchTerm.trim() !== '') {
+            setUnselectedPoints(new Set());
+        }
+    }, [searchTerm]);
+
+    // Reset state when dialog opens or parent changes
+    useEffect(() => {
+        if (dialogState.isOpen) {
+            setSearchTerm('');
+            setUnselectedPoints(new Set());
+        }
+    }, [dialogState.isOpen, dialogState.parentNodeId]);
+
+    const handleClose = () => {
+        if (dialogState.onClose) {
+            dialogState.onClose();
+        }
+        setDialogState(state => ({ ...state, isOpen: false }));
+        setSearchTerm('');
+        setUnselectedPoints(new Set());
+    };
 
     const handlePointToggle = (point: ExpandablePoint) => {
-        setSelectedPoints(prev => {
+        setUnselectedPoints(prev => {
             const newSet = new Set(prev);
             if (newSet.has(point.pointId)) {
                 // eslint-disable-next-line drizzle/enforce-delete-with-where
@@ -169,12 +325,40 @@ export const ExpandPointDialog: React.FC<ExpandPointDialogProps> = ({
     const handleSubmit = () => {
         setIsSubmitting(true);
         try {
-            const parentNode = getNode(parentNodeId);
+            const parentNode = getNode(dialogState.parentNodeId);
             if (!parentNode) return;
 
-            const selectedPointsList = points.filter(point =>
-                selectedPoints.has(point.pointId)
-            );
+            const nodes = getNodes();
+            const edges = getEdges();
+            const connectedNodes = nodes.filter(node => {
+                const isConnectedToParent = edges.some(edge =>
+                    edge.target === dialogState.parentNodeId &&
+                    edge.source === node.id
+                );
+                const nodeData = node.data as Record<string, unknown>;
+                const pointId = nodeData.pointId;
+                return isConnectedToParent && typeof pointId === 'number' && unselectedPoints.has(pointId);
+            });
+
+            if (connectedNodes.length > 0) {
+                const edgesToDelete = edges.filter(edge =>
+                    connectedNodes.some(node => edge.source === node.id)
+                );
+                deleteElements({
+                    nodes: connectedNodes,
+                    edges: edgesToDelete
+                });
+            }
+
+            // Add newly selected points
+            const selectedPointsList = dialogState.points
+                .filter(point => !unselectedPoints.has(point.pointId))
+                .filter(point => !expandedPointIds.has(point.pointId));
+
+            if (selectedPointsList.length === 0 && connectedNodes.length === 0) {
+                handleClose();
+                return;
+            }
 
             const layouts = calculateInitialLayout(
                 parentNode.position.x,
@@ -201,86 +385,155 @@ export const ExpandPointDialog: React.FC<ExpandPointDialogProps> = ({
 
                 addEdges({
                     id: nanoid(),
-                    target: parentNodeId,
+                    target: dialogState.parentNodeId,
                     source: uniqueId,
                     type: parentNode.data.parentId === 'statement' ? 'statement' : 'negation',
                 });
             });
 
-            setSelectedPoints(new Set());
-            onClose();
+            setUnselectedPoints(new Set());
+            handleClose();
         } finally {
             setIsSubmitting(false);
         }
     };
 
+    const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+        // Only initiate drag if clicking on the header area
+        if ((e.target as HTMLElement).closest('.modal-header')) {
+            // Don't initiate drag if clicking on a button in the header
+            if (!(e.target as HTMLElement).closest('button')) {
+                isDragging.current = true;
+                dragStart.current = {
+                    x: e.clientX - position.x,
+                    y: e.clientY - position.y
+                };
+                e.preventDefault();
+            }
+        }
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+        if (isDragging.current) {
+            const newX = e.clientX - dragStart.current.x;
+            const newY = e.clientY - dragStart.current.y;
+
+            // Keep the modal within viewport bounds
+            const maxX = window.innerWidth - (modalRef.current?.offsetWidth || 400);
+            const maxY = window.innerHeight - (modalRef.current?.offsetHeight || 500);
+
+            setPosition({
+                x: Math.max(0, Math.min(newX, maxX)),
+                y: Math.max(0, Math.min(newY, maxY))
+            });
+        }
+    };
+
+    const handleMouseUp = () => {
+        isDragging.current = false;
+    };
+
+    useEffect(() => {
+        if (dialogState.isOpen) {
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+
+            return () => {
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+            };
+        }
+    }, [dialogState.isOpen]);
+
+    if (!dialogState.isOpen) return null;
+
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                    <DialogTitle className="text-xl font-semibold text-center">
-                        Add Points to Rationale
-                    </DialogTitle>
-                </DialogHeader>
-
-                <div className="flex flex-col h-full max-h-[80vh] overflow-hidden">
-                    <div className="flex-grow overflow-y-auto pb-20">
-                        <div className="p-6">
-                            <div className="mb-8">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <CircleIcon className="text-primary size-5" />
-                                    <h4 className="text-md font-medium">Select Points to Add</h4>
-                                </div>
-                                <p className="text-sm text-muted-foreground mb-3">
-                                    Select multiple points to add to your rationale. Each point will be added with its own layout position.
-                                </p>
-                                <div className="space-y-3">
-                                    {points.map((point) => (
-                                        <ExpandablePointCard
-                                            key={point.pointId}
-                                            point={point}
-                                            isSelected={selectedPoints.has(point.pointId)}
-                                            onSelect={handlePointToggle}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <DialogFooter className="sm:justify-between gap-2 border-t bg-background/80 backdrop-blur sticky bottom-0 p-4">
-                        <Button
-                            variant="outline"
-                            className="gap-2"
-                            onClick={onClose}
-                            disabled={isSubmitting}
-                        >
-                            <ArrowLeftIcon className="size-4" />
-                            Back
-                        </Button>
-                        <Button
-                            className="gap-2 min-w-[180px] relative"
-                            onClick={handleSubmit}
-                            disabled={selectedPoints.size === 0 || isSubmitting}
-                        >
-                            {isSubmitting ? (
-                                <>
-                                    <span className="opacity-0">Add Selected Points</span>
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <div className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <CheckIcon className="size-4" />
-                                    Add Selected Points
-                                </>
-                            )}
-                        </Button>
-                    </DialogFooter>
+        <Portal>
+            <div
+                ref={modalRef}
+                className="fixed z-50 bg-background rounded-lg border-2 shadow-lg overflow-hidden flex flex-col"
+                style={{
+                    left: `${position.x}px`,
+                    top: `${position.y}px`,
+                    width: `${modalSize.width}px`,
+                    maxHeight: `${modalSize.height}px`,
+                }}
+                onMouseDown={handleMouseDown}
+            >
+                {/* Modal Header - Draggable */}
+                <div className="modal-header flex justify-between items-center px-4 py-3 border-b bg-background cursor-move">
+                    <h3 className="text-sm font-medium">Add Points to Rationale</h3>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={handleClose}
+                    >
+                        <XIcon className="h-4 w-4" />
+                    </Button>
                 </div>
-            </DialogContent>
-        </Dialog>
+
+                {/* Search Box */}
+                <div className="px-3 py-3 border-b bg-muted/10">
+                    <div className="relative">
+                        <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search for points..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-9 h-9 focus-visible:ring-primary focus-visible:ring-offset-0"
+                        />
+                    </div>
+                </div>
+
+                {/* Points List */}
+                <div className="flex-grow overflow-y-auto p-3 space-y-3">
+                    {dialogState.points.length === 0 ? (
+                        <div className="flex items-center justify-center h-32 text-muted-foreground">
+                            No points available
+                        </div>
+                    ) : (
+                        dialogState.points.map((point) => {
+                            const isExpanded = expandedPointIds.has(point.pointId);
+                            return (
+                                <ExpandablePointNode
+                                    key={point.pointId}
+                                    point={point}
+                                    isSelected={!unselectedPoints.has(point.pointId)}
+                                    isExpanded={isExpanded}
+                                    isCollapsed={!isExpanded}
+                                    onSelect={handlePointToggle}
+                                    searchTerm={searchTerm}
+                                />
+                            );
+                        })
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div className="px-3 py-3.5 border-t bg-background">
+                    <Button
+                        className="w-full gap-2 relative h-9"
+                        onClick={handleSubmit}
+                        disabled={dialogState.points.length === unselectedPoints.size || isSubmitting}
+                    >
+                        {isSubmitting ? (
+                            <>
+                                <span className="opacity-0">Add Selected Points</span>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <CheckIcon className="size-4" />
+                                Add Selected Points ({dialogState.points.length - unselectedPoints.size})
+                            </>
+                        )}
+                    </Button>
+                </div>
+            </div>
+        </Portal>
     );
 };
 

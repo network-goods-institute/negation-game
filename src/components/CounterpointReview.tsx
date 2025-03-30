@@ -88,82 +88,79 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                             These points already exist. Endorsing them adds your cred behind their argument.
                         </p>
                         <div className="space-y-3">
-                            {reviewResults.existingSimilarCounterpoints?.map(
-                                (counterpointCandidate) => (
-                                    <div
-                                        key={counterpointCandidate.id}
-                                        className="flex flex-col gap-3 p-4 w-full bg-background cursor-pointer border rounded-md transition-colors shadow-sm hover:border-primary hover:ring-1 hover:ring-primary relative"
-                                        onClick={(e) => {
-                                            // Don't trigger selection if clicking the external link
-                                            if ((e.target as HTMLElement).closest('.external-link-btn')) {
-                                                return;
-                                            }
-                                            selectCounterpointCandidate(counterpointCandidate);
-                                            onClose();
-                                        }}
-                                    >
-                                        {/* Favor chip - high visibility */}
-                                        <div className="absolute -top-2 -right-2 z-10">
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <div className={cn(
-                                                        "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium shadow-sm",
-                                                        counterpointCandidate.favor > 7 ? "bg-green-100 text-green-800 border border-green-300" :
-                                                            counterpointCandidate.favor > 4 ? "bg-blue-100 text-blue-800 border border-blue-300" :
-                                                                "bg-gray-100 text-gray-800 border border-gray-300"
-                                                    )}>
-                                                        <TrendingUpIcon className="size-3" />
-                                                        <span>{counterpointCandidate.favor}</span>
-                                                    </div>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="top">
-                                                    <p>Favor: {counterpointCandidate.favor}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </div>
-
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-md font-medium">
-                                                {counterpointCandidate.content}
-                                            </span>
-
-                                            <div className="flex justify-end mb-1">
-                                                <div className="flex items-center gap-2">
-                                                    <Badge className="bg-primary/15 text-primary border-primary hover:bg-primary/20 whitespace-nowrap">
-                                                        Existing
-                                                    </Badge>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-6 w-6 p-0 rounded-full external-link-btn"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    window.open(getPointUrl(counterpointCandidate.id), '_blank', 'noopener,noreferrer');
-                                                                }}
-                                                            >
-                                                                <ExternalLinkIcon className="h-3.5 w-3.5" />
-                                                                <span className="sr-only">Open in new tab</span>
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent side="top">
-                                                            <p>Open in new tab</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
+                            {reviewResults.existingSimilarCounterpoints.map((counterpointCandidate) => (
+                                <div
+                                    key={counterpointCandidate.id}
+                                    className="flex flex-col gap-3 p-4 w-full bg-background cursor-pointer border rounded-md transition-colors shadow-sm hover:border-primary hover:ring-1 hover:ring-primary relative"
+                                    onClick={(e) => {
+                                        if ((e.target as HTMLElement).closest('.external-link-btn')) {
+                                            return;
+                                        }
+                                        selectCounterpointCandidate(counterpointCandidate);
+                                        onClose();
+                                    }}
+                                >
+                                    {/* Favor chip - high visibility */}
+                                    <div className="absolute -top-2 -right-2 z-10">
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div className={cn(
+                                                    "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium shadow-sm",
+                                                    counterpointCandidate.favor > 7 ? "bg-green-100 text-green-800 border border-green-300" :
+                                                        counterpointCandidate.favor > 4 ? "bg-blue-100 text-blue-800 border border-blue-300" :
+                                                            "bg-gray-100 text-gray-800 border border-gray-300"
+                                                )}>
+                                                    <TrendingUpIcon className="size-3" />
+                                                    <span>{counterpointCandidate.favor}</span>
                                                 </div>
-                                            </div>
-
-                                            <PointStats
-                                                favor={counterpointCandidate.favor}
-                                                amountNegations={counterpointCandidate.amountNegations}
-                                                amountSupporters={counterpointCandidate.amountSupporters}
-                                                cred={counterpointCandidate.cred}
-                                            />
-                                        </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top">
+                                                <p>Favor: {counterpointCandidate.favor}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
                                     </div>
-                                )
-                            )}
+
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-md font-medium">
+                                            {counterpointCandidate.content}
+                                        </span>
+
+                                        <div className="flex justify-end mb-1">
+                                            <div className="flex items-center gap-2">
+                                                <Badge className="bg-primary/15 text-primary border-primary hover:bg-primary/20 whitespace-nowrap">
+                                                    Existing
+                                                </Badge>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-6 w-6 p-0 rounded-full external-link-btn"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                window.open(getPointUrl(counterpointCandidate.id), '_blank', 'noopener,noreferrer');
+                                                            }}
+                                                        >
+                                                            <ExternalLinkIcon className="h-3.5 w-3.5" />
+                                                            <span className="sr-only">Open in new tab</span>
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="top">
+                                                        <p>Open in new tab</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </div>
+                                        </div>
+
+                                        <PointStats
+                                            favor={counterpointCandidate.favor}
+                                            amountNegations={counterpointCandidate.amountNegations}
+                                            amountSupporters={counterpointCandidate.amountSupporters}
+                                            cred={counterpointCandidate.cred}
+                                        />
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}
