@@ -43,19 +43,36 @@ export const OnboardingForm: FC<OnboardingFormProps> = ({
         .pick({ username: true })
 
         .superRefine(async ({ username }, ctx) => {
+          console.error("[OnboardingForm] Validating username:", username);
           // Hack to prevent running the following query if the username is invalid
           if (
             !insertUserSchema.pick({ username: true }).safeParse({ username })
               .success
-          )
+          ) {
+            console.error("[OnboardingForm] Username format validation failed");
             return;
+          }
 
-          if (!(await isUsernameAvailable(username)))
+          try {
+            const isAvailable = await isUsernameAvailable(username);
+            console.error("[OnboardingForm] Username availability result:", isAvailable);
+
+            if (!isAvailable) {
+              console.error("[OnboardingForm] Username taken:", username);
+              ctx.addIssue({
+                path: ["username"],
+                code: ZodIssueCode.custom,
+                message: "username taken. choose another one",
+              });
+            }
+          } catch (error) {
+            console.error("[OnboardingForm] Error checking username availability:", error);
             ctx.addIssue({
               path: ["username"],
               code: ZodIssueCode.custom,
-              message: "username taken. choose another one",
+              message: "error checking username availability",
             });
+          }
         }),
       {
         async: true,
