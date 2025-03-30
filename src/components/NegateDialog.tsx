@@ -36,7 +36,7 @@ import {
   DiscIcon,
   TrashIcon,
 } from "lucide-react";
-import { FC, ReactNode, useCallback, useEffect, useState, useMemo } from "react";
+import { FC, ReactNode, useCallback, useEffect, useState } from "react";
 import {
   Tooltip,
   TooltipContent,
@@ -85,7 +85,6 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
 
   const [recentlyCreatedNegation, setRecentlyCreatedNegation] = useAtom(recentlyCreatedNegationIdAtom);
 
-  // Reset the query function for better performance
   const {
     data: reviewResults,
     isLoading: isReviewingCounterpoint,
@@ -187,7 +186,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
         // Show success toast
         if (selectedCounterpointCandidate === undefined) {
           toast.success(
-            "Negation created successfully. It may take a moment to appear in the graph.",
+            "Negation created successfully. It may take a moment to appear.",
             { duration: 5000 }
           );
 
@@ -238,7 +237,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
           window.dispatchEvent(event);
         } else {
           toast.success(
-            "Negation link created successfully. It may take a moment to appear in the graph.",
+            "Endorsed an existing negation successfully. If in a graph context, it may take a moment to appear.",
             { duration: 5000 }
           );
 
@@ -345,14 +344,14 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
               {selectedCounterpointCandidate?.isCounterpoint
                 ? "Endorse Existing Negation"
                 : selectedCounterpointCandidate
-                  ? "Link Existing Point"
+                  ? "Endorse Existing Negation"
                   : "Create New Negation"}
             </DialogTitle>
             <DialogDescription hidden>
               {selectedCounterpointCandidate?.isCounterpoint
                 ? "Add your cred behind this existing negation"
                 : selectedCounterpointCandidate
-                  ? "Link an existing point as a negation"
+                  ? "Add your cred behind this existing negation"
                   : "Add a new negation to the Point"}
             </DialogDescription>
             <DialogClose className="text-primary">
@@ -457,8 +456,8 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                     : "Endorse"
                   : selectedCounterpointCandidate
                     ? isSubmitting
-                      ? "Linking..."
-                      : "Link"
+                      ? "Endorsing"
+                      : "Endorse"
                     : isSubmitting
                       ? "Negating"
                       : "Negate"}
@@ -497,7 +496,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                       reviewCounterpoint();
                     }}
                   >
-                    {isSubmitting ? "Linking..." : isReviewingCounterpoint ? "Reviewing..." : "Review & Negate"}
+                    {isSubmitting ? "Endorsing..." : isReviewingCounterpoint ? "Reviewing..." : "Review & Negate"}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="text-xs">
