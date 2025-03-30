@@ -16,7 +16,7 @@ import { useSpace } from "@/queries/useSpace";
 import { usePrivy } from "@privy-io/react-auth";
 import { useToggle } from "@uidotdev/usehooks";
 import { useSetAtom, useAtom } from "jotai";
-import { PlusIcon, TrophyIcon, SearchIcon } from "lucide-react";
+import { PlusIcon, TrophyIcon, SearchIcon, BrainCircuitIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState, useMemo, memo, useEffect, useRef } from "react";
 import { LeaderboardDialog } from "@/components/LeaderboardDialog";
@@ -35,8 +35,6 @@ import { usePrefetchPoint } from "@/queries/usePointData";
 import React from "react";
 import { ViewpointCardWrapper } from "@/components/ViewpointCardWrapper";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
-
-
 
 interface PageProps {
     params: { space: string };
@@ -1052,7 +1050,16 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
 
                 <Button
                     variant="ghost"
-                    className="aspect-square rounded-full h-[58px] w-[58px] sm:h-10 sm:w-auto sm:px-6 order-1"
+                    className="aspect-square rounded-full h-[58px] w-[58px] sm:h-10 sm:w-[160px] order-1"
+                    onClick={() => router.push(`${basePath}/chat`)}
+                >
+                    <BrainCircuitIcon className="size-7 sm:size-5" />
+                    <span className="hidden sm:block ml-sm">AI Assistant</span>
+                </Button>
+
+                <Button
+                    variant="ghost"
+                    className="aspect-square rounded-full h-[58px] w-[58px] sm:h-10 sm:w-auto sm:px-6 order-0"
                     onClick={() => setLeaderboardOpen(true)}
                 >
                     <TrophyIcon className="size-7 sm:size-5" />
