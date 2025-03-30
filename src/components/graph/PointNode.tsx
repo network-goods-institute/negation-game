@@ -53,8 +53,6 @@ export interface PointNodeProps extends NodeProps {
 export const PointNode = ({
   data: { pointId, parentId, expandOnInit, isExpanding: dataIsExpanding },
   id,
-  positionAbsoluteX,
-  positionAbsoluteY,
 }: PointNodeProps) => {
 
   const [hoveredPoint, setHoveredPoint] = useAtom(hoveredPointIdAtom);
@@ -113,27 +111,12 @@ export const PointNode = ({
     prefetchUserEndorsements,
   ]);
 
-  const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
+  const [_, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
   const [collapsedNodePositions, setCollapsedNodePositions] = useAtom(collapsedNodePositionsAtom);
 
-  // Default position values if not provided by props
-  const nodePositionX = positionAbsoluteX ?? 0;
-  const nodePositionY = positionAbsoluteY ?? 0;
 
-  const getNodeByPointId = useCallback((searchPointId: string | number) => {
-    const numId = typeof searchPointId === 'string' ? parseInt(searchPointId) : searchPointId;
-    const nodes = getNodes().filter((n): n is PointNode => n.type === 'point');
-    return nodes.find(n => n.data.pointId === numId);
-  }, [getNodes]);
-
-  const isNegatingParent = useMemo(() => {
-    if (!parentId || !pointData) return false;
-    const numParentId = typeof parentId === 'string' ? parseInt(parentId) : parentId;
-    return !isNaN(numParentId) && pointData.negationIds.includes(numParentId);
-  }, [parentId, pointData]);
 
   const expandNegations = useCallback(() => {
-
     const allNodes = getNodes();
     const pointNodes = allNodes.filter((n): n is PointNode => n.type === "point");
 
@@ -173,14 +156,10 @@ export const PointNode = ({
       }
     });
 
-    // Track points directly connected to this node
-    const localExpandedNegationIds = [
-      ...incomingConnections.map((c) => {
-        const node = getNode(c.source)! as PointNode;
-        return node.data.pointId;
-      }),
-      ...(parentId ? [parentId] : []),
-    ];
+    const localExpandedNegationIds = incomingConnections.map((c) => {
+      const node = getNode(c.source)! as PointNode;
+      return node.data.pointId;
+    });
 
     // Check which negations we should expand
     const expandableNegationIds: number[] = [];
@@ -193,7 +172,7 @@ export const PointNode = ({
         return;
       }
 
-      // Check if already connected to this node
+      // Check if already connected to this node (but allow parent)
       if (localExpandedNegationIds.includes(negId)) {
         skippedNegationIds.push({ id: negId, reason: "already connected" });
         return;

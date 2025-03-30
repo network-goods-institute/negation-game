@@ -73,16 +73,14 @@ const ExpandablePointNode: React.FC<ExpandablePointNodeProps> = ({
         <div
             className={cn(
                 "flex flex-col bg-background border-2 rounded-md transition-colors shadow-sm relative min-h-28",
-                isSelected && "border-primary ring-2 ring-primary/30",
-                isExpanded ?
-                    "bg-primary/10 border-primary cursor-not-allowed" :
-                    "cursor-pointer hover:border-primary hover:bg-muted/20"
+                isSelected && "border-purple-500 ring-2 ring-purple-500/30",
+                !isSelected && "border-muted-foreground/20",
+                "cursor-pointer hover:border-yellow-500 hover:bg-yellow-500/10"
             )}
             onClick={() => {
-                if (isExpanded) return; // Cannot select already expanded points
                 onSelect(point);
             }}
-            title={`Point ID: ${point.pointId} | Status: ${isExpanded ? 'Expanded' : 'Collapsed'}`}
+            title={`Point ID: ${point.pointId}`}
         >
             <div className="p-3 flex flex-col gap-1.5">
                 <span className="text-sm font-medium line-clamp-3">
@@ -99,11 +97,11 @@ const ExpandablePointNode: React.FC<ExpandablePointNodeProps> = ({
 
                     <div className="flex items-center gap-2">
                         {isExpanded ? (
-                            <Badge className="bg-primary/20 text-primary border-primary font-semibold whitespace-nowrap">
+                            <Badge className="bg-muted text-muted-foreground border-muted-foreground whitespace-nowrap">
                                 Expanded
                             </Badge>
                         ) : (
-                            <Badge className="bg-muted-foreground/10 text-muted-foreground border-muted-foreground whitespace-nowrap">
+                            <Badge className="bg-muted text-muted-foreground border-muted-foreground whitespace-nowrap">
                                 Collapsed
                             </Badge>
                         )}
@@ -224,7 +222,7 @@ export const ExpandPointDialog: React.FC<ExpandPointDialogProps> = ({
 
 export const GlobalExpandPointDialog: React.FC = () => {
     const [dialogState, setDialogState] = useAtom(expandDialogAtom);
-    const [selectedPoints, setSelectedPoints] = useState<Set<number>>(new Set());
+    const [unselectedPoints, setUnselectedPoints] = useState<Set<number>>(new Set());
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -232,7 +230,7 @@ export const GlobalExpandPointDialog: React.FC = () => {
     const modalRef = useRef<HTMLDivElement>(null);
     const isDragging = useRef(false);
     const dragStart = useRef({ x: 0, y: 0 });
-    const { getNode, addNodes, addEdges, getNodes, getEdges } = useReactFlow();
+    const { getNode, addNodes, addEdges, getNodes, getEdges, deleteElements } = useReactFlow();
 
     const expandedPointIds = useMemo(() => {
         if (!dialogState.isOpen) return new Set<number>();
@@ -290,7 +288,7 @@ export const GlobalExpandPointDialog: React.FC = () => {
     // Reset selected points when search term changes to avoid selecting hidden points
     useEffect(() => {
         if (searchTerm.trim() !== '') {
-            setSelectedPoints(new Set());
+            setUnselectedPoints(new Set());
         }
     }, [searchTerm]);
 
@@ -298,7 +296,7 @@ export const GlobalExpandPointDialog: React.FC = () => {
     useEffect(() => {
         if (dialogState.isOpen) {
             setSearchTerm('');
-            setSelectedPoints(new Set());
+            setUnselectedPoints(new Set());
         }
     }, [dialogState.isOpen, dialogState.parentNodeId]);
 
@@ -308,14 +306,13 @@ export const GlobalExpandPointDialog: React.FC = () => {
         }
         setDialogState(state => ({ ...state, isOpen: false }));
         setSearchTerm('');
-        setSelectedPoints(new Set());
+        setUnselectedPoints(new Set());
     };
 
     const handlePointToggle = (point: ExpandablePoint) => {
-        setSelectedPoints(prev => {
+        setUnselectedPoints(prev => {
             const newSet = new Set(prev);
             if (newSet.has(point.pointId)) {
-                // eslint-disable-next-line drizzle/enforce-delete-with-where
                 newSet.delete(point.pointId);
             } else {
                 newSet.add(point.pointId);
@@ -330,13 +327,34 @@ export const GlobalExpandPointDialog: React.FC = () => {
             const parentNode = getNode(dialogState.parentNodeId);
             if (!parentNode) return;
 
-            // Filter out points that are already connected to this parent
+            const nodes = getNodes();
+            const edges = getEdges();
+            const connectedNodes = nodes.filter(node => {
+                const isConnectedToParent = edges.some(edge =>
+                    edge.target === dialogState.parentNodeId &&
+                    edge.source === node.id
+                );
+                const nodeData = node.data as Record<string, unknown>;
+                const pointId = nodeData.pointId;
+                return isConnectedToParent && typeof pointId === 'number' && unselectedPoints.has(pointId);
+            });
+
+            if (connectedNodes.length > 0) {
+                const edgesToDelete = edges.filter(edge =>
+                    connectedNodes.some(node => edge.source === node.id)
+                );
+                deleteElements({
+                    nodes: connectedNodes,
+                    edges: edgesToDelete
+                });
+            }
+
+            // Add newly selected points
             const selectedPointsList = dialogState.points
-                .filter(point => selectedPoints.has(point.pointId))
+                .filter(point => !unselectedPoints.has(point.pointId))
                 .filter(point => !expandedPointIds.has(point.pointId));
 
-            if (selectedPointsList.length === 0) {
-                // If all selected points are already added, just close the dialog
+            if (selectedPointsList.length === 0 && connectedNodes.length === 0) {
                 handleClose();
                 return;
             }
@@ -372,7 +390,7 @@ export const GlobalExpandPointDialog: React.FC = () => {
                 });
             });
 
-            setSelectedPoints(new Set());
+            setUnselectedPoints(new Set());
             handleClose();
         } finally {
             setIsSubmitting(false);
@@ -480,7 +498,7 @@ export const GlobalExpandPointDialog: React.FC = () => {
                                 <ExpandablePointNode
                                     key={point.pointId}
                                     point={point}
-                                    isSelected={selectedPoints.has(point.pointId)}
+                                    isSelected={!unselectedPoints.has(point.pointId)}
                                     isExpanded={isExpanded}
                                     isCollapsed={!isExpanded}
                                     onSelect={handlePointToggle}
@@ -496,7 +514,7 @@ export const GlobalExpandPointDialog: React.FC = () => {
                     <Button
                         className="w-full gap-2 relative h-9"
                         onClick={handleSubmit}
-                        disabled={selectedPoints.size === 0 || isSubmitting}
+                        disabled={dialogState.points.length === unselectedPoints.size || isSubmitting}
                     >
                         {isSubmitting ? (
                             <>
@@ -508,7 +526,7 @@ export const GlobalExpandPointDialog: React.FC = () => {
                         ) : (
                             <>
                                 <CheckIcon className="size-4" />
-                                Add Selected Points ({selectedPoints.size})
+                                Add Selected Points ({dialogState.points.length - unselectedPoints.size})
                             </>
                         )}
                     </Button>
