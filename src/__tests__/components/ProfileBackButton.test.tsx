@@ -3,23 +3,25 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeftIcon } from 'lucide-react';
-import { isSameDomain } from '@/utils/backButtonUtils';
+import { isSameDomain, getBackButtonHandler } from '@/utils/backButtonUtils';
 import { useRouter } from 'next/navigation';
 
 // Mock backButtonUtils including both functions
 jest.mock('@/utils/backButtonUtils', () => {
+    // Create a mock for isSameDomain that can be reused
+    const isSameDomainMock = jest.fn();
+
     return {
-        isSameDomain: jest.fn(),
+        isSameDomain: isSameDomainMock,
         // Create a simple mock implementation of getBackButtonHandler
-        getBackButtonHandler: jest.fn().mockImplementation((router, homePath = '/') => {
+        getBackButtonHandler: jest.fn().mockImplementation((router, setInitialTab, homePath = '/') => {
             return () => {
-                // This is a simplified version that directly uses the mocked isSameDomain
+                // This is a simplified version that uses the already defined isSameDomainMock
                 if (window.history.length > 1) {
                     window.history.back();
                     return;
                 }
 
-                const isSameDomainMock = require('@/utils/backButtonUtils').isSameDomain;
                 if (isSameDomainMock(document.referrer)) {
                     router.back();
                 } else {
@@ -40,8 +42,10 @@ jest.mock('next/navigation', () => ({
 // Create a simple test component that mimics the back button in profile
 const BackButton: React.FC = () => {
     const router = useRouter();
-    // Get the mocked handler from our utils module
-    const handleBackClick = require('@/utils/backButtonUtils').getBackButtonHandler(router);
+    // Mock the setInitialTab function to match the actual profile page
+    const mockSetInitialTab = (tab: "points" | "rationales" | null) => { };
+    // Use the imported (mocked) handler directly with both required parameters
+    const handleBackClick = getBackButtonHandler(router, mockSetInitialTab);
 
     return (
         <Button

@@ -1,11 +1,10 @@
 "use client";
 
-import { viewpointGraphAtom, collapsedPointIdsAtom, ViewpointGraph } from "@/atoms/viewpointAtoms";
+import { viewpointGraphAtom, collapsedPointIdsAtom } from "@/atoms/viewpointAtoms";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { AppNode } from "@/components/graph/AppNode";
-import { AppEdge } from "@/components/graph/AppEdge";
 import { GraphView } from "@/components/graph/GraphView";
 import {
   OriginalPosterProvider,
@@ -33,25 +32,32 @@ import { useUpdateViewpointDetails } from "@/mutations/useUpdateViewpointDetails
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useFavorHistory } from "@/queries/useFavorHistory";
-
 import { useGraphPoints } from "@/components/graph/useGraphPoints";
 import { Loader } from "@/components/ui/loader";
 import { useViewpoint } from "@/queries/useViewpoint";
-import { useRouter } from "next/navigation";
+import { useRouter, notFound } from "next/navigation";
 import { EditModeProvider, useEditMode } from "@/components/graph/EditModeContext";
 import { ReactFlowInstance } from "@xyflow/react";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ViewpointStatsBar } from "@/components/ViewpointStatsBar";
 import { use } from "react";
 import { getBackButtonHandler } from "@/utils/backButtonUtils";
 import { useVisitedPoints } from "@/hooks/useVisitedPoints";
+import { copyViewpointAndNavigate } from "@/utils/copyViewpoint";
+import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 
 // Create dynamic ReactMarkdown component
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
   loading: () => <div className="animate-pulse h-32 bg-muted/30 rounded-md" />,
   ssr: false // Disable server-side rendering
 });
+
+const markdownPlugins = [remarkGfm];
+
+const customMarkdownComponents = {
+  // coerce h1 to h2
+  h1: (props: React.HTMLAttributes<HTMLHeadingElement>) => <h2 {...props} />
+};
 
 function PointCardWrapper({
   point,
@@ -97,63 +103,6 @@ function PointCardWrapper({
   );
 }
 
-const regenerateGraphIds = (graph: ViewpointGraph): ViewpointGraph => {
-
-  const idMap = new Map<string, string>();
-
-  const statementNode = graph.nodes.find(node => node.type === 'statement');
-  if (statementNode) {
-    idMap.set(statementNode.id, 'statement');
-  }
-
-  const newNodes = graph.nodes.map((node) => {
-    // Statement node keeps its ID
-    if (node.type === 'statement') {
-      return { ...node, id: 'statement' } as AppNode;
-    }
-
-    // Generate a new unique ID for this node that incorporates the node type
-    // Making sure we don't include any references to other nodes in the ID
-    const newId = `${node.type || 'node'}_${Math.random().toString(36).substring(2, 15)}`;
-    idMap.set(node.id, newId);
-
-    return { ...node, id: newId } as AppNode;
-  });
-
-  // Update edge source and target IDs using the mapping
-  let newEdges = graph.edges.map((edge) => {
-    const newSource = idMap.get(edge.source) || edge.source;
-    const newTarget = idMap.get(edge.target) || edge.target;
-    const newId = `edge_${Math.random().toString(36).substring(2, 15)}`;
-
-    return {
-      ...edge,
-      id: newId,
-      source: newSource,
-      target: newTarget
-    } as AppEdge;
-  });
-
-  // Check for and remove duplicate edges based on source-target pairs
-  const edgeMap = new Map<string, AppEdge>();
-  const duplicateEdges: string[] = [];
-
-  newEdges.forEach(edge => {
-    const key = `${edge.source}->${edge.target}`;
-    if (edgeMap.has(key)) {
-      duplicateEdges.push(edge.id);
-    } else {
-      edgeMap.set(key, edge);
-    }
-  });
-
-  if (duplicateEdges.length > 0) {
-    newEdges = newEdges.filter(edge => !duplicateEdges.includes(edge.id));
-  }
-
-  return { nodes: newNodes, edges: newEdges };
-};
-
 // Export the component for testing
 function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
   const queryClient = useQueryClient();
@@ -173,9 +122,11 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
   const updateDetailsMutation = useUpdateViewpointDetails();
 
+  const setInitialTab = useSetAtom(initialSpaceTabAtom);
+
   useEffect(() => {
     const checkMobile = () => {
-      const isMobileView = window.innerWidth < 640; // 640px is tailwind's sm breakpoint
+      const isMobileView = window.innerWidth < 768; // 768px is tailwind's md breakpoint
       setIsMobile(isMobileView);
     };
 
@@ -243,7 +194,10 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
   const handleEditingBlur = useCallback(() => {
     // Check if content has been modified by comparing against original values
-    if (originalTitleRef.current !== editableTitle || originalDescriptionRef.current !== editableDescription) {
+    const titleChanged = originalTitleRef.current !== editableTitle;
+    const descriptionChanged = originalDescriptionRef.current !== editableDescription;
+
+    if (titleChanged || descriptionChanged) {
       // Mark as modified to show save button
       setIsContentModified(true);
 
@@ -375,9 +329,6 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     setIsCopying(true);
 
     try {
-      // Get the current space
-      const currentSpace = space?.data?.id || 'default';
-
       // Get the current graph state directly from reactFlow if available
       // This ensures we capture the exact current state including any changes
       let currentGraph;
@@ -393,33 +344,23 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
         currentGraph = viewpoint.graph;
       }
 
-      const regeneratedGraph = regenerateGraphIds(currentGraph);
-
-      // Store the viewpoint data in session storage with space information
-      const viewpointData = {
-        title: editableTitle,
-        description: editableDescription,
-        graph: regeneratedGraph,
-        sourceSpace: currentSpace,
-        sourceId: viewpoint.id // Store the original ID to track copies
-      };
-
-      // Use sessionStorage with space-specific key to avoid conflicts
-      const storageKey = `copyingViewpoint:${currentSpace}`;
-      sessionStorage.setItem(storageKey, JSON.stringify(viewpointData));
-
-      // Track the copy action
-      // We don't need to await this as it shouldn't block navigation
-      fetch(`/api/viewpoint/track-copy?id=${viewpoint.id}`, { method: 'POST' });
-
-      // Navigate to the new viewpoint page in the same space
-      router.push(`${basePath}/rationale/new`);
-
+      copyViewpointAndNavigate(
+        currentGraph,
+        editableTitle,
+        editableDescription,
+        viewpoint.id
+      )
+        .then(() => {
+        })
+        .catch(error => {
+          alert("Failed to copy rationale. Please try again.");
+          setIsCopying(false);
+        });
     } catch (error) {
       alert("Failed to copy rationale. Please try again.");
       setIsCopying(false);
     }
-  }, [viewpoint, router, basePath, space?.data?.id, reactFlow, localGraph, editableTitle, editableDescription]);
+  }, [viewpoint, reactFlow, localGraph, editableTitle, editableDescription]);
 
   const handleCopyUrl = useCallback(() => {
     const url = window.location.href;
@@ -447,11 +388,6 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     }
   }, [canEdit]);
 
-  const handleDescriptionDoubleClick = useCallback(() => {
-    if (canEdit()) {
-      setIsDescriptionEditing(true);
-    }
-  }, [canEdit]);
 
   const resetContentModifications = useCallback(() => {
     if (viewpoint) {
@@ -482,7 +418,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     }
   }, [viewpoint, queryClient, originalGraph, setLocalGraph]);
 
-  const handleBackClick = getBackButtonHandler(router);
+  const handleBackClick = getBackButtonHandler(router, setInitialTab);
 
   if (!viewpoint)
     return (
@@ -497,11 +433,11 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
   return (
     <EditModeProvider>
-      <main className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
-        <div className="w-full sm:col-[2] flex flex-col border-x pb-10 overflow-auto">
+      <main className="relative flex-grow md:grid md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
+        <div className="w-full md:col-[2] flex flex-col border-x pb-10 overflow-auto">
           <div className="relative flex-grow bg-background">
             {/* New back navigation row */}
-            <div className="sticky top-0 z-10 w-full flex items-center justify-between px-4 py-2 bg-background/70 backdrop-blur">
+            <div className="sticky top-0 z-10 w-full flex items-center justify-between px-4 py-2 bg-background">
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
@@ -512,76 +448,111 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                   <ArrowLeftIcon className="size-4" />
                   <span className="text-sm">Back</span>
                 </Button>
-                <h1 className="text-sm font-bold flex items-center gap-2 ml-2">
+                <h1 className="text-sm font-bold items-center gap-2 ml-2 md:block hidden">
+                  <ViewpointIcon className="size-4" />
+                  Rationale
+                </h1>
+                {/* Graph toggle on mobile */}
+                <div className="md:hidden">
+                  <Button
+                    size={"icon"}
+                    variant={canvasEnabled ? "default" : "outline"}
+                    className="rounded-full p-2 size-9"
+                    onClick={() => setCanvasEnabled(!canvasEnabled)}
+                  >
+                    <NetworkIcon className="" />
+                  </Button>
+                </div>
+                {/* Rationale text on mobile */}
+                <h1 className="text-sm font-bold flex items-center gap-2 md:hidden">
                   <ViewpointIcon className="size-4" />
                   Rationale
                 </h1>
               </div>
-            </div>
-            <Separator />
-
-            {/* Existing header */}
-            <div className="sticky top-[calc(2.5rem+1px)] z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
-              <div className="flex items-center gap-2">
+              {/* Move copy buttons up here on mobile */}
+              <div className="flex items-center gap-2 md:hidden shrink-0">
                 <Button
                   variant="outline"
                   className={cn(
-                    "rounded-full flex items-center gap-2 px-4",
+                    "rounded-full flex items-center gap-2 px-3 shrink-0",
                     isCopyingUrl && "text-green-500 border-green-500"
                   )}
                   onClick={handleCopyUrl}
                 >
-                  <span className="text-sm font-bold">
+                  <span className="text-sm font-bold whitespace-nowrap">
                     {isCopyingUrl ? "Copied!" : "Copy Link"}
                   </span>
                   {isCopyingUrl ? (
-                    <CheckIcon className="size-4" />
+                    <CheckIcon className="size-4 shrink-0" />
                   ) : (
-                    <LinkIcon className="size-4" />
+                    <LinkIcon className="size-4 shrink-0" />
                   )}
                 </Button>
                 <AuthenticatedActionButton
                   variant="outline"
-                  className="rounded-full flex items-center gap-2 px-4"
+                  className="rounded-full flex items-center gap-2 px-3 shrink-0"
                   onClick={handleCopy}
                   disabled={isCopying}
                 >
                   {isCopying ? (
                     <div className="flex items-center gap-2">
-                      <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
-                      <span className="text-sm font-bold">Copying...</span>
+                      <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin shrink-0" />
+                      <span className="text-sm font-bold whitespace-nowrap">Copying...</span>
                     </div>
                   ) : (
                     <>
-                      <span className="text-sm font-bold">Make a Copy</span>
-                      <CopyIcon className="size-4" />
+                      <span className="text-sm font-bold whitespace-nowrap">Make a Copy</span>
+                      <CopyIcon className="size-4 shrink-0" />
                     </>
                   )}
                 </AuthenticatedActionButton>
               </div>
-
-              {/* Mobile canvas toggle button on the right */}
-              <div className="sm:hidden">
-                <Button
-                  size={"icon"}
-                  variant={canvasEnabled ? "default" : "outline"}
-                  className="rounded-full p-2 size-9"
-                  onClick={() => {
-                    const newState = !canvasEnabled;
-                    setCanvasEnabled(newState);
-                  }}
-                >
-                  <NetworkIcon className="" />
-                </Button>
-              </div>
             </div>
             <Separator />
-            {/* Add mobile-only separator that appears under the mobile buttons when canvas is enabled */}
-            {canvasEnabled && (
-              <div className="sm:hidden">
-                <Separator />
+
+            {/* Desktop-only header */}
+            <div className="hidden md:block">
+              <div className="sticky top-[calc(2.5rem+1px)] z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "rounded-full flex items-center gap-2 px-4",
+                      isCopyingUrl && "text-green-500 border-green-500"
+                    )}
+                    onClick={handleCopyUrl}
+                  >
+                    <span className="text-sm font-bold">
+                      {isCopyingUrl ? "Copied!" : "Copy Link"}
+                    </span>
+                    {isCopyingUrl ? (
+                      <CheckIcon className="size-4" />
+                    ) : (
+                      <LinkIcon className="size-4" />
+                    )}
+                  </Button>
+                  <AuthenticatedActionButton
+                    variant="outline"
+                    className="rounded-full flex items-center gap-2 px-4"
+                    onClick={handleCopy}
+                    disabled={isCopying}
+                  >
+                    {isCopying ? (
+                      <div className="flex items-center gap-2">
+                        <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                        <span className="text-sm font-bold">Copying...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="text-sm font-bold">Make a Copy</span>
+                        <CopyIcon className="size-4" />
+                      </>
+                    )}
+                  </AuthenticatedActionButton>
+                </div>
               </div>
-            )}
+              <Separator />
+            </div>
 
             <div className="flex flex-col p-2 gap-0">
               {isTitleEditing ? (
@@ -599,27 +570,31 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                   }}
                 />
               ) : (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <h2
-                        className={cn(
-                          "font-semibold",
-                          canEdit() && "cursor-pointer hover:bg-accent hover:bg-opacity-50 px-2 py-1 -mx-2 rounded border-dashed border border-transparent hover:border-muted-foreground"
-                        )}
-                        onDoubleClick={handleTitleDoubleClick}
-                      >
-                        {title}
-                      </h2>
-                    </TooltipTrigger>
-                    {canEdit() && (
-                      <TooltipContent side="right" className="bg-accent text-accent-foreground border-accent-foreground/20">
-                        <p><strong>Double-click to edit title</strong></p>
-                        <p className="text-xs text-muted-foreground">Changes will be saved with the graph</p>
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
-                </TooltipProvider>
+                <div className="relative">
+                  {canEdit() && !canvasEnabled && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 z-10 md:hidden"
+                      onClick={() => setIsTitleEditing(true)}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                  {canEdit() && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 z-10 hidden md:inline-flex"
+                      onClick={() => setIsTitleEditing(true)}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                  <h2 className="font-semibold pr-16">
+                    {title}
+                  </h2>
+                </div>
               )}
 
               <div className="flex flex-col gap-2">
@@ -651,29 +626,38 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                   onBlur={handleEditingBlur}
                 />
               ) : (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div
-                        className={cn(
-                          "prose dark:prose-invert max-w-none [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic",
-                          canEdit() && "cursor-pointer hover:bg-accent hover:bg-opacity-50 p-2 -m-2 rounded border-dashed border border-transparent hover:border-muted-foreground"
-                        )}
-                        onDoubleClick={handleDescriptionDoubleClick}
-                      >
-                        <DynamicMarkdown remarkPlugins={[remarkGfm]}>
-                          {description}
-                        </DynamicMarkdown>
-                      </div>
-                    </TooltipTrigger>
-                    {canEdit() && (
-                      <TooltipContent side="right" className="bg-accent text-accent-foreground border-accent-foreground/20">
-                        <p><strong>Double-click to edit description</strong></p>
-                        <p className="text-xs text-muted-foreground">Changes will be saved with the graph</p>
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
-                </TooltipProvider>
+                <div className="relative">
+                  {canEdit() && !canvasEnabled && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 z-10 md:hidden"
+                      onClick={() => setIsDescriptionEditing(true)}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                  {canEdit() && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 z-10 hidden md:inline-flex"
+                      onClick={() => setIsDescriptionEditing(true)}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                  <div
+                    className="prose dark:prose-invert max-w-none [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic px-2 py-2"
+                  >
+                    <DynamicMarkdown
+                      remarkPlugins={markdownPlugins}
+                      components={customMarkdownComponents}
+                    >
+                      {description}
+                    </DynamicMarkdown>
+                  </div>
+                </div>
               )}
             </div>
             <div className="relative flex flex-col">
@@ -710,7 +694,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
             statement={title}
             className={cn(
               "!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset] !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md:z-auto",
-              !canvasEnabled && isMobile ? "hidden" : ""
+              !canvasEnabled && "hidden md:block"
             )}
             setLocalGraph={setLocalGraph}
             onSaveChanges={onSaveChanges}
@@ -719,9 +703,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
             isContentModified={isContentModified}
             onClose={
               isMobile
-                ? () => {
-                  setCanvasEnabled(false);
-                }
+                ? () => setCanvasEnabled(false)
                 : undefined
             }
             closeButtonClassName="top-4 right-4"
@@ -747,9 +729,17 @@ export default function NewViewpointPage({
 }
 
 function ViewpointPageWrapper({ rationaleId }: { rationaleId: string }) {
-  const { data: viewpoint, isLoading } = useViewpoint(rationaleId);
+  const { data: viewpoint, isLoading, isError } = useViewpoint(rationaleId);
 
   if (isLoading) {
+    return (
+      <div className="flex-grow flex items-center justify-center">
+        <Loader className="size-12" />
+      </div>
+    );
+  }
+  if (!viewpoint || isError) {
+    notFound();
     return (
       <div className="flex-grow flex items-center justify-center">
         <Loader className="size-12" />

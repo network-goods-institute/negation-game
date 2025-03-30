@@ -4,7 +4,7 @@ import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "@
 import { useQuery } from "@tanstack/react-query";
 import { useFeed } from "@/queries/useFeed";
 import { useAllUsers } from "@/queries/useAllUsers";
-import { TrophyIcon, ArrowLeftIcon, HeartIcon, InfoIcon, ChevronDownIcon } from "lucide-react";
+import { TrophyIcon, ArrowLeftIcon, HeartIcon, InfoIcon, ChevronDownIcon, Loader2Icon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useUser } from "@/queries/useUser";
 import { fetchSpaceViewpoints } from "@/actions/fetchSpaceViewpoints";
@@ -144,6 +144,8 @@ export const LeaderboardDialog = ({
         reputation: "Reputation"
     };
 
+    const isLoading = !feed || !allUsers || !spaceViewpoints || isReputationLoading;
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-xl md:max-w-2xl h-auto max-h-[85vh] flex flex-col p-4 sm:p-6">
@@ -231,9 +233,10 @@ export const LeaderboardDialog = ({
 
                 {/* Leaderboard content */}
                 <div className="mt-2 flex-1 overflow-y-auto">
-                    {isReputationLoading ? (
-                        <div className="flex justify-center items-center p-6">
-                            <div className="text-sm text-muted-foreground">Loading reputation data...</div>
+                    {isLoading ? (
+                        <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-2">
+                            <Loader2Icon className="size-6 animate-spin text-muted-foreground" />
+                            <div className="text-sm text-muted-foreground">Loading leaderboard data...</div>
                         </div>
                     ) : (
                         <Tabs value={viewMode} className="w-full">

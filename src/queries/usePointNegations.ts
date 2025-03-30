@@ -54,16 +54,19 @@ export const pointNegationsQueryKey = ({
   userId?: string;
 }): NegationQueryKey => [pointId, "negations", userId];
 
-export const usePointNegations = (pointId: number | undefined) => {
+export const usePointNegations = (pointId: number | undefined | null) => {
   const { user } = usePrivy();
 
-  // warning, this says it's missing a queryKey: pointId, do not fix it.pnpm
+  // Always call useQuery (never conditionally return before it)
+  // warning, this says it's missing a queryKey: pointId, do not fix it. Every time I have it tried it breaks things.
   return useQuery({
-    queryKey: pointId
-      ? pointNegationsQueryKey({ pointId, userId: user?.id })
-      : [],
+    queryKey:
+      pointId !== undefined && pointId !== null && pointId >= 0
+        ? pointNegationsQueryKey({ pointId, userId: user?.id })
+        : ["invalid-point", "negations", user?.id],
     queryFn: async () => {
-      if (!pointId) {
+      // Return empty results for invalid pointIds
+      if (!pointId || typeof pointId !== "number" || pointId < 0) {
         return [];
       }
 
@@ -83,7 +86,8 @@ export const usePointNegations = (pointId: number | undefined) => {
       }
     },
     placeholderData: keepPreviousData,
-    enabled: pointId !== undefined,
+    // Only enable the query if we have a valid pointId
+    enabled: pointId !== undefined && pointId !== null && pointId >= 0,
     refetchInterval: 30000,
     staleTime: 15000,
     gcTime: 15 * 60 * 1000,

@@ -65,25 +65,8 @@ export const fetchViewpoint = async (id: string) => {
     });
 
   if (!viewpoint) {
-    // If no viewpoint is found, return safe defaults.
-    return {
-      id,
-      title:
-        "This rationale doesn't exist, and I have yet to code a proper error message, please go back to the homepage and pretend you never saw this.",
-      author: "",
-      description: "",
-      originalPointIds: [] as number[],
-      graph: { nodes: [], edges: [] },
-      createdBy: "",
-      createdAt: new Date(0),
-      space: null,
-      statistics: {
-        views: 0,
-        copies: 0,
-        totalCred: 0,
-        averageFavor: 0,
-      },
-    };
+    // Return null to trigger a 404 in the page component
+    return null;
   }
 
   const pointIds: number[] = [];

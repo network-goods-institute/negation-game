@@ -10,6 +10,9 @@ type SpaceData = {
 
 export function SpaceHeader({ spaceData }: { spaceData?: SpaceData | null }) {
   useEffect(() => {
+    // Skip DOM manipulations during SSR
+    if (typeof window === 'undefined') return;
+
     // Return early if spaceData is null, undefined, or default space
     if (!spaceData || spaceData.id === DEFAULT_SPACE) {
       return;
@@ -98,6 +101,9 @@ export function SpaceHeader({ spaceData }: { spaceData?: SpaceData | null }) {
 
     // Clean up function
     return () => {
+      // Skip cleanup if window is undefined (component unmounting during navigation)
+      if (typeof window === 'undefined') return;
+
       try {
         const headerLogo = document.getElementById('header-logo');
         if (headerLogo) {

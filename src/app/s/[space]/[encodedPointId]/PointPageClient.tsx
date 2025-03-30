@@ -58,6 +58,7 @@ import {
     NetworkIcon,
     Repeat2Icon,
     SparklesIcon,
+    MoreVertical
 } from "lucide-react";
 import { nanoid } from "nanoid";
 import { notFound, useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -80,6 +81,14 @@ import { visitedPointsAtom } from "@/atoms/visitedPointsAtom";
 import { DeletePointDialog } from "@/components/DeletePointDialog";
 import { isWithinDeletionTimelock } from "@/lib/deleteTimelock";
 import { getPointUrl } from "@/lib/getPointUrl";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import { getBackButtonHandler } from "@/utils/backButtonUtils";
+import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 
 type Point = {
     id: number;
@@ -137,9 +146,12 @@ const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, ha
                 data-show-hover={false}
                 draggable={false}
                 onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                    prefetchPoint(negation.pointId);
+                    const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
                     preventDefaultIfContainsSelection(e);
-                    onCardClick(`point-${negation.pointId}`);
+                    if (!isActionButton && window.getSelection()?.isCollapsed !== false) {
+                        prefetchPoint(negation.pointId);
+                        onCardClick(`point-${negation.pointId}`);
+                    }
                 }}
                 href={`${basePath}/${encodeId(negation.pointId)}${viewParam ? `?view=${viewParam}` : ""}`}
                 key={negation.pointId}
@@ -210,9 +222,12 @@ export function PointPageClient({
 }: PageProps) {
     const { user: privyUser, login, ready } = usePrivy();
     const { encodedPointId, space } = params;
-    const pointId = decodeId(encodedPointId);
+    const decodedPointId = decodeId(encodedPointId);
+    // Ensure we have a valid number for pointId, fallback to -1 for invalid IDs
+    const pointId = typeof decodedPointId === 'number' ? decodedPointId : -1;
     const setNegatedPointId = useSetAtom(negatedPointIdAtom);
     const queryClient = useQueryClient();
+    const router = useRouter();
 
     const setNegationContent = useAtomCallback(
         (_get, set, negatedPointId: number, content: string) => {
@@ -226,13 +241,24 @@ export function PointPageClient({
         data: point,
         refetch: refetchPoint,
         isLoading: isLoadingPoint,
+        isError: isPointError
     } = usePointData(pointId);
     const [timelineScale, setTimelineScale] = useState<TimelineScale>(DEFAULT_TIMESCALE);
+
+    useEffect(() => {
+        if (!isLoadingPoint && !point && isPointError) {
+            console.warn(`Point not found: ${pointId}`);
+            router.push('/not-found');
+            return;
+        }
+    }, [point, isLoadingPoint, isPointError, pointId, router]);
+
     const {
         data: favorHistory,
         refetch: refetchFavorHistory,
         isFetching: isFetchingFavorHistory,
     } = useFavorHistory({ pointId, timelineScale });
+
     const {
         data: negations = [],
         isLoading: isLoadingNegations,
@@ -248,7 +274,6 @@ export function PointPageClient({
     } = useCredInput({
         resetWhen: !endorsePopoverOpen,
     });
-    const router = useRouter();
     const { back, push } = router;
     const searchParams = useSearchParams();
     const viewParam = searchParams?.get("view");
@@ -271,10 +296,12 @@ export function PointPageClient({
     const [forceShowNegations, setForceShowNegations] = useState(false);
     const [negationsLoadStartTime] = useState(() => Date.now());
     const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
+    const setInitialTab = useSetAtom(initialSpaceTabAtom);
+    const backButtonHandler = getBackButtonHandler(router, setInitialTab);
 
     // Load additional data after point data is loaded
     useEffect(() => {
-        if (point && !isLoadingPoint) {
+        if (point && !isLoadingPoint && !isPointError) {
             // Load essential data only - combine queries to reduce network load
             const fetchData = async () => {
                 try {
@@ -301,7 +328,7 @@ export function PointPageClient({
 
             fetchData();
         }
-    }, [point, pointId, queryClient, privyUser?.id, isLoadingPoint]);
+    }, [point, pointId, queryClient, privyUser?.id, isLoadingPoint, isPointError]);
 
     // Force show negations after 2.5 seconds to avoid stalled UI
     useEffect(() => {
@@ -562,12 +589,8 @@ export function PointPageClient({
                                     variant={"link"}
                                     size={"icon"}
                                     className="text-foreground -ml-3"
-                                    onClick={() => {
-                                        // Get space from URL
-                                        const spaceMatch = pathname?.match(/^\/s\/([^\/]+)/);
-                                        const space = spaceMatch?.[1] || 'global';
-                                        push(`/s/${space}`);
-                                    }}
+                                    data-action-button="true"
+                                    onClick={backButtonHandler}
                                 >
                                     <ArrowLeftIcon />
                                 </Button>
@@ -596,23 +619,10 @@ export function PointPageClient({
                                 )}
                             </div>
                             <div className="flex gap-sm items-center text-muted-foreground">
-                                {isPointOwner && (
-                                    <Button
-                                        variant="ghost"
-                                        className="p-2 rounded-full size-fit hover:bg-destructive/30"
-                                        onClick={() => setDeleteDialogOpen(true)}
-                                        title={canDeletePoint
-                                            ? "Delete point"
-                                            : "Points can only be deleted within 8 hours of creation"}
-                                    >
-                                        <TrashIcon
-                                            disabled={!canDeletePoint}
-                                        />
-                                    </Button>
-                                )}
                                 <Button
                                     variant="ghost"
                                     className="p-2 rounded-full size-fit hover:bg-muted/30"
+                                    data-action-button="true"
                                     onClick={() => toggleSelectNegationDialog(true)}
                                 >
                                     <Repeat2Icon className="size-6 stroke-1" />
@@ -621,6 +631,7 @@ export function PointPageClient({
                                     size={"icon"}
                                     variant={canvasEnabled ? "default" : "outline"}
                                     className="rounded-full p-2 size-9"
+                                    data-action-button="true"
                                     onClick={() => {
                                         const newParams = new URLSearchParams(searchParams?.toString() || "");
                                         if (!canvasEnabled) {
@@ -651,6 +662,7 @@ export function PointPageClient({
                                                 "@md/point:border @md/point:px-4"
                                             )}
                                             variant={"ghost"}
+                                            data-action-button="true"
                                             onClick={handleEndorse}
                                         >
                                             <EndorseIcon
@@ -665,8 +677,8 @@ export function PointPageClient({
                                         </Button>
                                     </PopoverTrigger>
 
-                                    <PopoverContent className="flex flex-col items-start w-96">
-                                        <div className="w-full flex justify-between">
+                                    <PopoverContent className="flex flex-col items-start w-[calc(100vw-2rem)] sm:w-[420px] p-4">
+                                        <div className="w-full flex justify-between gap-4">
                                             <CredInput
                                                 credInput={cred}
                                                 setCredInput={setCred}
@@ -682,7 +694,7 @@ export function PointPageClient({
                                             </Button>
                                         </div>
                                         {notEnoughCred && (
-                                            <span className="ml-md text-destructive text-sm h-fit">
+                                            <span className="mt-2 text-destructive text-sm">
                                                 not enough cred
                                             </span>
                                         )}
@@ -694,6 +706,7 @@ export function PointPageClient({
                                         "p-2  rounded-full size-fit hover:bg-primary/30",
                                         "@md/point:border @md/point:px-4"
                                     )}
+                                    data-action-button="true"
                                     onClick={() => {
                                         if (point?.pointId) {
                                             handleNegate(point.pointId);
@@ -706,6 +719,36 @@ export function PointPageClient({
                                     />
                                     <span className="hidden @md/point:inline">Negate</span>
                                 </Button>
+                                {isPointOwner && (
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                className="p-2 rounded-full size-fit hover:bg-muted/30"
+                                                data-action-button="true"
+                                                title="More options"
+                                            >
+                                                <MoreVertical className="size-6 stroke-1" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem
+                                                onClick={() => setDeleteDialogOpen(true)}
+                                                disabled={!canDeletePoint}
+                                                className={!canDeletePoint ? "opacity-50 cursor-not-allowed" : "text-destructive"}
+                                                title={!canDeletePoint ? "Points can only be deleted within 8 hours of creation" : "Delete this point"}
+                                            >
+                                                <TrashIcon disabled={!canDeletePoint} />
+                                                <div className="flex flex-col">
+                                                    <span>Delete point</span>
+                                                    {!canDeletePoint && (
+                                                        <span className="text-xs text-muted-foreground">Only available within 8 hours of creation</span>
+                                                    )}
+                                                </div>
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                )}
                             </div>
                         </div>
 
@@ -735,6 +778,7 @@ export function PointPageClient({
                                                 type="button"
                                                 variant="link"
                                                 className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
+                                                data-action-button="true"
                                                 onClick={handleCommandPointClick}
                                             >
                                                 Pinned by command
@@ -758,6 +802,7 @@ export function PointPageClient({
                                                 type="button"
                                                 variant="link"
                                                 className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
+                                                data-action-button="true"
                                                 onClick={handleTargetPointClick}
                                             >
                                                 Proposal to pin
@@ -954,8 +999,28 @@ export function PointPageClient({
                                         }
                                     </div>
                                 ) : (
-                                    <div className="text-center py-6 text-muted-foreground">
-                                        No negations yet. Be the first to create one!
+                                    <div className="flex flex-col items-center justify-center py-12 px-4 text-center animate-fade-in">
+                                        <div className="mb-4 text-muted-foreground">
+                                            <NegateIcon className="size-8 mx-auto mb-2" />
+                                            <h3 className="text-lg font-medium mb-1">No negations yet</h3>
+                                            <p className="text-sm text-muted-foreground max-w-[300px]">
+                                                Challenge this point by creating a negation. It&apos;s a great way to engage in constructive debate.
+                                            </p>
+                                        </div>
+                                        <Button
+                                            variant="outline"
+                                            className="gap-2 items-center"
+                                            onClick={() => {
+                                                if (privyUser === null) {
+                                                    login();
+                                                    return;
+                                                }
+                                                handleNegate(point.pointId);
+                                            }}
+                                        >
+                                            <NegateIcon className="size-4 flex-shrink-0" />
+                                            Create Negation
+                                        </Button>
                                     </div>
                                 )
                             )}

@@ -1,6 +1,5 @@
 import { Loader } from "@/components/ui/loader";
 import { SearchResult } from "@/actions/searchContent";
-import { ViewpointCard } from "@/components/ViewpointCard";
 import { useBasePath } from "@/hooks/useBasePath";
 import Link from "next/link";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
@@ -9,12 +8,15 @@ import { usePrivy } from "@privy-io/react-auth";
 import { PointCard } from "@/components/PointCard";
 import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
 import { getPointUrl } from "@/lib/getPointUrl";
+import { ViewpointCardWrapper } from "./ViewpointCardWrapper";
 
 interface SearchResultsListProps {
     results: SearchResult[];
     isLoading: boolean;
     query: string;
     hasSearched?: boolean;
+    loadingCardId?: string | null;
+    handleCardClick?: (id: string) => void;
 }
 
 interface PointData {
@@ -34,7 +36,7 @@ interface PointData {
     viewerCred?: number;
 }
 
-export function SearchResultsList({ results, isLoading, query, hasSearched = false }: SearchResultsListProps) {
+export function SearchResultsList({ results, isLoading, query, hasSearched = false, loadingCardId, handleCardClick }: SearchResultsListProps) {
     const { user, login } = usePrivy();
     const basePath = useBasePath();
     const setNegatedPointId = useSetAtom(negatedPointIdAtom);
@@ -81,7 +83,13 @@ export function SearchResultsList({ results, isLoading, query, hasSearched = fal
                     return (
                         <Link
                             draggable={false}
-                            onClick={preventDefaultIfContainsSelection}
+                            onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                                preventDefaultIfContainsSelection(e);
+                                const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
+                                if (!isActionButton && window.getSelection()?.isCollapsed !== false) {
+                                    handleCardClick?.(`point-${result.id}`);
+                                }
+                            }}
                             href={getPointUrl(Number(result.id), pointData.space)}
                             className="flex border-b cursor-pointer hover:bg-accent"
                             key={`point-${result.id}`}
@@ -91,23 +99,24 @@ export function SearchResultsList({ results, isLoading, query, hasSearched = fal
                                 pointId={Number(result.id)}
                                 content={result.content}
                                 createdAt={result.createdAt}
-                                cred={pointData.cred}
+                                cred={pointData.cred || 0}
                                 favor={pointData.favor || 0}
-                                amountNegations={pointData.amountNegations}
-                                amountSupporters={pointData.amountSupporters}
-                                viewerContext={{ viewerCred: pointData.viewerCred }}
+                                amountNegations={pointData.amountNegations || 0}
+                                amountSupporters={pointData.amountSupporters || 0}
+                                viewerContext={{ viewerCred: pointData.viewerCred || 0 }}
                                 onNegate={(e) => {
                                     e.preventDefault();
                                     user !== null ? setNegatedPointId(Number(result.id)) : login();
                                 }}
                                 space={pointData.space}
                                 isCommand={result.content.startsWith('/')}
+                                isLoading={loadingCardId === `point-${result.id}`}
                             />
                         </Link>
                     );
                 } else if (result.type === "rationale" && result.title) {
                     return (
-                        <ViewpointCard
+                        <ViewpointCardWrapper
                             key={`rationale-${result.id}`}
                             id={result.id.toString()}
                             title={result.title}
@@ -115,7 +124,14 @@ export function SearchResultsList({ results, isLoading, query, hasSearched = fal
                             author={result.author}
                             createdAt={result.createdAt}
                             space={result.space || "global"}
-                            linkable={true}
+                            statistics={result.statistics || {
+                                views: 0,
+                                copies: 0,
+                                totalCred: 0,
+                                averageFavor: 0
+                            }}
+                            loadingCardId={loadingCardId}
+                            handleCardClick={handleCardClick}
                         />
                     );
                 }

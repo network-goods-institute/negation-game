@@ -15,14 +15,13 @@ import { useFeed } from "@/queries/useFeed";
 import { useSpace } from "@/queries/useSpace";
 import { usePrivy } from "@privy-io/react-auth";
 import { useToggle } from "@uidotdev/usehooks";
-import { useSetAtom } from "jotai";
+import { useSetAtom, useAtom } from "jotai";
 import { PlusIcon, TrophyIcon, SearchIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState, useMemo, memo, useEffect, useRef } from "react";
 import { LeaderboardDialog } from "@/components/LeaderboardDialog";
 import { useRouter, usePathname } from "next/navigation";
 import { useViewpoints } from "@/queries/useViewpoints";
-import { ViewpointCard } from "@/components/ViewpointCard";
 import { cn } from "@/lib/cn";
 import { SearchInput } from "@/components/SearchInput";
 import { useSearch } from "@/queries/useSearch";
@@ -32,13 +31,16 @@ import { ViewpointIcon } from "@/components/icons/AppIcons";
 import { usePriorityPoints } from "@/queries/usePriorityPoints";
 import { decodeId } from "@/lib/decodeId";
 import { useQueryClient } from "@tanstack/react-query";
-import { useFavorHistory } from "@/queries/useFavorHistory";
 import { usePrefetchPoint } from "@/queries/usePointData";
 import React from "react";
+import { ViewpointCardWrapper } from "@/components/ViewpointCardWrapper";
+import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
+
+
 
 interface PageProps {
     params: { space: string };
-    searchParams: { [key: string]: string | string[] | undefined };
+    searchParams?: { [key: string]: string | string[] | undefined };
 }
 
 type PointItem = {
@@ -59,8 +61,10 @@ type ViewpointItem = {
 
 type FeedItem = PointItem | ViewpointItem;
 
+type Tab = "all" | "points" | "rationales" | "search";
+
 const MemoizedPointCard = memo(PointCard);
-const MemoizedViewpointCard = memo(ViewpointCard);
+const MemoizedViewpointCardWrapper = memo(ViewpointCardWrapper);
 
 const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, pinnedPoint, handleCardClick, loadingCardId }: {
     item: FeedItem;
@@ -151,8 +155,12 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                 draggable={false}
                 onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                     preventDefaultIfContainsSelection(e);
-                    prefetchPoint(point.pointId);
-                    handleCardClick(`point-${point.pointId}`);
+                    // Don't navigate if text is selected or if it's an action button
+                    const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
+                    if (!isActionButton && window.getSelection()?.isCollapsed !== false) {
+                        prefetchPoint(point.pointId);
+                        handleCardClick(`point-${point.pointId}`);
+                    }
                 }}
                 href={`${basePath}/${encodeId(point.pointId)}`}
                 className="flex border-b cursor-pointer hover:bg-accent"
@@ -211,29 +219,23 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
         }
 
         return (
-            <Link
-                draggable={false}
-                href={`${basePath}/rationale/${item.id}`}
-                className="flex border-b cursor-pointer hover:bg-accent"
-                onClick={() => handleCardClick(`rationale-${item.id}`)}
-            >
-                <MemoizedViewpointCard
-                    className="flex-grow p-6 w-full"
-                    id={viewpoint.id}
-                    title={viewpoint.title}
-                    description={viewpoint.description}
-                    author={viewpoint.author}
-                    createdAt={viewpoint.createdAt}
-                    space={space || "global"}
-                    statistics={{
-                        views: viewpoint.statistics?.views || 0,
-                        copies: viewpoint.statistics?.copies || 0,
-                        totalCred: viewpoint.statistics?.totalCred || 0,
-                        averageFavor: viewpoint.statistics?.averageFavor || 0
-                    }}
-                    isLoading={loadingCardId === `rationale-${item.id}`}
-                />
-            </Link>
+            <MemoizedViewpointCardWrapper
+                key={`rationale-${item.id}`}
+                id={viewpoint.id}
+                title={viewpoint.title}
+                description={viewpoint.description}
+                author={viewpoint.author}
+                createdAt={viewpoint.createdAt}
+                space={space || "global"}
+                statistics={{
+                    views: viewpoint.statistics?.views || 0,
+                    copies: viewpoint.statistics?.copies || 0,
+                    totalCred: viewpoint.statistics?.totalCred || 0,
+                    averageFavor: viewpoint.statistics?.averageFavor || 0
+                }}
+                loadingCardId={loadingCardId}
+                handleCardClick={handleCardClick}
+            />
         );
     }
 
@@ -295,7 +297,11 @@ const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, log
                 draggable={false}
                 onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                     preventDefaultIfContainsSelection(e);
-                    handleCardClick(`point-${point.pointId}`);
+                    // Don't navigate if text is selected or if it's an action button
+                    const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
+                    if (!isActionButton && window.getSelection()?.isCollapsed !== false) {
+                        handleCardClick(`point-${point.pointId}`);
+                    }
                 }}
                 href={`${basePath}/${encodeId(point.pointId)}`}
                 className="flex border-b cursor-pointer hover:bg-accent"
@@ -526,46 +532,24 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
     return (
         <div className="flex flex-col">
             {viewpoints.map((viewpoint: any) => {
-                let pointIds: number[] = viewpoint.originalPointIds || [];
-
-                if ((!pointIds || pointIds.length === 0) && viewpoint.graph?.nodes) {
-                    try {
-                        pointIds = viewpoint.graph.nodes
-                            .filter((node: any) => node.type === 'point')
-                            .map((node: any) => {
-                                const id = node.data?.pointId;
-                                return typeof id === 'number' ? id : null;
-                            })
-                            .filter((id: any) => id !== null);
-                    } catch (error) {
-                    }
-                }
-
                 return (
-                    <div key={`rationales-tab-${viewpoint.id}`} className="relative border-b">
-                        <Link
-                            href={`/s/${space || 'global'}/rationale/${viewpoint.id}`}
-                            className="block focus:outline-none"
-                            onClick={() => handleCardClick(`rationale-${viewpoint.id}`)}
-                        >
-                            <ViewpointCard
-                                id={viewpoint.id}
-                                title={viewpoint.title}
-                                description={viewpoint.description}
-                                author={viewpoint.author}
-                                createdAt={new Date(viewpoint.createdAt)}
-                                space={space || "global"}
-                                statistics={{
-                                    views: viewpoint.statistics?.views || 0,
-                                    copies: viewpoint.statistics?.copies || 0,
-                                    totalCred: viewpoint.statistics?.totalCred || 0,
-                                    averageFavor: viewpoint.statistics?.averageFavor || 0
-                                }}
-                                linkable={false}
-                                isLoading={loadingCardId === `rationale-${viewpoint.id}`}
-                            />
-                        </Link>
-                    </div>
+                    <ViewpointCardWrapper
+                        key={`rationales-tab-${viewpoint.id}`}
+                        id={viewpoint.id}
+                        title={viewpoint.title}
+                        description={viewpoint.description}
+                        author={viewpoint.author}
+                        createdAt={new Date(viewpoint.createdAt)}
+                        space={space || "global"}
+                        statistics={{
+                            views: viewpoint.statistics?.views || 0,
+                            copies: viewpoint.statistics?.copies || 0,
+                            totalCred: viewpoint.statistics?.totalCred || 0,
+                            averageFavor: viewpoint.statistics?.averageFavor || 0
+                        }}
+                        loadingCardId={loadingCardId}
+                        handleCardClick={handleCardClick}
+                    />
                 );
             })}
         </div>
@@ -637,10 +621,7 @@ const PinnedPointWithHistory = memo(({ pinnedPoint, space, loadingCardId }: any)
 });
 PinnedPointWithHistory.displayName = 'PinnedPointWithHistory';
 
-export function SpacePageClient({
-    params,
-    searchParams: initialSearchParams,
-}: PageProps) {
+export function SpacePageClient({ params, searchParams }: PageProps) {
     const { user: privyUser, login } = usePrivy();
     const [makePointOpen, onMakePointOpenChange] = useToggle(false);
     const basePath = useBasePath();
@@ -648,8 +629,9 @@ export function SpacePageClient({
     const [leaderboardOpen, setLeaderboardOpen] = useState(false);
     const router = useRouter();
     const pathname = usePathname();
-    const queryClient = useQueryClient();
     const [isNavigating, setIsNavigating] = useState(false);
+    const [initialTabFromAtom, setInitialTabAtom] = useAtom(initialSpaceTabAtom);
+    const queryClient = useQueryClient();
 
     const lastTabViewTimes = useRef<Record<string, number>>({
         rationales: 0,
@@ -659,7 +641,19 @@ export function SpacePageClient({
     });
 
     const { data: viewpoints, isLoading: viewpointsLoading } = useViewpoints(space.data?.id || "global");
-    const [selectedTab, setSelectedTab] = useState<"all" | "points" | "rationales" | "search">("rationales");
+
+    const [selectedTab, setSelectedTab] = useState<Tab | null>(null);
+
+
+    useEffect(() => {
+        if (selectedTab === null && initialTabFromAtom) {
+            setSelectedTab(initialTabFromAtom);
+            setInitialTabAtom(null); // Reset after use
+        } else if (selectedTab === null && !initialTabFromAtom) {
+            setSelectedTab("rationales");
+        }
+    }, [initialTabFromAtom, selectedTab, setInitialTabAtom]);
+
     const { searchQuery, searchResults, isLoading: searchLoading, handleSearch, isActive, hasSearched } = useSearch();
     const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
 
@@ -683,7 +677,6 @@ export function SpacePageClient({
         }
     }, [queryClient, privyUser?.id, isNavigating]);
 
-
     // Only load feed data when "all" tab is selected
     const { data: points, isLoading } = useFeed();
 
@@ -700,12 +693,13 @@ export function SpacePageClient({
         shouldLoadPinnedPoint ? space.data?.id : undefined
     );
 
-    const handleTabChange = useCallback((tab: "all" | "points" | "rationales" | "search") => {
+    const handleTabChange = useCallback((tab: Tab) => {
         setSelectedTab(tab);
 
-        lastTabViewTimes.current[tab] = Date.now();
+        if (lastTabViewTimes.current) {
+            lastTabViewTimes.current[tab] = Date.now();
+        }
 
-        // If switching to search, focus the search input
         if (tab === "search") {
             setTimeout(() => {
                 const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
@@ -824,6 +818,16 @@ export function SpacePageClient({
         router.push(`${basePath}/${encodedId}`);
     };
 
+    if (selectedTab === null) {
+        return (
+            <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow bg-background">
+                <div className="relative w-full sm:col-[2] flex flex-col gap-0 border-x overflow-auto">
+                    <Loader className="absolute self-center my-auto top-0 bottom-0" />
+                </div>
+            </main>
+        );
+    }
+
     return (
         <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow bg-background">
             <div className="relative w-full sm:col-[2] flex flex-col gap-0 border-x overflow-auto">
@@ -913,9 +917,12 @@ export function SpacePageClient({
                         <div className="border-b transition-opacity duration-200 ease-in-out">
                             <Link
                                 draggable={false}
-                                onClick={(e) => {
+                                onClick={(e: React.MouseEvent) => {
                                     preventDefaultIfContainsSelection(e);
-                                    handleCardClick(`point-${pinnedPoint.pointId}`);
+                                    const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
+                                    if (!isActionButton && window.getSelection()?.isCollapsed !== false) {
+                                        handleCardClick(`point-${pinnedPoint.pointId}`);
+                                    }
                                 }}
                                 href={`${basePath}/${encodeId(pinnedPoint.pointId)}`}
                                 className="flex cursor-pointer hover:bg-accent"
@@ -967,6 +974,8 @@ export function SpacePageClient({
                         isLoading={searchLoading}
                         query={searchQuery}
                         hasSearched={hasSearched}
+                        loadingCardId={loadingCardId}
+                        handleCardClick={handleCardClick}
                     />
                 ) : selectedTab === "all" ? (
                     <AllTabContent

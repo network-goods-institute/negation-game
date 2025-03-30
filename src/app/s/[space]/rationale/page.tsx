@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
+import { use } from "react";
 
-export default async function ViewpointRedirectPage({
+export default function ViewpointRedirectPage({
     params,
 }: {
     params: Promise<{ space: string }>;
 }) {
-    const { space } = await params;
+    const { space } = use(params);
     redirect(`/s/${space}`);
 } 

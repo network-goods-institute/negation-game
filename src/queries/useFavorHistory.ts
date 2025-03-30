@@ -36,9 +36,16 @@ export const useFavorHistory = ({
 
   return useQuery<FavorHistoryDataPoint[]>({
     queryKey: [pointId, "favor-history", timelineScale] as const,
+    // Disable the query for invalid pointIds but always call the hook
+    enabled: pointId >= 0,
     queryFn: async ({ queryKey }) => {
       const id = queryKey[0] as number;
       const scale = queryKey[2] as TimelineScale;
+
+      // Return empty array for invalid points - this code won't run if enabled: false
+      if (id < 0) {
+        return [];
+      }
 
       // Check cache first - try to return immediately if possible
       const cachedData = queryClient.getQueryData<FavorHistoryDataPoint[]>([

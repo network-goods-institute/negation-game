@@ -2,6 +2,7 @@ import {
   handleBackNavigation,
   getBackButtonHandler,
   isSameDomain,
+  getSpaceFromUrl,
 } from "@/utils/backButtonUtils";
 
 describe("backButtonUtils", () => {
@@ -9,23 +10,18 @@ describe("backButtonUtils", () => {
     let originalLocation: Location;
 
     beforeEach(() => {
-      // Save original location
       originalLocation = window.location;
-
-      // Create a mock location object
       const mockLocation = {
         ...window.location,
         hostname: "example.com",
       };
-
-      // @ts-ignore - TypeScript complains about this because Location is supposed to be read-only
+      // @ts-ignore
       delete window.location;
       // @ts-ignore
       window.location = mockLocation;
     });
 
     afterEach(() => {
-      // Restore original location if needed
       if (window.location !== originalLocation) {
         // @ts-ignore
         window.location = originalLocation;
@@ -57,28 +53,80 @@ describe("backButtonUtils", () => {
     });
   });
 
+  describe("getSpaceFromUrl", () => {
+    let originalLocation: Location;
+
+    beforeEach(() => {
+      originalLocation = window.location;
+    });
+
+    afterEach(() => {
+      if (window.location !== originalLocation) {
+        // @ts-ignore
+        window.location = originalLocation;
+      }
+    });
+
+    test("returns space name from URL path", () => {
+      const mockLocation = {
+        ...window.location,
+        pathname: "/s/test-space/some/page",
+      };
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = mockLocation;
+
+      expect(getSpaceFromUrl()).toBe("test-space");
+    });
+
+    test("returns null when no space in the URL", () => {
+      const mockLocation = {
+        ...window.location,
+        pathname: "/some/other/page",
+      };
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = mockLocation;
+
+      expect(getSpaceFromUrl()).toBeNull();
+    });
+
+    test("returns null for invalid space values", () => {
+      const mockLocation = {
+        ...window.location,
+        pathname: "/s/null/page",
+      };
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = mockLocation;
+
+      expect(getSpaceFromUrl()).toBeNull();
+    });
+  });
+
   describe("handleBackNavigation", () => {
     let mockRouter: any;
+    let mockSetInitialTab: jest.Mock;
     let originalHistoryBack: () => void;
     let originalHistoryLength: number;
     let originalReferrer: string;
     let originalLocation: Location;
 
     beforeEach(() => {
-      // Setup router mock
       mockRouter = {
         back: jest.fn(),
         push: jest.fn(),
       };
 
-      // Save original window.history methods and properties
+      mockSetInitialTab = jest.fn();
+
       originalHistoryBack = window.history.back;
       originalHistoryLength = window.history.length;
-
-      // Save original window.location
       originalLocation = window.location;
 
-      // Setup document.referrer mock
       Object.defineProperty(document, "referrer", {
         configurable: true,
         get: jest.fn(() => ""),
@@ -87,20 +135,17 @@ describe("backButtonUtils", () => {
     });
 
     afterEach(() => {
-      // Restore original window.history
       window.history.back = originalHistoryBack;
       Object.defineProperty(window.history, "length", {
         configurable: true,
         value: originalHistoryLength,
       });
 
-      // Restore original document.referrer
       Object.defineProperty(document, "referrer", {
         configurable: true,
         get: () => originalReferrer,
       });
 
-      // Restore original location if needed
       if (window.location !== originalLocation) {
         // @ts-ignore
         window.location = originalLocation;
@@ -109,121 +154,193 @@ describe("backButtonUtils", () => {
       jest.clearAllMocks();
     });
 
-    test("should use window.history.back() when history exists", () => {
-      // Mock window.history.back and history.length
+    test("should set rationales tab and navigate to space from rationale page", () => {
+      const mockLocation = {
+        ...window.location,
+        hostname: "example.com",
+        pathname: "/s/test-space/rationale/123",
+      };
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = mockLocation;
+
+      window.history.back = jest.fn();
+
+      handleBackNavigation(mockRouter, mockSetInitialTab);
+
+      expect(mockSetInitialTab).toHaveBeenCalledWith("rationales");
+      expect(mockRouter.push).toHaveBeenCalledWith("/s/test-space");
+      expect(window.history.back).not.toHaveBeenCalled();
+      expect(mockRouter.back).not.toHaveBeenCalled();
+    });
+
+    test("should set points tab and navigate to space from point page", () => {
+      const mockLocation = {
+        ...window.location,
+        hostname: "example.com",
+        pathname: "/s/test-space/abc123",
+      };
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = mockLocation;
+
+      window.history.back = jest.fn();
+
+      handleBackNavigation(mockRouter, mockSetInitialTab);
+
+      expect(mockSetInitialTab).toHaveBeenCalledWith("points");
+      expect(mockRouter.push).toHaveBeenCalledWith("/s/test-space");
+      expect(window.history.back).not.toHaveBeenCalled();
+      expect(mockRouter.back).not.toHaveBeenCalled();
+    });
+
+    test("should set points tab and navigate to global space from global point page", () => {
+      const mockLocation = {
+        ...window.location,
+        hostname: "example.com",
+        pathname: "/abc123",
+      };
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = mockLocation;
+
+      window.history.back = jest.fn();
+
+      handleBackNavigation(mockRouter, mockSetInitialTab);
+
+      expect(mockSetInitialTab).toHaveBeenCalledWith("points");
+      expect(mockRouter.push).toHaveBeenCalledWith("/s/global");
+      expect(window.history.back).not.toHaveBeenCalled();
+      expect(mockRouter.back).not.toHaveBeenCalled();
+    });
+
+    test("should use window.history.back() when history exists and no specific route matched", () => {
       window.history.back = jest.fn();
       Object.defineProperty(window.history, "length", {
         configurable: true,
-        value: 2, // Simulate having history
+        value: 2,
       });
 
-      // Call the function
-      handleBackNavigation(mockRouter);
+      const mockLocation = {
+        ...window.location,
+        hostname: "example.com",
+        pathname: "/some/path",
+      };
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = mockLocation;
 
-      // Should use window.history.back()
+      handleBackNavigation(mockRouter, mockSetInitialTab);
+
+      expect(mockSetInitialTab).toHaveBeenCalledWith(null);
       expect(window.history.back).toHaveBeenCalled();
-      // Should not use router methods
       expect(mockRouter.back).not.toHaveBeenCalled();
       expect(mockRouter.push).not.toHaveBeenCalled();
     });
 
     test("should use router.back() when history is empty but referrer is from same domain", () => {
-      // Mock history to be empty
       Object.defineProperty(window.history, "length", {
         configurable: true,
-        value: 1, // Simulate no history
+        value: 1,
       });
       window.history.back = jest.fn();
 
-      // Mock document.referrer to be from same domain
       Object.defineProperty(document, "referrer", {
         configurable: true,
         get: () => "https://example.com/some-page",
       });
 
-      // Mock checking hostname
       const mockLocation = {
+        ...window.location,
         hostname: "example.com",
+        pathname: "/some/path",
       };
-      // @ts-ignore - overriding readonly property
+      // @ts-ignore
       delete window.location;
       // @ts-ignore
       window.location = mockLocation;
 
-      // Call the function
-      handleBackNavigation(mockRouter);
+      handleBackNavigation(mockRouter, mockSetInitialTab);
 
-      // Should use router.back()
+      expect(mockSetInitialTab).toHaveBeenCalledWith(null);
       expect(mockRouter.back).toHaveBeenCalled();
       expect(window.history.back).not.toHaveBeenCalled();
       expect(mockRouter.push).not.toHaveBeenCalled();
     });
 
     test("should use router.push() when history is empty and referrer is external", () => {
-      // Mock history to be empty
       Object.defineProperty(window.history, "length", {
         configurable: true,
-        value: 1, // Simulate no history
+        value: 1,
       });
       window.history.back = jest.fn();
 
-      // Mock document.referrer to be from external domain
       Object.defineProperty(document, "referrer", {
         configurable: true,
         get: () => "https://external-site.com",
       });
 
-      // Mock checking hostname
       const mockLocation = {
+        ...window.location,
         hostname: "example.com",
+        pathname: "/some/path",
       };
-      // @ts-ignore - overriding readonly property
+      // @ts-ignore
       delete window.location;
       // @ts-ignore
       window.location = mockLocation;
 
-      // Call the function
-      handleBackNavigation(mockRouter);
+      handleBackNavigation(mockRouter, mockSetInitialTab);
 
-      // Should use router.push('/')
+      expect(mockSetInitialTab).toHaveBeenCalledWith(null);
       expect(mockRouter.push).toHaveBeenCalledWith("/");
       expect(window.history.back).not.toHaveBeenCalled();
       expect(mockRouter.back).not.toHaveBeenCalled();
     });
 
     test("should use router.push() with custom home path when specified", () => {
-      // Mock history to be empty
       Object.defineProperty(window.history, "length", {
         configurable: true,
-        value: 1, // Simulate no history
+        value: 1,
       });
       window.history.back = jest.fn();
 
-      // Mock empty referrer
       Object.defineProperty(document, "referrer", {
         configurable: true,
         get: () => "",
       });
 
-      // Call the function with custom home path
-      handleBackNavigation(mockRouter, "/custom-home");
+      const mockLocation = {
+        ...window.location,
+        hostname: "example.com",
+        pathname: "/some/path",
+      };
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = mockLocation;
 
-      // Should use router.push with custom path
+      handleBackNavigation(mockRouter, mockSetInitialTab, "/custom-home");
+
+      expect(mockSetInitialTab).toHaveBeenCalledWith(null);
       expect(mockRouter.push).toHaveBeenCalledWith("/custom-home");
     });
   });
 
   describe("getBackButtonHandler", () => {
     let mockRouter: any;
+    let mockSetInitialTab: jest.Mock;
 
     beforeEach(() => {
-      // Setup router mock
       mockRouter = {
         back: jest.fn(),
         push: jest.fn(),
       };
-
-      // Mock handleBackNavigation to test getBackButtonHandler in isolation
+      mockSetInitialTab = jest.fn();
       jest.spyOn(window.history, "back").mockImplementation(jest.fn());
     });
 
@@ -232,47 +349,58 @@ describe("backButtonUtils", () => {
     });
 
     test("should return a function that calls handleBackNavigation", () => {
-      // Mock implementation directly
       window.history.back = jest.fn();
       Object.defineProperty(window.history, "length", {
         configurable: true,
-        value: 2, // Has history
+        value: 2,
       });
 
-      // Get the handler function
-      const handler = getBackButtonHandler(mockRouter);
+      const mockLocation = {
+        ...window.location,
+        hostname: "example.com",
+        pathname: "/some/path",
+      };
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = mockLocation;
 
-      // Handler should be a function
+      const handler = getBackButtonHandler(mockRouter, mockSetInitialTab);
+
       expect(typeof handler).toBe("function");
-
-      // Call the handler
       handler();
-
-      // Should have attempted navigation
       expect(window.history.back).toHaveBeenCalled();
     });
 
     test("should pass custom home path to handleBackNavigation", () => {
-      // Override history.length to force fallback to router.push
       Object.defineProperty(window.history, "length", {
         configurable: true,
-        value: 1, // Simulate no history
+        value: 1,
       });
 
-      // Mock empty referrer to force fallback to router.push
       Object.defineProperty(document, "referrer", {
         configurable: true,
         get: () => "",
       });
 
-      // Get handler with custom path
-      const handler = getBackButtonHandler(mockRouter, "/custom-dashboard");
+      const mockLocation = {
+        ...window.location,
+        hostname: "example.com",
+        pathname: "/some/path",
+      };
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = mockLocation;
 
-      // Call the handler
+      const handler = getBackButtonHandler(
+        mockRouter,
+        mockSetInitialTab,
+        "/custom-home"
+      );
+
       handler();
-
-      // Should use custom path
-      expect(mockRouter.push).toHaveBeenCalledWith("/custom-dashboard");
+      expect(mockRouter.push).toHaveBeenCalledWith("/custom-home");
     });
   });
 });
