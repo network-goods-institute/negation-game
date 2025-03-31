@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, ArrowLeft, Trash2 } from "lucide-react";
+import { Loader2, ArrowLeft, Trash2, MessageSquare, Settings2, CircleIcon, CircleDotIcon } from "lucide-react";
 import { useUser } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { updateUserProfile } from "@/actions/updateUserProfile";
@@ -14,8 +14,13 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { userQueryKey } from "@/queries/useUser";
 import { useRouter } from "next/navigation";
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { Progress } from "@/components/ui/progress";
+import { generateChatResponse } from "@/actions/generateChatResponse";
+import { nanoid } from "nanoid";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import * as ContextMenu from "@radix-ui/react-context-menu";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface DiscourseMessage {
     id: number;
@@ -26,64 +31,86 @@ interface DiscourseMessage {
     topic_title?: string;
 }
 
+interface ChatMessage {
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+}
+
+interface SavedChat {
+    id: string;
+    title: string;
+    messages: ChatMessage[];
+    createdAt: string;
+    updatedAt: string;
+}
+
 export default function AIAssistant() {
     const router = useRouter();
     const { user: privyUser } = usePrivy();
     const { data: userData } = useUser(privyUser?.id);
     const queryClient = useQueryClient();
 
+    // Discourse-related state
+    const [showDiscourseDialog, setShowDiscourseDialog] = useState(false);
     const [isConnectingToDiscourse, setIsConnectingToDiscourse] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [discourseUsername, setDiscourseUsername] = useState(userData?.discourseUsername || '');
-    const [discourseUrl, setDiscourseUrl] = useState(userData?.discourseCommunityUrl || 'https://forum.scroll.io');
+    const [discourseUsername, setDiscourseUsername] = useState('');
+    const [discourseUrl, setDiscourseUrl] = useState('https://forum.scroll.io');
     const [storedMessages, setStoredMessages] = useState<DiscourseMessage[]>([]);
     const [showMessagesModal, setShowMessagesModal] = useState(false);
     const [showConsentDialog, setShowConsentDialog] = useState(false);
     const [hasStoredMessages, setHasStoredMessages] = useState(false);
-    const [message, setMessage] = useState('');
-    const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
     const [fetchProgress, setFetchProgress] = useState(0);
 
-    useEffect(() => {
-        if (userData) {
-            setDiscourseUsername(userData.discourseUsername || '');
-            setDiscourseUrl(userData.discourseCommunityUrl || 'https://forum.scroll.io');
-        }
-    }, [userData]);
+    // Chat-related state
+    const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+    const [savedChats, setSavedChats] = useState<SavedChat[]>([]);
+    const [showSidebar, setShowSidebar] = useState(true);
+    const [message, setMessage] = useState('');
+    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{
+        role: 'assistant',
+        content: `Hello! I'm here to help you write your essay. What topic would you like to write about?`
+    }]);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [streamingContent, setStreamingContent] = useState('');
+    const chatEndRef = useRef<HTMLDivElement>(null);
+    const [chatToDelete, setChatToDelete] = useState<string | null>(null);
+    const [chatToRename, setChatToRename] = useState<string | null>(null);
+    const [newChatTitle, setNewChatTitle] = useState('');
 
-    // Check for stored messages on client-side only
     useEffect(() => {
-        if (typeof window !== 'undefined') {
+        const savedChatsStr = localStorage.getItem('saved_chats');
+        if (savedChatsStr) {
             try {
-                const storedData = localStorage.getItem('discourse_messages');
-                const hasMessages = !!storedData;
-                setHasStoredMessages(hasMessages);
-                if (hasMessages) {
-                    const messages = loadStoredMessages(); // Pre-load messages if they exist
-                    setStoredMessages(messages);
+                const chats = JSON.parse(savedChatsStr);
+                setSavedChats(chats);
+                if (!currentChatId && chats.length > 0) {
+                    setCurrentChatId(chats[0].id);
+                    setChatMessages(chats[0].messages);
                 }
             } catch (error) {
-                console.error("Error checking localStorage:", error);
+                console.error('Error loading saved chats:', error);
             }
+        } else {
+            createNewChat();
         }
-    }, []);
+    }, [currentChatId]);
+
+    useEffect(() => {
+        if (savedChats.length > 0) {
+            localStorage.setItem('saved_chats', JSON.stringify(savedChats));
+        }
+    }, [savedChats]);
 
     const loadStoredMessages = () => {
         try {
-            console.log("Checking for discourse_messages in localStorage");
             if (typeof window !== 'undefined') {
                 const storedData = localStorage.getItem('discourse_messages');
-
                 if (storedData) {
-                    console.log("Found discourse_messages in localStorage");
                     const messages = JSON.parse(storedData);
-                    console.log(`Parsed ${Array.isArray(messages) ? messages.length : 0} messages from localStorage`);
-
                     if (Array.isArray(messages) && messages.length > 0) {
                         return messages;
                     }
-                } else {
-                    console.log("No discourse_messages found in localStorage");
                 }
             }
             return [];
@@ -93,35 +120,7 @@ export default function AIAssistant() {
         }
     };
 
-    const saveMessagesToStorage = (messages: DiscourseMessage[]) => {
-        // Explicitly check if messages is an array and has length
-        if (!Array.isArray(messages) || messages.length === 0) {
-            console.log('saveMessagesToStorage: No messages to save or empty array');
-            if (typeof window !== 'undefined') {
-                localStorage.removeItem('discourse_messages');
-            }
-            setStoredMessages([]);
-            setHasStoredMessages(false);
-            return;
-        }
-
-        console.log(`saveMessagesToStorage: Saving ${messages.length} messages to localStorage`);
-        try {
-            // Use localStorage instead of cookies to avoid size limitations
-            if (typeof window !== 'undefined') {
-                const stringified = JSON.stringify(messages);
-                localStorage.setItem('discourse_messages', stringified);
-                setStoredMessages(messages);
-                setHasStoredMessages(true);
-                console.log('saveMessagesToStorage: Messages saved successfully');
-            }
-        } catch (error) {
-            console.error('Error saving messages to localStorage:', error);
-            toast.error('Error saving messages: Storage error');
-        }
-    };
-
-    const handleUpdateProfile = async (values: {
+    const handleUpdateProfile = useCallback(async (values: {
         discourseUsername: string;
         discourseCommunityUrl: string;
         discourseConsentGiven: boolean;
@@ -153,51 +152,241 @@ export default function AIAssistant() {
             console.error('Failed to update profile:', error);
             throw error;
         }
+    }, [privyUser, queryClient]);
+
+    // Wrap saveMessagesToStorage in useCallback
+    const saveMessagesToStorage = useCallback((messages: DiscourseMessage[]) => {
+        if (!Array.isArray(messages) || messages.length === 0) {
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('discourse_messages');
+            }
+            setStoredMessages([]);
+            setHasStoredMessages(false);
+            return;
+        }
+
+        try {
+            if (typeof window !== 'undefined') {
+                localStorage.setItem('discourse_messages', JSON.stringify(messages));
+                setStoredMessages(messages);
+                setHasStoredMessages(true);
+            }
+        } catch (error) {
+            console.error('Error saving messages to localStorage:', error);
+            toast.error('Error saving messages: Storage error');
+        }
+    }, []);
+
+    const createNewChat = () => {
+        const newChat: SavedChat = {
+            id: nanoid(),
+            title: 'New Chat',
+            messages: [{
+                role: 'assistant',
+                content: `Hello! I'm here to help you write your essay. What topic would you like to write about?`
+            }],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+
+        setSavedChats(prev => [newChat, ...prev]);
+        setCurrentChatId(newChat.id);
+        setChatMessages(newChat.messages);
     };
 
-    const handleConnectToDiscourse = async () => {
+    const deleteChat = (chatId: string) => {
+        const updatedChats = savedChats.filter(chat => chat.id !== chatId);
+        setSavedChats(updatedChats);
+        localStorage.setItem('saved_chats', JSON.stringify(updatedChats));
+
+        if (chatId === currentChatId) {
+            if (updatedChats.length > 0) {
+                setCurrentChatId(updatedChats[0].id);
+                setChatMessages(updatedChats[0].messages);
+            } else {
+                setCurrentChatId(null);
+                setChatMessages([{
+                    role: 'assistant',
+                    content: `Hello! I'm here to help you write your essay. What topic would you like to write about?`
+                }]);
+            }
+        }
+    };
+
+    const switchChat = (chatId: string) => {
+        const chat = savedChats.find(c => c.id === chatId);
+        if (chat) {
+            setCurrentChatId(chatId);
+            setChatMessages(chat.messages);
+        }
+    };
+
+    const handleChatSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (!message.trim() || isGenerating) return;
+
+        const userMessageText = message.trim();
+        setMessage('');
+
+        let chatId: string;
+        let initialMessages: ChatMessage[];
+
+        // ======= PHASE 1: ENSURE WE HAVE A VALID CHAT =======
+        if (!currentChatId) {
+            console.log('[handleChatSubmit] Creating new chat');
+            chatId = nanoid();
+            initialMessages = [{
+                role: 'assistant',
+                content: `Hello! I'm here to help you write your essay. What topic would you like to write about?`
+            }];
+
+            const newChat: SavedChat = {
+                id: chatId,
+                title: 'New Chat',
+                messages: initialMessages,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+
+            await new Promise<void>(resolve => {
+                setSavedChats(prev => {
+                    const updated = [newChat, ...prev];
+                    localStorage.setItem('saved_chats', JSON.stringify(updated));
+                    console.log('[handleChatSubmit] Created new chat:', chatId);
+                    resolve();
+                    return updated;
+                });
+            });
+
+            setCurrentChatId(chatId);
+            setChatMessages(initialMessages);
+        } else {
+            chatId = currentChatId;
+
+            const existingChat = savedChats.find(c => c.id === chatId);
+            if (!existingChat) {
+                console.error('[handleChatSubmit] Chat not found in savedChats:', chatId);
+                toast.error('Chat not found');
+                return;
+            }
+
+            initialMessages = [...chatMessages];
+        }
+
+        // ======= PHASE 2: ADD USER MESSAGE AND GENERATE RESPONSE =======
+        const userMessage: ChatMessage = { role: 'user', content: userMessageText };
+        const messagesWithUserInput = [...initialMessages, userMessage];
+
+        setChatMessages(messagesWithUserInput);
+
+        const discourseContext = storedMessages.map(msg => ({
+            role: 'system' as const,
+            content: `[Forum Post from ${new Date(msg.created_at).toLocaleString()}${msg.topic_title ? ` in "${msg.topic_title}"` : ''}]\n${msg.raw || msg.content}`
+        }));
+
+        setIsGenerating(true);
+        setStreamingContent('');
+
+        try {
+            console.log('[handleChatSubmit] Generating response');
+            const stream = await generateChatResponse([...discourseContext, ...messagesWithUserInput]);
+            const reader = stream.getReader();
+            let accumulatedContent = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                accumulatedContent += value;
+                setStreamingContent(accumulatedContent);
+            }
+
+            const assistantMessage: ChatMessage = {
+                role: 'assistant',
+                content: accumulatedContent
+            };
+
+            // Combine all messages
+            const finalMessages = [...messagesWithUserInput, assistantMessage];
+
+            setChatMessages(finalMessages);
+
+            let updatedChat: SavedChat | undefined = undefined;
+
+            await new Promise<void>(resolve => {
+                setSavedChats(prev => {
+                    const targetChatIndex = prev.findIndex(c => c.id === chatId);
+
+                    if (targetChatIndex === -1) {
+                        console.error('[handleChatSubmit] Chat disappeared during processing:', chatId);
+                        resolve();
+                        return prev;
+                    }
+
+                    const updated = [...prev];
+                    updatedChat = {
+                        ...updated[targetChatIndex],
+                        messages: finalMessages,
+                        updatedAt: new Date().toISOString()
+                    };
+                    updated[targetChatIndex] = updatedChat;
+
+                    localStorage.setItem('saved_chats', JSON.stringify(updated));
+                    console.log('[handleChatSubmit] Updated chat with new messages:', chatId);
+                    resolve();
+                    return updated;
+                });
+            });
+
+            setStreamingContent('');
+        } catch (error) {
+            console.error('[handleChatSubmit] Error generating response:', error);
+            toast.error('Failed to generate response. Please try again.');
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const handleConnectToDiscourse = useCallback(async () => {
+        if (isConnectingToDiscourse) return;
+
         try {
             if (!discourseUsername.trim()) {
                 setError('Please enter your username');
                 return;
             }
 
-            // Ensure user data is loaded before checking consent
             if (!userData) {
                 setError('User data not loaded yet. Please try again.');
-                console.log('handleConnectToDiscourse: userData is not available yet.');
                 return;
             }
-            console.log('handleConnectToDiscourse: Checking consent. Current value:', userData.discourseConsentGiven);
 
             // If we don't have consent, show the consent dialog
             if (!userData.discourseConsentGiven) {
-                console.log('handleConnectToDiscourse: Consent not given, showing dialog.');
                 setShowConsentDialog(true);
                 return;
             }
 
-            console.log('handleConnectToDiscourse: Consent already given or not required. Proceeding with connection.');
             setIsConnectingToDiscourse(true);
             setError(null);
-            setFetchProgress(10); // Start progress
+            setFetchProgress(10);
 
             const cleanUrl = discourseUrl.trim().replace(/\/$/, '');
             const encodedUrl = encodeURIComponent(cleanUrl);
 
-            // Update the profile first
-            await handleUpdateProfile({
-                discourseUsername: discourseUsername,
-                discourseCommunityUrl: cleanUrl,
-                discourseConsentGiven: true, // Ensure consent is set to true
-            });
+            if (userData.discourseUsername !== discourseUsername ||
+                userData.discourseCommunityUrl !== cleanUrl ||
+                !userData.discourseConsentGiven) {
+                await handleUpdateProfile({
+                    discourseUsername: discourseUsername,
+                    discourseCommunityUrl: cleanUrl,
+                    discourseConsentGiven: true,
+                });
+            }
 
-            setFetchProgress(20); // Profile updated
-
-            console.log(`Fetching posts for ${discourseUsername} from ${cleanUrl}`);
+            setFetchProgress(20);
 
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+            const timeoutId = setTimeout(() => controller.abort(), 60000);
 
             const eventSource = new EventSource(`/api/discourse/posts/stream?username=${encodeURIComponent(discourseUsername)}&url=${encodedUrl}`);
 
@@ -205,7 +394,7 @@ export default function AIAssistant() {
                 try {
                     const data = JSON.parse(event.data);
                     if (data.progress) {
-                        setFetchProgress(20 + (data.progress * 0.7)); // Scale progress between 20-90%
+                        setFetchProgress(20 + (data.progress * 0.7));
                     }
                     if (data.done) {
                         eventSource.close();
@@ -225,7 +414,7 @@ export default function AIAssistant() {
 
             clearTimeout(timeoutId);
             eventSource.close();
-            setFetchProgress(90); // API call complete
+            setFetchProgress(90);
 
             if (!response.ok) {
                 const errorData = await response.json();
@@ -233,75 +422,74 @@ export default function AIAssistant() {
             }
 
             const data = await response.json();
-            console.log('handleConnectToDiscourse: API Response Data:', data); // Log API response
-
-            // The data should be an array of posts
             let rawPosts = [];
             if (data.latest_posts && Array.isArray(data.latest_posts)) {
                 rawPosts = data.latest_posts;
-            } else if (Array.isArray(data)) { // Check if the root is an array
+            } else if (Array.isArray(data)) {
                 rawPosts = data;
             } else {
-                console.error('handleConnectToDiscourse: Expected latest_posts array or root array, got:', data);
                 throw new Error('Invalid response structure from API');
             }
 
             if (!Array.isArray(rawPosts)) {
-                console.error('handleConnectToDiscourse: Failed to extract posts array, typeof rawPosts:', typeof rawPosts);
                 throw new Error('Invalid response format from API');
             }
 
-            // Debugging: Log the first few raw posts
-            if (rawPosts.length > 0) {
-                console.log('handleConnectToDiscourse: First raw post:', rawPosts[0]);
-            }
-
-            // Process messages from Discourse format to our internal format
-            setFetchProgress(95); // Processing data
-            const processedMessages: DiscourseMessage[] = rawPosts.map((msg: any) => {
-                // Double-check the structure of 'msg' here
-                const messageContent = msg.content || msg.cooked || ''; // Prioritize 'content' from simplified API, fallback to cooked
-                const messageRaw = msg.raw || ''; // Use raw if available
-
-                // Log if content is empty
-                if (!messageContent) {
-                    console.warn(`[Discourse Processing] Post ID ${msg.id} has empty content (cooked/content). Raw: ${messageRaw.substring(0, 100)}...`);
-                }
-
-                return {
-                    id: msg.id || Math.random().toString(36).substring(2, 11),
-                    content: messageContent,
-                    raw: messageRaw,
-                    created_at: msg.created_at || new Date().toISOString(),
-                    topic_id: msg.topic_id || '',
-                    topic_title: msg.topic_title || msg.topic_slug || ''
-                };
-            });
-            console.log('handleConnectToDiscourse: Processed Messages:', processedMessages.length > 0 ? processedMessages[0] : 'No messages'); // Log first processed message
-
-            // Save messages to storage and update state
-            saveMessagesToStorage(processedMessages);
-
-            // Force update the storedMessages state directly
-            setStoredMessages(processedMessages);
-            setHasStoredMessages(processedMessages.length > 0);
-            setFetchProgress(100); // Completed
+            setFetchProgress(95);
+            const processedMessages: DiscourseMessage[] = rawPosts.map((msg: any) => ({
+                id: msg.id || Math.random().toString(36).substring(2, 11),
+                content: msg.content || msg.cooked || '',
+                raw: msg.raw || '',
+                created_at: msg.created_at || new Date().toISOString(),
+                topic_id: msg.topic_id || '',
+                topic_title: msg.topic_title || msg.topic_slug || ''
+            }));
 
             if (processedMessages.length > 0) {
+                saveMessagesToStorage(processedMessages);
                 toast.success(`Successfully connected to Discourse! Found ${processedMessages.length} messages.`);
             } else {
                 toast.info('Connected to Discourse, but no messages found for this username.');
             }
 
+            setShowDiscourseDialog(false);
+
         } catch (error) {
             setError('Failed to fetch messages. Please check the username and try again.');
-            console.error("handleConnectToDiscourse Error:", error); // Log the actual error
+            console.error("handleConnectToDiscourse Error:", error);
         } finally {
             setIsConnectingToDiscourse(false);
-            // Reset progress after a delay
             setTimeout(() => setFetchProgress(0), 1000);
         }
-    };
+    }, [discourseUsername, discourseUrl, userData, handleUpdateProfile, saveMessagesToStorage, isConnectingToDiscourse]);
+
+    useEffect(() => {
+        const shouldConnect = userData?.discourseUsername &&
+            userData?.discourseCommunityUrl &&
+            !hasStoredMessages &&
+            !isConnectingToDiscourse;
+
+        if (shouldConnect) {
+            const messages = loadStoredMessages();
+            if (messages.length === 0) {
+                handleConnectToDiscourse();
+            } else {
+                setStoredMessages(messages);
+                setHasStoredMessages(true);
+            }
+        }
+    }, [userData, handleConnectToDiscourse, hasStoredMessages, isConnectingToDiscourse]);
+
+    useEffect(() => {
+        if (userData) {
+            if (!userData.discourseUsername) {
+                setShowDiscourseDialog(true);
+            } else {
+                setDiscourseUsername(userData.discourseUsername);
+                setDiscourseUrl(userData.discourseCommunityUrl || 'https://forum.scroll.io');
+            }
+        }
+    }, [userData]);
 
     const handleConsentAndConnect = async () => {
         try {
@@ -366,10 +554,111 @@ export default function AIAssistant() {
         }
     };
 
+    useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [chatMessages, streamingContent]);
+
+    useEffect(() => {
+        if (currentChatId && chatMessages.length > 0) {
+            setSavedChats(prev => {
+                const updatedChats = prev.map(chat =>
+                    chat.id === currentChatId
+                        ? {
+                            ...chat,
+                            messages: chatMessages,
+                            updatedAt: new Date().toISOString()
+                        }
+                        : chat
+                );
+                localStorage.setItem('saved_chats', JSON.stringify(updatedChats));
+                return updatedChats;
+            });
+        }
+    }, [currentChatId, chatMessages]);
+
+    const renameChat = (chatId: string, newTitle: string) => {
+        if (!newTitle.trim()) return;
+
+        setSavedChats(prev => {
+            const chatIndex = prev.findIndex(c => c.id === chatId);
+            if (chatIndex === -1) return prev;
+
+            const updated = [...prev];
+            updated[chatIndex] = {
+                ...updated[chatIndex],
+                title: newTitle.trim()
+            };
+
+            localStorage.setItem('saved_chats', JSON.stringify(updated));
+            return updated;
+        });
+
+        setChatToRename(null);
+        setNewChatTitle('');
+    };
+
     return (
-        <div className="h-screen flex flex-col">
-            <div className="bg-background border-b">
-                <div className="flex items-center justify-between h-14 px-4">
+        <div className="flex h-[calc(100vh-var(--header-height))]">
+            {/* Sidebar */}
+            <div className={`w-64 border-r bg-background flex-shrink-0 ${showSidebar ? '' : 'hidden'}`}>
+                <div className="h-14 border-b flex items-center justify-between px-4">
+                    <h2 className="font-semibold">Chats</h2>
+                    <Button variant="ghost" size="icon" onClick={createNewChat}>
+                        <MessageSquare className="h-5 w-5" />
+                    </Button>
+                </div>
+                <ScrollArea className="h-[calc(100vh-var(--header-height)-3.5rem)]">
+                    <div className="p-2 space-y-2">
+                        {savedChats.map((chat) => (
+                            <ContextMenu.Root key={chat.id}>
+                                <ContextMenu.Trigger>
+                                    <div
+                                        className={`group p-2 rounded-lg cursor-pointer hover:bg-accent flex justify-between items-center ${chat.id === currentChatId ? 'bg-accent' : ''
+                                            }`}
+                                        onClick={() => switchChat(chat.id)}
+                                    >
+                                        <span className="truncate flex-1">
+                                            {chat.title}
+                                        </span>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setChatToDelete(chat.id);
+                                            }}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </ContextMenu.Trigger>
+                                <ContextMenu.Content className="min-w-[160px] bg-popover text-popover-foreground rounded-md border shadow-md p-1 z-50">
+                                    <ContextMenu.Item
+                                        className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                                        onSelect={() => {
+                                            setChatToRename(chat.id);
+                                            setNewChatTitle(chat.title);
+                                        }}
+                                    >
+                                        Rename
+                                    </ContextMenu.Item>
+                                    <ContextMenu.Item
+                                        className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-destructive hover:text-destructive-foreground"
+                                        onSelect={() => setChatToDelete(chat.id)}
+                                    >
+                                        Delete
+                                    </ContextMenu.Item>
+                                </ContextMenu.Content>
+                            </ContextMenu.Root>
+                        ))}
+                    </div>
+                </ScrollArea>
+            </div>
+
+            {/* Main Chat Area */}
+            <div className="flex-1 flex flex-col h-full overflow-hidden">
+                <div className="sticky top-0 z-10 h-14 border-b flex items-center justify-between px-4 bg-background">
                     <div className="flex items-center gap-2">
                         <Button
                             variant="ghost"
@@ -379,186 +668,195 @@ export default function AIAssistant() {
                         >
                             <ArrowLeft className="h-5 w-5" />
                         </Button>
-                        <h2 className="text-lg font-semibold">AI Assistant</h2>
+                        <h2 className="font-semibold">AI Assistant</h2>
                     </div>
                     <div className="flex items-center gap-2">
-                        {hasStoredMessages && (
-                            <>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={handleViewMessages}
-                                    className="text-primary"
-                                    title="View Messages"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-square">
-                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                                    </svg>
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setShowDeleteConfirmDialog(true)}
-                                    className="text-destructive"
-                                    title="Delete Messages"
-                                >
-                                    <Trash2 className="h-5 w-5" />
-                                </Button>
-                            </>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto flex flex-col">
-                <div className="flex-1 max-w-2xl mx-auto p-4 space-y-4 w-full">
-                    {!hasStoredMessages ? (
-                        <div className="text-center space-y-4 py-8">
-                            <h3 className="text-lg font-medium">Connect Your Discourse Messages</h3>
-                            <p className="text-sm text-muted-foreground">
-                                Enter your username to view your messages.
-                            </p>
-                            <form onSubmit={handleSubmit} className="flex flex-col gap-4 items-center">
-                                <div className="w-full max-w-sm space-y-2">
-                                    <Label htmlFor="discourse-url">Discourse URL</Label>
-                                    <Input
-                                        id="discourse-url"
-                                        type="url"
-                                        name="discourse-url"
-                                        placeholder="https://forum.scroll.io"
-                                        value={discourseUrl}
-                                        onChange={(e) => setDiscourseUrl(e.target.value)}
-                                        className="w-full"
-                                    />
+                        <div className="flex items-center gap-1.5 mr-2">
+                            {hasStoredMessages ? (
+                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                    <CircleDotIcon className="h-4 w-4 text-green-500" />
+                                    <span>Connected to Discourse</span>
                                 </div>
-                                <div className="w-full max-w-sm space-y-2">
-                                    <Label htmlFor="discourse-username">Username</Label>
-                                    <Input
-                                        id="discourse-username"
-                                        type="text"
-                                        name="discourse-username"
-                                        placeholder="username"
-                                        value={discourseUsername}
-                                        onChange={(e) => setDiscourseUsername(e.target.value)}
-                                        className="w-full"
-                                    />
-                                </div>
-                                <Button
-                                    type="submit"
-                                    disabled={isConnectingToDiscourse || !discourseUsername.trim()}
-                                >
-                                    {isConnectingToDiscourse ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Connecting...
-                                        </>
-                                    ) : (
-                                        'Connect Messages'
-                                    )}
-                                </Button>
-                            </form>
-                            {isConnectingToDiscourse && fetchProgress > 0 && (
-                                <div className="mt-4 max-w-sm mx-auto w-full space-y-2">
-                                    <Progress value={fetchProgress} className="w-full h-2" />
-                                    <p className="text-xs text-muted-foreground text-center">
-                                        {fetchProgress < 20 && "Initializing..."}
-                                        {fetchProgress >= 20 && fetchProgress < 90 && "Fetching messages..."}
-                                        {fetchProgress >= 90 && fetchProgress < 95 && "Processing data..."}
-                                        {fetchProgress >= 95 && "Finishing up..."}
-                                    </p>
-                                </div>
-                            )}
-                            {error && (
-                                <p className="text-sm text-destructive">{error}</p>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="flex flex-col h-full">
-                            <div className="flex-1 space-y-4">
-                                {/* 
-                                  Chat message area - this will be populated later 
-                                  with actual chat functionality 
-                                */}
-                                <div className="p-4 bg-muted/30 rounded-lg">
-                                    <p className="text-sm text-muted-foreground">
-                                        Connected to {discourseUrl} as @{discourseUsername}
-                                    </p>
-                                    <p className="text-sm mt-2">
-                                        You can now chat with the AI Assistant. Your messages from Discourse
-                                        will be used to provide context.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Chat input - fixed at the bottom for better UX */}
-                {hasStoredMessages && (
-                    <div className="sticky bottom-0 bg-background pt-4 pb-4 px-4 border-t">
-                        <div className="max-w-2xl mx-auto w-full">
-                            <form className="flex gap-2" onSubmit={(e) => {
-                                e.preventDefault();
-                                // Handle chat message submission
-                                toast.info("Chat functionality coming soon!");
-                            }}>
-                                <Input
-                                    value={message}
-                                    onChange={(e) => setMessage(e.target.value)}
-                                    placeholder="Type your message..."
-                                    className="flex-1"
-                                />
-                                <Button type="submit">Send</Button>
-                            </form>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* Messages Modal */}
-            <Dialog open={showMessagesModal} onOpenChange={setShowMessagesModal}>
-                <DialogContent className="sm:max-w-[600px]">
-                    <DialogHeader>
-                        <DialogTitle>Your Discourse Messages</DialogTitle>
-                    </DialogHeader>
-                    <ScrollArea className="h-[400px] w-full rounded-md border p-4">
-                        <div className="space-y-4">
-                            {storedMessages && storedMessages.length > 0 ? (
-                                storedMessages.map((message, index) => (
-                                    <div key={message.id || index} className="space-y-2">
-                                        <div className="flex justify-between items-center text-sm text-muted-foreground">
-                                            <span>{message.created_at ? new Date(message.created_at).toLocaleString() : 'No date'}</span>
-                                            {message.topic_title && (
-                                                <span className="text-primary">
-                                                    {message.topic_title}
-                                                </span>
-                                            )}
-                                        </div>
-                                        {message.content ? (
-                                            <div
-                                                className="rounded-lg bg-muted p-3"
-                                                dangerouslySetInnerHTML={{
-                                                    __html: message.content
-                                                }}
-                                            />
-                                        ) : message.raw ? (
-                                            <div className="rounded-lg bg-muted p-3">
-                                                <p>{message.raw}</p>
-                                            </div>
-                                        ) : (
-                                            <div className="rounded-lg bg-muted p-3">
-                                                <p className="text-muted-foreground">No content available</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))
                             ) : (
-                                <div className="text-center text-muted-foreground py-8">
-                                    No messages found for this username
+                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                    <CircleIcon className="h-4 w-4" />
+                                    <span>Not Connected</span>
                                 </div>
                             )}
+                        </div>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setShowDiscourseDialog(true)}
+                            className="text-primary"
+                            title="Connect Discourse"
+                        >
+                            <Settings2 className="h-5 w-5" />
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Chat Messages - Scrollable area that doesn't affect input visibility */}
+                <div className="flex-1 overflow-hidden">
+                    <ScrollArea className="h-full px-4">
+                        <div className="max-w-2xl mx-auto space-y-4 py-4">
+                            {chatMessages.map((msg, i) => (
+                                <div
+                                    key={i}
+                                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                                >
+                                    <div
+                                        className={`max-w-[80%] rounded-lg p-3 ${msg.role === 'user'
+                                            ? 'bg-primary text-primary-foreground ml-4'
+                                            : 'bg-muted mr-4'
+                                            }`}
+                                    >
+                                        <div className="prose dark:prose-invert max-w-none text-sm [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic">
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                                components={{
+                                                    p: ({ children }) => <p className="whitespace-pre-wrap break-words m-0">{children}</p>,
+                                                    a: ({ children, href }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{children}</a>,
+                                                    ul: ({ children }) => <ul className="my-2 list-disc list-inside">{children}</ul>,
+                                                    ol: ({ children }) => <ol className="my-2 list-decimal list-inside">{children}</ol>,
+                                                    li: ({ children }) => <li className="my-0.5">{children}</li>,
+                                                    code: ({ children }) => <code className="bg-muted rounded px-1 py-0.5">{children}</code>,
+                                                    pre: ({ children }) => <pre className="bg-muted p-2 rounded-md overflow-x-auto my-2">{children}</pre>,
+                                                    blockquote: ({ children }) => <blockquote className="border-l-4 border-muted pl-4 italic my-4">{children}</blockquote>,
+                                                    h1: ({ children }) => <h1 className="text-2xl font-bold mt-8 mb-4">{children}</h1>,
+                                                    h2: ({ children }) => <h2 className="text-xl font-bold mt-6 mb-4">{children}</h2>,
+                                                    h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-2">{children}</h3>,
+                                                }}
+                                            >
+                                                {msg.content}
+                                            </ReactMarkdown>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {streamingContent && (
+                                <div className="flex justify-start">
+                                    <div className="max-w-[80%] rounded-lg p-3 bg-muted mr-4">
+                                        <div className="prose dark:prose-invert max-w-none text-sm [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic">
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                                components={{
+                                                    p: ({ children }) => <p className="whitespace-pre-wrap break-words m-0">{children}</p>,
+                                                    a: ({ children, href }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{children}</a>,
+                                                    ul: ({ children }) => <ul className="my-2 list-disc list-inside">{children}</ul>,
+                                                    ol: ({ children }) => <ol className="my-2 list-decimal list-inside">{children}</ol>,
+                                                    li: ({ children }) => <li className="my-0.5">{children}</li>,
+                                                    code: ({ children }) => <code className="bg-muted rounded px-1 py-0.5">{children}</code>,
+                                                    pre: ({ children }) => <pre className="bg-muted p-2 rounded-md overflow-x-auto my-2">{children}</pre>,
+                                                    blockquote: ({ children }) => <blockquote className="border-l-4 border-muted pl-4 italic my-4">{children}</blockquote>,
+                                                    h1: ({ children }) => <h1 className="text-2xl font-bold mt-8 mb-4">{children}</h1>,
+                                                    h2: ({ children }) => <h2 className="text-xl font-bold mt-6 mb-4">{children}</h2>,
+                                                    h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-2">{children}</h3>,
+                                                }}
+                                            >
+                                                {streamingContent}
+                                            </ReactMarkdown>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            <div ref={chatEndRef} />
                         </div>
                     </ScrollArea>
+                </div>
+
+                {/* Chat Input - Always visible at bottom */}
+                <div className="flex-shrink-0 border-t bg-background p-4">
+                    <form className="max-w-2xl mx-auto flex gap-2" onSubmit={handleChatSubmit}>
+                        <Input
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            placeholder="Type your message..."
+                            className="flex-1"
+                            disabled={isGenerating}
+                        />
+                        <Button type="submit" disabled={isGenerating || !message.trim()}>
+                            {isGenerating ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Thinking...
+                                </>
+                            ) : (
+                                'Send'
+                            )}
+                        </Button>
+                    </form>
+                </div>
+            </div>
+
+            {/* Discourse Connection Dialog */}
+            <Dialog open={showDiscourseDialog} onOpenChange={setShowDiscourseDialog}>
+                <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                        <DialogTitle>Connect Discourse Account</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <p className="text-sm text-muted-foreground">
+                            Connect your Discourse account to enhance the AI&apos;s understanding of your writing style and arguments.
+                            This is optional but recommended for better assistance.
+                        </p>
+                        <div className="space-y-2">
+                            <Label htmlFor="discourse-url">Discourse URL</Label>
+                            <Input
+                                id="discourse-url"
+                                value={discourseUrl}
+                                onChange={(e) => setDiscourseUrl(e.target.value)}
+                                placeholder="https://forum.scroll.io"
+                                disabled={isConnectingToDiscourse}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="discourse-username">Username</Label>
+                            <Input
+                                id="discourse-username"
+                                value={discourseUsername}
+                                onChange={(e) => setDiscourseUsername(e.target.value)}
+                                placeholder="Your Discourse username"
+                                disabled={isConnectingToDiscourse}
+                            />
+                        </div>
+                        {isConnectingToDiscourse && fetchProgress > 0 && (
+                            <div className="space-y-2">
+                                <Progress value={fetchProgress} className="w-full h-2" />
+                                <p className="text-xs text-muted-foreground text-center">
+                                    {fetchProgress < 20 && "Initializing..."}
+                                    {fetchProgress >= 20 && fetchProgress < 90 && "Fetching messages..."}
+                                    {fetchProgress >= 90 && fetchProgress < 95 && "Processing data..."}
+                                    {fetchProgress >= 95 && "Finishing up..."}
+                                </p>
+                            </div>
+                        )}
+                        {error && (
+                            <p className="text-sm text-destructive">{error}</p>
+                        )}
+                    </div>
+                    <div className="flex justify-end gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowDiscourseDialog(false)}
+                            disabled={isConnectingToDiscourse}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={() => handleConnectToDiscourse()}
+                            disabled={isConnectingToDiscourse || !discourseUsername.trim()}
+                        >
+                            {isConnectingToDiscourse ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Connecting...
+                                </>
+                            ) : (
+                                'Connect'
+                            )}
+                        </Button>
+                    </div>
                 </DialogContent>
             </Dialog>
 
@@ -593,26 +891,66 @@ export default function AIAssistant() {
                 </DialogContent>
             </Dialog>
 
-            {/* Delete Confirmation Dialog */}
-            <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
+            {/* Delete Chat Confirmation Dialog */}
+            <AlertDialog open={!!chatToDelete} onOpenChange={(open) => !open && setChatToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Messages</AlertDialogTitle>
+                        <AlertDialogTitle>Delete Chat</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Are you sure you want to delete all saved messages? This action cannot be undone.
+                            Are you sure you want to delete this chat? This action cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
-                            onClick={handleDeleteMessages}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => {
+                                if (chatToDelete) {
+                                    deleteChat(chatToDelete);
+                                    setChatToDelete(null);
+                                }
+                            }}
                         >
                             Delete
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Add rename dialog */}
+            <Dialog open={chatToRename !== null} onOpenChange={(open) => !open && setChatToRename(null)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Rename Chat</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={(e) => {
+                        e.preventDefault();
+                        if (chatToRename) {
+                            renameChat(chatToRename, newChatTitle);
+                        }
+                    }}>
+                        <div className="grid gap-4 py-4">
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="name">Chat Name</Label>
+                                <Input
+                                    id="name"
+                                    value={newChatTitle}
+                                    onChange={(e) => setNewChatTitle(e.target.value)}
+                                    placeholder="Enter chat name"
+                                    autoComplete="off"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-end space-x-2">
+                            <Button type="button" variant="outline" onClick={() => setChatToRename(null)}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={!newChatTitle.trim()}>
+                                Save
+                            </Button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 } 
