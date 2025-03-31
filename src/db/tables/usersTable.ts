@@ -11,6 +11,7 @@ import {
   uniqueIndex,
   varchar,
   text,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 
@@ -22,6 +23,11 @@ export const usersTable = pgTable(
     cred: integer("cred").notNull().default(USER_INITIAL_CRED),
     bio: text("bio"),
     delegationUrl: varchar("delegation_url", { length: 255 }),
+    discourseUsername: varchar("discourse_username", { length: 255 }),
+    discourseCommunityUrl: varchar("discourse_community_url", { length: 255 }),
+    discourseConsentGiven: boolean("discourse_consent_given")
+      .notNull()
+      .default(false),
   },
   (table) => ({
     noNegativeCred: check("noNegativeCred", sql`${table.cred} >= 0`),

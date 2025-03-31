@@ -18,7 +18,6 @@ import { Separator } from "@/components/ui/separator";
 import type { ProfilePoint } from "@/actions/fetchProfilePoints";
 import React from "react";
 import { useUserEndorsedPoints } from "@/queries/useUserEndorsedPoints";
-import { ProfileEditDialog } from "@/components/ProfileEditDialog";
 import { getBackButtonHandler } from "@/utils/backButtonUtils";
 import { ViewpointCardWrapper } from "@/components/ViewpointCardWrapper";
 import { usePathname } from "next/navigation";
@@ -30,6 +29,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 
 const NegateDialog = dynamic(() => import("@/components/NegateDialog").then(mod => mod.NegateDialog), { ssr: false });
+const ProfileEditDialog = dynamic(
+    () => import("@/components/ProfileEditDialog").then(mod => mod.ProfileEditDialog),
+    {
+        ssr: false,
+        loading: () => null
+    }
+);
 
 interface ProfilePageProps {
     params: Promise<{
@@ -610,6 +616,9 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                     onOpenChange={setEditProfileOpen}
                     currentBio={userData?.bio}
                     currentDelegationUrl={userData?.delegationUrl}
+                    currentDiscourseUsername={userData?.discourseUsername}
+                    currentDiscourseCommunityUrl={userData?.discourseCommunityUrl}
+                    currentDiscourseConsentGiven={userData?.discourseConsentGiven}
                 />
             )}
 

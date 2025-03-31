@@ -23,6 +23,9 @@ export const fetchUser = async (idOrUsername: string) => {
         cred: usersTable.cred,
         bio: usersTable.bio,
         delegationUrl: usersTable.delegationUrl,
+        discourseUsername: usersTable.discourseUsername,
+        discourseCommunityUrl: usersTable.discourseCommunityUrl,
+        discourseConsentGiven: usersTable.discourseConsentGiven,
       })
       .from(usersTable)
       .where(query)
