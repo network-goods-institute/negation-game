@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, ArrowLeft, Trash2, MessageSquare, Settings2, CircleIcon, CircleDotIcon, Plus } from "lucide-react";
+import { Loader2, ArrowLeft, Trash2, MessageSquare, Settings2, CircleIcon, CircleDotIcon, Plus, Menu, X } from "lucide-react";
 import { useUser } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { updateUserProfile } from "@/actions/updateUserProfile";
@@ -93,11 +93,29 @@ const ChatListSkeleton = () => {
     );
 };
 
+function useIsMobile() {
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const checkIsMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+
+        checkIsMobile();
+        window.addEventListener('resize', checkIsMobile);
+
+        return () => window.removeEventListener('resize', checkIsMobile);
+    }, []);
+
+    return isMobile;
+}
+
 export default function AIAssistant() {
     const router = useRouter();
     const { user: privyUser } = usePrivy();
     const { data: userData } = useUser(privyUser?.id);
     const queryClient = useQueryClient();
+    const isMobile = useIsMobile();
 
     // loading states
     const [isInitializing, setIsInitializing] = useState(true);
@@ -119,7 +137,7 @@ export default function AIAssistant() {
     // Chat-related state
     const [currentChatId, setCurrentChatId] = useState<string | null>(null);
     const [savedChats, setSavedChats] = useState<SavedChat[]>([]);
-    const [showSidebar, setShowSidebar] = useState(true);
+    const [showSidebar, _] = useState(true);
     const [message, setMessage] = useState('');
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{
         role: 'assistant',
@@ -133,6 +151,8 @@ export default function AIAssistant() {
     const [newChatTitle, setNewChatTitle] = useState('');
 
     const [currentSpace, setCurrentSpace] = useState<string | null>(null);
+
+    const [showMobileMenu, setShowMobileMenu] = useState(false);
 
     useEffect(() => {
         const fetchCurrentSpace = async () => {
@@ -286,7 +306,6 @@ export default function AIAssistant() {
         }
     }, [privyUser, queryClient]);
 
-    // Wrap saveMessagesToStorage in useCallback
     const saveMessagesToStorage = useCallback((messages: DiscourseMessage[]) => {
         if (!Array.isArray(messages) || messages.length === 0) {
             if (typeof window !== 'undefined') {
@@ -434,7 +453,6 @@ export default function AIAssistant() {
                 content: accumulatedContent
             };
 
-            // Combine all messages
             const finalMessages = [...messagesWithUserInput, assistantMessage];
 
             setChatMessages(finalMessages);
@@ -671,11 +689,6 @@ export default function AIAssistant() {
         }
     };
 
-    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        handleConnectToDiscourse();
-    };
-
     const handleDeleteMessages = () => {
         if (typeof window !== 'undefined') {
             localStorage.removeItem('discourse_messages');
@@ -763,118 +776,145 @@ export default function AIAssistant() {
 
     return (
         <div className="flex h-[calc(100vh-var(--header-height))]">
-            {/* Sidebar */}
-            <div className={`w-72 border-r bg-background/90 flex-shrink-0 ${showSidebar ? '' : 'hidden'}`}>
-                <div className="h-16 border-b flex items-center justify-between px-6">
-                    <h2 className="text-lg font-semibold flex items-center gap-2">
-                        <MessageSquare className="h-5 w-5 text-primary" />
-                        Chats
-                    </h2>
-                    <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => {
-                            createNewChat();
-                        }}
-                        title="New Chat"
-                        className="rounded-full h-9 w-9"
-                    >
-                        <Plus className="h-4 w-4" />
-                    </Button>
-                </div>
-                <ScrollArea className="h-[calc(100vh-var(--header-height)-4rem)]">
-                    {isInitializing ? (
-                        <ChatListSkeleton />
-                    ) : savedChats.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
-                            <p className="text-sm">No chats yet</p>
-                            <p className="text-xs mt-1">Start a new conversation</p>
+            {/* Sidebar - Hidden on mobile by default */}
+            <div className={`${isMobile ? 'fixed inset-0 z-50 bg-background/80 backdrop-blur-sm' : 'w-72 border-r bg-background/90 flex-shrink-0'} 
+                ${(showSidebar && (!isMobile || showMobileMenu)) ? '' : 'hidden'}`}>
+                <div className={`${isMobile ? 'fixed inset-x-0 bottom-0 top-auto h-[80vh] rounded-t-xl shadow-lg bg-background border-t' : 'h-full'}`}>
+                    <div className="h-16 border-b flex items-center justify-between px-6">
+                        <h2 className="text-lg font-semibold flex items-center gap-2">
+                            <MessageSquare className="h-5 w-5 text-primary" />
+                            Chats
+                        </h2>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => {
+                                    createNewChat();
+                                }}
+                                title="New Chat"
+                                className="rounded-full h-9 w-9"
+                            >
+                                <Plus className="h-4 w-4" />
+                            </Button>
+                            {isMobile && (
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setShowMobileMenu(false)}
+                                    className="rounded-full h-9 w-9"
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            )}
                         </div>
-                    ) : (
-                        <div className="p-3 space-y-2.5">
-                            {savedChats.map((chat) => (
-                                <ContextMenu.Root key={chat.id}>
-                                    <ContextMenu.Trigger className="w-full">
-                                        <div
-                                            className={`relative group px-4 py-3 rounded-xl cursor-pointer hover:bg-accent flex justify-between items-center transition-colors 
-                                            ${chat.id === currentChatId ? 'bg-accent/70 shadow-sm' : 'hover:bg-accent/30'}`}
-                                            onClick={() => switchChat(chat.id)}
-                                        >
-                                            <div className="flex-1 overflow-hidden mr-8">
-                                                <span className={`truncate block ${chat.id === currentChatId ? 'font-medium' : ''}`}>
-                                                    {chat.title}
-                                                </span>
-                                                <span className="text-xs text-muted-foreground truncate block mt-0.5">
-                                                    {new Date(chat.updatedAt).toLocaleDateString()} · {chat.messages.length - 1} messages
-                                                </span>
+                    </div>
+                    <ScrollArea className={`${isMobile ? 'h-[calc(80vh-4rem)]' : 'h-[calc(100vh-var(--header-height)-4rem)]'}`}>
+                        {isInitializing ? (
+                            <ChatListSkeleton />
+                        ) : savedChats.length === 0 ? (
+                            <div className="text-center py-8 text-muted-foreground">
+                                <p className="text-sm">No chats yet</p>
+                                <p className="text-xs mt-1">Start a new conversation</p>
+                            </div>
+                        ) : (
+                            <div className="p-3 space-y-2.5">
+                                {savedChats.map((chat) => (
+                                    <ContextMenu.Root key={chat.id}>
+                                        <ContextMenu.Trigger className="w-full">
+                                            <div
+                                                className={`relative group px-4 py-3 rounded-xl cursor-pointer hover:bg-accent flex justify-between items-center transition-colors 
+                                                ${chat.id === currentChatId ? 'bg-accent/70 shadow-sm' : 'hover:bg-accent/30'}`}
+                                                onClick={() => switchChat(chat.id)}
+                                            >
+                                                <div className="flex-1 overflow-hidden mr-8">
+                                                    <span className={`truncate block ${chat.id === currentChatId ? 'font-medium' : ''}`}>
+                                                        {chat.title}
+                                                    </span>
+                                                    <span className="text-xs text-muted-foreground truncate block mt-0.5">
+                                                        {new Date(chat.updatedAt).toLocaleDateString()} · {chat.messages.length - 1} messages
+                                                    </span>
+                                                </div>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 top-1/2 -translate-y-1/2"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setChatToDelete(chat.id);
+                                                    }}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
                                             </div>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 top-1/2 -translate-y-1/2"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setChatToDelete(chat.id);
+                                        </ContextMenu.Trigger>
+                                        <ContextMenu.Content className="min-w-[160px] bg-popover text-popover-foreground rounded-md border shadow-md p-1 z-50">
+                                            <ContextMenu.Item
+                                                className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                                                onSelect={() => {
+                                                    setChatToRename(chat.id);
+                                                    setNewChatTitle(chat.title);
                                                 }}
                                             >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </ContextMenu.Trigger>
-                                    <ContextMenu.Content className="min-w-[160px] bg-popover text-popover-foreground rounded-md border shadow-md p-1 z-50">
-                                        <ContextMenu.Item
-                                            className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                                            onSelect={() => {
-                                                setChatToRename(chat.id);
-                                                setNewChatTitle(chat.title);
-                                            }}
-                                        >
-                                            Rename
-                                        </ContextMenu.Item>
-                                        <ContextMenu.Item
-                                            className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-destructive hover:text-destructive-foreground"
-                                            onSelect={() => setChatToDelete(chat.id)}
-                                        >
-                                            Delete
-                                        </ContextMenu.Item>
-                                    </ContextMenu.Content>
-                                </ContextMenu.Root>
-                            ))}
-                        </div>
-                    )}
-                </ScrollArea>
+                                                Rename
+                                            </ContextMenu.Item>
+                                            <ContextMenu.Item
+                                                className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-destructive hover:text-destructive-foreground"
+                                                onSelect={() => setChatToDelete(chat.id)}
+                                            >
+                                                Delete
+                                            </ContextMenu.Item>
+                                        </ContextMenu.Content>
+                                    </ContextMenu.Root>
+                                ))}
+                            </div>
+                        )}
+                    </ScrollArea>
+                </div>
             </div>
 
             {/* Main Chat Area */}
             <div className="flex-1 flex flex-col h-full overflow-hidden">
                 <div className="sticky top-0 z-10 h-16 border-b bg-background/90 backdrop-blur-sm flex items-center justify-between px-6">
                     <div className="flex items-center gap-3">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => router.push('/')}
-                            className="text-primary hover:bg-primary/10"
-                        >
-                            <ArrowLeft className="h-5 w-5" />
-                        </Button>
+                        {isMobile ? (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setShowMobileMenu(true)}
+                                className="text-primary hover:bg-primary/10"
+                            >
+                                <Menu className="h-5 w-5" />
+                            </Button>
+                        ) : (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => router.push('/')}
+                                className="text-primary hover:bg-primary/10"
+                            >
+                                <ArrowLeft className="h-5 w-5" />
+                            </Button>
+                        )}
                         <h2 className="text-lg font-semibold">AI Assistant</h2>
                     </div>
                     <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2 bg-background/80 py-1.5 px-3 rounded-full border">
+                        {/* Connection status - compact on mobile */}
+                        <div className={`flex items-center gap-2 ${isMobile ? 'bg-transparent p-0' : 'bg-background/80 py-1.5 px-3 rounded-full border'}`}>
                             {isCheckingDiscourse ? (
-                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-1.5">
                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    <span>Checking Discourse...</span>
+                                    {!isMobile && <span className="text-sm text-muted-foreground">Checking...</span>}
                                 </div>
                             ) : hasStoredMessages ? (
-                                <div className="flex items-center gap-1.5 text-sm">
+                                <div className="flex items-center gap-1.5">
                                     <CircleDotIcon className="h-3.5 w-3.5 text-green-500" />
-                                    <span>Connected to Discourse</span>
+                                    {!isMobile && <span className="text-sm">Connected</span>}
                                 </div>
                             ) : (
-                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-1.5">
                                     <CircleIcon className="h-3.5 w-3.5" />
-                                    <span>Not Connected</span>
+                                    {!isMobile && <span className="text-sm text-muted-foreground">Not Connected</span>}
                                 </div>
                             )}
                         </div>
@@ -890,20 +930,20 @@ export default function AIAssistant() {
                     </div>
                 </div>
 
-                {/* Chat Messages - Scrollable area that doesn't affect input visibility */}
+                {/* Chat Messages */}
                 <div className="flex-1 overflow-hidden bg-muted/30">
                     {isInitializing ? (
                         <ChatLoadingState />
                     ) : (
                         <ScrollArea className="h-full px-4">
-                            <div className="max-w-3xl mx-auto space-y-6 py-6">
+                            <div className={`mx-auto space-y-6 py-6 ${isMobile ? 'max-w-none px-2' : 'max-w-3xl'}`}>
                                 {chatMessages.map((msg, i) => (
                                     <div
                                         key={i}
                                         className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                     >
                                         <div
-                                            className={`max-w-[80%] rounded-2xl p-4 shadow-sm ${msg.role === 'user'
+                                            className={`${isMobile ? 'max-w-[90%]' : 'max-w-[80%]'} rounded-2xl p-4 shadow-sm ${msg.role === 'user'
                                                 ? 'bg-primary text-primary-foreground ml-4'
                                                 : 'bg-card mr-4'
                                                 }`}
@@ -963,9 +1003,9 @@ export default function AIAssistant() {
                     )}
                 </div>
 
-                {/* Chat Input - Always visible at bottom */}
-                <div className="flex-shrink-0 border-t bg-background p-6">
-                    <form className="max-w-3xl mx-auto flex gap-3" onSubmit={handleChatSubmit}>
+                {/* Chat Input */}
+                <div className={`flex-shrink-0 border-t bg-background ${isMobile ? 'p-3' : 'p-6'}`}>
+                    <form className={`${isMobile ? 'w-full' : 'max-w-3xl mx-auto'} flex gap-3`} onSubmit={handleChatSubmit}>
                         <AutosizeTextarea
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
@@ -977,7 +1017,7 @@ export default function AIAssistant() {
                             }}
                             disabled={isGenerating || isInitializing}
                             minHeight={24}
-                            maxHeight={200}
+                            maxHeight={isMobile ? 100 : 200}
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter' && !e.shiftKey) {
                                     e.preventDefault();
@@ -999,9 +1039,9 @@ export default function AIAssistant() {
                 </div>
             </div>
 
-            {/* Discourse Connection Dialog */}
+            {/* Dialogs - Add mobile-specific classes */}
             <Dialog open={showDiscourseDialog} onOpenChange={setShowDiscourseDialog}>
-                <DialogContent className="sm:max-w-[500px]">
+                <DialogContent className={`${isMobile ? 'w-[95vw] rounded-lg' : 'sm:max-w-[500px]'}`}>
                     <DialogHeader>
                         <DialogTitle>Connect Discourse Account</DialogTitle>
                     </DialogHeader>
