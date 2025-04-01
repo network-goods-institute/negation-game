@@ -50,19 +50,19 @@ and then basically the chatbot will help you write your rationale description an
 
 architecture needs
 
-in the user profile, we need some way to enable or disable consent to use their discourse messages for feature improvement and enhancements. (in the chatbot flow we we'll ask for this before we use it)
+in the user profile, we need some way to enable or disable consent to use their discourse messages for feature improvement and enhancements. (done)
 
-Also want them to be able to set their discourse username and community url in their profile as well
+Also want them to be able to set their discourse username and community url in their profile as well (done)
 
-We want to store their discourse messages locally (it's too much to save on the db really, it's all public so local storage is just fine)
+We want to store their discourse messages locally (it's too much to save on the db really, it's all public so local storage is just fine) (done)
 
-Try to fetch them upon page load (if we have consent), and refetch every half hour.
+Try to fetch them upon page load (if we have consent), and refetch every half hour. (done)
 
-we'll need to update some tables, probably users
+we'll need to update some tables, probably users (done)
 
 -----
 
-ui needs to be refined over time (mostly just the chatbot flow)
+ui needs to be refined over time
 
 
 -----
@@ -74,9 +74,9 @@ first plan
 
 basic chat icon, clicking it, first message will be to connect to discourse (done)
 
-it'll take whatever messages, and then you can create an essay with the bot (what we need, this is basically the main goal. To help them write their essay)
+it'll take whatever messages, and then you can create an essay with the bot (done)
 
-target grant, leave viewpoint graph construction for later (goal)
+target grant, leave viewpoint graph construction for later (done)
 
 priority:
 
@@ -84,16 +84,16 @@ basic ui -> discourse -> essay -> feedback/iteration -> rationale creation
 
 -------
 
-ask user for consent to use their discourse messages for feature improvement (not done, needed, just want consent for now, we don't actually need to use it for anything)
+ask user for consent to use their discourse messages for feature improvement (done)
 
 and we can plug that into context for when we generate suggestions (later)
 
 two passes (overall plan but way later)
 
-first pass, during consent window, generate a summary of their activities/arguments/etc, store it for later (later)
+first pass, during consent window, generate a summary of their activities/arguments/etc, store it for later (done)
 
 second pass, will be whenever we generate AI suggestions, and we can use that continuously (later)
 
-Possibly create some sort of tab in profile that can continuously fetch stuff from discourse. (later)
+Possibly create some sort of tab in profile that can continuously fetch stuff from discourse. (done, but different, we just refetch every half hour)
 
 --

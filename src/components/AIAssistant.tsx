@@ -21,6 +21,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
 
 interface DiscourseMessage {
     id: number;
@@ -356,7 +357,7 @@ export default function AIAssistant() {
             }
 
             if (!userData) {
-                setError('User data not loaded yet. Please try again.');
+                setError('User data not loaded yet. Please try again (are you logged in?).');
                 return;
             }
 
@@ -684,7 +685,7 @@ export default function AIAssistant() {
                                 </div>
                             )}
                         </div>
-                        <Button
+                        <AuthenticatedActionButton
                             variant="ghost"
                             size="icon"
                             onClick={() => setShowDiscourseDialog(true)}
@@ -692,7 +693,7 @@ export default function AIAssistant() {
                             title="Connect Discourse"
                         >
                             <Settings2 className="h-5 w-5" />
-                        </Button>
+                        </AuthenticatedActionButton>
                     </div>
                 </div>
 
@@ -775,7 +776,11 @@ export default function AIAssistant() {
                             className="flex-1"
                             disabled={isGenerating}
                         />
-                        <Button type="submit" disabled={isGenerating || !message.trim()}>
+                        <AuthenticatedActionButton
+                            type="submit"
+                            disabled={isGenerating || !message.trim()}
+                            rightLoading={isGenerating}
+                        >
                             {isGenerating ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -784,7 +789,7 @@ export default function AIAssistant() {
                             ) : (
                                 'Send'
                             )}
-                        </Button>
+                        </AuthenticatedActionButton>
                     </form>
                 </div>
             </div>
@@ -843,9 +848,10 @@ export default function AIAssistant() {
                         >
                             Cancel
                         </Button>
-                        <Button
+                        <AuthenticatedActionButton
                             onClick={() => handleConnectToDiscourse()}
                             disabled={isConnectingToDiscourse || !discourseUsername.trim()}
+                            rightLoading={isConnectingToDiscourse}
                         >
                             {isConnectingToDiscourse ? (
                                 <>
@@ -855,7 +861,7 @@ export default function AIAssistant() {
                             ) : (
                                 'Connect'
                             )}
-                        </Button>
+                        </AuthenticatedActionButton>
                     </div>
                 </DialogContent>
             </Dialog>
@@ -884,9 +890,9 @@ export default function AIAssistant() {
                         <Button variant="outline" onClick={() => setShowConsentDialog(false)}>
                             Cancel
                         </Button>
-                        <Button onClick={handleConsentAndConnect}>
+                        <AuthenticatedActionButton onClick={handleConsentAndConnect}>
                             Allow and Connect
-                        </Button>
+                        </AuthenticatedActionButton>
                     </div>
                 </DialogContent>
             </Dialog>
