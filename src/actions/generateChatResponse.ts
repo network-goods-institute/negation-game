@@ -10,7 +10,16 @@ interface Message {
   content: string;
 }
 
-export const generateChatResponse = async (messages: Message[]) => {
+export interface EndorsedPoint {
+  pointId: number;
+  content: string;
+  cred: number;
+}
+
+export const generateChatResponse = async (
+  messages: Message[],
+  endorsedPoints?: EndorsedPoint[]
+) => {
   const contextMessages = messages.filter((m) => m.role === "system");
   const chatMessages = messages.filter((m) => m.role !== "system");
 
@@ -31,6 +40,18 @@ Here are some relevant forum posts from the user that provide context about thei
 ${contextMessages.map((m) => m.content).join("\n\n")}
 
 Use these posts to understand their perspective and help them develop their essay more effectively.
+`
+    : ""
+}
+
+${
+  endorsedPoints && endorsedPoints.length > 0
+    ? `
+The user has endorsed the following points in the Negation Game platform:
+
+${endorsedPoints.map((p) => `- "${p.content}" (endorsed with ${p.cred} cred)`).join("\n")}
+
+Use these endorsed points to understand their perspective and the arguments they value.
 `
     : ""
 }

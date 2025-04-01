@@ -15,13 +15,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { userQueryKey } from "@/queries/useUser";
 import { useRouter } from "next/navigation";
 import { Progress } from "@/components/ui/progress";
-import { generateChatResponse } from "@/actions/generateChatResponse";
+import { generateChatResponse, EndorsedPoint } from "@/actions/generateChatResponse";
 import { nanoid } from "nanoid";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
+import { fetchUserEndorsedPoints } from "@/actions/fetchUserEndorsedPoints";
+import { getSpace } from "@/actions/getSpace";
 
 interface DiscourseMessage {
     id: number;
@@ -43,6 +45,7 @@ interface SavedChat {
     messages: ChatMessage[];
     createdAt: string;
     updatedAt: string;
+    space: string;
 }
 
 export default function AIAssistant() {
@@ -62,6 +65,7 @@ export default function AIAssistant() {
     const [showConsentDialog, setShowConsentDialog] = useState(false);
     const [hasStoredMessages, setHasStoredMessages] = useState(false);
     const [fetchProgress, setFetchProgress] = useState(0);
+    const [endorsedPoints, setEndorsedPoints] = useState<EndorsedPoint[]>([]);
 
     // Chat-related state
     const [currentChatId, setCurrentChatId] = useState<string | null>(null);
@@ -79,13 +83,66 @@ export default function AIAssistant() {
     const [chatToRename, setChatToRename] = useState<string | null>(null);
     const [newChatTitle, setNewChatTitle] = useState('');
 
+    const [currentSpace, setCurrentSpace] = useState<string | null>(null);
+
     useEffect(() => {
-        const savedChatsStr = localStorage.getItem('saved_chats');
+        const fetchCurrentSpace = async () => {
+            try {
+                const space = await getSpace();
+                setCurrentSpace(space);
+            } catch (error) {
+                console.error('Error fetching current space:', error);
+                setCurrentSpace('global');
+            }
+        };
+
+        fetchCurrentSpace();
+    }, []);
+
+    const createNewChat = useCallback(() => {
+        if (!currentSpace) {
+            console.error('Cannot create chat: No space selected');
+            return;
+        }
+
+        const newChatId = nanoid();
+
+        const newChat: SavedChat = {
+            id: newChatId,
+            title: 'New Chat',
+            messages: [{
+                role: 'assistant',
+                content: `Hello! I'm here to help you write your essay. What topic would you like to write about?`
+            }],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            space: currentSpace
+        };
+
+        setSavedChats(prev => {
+            const updated = [newChat, ...prev];
+            if (currentSpace) {
+                localStorage.setItem(`saved_chats_${currentSpace}`, JSON.stringify(updated));
+            }
+            return updated;
+        });
+
+        setCurrentChatId(newChatId);
+        setChatMessages(newChat.messages);
+    }, [currentSpace]);
+
+    useEffect(() => {
+        if (!currentSpace) return;
+
+        const savedChatsStr = localStorage.getItem(`saved_chats_${currentSpace}`);
         if (savedChatsStr) {
             try {
                 const chats = JSON.parse(savedChatsStr);
                 setSavedChats(chats);
+
+
                 if (!currentChatId && chats.length > 0) {
+
                     setCurrentChatId(chats[0].id);
                     setChatMessages(chats[0].messages);
                 }
@@ -93,15 +150,39 @@ export default function AIAssistant() {
                 console.error('Error loading saved chats:', error);
             }
         } else {
+            // Only create a new chat if we don't have any
+            setSavedChats([]);
             createNewChat();
         }
-    }, [currentChatId]);
+    }, [currentSpace, createNewChat]);
 
     useEffect(() => {
-        if (savedChats.length > 0) {
-            localStorage.setItem('saved_chats', JSON.stringify(savedChats));
+        if (savedChats.length > 0 && currentSpace) {
+            localStorage.setItem(`saved_chats_${currentSpace}`, JSON.stringify(savedChats));
         }
-    }, [savedChats]);
+    }, [savedChats, currentSpace]);
+
+    useEffect(() => {
+        const fetchEndorsedPoints = async () => {
+            if (privyUser?.id) {
+                try {
+                    const userPoints = await fetchUserEndorsedPoints();
+                    if (userPoints && userPoints.length > 0) {
+                        const simplifiedPoints: EndorsedPoint[] = userPoints.map(point => ({
+                            pointId: point.pointId,
+                            content: point.content,
+                            cred: point.endorsedCred
+                        }));
+                        setEndorsedPoints(simplifiedPoints);
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch endorsed points:', error);
+                }
+            }
+        };
+
+        fetchEndorsedPoints();
+    }, [privyUser?.id]);
 
     const loadStoredMessages = () => {
         try {
@@ -178,27 +259,12 @@ export default function AIAssistant() {
         }
     }, []);
 
-    const createNewChat = () => {
-        const newChat: SavedChat = {
-            id: nanoid(),
-            title: 'New Chat',
-            messages: [{
-                role: 'assistant',
-                content: `Hello! I'm here to help you write your essay. What topic would you like to write about?`
-            }],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        };
-
-        setSavedChats(prev => [newChat, ...prev]);
-        setCurrentChatId(newChat.id);
-        setChatMessages(newChat.messages);
-    };
-
     const deleteChat = (chatId: string) => {
+        if (!currentSpace) return;
+
         const updatedChats = savedChats.filter(chat => chat.id !== chatId);
         setSavedChats(updatedChats);
-        localStorage.setItem('saved_chats', JSON.stringify(updatedChats));
+        localStorage.setItem(`saved_chats_${currentSpace}`, JSON.stringify(updatedChats));
 
         if (chatId === currentChatId) {
             if (updatedChats.length > 0) {
@@ -224,7 +290,11 @@ export default function AIAssistant() {
 
     const handleChatSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (!message.trim() || isGenerating) return;
+        if (!message.trim() || isGenerating || !currentSpace) {
+
+            return;
+        }
+
 
         const userMessageText = message.trim();
         setMessage('');
@@ -234,8 +304,8 @@ export default function AIAssistant() {
 
         // ======= PHASE 1: ENSURE WE HAVE A VALID CHAT =======
         if (!currentChatId) {
-            console.log('[handleChatSubmit] Creating new chat');
             chatId = nanoid();
+
             initialMessages = [{
                 role: 'assistant',
                 content: `Hello! I'm here to help you write your essay. What topic would you like to write about?`
@@ -246,14 +316,17 @@ export default function AIAssistant() {
                 title: 'New Chat',
                 messages: initialMessages,
                 createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
+                updatedAt: new Date().toISOString(),
+                space: currentSpace
             };
 
+            // Create and save the new chat first, before proceeding
             await new Promise<void>(resolve => {
                 setSavedChats(prev => {
                     const updated = [newChat, ...prev];
-                    localStorage.setItem('saved_chats', JSON.stringify(updated));
-                    console.log('[handleChatSubmit] Created new chat:', chatId);
+                    if (currentSpace) {
+                        localStorage.setItem(`saved_chats_${currentSpace}`, JSON.stringify(updated));
+                    }
                     resolve();
                     return updated;
                 });
@@ -264,11 +337,10 @@ export default function AIAssistant() {
         } else {
             chatId = currentChatId;
 
+
             const existingChat = savedChats.find(c => c.id === chatId);
             if (!existingChat) {
-                console.error('[handleChatSubmit] Chat not found in savedChats:', chatId);
-                toast.error('Chat not found');
-                return;
+                return createNewChat();
             }
 
             initialMessages = [...chatMessages];
@@ -289,17 +361,23 @@ export default function AIAssistant() {
         setStreamingContent('');
 
         try {
-            console.log('[handleChatSubmit] Generating response');
-            const stream = await generateChatResponse([...discourseContext, ...messagesWithUserInput]);
+            const stream = await generateChatResponse([...discourseContext, ...messagesWithUserInput], endorsedPoints);
+            if (!stream) {
+                throw new Error('Failed to get response stream');
+            }
+
             const reader = stream.getReader();
             let accumulatedContent = '';
 
             while (true) {
                 const { done, value } = await reader.read();
-                if (done) break;
+                if (done) {
+                    break;
+                }
                 accumulatedContent += value;
                 setStreamingContent(accumulatedContent);
             }
+
 
             const assistantMessage: ChatMessage = {
                 role: 'assistant',
@@ -331,7 +409,9 @@ export default function AIAssistant() {
                     };
                     updated[targetChatIndex] = updatedChat;
 
-                    localStorage.setItem('saved_chats', JSON.stringify(updated));
+                    if (currentSpace) {
+                        localStorage.setItem(`saved_chats_${currentSpace}`, JSON.stringify(updated));
+                    }
                     console.log('[handleChatSubmit] Updated chat with new messages:', chatId);
                     resolve();
                     return updated;
@@ -342,6 +422,7 @@ export default function AIAssistant() {
         } catch (error) {
             console.error('[handleChatSubmit] Error generating response:', error);
             toast.error('Failed to generate response. Please try again.');
+            setChatMessages([...messagesWithUserInput]);
         } finally {
             setIsGenerating(false);
         }
@@ -571,11 +652,13 @@ export default function AIAssistant() {
                         }
                         : chat
                 );
-                localStorage.setItem('saved_chats', JSON.stringify(updatedChats));
+                if (currentSpace) {
+                    localStorage.setItem(`saved_chats_${currentSpace}`, JSON.stringify(updatedChats));
+                }
                 return updatedChats;
             });
         }
-    }, [currentChatId, chatMessages]);
+    }, [currentChatId, chatMessages, currentSpace]);
 
     const renameChat = (chatId: string, newTitle: string) => {
         if (!newTitle.trim()) return;
@@ -590,7 +673,9 @@ export default function AIAssistant() {
                 title: newTitle.trim()
             };
 
-            localStorage.setItem('saved_chats', JSON.stringify(updated));
+            if (currentSpace) {
+                localStorage.setItem(`saved_chats_${currentSpace}`, JSON.stringify(updated));
+            }
             return updated;
         });
 
@@ -604,7 +689,14 @@ export default function AIAssistant() {
             <div className={`w-64 border-r bg-background flex-shrink-0 ${showSidebar ? '' : 'hidden'}`}>
                 <div className="h-14 border-b flex items-center justify-between px-4">
                     <h2 className="font-semibold">Chats</h2>
-                    <Button variant="ghost" size="icon" onClick={createNewChat}>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                            createNewChat();
+                        }}
+                        title="New Chat"
+                    >
                         <MessageSquare className="h-5 w-5" />
                     </Button>
                 </div>
@@ -778,7 +870,7 @@ export default function AIAssistant() {
                         />
                         <AuthenticatedActionButton
                             type="submit"
-                            disabled={isGenerating || !message.trim()}
+                            disabled={isGenerating || !message.trim() || !currentSpace}
                             rightLoading={isGenerating}
                         >
                             {isGenerating ? (
