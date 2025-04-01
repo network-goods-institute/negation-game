@@ -831,32 +831,32 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
             <div className="relative w-full sm:col-[2] flex flex-col gap-0 border-x overflow-auto">
                 {space && space.data && space.data.id !== DEFAULT_SPACE && (
                     <>
-                        <div className="absolute top-0 h-10 w-full bg-muted" />
-                        <div className="py-sm px-lg flex items-end gap-sm w-full border-b pb-2xl">
-                            <Avatar className="border-4 border-background h-20 w-20">
+                        <div className="absolute top-0 h-10 w-full bg-muted hidden sm:block" />
+                        <div className="py-3 sm:py-sm px-4 sm:px-lg flex items-center sm:items-end gap-3 sm:gap-sm w-full border-b sm:pb-2xl">
+                            <Avatar className="border-2 sm:border-4 border-background h-12 w-12 sm:h-20 sm:w-20">
                                 {space.data.icon && (
                                     <AvatarImage
                                         src={space.data.icon}
                                         alt={`s/${space.data.id} icon`}
                                     />
                                 )}
-                                <AvatarFallback className="text-4xl font-bold text-muted-foreground">
+                                <AvatarFallback className="text-2xl sm:text-4xl font-bold text-muted-foreground">
                                     {space.data.id.charAt(0).toUpperCase()}
                                 </AvatarFallback>
                             </Avatar>
-                            <h1 className="text-xl mb-md font-semibold">s/{space.data.id}</h1>
+                            <h1 className="text-lg sm:text-xl sm:mb-md font-semibold">s/{space.data.id}</h1>
                         </div>
                     </>
                 )}
 
-                <div className="flex flex-col gap-4 px-lg py-sm border-b">
-                    <div className="flex gap-4">
+                <div className="flex flex-col gap-4 px-4 sm:px-lg py-3 sm:py-sm border-b">
+                    <div className="flex gap-2 sm:gap-4 overflow-x-auto no-scrollbar">
                         <button
                             onClick={() => {
                                 handleTabChange("rationales");
                             }}
                             className={cn(
-                                "py-2 px-4 rounded focus:outline-none",
+                                "py-1.5 sm:py-2 px-3 sm:px-4 rounded text-sm sm:text-base whitespace-nowrap focus:outline-none",
                                 selectedTab === "rationales" ? "bg-primary text-white" : "bg-transparent text-primary"
                             )}
                         >
@@ -867,7 +867,7 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
                                 handleTabChange("points");
                             }}
                             className={cn(
-                                "py-2 px-4 rounded focus:outline-none",
+                                "py-1.5 sm:py-2 px-3 sm:px-4 rounded text-sm sm:text-base whitespace-nowrap focus:outline-none",
                                 selectedTab === "points" ? "bg-primary text-white" : "bg-transparent text-primary"
                             )}
                         >
@@ -878,7 +878,7 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
                                 handleTabChange("all");
                             }}
                             className={cn(
-                                "py-2 px-4 rounded focus:outline-none",
+                                "py-1.5 sm:py-2 px-3 sm:px-4 rounded text-sm sm:text-base whitespace-nowrap focus:outline-none",
                                 selectedTab === "all" ? "bg-primary text-white" : "bg-transparent text-primary"
                             )}
                         >
@@ -889,11 +889,11 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
                                 handleTabChange("search");
                             }}
                             className={cn(
-                                "py-2 px-4 rounded focus:outline-none flex items-center gap-1",
+                                "py-1.5 sm:py-2 px-3 sm:px-4 rounded text-sm sm:text-base whitespace-nowrap focus:outline-none flex items-center gap-1",
                                 selectedTab === "search" ? "bg-primary text-white" : "bg-transparent text-primary"
                             )}
                         >
-                            <SearchIcon className="h-4 w-4" />
+                            <SearchIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                             <span>Search</span>
                         </button>
                     </div>
@@ -908,6 +908,13 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
                         </div>
                     )}
                 </div>
+
+                {/* Loading State */}
+                {selectedTab === null && (
+                    <div className="flex items-center justify-center flex-1 min-h-[50vh]">
+                        <Loader className="h-6 w-6" />
+                    </div>
+                )}
 
                 {/* Pinned Point - with transition */}
                 {selectedTab !== "search" && selectedTab !== "rationales" &&

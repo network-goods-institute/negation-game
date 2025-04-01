@@ -224,7 +224,7 @@ export default function AIAssistant() {
         }
 
         setIsInitializing(false);
-    }, [currentSpace, createNewChat]);
+    }, [currentSpace, createNewChat, currentChatId]);
 
     useEffect(() => {
         if (savedChats.length > 0 && currentSpace) {

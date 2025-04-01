@@ -437,16 +437,16 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
         <div className="w-full md:col-[2] flex flex-col border-x pb-10 overflow-auto">
           <div className="relative flex-grow bg-background">
             {/* New back navigation row */}
-            <div className="sticky top-0 z-10 w-full flex items-center justify-between px-4 py-2 bg-background">
-              <div className="flex items-center gap-2">
+            <div className="sticky top-0 z-10 w-full flex items-center justify-between px-2 py-1.5 bg-background">
+              <div className="flex items-center gap-1.5">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex items-center gap-1.5 px-2 rounded-md -ml-1"
+                  className="flex items-center gap-1 px-1.5 rounded-md -ml-1 h-7"
                   onClick={handleBackClick}
                 >
-                  <ArrowLeftIcon className="size-4" />
-                  <span className="text-sm">Back</span>
+                  <ArrowLeftIcon className="size-3.5" />
+                  <span className="text-xs">Back</span>
                 </Button>
                 <h1 className="text-sm font-bold items-center gap-2 ml-2 md:block hidden">
                   <ViewpointIcon className="size-4" />
@@ -457,52 +457,52 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                   <Button
                     size={"icon"}
                     variant={canvasEnabled ? "default" : "outline"}
-                    className="rounded-full p-2 size-9"
+                    className="rounded-full p-1 size-7"
                     onClick={() => setCanvasEnabled(!canvasEnabled)}
                   >
-                    <NetworkIcon className="" />
+                    <NetworkIcon className="size-3.5" />
                   </Button>
                 </div>
                 {/* Rationale text on mobile */}
-                <h1 className="text-sm font-bold flex items-center gap-2 md:hidden">
-                  <ViewpointIcon className="size-4" />
+                <h1 className="text-[10px] font-bold flex items-center gap-1.5 md:hidden">
+                  <ViewpointIcon className="size-3" />
                   Rationale
                 </h1>
               </div>
-              {/* Move copy buttons up here on mobile */}
-              <div className="flex items-center gap-2 md:hidden shrink-0">
+              {/* Copy buttons for both mobile and desktop */}
+              <div className="flex items-center gap-1.5">
                 <Button
                   variant="outline"
                   className={cn(
-                    "rounded-full flex items-center gap-2 px-3 shrink-0",
+                    "rounded-full flex items-center gap-1 px-1.5 text-[10px] md:text-sm md:px-3 md:gap-2 shrink-0 h-7",
                     isCopyingUrl && "text-green-500 border-green-500"
                   )}
                   onClick={handleCopyUrl}
                 >
-                  <span className="text-sm font-bold whitespace-nowrap">
+                  <span className="font-bold whitespace-nowrap">
                     {isCopyingUrl ? "Copied!" : "Copy Link"}
                   </span>
                   {isCopyingUrl ? (
-                    <CheckIcon className="size-4 shrink-0" />
+                    <CheckIcon className="size-3 md:size-4 shrink-0" />
                   ) : (
-                    <LinkIcon className="size-4 shrink-0" />
+                    <LinkIcon className="size-3 md:size-4 shrink-0" />
                   )}
                 </Button>
                 <AuthenticatedActionButton
                   variant="outline"
-                  className="rounded-full flex items-center gap-2 px-3 shrink-0"
+                  className="rounded-full flex items-center gap-1 px-1.5 text-[10px] md:text-sm md:px-3 md:gap-2 shrink-0 h-7"
                   onClick={handleCopy}
                   disabled={isCopying}
                 >
                   {isCopying ? (
-                    <div className="flex items-center gap-2">
-                      <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin shrink-0" />
-                      <span className="text-sm font-bold whitespace-nowrap">Copying...</span>
+                    <div className="flex items-center gap-1 md:gap-2">
+                      <span className="size-3 md:size-4 border-2 border-background border-t-transparent rounded-full animate-spin shrink-0" />
+                      <span className="font-bold whitespace-nowrap">Copying...</span>
                     </div>
                   ) : (
                     <>
-                      <span className="text-sm font-bold whitespace-nowrap">Make a Copy</span>
-                      <CopyIcon className="size-4 shrink-0" />
+                      <span className="font-bold whitespace-nowrap">Make a Copy</span>
+                      <CopyIcon className="size-3 md:size-4 shrink-0" />
                     </>
                   )}
                 </AuthenticatedActionButton>
@@ -510,45 +510,10 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
             </div>
             <Separator />
 
-            {/* Desktop-only header */}
+            {/* Desktop-only header*/}
             <div className="hidden md:block">
               <div className="sticky top-[calc(2.5rem+1px)] z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background">
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "rounded-full flex items-center gap-2 px-4",
-                      isCopyingUrl && "text-green-500 border-green-500"
-                    )}
-                    onClick={handleCopyUrl}
-                  >
-                    <span className="text-sm font-bold">
-                      {isCopyingUrl ? "Copied!" : "Copy Link"}
-                    </span>
-                    {isCopyingUrl ? (
-                      <CheckIcon className="size-4" />
-                    ) : (
-                      <LinkIcon className="size-4" />
-                    )}
-                  </Button>
-                  <AuthenticatedActionButton
-                    variant="outline"
-                    className="rounded-full flex items-center gap-2 px-4"
-                    onClick={handleCopy}
-                    disabled={isCopying}
-                  >
-                    {isCopying ? (
-                      <div className="flex items-center gap-2">
-                        <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
-                        <span className="text-sm font-bold">Copying...</span>
-                      </div>
-                    ) : (
-                      <>
-                        <span className="text-sm font-bold">Make a Copy</span>
-                        <CopyIcon className="size-4" />
-                      </>
-                    )}
-                  </AuthenticatedActionButton>
                 </div>
               </div>
               <Separator />
