@@ -25,6 +25,7 @@ import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionBu
 import { fetchUserEndorsedPoints } from "@/actions/fetchUserEndorsedPoints";
 import { getSpace } from "@/actions/getSpace";
 import { Skeleton } from "./ui/skeleton";
+import { AutosizeTextarea } from "./ui/autosize-textarea";
 
 interface DiscourseMessage {
     id: number;
@@ -965,18 +966,32 @@ export default function AIAssistant() {
                 {/* Chat Input - Always visible at bottom */}
                 <div className="flex-shrink-0 border-t bg-background p-6">
                     <form className="max-w-3xl mx-auto flex gap-3" onSubmit={handleChatSubmit}>
-                        <Input
+                        <AutosizeTextarea
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
                             placeholder="Type your message..."
-                            className="flex-1 py-6 px-4 text-base rounded-full border-muted-foreground/20"
+                            className="flex-1 py-3 px-4 text-base rounded-lg border-muted-foreground/20 min-h-0 overflow-y-auto resize-none"
+                            style={{
+                                scrollbarWidth: 'thin',
+                                scrollbarColor: 'rgba(0,0,0,0.2) transparent'
+                            }}
                             disabled={isGenerating || isInitializing}
+                            minHeight={24}
+                            maxHeight={200}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    if (message.trim() && !isGenerating && currentSpace) {
+                                        handleChatSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
+                                    }
+                                }
+                            }}
                         />
                         <AuthenticatedActionButton
                             type="submit"
                             disabled={isGenerating || !message.trim() || !currentSpace || isInitializing}
                             rightLoading={isGenerating}
-                            className="rounded-full"
+                            className="rounded-lg self-end"
                         >
                             {isGenerating ? 'Thinking...' : 'Send'}
                         </AuthenticatedActionButton>
