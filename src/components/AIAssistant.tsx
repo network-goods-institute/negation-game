@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, ArrowLeft, Trash2, MessageSquare, Settings2, CircleIcon, CircleDotIcon } from "lucide-react";
+import { Loader2, ArrowLeft, Trash2, MessageSquare, Settings2, CircleIcon, CircleDotIcon, Plus } from "lucide-react";
 import { useUser } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { updateUserProfile } from "@/actions/updateUserProfile";
@@ -24,6 +24,7 @@ import remarkGfm from 'remark-gfm';
 import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
 import { fetchUserEndorsedPoints } from "@/actions/fetchUserEndorsedPoints";
 import { getSpace } from "@/actions/getSpace";
+import { Skeleton } from "./ui/skeleton";
 
 interface DiscourseMessage {
     id: number;
@@ -48,11 +49,58 @@ interface SavedChat {
     space: string;
 }
 
+const ChatLoadingState = () => {
+    return (
+        <div className="flex-1 flex flex-col h-full overflow-hidden bg-muted/30">
+            <div className="p-6 space-y-6">
+                <div className="flex flex-col space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-4 w-64" />
+                </div>
+                <div className="flex justify-end space-y-2">
+                    <div className="w-1/2">
+                        <Skeleton className="h-24 w-full rounded-xl" />
+                    </div>
+                </div>
+                <div className="flex flex-col space-y-2">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-4 w-80" />
+                    <Skeleton className="h-4 w-64" />
+                </div>
+                <div className="flex justify-end space-y-2">
+                    <div className="w-1/2">
+                        <Skeleton className="h-16 w-full rounded-xl" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const ChatListSkeleton = () => {
+    return (
+        <div className="p-3 space-y-3">
+            {[...Array(5)].map((_, i) => (
+                <div key={i} className="px-4 py-3 rounded-xl">
+                    <div className="flex flex-col space-y-2">
+                        <Skeleton className="h-4 w-4/5" />
+                        <Skeleton className="h-3 w-2/3" />
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+};
+
 export default function AIAssistant() {
     const router = useRouter();
     const { user: privyUser } = usePrivy();
     const { data: userData } = useUser(privyUser?.id);
     const queryClient = useQueryClient();
+
+    // loading states
+    const [isInitializing, setIsInitializing] = useState(true);
+    const [isCheckingDiscourse, setIsCheckingDiscourse] = useState(true);
 
     // Discourse-related state
     const [showDiscourseDialog, setShowDiscourseDialog] = useState(false);
@@ -87,6 +135,7 @@ export default function AIAssistant() {
 
     useEffect(() => {
         const fetchCurrentSpace = async () => {
+            setIsInitializing(true);
             try {
                 const space = await getSpace();
                 setCurrentSpace(space);
@@ -140,9 +189,7 @@ export default function AIAssistant() {
                 const chats = JSON.parse(savedChatsStr);
                 setSavedChats(chats);
 
-
                 if (!currentChatId && chats.length > 0) {
-
                     setCurrentChatId(chats[0].id);
                     setChatMessages(chats[0].messages);
                 }
@@ -154,6 +201,8 @@ export default function AIAssistant() {
             setSavedChats([]);
             createNewChat();
         }
+
+        setIsInitializing(false);
     }, [currentSpace, createNewChat]);
 
     useEffect(() => {
@@ -632,7 +681,6 @@ export default function AIAssistant() {
             setStoredMessages([]);
             setHasStoredMessages(false);
             toast.success('Messages deleted successfully');
-            router.push('/');
         }
     };
 
@@ -683,204 +731,254 @@ export default function AIAssistant() {
         setNewChatTitle('');
     };
 
+    useEffect(() => {
+        const checkStoredMessages = () => {
+            setIsCheckingDiscourse(true);
+            try {
+                if (typeof window !== 'undefined') {
+                    const storedData = localStorage.getItem('discourse_messages');
+                    if (storedData) {
+                        const messages = JSON.parse(storedData);
+                        if (Array.isArray(messages) && messages.length > 0) {
+                            setStoredMessages(messages);
+                            setHasStoredMessages(true);
+                        } else {
+                            setHasStoredMessages(false);
+                        }
+                    } else {
+                        setHasStoredMessages(false);
+                    }
+                }
+            } catch (error) {
+                console.error("Error checking stored messages:", error);
+                setHasStoredMessages(false);
+            } finally {
+                setIsCheckingDiscourse(false);
+            }
+        };
+
+        checkStoredMessages();
+    }, []);
+
     return (
         <div className="flex h-[calc(100vh-var(--header-height))]">
             {/* Sidebar */}
-            <div className={`w-64 border-r bg-background flex-shrink-0 ${showSidebar ? '' : 'hidden'}`}>
-                <div className="h-14 border-b flex items-center justify-between px-4">
-                    <h2 className="font-semibold">Chats</h2>
+            <div className={`w-72 border-r bg-background/90 flex-shrink-0 ${showSidebar ? '' : 'hidden'}`}>
+                <div className="h-16 border-b flex items-center justify-between px-6">
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                        <MessageSquare className="h-5 w-5 text-primary" />
+                        Chats
+                    </h2>
                     <Button
-                        variant="ghost"
+                        variant="outline"
                         size="icon"
                         onClick={() => {
                             createNewChat();
                         }}
                         title="New Chat"
+                        className="rounded-full h-9 w-9"
                     >
-                        <MessageSquare className="h-5 w-5" />
+                        <Plus className="h-4 w-4" />
                     </Button>
                 </div>
-                <ScrollArea className="h-[calc(100vh-var(--header-height)-3.5rem)]">
-                    <div className="p-2 space-y-2">
-                        {savedChats.map((chat) => (
-                            <ContextMenu.Root key={chat.id}>
-                                <ContextMenu.Trigger>
-                                    <div
-                                        className={`group p-2 rounded-lg cursor-pointer hover:bg-accent flex justify-between items-center ${chat.id === currentChatId ? 'bg-accent' : ''
-                                            }`}
-                                        onClick={() => switchChat(chat.id)}
-                                    >
-                                        <span className="truncate flex-1">
-                                            {chat.title}
-                                        </span>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setChatToDelete(chat.id);
+                <ScrollArea className="h-[calc(100vh-var(--header-height)-4rem)]">
+                    {isInitializing ? (
+                        <ChatListSkeleton />
+                    ) : savedChats.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                            <p className="text-sm">No chats yet</p>
+                            <p className="text-xs mt-1">Start a new conversation</p>
+                        </div>
+                    ) : (
+                        <div className="p-3 space-y-2.5">
+                            {savedChats.map((chat) => (
+                                <ContextMenu.Root key={chat.id}>
+                                    <ContextMenu.Trigger className="w-full">
+                                        <div
+                                            className={`relative group px-4 py-3 rounded-xl cursor-pointer hover:bg-accent flex justify-between items-center transition-colors 
+                                            ${chat.id === currentChatId ? 'bg-accent/70 shadow-sm' : 'hover:bg-accent/30'}`}
+                                            onClick={() => switchChat(chat.id)}
+                                        >
+                                            <div className="flex-1 overflow-hidden mr-8">
+                                                <span className={`truncate block ${chat.id === currentChatId ? 'font-medium' : ''}`}>
+                                                    {chat.title}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground truncate block mt-0.5">
+                                                    {new Date(chat.updatedAt).toLocaleDateString()} · {chat.messages.length - 1} messages
+                                                </span>
+                                            </div>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 top-1/2 -translate-y-1/2"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setChatToDelete(chat.id);
+                                                }}
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </ContextMenu.Trigger>
+                                    <ContextMenu.Content className="min-w-[160px] bg-popover text-popover-foreground rounded-md border shadow-md p-1 z-50">
+                                        <ContextMenu.Item
+                                            className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                                            onSelect={() => {
+                                                setChatToRename(chat.id);
+                                                setNewChatTitle(chat.title);
                                             }}
                                         >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </ContextMenu.Trigger>
-                                <ContextMenu.Content className="min-w-[160px] bg-popover text-popover-foreground rounded-md border shadow-md p-1 z-50">
-                                    <ContextMenu.Item
-                                        className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                                        onSelect={() => {
-                                            setChatToRename(chat.id);
-                                            setNewChatTitle(chat.title);
-                                        }}
-                                    >
-                                        Rename
-                                    </ContextMenu.Item>
-                                    <ContextMenu.Item
-                                        className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-destructive hover:text-destructive-foreground"
-                                        onSelect={() => setChatToDelete(chat.id)}
-                                    >
-                                        Delete
-                                    </ContextMenu.Item>
-                                </ContextMenu.Content>
-                            </ContextMenu.Root>
-                        ))}
-                    </div>
+                                            Rename
+                                        </ContextMenu.Item>
+                                        <ContextMenu.Item
+                                            className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-destructive hover:text-destructive-foreground"
+                                            onSelect={() => setChatToDelete(chat.id)}
+                                        >
+                                            Delete
+                                        </ContextMenu.Item>
+                                    </ContextMenu.Content>
+                                </ContextMenu.Root>
+                            ))}
+                        </div>
+                    )}
                 </ScrollArea>
             </div>
 
             {/* Main Chat Area */}
             <div className="flex-1 flex flex-col h-full overflow-hidden">
-                <div className="sticky top-0 z-10 h-14 border-b flex items-center justify-between px-4 bg-background">
-                    <div className="flex items-center gap-2">
+                <div className="sticky top-0 z-10 h-16 border-b bg-background/90 backdrop-blur-sm flex items-center justify-between px-6">
+                    <div className="flex items-center gap-3">
                         <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => router.push('/')}
-                            className="text-primary"
+                            className="text-primary hover:bg-primary/10"
                         >
                             <ArrowLeft className="h-5 w-5" />
                         </Button>
-                        <h2 className="font-semibold">AI Assistant</h2>
+                        <h2 className="text-lg font-semibold">AI Assistant</h2>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1.5 mr-2">
-                            {hasStoredMessages ? (
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 bg-background/80 py-1.5 px-3 rounded-full border">
+                            {isCheckingDiscourse ? (
                                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                    <CircleDotIcon className="h-4 w-4 text-green-500" />
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    <span>Checking Discourse...</span>
+                                </div>
+                            ) : hasStoredMessages ? (
+                                <div className="flex items-center gap-1.5 text-sm">
+                                    <CircleDotIcon className="h-3.5 w-3.5 text-green-500" />
                                     <span>Connected to Discourse</span>
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                    <CircleIcon className="h-4 w-4" />
+                                    <CircleIcon className="h-3.5 w-3.5" />
                                     <span>Not Connected</span>
                                 </div>
                             )}
                         </div>
                         <AuthenticatedActionButton
-                            variant="ghost"
+                            variant="outline"
                             size="icon"
                             onClick={() => setShowDiscourseDialog(true)}
-                            className="text-primary"
+                            className="rounded-full h-9 w-9"
                             title="Connect Discourse"
                         >
-                            <Settings2 className="h-5 w-5" />
+                            <Settings2 className="h-4 w-4" />
                         </AuthenticatedActionButton>
                     </div>
                 </div>
 
                 {/* Chat Messages - Scrollable area that doesn't affect input visibility */}
-                <div className="flex-1 overflow-hidden">
-                    <ScrollArea className="h-full px-4">
-                        <div className="max-w-2xl mx-auto space-y-4 py-4">
-                            {chatMessages.map((msg, i) => (
-                                <div
-                                    key={i}
-                                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                                >
+                <div className="flex-1 overflow-hidden bg-muted/30">
+                    {isInitializing ? (
+                        <ChatLoadingState />
+                    ) : (
+                        <ScrollArea className="h-full px-4">
+                            <div className="max-w-3xl mx-auto space-y-6 py-6">
+                                {chatMessages.map((msg, i) => (
                                     <div
-                                        className={`max-w-[80%] rounded-lg p-3 ${msg.role === 'user'
-                                            ? 'bg-primary text-primary-foreground ml-4'
-                                            : 'bg-muted mr-4'
-                                            }`}
+                                        key={i}
+                                        className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                     >
-                                        <div className="prose dark:prose-invert max-w-none text-sm [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic">
-                                            <ReactMarkdown
-                                                remarkPlugins={[remarkGfm]}
-                                                components={{
-                                                    p: ({ children }) => <p className="whitespace-pre-wrap break-words m-0">{children}</p>,
-                                                    a: ({ children, href }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{children}</a>,
-                                                    ul: ({ children }) => <ul className="my-2 list-disc list-inside">{children}</ul>,
-                                                    ol: ({ children }) => <ol className="my-2 list-decimal list-inside">{children}</ol>,
-                                                    li: ({ children }) => <li className="my-0.5">{children}</li>,
-                                                    code: ({ children }) => <code className="bg-muted rounded px-1 py-0.5">{children}</code>,
-                                                    pre: ({ children }) => <pre className="bg-muted p-2 rounded-md overflow-x-auto my-2">{children}</pre>,
-                                                    blockquote: ({ children }) => <blockquote className="border-l-4 border-muted pl-4 italic my-4">{children}</blockquote>,
-                                                    h1: ({ children }) => <h1 className="text-2xl font-bold mt-8 mb-4">{children}</h1>,
-                                                    h2: ({ children }) => <h2 className="text-xl font-bold mt-6 mb-4">{children}</h2>,
-                                                    h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-2">{children}</h3>,
-                                                }}
-                                            >
-                                                {msg.content}
-                                            </ReactMarkdown>
+                                        <div
+                                            className={`max-w-[80%] rounded-2xl p-4 shadow-sm ${msg.role === 'user'
+                                                ? 'bg-primary text-primary-foreground ml-4'
+                                                : 'bg-card mr-4'
+                                                }`}
+                                        >
+                                            <div className="prose dark:prose-invert max-w-none text-sm [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic">
+                                                <ReactMarkdown
+                                                    remarkPlugins={[remarkGfm]}
+                                                    components={{
+                                                        p: ({ children }) => <p className="whitespace-pre-wrap break-words m-0">{children}</p>,
+                                                        a: ({ children, href }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{children}</a>,
+                                                        ul: ({ children }) => <ul className="my-2 list-disc list-inside">{children}</ul>,
+                                                        ol: ({ children }) => <ol className="my-2 list-decimal list-inside">{children}</ol>,
+                                                        li: ({ children }) => <li className="my-0.5">{children}</li>,
+                                                        code: ({ children }) => <code className="bg-muted rounded px-1 py-0.5">{children}</code>,
+                                                        pre: ({ children }) => <pre className="bg-muted p-2 rounded-md overflow-x-auto my-2">{children}</pre>,
+                                                        blockquote: ({ children }) => <blockquote className="border-l-4 border-muted pl-4 italic my-4">{children}</blockquote>,
+                                                        h1: ({ children }) => <h1 className="text-2xl font-bold mt-8 mb-4">{children}</h1>,
+                                                        h2: ({ children }) => <h2 className="text-xl font-bold mt-6 mb-4">{children}</h2>,
+                                                        h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-2">{children}</h3>,
+                                                    }}
+                                                >
+                                                    {msg.content}
+                                                </ReactMarkdown>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
-                            {streamingContent && (
-                                <div className="flex justify-start">
-                                    <div className="max-w-[80%] rounded-lg p-3 bg-muted mr-4">
-                                        <div className="prose dark:prose-invert max-w-none text-sm [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic">
-                                            <ReactMarkdown
-                                                remarkPlugins={[remarkGfm]}
-                                                components={{
-                                                    p: ({ children }) => <p className="whitespace-pre-wrap break-words m-0">{children}</p>,
-                                                    a: ({ children, href }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{children}</a>,
-                                                    ul: ({ children }) => <ul className="my-2 list-disc list-inside">{children}</ul>,
-                                                    ol: ({ children }) => <ol className="my-2 list-decimal list-inside">{children}</ol>,
-                                                    li: ({ children }) => <li className="my-0.5">{children}</li>,
-                                                    code: ({ children }) => <code className="bg-muted rounded px-1 py-0.5">{children}</code>,
-                                                    pre: ({ children }) => <pre className="bg-muted p-2 rounded-md overflow-x-auto my-2">{children}</pre>,
-                                                    blockquote: ({ children }) => <blockquote className="border-l-4 border-muted pl-4 italic my-4">{children}</blockquote>,
-                                                    h1: ({ children }) => <h1 className="text-2xl font-bold mt-8 mb-4">{children}</h1>,
-                                                    h2: ({ children }) => <h2 className="text-xl font-bold mt-6 mb-4">{children}</h2>,
-                                                    h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-2">{children}</h3>,
-                                                }}
-                                            >
-                                                {streamingContent}
-                                            </ReactMarkdown>
+                                ))}
+                                {streamingContent && (
+                                    <div className="flex justify-start">
+                                        <div className="max-w-[80%] rounded-2xl p-4 shadow-sm bg-card mr-4">
+                                            <div className="prose dark:prose-invert max-w-none text-sm [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic">
+                                                <ReactMarkdown
+                                                    remarkPlugins={[remarkGfm]}
+                                                    components={{
+                                                        p: ({ children }) => <p className="whitespace-pre-wrap break-words m-0">{children}</p>,
+                                                        a: ({ children, href }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{children}</a>,
+                                                        ul: ({ children }) => <ul className="my-2 list-disc list-inside">{children}</ul>,
+                                                        ol: ({ children }) => <ol className="my-2 list-decimal list-inside">{children}</ol>,
+                                                        li: ({ children }) => <li className="my-0.5">{children}</li>,
+                                                        code: ({ children }) => <code className="bg-muted rounded px-1 py-0.5">{children}</code>,
+                                                        pre: ({ children }) => <pre className="bg-muted p-2 rounded-md overflow-x-auto my-2">{children}</pre>,
+                                                        blockquote: ({ children }) => <blockquote className="border-l-4 border-muted pl-4 italic my-4">{children}</blockquote>,
+                                                        h1: ({ children }) => <h1 className="text-2xl font-bold mt-8 mb-4">{children}</h1>,
+                                                        h2: ({ children }) => <h2 className="text-xl font-bold mt-6 mb-4">{children}</h2>,
+                                                        h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-2">{children}</h3>,
+                                                    }}
+                                                >
+                                                    {streamingContent}
+                                                </ReactMarkdown>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            )}
-                            <div ref={chatEndRef} />
-                        </div>
-                    </ScrollArea>
+                                )}
+                                <div ref={chatEndRef} />
+                            </div>
+                        </ScrollArea>
+                    )}
                 </div>
 
                 {/* Chat Input - Always visible at bottom */}
-                <div className="flex-shrink-0 border-t bg-background p-4">
-                    <form className="max-w-2xl mx-auto flex gap-2" onSubmit={handleChatSubmit}>
+                <div className="flex-shrink-0 border-t bg-background p-6">
+                    <form className="max-w-3xl mx-auto flex gap-3" onSubmit={handleChatSubmit}>
                         <Input
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
                             placeholder="Type your message..."
-                            className="flex-1"
-                            disabled={isGenerating}
+                            className="flex-1 py-6 px-4 text-base rounded-full border-muted-foreground/20"
+                            disabled={isGenerating || isInitializing}
                         />
                         <AuthenticatedActionButton
                             type="submit"
-                            disabled={isGenerating || !message.trim() || !currentSpace}
+                            disabled={isGenerating || !message.trim() || !currentSpace || isInitializing}
                             rightLoading={isGenerating}
+                            className="rounded-full"
                         >
-                            {isGenerating ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Thinking...
-                                </>
-                            ) : (
-                                'Send'
-                            )}
+                            {isGenerating ? 'Thinking...' : 'Send'}
                         </AuthenticatedActionButton>
                     </form>
                 </div>
@@ -897,6 +995,43 @@ export default function AIAssistant() {
                             Connect your Discourse account to enhance the AI&apos;s understanding of your writing style and arguments.
                             This is optional but recommended for better assistance.
                         </p>
+
+                        {/* Message count indicator */}
+                        {hasStoredMessages && (
+                            <div className="bg-muted/50 rounded-lg p-4 border">
+                                <div className="flex justify-between items-center">
+                                    <div>
+                                        <p className="text-sm font-medium">
+                                            {storedMessages.length} {storedMessages.length === 1 ? 'message' : 'messages'} stored
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Last updated: {storedMessages.length > 0
+                                                ? new Date(Math.max(...storedMessages.map(m => new Date(m.created_at).getTime()))).toLocaleString()
+                                                : 'N/A'}
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={handleViewMessages}
+                                            className="text-xs"
+                                        >
+                                            View Messages
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={handleDeleteMessages}
+                                            className="text-xs text-destructive hover:text-destructive"
+                                        >
+                                            Clear
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="space-y-2">
                             <Label htmlFor="discourse-url">Discourse URL</Label>
                             <Input
@@ -1047,6 +1182,50 @@ export default function AIAssistant() {
                             </Button>
                         </div>
                     </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* View Messages Dialog */}
+            <Dialog open={showMessagesModal} onOpenChange={setShowMessagesModal}>
+                <DialogContent className="sm:max-w-[700px] max-h-[80vh]">
+                    <DialogHeader>
+                        <DialogTitle>Discourse Messages</DialogTitle>
+                    </DialogHeader>
+                    <ScrollArea className="max-h-[60vh] pr-4">
+                        <div className="space-y-4 py-4">
+                            {storedMessages.length === 0 ? (
+                                <p className="text-center text-muted-foreground">No messages found</p>
+                            ) : (
+                                [...storedMessages]
+                                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                                    .map((message) => (
+                                        <div key={message.id} className="border rounded-lg p-4 bg-card">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div className="space-y-1">
+                                                    {message.topic_title && (
+                                                        <p className="text-sm font-medium">Topic: {message.topic_title}</p>
+                                                    )}
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {new Date(message.created_at).toLocaleString()}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="prose dark:prose-invert max-w-none text-sm mt-2">
+                                                <div dangerouslySetInnerHTML={{ __html: message.content }} />
+                                            </div>
+                                        </div>
+                                    ))
+                            )}
+                        </div>
+                    </ScrollArea>
+                    <div className="flex justify-between pt-4 items-center">
+                        <p className="text-xs text-muted-foreground">
+                            {storedMessages.length} messages sorted by newest first
+                        </p>
+                        <Button onClick={() => setShowMessagesModal(false)}>
+                            Close
+                        </Button>
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>
