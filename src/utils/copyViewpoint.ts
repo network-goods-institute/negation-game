@@ -198,10 +198,13 @@ export const copyViewpointToStorage = (
     // Get the current space
     const space = getSpaceFromUrl();
 
+    const templateDescription =
+      `Summary of the rationale for "${title.trim()}"` || "";
+
     const copyData = {
       graph: regeneratedGraph,
       title: title,
-      description: description,
+      description: templateDescription,
       sourceId: sourceId,
       isCopyOperation: true,
       copyTimestamp: Date.now(),
@@ -242,11 +245,14 @@ export const copyViewpointAndNavigate = async (
   console.log("Copying graph with nodes:", graphToCopy.nodes.length);
 
   try {
+    const templateDescription =
+      `Summary of the rationale for "${title.trim()}"` || "";
+
     // Store the copy in session storage
     const success = copyViewpointToStorage(
       graphToCopy,
       title,
-      description,
+      templateDescription,
       sourceId
     );
 
