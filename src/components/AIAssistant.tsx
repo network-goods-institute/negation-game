@@ -1043,11 +1043,15 @@ export default function AIAssistant() {
                             minHeight={24}
                             maxHeight={isMobile ? 100 : 200}
                             onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
+                                if (e.key === 'Enter') {
                                     e.preventDefault();
-                                    if (message.trim() && !isGenerating && currentSpace) {
-                                        handleChatSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
-                                    }
+                                    const start = e.currentTarget.selectionStart;
+                                    const end = e.currentTarget.selectionEnd;
+                                    setMessage(message.substring(0, start) + '\n' + message.substring(end));
+                                    // Need to wait for state update before setting cursor position
+                                    setTimeout(() => {
+                                        e.currentTarget.selectionStart = e.currentTarget.selectionEnd = start + 1;
+                                    }, 0);
                                 }
                             }}
                         />
