@@ -19,8 +19,7 @@ import { generateChatResponse, EndorsedPoint } from "@/actions/generateChatRespo
 import { nanoid } from "nanoid";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import * as ContextMenu from "@radix-ui/react-context-menu";
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { MemoizedMarkdown } from "@/components/ui/MemoizedMarkdown";
 import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
 import { fetchUserEndorsedPoints } from "@/actions/fetchUserEndorsedPoints";
 import { getSpace } from "@/actions/getSpace";
@@ -360,76 +359,83 @@ export default function AIAssistant() {
     const handleChatSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!message.trim() || isGenerating || !currentSpace) {
-
             return;
         }
-
 
         const userMessageText = message.trim();
         setMessage('');
 
         let chatId: string;
         let initialMessages: ChatMessage[];
-
-        // ======= PHASE 1: ENSURE WE HAVE A VALID CHAT =======
-        if (!currentChatId) {
-            chatId = nanoid();
-
-            initialMessages = [{
-                role: 'assistant',
-                content: `Hello! I'm here to help you write your essay. What topic would you like to write about?`
-            }];
-
-            const newChat: SavedChat = {
-                id: chatId,
-                title: 'New Chat',
-                messages: initialMessages,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                space: currentSpace
-            };
-
-            // Create and save the new chat first, before proceeding
-            await new Promise<void>(resolve => {
-                setSavedChats(prev => {
-                    const updated = [newChat, ...prev];
-                    if (currentSpace) {
-                        localStorage.setItem(`saved_chats_${currentSpace}`, JSON.stringify(updated));
-                    }
-                    resolve();
-                    return updated;
-                });
-            });
-
-            setCurrentChatId(chatId);
-            setChatMessages(initialMessages);
-        } else {
-            chatId = currentChatId;
-
-
-            const existingChat = savedChats.find(c => c.id === chatId);
-            if (!existingChat) {
-                return createNewChat();
-            }
-
-            initialMessages = [...chatMessages];
-        }
-
-        // ======= PHASE 2: ADD USER MESSAGE AND GENERATE RESPONSE =======
-        const userMessage: ChatMessage = { role: 'user', content: userMessageText };
-        const messagesWithUserInput = [...initialMessages, userMessage];
-
-        setChatMessages(messagesWithUserInput);
-
-        const discourseContext = storedMessages.map(msg => ({
-            role: 'system' as const,
-            content: `[Forum Post from ${new Date(msg.created_at).toLocaleString()}${msg.topic_title ? ` in "${msg.topic_title}"` : ''}]\n${msg.raw || msg.content}`
-        }));
-
-        setIsGenerating(true);
-        setStreamingContent('');
+        let messagesWithUserInput: ChatMessage[];
+        let finalMessages: ChatMessage[];
 
         try {
+            // ======= PHASE 1: ENSURE WE HAVE A VALID CHAT =======
+            if (!currentChatId) {
+                chatId = nanoid();
+
+                initialMessages = [{
+                    role: 'assistant',
+                    content: `Hello! I'm here to help you write your essay. What topic would you like to write about?`
+                }];
+
+                const newChat: SavedChat = {
+                    id: chatId,
+                    title: 'New Chat',
+                    messages: initialMessages,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    space: currentSpace
+                };
+
+                // Create and save the new chat first, before proceeding
+                await new Promise<void>((resolve, reject) => {
+                    setSavedChats(prev => {
+                        const updated = [newChat, ...prev];
+                        if (currentSpace) {
+                            try {
+                                localStorage.setItem(`saved_chats_${currentSpace}`, JSON.stringify(updated));
+                            } catch (error) {
+                                console.error('Failed to save chat to localStorage:', error);
+                                toast.error('Failed to save chat. Storage might be full.');
+                                reject(error);
+                                return prev;
+                            }
+                        }
+                        resolve();
+                        return updated;
+                    });
+                });
+
+                setCurrentChatId(chatId);
+                setChatMessages(initialMessages);
+            } else {
+                chatId = currentChatId;
+
+                const existingChat = savedChats.find(c => c.id === chatId);
+                if (!existingChat) {
+                    toast.error('Chat not found. Creating a new one.');
+                    return createNewChat();
+                }
+
+                initialMessages = [...chatMessages];
+            }
+
+            // ======= PHASE 2: ADD USER MESSAGE AND GENERATE RESPONSE =======
+            const userMessage: ChatMessage = { role: 'user', content: userMessageText };
+            messagesWithUserInput = [...initialMessages, userMessage];
+
+            setChatMessages(messagesWithUserInput);
+
+            const discourseContext = storedMessages.map(msg => ({
+                role: 'system' as const,
+                content: `[Forum Post from ${new Date(msg.created_at).toLocaleString()}${msg.topic_title ? ` in "${msg.topic_title}"` : ''}]\n${msg.raw || msg.content}`
+            }));
+
+            setIsGenerating(true);
+            setStreamingContent('');
+
             const stream = await generateChatResponse([...discourseContext, ...messagesWithUserInput], endorsedPoints);
             if (!stream) {
                 throw new Error('Failed to get response stream');
@@ -439,60 +445,116 @@ export default function AIAssistant() {
             let accumulatedContent = '';
 
             while (true) {
-                const { done, value } = await reader.read();
-                if (done) {
-                    break;
+                try {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                        break;
+                    }
+
+                    if (typeof value !== 'string') {
+                        console.warn('Received non-string chunk:', value);
+                        continue;
+                    }
+
+                    // Ensure proper spacing between chunks
+                    if (accumulatedContent && !accumulatedContent.endsWith('\n') && !value.startsWith('\n')) {
+                        accumulatedContent += ' ';
+                    }
+                    accumulatedContent += value;
+
+                    // Normalize newlines to ensure consistent rendering
+                    accumulatedContent = accumulatedContent.replace(/\r\n/g, '\n');
+
+                    setStreamingContent(accumulatedContent);
+                } catch (error) {
+                    console.error('Error reading stream chunk:', error);
+                    throw new Error('Failed to read response stream');
                 }
-                accumulatedContent += value;
-                setStreamingContent(accumulatedContent);
             }
 
+            if (!accumulatedContent.trim()) {
+                throw new Error('Received empty response from AI');
+            }
 
             const assistantMessage: ChatMessage = {
                 role: 'assistant',
                 content: accumulatedContent
             };
 
-            const finalMessages = [...messagesWithUserInput, assistantMessage];
+            finalMessages = [...messagesWithUserInput, assistantMessage];
 
-            setChatMessages(finalMessages);
-
-            let updatedChat: SavedChat | undefined = undefined;
-
-            await new Promise<void>(resolve => {
+            await new Promise<void>((resolve, reject) => {
                 setSavedChats(prev => {
-                    const targetChatIndex = prev.findIndex(c => c.id === chatId);
+                    try {
+                        const targetChatIndex = prev.findIndex(c => c.id === chatId);
 
-                    if (targetChatIndex === -1) {
-                        console.error('[handleChatSubmit] Chat disappeared during processing:', chatId);
+                        if (targetChatIndex === -1) {
+                            reject(new Error('Chat disappeared during processing'));
+                            return prev;
+                        }
+
+                        const updated = [...prev];
+                        const updatedChat = {
+                            ...updated[targetChatIndex],
+                            messages: finalMessages,
+                            updatedAt: new Date().toISOString()
+                        };
+                        updated[targetChatIndex] = updatedChat;
+
+                        if (currentSpace) {
+                            try {
+                                localStorage.setItem(`saved_chats_${currentSpace}`, JSON.stringify(updated));
+                            } catch (storageError) {
+                                console.error('Failed to save updated chat to localStorage:', storageError);
+                                toast.error('Failed to save chat update. Storage might be full.');
+                                throw storageError;
+                            }
+                        }
                         resolve();
+                        return updated;
+                    } catch (error) {
+                        reject(error);
                         return prev;
                     }
-
-                    const updated = [...prev];
-                    updatedChat = {
-                        ...updated[targetChatIndex],
-                        messages: finalMessages,
-                        updatedAt: new Date().toISOString()
-                    };
-                    updated[targetChatIndex] = updatedChat;
-
-                    if (currentSpace) {
-                        localStorage.setItem(`saved_chats_${currentSpace}`, JSON.stringify(updated));
-                    }
-                    console.log('[handleChatSubmit] Updated chat with new messages:', chatId);
-                    resolve();
-                    return updated;
                 });
             });
 
+            setChatMessages(finalMessages);
             setStreamingContent('');
+
         } catch (error) {
-            console.error('[handleChatSubmit] Error generating response:', error);
-            toast.error('Failed to generate response. Please try again.');
-            setChatMessages([...messagesWithUserInput]);
+            console.error('Error in chat submission:', error);
+
+            if (error instanceof Error) {
+                setMessage(userMessageText);
+            }
+
+            if (error instanceof Error) {
+                if (error.message.includes('Storage')) {
+                    toast.error('Failed to save chat: Storage is full. Try clearing some old chats.');
+                } else if (error.message.includes('stream')) {
+                    toast.error('Failed to generate response. Please try again.');
+                } else if (error.message.includes('empty response')) {
+                    toast.error('AI returned an empty response. Please try again.');
+                } else if (error.message.includes('disappeared')) {
+                    toast.error('Chat session was lost. Creating a new one.');
+                    createNewChat();
+                } else {
+                    toast.error('An unexpected error occurred. Please try again.');
+                }
+            } else {
+                toast.error('Failed to process your message. Please try again.');
+            }
+
+            if (currentChatId) {
+                const currentChat = savedChats.find(c => c.id === currentChatId);
+                if (currentChat) {
+                    setChatMessages(currentChat.messages);
+                }
+            }
         } finally {
             setIsGenerating(false);
+            setStreamingContent('');
         }
     };
 
@@ -948,52 +1010,14 @@ export default function AIAssistant() {
                                                 : 'bg-card mr-4'
                                                 }`}
                                         >
-                                            <div className="prose dark:prose-invert max-w-none text-sm [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic">
-                                                <ReactMarkdown
-                                                    remarkPlugins={[remarkGfm]}
-                                                    components={{
-                                                        p: ({ children }) => <p className="whitespace-pre-wrap break-words m-0">{children}</p>,
-                                                        a: ({ children, href }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{children}</a>,
-                                                        ul: ({ children }) => <ul className="my-2 list-disc list-inside">{children}</ul>,
-                                                        ol: ({ children }) => <ol className="my-2 list-decimal list-inside">{children}</ol>,
-                                                        li: ({ children }) => <li className="my-0.5">{children}</li>,
-                                                        code: ({ children }) => <code className="bg-muted rounded px-1 py-0.5">{children}</code>,
-                                                        pre: ({ children }) => <pre className="bg-muted p-2 rounded-md overflow-x-auto my-2">{children}</pre>,
-                                                        blockquote: ({ children }) => <blockquote className="border-l-4 border-muted pl-4 italic my-4">{children}</blockquote>,
-                                                        h1: ({ children }) => <h1 className="text-2xl font-bold mt-8 mb-4">{children}</h1>,
-                                                        h2: ({ children }) => <h2 className="text-xl font-bold mt-6 mb-4">{children}</h2>,
-                                                        h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-2">{children}</h3>,
-                                                    }}
-                                                >
-                                                    {msg.content}
-                                                </ReactMarkdown>
-                                            </div>
+                                            <MemoizedMarkdown content={msg.content} id={`msg-${i}`} />
                                         </div>
                                     </div>
                                 ))}
                                 {streamingContent && (
                                     <div className="flex justify-start">
                                         <div className="max-w-[80%] rounded-2xl p-4 shadow-sm bg-card mr-4">
-                                            <div className="prose dark:prose-invert max-w-none text-sm [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic">
-                                                <ReactMarkdown
-                                                    remarkPlugins={[remarkGfm]}
-                                                    components={{
-                                                        p: ({ children }) => <p className="whitespace-pre-wrap break-words m-0">{children}</p>,
-                                                        a: ({ children, href }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{children}</a>,
-                                                        ul: ({ children }) => <ul className="my-2 list-disc list-inside">{children}</ul>,
-                                                        ol: ({ children }) => <ol className="my-2 list-decimal list-inside">{children}</ol>,
-                                                        li: ({ children }) => <li className="my-0.5">{children}</li>,
-                                                        code: ({ children }) => <code className="bg-muted rounded px-1 py-0.5">{children}</code>,
-                                                        pre: ({ children }) => <pre className="bg-muted p-2 rounded-md overflow-x-auto my-2">{children}</pre>,
-                                                        blockquote: ({ children }) => <blockquote className="border-l-4 border-muted pl-4 italic my-4">{children}</blockquote>,
-                                                        h1: ({ children }) => <h1 className="text-2xl font-bold mt-8 mb-4">{children}</h1>,
-                                                        h2: ({ children }) => <h2 className="text-xl font-bold mt-6 mb-4">{children}</h2>,
-                                                        h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-2">{children}</h3>,
-                                                    }}
-                                                >
-                                                    {streamingContent}
-                                                </ReactMarkdown>
-                                            </div>
+                                            <MemoizedMarkdown content={streamingContent} id="streaming" />
                                         </div>
                                     </div>
                                 )}
