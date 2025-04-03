@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, ArrowLeft, Trash2, MessageSquare, Settings2, CircleIcon, CircleDotIcon, Plus, Menu, X } from "lucide-react";
+import { Loader2, ArrowLeft, Trash2, MessageSquare, Settings2, CircleIcon, CircleDotIcon, Plus, Menu, X, SlidersHorizontal } from "lucide-react";
 import { useUser } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { updateUserProfile } from "@/actions/updateUserProfile";
@@ -25,6 +25,9 @@ import { fetchUserEndorsedPoints } from "@/actions/fetchUserEndorsedPoints";
 import { getSpace } from "@/actions/getSpace";
 import { Skeleton } from "./ui/skeleton";
 import { AutosizeTextarea } from "./ui/autosize-textarea";
+import { fetchUserViewpoints } from "@/actions/fetchUserViewpoints";
+
+import { Switch } from "@/components/ui/switch";
 
 interface DiscourseMessage {
     id: number;
@@ -47,6 +50,43 @@ interface SavedChat {
     createdAt: string;
     updatedAt: string;
     space: string;
+}
+
+interface ChatRationale {
+    id: string;
+    title: string;
+    description: string;
+    author: string;
+    graph: {
+        nodes: Array<{
+            id: string;
+            type: "point" | "statement" | "addPoint";
+            data: {
+                content?: string;
+                statement?: string;
+                pointId?: number;
+            };
+        }>;
+        edges: Array<{
+            id: string;
+            type: string;
+            source: string;
+            target: string;
+        }>;
+    };
+    statistics: {
+        views: number;
+        copies: number;
+        totalCred: number;
+        averageFavor: number;
+    };
+}
+
+interface ChatSettings {
+    includeEndorsements: boolean;
+    includeRationales: boolean;
+    includePoints: boolean;
+    includeDiscourseMessages: boolean;
 }
 
 const ChatLoadingState = () => {
@@ -132,6 +172,7 @@ export default function AIAssistant() {
     const [hasStoredMessages, setHasStoredMessages] = useState(false);
     const [fetchProgress, setFetchProgress] = useState(0);
     const [endorsedPoints, setEndorsedPoints] = useState<EndorsedPoint[]>([]);
+    const [userRationales, setUserRationales] = useState<ChatRationale[]>([]);
 
     // Chat-related state
     const [currentChatId, setCurrentChatId] = useState<string | null>(null);
@@ -140,7 +181,7 @@ export default function AIAssistant() {
     const [message, setMessage] = useState('');
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{
         role: 'assistant',
-        content: `Hello! I'm here to help you write your essay. What topic would you like to write about?`
+        content: `Hello! I'm here to help you write your rationale description or design your graph. What topic should we explore?`
     }]);
     const [isGenerating, setIsGenerating] = useState(false);
     const [streamingContent, setStreamingContent] = useState('');
@@ -153,19 +194,88 @@ export default function AIAssistant() {
 
     const [showMobileMenu, setShowMobileMenu] = useState(false);
 
+    const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+    const [settings, setSettings] = useState<ChatSettings>(() => {
+        // Try to load settings from localStorage
+        if (typeof window !== 'undefined') {
+            const savedSettings = localStorage.getItem('chat_settings');
+            if (savedSettings) {
+                try {
+                    return JSON.parse(savedSettings);
+                } catch (e) {
+                    console.error('Error parsing saved chat settings:', e);
+                }
+            }
+        }
+        return {
+            includeEndorsements: true,
+            includeRationales: true,
+            includePoints: true,
+            includeDiscourseMessages: true
+        };
+    });
+
     useEffect(() => {
-        const fetchCurrentSpace = async () => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('chat_settings', JSON.stringify(settings));
+        }
+    }, [settings]);
+
+    useEffect(() => {
+        const initializeAssistant = async () => {
             setIsInitializing(true);
             try {
                 const space = await getSpace();
                 setCurrentSpace(space);
+
+                const points = await fetchUserEndorsedPoints();
+                setEndorsedPoints(points || []);
+
+                const rationales = await fetchUserViewpoints();
+                const convertedRationales: ChatRationale[] = (rationales || []).map(r => ({
+                    id: r.id,
+                    title: r.title,
+                    description: r.description,
+                    author: r.author,
+                    graph: {
+                        nodes: r.graph.nodes.map(n => ({
+                            id: n.id,
+                            type: n.type as "point" | "statement" | "addPoint",
+                            data: {
+                                content: n.type === 'point' && 'data' in n && 'content' in n.data ? String(n.data.content) : undefined,
+                                statement: n.type === 'statement' && 'data' in n && 'statement' in n.data ? String(n.data.statement) : undefined,
+                                pointId: n.type === 'point' && 'data' in n && 'pointId' in n.data ? Number(n.data.pointId) : undefined
+                            }
+                        })),
+                        edges: r.graph.edges.map(e => ({
+                            id: e.id,
+                            type: e.type || 'default',
+                            source: e.source,
+                            target: e.target
+                        }))
+                    },
+                    statistics: r.statistics
+                }));
+                setUserRationales(convertedRationales);
+
+                const savedChatsStr = space ? localStorage.getItem(`saved_chats_${space}`) : null;
+                if (savedChatsStr) {
+                    const chats = JSON.parse(savedChatsStr);
+                    setSavedChats(chats);
+                    if (chats.length > 0) {
+                        setCurrentChatId(chats[0].id);
+                        setChatMessages(chats[0].messages);
+                    }
+                }
             } catch (error) {
-                console.error('Error fetching current space:', error);
+                console.error('Error initializing assistant:', error);
                 setCurrentSpace('global');
+            } finally {
+                setIsInitializing(false);
             }
         };
 
-        fetchCurrentSpace();
+        initializeAssistant();
     }, []);
 
     const createNewChat = useCallback(() => {
@@ -175,13 +285,12 @@ export default function AIAssistant() {
         }
 
         const newChatId = nanoid();
-
         const newChat: SavedChat = {
             id: newChatId,
             title: 'New Chat',
             messages: [{
                 role: 'assistant',
-                content: `Hello! I'm here to help you write your essay. What topic would you like to write about?`
+                content: `Hello! I'm here to help you write your rationale description or design your graph. What topic should we explore?`
             }],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -200,58 +309,271 @@ export default function AIAssistant() {
         setChatMessages(newChat.messages);
     }, [currentSpace]);
 
-    useEffect(() => {
+    const updateChat = useCallback((chatId: string, messages: ChatMessage[], title?: string) => {
         if (!currentSpace) return;
 
-        const savedChatsStr = localStorage.getItem(`saved_chats_${currentSpace}`);
-        if (savedChatsStr) {
-            try {
-                const chats = JSON.parse(savedChatsStr);
-                setSavedChats(chats);
+        setSavedChats(prev => {
+            const updatedChats = prev.map(chat => {
+                if (chat.id === chatId) {
+                    return {
+                        ...chat,
+                        title: title || chat.title,
+                        messages,
+                        updatedAt: new Date().toISOString()
+                    };
+                }
+                return chat;
+            });
+            localStorage.setItem(`saved_chats_${currentSpace}`, JSON.stringify(updatedChats));
+            return updatedChats;
+        });
+    }, [currentSpace]);
 
-                if (!currentChatId && chats.length > 0) {
-                    setCurrentChatId(chats[0].id);
-                    setChatMessages(chats[0].messages);
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (!message.trim() || isGenerating) return;
+
+        const newMessage: ChatMessage = { role: 'user', content: message };
+
+        // Check if this is a new chat - only one message and it's the initial bot message
+        const isNewChat = !currentChatId &&
+            chatMessages.length === 1 &&
+            chatMessages[0].role === 'assistant' &&
+            chatMessages[0].content === `Hello! I'm here to help you write your rationale description or design your graph. What topic should we explore?`;
+
+        // Create new chat if needed
+        let activeChatId = currentChatId;
+        if (isNewChat) {
+            activeChatId = nanoid();
+            const newChat: SavedChat = {
+                id: activeChatId,
+                title: message.slice(0, 30) + (message.length > 30 ? '...' : ''),
+                messages: [...chatMessages, newMessage],
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                space: currentSpace || 'default'
+            };
+            setSavedChats(prev => [newChat, ...prev]);
+            setCurrentChatId(activeChatId);
+            if (currentSpace) {
+                localStorage.setItem(`saved_chats_${currentSpace}`, JSON.stringify([newChat, ...savedChats]));
+            }
+        }
+
+        // Update messages
+        const updatedMessages = [...chatMessages, newMessage];
+        setChatMessages(updatedMessages);
+        if (activeChatId) {
+            updateChat(activeChatId, updatedMessages);
+        }
+
+        setMessage('');
+        setIsGenerating(true);
+        setStreamingContent('');
+
+        try {
+            const systemMessages: ChatMessage[] = settings.includeDiscourseMessages ? storedMessages.map(msg => ({
+                role: 'system',
+                content: `From forum post "${msg.topic_title || 'Untitled'}": ${msg.content}`
+            })) : [];
+
+            const response = await generateChatResponse(
+                [...systemMessages, ...updatedMessages],
+                settings.includeEndorsements && settings.includePoints ? endorsedPoints : undefined,
+                settings.includeRationales ? userRationales : undefined
+            );
+
+            if (!response) throw new Error("Failed to get response");
+
+            let content = '';
+            let inCodeBlock = false;
+            let codeBlockContent = '';
+            let codeBlockLanguage = '';
+            let lastChunkWasNewline = false;
+            let lastChunkEndedWithNewline = false;
+            let lastChunkStartedWithHash = false;
+            let lastChunkWasSpace = false;
+
+            for await (const chunk of response) {
+                if (!chunk) continue;
+
+                // Handle code block boundaries
+                if (chunk.includes('```')) {
+                    const parts = chunk.split('```');
+                    parts.forEach((part, i) => {
+                        if (i === 0 && !inCodeBlock) {
+                            // Add spacing before code block if needed
+                            if (content && !content.endsWith('\n\n')) {
+                                content += '\n\n';
+                            }
+                            content += part;
+                        } else if (inCodeBlock) {
+                            codeBlockContent += part;
+                            inCodeBlock = false;
+                            content += '```' + codeBlockLanguage + '\n' + codeBlockContent + '```\n\n';
+                            codeBlockContent = '';
+                            codeBlockLanguage = '';
+                        } else {
+                            inCodeBlock = true;
+                            const lines = part.split('\n');
+                            codeBlockLanguage = lines[0];
+                            codeBlockContent = lines.slice(1).join('\n');
+                        }
+                    });
+                } else {
+                    if (inCodeBlock) {
+                        codeBlockContent += chunk;
+                    } else {
+                        let processedChunk = chunk;
+                        const startsWithHash = chunk.trimStart().startsWith('#');
+                        const endsWithNewline = chunk.endsWith('\n');
+                        const isNewline = chunk.trim() === '';
+                        const isSpace = /^\s+$/.test(chunk);
+                        const isStartOfSentence = /^[A-Z]/.test(chunk.trimStart());
+
+                        // Don't add extra space if this chunk is just whitespace
+                        if (isSpace) {
+                            lastChunkWasSpace = true;
+                            continue;
+                        }
+
+                        // Add spacing around headers
+                        if (startsWithHash && !lastChunkEndedWithNewline && content) {
+                            content += '\n\n';
+                        }
+
+                        // Add spacing after headers
+                        if (lastChunkStartedWithHash && !startsWithHash && !chunk.startsWith('\n')) {
+                            processedChunk = '\n' + processedChunk;
+                        }
+
+                        // Add space between sentences
+                        if (isStartOfSentence && content && !content.endsWith('\n') && !lastChunkEndedWithNewline && !lastChunkWasSpace) {
+                            content += ' ';
+                        }
+
+                        // Handle list items
+                        if (chunk.trimStart().startsWith('- ') && !lastChunkEndedWithNewline && content) {
+                            content += '\n';
+                        }
+
+                        // Add the chunk
+                        content += processedChunk;
+
+                        // Update state for next chunk
+                        lastChunkEndedWithNewline = endsWithNewline;
+                        lastChunkStartedWithHash = startsWithHash;
+                        lastChunkWasNewline = isNewline;
+                        lastChunkWasSpace = false;
+                    }
+                }
+                setStreamingContent(content);
+            }
+
+            // Final cleanup - ensure proper spacing at the end
+            if (content.endsWith('\n\n\n')) {
+                content = content.slice(0, -1);
+            }
+
+            const assistantMessage: ChatMessage = { role: 'assistant', content };
+            const finalMessages = [...updatedMessages, assistantMessage];
+            setChatMessages(finalMessages);
+
+            if (activeChatId) {
+                updateChat(activeChatId, finalMessages);
+            }
+
+        } catch (error) {
+            console.error('Error generating response:', error);
+            const errorMessage: ChatMessage = {
+                role: 'assistant',
+                content: 'I apologize, but I encountered an error. Please try again.'
+            };
+            const errorMessages = [...updatedMessages, errorMessage];
+            setChatMessages(errorMessages);
+            if (activeChatId) {
+                updateChat(activeChatId, errorMessages);
+            }
+        } finally {
+            setIsGenerating(false);
+            setStreamingContent('');
+        }
+    };
+
+    const deleteChat = useCallback((chatId: string) => {
+        if (!currentSpace) return;
+
+        const updatedChats = savedChats.filter(chat => chat.id !== chatId);
+        setSavedChats(updatedChats);
+        localStorage.setItem(`saved_chats_${currentSpace}`, JSON.stringify(updatedChats));
+
+        // If we're deleting the current chat or there are no chats left
+        if (chatId === currentChatId || updatedChats.length === 0) {
+            setCurrentChatId(null);
+            setChatMessages([{
+                role: 'assistant',
+                content: `Hello! I'm here to help you write your rationale description or design your graph. What topic should we explore?`
+            }]);
+        } else if (currentChatId === null && updatedChats.length > 0) {
+            // If we somehow have no current chat but there are chats available
+            setCurrentChatId(updatedChats[0].id);
+            setChatMessages(updatedChats[0].messages);
+        }
+
+        setChatToDelete(null);
+    }, [currentSpace, currentChatId, savedChats]);
+
+    const switchChat = useCallback((chatId: string) => {
+        const chat = savedChats.find(c => c.id === chatId);
+        if (chat) {
+            setCurrentChatId(chatId);
+            setChatMessages(chat.messages);
+        }
+    }, [savedChats]);
+
+    const renameChat = useCallback((chatId: string, newTitle: string) => {
+        if (!newTitle.trim() || !currentSpace) return;
+
+        setSavedChats(prev => {
+            const updated = prev.map(chat =>
+                chat.id === chatId ? { ...chat, title: newTitle.trim() } : chat
+            );
+            localStorage.setItem(`saved_chats_${currentSpace}`, JSON.stringify(updated));
+            return updated;
+        });
+
+        setChatToRename(null);
+        setNewChatTitle('');
+    }, [currentSpace]);
+
+    useEffect(() => {
+        const checkStoredMessages = () => {
+            setIsCheckingDiscourse(true);
+            try {
+                if (typeof window !== 'undefined') {
+                    const storedData = localStorage.getItem('discourse_messages');
+                    if (storedData) {
+                        const messages = JSON.parse(storedData);
+                        if (Array.isArray(messages) && messages.length > 0) {
+                            setStoredMessages(messages);
+                            setHasStoredMessages(true);
+                        } else {
+                            setHasStoredMessages(false);
+                        }
+                    } else {
+                        setHasStoredMessages(false);
+                    }
                 }
             } catch (error) {
-                console.error('Error loading saved chats:', error);
-            }
-        } else {
-            // Only create a new chat if we don't have any
-            setSavedChats([]);
-            createNewChat();
-        }
-
-        setIsInitializing(false);
-    }, [currentSpace, createNewChat, currentChatId]);
-
-    useEffect(() => {
-        if (savedChats.length > 0 && currentSpace) {
-            localStorage.setItem(`saved_chats_${currentSpace}`, JSON.stringify(savedChats));
-        }
-    }, [savedChats, currentSpace]);
-
-    useEffect(() => {
-        const fetchEndorsedPoints = async () => {
-            if (privyUser?.id) {
-                try {
-                    const userPoints = await fetchUserEndorsedPoints();
-                    if (userPoints && userPoints.length > 0) {
-                        const simplifiedPoints: EndorsedPoint[] = userPoints.map(point => ({
-                            pointId: point.pointId,
-                            content: point.content,
-                            cred: point.endorsedCred
-                        }));
-                        setEndorsedPoints(simplifiedPoints);
-                    }
-                } catch (error) {
-                    console.error('Failed to fetch endorsed points:', error);
-                }
+                console.error("Error checking stored messages:", error);
+                setHasStoredMessages(false);
+            } finally {
+                setIsCheckingDiscourse(false);
             }
         };
 
-        fetchEndorsedPoints();
-    }, [privyUser?.id]);
+        checkStoredMessages();
+    }, []);
 
     const loadStoredMessages = () => {
         try {
@@ -268,6 +590,54 @@ export default function AIAssistant() {
         } catch (error) {
             console.error("Error parsing stored messages:", error);
             return [];
+        }
+    };
+
+    const saveMessagesToStorage = useCallback((messages: DiscourseMessage[]) => {
+        if (!Array.isArray(messages) || messages.length === 0) {
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('discourse_messages');
+            }
+            setStoredMessages([]);
+            setHasStoredMessages(false);
+            return;
+        }
+
+        try {
+            if (typeof window !== 'undefined') {
+                localStorage.setItem('discourse_messages', JSON.stringify(messages));
+                setStoredMessages(messages);
+                setHasStoredMessages(true);
+            }
+        } catch (error) {
+            console.error('Error saving messages to localStorage:', error);
+            toast.error('Error saving messages: Storage error');
+        }
+    }, []);
+
+    const handleViewMessages = () => {
+        try {
+            const messages = loadStoredMessages();
+
+            setStoredMessages(messages);
+
+            if (messages.length > 0) {
+                setShowMessagesModal(true);
+            } else {
+                toast.error('No messages found. Please connect to Discourse first.');
+            }
+        } catch (error) {
+            console.error("Error loading messages:", error);
+            toast.error('Error loading messages from storage');
+        }
+    };
+
+    const handleDeleteMessages = () => {
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('discourse_messages');
+            setStoredMessages([]);
+            setHasStoredMessages(false);
+            toast.success('Messages deleted successfully');
         }
     };
 
@@ -304,259 +674,6 @@ export default function AIAssistant() {
             throw error;
         }
     }, [privyUser, queryClient]);
-
-    const saveMessagesToStorage = useCallback((messages: DiscourseMessage[]) => {
-        if (!Array.isArray(messages) || messages.length === 0) {
-            if (typeof window !== 'undefined') {
-                localStorage.removeItem('discourse_messages');
-            }
-            setStoredMessages([]);
-            setHasStoredMessages(false);
-            return;
-        }
-
-        try {
-            if (typeof window !== 'undefined') {
-                localStorage.setItem('discourse_messages', JSON.stringify(messages));
-                setStoredMessages(messages);
-                setHasStoredMessages(true);
-            }
-        } catch (error) {
-            console.error('Error saving messages to localStorage:', error);
-            toast.error('Error saving messages: Storage error');
-        }
-    }, []);
-
-    const deleteChat = (chatId: string) => {
-        if (!currentSpace) return;
-
-        const updatedChats = savedChats.filter(chat => chat.id !== chatId);
-        setSavedChats(updatedChats);
-        localStorage.setItem(`saved_chats_${currentSpace}`, JSON.stringify(updatedChats));
-
-        if (chatId === currentChatId) {
-            if (updatedChats.length > 0) {
-                setCurrentChatId(updatedChats[0].id);
-                setChatMessages(updatedChats[0].messages);
-            } else {
-                setCurrentChatId(null);
-                setChatMessages([{
-                    role: 'assistant',
-                    content: `Hello! I'm here to help you write your essay. What topic would you like to write about?`
-                }]);
-            }
-        }
-    };
-
-    const switchChat = (chatId: string) => {
-        const chat = savedChats.find(c => c.id === chatId);
-        if (chat) {
-            setCurrentChatId(chatId);
-            setChatMessages(chat.messages);
-        }
-    };
-
-    const handleChatSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        if (!message.trim() || isGenerating || !currentSpace) {
-            return;
-        }
-
-        const userMessageText = message.trim();
-        setMessage('');
-
-        let chatId: string;
-        let initialMessages: ChatMessage[];
-        let messagesWithUserInput: ChatMessage[];
-        let finalMessages: ChatMessage[];
-
-        try {
-            // ======= PHASE 1: ENSURE WE HAVE A VALID CHAT =======
-            if (!currentChatId) {
-                chatId = nanoid();
-
-                initialMessages = [{
-                    role: 'assistant',
-                    content: `Hello! I'm here to help you write your essay. What topic would you like to write about?`
-                }];
-
-                const newChat: SavedChat = {
-                    id: chatId,
-                    title: 'New Chat',
-                    messages: initialMessages,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                    space: currentSpace
-                };
-
-                // Create and save the new chat first, before proceeding
-                await new Promise<void>((resolve, reject) => {
-                    setSavedChats(prev => {
-                        const updated = [newChat, ...prev];
-                        if (currentSpace) {
-                            try {
-                                localStorage.setItem(`saved_chats_${currentSpace}`, JSON.stringify(updated));
-                            } catch (error) {
-                                console.error('Failed to save chat to localStorage:', error);
-                                toast.error('Failed to save chat. Storage might be full.');
-                                reject(error);
-                                return prev;
-                            }
-                        }
-                        resolve();
-                        return updated;
-                    });
-                });
-
-                setCurrentChatId(chatId);
-                setChatMessages(initialMessages);
-            } else {
-                chatId = currentChatId;
-
-                const existingChat = savedChats.find(c => c.id === chatId);
-                if (!existingChat) {
-                    toast.error('Chat not found. Creating a new one.');
-                    return createNewChat();
-                }
-
-                initialMessages = [...chatMessages];
-            }
-
-            // ======= PHASE 2: ADD USER MESSAGE AND GENERATE RESPONSE =======
-            const userMessage: ChatMessage = { role: 'user', content: userMessageText };
-            messagesWithUserInput = [...initialMessages, userMessage];
-
-            setChatMessages(messagesWithUserInput);
-
-            const discourseContext = storedMessages.map(msg => ({
-                role: 'system' as const,
-                content: `[Forum Post from ${new Date(msg.created_at).toLocaleString()}${msg.topic_title ? ` in "${msg.topic_title}"` : ''}]\n${msg.raw || msg.content}`
-            }));
-
-            setIsGenerating(true);
-            setStreamingContent('');
-
-            const stream = await generateChatResponse([...discourseContext, ...messagesWithUserInput], endorsedPoints);
-            if (!stream) {
-                throw new Error('Failed to get response stream');
-            }
-
-            const reader = stream.getReader();
-            let accumulatedContent = '';
-
-            while (true) {
-                try {
-                    const { done, value } = await reader.read();
-                    if (done) {
-                        break;
-                    }
-
-                    if (typeof value !== 'string') {
-                        console.warn('Received non-string chunk:', value);
-                        continue;
-                    }
-
-                    // Ensure proper spacing between chunks
-                    if (accumulatedContent && !accumulatedContent.endsWith('\n') && !value.startsWith('\n')) {
-                        accumulatedContent += ' ';
-                    }
-                    accumulatedContent += value;
-
-                    // Normalize newlines to ensure consistent rendering
-                    accumulatedContent = accumulatedContent.replace(/\r\n/g, '\n');
-
-                    setStreamingContent(accumulatedContent);
-                } catch (error) {
-                    console.error('Error reading stream chunk:', error);
-                    throw new Error('Failed to read response stream');
-                }
-            }
-
-            if (!accumulatedContent.trim()) {
-                throw new Error('Received empty response from AI');
-            }
-
-            const assistantMessage: ChatMessage = {
-                role: 'assistant',
-                content: accumulatedContent
-            };
-
-            finalMessages = [...messagesWithUserInput, assistantMessage];
-
-            await new Promise<void>((resolve, reject) => {
-                setSavedChats(prev => {
-                    try {
-                        const targetChatIndex = prev.findIndex(c => c.id === chatId);
-
-                        if (targetChatIndex === -1) {
-                            reject(new Error('Chat disappeared during processing'));
-                            return prev;
-                        }
-
-                        const updated = [...prev];
-                        const updatedChat = {
-                            ...updated[targetChatIndex],
-                            messages: finalMessages,
-                            updatedAt: new Date().toISOString()
-                        };
-                        updated[targetChatIndex] = updatedChat;
-
-                        if (currentSpace) {
-                            try {
-                                localStorage.setItem(`saved_chats_${currentSpace}`, JSON.stringify(updated));
-                            } catch (storageError) {
-                                console.error('Failed to save updated chat to localStorage:', storageError);
-                                toast.error('Failed to save chat update. Storage might be full.');
-                                throw storageError;
-                            }
-                        }
-                        resolve();
-                        return updated;
-                    } catch (error) {
-                        reject(error);
-                        return prev;
-                    }
-                });
-            });
-
-            setChatMessages(finalMessages);
-            setStreamingContent('');
-
-        } catch (error) {
-            console.error('Error in chat submission:', error);
-
-            if (error instanceof Error) {
-                setMessage(userMessageText);
-            }
-
-            if (error instanceof Error) {
-                if (error.message.includes('Storage')) {
-                    toast.error('Failed to save chat: Storage is full. Try clearing some old chats.');
-                } else if (error.message.includes('stream')) {
-                    toast.error('Failed to generate response. Please try again.');
-                } else if (error.message.includes('empty response')) {
-                    toast.error('AI returned an empty response. Please try again.');
-                } else if (error.message.includes('disappeared')) {
-                    toast.error('Chat session was lost. Creating a new one.');
-                    createNewChat();
-                } else {
-                    toast.error('An unexpected error occurred. Please try again.');
-                }
-            } else {
-                toast.error('Failed to process your message. Please try again.');
-            }
-
-            if (currentChatId) {
-                const currentChat = savedChats.find(c => c.id === currentChatId);
-                if (currentChat) {
-                    setChatMessages(currentChat.messages);
-                }
-            }
-        } finally {
-            setIsGenerating(false);
-            setStreamingContent('');
-        }
-    };
 
     const handleConnectToDiscourse = useCallback(async () => {
         if (isConnectingToDiscourse) return;
@@ -675,34 +792,6 @@ export default function AIAssistant() {
         }
     }, [discourseUsername, discourseUrl, userData, handleUpdateProfile, saveMessagesToStorage, isConnectingToDiscourse]);
 
-    useEffect(() => {
-        const shouldConnect = userData?.discourseUsername &&
-            userData?.discourseCommunityUrl &&
-            !hasStoredMessages &&
-            !isConnectingToDiscourse;
-
-        if (shouldConnect) {
-            const messages = loadStoredMessages();
-            if (messages.length === 0) {
-                handleConnectToDiscourse();
-            } else {
-                setStoredMessages(messages);
-                setHasStoredMessages(true);
-            }
-        }
-    }, [userData, handleConnectToDiscourse, hasStoredMessages, isConnectingToDiscourse]);
-
-    useEffect(() => {
-        if (userData) {
-            if (!userData.discourseUsername) {
-                setShowDiscourseDialog(true);
-            } else {
-                setDiscourseUsername(userData.discourseUsername);
-                setDiscourseUrl(userData.discourseCommunityUrl || 'https://forum.scroll.io');
-            }
-        }
-    }, [userData]);
-
     const handleConsentAndConnect = async () => {
         try {
             // Ensure user data is available before updating profile
@@ -730,111 +819,6 @@ export default function AIAssistant() {
             toast.error('Failed to update consent settings');
         }
     };
-
-    const handleViewMessages = () => {
-        try {
-            console.log("Loading stored messages from localStorage");
-            const messages = loadStoredMessages();
-            console.log(`Found ${messages.length} messages in localStorage:`, messages);
-
-            // Explicitly update the state with the loaded messages
-            setStoredMessages(messages);
-
-            if (messages.length > 0) {
-                setShowMessagesModal(true);
-            } else {
-                toast.error('No messages found. Please connect to Discourse first.');
-            }
-        } catch (error) {
-            console.error("Error loading messages:", error);
-            toast.error('Error loading messages from storage');
-        }
-    };
-
-    const handleDeleteMessages = () => {
-        if (typeof window !== 'undefined') {
-            localStorage.removeItem('discourse_messages');
-            setStoredMessages([]);
-            setHasStoredMessages(false);
-            toast.success('Messages deleted successfully');
-        }
-    };
-
-    useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [chatMessages, streamingContent]);
-
-    useEffect(() => {
-        if (currentChatId && chatMessages.length > 0) {
-            setSavedChats(prev => {
-                const updatedChats = prev.map(chat =>
-                    chat.id === currentChatId
-                        ? {
-                            ...chat,
-                            messages: chatMessages,
-                            updatedAt: new Date().toISOString()
-                        }
-                        : chat
-                );
-                if (currentSpace) {
-                    localStorage.setItem(`saved_chats_${currentSpace}`, JSON.stringify(updatedChats));
-                }
-                return updatedChats;
-            });
-        }
-    }, [currentChatId, chatMessages, currentSpace]);
-
-    const renameChat = (chatId: string, newTitle: string) => {
-        if (!newTitle.trim()) return;
-
-        setSavedChats(prev => {
-            const chatIndex = prev.findIndex(c => c.id === chatId);
-            if (chatIndex === -1) return prev;
-
-            const updated = [...prev];
-            updated[chatIndex] = {
-                ...updated[chatIndex],
-                title: newTitle.trim()
-            };
-
-            if (currentSpace) {
-                localStorage.setItem(`saved_chats_${currentSpace}`, JSON.stringify(updated));
-            }
-            return updated;
-        });
-
-        setChatToRename(null);
-        setNewChatTitle('');
-    };
-
-    useEffect(() => {
-        const checkStoredMessages = () => {
-            setIsCheckingDiscourse(true);
-            try {
-                if (typeof window !== 'undefined') {
-                    const storedData = localStorage.getItem('discourse_messages');
-                    if (storedData) {
-                        const messages = JSON.parse(storedData);
-                        if (Array.isArray(messages) && messages.length > 0) {
-                            setStoredMessages(messages);
-                            setHasStoredMessages(true);
-                        } else {
-                            setHasStoredMessages(false);
-                        }
-                    } else {
-                        setHasStoredMessages(false);
-                    }
-                }
-            } catch (error) {
-                console.error("Error checking stored messages:", error);
-                setHasStoredMessages(false);
-            } finally {
-                setIsCheckingDiscourse(false);
-            }
-        };
-
-        checkStoredMessages();
-    }, []);
 
     return (
         <div className="flex h-[calc(100vh-var(--header-height))]">
@@ -1029,7 +1013,7 @@ export default function AIAssistant() {
 
                 {/* Chat Input */}
                 <div className={`flex-shrink-0 border-t bg-background ${isMobile ? 'p-3' : 'p-6'}`}>
-                    <form className={`${isMobile ? 'w-full' : 'max-w-3xl mx-auto'} flex gap-3`} onSubmit={handleChatSubmit}>
+                    <form className={`${isMobile ? 'w-full' : 'max-w-3xl mx-auto'} flex gap-3`} onSubmit={handleSubmit}>
                         <AutosizeTextarea
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
@@ -1043,26 +1027,46 @@ export default function AIAssistant() {
                             minHeight={24}
                             maxHeight={isMobile ? 100 : 200}
                             onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
+                                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                                     e.preventDefault();
-                                    const start = e.currentTarget.selectionStart;
-                                    const end = e.currentTarget.selectionEnd;
-                                    setMessage(message.substring(0, start) + '\n' + message.substring(end));
-                                    // Need to wait for state update before setting cursor position
-                                    setTimeout(() => {
-                                        e.currentTarget.selectionStart = e.currentTarget.selectionEnd = start + 1;
-                                    }, 0);
+                                    const form = e.currentTarget.form;
+                                    if (form) {
+                                        const submitEvent = new Event('submit', { cancelable: true, bubbles: true });
+                                        form.dispatchEvent(submitEvent);
+                                    }
+                                } else if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    const target = e.currentTarget;
+                                    const start = target.selectionStart;
+                                    const end = target.selectionEnd;
+                                    const newValue = message.substring(0, start) + '\n' + message.substring(end);
+                                    setMessage(newValue);
+                                    requestAnimationFrame(() => {
+                                        target.selectionStart = target.selectionEnd = start + 1;
+                                    });
                                 }
                             }}
                         />
-                        <AuthenticatedActionButton
-                            type="submit"
-                            disabled={isGenerating || !message.trim() || !currentSpace || isInitializing}
-                            rightLoading={isGenerating}
-                            className="rounded-lg self-end"
-                        >
-                            {isGenerating ? 'Thinking...' : 'Send'}
-                        </AuthenticatedActionButton>
+                        <div className="flex gap-2 items-end">
+                            <AuthenticatedActionButton
+                                type="submit"
+                                disabled={isGenerating || !message.trim() || !currentSpace || isInitializing}
+                                rightLoading={isGenerating}
+                                className="rounded-lg"
+                            >
+                                {isGenerating ? 'Thinking...' : 'Send'}
+                            </AuthenticatedActionButton>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setShowSettingsDialog(true)}
+                                className="rounded-lg h-10 w-10 text-muted-foreground hover:text-foreground"
+                                title="Chat Settings"
+                            >
+                                <SlidersHorizontal className="h-4 w-4" />
+                            </Button>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -1097,7 +1101,9 @@ export default function AIAssistant() {
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            onClick={handleViewMessages}
+                                            onClick={() => {
+                                                handleViewMessages();
+                                            }}
                                             className="text-xs"
                                         >
                                             View Messages
@@ -1105,7 +1111,7 @@ export default function AIAssistant() {
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            onClick={handleDeleteMessages}
+                                            onClick={() => handleDeleteMessages()}
                                             className="text-xs text-destructive hover:text-destructive"
                                         >
                                             Clear
@@ -1308,6 +1314,73 @@ export default function AIAssistant() {
                         <Button onClick={() => setShowMessagesModal(false)}>
                             Close
                         </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Settings Dialog */}
+            <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Chat Settings</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label>Include Discourse Messages</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    Send your forum messages to the AI for context
+                                </p>
+                            </div>
+                            <Switch
+                                checked={settings.includeDiscourseMessages}
+                                onCheckedChange={(checked) =>
+                                    setSettings(prev => ({ ...prev, includeDiscourseMessages: checked }))
+                                }
+                            />
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label>Include Points</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    Send your points to the AI for context
+                                </p>
+                            </div>
+                            <Switch
+                                checked={settings.includePoints}
+                                onCheckedChange={(checked) =>
+                                    setSettings(prev => ({ ...prev, includePoints: checked }))
+                                }
+                            />
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label>Include Endorsements</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    Send your endorsed points to the AI for context
+                                </p>
+                            </div>
+                            <Switch
+                                checked={settings.includeEndorsements}
+                                onCheckedChange={(checked) =>
+                                    setSettings(prev => ({ ...prev, includeEndorsements: checked }))
+                                }
+                            />
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label>Include Rationales</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    Send your rationales to the AI for context
+                                </p>
+                            </div>
+                            <Switch
+                                checked={settings.includeRationales}
+                                onCheckedChange={(checked) =>
+                                    setSettings(prev => ({ ...prev, includeRationales: checked }))
+                                }
+                            />
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>
