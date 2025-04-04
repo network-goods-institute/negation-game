@@ -123,11 +123,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
         )
       );
 
-      if (
-        reviewResults.existingSimilarCounterpoints.length > 0 ||
-        reviewResults.rating < GOOD_ENOUGH_POINT_RATING
-      )
-        setReviewDialogOpen(true);
+      setReviewDialogOpen(true);
 
       return reviewResults;
     },
