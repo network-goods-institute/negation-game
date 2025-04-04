@@ -753,9 +753,11 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           "flex flex-col gap-4 p-4 sm:p-6 max-w-xl overflow-hidden",
           // Mobile: Responsive height
           "h-[calc(100vh-2rem)] max-h-[900px]",
-          // Desktop:
-          "sm:min-h-[800px] sm:max-h-[85vh]",
+          // Desktop: Remove min-height constraint, ensure max-height scales with viewport
+          "sm:max-h-[85vh]"
         )}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between gap-2 pb-2 border-b shrink-0">
@@ -826,6 +828,7 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
           className={cn(
             "flex-1 min-h-0", // min-h-0 is important for proper flex scrolling
             "overflow-y-auto",
+            "pr-1"
           )}
         >
           <div className={cn("space-y-6")}>
@@ -1261,11 +1264,13 @@ export const RestakeDialog: FC<RestakeDialogProps> = ({
         <div
           className={cn(
             "shrink-0", // Prevent shrinking
+            "sticky bottom-0", // Keep at bottom
             "flex flex-col gap-2 border-t bg-background pt-4",
-            "relative",
+            "mt-auto", // Push to bottom of flex container
             "px-0",
             // bottom padding for mobile
             "pb-5 sm:pb-0",
+            "z-10"
           )}
         >
           {/* Slider Section */}
