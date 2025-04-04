@@ -1,4 +1,5 @@
 import { negate } from "@/actions/negate";
+import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 import { useAuthenticatedMutation } from "@/mutations/useAuthenticatedMutation";
 import { useInvalidateRelatedPoints } from "@/queries/usePointData";
 import { userQueryKey } from "@/queries/useUser";
@@ -10,6 +11,7 @@ export const useNegate = () => {
   const queryClient = useQueryClient();
   const { user } = usePrivy();
   const invalidateRelatedPoints = useInvalidateRelatedPoints();
+  const { markPointAsRead } = useVisitedPoints();
   return useAuthenticatedMutation({
     mutationFn: negate,
     onSuccess: (_negationId, { negatedPointId, counterpointId }) => {
@@ -19,6 +21,8 @@ export const useNegate = () => {
       invalidateRelatedPoints(negatedPointId);
       invalidateRelatedPoints(counterpointId);
 
+      // mark the negated point as visited
+      markPointAsRead(negatedPointId);
       // Invalidate point-negations to update relationships
       queryClient.invalidateQueries({
         queryKey: [negatedPointId, "point-negations"],
