@@ -58,6 +58,7 @@ Generate 3 strong counterpoints that challenge the STATEMENT above. For each cou
 - Go straight to the point without opening remarks
 - Ensure it makes sense on its own
 - Use modern, straightforward language
+- Ensure proper punctuation and grammar, i.e. Start with capital letter, end with period.
 
 Focus on being clear and insightful, as if you're explaining a thoughtful counterargument to a friend in today's world.`;
 

@@ -33,7 +33,7 @@ Considering that the user is proposing the COUNTERPOINT as a rebuttal of the NEG
 - Is a declarative statement
 - Expresses a single idea (claim)
 - Makes sense on its own
-- Is preferably orthographically correct: starts with a capital letter, ends with a period.
+- Is orthographically correct: starts with a capital letter, ends with a period.
 - Is grammatically correct
 - Is concise and articulate
 - Is not vague or ambiguous
@@ -64,6 +64,9 @@ Also offer 3 rephrasings of the COUNTERPOINT that would make it better according
 - The rephrasings should contain between ${POINT_MIN_LENGTH} and ${POINT_MAX_LENGTH} characters.
 
 Focus on being clear, concise, and easy to understand, as if you're explaining something to a friend in today's world in an accessible way.
+
+Some conditions that require immediate rejection:
+- The user provided counterpoint has improper punctuation and grammar, i.e. does not start with a capital letter or does not end with a period.
 `;
 
   const { object: counterpointEvaluation } = await withRetry(async () => {
