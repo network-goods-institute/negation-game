@@ -478,9 +478,9 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                   <ArrowLeftIcon className="size-4" />
                   <span className="text-sm">Back</span>
                 </Button>
-                <h1 className="text-sm font-bold items-center gap-2 ml-2 md:block hidden">
+                <h1 className="text-sm font-bold items-center gap-2 ml-2 md:flex hidden">
                   <ViewpointIcon className="size-4" />
-                  Rationale
+                  <span>Rationale</span>
                 </h1>
                 {/* Graph toggle on mobile */}
                 <div className="md:hidden">
@@ -496,43 +496,45 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                 {/* Rationale text on mobile */}
                 <h1 className="text-sm font-bold flex items-center gap-2 md:hidden">
                   <ViewpointIcon className="size-4" />
-                  Rationale
+                  <span>Rationale</span>
                 </h1>
               </div>
-              {/* Move copy buttons up here on mobile */}
-              <div className="flex items-center gap-2 md:hidden shrink-0">
+              {/* Mobile copy buttons */}
+              <div className="flex items-center gap-1 md:hidden">
                 <Button
                   variant="outline"
+                  size="sm"
                   className={cn(
-                    "rounded-full flex items-center gap-2 px-3 shrink-0",
+                    "rounded-full flex items-center gap-1 px-2 py-1 h-7 text-xs",
                     isCopyingUrl && "text-green-500 border-green-500"
                   )}
                   onClick={handleCopyUrl}
                 >
-                  <span className="text-sm font-bold whitespace-nowrap">
-                    {isCopyingUrl ? "Copied!" : "Copy Link"}
+                  <span className="font-medium whitespace-nowrap">
+                    {isCopyingUrl ? "Copied" : "Link"}
                   </span>
                   {isCopyingUrl ? (
-                    <CheckIcon className="size-4 shrink-0" />
+                    <CheckIcon className="size-3" />
                   ) : (
-                    <LinkIcon className="size-4 shrink-0" />
+                    <LinkIcon className="size-3" />
                   )}
                 </Button>
                 <AuthenticatedActionButton
                   variant="outline"
-                  className="rounded-full flex items-center gap-2 px-3 shrink-0"
+                  size="sm"
+                  className="rounded-full flex items-center gap-1 px-2 py-1 h-7 text-xs"
                   onClick={handleCopy}
                   disabled={isCopying}
                 >
                   {isCopying ? (
-                    <div className="flex items-center gap-2">
-                      <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin shrink-0" />
-                      <span className="text-sm font-bold whitespace-nowrap">Copying...</span>
+                    <div className="flex items-center gap-1">
+                      <span className="size-3 border border-background border-t-transparent rounded-full animate-spin" />
+                      <span className="font-medium whitespace-nowrap">Copying</span>
                     </div>
                   ) : (
                     <>
-                      <span className="text-sm font-bold whitespace-nowrap">Make a Copy</span>
-                      <CopyIcon className="size-4 shrink-0" />
+                      <span className="font-medium whitespace-nowrap">Copy</span>
+                      <CopyIcon className="size-3" />
                     </>
                   )}
                 </AuthenticatedActionButton>
