@@ -45,6 +45,9 @@ Considering that the user is proposing the COUNTERPOINT as a rebuttal of the NEG
 - Focus directly on the subject matter without unnecessary framing
 - Its claim is opposite and mutually exclusive to the claim in the NEGATED POINT
 
+Some conditions that require immediate rejection and a score of 1:
+- The user provided counterpoint has improper punctuation and grammar, i.e. does not start with a capital letter or does not end with a period.
+
 then, rate it from 1 to 10.
 The rating should not take into account morality, ethics or the merit of the claim, but rather how well it meets the criteria above.
 
@@ -65,8 +68,6 @@ Also offer 3 rephrasings of the COUNTERPOINT that would make it better according
 
 Focus on being clear, concise, and easy to understand, as if you're explaining something to a friend in today's world in an accessible way.
 
-Some conditions that require immediate rejection:
-- The user provided counterpoint has improper punctuation and grammar, i.e. does not start with a capital letter or does not end with a period.
 `;
 
   const { object: counterpointEvaluation } = await withRetry(async () => {
