@@ -6,7 +6,6 @@ import { NegationEdge } from "@/components/graph/NegationEdge";
 import { PointNode } from "@/components/graph/PointNode";
 import { StatementNode } from "@/components/graph/StatementNode";
 import { GlobalExpandPointDialog } from "@/components/graph/ExpandPointDialog";
-import { MergePointsDialog } from "@/components/graph/MergePointsDialog";
 import { Button } from "@/components/ui/button";
 import {
   Background,
@@ -47,6 +46,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { copyViewpointAndNavigate } from "@/utils/copyViewpoint";
 import { cn } from "@/lib/cn";
+import { MergeNodesDialog } from "@/components/graph/MergeNodesDialog";
 
 function debounce<T extends (...args: any[]) => any>(
   func: T,
@@ -705,7 +705,7 @@ export const GraphView = ({
       </ReactFlow>
 
       <GlobalExpandPointDialog />
-      <MergePointsDialog />
+      <MergeNodesDialog />
 
       <AlertDialog open={isDiscardDialogOpen} onOpenChange={setIsDiscardDialogOpen}>
         <AlertDialogContent className={cn("sm:max-w-[425px]", unsavedChangesModalClassName)}>
