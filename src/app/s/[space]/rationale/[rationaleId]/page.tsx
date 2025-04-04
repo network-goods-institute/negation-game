@@ -1,6 +1,6 @@
 "use client";
 
-import { viewpointGraphAtom, collapsedPointIdsAtom } from "@/atoms/viewpointAtoms";
+import { viewpointGraphAtom, collapsedPointIdsAtom, ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
@@ -46,7 +46,6 @@ import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 import { copyViewpointAndNavigate } from "@/utils/copyViewpoint";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 
-// Create dynamic ReactMarkdown component
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
   loading: () => <div className="animate-pulse h-32 bg-muted/30 rounded-md" />,
   ssr: false // Disable server-side rendering
@@ -197,6 +196,13 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     const titleChanged = originalTitleRef.current !== editableTitle;
     const descriptionChanged = originalDescriptionRef.current !== editableDescription;
 
+    console.log("[RationalePage] Content changed:", {
+      titleChanged,
+      descriptionChanged,
+      originalTitle: originalTitleRef.current,
+      newTitle: editableTitle
+    });
+
     if (titleChanged || descriptionChanged) {
       // Mark as modified to show save button
       setIsContentModified(true);
@@ -218,7 +224,12 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     setIsDescriptionEditing(false);
   }, [viewpoint, editableTitle, editableDescription, queryClient]);
 
-  const onSaveChanges = useCallback(async () => {
+  const onSaveChanges = useCallback(async (filteredGraph: ViewpointGraph) => {
+    if (!filteredGraph) {
+      console.error("[RationalePage] No graph state to save");
+      return false;
+    }
+
     try {
       setIsSaving(true);
 
@@ -228,11 +239,8 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
           // Get the current space
           const currentSpace = space?.data?.id || 'default';
 
-          // Get the CURRENT graph state directly from React Flow
-          const currentGraph = {
-            nodes: reactFlow.getNodes(),
-            edges: reactFlow.getEdges()
-          };
+          // Use the filtered graph passed from GraphView
+          const currentGraph = filteredGraph;
 
           // Store the viewpoint data in session storage with space information
           const viewpointData = {
@@ -277,14 +285,16 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
         setIsDescriptionEditing(false);
       }
 
-      if (localGraph && viewpoint) {
+      if (filteredGraph && viewpoint) {
         // Update local query cache with new graph
         queryClient.setQueryData(["viewpoint", viewpoint.id], {
           ...viewpoint,
           title: editableTitle,
           description: editableDescription,
-          graph: localGraph,
+          graph: filteredGraph,
         });
+
+        setLocalGraph(filteredGraph);
       }
       // Reset collapsed points when saving changes
       setCollapsedPointIds(new Set());
@@ -313,12 +323,32 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     router,
     basePath,
     setCollapsedPointIds,
-    localGraph,
+    setLocalGraph,
     space?.data?.id,
     editableTitle,
     editableDescription,
-    updateDetailsMutation
+    updateDetailsMutation,
+    setIsContentModified
   ]);
+
+  useEffect(() => {
+    if (reactFlow && editableTitle) {
+      reactFlow.setNodes((nodes: AppNode[]) => {
+        return nodes.map(node => {
+          if (node.id === "statement" && node.type === "statement") {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                statement: editableTitle
+              }
+            };
+          }
+          return node;
+        });
+      });
+    }
+  }, [editableTitle, reactFlow]);
 
   const [editFlowInstance, setEditFlowInstance] = useState<ReactFlowInstance<AppNode> | null>(null);
 
@@ -707,6 +737,11 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                 : undefined
             }
             closeButtonClassName="top-4 right-4"
+            onNodesChange={(changes) => {
+              const { viewport, ...graph } = reactFlow.toObject();
+
+              setGraph(graph);
+            }}
           />
         </Dynamic>
 

@@ -76,7 +76,7 @@ function debounce<T extends (...args: any[]) => any>(
 
 export interface GraphViewProps
   extends Omit<ReactFlowProps<AppNode>, "onDelete"> {
-  onSaveChanges?: () => Promise<boolean | void>;
+  onSaveChanges?: (graph: ViewpointGraph) => Promise<boolean | void>;
   canModify?: boolean;
   rootPointId?: number;
   statement?: string;
@@ -388,16 +388,34 @@ export const GraphView = ({
       setIsSaving_local(true);
 
       try {
-        // Filter out collapsed nodes
-        const filteredNodes = nodes.filter((n) => {
-          const shouldInclude = n.type !== "point" || !collapsedPointIds.has(n.data.pointId);
-          return shouldInclude;
+        // First, ensure the statement node is updated with the current statement
+        // This ensures the title changes are reflected in the graph
+        const updatedNodes = nodes.map(node => {
+          if (node.id === "statement" && node.type === "statement") {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                statement: statement || "",
+                _lastUpdated: Date.now()
+              }
+            };
+          }
+          return node;
         });
 
+        // Instead of filtering nodes based on collapsedPointIds,
+        // we'll directly use the current nodes in the graph
+        // this for some reason fixes the isue where direct children of statement nodes like to vanish randomly
+        // This ensures we only keep nodes that are actually visible
+        const filteredNodes = updatedNodes;
+
+        // Filter edges to only include those connected to nodes in the graph
         const filteredEdges = edges.filter((e) =>
-          filteredNodes.some((n) => n.id === e.source) &&
-          filteredNodes.some((n) => n.id === e.target)
+          updatedNodes.some((n) => n.id === e.source) &&
+          updatedNodes.some((n) => n.id === e.target)
         );
+
         const filteredGraph: ViewpointGraph = {
           nodes: filteredNodes,
           edges: filteredEdges,
@@ -428,10 +446,12 @@ export const GraphView = ({
             setLocalGraph(filteredGraph);
           }
 
+          setNodes(updatedNodes);
+
           // Call onSaveChanges for any additional updates
           try {
             if (onSaveChanges) {
-              const saveResult = await onSaveChanges();
+              const saveResult = await onSaveChanges(filteredGraph);
               if (saveResult === false) {
                 saveSuccess = false;
               }
@@ -486,14 +506,14 @@ export const GraphView = ({
     [
       nodes,
       edges,
-      collapsedPointIds,
       onSaveChanges,
       setLocalGraph,
       rationaleId,
       setIsModified,
       canModify,
       statement,
-      handleCopy
+      handleCopy,
+      setNodes
     ]
   );
 
