@@ -37,6 +37,15 @@ jest.mock("@/queries/useRestakeForPoints", () => ({
   ]),
 }));
 
+// Mock useVisitedPoints hook
+jest.mock("@/hooks/useVisitedPoints", () => ({
+  useVisitedPoints: jest.fn(() => ({
+    markPointAsRead: jest.fn(),
+    isVisited: jest.fn(),
+    arePointsVisited: jest.fn(),
+  })),
+}));
+
 // Instead of mocking the action itself, mock its dependencies
 jest.mock("@/actions/restake", () => {
   const restake = jest.fn(async ({ pointId, negationId, amount }) => 123);
@@ -55,6 +64,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { usePrivy } from "@privy-io/react-auth";
 import { doubtForRestakeQueryKey } from "@/queries/useDoubtForRestake";
 import { restakeForPointsQueryKey } from "@/queries/useRestakeForPoints";
+import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 
 describe("useRestake", () => {
   // Setup common mocks
@@ -64,6 +74,7 @@ describe("useRestake", () => {
     refetchQueries: jest.fn().mockResolvedValue(undefined),
   };
   const mockUser = { id: "user-123" };
+  const mockMarkPointAsRead = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -74,6 +85,11 @@ describe("useRestake", () => {
     );
     (useQueryClient as jest.Mock).mockReturnValue(mockQueryClient);
     (usePrivy as jest.Mock).mockReturnValue({ user: mockUser });
+    (useVisitedPoints as jest.Mock).mockReturnValue({
+      markPointAsRead: mockMarkPointAsRead,
+      isVisited: jest.fn(),
+      arePointsVisited: jest.fn(),
+    });
     (doubtForRestakeQueryKey as jest.Mock).mockImplementation(
       ({ pointId, negationId, userId }) => [
         "doubt-for-restake",
