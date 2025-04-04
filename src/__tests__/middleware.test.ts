@@ -112,6 +112,51 @@ describe("Middleware", () => {
       );
     });
 
+    test("handles paths that already contain /s/[space]/ by using only the subdomain", () => {
+      mockMiddleware(
+        "https://scroll.negationgame.com/s/ethereum/point/123",
+        "scroll.negationgame.com"
+      );
+
+      expect(NextResponse.redirect).toHaveBeenCalledWith(
+        expect.objectContaining({
+          href: expect.stringContaining(
+            "https://play.negationgame.com/s/scroll/point/123"
+          ),
+        })
+      );
+    });
+
+    test("handles path with /s/ prefix but no additional path", () => {
+      mockMiddleware(
+        "https://scroll.negationgame.com/s/ethereum",
+        "scroll.negationgame.com"
+      );
+
+      expect(NextResponse.redirect).toHaveBeenCalledWith(
+        expect.objectContaining({
+          href: expect.stringContaining(
+            "https://play.negationgame.com/s/scroll"
+          ),
+        })
+      );
+    });
+
+    test("preserves query parameters when handling paths with /s/[space]", () => {
+      mockMiddleware(
+        "https://scroll.negationgame.com/s/ethereum/point/123?foo=bar&test=123",
+        "scroll.negationgame.com"
+      );
+
+      expect(NextResponse.redirect).toHaveBeenCalledWith(
+        expect.objectContaining({
+          href: expect.stringMatching(
+            /https:\/\/play\.negationgame\.com\/s\/scroll\/point\/123\/?(?:\?|&)(?:.*foo=bar.*&.*test=123|.*test=123.*&.*foo=bar)/
+          ),
+        })
+      );
+    });
+
     test("preserves query parameters when redirecting", () => {
       mockMiddleware(
         "https://scroll.negationgame.com?foo=bar&test=123",
@@ -121,7 +166,7 @@ describe("Middleware", () => {
       expect(NextResponse.redirect).toHaveBeenCalledWith(
         expect.objectContaining({
           href: expect.stringMatching(
-            /https:\/\/play\.negationgame\.com\/s\/scroll\?foo=bar&test=123/
+            /https:\/\/play\.negationgame\.com\/s\/scroll\/?(?:\?|&)(?:.*foo=bar.*&.*test=123|.*test=123.*&.*foo=bar)/
           ),
         })
       );

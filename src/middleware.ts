@@ -91,10 +91,21 @@ function handleSubdomain(
     return NextResponse.redirect(new URL("https://negationgame.com"));
   }
 
-  // Check if the subdomain is a valid space using static list
   if (VALID_SPACE_IDS.has(subdomain)) {
+    let targetPath = url.pathname;
+
+    // If path already starts with /s/, remove the existing space parameter
+    if (targetPath.startsWith("/s/")) {
+      // Extract the part after /s/{space}/
+      const pathParts = targetPath.split("/").filter(Boolean);
+      if (pathParts.length >= 2) {
+        // Remove the 's' and the original space name, keep rest of path
+        pathParts.splice(0, 2);
+        targetPath = pathParts.length > 0 ? `/${pathParts.join("/")}` : "";
+      }
+    }
+
     // Redirect to the space page on play subdomain
-    const targetPath = url.pathname === "/" ? "" : url.pathname;
     const spaceUrl = new URL(
       `/s/${subdomain}${targetPath}`,
       "https://play.negationgame.com"
