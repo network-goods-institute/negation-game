@@ -7,18 +7,22 @@ import { useQueryClient } from "@tanstack/react-query";
 import { pointQueryKey } from "@/queries/usePointData";
 import { doubtForRestakeQueryKey } from "@/queries/useDoubtForRestake";
 import { restakeForPointsQueryKey } from "@/queries/useRestakeForPoints";
+import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 
 export const useRestake = () => {
   const queryClient = useQueryClient();
   const { user } = usePrivy();
   const invalidateRelatedPoints = useInvalidateRelatedPoints();
-
+  const { markPointAsRead } = useVisitedPoints();
   return useAuthenticatedMutation({
     mutationFn: restake,
     onSuccess: async (_restakeId, { pointId, negationId }) => {
       // Invalidate both points involved
       invalidateRelatedPoints(pointId);
       invalidateRelatedPoints(negationId);
+
+      // mark the restaked point as visited
+      markPointAsRead(pointId);
 
       // Invalidate restake-specific queries
       queryClient.invalidateQueries({
