@@ -36,6 +36,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { recentlyCreatedNegationIdAtom } from "@/atoms/recentlyCreatedNegationIdAtom";
 import { expandDialogAtom } from "@/components/graph/ExpandPointDialog";
+import { mergeDialogAtom, DuplicatePointNode } from "@/components/graph/MergePointsDialog";
+import { GitMergeIcon } from "lucide-react";
+import { findDuplicatePointsInGraph } from "@/utils/findDuplicatePoints";
+import { Button } from "@/components/ui/button";
 
 export type PointNodeData = {
   pointId: number;
@@ -113,8 +117,6 @@ export const PointNode = ({
 
   const [_, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
   const [collapsedNodePositions, setCollapsedNodePositions] = useAtom(collapsedNodePositionsAtom);
-
-
 
   const expandNegations = useCallback(() => {
     const allNodes = getNodes();
@@ -558,7 +560,6 @@ export const PointNode = ({
     }
   }, [collapseSelfAndNegations]);
 
-
   // Reset animation state after mount
   useEffect(() => {
     if (!hasAnimationPlayed && (isExpanding || dataIsExpanding)) {
@@ -718,6 +719,49 @@ export const PointNode = ({
       }));
   }, [pointData, pointId]);
 
+  const findDuplicateNodes = useCallback(() => {
+    const allNodes = getNodes();
+    const duplicates = findDuplicatePointsInGraph(allNodes);
+
+    if (!duplicates.has(pointId)) return null;
+
+    const nodeIds = duplicates.get(pointId) || [];
+    if (nodeIds.length <= 1) return null;
+
+    const duplicateNodeData: DuplicatePointNode[] = nodeIds.map(nodeId => {
+      const nodeConnections = getEdges().filter(edge => edge.source === nodeId);
+      const parentIds = nodeConnections.map(conn => {
+        const parentNode = getNode(conn.target);
+        return parentNode?.data?.pointId || conn.target;
+      }) as (string | number)[];
+
+      return {
+        id: nodeId,
+        pointId,
+        parentIds: parentIds
+      };
+    });
+
+    return duplicateNodeData;
+  }, [getNodes, getEdges, pointId, getNode]);
+
+  const [hasDuplicates, setHasDuplicates] = useState(false);
+  const setMergeDialogState = useSetAtom(mergeDialogAtom);
+
+  useEffect(() => {
+    const duplicates = findDuplicateNodes();
+    setHasDuplicates(!!duplicates && duplicates.length > 1);
+
+    // Set up an interval to periodically check for duplicates
+    // This helps with reliability especially after collapsing/expanding
+    const checkInterval = setInterval(() => {
+      const duplicates = findDuplicateNodes();
+      setHasDuplicates(!!duplicates && duplicates.length > 1);
+    }, 1000);
+
+    return () => clearInterval(checkInterval);
+  }, [findDuplicateNodes]);
+
   return (
     <>
       <div
@@ -795,6 +839,31 @@ export const PointNode = ({
               <XIcon className="size-4" />
             )}
           </Handle>
+        )}
+        {hasDuplicates && (
+          <Button
+            variant="outline"
+            size="icon"
+            title="Merge duplicate points"
+            className="absolute bottom-1 right-1 h-6 w-6 p-0 rounded-full bg-yellow-500/10 border-yellow-500 text-yellow-500 hover:bg-yellow-500/20 z-20"
+            onClick={(e) => {
+              e.stopPropagation();
+              const duplicateData = findDuplicateNodes();
+              if (duplicateData) {
+                setMergeDialogState({
+                  isOpen: true,
+                  pointId: pointId,
+                  duplicateNodes: duplicateData,
+                  onClose: () => {
+                    // Any cleanup needed
+                  }
+                });
+              }
+            }}
+          >
+            <GitMergeIcon className="h-3.5 w-3.5" />
+            <span className="sr-only">Merge duplicate points</span>
+          </Button>
         )}
         {pointData ? (
           <>

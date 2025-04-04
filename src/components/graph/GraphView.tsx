@@ -6,6 +6,7 @@ import { NegationEdge } from "@/components/graph/NegationEdge";
 import { PointNode } from "@/components/graph/PointNode";
 import { StatementNode } from "@/components/graph/StatementNode";
 import { GlobalExpandPointDialog } from "@/components/graph/ExpandPointDialog";
+import { MergePointsDialog } from "@/components/graph/MergePointsDialog";
 import { Button } from "@/components/ui/button";
 import {
   Background,
@@ -704,6 +705,7 @@ export const GraphView = ({
       </ReactFlow>
 
       <GlobalExpandPointDialog />
+      <MergePointsDialog />
 
       <AlertDialog open={isDiscardDialogOpen} onOpenChange={setIsDiscardDialogOpen}>
         <AlertDialogContent className={cn("sm:max-w-[425px]", unsavedChangesModalClassName)}>
