@@ -716,18 +716,18 @@ export const GraphView = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel
+            <AlertDialogAction
               disabled={isSaving_local || isDiscarding}
               onClick={() => handleDiscard()}
             >
               {isDiscarding ? "Discarding..." : "Discard changes"}
-            </AlertDialogCancel>
-            <AlertDialogAction
+            </AlertDialogAction>
+            <AlertDialogCancel
               disabled={isSaving_local || isDiscarding}
               onClick={() => handleSave()}
             >
               {isSaving_local ? "Saving..." : "Save changes"}
-            </AlertDialogAction>
+            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
