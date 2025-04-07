@@ -830,9 +830,8 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
         <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow bg-background">
             <div className="relative w-full sm:col-[2] flex flex-col gap-0 border-x overflow-auto">
                 {space && space.data && space.data.id !== DEFAULT_SPACE && (
-                    <>
-                        <div className="absolute top-0 h-10 w-full bg-muted hidden sm:block" />
-                        <div className="py-3 sm:py-sm px-4 sm:px-lg flex items-center sm:items-end gap-3 sm:gap-sm w-full border-b sm:pb-2xl">
+                    <div className="py-3 px-4 flex items-center justify-between gap-3 w-full border-b">
+                        <div className="flex items-center gap-3">
                             <Avatar className="border-2 sm:border-4 border-background h-12 w-12 sm:h-20 sm:w-20">
                                 {space.data.icon && (
                                     <AvatarImage
@@ -844,9 +843,16 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
                                     {space.data.id.charAt(0).toUpperCase()}
                                 </AvatarFallback>
                             </Avatar>
-                            <h1 className="text-lg sm:text-xl sm:mb-md font-semibold">s/{space.data.id}</h1>
+                            <h1 className="text-lg sm:text-xl font-semibold">s/{space.data.id}</h1>
                         </div>
-                    </>
+                        <Button
+                            className="h-12 w-auto px-6"
+                            onClick={() => router.push(`${basePath}/chat`)}
+                        >
+                            <BrainCircuitIcon className="size-6" />
+                            <span className="ml-sm">AI Assistant</span>
+                        </Button>
+                    </div>
                 )}
 
                 <div className="flex flex-col gap-4 px-4 sm:px-lg py-3 sm:py-sm border-b">
@@ -1053,15 +1059,6 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
                             <span className="hidden sm:block ml-sm">New Rationale</span>
                         </>
                     )}
-                </Button>
-
-                <Button
-                    variant="ghost"
-                    className="aspect-square rounded-full h-[58px] w-[58px] sm:h-10 sm:w-[160px] order-1"
-                    onClick={() => router.push(`${basePath}/chat`)}
-                >
-                    <BrainCircuitIcon className="size-7 sm:size-5" />
-                    <span className="hidden sm:block ml-sm">AI Assistant</span>
                 </Button>
 
                 <Button
