@@ -682,12 +682,18 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                   <div
                     className="prose dark:prose-invert max-w-none [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic px-2 py-2"
                   >
-                    <DynamicMarkdown
-                      remarkPlugins={markdownPlugins}
-                      components={customMarkdownComponents}
-                    >
-                      {description}
-                    </DynamicMarkdown>
+                    {description ? (
+                      <DynamicMarkdown
+                        remarkPlugins={markdownPlugins}
+                        components={customMarkdownComponents}
+                      >
+                        {description}
+                      </DynamicMarkdown>
+                    ) : (
+                      <div className="text-muted-foreground italic">
+                        {canEdit() ? "Click edit to add a description..." : "No description provided"}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
