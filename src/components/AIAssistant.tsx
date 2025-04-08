@@ -15,7 +15,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { userQueryKey } from "@/queries/useUser";
 import { useRouter } from "next/navigation";
 import { Progress } from "@/components/ui/progress";
-import { generateChatResponse, EndorsedPoint } from "@/actions/generateChatResponse";
+import { generateChatBotResponse, EndorsedPoint } from "@/actions/generateChatBotResponse";
 import { nanoid } from "nanoid";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import * as ContextMenu from "@radix-ui/react-context-menu";
@@ -27,7 +27,12 @@ import { Skeleton } from "./ui/skeleton";
 import { AutosizeTextarea } from "./ui/autosize-textarea";
 import { fetchUserViewpoints } from "@/actions/fetchUserViewpoints";
 import { generateChatName } from "@/actions/generateChatName";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import { Switch } from "@/components/ui/switch";
 
@@ -398,7 +403,7 @@ export default function AIAssistant() {
                 content: `From forum post "${msg.topic_title || 'Untitled'}": ${msg.content}`
             })) : [];
 
-            const response = await generateChatResponse(
+            const response = await generateChatBotResponse(
                 [...systemMessages, ...updatedMessages],
                 settings.includeEndorsements && settings.includePoints ? endorsedPoints : undefined,
                 settings.includeRationales ? userRationales : undefined
@@ -1057,7 +1062,21 @@ export default function AIAssistant() {
                                 <ArrowLeft className="h-5 w-5" />
                             </Button>
                         )}
-                        <h2 className="text-lg font-semibold">AI Assistant</h2>
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-lg font-semibold">AI Assistant</h2>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger>
+                                        <span className="inline-flex items-center rounded-md bg-red-900/10 px-2 py-1 text-xs font-medium text-red-400 ring-1 ring-inset ring-red-400/20">
+                                            Alpha
+                                        </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p className="max-w-xs">This is a rough Alpha version of the chatbot, and is in no way indicative of final form. Please use with caution</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
                     </div>
                     <div className="flex items-center gap-3">
                         {/* Connection status - compact on mobile */}
