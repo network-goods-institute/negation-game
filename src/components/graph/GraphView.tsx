@@ -90,6 +90,7 @@ export interface GraphViewProps
   isNew?: boolean;
   isContentModified?: boolean;
   onResetContent?: () => void;
+  onModifiedChange?: (isModified: boolean) => void;
 }
 
 export const GraphView = ({
@@ -107,6 +108,7 @@ export const GraphView = ({
   isContentModified,
   onResetContent,
   unsavedChangesModalClassName,
+  onModifiedChange,
   ...props
 }: GraphViewProps) => {
   const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
@@ -125,10 +127,13 @@ export const GraphView = ({
   // Track if the graph has been modified since loading or last save
   const [isModified, setIsModified] = useState(false);
   const [isSaving_local, setIsSaving_local] = useState(false);
-  // Track if this is the first mount
+
+  useEffect(() => {
+    onModifiedChange?.(isModified);
+  }, [isModified, onModifiedChange]);
+
   const isInitialMount = useRef(true);
 
-  // Get the current rationale ID from the route params first
   const params = useParams();
   const rationaleId = (params.rationaleId || params.viewpointId) as string;
 
@@ -168,8 +173,6 @@ export const GraphView = ({
       }, 250),
     [setLocalGraph]
   );
-
-
 
   const filteredEdges = useMemo(() => {
     // First filter edges to only include those connected to visible nodes
@@ -716,18 +719,20 @@ export const GraphView = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
+            <AlertDialogCancel
+              disabled={isSaving_local || isDiscarding}
+              onClick={() => setIsDiscardDialogOpen(false)}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               disabled={isSaving_local || isDiscarding}
               onClick={() => handleDiscard()}
+              className="bg-secondary text-secondary-foreground hover:bg-secondary/80"
             >
               {isDiscarding ? "Discarding..." : "Discard changes"}
             </AlertDialogAction>
-            <AlertDialogCancel
-              disabled={isSaving_local || isDiscarding}
-              onClick={() => handleSave()}
-            >
-              {isSaving_local ? "Saving..." : "Save changes"}
-            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

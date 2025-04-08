@@ -41,10 +41,11 @@ import { ReactFlowInstance } from "@xyflow/react";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
 import { ViewpointStatsBar } from "@/components/ViewpointStatsBar";
 import { use } from "react";
-import { getBackButtonHandler } from "@/utils/backButtonUtils";
+import { handleBackNavigation } from "@/utils/backButtonUtils";
 import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 import { copyViewpointAndNavigate } from "@/utils/copyViewpoint";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
   loading: () => <div className="animate-pulse h-32 bg-muted/30 rounded-md" />,
@@ -112,7 +113,6 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
   const [isMobile, setIsMobile] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
   const [isCopyingUrl, setIsCopyingUrl] = useState(false);
-  const { markPointAsRead } = useVisitedPoints();
 
   const [editableTitle, setEditableTitle] = useState("");
   const [editableDescription, setEditableDescription] = useState("");
@@ -122,6 +122,9 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
   const updateDetailsMutation = useUpdateViewpointDetails();
 
   const setInitialTab = useSetAtom(initialSpaceTabAtom);
+
+  const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
+  const [isGraphModified, setIsGraphModified] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -448,7 +451,21 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     }
   }, [viewpoint, queryClient, originalGraph, setLocalGraph]);
 
-  const handleBackClick = getBackButtonHandler(router, setInitialTab);
+  const handleBackClick = useCallback(() => {
+    if (isGraphModified || isContentModified) {
+      setIsDiscardDialogOpen(true);
+      return;
+    }
+
+    // Otherwise proceed with normal back navigation
+    handleBackNavigation(router, setInitialTab);
+  }, [router, setInitialTab, isGraphModified, isContentModified]);
+
+  const handleDiscard = useCallback(() => {
+    resetContentModifications();
+    setIsDiscardDialogOpen(false);
+    handleBackNavigation(router, setInitialTab);
+  }, [resetContentModifications, router, setInitialTab]);
 
   if (!viewpoint)
     return (
@@ -520,7 +537,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                   )}
                 </Button>
                 <AuthenticatedActionButton
-                  variant="outline"
+                  variant="default"
                   size="sm"
                   className="rounded-full flex items-center gap-1 px-2 py-1 h-7 text-xs"
                   onClick={handleCopy}
@@ -564,7 +581,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                     )}
                   </Button>
                   <AuthenticatedActionButton
-                    variant="outline"
+                    variant="default"
                     className="rounded-full flex items-center gap-2 px-4"
                     onClick={handleCopy}
                     disabled={isCopying}
@@ -747,13 +764,38 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
             closeButtonClassName="top-4 right-4"
             onNodesChange={(changes) => {
               const { viewport, ...graph } = reactFlow.toObject();
-
               setGraph(graph);
             }}
+            onModifiedChange={setIsGraphModified}
           />
         </Dynamic>
 
         <NegateDialog />
+
+        <AlertDialog open={isDiscardDialogOpen} onOpenChange={setIsDiscardDialogOpen}>
+          <AlertDialogContent className="sm:max-w-[425px]">
+            <AlertDialogHeader>
+              <AlertDialogTitle>You have unsaved changes</AlertDialogTitle>
+              <AlertDialogDescription>
+                Do you want to save your changes or discard them?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel
+                onClick={() => setIsDiscardDialogOpen(false)}
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDiscard}
+                className="bg-secondary text-secondary-foreground hover:bg-secondary/80"
+              >
+                Discard changes
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </EditModeProvider>
   );
