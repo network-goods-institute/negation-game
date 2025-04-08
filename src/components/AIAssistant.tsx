@@ -26,6 +26,8 @@ import { getSpace } from "@/actions/getSpace";
 import { Skeleton } from "./ui/skeleton";
 import { AutosizeTextarea } from "./ui/autosize-textarea";
 import { fetchUserViewpoints } from "@/actions/fetchUserViewpoints";
+import { generateChatName } from "@/actions/generateChatName";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { Switch } from "@/components/ui/switch";
 
@@ -88,6 +90,12 @@ interface ChatSettings {
     includePoints: boolean;
     includeDiscourseMessages: boolean;
 }
+
+type DiscourseConnectionStatus =
+    | 'disconnected'        // No credentials, no messages
+    | 'connected'          // Has valid credentials and messages
+    | 'partially_connected' // Has messages but no/invalid credentials
+    | 'pending'           // Has credentials but no messages yet
 
 const ChatLoadingState = () => {
     return (
@@ -164,8 +172,18 @@ export default function AIAssistant() {
     const [showDiscourseDialog, setShowDiscourseDialog] = useState(false);
     const [isConnectingToDiscourse, setIsConnectingToDiscourse] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [discourseUsername, setDiscourseUsername] = useState('');
-    const [discourseUrl, setDiscourseUrl] = useState('https://forum.scroll.io');
+    const [discourseUsername, setDiscourseUsername] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('discourse_username') || '';
+        }
+        return '';
+    });
+    const [discourseUrl, setDiscourseUrl] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('discourse_url') || 'https://forum.scroll.io';
+        }
+        return 'https://forum.scroll.io';
+    });
     const [storedMessages, setStoredMessages] = useState<DiscourseMessage[]>([]);
     const [showMessagesModal, setShowMessagesModal] = useState(false);
     const [showConsentDialog, setShowConsentDialog] = useState(false);
@@ -173,6 +191,7 @@ export default function AIAssistant() {
     const [fetchProgress, setFetchProgress] = useState(0);
     const [endorsedPoints, setEndorsedPoints] = useState<EndorsedPoint[]>([]);
     const [userRationales, setUserRationales] = useState<ChatRationale[]>([]);
+    const [connectionStatus, setConnectionStatus] = useState<DiscourseConnectionStatus>('disconnected');
 
     // Chat-related state
     const [currentChatId, setCurrentChatId] = useState<string | null>(null);
@@ -214,6 +233,8 @@ export default function AIAssistant() {
             includeDiscourseMessages: true
         };
     });
+
+    const [isUpdatingConsent, setIsUpdatingConsent] = useState(false);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -347,7 +368,7 @@ export default function AIAssistant() {
             activeChatId = nanoid();
             const newChat: SavedChat = {
                 id: activeChatId,
-                title: message.slice(0, 30) + (message.length > 30 ? '...' : ''),
+                title: 'New Chat',
                 messages: [...chatMessages, newMessage],
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
@@ -478,8 +499,43 @@ export default function AIAssistant() {
             const assistantMessage: ChatMessage = { role: 'assistant', content };
             const finalMessages = [...updatedMessages, assistantMessage];
             setChatMessages(finalMessages);
+            setStreamingContent('');
 
-            if (activeChatId) {
+            // Generate chat name after first exchange if it's still "New Chat"
+            if (isNewChat || (activeChatId && savedChats.find(c => c.id === activeChatId)?.title === 'New Chat')) {
+                try {
+                    const stream = await generateChatName(finalMessages);
+                    if (!stream) {
+                        throw new Error("Failed to get title stream");
+                    }
+
+                    let title = "";
+                    for await (const chunk of stream) {
+                        if (!chunk) continue;
+                        title += chunk;
+                    }
+
+                    title = title.trim();
+
+                    if (title && activeChatId) {
+                        const finalTitle = title.slice(0, 30);
+                        updateChat(activeChatId, finalMessages, finalTitle);
+                    } else {
+                        const userMessage = finalMessages.find(m => m.role === 'user')?.content || '';
+                        const fallbackTitle = userMessage.slice(0, 27) + (userMessage.length > 27 ? '...' : '');
+                        if (activeChatId) {
+                            updateChat(activeChatId, finalMessages, fallbackTitle);
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error generating chat name:", error);
+                    const userMessage = finalMessages.find(m => m.role === 'user')?.content || '';
+                    const fallbackTitle = userMessage.slice(0, 27) + (userMessage.length > 27 ? '...' : '');
+                    if (activeChatId) {
+                        updateChat(activeChatId, finalMessages, fallbackTitle);
+                    }
+                }
+            } else if (activeChatId) {
                 updateChat(activeChatId, finalMessages);
             }
 
@@ -793,7 +849,10 @@ export default function AIAssistant() {
     }, [discourseUsername, discourseUrl, userData, handleUpdateProfile, saveMessagesToStorage, isConnectingToDiscourse]);
 
     const handleConsentAndConnect = async () => {
+        if (isUpdatingConsent) return;
+
         try {
+            setIsUpdatingConsent(true);
             // Ensure user data is available before updating profile
             if (!userData) {
                 toast.error('User data not available. Cannot grant consent.');
@@ -817,8 +876,53 @@ export default function AIAssistant() {
         } catch (error) {
             console.error('Failed to update consent:', error);
             toast.error('Failed to update consent settings');
+        } finally {
+            setIsUpdatingConsent(false);
         }
     };
+
+    useEffect(() => {
+        if (isCheckingDiscourse) return;
+
+        if (storedMessages.length > 0) {
+            if (discourseUsername.trim() && discourseUrl.trim()) {
+                setConnectionStatus('connected');
+            } else {
+                setConnectionStatus('partially_connected');
+            }
+        } else if (discourseUsername.trim() && discourseUrl.trim()) {
+            setConnectionStatus('pending');
+        } else {
+            setConnectionStatus('disconnected');
+        }
+    }, [isCheckingDiscourse, storedMessages.length, discourseUsername, discourseUrl]);
+
+    useEffect(() => {
+        if (userData?.discourseUsername && !discourseUsername) {
+            setDiscourseUsername(userData.discourseUsername);
+            if (typeof window !== 'undefined') {
+                localStorage.setItem('discourse_username', userData.discourseUsername);
+            }
+        }
+        if (userData?.discourseCommunityUrl && !discourseUrl) {
+            setDiscourseUrl(userData.discourseCommunityUrl);
+            if (typeof window !== 'undefined') {
+                localStorage.setItem('discourse_url', userData.discourseCommunityUrl);
+            }
+        }
+    }, [userData, discourseUsername, discourseUrl]);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('discourse_username', discourseUsername);
+        }
+    }, [discourseUsername]);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('discourse_url', discourseUrl);
+        }
+    }, [discourseUrl]);
 
     return (
         <div className="flex h-[calc(100vh-var(--header-height))]">
@@ -869,14 +973,25 @@ export default function AIAssistant() {
                                     <ContextMenu.Root key={chat.id}>
                                         <ContextMenu.Trigger className="w-full">
                                             <div
-                                                className={`relative group px-4 py-3 rounded-xl cursor-pointer hover:bg-accent flex justify-between items-center transition-colors 
+                                                className={`relative group px-4 py-3 rounded-xl cursor-pointer hover:bg-accent flex items-center transition-colors 
                                                 ${chat.id === currentChatId ? 'bg-accent/70 shadow-sm' : 'hover:bg-accent/30'}`}
                                                 onClick={() => switchChat(chat.id)}
                                             >
-                                                <div className="flex-1 overflow-hidden mr-8">
-                                                    <span className={`truncate block ${chat.id === currentChatId ? 'font-medium' : ''}`}>
-                                                        {chat.title}
-                                                    </span>
+                                                <div className="flex-1 min-w-0 mr-4">
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <div className="max-w-[160px]">
+                                                                    <span className={`block truncate ${chat.id === currentChatId ? 'font-medium' : ''}`}>
+                                                                        {chat.title}
+                                                                    </span>
+                                                                </div>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="right" className="max-w-[300px] break-words">
+                                                                {chat.title}
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
                                                     <span className="text-xs text-muted-foreground truncate block mt-0.5">
                                                         {new Date(chat.updatedAt).toLocaleDateString()} · {chat.messages.length - 1} messages
                                                     </span>
@@ -884,7 +999,7 @@ export default function AIAssistant() {
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 top-1/2 -translate-y-1/2"
+                                                    className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         setChatToDelete(chat.id);
@@ -946,16 +1061,31 @@ export default function AIAssistant() {
                     </div>
                     <div className="flex items-center gap-3">
                         {/* Connection status - compact on mobile */}
-                        <div className={`flex items-center gap-2 ${isMobile ? 'bg-transparent p-0' : 'bg-background/80 py-1.5 px-3 rounded-full border'}`}>
+                        <div
+                            className={`flex items-center gap-2 ${isMobile ? 'bg-transparent p-0' : 'bg-background/80 py-1.5 px-3 rounded-full border'} cursor-pointer hover:bg-accent/50 transition-colors`}
+                            onClick={() => setShowDiscourseDialog(true)}
+                            role="button"
+                            title="Open Discourse Settings"
+                        >
                             {isCheckingDiscourse ? (
                                 <div className="flex items-center gap-1.5">
                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                     {!isMobile && <span className="text-sm text-muted-foreground">Checking...</span>}
                                 </div>
-                            ) : hasStoredMessages ? (
+                            ) : connectionStatus === 'connected' ? (
                                 <div className="flex items-center gap-1.5">
                                     <CircleDotIcon className="h-3.5 w-3.5 text-green-500" />
                                     {!isMobile && <span className="text-sm">Connected</span>}
+                                </div>
+                            ) : connectionStatus === 'partially_connected' ? (
+                                <div className="flex items-center gap-1.5">
+                                    <CircleDotIcon className="h-3.5 w-3.5 text-yellow-500" />
+                                    {!isMobile && <span className="text-sm">Partially Connected</span>}
+                                </div>
+                            ) : connectionStatus === 'pending' ? (
+                                <div className="flex items-center gap-1.5">
+                                    <CircleDotIcon className="h-3.5 w-3.5 text-blue-500" />
+                                    {!isMobile && <span className="text-sm">Pending</span>}
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-1.5">
@@ -992,7 +1122,7 @@ export default function AIAssistant() {
                                             className={`${isMobile ? 'max-w-[90%]' : 'max-w-[80%]'} rounded-2xl p-4 shadow-sm ${msg.role === 'user'
                                                 ? 'bg-primary text-primary-foreground ml-4'
                                                 : 'bg-card mr-4'
-                                                }`}
+                                                } [&_.markdown]:text-base`}
                                         >
                                             <MemoizedMarkdown content={msg.content} id={`msg-${i}`} />
                                         </div>
@@ -1000,7 +1130,7 @@ export default function AIAssistant() {
                                 ))}
                                 {streamingContent && (
                                     <div className="flex justify-start">
-                                        <div className="max-w-[80%] rounded-2xl p-4 shadow-sm bg-card mr-4">
+                                        <div className="max-w-[80%] rounded-2xl p-4 shadow-sm bg-card mr-4 [&_.markdown]:text-base">
                                             <MemoizedMarkdown content={streamingContent} id="streaming" />
                                         </div>
                                     </div>
@@ -1083,8 +1213,33 @@ export default function AIAssistant() {
                             This is optional but recommended for better assistance.
                         </p>
 
+                        {/* Connection Status Banner */}
+                        {connectionStatus === 'partially_connected' && (
+                            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+                                <div className="flex items-center gap-2">
+                                    <CircleDotIcon className="h-4 w-4 text-yellow-500" />
+                                    <p className="text-sm font-medium text-yellow-500">Partially Connected</p>
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-2">
+                                    You have stored messages but no active connection. Please enter your credentials to reconnect.
+                                </p>
+                            </div>
+                        )}
+
+                        {connectionStatus === 'pending' && (
+                            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                                <div className="flex items-center gap-2">
+                                    <CircleDotIcon className="h-4 w-4 text-blue-500" />
+                                    <p className="text-sm font-medium text-blue-500">Connection Pending</p>
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-2">
+                                    Credentials set but no messages fetched yet. Click connect to fetch your messages.
+                                </p>
+                            </div>
+                        )}
+
                         {/* Message count indicator */}
-                        {hasStoredMessages && (
+                        {storedMessages.length > 0 && (
                             <div className="bg-muted/50 rounded-lg p-4 border">
                                 <div className="flex justify-between items-center">
                                     <div>
@@ -1203,11 +1358,19 @@ export default function AIAssistant() {
                         </p>
                     </div>
                     <div className="flex justify-end gap-3">
-                        <Button variant="outline" onClick={() => setShowConsentDialog(false)}>
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowConsentDialog(false)}
+                            disabled={isUpdatingConsent}
+                        >
                             Cancel
                         </Button>
-                        <AuthenticatedActionButton onClick={handleConsentAndConnect}>
-                            Allow and Connect
+                        <AuthenticatedActionButton
+                            onClick={handleConsentAndConnect}
+                            disabled={isUpdatingConsent}
+                            rightLoading={isUpdatingConsent}
+                        >
+                            {isUpdatingConsent ? 'Updating...' : 'Allow and Connect'}
                         </AuthenticatedActionButton>
                     </div>
                 </DialogContent>

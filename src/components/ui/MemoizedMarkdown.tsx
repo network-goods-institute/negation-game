@@ -193,7 +193,7 @@ export const MemoizedMarkdown = memo(
         const blocks = useMemo(() => parseMarkdownIntoBlocks(content), [content]);
 
         return (
-            <div className="prose dark:prose-invert max-w-none text-sm space-y-6">
+            <div className="prose dark:prose-invert max-w-none [&_p]:text-base [&_li]:text-base [&_code]:text-base">
                 {blocks.map((block, index) => (
                     <MemoizedMarkdownBlock
                         content={block}
