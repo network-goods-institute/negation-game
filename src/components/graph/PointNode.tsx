@@ -832,12 +832,46 @@ export const PointNode = ({
     };
   }, [findDuplicateNodes, setMergeDialogState, pointId, id, getNode]);
 
+  const level = useMemo(() => {
+    let currentLevel = 0;
+    let currentId = id;
+
+    const edges = getEdges();
+
+    while (currentId) {
+      const edge = edges.find(e => e.source === currentId);
+      if (!edge) break;
+
+      const targetNode = getNode(edge.target);
+      if (!targetNode) break;
+
+      currentLevel++;
+      currentId = edge.target;
+
+      if (targetNode.type === 'statement') break;
+    }
+
+    return currentLevel;
+  }, [id, getNode, getEdges]);
+
   return (
     <>
       <div
         data-loading={pointData === undefined}
         className={cn(
-          "relative bg-background rounded-md border-2 min-h-28 w-64",
+          "relative bg-background border-2 min-h-28 w-64",
+          // Base styles for all nodes
+          "transition-all duration-200",
+          // Even levels (negations) get rounded corners and subtle styling
+          level % 2 === 0 && [
+            "rounded-lg",
+            "border-l-4"
+          ],
+          // Odd levels (options and their "grandchildren") get sharp corners
+          level % 2 === 1 && [
+            "rounded-none",
+            "bg-background"
+          ],
           endorsedByOp && "border-yellow-500",
           hoveredPoint === pointId && "border-primary",
           (!hasAnimationPlayed && (isExpanding || dataIsExpanding)) && "animate-node-expand"
