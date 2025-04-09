@@ -16,11 +16,11 @@ import { useSpace } from "@/queries/useSpace";
 import { usePrivy } from "@privy-io/react-auth";
 import { useToggle } from "@uidotdev/usehooks";
 import { useSetAtom, useAtom } from "jotai";
-import { PlusIcon, TrophyIcon, SearchIcon, BrainCircuitIcon } from "lucide-react";
+import { PlusIcon, TrophyIcon, SearchIcon, BrainCircuitIcon, ShareIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState, useMemo, memo, useEffect, useRef } from "react";
 import { LeaderboardDialog } from "@/components/LeaderboardDialog";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useViewpoints } from "@/queries/useViewpoints";
 import { cn } from "@/lib/cn";
 import { SearchInput } from "@/components/SearchInput";
@@ -35,6 +35,7 @@ import { usePrefetchPoint } from "@/queries/usePointData";
 import React from "react";
 import { ViewpointCardWrapper } from "@/components/ViewpointCardWrapper";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
+import { SharePointsDialog } from "@/components/SharePointsDialog";
 
 interface PageProps {
     params: { space: string };
@@ -608,7 +609,7 @@ const PinnedPointWithHistory = memo(({ pinnedPoint, space, loadingCardId }: any)
 });
 PinnedPointWithHistory.displayName = 'PinnedPointWithHistory';
 
-export function SpacePageClient({ params, searchParams }: PageProps) {
+export function SpacePageClient({ params, searchParams: pageSearchParams }: PageProps) {
     const { user: privyUser, login } = usePrivy();
     const [makePointOpen, onMakePointOpenChange] = useToggle(false);
     const basePath = useBasePath();
@@ -619,6 +620,12 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
     const [isNavigating, setIsNavigating] = useState(false);
     const [initialTabFromAtom, setInitialTabAtom] = useAtom(initialSpaceTabAtom);
     const queryClient = useQueryClient();
+    const [shareDialogOpen, setShareDialogOpen] = useState(false);
+    const searchParams = useSearchParams();
+    const isSharedView = searchParams?.get('view') === 'shared';
+    const sharedPointsStr = searchParams?.get('points') || undefined;
+    const sharedPoints = sharedPointsStr ? sharedPointsStr.split(',').map(Number).filter(Boolean) : [];
+    const sharedBy = searchParams?.get('by') || undefined;
 
     const lastTabViewTimes = useRef<Record<string, number>>({
         rationales: 0,
@@ -1068,6 +1075,15 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
                     <TrophyIcon className="size-7 sm:size-5" />
                     <span className="hidden sm:block ml-sm">Leaderboard</span>
                 </Button>
+
+                <Button
+                    variant="ghost"
+                    className="aspect-square rounded-full h-[58px] w-[58px] sm:h-10 sm:w-auto sm:px-6 order-1"
+                    onClick={() => setShareDialogOpen(true)}
+                >
+                    <ShareIcon className="size-7 sm:size-5" />
+                    <span className="hidden sm:block ml-sm">Share Points</span>
+                </Button>
             </div>
 
             <NegateDialog />
@@ -1079,6 +1095,17 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
                 open={leaderboardOpen}
                 onOpenChange={setLeaderboardOpen}
                 space={space.data?.id || "global"}
+            />
+            <SharePointsDialog
+                open={shareDialogOpen || isSharedView}
+                onOpenChange={(open) => {
+                    if (!isSharedView) {
+                        setShareDialogOpen(open);
+                    }
+                }}
+                isViewMode={isSharedView}
+                sharedBy={sharedBy}
+                initialPoints={sharedPoints}
             />
         </main>
     );
