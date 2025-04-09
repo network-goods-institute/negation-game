@@ -179,24 +179,14 @@ export const SharePointsDialog: FC<SharePointsDialogProps> = memo(({
     const router = useRouter();
     const [selectedPoints, setSelectedPoints] = useState<Set<number>>(new Set(initialPoints));
     const [searchTerm, setSearchTerm] = useState("");
-    // Only use useUser when actually sharing, not in view mode
-    const { data: user, isLoading: userLoading } = !isViewMode ? useUser() : { data: null, isLoading: false };
+    const { data: user, isLoading: userLoading } = useUser();
 
     // Only fetch feed data when in share mode and dialog is open
     const { data: points, isLoading: isLoadingPoints } = useFeed();
     const shouldUseFeed = !isViewMode && open;
     const feedPoints = shouldUseFeed ? points : null;
 
-    // In view mode, load only the shared points
-    const sharedPointsQueries = useQueries({
-        queries: isViewMode ? initialPoints.map(pointId => ({
-            queryKey: ['point', pointId],
-            queryFn: () => usePointData(pointId).data,
-            enabled: open
-        })) : [],
-    });
-
-    const isLoadingSharedPoints = isViewMode && sharedPointsQueries.some(query => query.isLoading);
+    const isLoading = isViewMode ? false : (isLoadingPoints && shouldUseFeed);
 
     // Memoize URL generation to prevent unnecessary updates
     const generateShareUrl = useCallback((pointIds: Set<number>) => {
@@ -266,6 +256,7 @@ export const SharePointsDialog: FC<SharePointsDialogProps> = memo(({
         setSelectedPoints(prev => {
             const next = new Set(prev);
             if (next.has(pointId)) {
+                // eslint-disable-next-line drizzle/enforce-delete-with-where
                 next.delete(pointId);
             } else {
                 next.add(pointId);
@@ -281,8 +272,6 @@ export const SharePointsDialog: FC<SharePointsDialogProps> = memo(({
         }
         onOpenChange?.(false);
     }, [isViewMode, router, onOpenChange]);
-
-    const isLoading = isViewMode ? isLoadingSharedPoints : (isLoadingPoints && shouldUseFeed);
 
     const sortedPoints = useMemo(() => {
         if (!filteredPoints) return [];
@@ -315,16 +304,18 @@ export const SharePointsDialog: FC<SharePointsDialogProps> = memo(({
     );
 
     const ReceiverList = (
-        <div className="flex flex-col">
-            {sortedPoints.map((pointId) => (
-                <div key={pointId} className="border-b last:border-b-0">
-                    <PointCardWrapper
-                        pointId={pointId}
-                        isSelected={false}
-                        isViewMode={true}
-                    />
-                </div>
-            ))}
+        <div className="relative overflow-auto" style={{ height: "calc(100vh - 300px)" }}>
+            <div className="flex flex-col">
+                {sortedPoints.map((pointId) => (
+                    <div key={pointId} className="border-b last:border-b-0 p-2">
+                        <PointCardWrapper
+                            pointId={pointId}
+                            isSelected={false}
+                            isViewMode={true}
+                        />
+                    </div>
+                ))}
+            </div>
         </div>
     );
 
