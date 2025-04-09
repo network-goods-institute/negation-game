@@ -1,0 +1,572 @@
+diff --git a/src/__tests__/pages/ProfilePage.test.tsx b/src/__tests__/pages/ProfilePage.test.tsx
+deleted file mode 100644
+index b7925af..0000000
+--- a/src/__tests__/pages/ProfilePage.test.tsx
++++ /dev/null
+@@ -1,309 +0,0 @@
+-import React from 'react';
+-import { render, screen, fireEvent } from '@testing-library/react';
+-import '@testing-library/jest-dom';
+-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+-
+-// Mock all privy-related modules before importing ProfilePage
+-jest.mock('@privy-io/react-auth', () => ({
+-    usePrivy: jest.fn(() => ({
+-        user: { id: '123' },
+-        ready: true
+-    }))
+-}));
+-
+-// Mock next/navigation before importing anything that uses it
+-jest.mock('next/navigation', () => ({
+-    useRouter: jest.fn(),
+-    usePathname: jest.fn(() => '/profile/testuser'),
+-    useParams: jest.fn(() => ({ username: 'testuser' }))
+-}));
+-
+-// Mock Jotai atoms
+-jest.mock('jotai', () => ({
+-    ...jest.requireActual('jotai'),
+-    useAtom: jest.fn(() => [new Set(), jest.fn()]),
+-    useSetAtom: jest.fn(() => jest.fn()),
+-}));
+-
+-jest.mock('@/atoms/negatedPointIdAtom', () => ({
+-    negatedPointIdAtom: {}
+-}));
+-
+-jest.mock('@/atoms/navigationAtom', () => ({
+-    initialSpaceTabAtom: {}
+-}));
+-
+-// Create mocks for all necessary backend modules
+-jest.mock('@/actions/getUserId', () => ({
+-    getUserId: jest.fn(() => Promise.resolve('user-123')),
+-}));
+-
+-jest.mock('@/lib/privy/getPrivyClient', () => ({
+-    getPrivyClient: jest.fn(() => ({
+-        getUser: jest.fn(() => Promise.resolve({ id: 'user-123' })),
+-    })),
+-}));
+-
+-// Mock all the UI components
+-jest.mock('@/components/PointCard', () => ({
+-    PointCard: () => <div data-testid="mock-point-card">Mock Point Card</div>
+-}));
+-
+-jest.mock('@/components/ViewpointCard', () => ({
+-    ViewpointCard: () => <div data-testid="mock-viewpoint-card">Mock Viewpoint Card</div>
+-}));
+-
+-jest.mock('@/components/ProfileEditDialog', () => ({
+-    ProfileEditDialog: () => <div data-testid="mock-profile-edit-dialog">Mock Profile Edit Dialog</div>
+-}));
+-
+-jest.mock('@/components/NegateDialog', () => ({
+-    NegateDialog: () => <div data-testid="mock-negate-dialog">Mock Negate Dialog</div>
+-}));
+-
+-// Mock React.use to return fake params
+-jest.spyOn(React, 'use').mockImplementation(() => ({ username: 'testuser' }));
+-
+-// Now we can safely import ProfilePage
+-import ProfilePage from '@/app/profile/[username]/page';
+-import { useRouter } from 'next/navigation';
+-
+-// Mock all the data hooks
+-jest.mock('@/queries/useUser', () => ({
+-    useUser: jest.fn()
+-}));
+-
+-jest.mock('@/queries/useProfilePoints', () => ({
+-    useProfilePoints: jest.fn()
+-}));
+-
+-jest.mock('@/queries/useUserViewpoints', () => ({
+-    useUserViewpoints: jest.fn()
+-}));
+-
+-jest.mock('@/queries/useUserEndorsedPoints', () => ({
+-    useUserEndorsedPoints: jest.fn()
+-}));
+-
+-jest.mock('@/queries/useFeed', () => ({
+-    useFeed: jest.fn()
+-}));
+-
+-// Import hooks after mocking
+-import { useUser } from '@/queries/useUser';
+-import { useProfilePoints } from '@/queries/useProfilePoints';
+-import { useUserViewpoints } from '@/queries/useUserViewpoints';
+-import { useUserEndorsedPoints } from '@/queries/useUserEndorsedPoints';
+-import { useFeed } from '@/queries/useFeed';
+-
+-// Mock backButtonUtils to avoid any window location issues
+-jest.mock('@/utils/backButtonUtils', () => ({
+-    getBackButtonHandler: jest.fn().mockImplementation((router, setInitialTab, homePath = '/') => {
+-        return () => {
+-            if (window.history.length > 1) {
+-                window.history.back();
+-                return;
+-            }
+-
+-            if (document.referrer) {
+-                router.back();
+-            } else {
+-                router.push(homePath);
+-            }
+-        };
+-    }),
+-    isSameDomain: jest.fn()
+-}));
+-
+-// Mock React Query
+-jest.mock('@tanstack/react-query', () => {
+-    const original = jest.requireActual('@tanstack/react-query');
+-    return {
+-        ...original,
+-        useQueryClient: jest.fn(() => ({
+-            invalidateQueries: jest.fn(),
+-            setQueryData: jest.fn(),
+-            getQueryData: jest.fn()
+-        }))
+-    };
+-});
+-
+-describe('ProfilePage', () => {
+-    let mockRouter: any;
+-    let originalHistoryBack: () => void;
+-    let originalHistoryLength: number;
+-    let originalReferrer: string;
+-    let queryClient: any;
+-
+-    beforeEach(() => {
+-        // Setup router mock
+-        mockRouter = {
+-            back: jest.fn(),
+-            push: jest.fn(),
+-        };
+-        (useRouter as jest.Mock).mockReturnValue(mockRouter);
+-
+-        // Setup queryClient
+-        queryClient = new QueryClient({
+-            defaultOptions: {
+-                queries: {
+-                    retry: false,
+-                },
+-            },
+-        });
+-
+-        // Mock successful data loading - using the data structure that the component expects
+-        (useUser as jest.Mock).mockReturnValue({
+-            data: {
+-                id: '123',
+-                username: 'testuser',
+-                createdAt: new Date().toISOString(),
+-                cred: 100
+-            },
+-            isLoading: false,
+-        });
+-
+-        (useProfilePoints as jest.Mock).mockReturnValue({
+-            data: [{
+-                pointId: 1,
+-                content: 'Test point',
+-                createdAt: new Date(),
+-                cred: 10,
+-                space: 'global',
+-                amountSupporters: 1,
+-                amountNegations: 0,
+-                viewerCred: 5,
+-                favor: 0.5
+-            }],
+-            isLoading: false,
+-        });
+-
+-        (useUserViewpoints as jest.Mock).mockReturnValue({
+-            data: [],
+-            isLoading: false,
+-        });
+-
+-        (useUserEndorsedPoints as jest.Mock).mockReturnValue({
+-            data: [],
+-            isLoading: false,
+-        });
+-
+-        (useFeed as jest.Mock).mockReturnValue({
+-            data: [],
+-            isLoading: false,
+-        });
+-
+-        // Save original window.history methods and properties
+-        originalHistoryBack = window.history.back;
+-        originalHistoryLength = window.history.length;
+-
+-        // Setup document.referrer mock
+-        Object.defineProperty(document, 'referrer', {
+-            configurable: true,
+-            get: jest.fn(() => "")
+-        });
+-        originalReferrer = document.referrer;
+-
+-        // Mock window.history.back
+-        window.history.back = jest.fn();
+-    });
+-
+-    afterEach(() => {
+-        // Restore original window.history
+-        window.history.back = originalHistoryBack;
+-        Object.defineProperty(window.history, 'length', {
+-            configurable: true,
+-            value: originalHistoryLength
+-        });
+-
+-        // Restore original document.referrer
+-        Object.defineProperty(document, 'referrer', {
+-            configurable: true,
+-            get: () => originalReferrer
+-        });
+-
+-        jest.clearAllMocks();
+-    });
+-
+-    const renderWithProviders = (ui: React.ReactElement) => {
+-        return render(
+-            <QueryClientProvider client={queryClient}>
+-                {ui}
+-            </QueryClientProvider>
+-        );
+-    };
+-
+-    test('renders back button', () => {
+-        // Use a fake params promise
+-        const paramsPromise = Promise.resolve({ username: 'testuser' });
+-
+-        renderWithProviders(<ProfilePage params={paramsPromise} />);
+-        const backButton = screen.getByRole('button', { name: /back/i });
+-        expect(backButton).toBeInTheDocument();
+-    });
+-
+-    test('clicking back button uses window.history.back when history exists', () => {
+-        // Mock window.history.back and history.length
+-        window.history.back = jest.fn();
+-        Object.defineProperty(window.history, 'length', {
+-            configurable: true,
+-            value: 2 // Simulate having history
+-        });
+-
+-        const paramsPromise = Promise.resolve({ username: 'testuser' });
+-        renderWithProviders(<ProfilePage params={paramsPromise} />);
+-        const backButton = screen.getByRole('button', { name: /back/i });
+-
+-        // Click the back button
+-        fireEvent.click(backButton);
+-
+-        // Should use window.history.back()
+-        expect(window.history.back).toHaveBeenCalled();
+-        expect(mockRouter.back).not.toHaveBeenCalled();
+-        expect(mockRouter.push).not.toHaveBeenCalled();
+-    });
+-
+-    test('clicking back button redirects to home when no history/referrer', () => {
+-        // Mock history to be empty
+-        Object.defineProperty(window.history, 'length', {
+-            configurable: true,
+-            value: 1 // Simulate no history
+-        });
+-        window.history.back = jest.fn();
+-
+-        // Mock empty referrer
+-        Object.defineProperty(document, 'referrer', {
+-            configurable: true,
+-            get: () => ''
+-        });
+-
+-        const paramsPromise = Promise.resolve({ username: 'testuser' });
+-        renderWithProviders(<ProfilePage params={paramsPromise} />);
+-        const backButton = screen.getByRole('button', { name: /back/i });
+-
+-        // Click the back button
+-        fireEvent.click(backButton);
+-
+-        // Should redirect to home
+-        expect(mockRouter.push).toHaveBeenCalledWith('/');
+-        expect(window.history.back).not.toHaveBeenCalled();
+-    });
+-
+-    test('handles Not Found state properly', () => {
+-        // Mock user not found state
+-        (useProfilePoints as jest.Mock).mockReturnValue({
+-            data: null,
+-            isLoading: false,
+-        });
+-
+-        const paramsPromise = Promise.resolve({ username: 'testuser' });
+-        renderWithProviders(<ProfilePage params={paramsPromise} />);
+-
+-        // Should still render back button even in not found state
+-        const backButton = screen.getByRole('button', { name: /back/i });
+-        expect(backButton).toBeInTheDocument();
+-
+-        // Ensure Not Found text is displayed
+-        expect(screen.getByText(/not found/i)).toBeInTheDocument();
+-    });
+-}); 
+\ No newline at end of file
+diff --git a/src/__tests__/utils/test-utils.tsx b/src/__tests__/utils/test-utils.tsx
+index 4362c68..58130d0 100644
+--- a/src/__tests__/utils/test-utils.tsx
++++ b/src/__tests__/utils/test-utils.tsx
+@@ -4,6 +4,232 @@ import userEvent from '@testing-library/user-event'
+ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+ import { TooltipProvider } from '@/components/ui/tooltip'
+ 
++// Mock ALL Radix UI primitives and their dependencies
++jest.mock('@radix-ui/react-primitive', () => {
++    const mockComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>
++    const Primitive = {
++        div: 'div',
++        span: 'span',
++        button: 'button',
++    };
++    return {
++        createSlot: () => mockComponent,
++        Primitive,
++        Root: mockComponent,
++        __esModule: true,
++        default: Primitive,
++    };
++});
++
++jest.mock('@radix-ui/react-portal', () => {
++    const mockComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>
++    return {
++        Portal: mockComponent,
++        Root: mockComponent,
++    };
++});
++
++jest.mock('@radix-ui/react-slot', () => {
++    const mockComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>
++    return {
++        Slot: mockComponent,
++    };
++});
++
++jest.mock('@radix-ui/react-roving-focus', () => {
++    const mockComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>
++    return {
++        Root: mockComponent,
++        Group: mockComponent,
++        Item: mockComponent,
++    };
++});
++
++jest.mock('@radix-ui/react-tooltip', () => {
++    const mockComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>
++    return {
++        Root: mockComponent,
++        Trigger: mockComponent,
++        Content: mockComponent,
++        Provider: mockComponent,
++        Portal: mockComponent,
++    };
++});
++
++jest.mock('@radix-ui/react-tabs', () => {
++    const mockComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>
++    return {
++        Root: mockComponent,
++        List: mockComponent,
++        Trigger: mockComponent,
++        Content: mockComponent,
++    };
++});
++
++jest.mock('@radix-ui/react-dialog', () => {
++    const mockComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>
++    return {
++        Root: mockComponent,
++        Trigger: mockComponent,
++        Portal: mockComponent,
++        Overlay: mockComponent,
++        Content: mockComponent,
++        Close: mockComponent,
++        Title: mockComponent,
++        Description: mockComponent,
++    };
++});
++
++jest.mock('@radix-ui/react-popover', () => {
++    const mockComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>
++    return {
++        Root: mockComponent,
++        Trigger: mockComponent,
++        Portal: mockComponent,
++        Content: mockComponent,
++        Arrow: mockComponent,
++    };
++});
++
++jest.mock('@radix-ui/react-avatar', () => {
++    const mockComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>
++    return {
++        Root: mockComponent,
++        Image: mockComponent,
++        Fallback: mockComponent,
++    };
++});
++
++jest.mock('@radix-ui/react-label', () => {
++    const mockComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>
++    return {
++        Root: mockComponent,
++        Label: mockComponent,
++    };
++});
++
++jest.mock('@radix-ui/react-switch', () => {
++    const mockComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>
++    return {
++        Root: mockComponent,
++        Thumb: mockComponent,
++    };
++});
++
++jest.mock('@radix-ui/react-scroll-area', () => {
++    const mockComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>
++    return {
++        Root: mockComponent,
++        Viewport: mockComponent,
++        Scrollbar: mockComponent,
++        Thumb: mockComponent,
++        Corner: mockComponent,
++    };
++});
++
++jest.mock('@radix-ui/react-separator', () => {
++    const mockComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>
++    return {
++        Root: mockComponent,
++    };
++});
++
++jest.mock('@radix-ui/react-context-menu', () => {
++    const mockComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>
++    return {
++        Root: mockComponent,
++        Trigger: mockComponent,
++        Portal: mockComponent,
++        Content: mockComponent,
++        Item: mockComponent,
++        Group: mockComponent,
++        Label: mockComponent,
++        Separator: mockComponent,
++    };
++});
++
++jest.mock('@radix-ui/react-dropdown-menu', () => {
++    const mockComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>
++    return {
++        Root: mockComponent,
++        Trigger: mockComponent,
++        Portal: mockComponent,
++        Content: mockComponent,
++        Item: mockComponent,
++        Group: mockComponent,
++        Label: mockComponent,
++        Separator: mockComponent,
++    };
++});
++
++jest.mock('@radix-ui/react-accordion', () => {
++    const mockComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>
++    return {
++        Root: mockComponent,
++        Item: mockComponent,
++        Header: mockComponent,
++        Trigger: mockComponent,
++        Content: mockComponent,
++    };
++});
++
++jest.mock('@radix-ui/react-alert-dialog', () => {
++    const mockComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>
++    return {
++        Root: mockComponent,
++        Trigger: mockComponent,
++        Portal: mockComponent,
++        Overlay: mockComponent,
++        Content: mockComponent,
++        Cancel: mockComponent,
++        Action: mockComponent,
++        Title: mockComponent,
++        Description: mockComponent,
++    };
++});
++
++jest.mock('@radix-ui/react-collapsible', () => {
++    const mockComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>
++    return {
++        Root: mockComponent,
++        Trigger: mockComponent,
++        Content: mockComponent,
++    };
++});
++
++jest.mock('@radix-ui/react-progress', () => {
++    const mockComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>
++    return {
++        Root: mockComponent,
++        Indicator: mockComponent,
++    };
++});
++
++jest.mock('@radix-ui/react-slider', () => {
++    const mockComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>
++    return {
++        Root: mockComponent,
++        Track: mockComponent,
++        Range: mockComponent,
++        Thumb: mockComponent,
++    };
++});
++
++jest.mock('@radix-ui/react-toggle', () => {
++    const mockComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>
++    return {
++        Root: mockComponent,
++    };
++});
++
++jest.mock('@radix-ui/react-toggle-group', () => {
++    const mockComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>
++    return {
++        Root: mockComponent,
++        Item: mockComponent,
++    };
++});
++
+ // Create a client once for all tests
+ const queryClient = new QueryClient({
+     defaultOptions: {
+diff --git a/src/mutations/__tests__/useDeletePoint.test.ts b/src/mutations/__tests__/useDeletePoint.test.ts
+index 6aed07c..20e8bc7 100644
+--- a/src/mutations/__tests__/useDeletePoint.test.ts
++++ b/src/mutations/__tests__/useDeletePoint.test.ts
+@@ -1,4 +1,14 @@
+ // Mock dependencies first
++const originalConsoleError = console.error;
++
++beforeEach(() => {
++  console.error = jest.fn();
++});
++
++afterEach(() => {
++  console.error = originalConsoleError;
++});
++
+ jest.mock("../useAuthenticatedMutation", () => ({
+   useAuthenticatedMutation: jest.fn(),
+ }));
