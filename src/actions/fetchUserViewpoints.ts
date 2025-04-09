@@ -48,6 +48,7 @@ export const fetchUserViewpoints = async (username?: string) => {
     .where(eq(viewpointsTable.createdBy, targetUserId))
     .orderBy(desc(viewpointsTable.createdAt));
 
+  // Calculate statistics for each viewpoint
   const viewpointsWithStats = await Promise.all(
     viewpoints.map(async (viewpoint) => {
       const pointIds: number[] = [];
@@ -103,6 +104,7 @@ export const fetchUserViewpoints = async (username?: string) => {
             .where(inArray(pointFavorHistoryView.pointId, endorsedPointIds))
             .orderBy(desc(pointFavorHistoryView.eventTime));
 
+          // Get most recent favor value for each endorsed point
           const latestFavorByPoint = new Map();
           favorValues.forEach((row) => {
             if (!latestFavorByPoint.has(row.pointId)) {

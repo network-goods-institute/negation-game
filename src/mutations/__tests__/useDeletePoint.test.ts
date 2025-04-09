@@ -1,4 +1,14 @@
 // Mock dependencies first
+const originalConsoleError = console.error;
+
+beforeEach(() => {
+  console.error = jest.fn();
+});
+
+afterEach(() => {
+  console.error = originalConsoleError;
+});
+
 jest.mock("../useAuthenticatedMutation", () => ({
   useAuthenticatedMutation: jest.fn(),
 }));

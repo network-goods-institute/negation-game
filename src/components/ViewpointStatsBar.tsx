@@ -31,11 +31,11 @@ export const ViewpointStatsBar: React.FC<ViewpointStatsBarProps> = ({
 
     return (
         <TooltipProvider>
-            <div className={cn("flex items-center gap-4 text-xs text-muted-foreground", className)}>
+            <div className={cn("flex items-center gap-2 md:gap-4 text-[10px] md:text-xs text-muted-foreground", className)}>
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <div className="flex items-center gap-1.5">
-                            <EyeIcon className="size-3.5" />
+                        <div className="flex items-center gap-1 md:gap-1.5">
+                            <EyeIcon className="size-3 md:size-3.5" />
                             <span>{formatNumber(views)}</span>
                         </div>
                     </TooltipTrigger>
@@ -48,8 +48,8 @@ export const ViewpointStatsBar: React.FC<ViewpointStatsBarProps> = ({
 
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <div className="flex items-center gap-1.5">
-                            <CopyIcon className="size-3.5" />
+                        <div className="flex items-center gap-1 md:gap-1.5">
+                            <CopyIcon className="size-3 md:size-3.5" />
                             <span>{formatNumber(copies)}</span>
                         </div>
                     </TooltipTrigger>
@@ -64,8 +64,8 @@ export const ViewpointStatsBar: React.FC<ViewpointStatsBarProps> = ({
                     <>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <div className="flex items-center gap-1.5">
-                                    <CoinsIcon className="size-3.5" />
+                                <div className="flex items-center gap-1 md:gap-1.5">
+                                    <CoinsIcon className="size-3 md:size-3.5" />
                                     <span>{formatNumber(totalCred)}</span>
                                 </div>
                             </TooltipTrigger>
@@ -78,8 +78,8 @@ export const ViewpointStatsBar: React.FC<ViewpointStatsBarProps> = ({
 
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <div className="flex items-center gap-1.5">
-                                    <TrendingUpIcon className="size-3.5" />
+                                <div className="flex items-center gap-1 md:gap-1.5">
+                                    <TrendingUpIcon className="size-3 md:size-3.5" />
                                     <span>{averageFavor}</span>
                                 </div>
                             </TooltipTrigger>

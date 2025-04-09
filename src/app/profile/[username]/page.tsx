@@ -17,7 +17,6 @@ import { Separator } from "@/components/ui/separator";
 import type { ProfilePoint } from "@/actions/fetchProfilePoints";
 import React from "react";
 import { useUserEndorsedPoints } from "@/queries/useUserEndorsedPoints";
-import { ProfileEditDialog } from "@/components/ProfileEditDialog";
 import { getBackButtonHandler } from "@/utils/backButtonUtils";
 import { ViewpointCardWrapper } from "@/components/ViewpointCardWrapper";
 import { usePathname } from "next/navigation";
@@ -30,6 +29,13 @@ import dynamic from "next/dynamic";
 import { Progress } from "@/components/ui/progress";
 
 const NegateDialog = dynamic(() => import("@/components/NegateDialog").then(mod => mod.NegateDialog), { ssr: false });
+const ProfileEditDialog = dynamic(
+    () => import("@/components/ProfileEditDialog").then(mod => mod.ProfileEditDialog),
+    {
+        ssr: false,
+        loading: () => null
+    }
+);
 
 const MemoizedPointCard = memo(PointCard);
 const MemoizedViewpointCardWrapper = memo(ViewpointCardWrapper);
@@ -703,6 +709,9 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                     onOpenChange={setEditProfileOpen}
                     currentBio={userData?.bio}
                     currentDelegationUrl={userData?.delegationUrl}
+                    currentDiscourseUsername={userData?.discourseUsername}
+                    currentDiscourseCommunityUrl={userData?.discourseCommunityUrl}
+                    currentDiscourseConsentGiven={userData?.discourseConsentGiven}
                 />
             )}
 

@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Switch } from "./ui/switch";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeftIcon, ExternalLinkIcon } from "lucide-react";
 import DOMPurify from 'dompurify';
 import { useState } from "react";
@@ -19,16 +21,24 @@ interface ProfileEditDialogProps {
     onOpenChange: (open: boolean) => void;
     currentBio?: string | null;
     currentDelegationUrl?: string | null;
+    currentDiscourseUsername?: string | null;
+    currentDiscourseCommunityUrl?: string | null;
+    currentDiscourseConsentGiven?: boolean;
 }
 
-export const ProfileEditDialog = ({
-    open,
+const ProfileEditDialogContent = ({
     onOpenChange,
     currentBio,
     currentDelegationUrl,
-}: ProfileEditDialogProps) => {
+    currentDiscourseUsername,
+    currentDiscourseCommunityUrl,
+    currentDiscourseConsentGiven = false,
+}: Omit<ProfileEditDialogProps, 'open'>) => {
     const [bio, setBio] = useState(currentBio || "");
     const [delegationUrl, setDelegationUrl] = useState(currentDelegationUrl || "");
+    const [discourseUsername, setDiscourseUsername] = useState(currentDiscourseUsername || "");
+    const [discourseCommunityUrl, setDiscourseCommunityUrl] = useState(currentDiscourseCommunityUrl || "");
+    const [discourseConsentGiven, setDiscourseConsentGiven] = useState(currentDiscourseConsentGiven);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const queryClient = useQueryClient();
     const { user: privyUser } = usePrivy();
@@ -38,30 +48,38 @@ export const ProfileEditDialog = ({
         setIsSubmitting(true);
 
         try {
-            let processedUrl = delegationUrl.trim();
-            if (processedUrl && !processedUrl.startsWith("http")) {
-                processedUrl = `https://${processedUrl}`;
+            let processedDelegationUrl = delegationUrl.trim();
+            if (processedDelegationUrl && !processedDelegationUrl.startsWith("http")) {
+                processedDelegationUrl = `https://${processedDelegationUrl}`;
+            }
+
+            let processedDiscourseCommunityUrl = discourseCommunityUrl.trim();
+            if (processedDiscourseCommunityUrl && !processedDiscourseCommunityUrl.startsWith("http")) {
+                processedDiscourseCommunityUrl = `https://${processedDiscourseCommunityUrl}`;
             }
 
             const result = await updateUserProfile({
                 bio: bio.trim() || null,
-                delegationUrl: processedUrl || null,
+                delegationUrl: processedDelegationUrl || null,
+                discourseUsername: discourseUsername.trim() || null,
+                discourseCommunityUrl: processedDiscourseCommunityUrl || null,
+                discourseConsentGiven,
             });
 
             if (result.success) {
                 toast.success("Profile updated successfully");
                 onOpenChange(false);
 
-                // Immediately update the cached user data with the new bio and delegation URL
                 if (privyUser?.id) {
-                    // Update all user queries that might be showing this user's data
-                    // 1. Update by user ID
                     queryClient.setQueryData(userQueryKey(privyUser.id), (oldData: any) => {
                         if (!oldData) return oldData;
                         return {
                             ...oldData,
                             bio: bio.trim() || null,
-                            delegationUrl: processedUrl || null,
+                            delegationUrl: processedDelegationUrl || null,
+                            discourseUsername: discourseUsername.trim() || null,
+                            discourseCommunityUrl: processedDiscourseCommunityUrl || null,
+                            discourseConsentGiven,
                         };
                     });
 
@@ -72,7 +90,10 @@ export const ProfileEditDialog = ({
                             return {
                                 ...oldData,
                                 bio: bio.trim() || null,
-                                delegationUrl: processedUrl || null,
+                                delegationUrl: processedDelegationUrl || null,
+                                discourseUsername: discourseUsername.trim() || null,
+                                discourseCommunityUrl: processedDiscourseCommunityUrl || null,
+                                discourseConsentGiven,
                             };
                         });
                     }
@@ -89,7 +110,6 @@ export const ProfileEditDialog = ({
         }
     };
 
-    // Function to display a shortened version of the URL
     const displayUrl = (url: string) => {
         if (!url) return "";
         try {
@@ -101,89 +121,169 @@ export const ProfileEditDialog = ({
     };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md max-h-[90vh] p-0 overflow-hidden">
-                <DialogHeader className="p-4 border-b sticky top-0 bg-background z-10">
-                    <div className="flex items-center gap-2">
-                        <DialogClose asChild>
-                            <Button variant="ghost" size="icon" className="text-primary -ml-2">
-                                <ArrowLeftIcon className="size-5" />
-                            </Button>
-                        </DialogClose>
-                        <DialogTitle>Edit Profile</DialogTitle>
-                    </div>
-                </DialogHeader>
+        <DialogContent className="flex flex-col h-[90vh] max-h-[800px] p-0 gap-0">
+            <DialogHeader className="flex-none px-4 py-3 border-b">
+                <div className="flex items-center gap-2">
+                    <DialogClose asChild>
+                        <Button variant="ghost" size="icon" className="text-primary -ml-2">
+                            <ArrowLeftIcon className="size-5" />
+                        </Button>
+                    </DialogClose>
+                    <DialogTitle>Edit Profile</DialogTitle>
+                </div>
+            </DialogHeader>
 
-                <div className="overflow-y-auto p-4">
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div className="space-y-2">
-                            <Label htmlFor="bio" className="text-base font-medium">Bio</Label>
-                            <Textarea
-                                id="bio"
-                                value={bio}
-                                onChange={(e) => setBio(e.target.value)}
-                                placeholder="Tell us about yourself"
-                                maxLength={500}
-                                className="resize-none min-h-24 w-full"
-                            />
-                            <p className="text-xs text-muted-foreground text-right">
-                                {bio.length}/500
-                            </p>
-                        </div>
-
-                        <div className="space-y-2">
-                            <div className="mb-1">
-                                <Label htmlFor="delegationUrl" className="text-base font-medium">Delegation URL</Label>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    Your governance account delegation link
+            <div className="flex-1 min-h-0">
+                <ScrollArea className="h-full">
+                    <form id="profile-form" onSubmit={handleSubmit}>
+                        <div className="px-4 py-6 space-y-8">
+                            {/* Bio Section */}
+                            <div className="space-y-2">
+                                <Label htmlFor="bio" className="text-base font-medium">Bio</Label>
+                                <Textarea
+                                    id="bio"
+                                    value={bio}
+                                    onChange={(e) => setBio(e.target.value)}
+                                    placeholder="Tell us about yourself"
+                                    maxLength={500}
+                                    className="resize-none min-h-24 w-full"
+                                />
+                                <p className="text-xs text-muted-foreground text-right">
+                                    {bio.length}/500
                                 </p>
                             </div>
-                            <Input
-                                id="delegationUrl"
-                                value={delegationUrl}
-                                onChange={(e) => setDelegationUrl(e.target.value)}
-                                placeholder="https://gov.scroll.io/delegates/..."
-                                type="url"
-                                className="w-full"
-                            />
 
-                            {delegationUrl && (
-                                <div className="mt-2 p-3 bg-muted/30 rounded-md">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm font-medium">Preview:</span>
-                                        <a
-                                            href={DOMPurify.sanitize(delegationUrl.startsWith("http") ? delegationUrl : `https://${delegationUrl}`)}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-primary flex items-center gap-1 ml-auto text-xs hover:underline"
-                                        >
-                                            Open link <ExternalLinkIcon className="size-3" />
-                                        </a>
-                                    </div>
-                                    <div className="mt-1.5 text-sm overflow-hidden text-ellipsis">
-                                        {displayUrl(delegationUrl)}
-                                    </div>
+                            {/* Delegation URL Section */}
+                            <div className="space-y-2">
+                                <div className="mb-1">
+                                    <Label htmlFor="delegationUrl" className="text-base font-medium">Delegation URL</Label>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Your governance account delegation link
+                                    </p>
                                 </div>
-                            )}
+                                <Input
+                                    id="delegationUrl"
+                                    value={delegationUrl}
+                                    onChange={(e) => setDelegationUrl(e.target.value)}
+                                    placeholder="https://gov.scroll.io/delegates/..."
+                                    type="url"
+                                    className="w-full"
+                                />
+                                {delegationUrl && (
+                                    <div className="mt-2 p-3 bg-muted/30 rounded-md">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm font-medium">Preview:</span>
+                                            <a
+                                                href={DOMPurify.sanitize(delegationUrl.startsWith("http") ? delegationUrl : `https://${delegationUrl}`)}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-primary flex items-center gap-1 ml-auto text-xs hover:underline"
+                                            >
+                                                Open link <ExternalLinkIcon className="size-3" />
+                                            </a>
+                                        </div>
+                                        <div className="mt-1.5 text-sm overflow-hidden text-ellipsis">
+                                            {displayUrl(delegationUrl)}
+                                        </div>
+                                    </div>
+                                )}
+                                <p className="text-xs text-muted-foreground mt-2">
+                                    Adding your delegation URL shows a heart icon next to your name in the leaderboard and prompts viewers to delegate to you.
+                                </p>
+                            </div>
 
-                            <p className="text-xs text-muted-foreground mt-2">
-                                Adding your delegation URL shows a heart icon next to your name in the leaderboard and prompts viewers to delegate to you.
-                            </p>
-                        </div>
+                            {/* Discourse Integration Section */}
+                            <div className="space-y-6 border-t pt-6">
+                                <div className="space-y-2">
+                                    <div className="mb-1">
+                                        <Label htmlFor="discourseUsername" className="text-base font-medium">Discourse Username</Label>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Your username on the community forum
+                                        </p>
+                                    </div>
+                                    <Input
+                                        id="discourseUsername"
+                                        value={discourseUsername}
+                                        onChange={(e) => setDiscourseUsername(e.target.value)}
+                                        placeholder="Enter your Discourse username"
+                                        className="w-full"
+                                    />
+                                </div>
 
-                        <div className="flex justify-end gap-3 pt-2 sticky bottom-0 bg-background border-t p-4 -mx-4 -mb-4 mt-8">
-                            <DialogClose asChild>
-                                <Button variant="outline" type="button">
-                                    Cancel
-                                </Button>
-                            </DialogClose>
-                            <Button type="submit" disabled={isSubmitting}>
-                                {isSubmitting ? "Saving..." : "Save Changes"}
-                            </Button>
+                                <div className="space-y-2">
+                                    <div className="mb-1">
+                                        <Label htmlFor="discourseCommunityUrl" className="text-base font-medium">Community Forum URL</Label>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            The URL of your community&apos;s Discourse forum
+                                        </p>
+                                    </div>
+                                    <Input
+                                        id="discourseCommunityUrl"
+                                        value={discourseCommunityUrl}
+                                        onChange={(e) => setDiscourseCommunityUrl(e.target.value)}
+                                        placeholder="https://forum.example.com"
+                                        type="url"
+                                        className="w-full"
+                                    />
+                                    {discourseCommunityUrl && (
+                                        <div className="mt-2 p-3 bg-muted/30 rounded-md">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm font-medium">Preview:</span>
+                                                <a
+                                                    href={DOMPurify.sanitize(discourseCommunityUrl.startsWith("http") ? discourseCommunityUrl : `https://${discourseCommunityUrl}`)}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-primary flex items-center gap-1 ml-auto text-xs hover:underline"
+                                                >
+                                                    Open link <ExternalLinkIcon className="size-3" />
+                                                </a>
+                                            </div>
+                                            <div className="mt-1.5 text-sm overflow-hidden text-ellipsis">
+                                                {displayUrl(discourseCommunityUrl)}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex items-center justify-between space-x-2">
+                                    <div className="space-y-0.5">
+                                        <Label htmlFor="discourseConsent" className="text-base font-medium">Feature Use and Improvement Consent</Label>
+                                        <p className="text-sm text-muted-foreground">
+                                            Allow us to use your public forum messages to improve and use our features.
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        id="discourseConsent"
+                                        checked={discourseConsentGiven}
+                                        onCheckedChange={setDiscourseConsentGiven}
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </form>
-                </div>
-            </DialogContent>
+                </ScrollArea>
+            </div>
+
+            <div className="flex-none px-4 py-3 border-t bg-background flex justify-end gap-3">
+                <DialogClose asChild>
+                    <Button variant="outline" type="button">
+                        Cancel
+                    </Button>
+                </DialogClose>
+                <Button type="submit" form="profile-form" disabled={isSubmitting}>
+                    {isSubmitting ? "Saving..." : "Save Changes"}
+                </Button>
+            </div>
+        </DialogContent>
+    );
+};
+
+export const ProfileEditDialog = ({ open, ...props }: ProfileEditDialogProps) => {
+    if (!open) return null;
+
+    return (
+        <Dialog open={open} onOpenChange={props.onOpenChange}>
+            <ProfileEditDialogContent {...props} />
         </Dialog>
     );
 };

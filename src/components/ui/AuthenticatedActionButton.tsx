@@ -14,7 +14,40 @@ export const AuthenticatedActionButton = ({ onClick, ...props }: ButtonProps) =>
     const [isRefreshing, setIsRefreshing] = useState(false);
 
     const handleClick = useCallback(async (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
-        // Prevent default to handle auth flow
+        // If it's a submit button, don't prevent default to allow form submission
+        if (props.type === 'submit') {
+            // For submit buttons, we still need to verify authentication
+            if (ready && authenticated) {
+                try {
+                    setIsRefreshing(true);
+                    const success = await setPrivyToken();
+
+                    if (!success) {
+                        console.error('Token refresh failed, showing login');
+                        handleAuthError(new Error("Failed to refresh authentication token"), "refreshing token");
+                        login();
+                        e.preventDefault();
+                        return;
+                    }
+
+                    if (onClick) {
+                        onClick(e);
+                    }
+                } catch (error) {
+                    console.error('Error refreshing token:', error);
+                    handleAuthError(error, "refreshing token");
+                    login();
+                    e.preventDefault();
+                } finally {
+                    setIsRefreshing(false);
+                }
+            } else {
+                e.preventDefault();
+                login();
+            }
+            return;
+        }
+
         e.preventDefault();
 
         // Check if auth is ready and user is authenticated
@@ -42,7 +75,7 @@ export const AuthenticatedActionButton = ({ onClick, ...props }: ButtonProps) =>
             // Force a login refresh
             login();
         }
-    }, [authenticated, ready, onClick, login]);
+    }, [authenticated, ready, onClick, login, props.type]);
 
     const rightLoading = props.rightLoading || isRefreshing;
 

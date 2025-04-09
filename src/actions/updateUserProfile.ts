@@ -9,6 +9,9 @@ import { z } from "zod";
 const updateProfileSchema = z.object({
   bio: z.string().max(500).nullable().optional(),
   delegationUrl: z.string().url().max(255).nullable().optional(),
+  discourseUsername: z.string().max(255).nullable().optional(),
+  discourseCommunityUrl: z.string().url().max(255).nullable().optional(),
+  discourseConsentGiven: z.boolean(),
 });
 
 export type UpdateProfileParams = z.infer<typeof updateProfileSchema>;
@@ -29,6 +32,9 @@ export const updateUserProfile = async (params: UpdateProfileParams) => {
       .set({
         bio: validatedData.bio,
         delegationUrl: validatedData.delegationUrl,
+        discourseUsername: validatedData.discourseUsername,
+        discourseCommunityUrl: validatedData.discourseCommunityUrl,
+        discourseConsentGiven: validatedData.discourseConsentGiven,
       })
       .where(eq(usersTable.id, userId));
 

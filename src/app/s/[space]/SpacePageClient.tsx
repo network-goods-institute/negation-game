@@ -16,7 +16,7 @@ import { useSpace } from "@/queries/useSpace";
 import { usePrivy } from "@privy-io/react-auth";
 import { useToggle } from "@uidotdev/usehooks";
 import { useSetAtom, useAtom } from "jotai";
-import { PlusIcon, TrophyIcon, SearchIcon } from "lucide-react";
+import { PlusIcon, TrophyIcon, SearchIcon, BrainCircuitIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState, useMemo, memo, useEffect, useRef } from "react";
 import { LeaderboardDialog } from "@/components/LeaderboardDialog";
@@ -35,8 +35,6 @@ import { usePrefetchPoint } from "@/queries/usePointData";
 import React from "react";
 import { ViewpointCardWrapper } from "@/components/ViewpointCardWrapper";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
-
-
 
 interface PageProps {
     params: { space: string };
@@ -385,7 +383,9 @@ const AllTabContent = memo(({ points, viewpoints, isLoading, viewpointsLoading, 
     loadingCardId: string | null;
 }) => {
     if (!points || !viewpoints || isLoading || viewpointsLoading) {
-        return <Loader className="absolute self-center my-auto top-0 bottom-0" />;
+        return <div className="flex-1 flex items-center justify-center min-h-[calc(100vh-200px)]">
+            <Loader className="h-6 w-6" />
+        </div>;
     }
 
     if (points.length === 0 && viewpoints.length === 0) {
@@ -448,24 +448,9 @@ const PointsTabContent = memo(({ points, isLoading, combinedFeed, basePath, spac
     }, [combinedFeed]);
 
     if (isLoading) {
-        return (
-            <div className="flex flex-col gap-4">
-                {[1, 2, 3].map((i) => (
-                    <div key={i} className="border-b py-4 px-6 min-h-[120px]">
-                        <div className="animate-pulse flex flex-col w-full gap-2">
-                            <div className="h-6 bg-muted rounded w-3/4"></div>
-                            <div className="h-4 bg-muted rounded w-1/2 mt-2"></div>
-                            <div className="h-3 bg-muted rounded w-1/4 mt-2"></div>
-                            <div className="flex gap-2 mt-2">
-                                <div className="h-5 w-5 bg-muted rounded-full"></div>
-                                <div className="h-5 w-5 bg-muted rounded-full"></div>
-                                <div className="h-5 w-5 bg-muted rounded-full"></div>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        );
+        return <div className="flex-1 flex items-center justify-center min-h-[calc(100vh-200px)]">
+            <Loader className="h-6 w-6" />
+        </div>;
     }
 
     if (points?.length === 0 && !pinnedPoint && pointItems.length === 0) {
@@ -514,7 +499,9 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
     }, [viewpoints]);
 
     if (viewpoints === undefined || viewpointsLoading) {
-        return <Loader className="absolute self-center my-auto top-0 bottom-0" />;
+        return <div className="flex-1 flex items-center justify-center min-h-[calc(100vh-200px)]">
+            <Loader className="h-6 w-6" />
+        </div>;
     }
 
     if (viewpoints.length === 0) {
@@ -832,33 +819,39 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
         <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow bg-background">
             <div className="relative w-full sm:col-[2] flex flex-col gap-0 border-x overflow-auto">
                 {space && space.data && space.data.id !== DEFAULT_SPACE && (
-                    <>
-                        <div className="absolute top-0 h-10 w-full bg-muted" />
-                        <div className="py-sm px-lg flex items-end gap-sm w-full border-b pb-2xl">
-                            <Avatar className="border-4 border-background h-20 w-20">
+                    <div className="py-3 px-4 flex items-center justify-between gap-3 w-full border-b">
+                        <div className="flex items-center gap-3">
+                            <Avatar className="border-2 sm:border-4 border-background h-12 w-12 sm:h-20 sm:w-20">
                                 {space.data.icon && (
                                     <AvatarImage
                                         src={space.data.icon}
                                         alt={`s/${space.data.id} icon`}
                                     />
                                 )}
-                                <AvatarFallback className="text-4xl font-bold text-muted-foreground">
+                                <AvatarFallback className="text-2xl sm:text-4xl font-bold text-muted-foreground">
                                     {space.data.id.charAt(0).toUpperCase()}
                                 </AvatarFallback>
                             </Avatar>
-                            <h1 className="text-xl mb-md font-semibold">s/{space.data.id}</h1>
+                            <h1 className="text-lg sm:text-xl font-semibold">s/{space.data.id}</h1>
                         </div>
-                    </>
+                        <Button
+                            className="h-12 w-auto px-6"
+                            onClick={() => router.push(`${basePath}/chat`)}
+                        >
+                            <BrainCircuitIcon className="size-6" />
+                            <span className="ml-sm">AI Assistant</span>
+                        </Button>
+                    </div>
                 )}
 
-                <div className="flex flex-col gap-4 px-lg py-sm border-b">
-                    <div className="flex gap-4">
+                <div className="flex flex-col gap-4 px-4 sm:px-lg py-3 sm:py-sm border-b">
+                    <div className="flex gap-2 sm:gap-4 overflow-x-auto no-scrollbar">
                         <button
                             onClick={() => {
                                 handleTabChange("rationales");
                             }}
                             className={cn(
-                                "py-2 px-4 rounded focus:outline-none",
+                                "py-1.5 sm:py-2 px-3 sm:px-4 rounded text-sm sm:text-base whitespace-nowrap focus:outline-none",
                                 selectedTab === "rationales" ? "bg-primary text-white" : "bg-transparent text-primary"
                             )}
                         >
@@ -869,7 +862,7 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
                                 handleTabChange("points");
                             }}
                             className={cn(
-                                "py-2 px-4 rounded focus:outline-none",
+                                "py-1.5 sm:py-2 px-3 sm:px-4 rounded text-sm sm:text-base whitespace-nowrap focus:outline-none",
                                 selectedTab === "points" ? "bg-primary text-white" : "bg-transparent text-primary"
                             )}
                         >
@@ -880,7 +873,7 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
                                 handleTabChange("all");
                             }}
                             className={cn(
-                                "py-2 px-4 rounded focus:outline-none",
+                                "py-1.5 sm:py-2 px-3 sm:px-4 rounded text-sm sm:text-base whitespace-nowrap focus:outline-none",
                                 selectedTab === "all" ? "bg-primary text-white" : "bg-transparent text-primary"
                             )}
                         >
@@ -891,13 +884,23 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
                                 handleTabChange("search");
                             }}
                             className={cn(
-                                "py-2 px-4 rounded focus:outline-none flex items-center gap-1",
+                                "py-1.5 sm:py-2 px-3 sm:px-4 rounded text-sm sm:text-base whitespace-nowrap focus:outline-none flex items-center gap-1",
                                 selectedTab === "search" ? "bg-primary text-white" : "bg-transparent text-primary"
                             )}
                         >
-                            <SearchIcon className="h-4 w-4" />
+                            <SearchIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                             <span>Search</span>
                         </button>
+                        {space?.data?.id === DEFAULT_SPACE && (
+                            <Button
+                                className="ml-auto py-1.5 sm:py-2 px-2 sm:px-4 text-xs sm:text-sm flex items-center gap-1"
+                                variant="ghost"
+                                onClick={() => router.push(`${basePath}/chat`)}
+                            >
+                                <BrainCircuitIcon className="size-3.5 sm:size-4" />
+                                <span className="hidden sm:inline">AI Assistant</span>
+                            </Button>
+                        )}
                     </div>
 
                     {selectedTab === "search" && (
@@ -910,6 +913,13 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
                         </div>
                     )}
                 </div>
+
+                {/* Loading State */}
+                {selectedTab === null && (
+                    <div className="flex items-center justify-center flex-1 min-h-[50vh]">
+                        <Loader className="h-6 w-6" />
+                    </div>
+                )}
 
                 {/* Pinned Point - with transition */}
                 {selectedTab !== "search" && selectedTab !== "rationales" &&
@@ -1052,7 +1062,7 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
 
                 <Button
                     variant="ghost"
-                    className="aspect-square rounded-full h-[58px] w-[58px] sm:h-10 sm:w-auto sm:px-6 order-1"
+                    className="aspect-square rounded-full h-[58px] w-[58px] sm:h-10 sm:w-auto sm:px-6 order-0"
                     onClick={() => setLeaderboardOpen(true)}
                 >
                     <TrophyIcon className="size-7 sm:size-5" />

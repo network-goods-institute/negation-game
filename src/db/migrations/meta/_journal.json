@@ -288,6 +288,13 @@
       "when": 1742325854347,
       "tag": "0040_puzzling_deathbird",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1743388273816,
+      "tag": "0041_sudden_slyde",
+      "breakpoints": true
     }
   ]
 }
