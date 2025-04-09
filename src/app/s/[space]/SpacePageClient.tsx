@@ -383,7 +383,9 @@ const AllTabContent = memo(({ points, viewpoints, isLoading, viewpointsLoading, 
     loadingCardId: string | null;
 }) => {
     if (!points || !viewpoints || isLoading || viewpointsLoading) {
-        return <Loader className="absolute self-center my-auto top-0 bottom-0" />;
+        return <div className="flex-1 flex items-center justify-center min-h-[calc(100vh-200px)]">
+            <Loader className="h-6 w-6" />
+        </div>;
     }
 
     if (points.length === 0 && viewpoints.length === 0) {
@@ -446,24 +448,9 @@ const PointsTabContent = memo(({ points, isLoading, combinedFeed, basePath, spac
     }, [combinedFeed]);
 
     if (isLoading) {
-        return (
-            <div className="flex flex-col gap-4">
-                {[1, 2, 3].map((i) => (
-                    <div key={i} className="border-b py-4 px-6 min-h-[120px]">
-                        <div className="animate-pulse flex flex-col w-full gap-2">
-                            <div className="h-6 bg-muted rounded w-3/4"></div>
-                            <div className="h-4 bg-muted rounded w-1/2 mt-2"></div>
-                            <div className="h-3 bg-muted rounded w-1/4 mt-2"></div>
-                            <div className="flex gap-2 mt-2">
-                                <div className="h-5 w-5 bg-muted rounded-full"></div>
-                                <div className="h-5 w-5 bg-muted rounded-full"></div>
-                                <div className="h-5 w-5 bg-muted rounded-full"></div>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        );
+        return <div className="flex-1 flex items-center justify-center min-h-[calc(100vh-200px)]">
+            <Loader className="h-6 w-6" />
+        </div>;
     }
 
     if (points?.length === 0 && !pinnedPoint && pointItems.length === 0) {
@@ -512,7 +499,9 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
     }, [viewpoints]);
 
     if (viewpoints === undefined || viewpointsLoading) {
-        return <Loader className="absolute self-center my-auto top-0 bottom-0" />;
+        return <div className="flex-1 flex items-center justify-center min-h-[calc(100vh-200px)]">
+            <Loader className="h-6 w-6" />
+        </div>;
     }
 
     if (viewpoints.length === 0) {
@@ -904,12 +893,12 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
                         </button>
                         {space?.data?.id === DEFAULT_SPACE && (
                             <Button
-                                className="ml-auto py-1.5 sm:py-2 px-3 sm:px-4 text-xs sm:text-sm flex items-center gap-1"
+                                className="ml-auto py-1.5 sm:py-2 px-2 sm:px-4 text-xs sm:text-sm flex items-center gap-1"
                                 variant="ghost"
                                 onClick={() => router.push(`${basePath}/chat`)}
                             >
                                 <BrainCircuitIcon className="size-3.5 sm:size-4" />
-                                <span>AI Assistant</span>
+                                <span className="hidden sm:inline">AI Assistant</span>
                             </Button>
                         )}
                     </div>

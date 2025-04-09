@@ -205,7 +205,7 @@ export default function AIAssistant() {
     const [message, setMessage] = useState('');
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{
         role: 'assistant',
-        content: `Hello! I'm here to help you write your rationale description or design your graph. What topic should we explore?`
+        content: `Hello! I'm here to help you write your rationale description or discuss your points. What topic should we explore?`
     }]);
     const [isGenerating, setIsGenerating] = useState(false);
     const [streamingContent, setStreamingContent] = useState('');
@@ -316,7 +316,7 @@ export default function AIAssistant() {
             title: 'New Chat',
             messages: [{
                 role: 'assistant',
-                content: `Hello! I'm here to help you write your rationale description or design your graph. What topic should we explore?`
+                content: `Hello! I'm here to help you write your rationale description or discuss your points. What topic should we explore?`
             }],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -415,7 +415,6 @@ export default function AIAssistant() {
             let inCodeBlock = false;
             let codeBlockContent = '';
             let codeBlockLanguage = '';
-            let lastChunkWasNewline = false;
             let lastChunkEndedWithNewline = false;
             let lastChunkStartedWithHash = false;
             let lastChunkWasSpace = false;
@@ -489,7 +488,6 @@ export default function AIAssistant() {
                         // Update state for next chunk
                         lastChunkEndedWithNewline = endsWithNewline;
                         lastChunkStartedWithHash = startsWithHash;
-                        lastChunkWasNewline = isNewline;
                         lastChunkWasSpace = false;
                     }
                 }
@@ -573,7 +571,7 @@ export default function AIAssistant() {
             setCurrentChatId(null);
             setChatMessages([{
                 role: 'assistant',
-                content: `Hello! I'm here to help you write your rationale description or design your graph. What topic should we explore?`
+                content: `Hello! I'm here to help you write your rationale description or discuss your points. What topic should we explore?`
             }]);
         } else if (currentChatId === null && updatedChats.length > 0) {
             // If we somehow have no current chat but there are chats available
@@ -988,7 +986,10 @@ export default function AIAssistant() {
                                                             <TooltipTrigger asChild>
                                                                 <div className="max-w-[160px]">
                                                                     <span className={`block truncate ${chat.id === currentChatId ? 'font-medium' : ''}`}>
-                                                                        {chat.title}
+                                                                        {isMobile ?
+                                                                            (chat.title.length > 30 ? chat.title.slice(0, 30) + '...' : chat.title) :
+                                                                            chat.title
+                                                                        }
                                                                     </span>
                                                                 </div>
                                                             </TooltipTrigger>
@@ -1072,7 +1073,7 @@ export default function AIAssistant() {
                                         </span>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                        <p className="max-w-xs">This is a rough Alpha version of the chatbot, and is in no way indicative of final form. Please use with caution</p>
+                                        <p className="max-w-xs">This is a rough Alpha version of the chatbot, and is in no way indicative of final form. Please use with caution. We are working on new features and improvements currently!</p>
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
@@ -1141,9 +1142,34 @@ export default function AIAssistant() {
                                             className={`${isMobile ? 'max-w-[90%]' : 'max-w-[80%]'} rounded-2xl p-4 shadow-sm ${msg.role === 'user'
                                                 ? 'bg-primary text-primary-foreground ml-4'
                                                 : 'bg-card mr-4'
-                                                } [&_.markdown]:text-base`}
+                                                } [&_.markdown]:text-base ${isMobile ? '[&_.markdown]:text-sm' : ''} relative group`}
                                         >
                                             <MemoizedMarkdown content={msg.content} id={`msg-${i}`} />
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="absolute bottom-2 right-2 h-6 w-6"
+                                                onClick={async () => {
+                                                    const button = document.getElementById(`copy-btn-${i}`);
+                                                    if (!button) return;
+
+                                                    await navigator.clipboard.writeText(msg.content);
+
+                                                    button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="h-3 w-3"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+
+                                                    setTimeout(() => {
+                                                        if (button) {
+                                                            button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="h-3 w-3"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>';
+                                                        }
+                                                    }, 2000);
+                                                }}
+                                                id={`copy-btn-${i}`}
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
+                                                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                                                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                                                </svg>
+                                            </Button>
                                         </div>
                                     </div>
                                 ))}
