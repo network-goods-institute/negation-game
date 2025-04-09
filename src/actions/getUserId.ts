@@ -17,7 +17,7 @@ export const getUserId = async (): Promise<string | null> => {
     return verificationResult.userId;
   } catch (error) {
     // Log the error for debugging
-    console.error("Error verifying Privy token:", error);
+    console.warn("Error verifying Privy token:", error);
 
     // If we get an invalid auth token error, return null to trigger re-auth
     if (

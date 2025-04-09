@@ -19,6 +19,15 @@ jest.mock("@privy-io/react-auth", () => ({
   usePrivy: jest.fn(),
 }));
 
+// Mock useVisitedPoints hook
+jest.mock("@/hooks/useVisitedPoints", () => ({
+  useVisitedPoints: jest.fn(() => ({
+    markPointAsRead: jest.fn(),
+    isVisited: jest.fn(),
+    arePointsVisited: jest.fn(),
+  })),
+}));
+
 // Instead of mocking the action itself, mock its dependencies
 jest.mock("@/actions/doubt", () => {
   const doubt = jest.fn(async ({ pointId, negationId, amount }) => ({
@@ -35,6 +44,7 @@ import { doubt } from "@/actions/doubt";
 import { useInvalidateRelatedPoints } from "@/queries/usePointData";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePrivy } from "@privy-io/react-auth";
+import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 
 describe("useDoubt", () => {
   // Setup common mocks
@@ -44,6 +54,7 @@ describe("useDoubt", () => {
     refetchQueries: jest.fn(),
   };
   const mockUser = { id: "user-123" };
+  const mockMarkPointAsRead = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -54,6 +65,11 @@ describe("useDoubt", () => {
     );
     (useQueryClient as jest.Mock).mockReturnValue(mockQueryClient);
     (usePrivy as jest.Mock).mockReturnValue({ user: mockUser });
+    (useVisitedPoints as jest.Mock).mockReturnValue({
+      markPointAsRead: mockMarkPointAsRead,
+      isVisited: jest.fn(),
+      arePointsVisited: jest.fn(),
+    });
   });
 
   it("should use useAuthenticatedMutation with doubt action", () => {
@@ -102,6 +118,9 @@ describe("useDoubt", () => {
     // Verify the correct invalidation calls were made
     expect(mockInvalidateRelatedPoints).toHaveBeenCalledWith(456);
     expect(mockInvalidateRelatedPoints).toHaveBeenCalledWith(789);
+
+    // Verify markPointAsRead was called
+    expect(mockMarkPointAsRead).toHaveBeenCalledWith(456);
 
     // Verify other invalidation queries
     expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({

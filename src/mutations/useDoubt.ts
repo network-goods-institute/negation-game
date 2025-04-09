@@ -5,18 +5,22 @@ import { userQueryKey } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { pointQueryKey } from "@/queries/usePointData";
+import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 
 export const useDoubt = () => {
   const queryClient = useQueryClient();
   const { user } = usePrivy();
   const invalidateRelatedPoints = useInvalidateRelatedPoints();
-
+  const { markPointAsRead } = useVisitedPoints();
   return useAuthenticatedMutation({
     mutationFn: doubt,
     onSuccess: (_doubtId, { pointId, negationId }) => {
       // Invalidate both points involved
       invalidateRelatedPoints(pointId);
       invalidateRelatedPoints(negationId);
+
+      // mark the doubted point as visited
+      markPointAsRead(pointId);
 
       // Invalidate doubt-specific queries
       queryClient.invalidateQueries({

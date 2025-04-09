@@ -1,5 +1,7 @@
 import React, { useCallback } from "react";
 import { ViewpointCard } from "./ViewpointCard";
+import Link from "next/link";
+import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
 
 interface ViewpointCardWrapperProps {
     id: string;
@@ -38,19 +40,32 @@ export function ViewpointCardWrapper({
     }, [id, handleCardClick]);
 
     return (
-        <ViewpointCard
-            className={className}
-            id={id}
-            title={title}
-            description={description}
-            author={author}
-            createdAt={createdAt}
-            space={space}
-            statistics={statistics}
-            linkable={true}
-            isLoading={loadingCardId === `rationale-${id}`}
-            data-rationale-id={id}
-            onClick={onCardClick}
-        />
+        <Link
+            draggable={false}
+            href={`/s/${space}/rationale/${id}`}
+            className="flex border-b cursor-pointer hover:bg-accent"
+            onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                preventDefaultIfContainsSelection(e);
+                // Don't navigate if text is selected or if it's an action button
+                const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
+                if (!isActionButton && window.getSelection()?.isCollapsed !== false) {
+                    handleCardClick?.(`rationale-${id}`);
+                }
+            }}
+        >
+            <ViewpointCard
+                className={className}
+                id={id}
+                title={title}
+                description={description}
+                author={author}
+                createdAt={createdAt}
+                space={space}
+                statistics={statistics}
+                linkable={false} // Disable internal linking since we're using the outer Link now
+                isLoading={loadingCardId === `rationale-${id}`}
+                data-rationale-id={id}
+            />
+        </Link>
     );
 } 

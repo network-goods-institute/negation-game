@@ -52,7 +52,6 @@ import {
 } from "react";
 import { AuthenticatedActionButton } from "./ui/AuthenticatedActionButton";
 import { Button } from "./ui/button";
-import { encodeId } from "@/lib/encodeId";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { ExternalLinkIcon } from "lucide-react";
@@ -659,7 +658,7 @@ export const PointCard = ({
           </span>
           <button
             onClick={handleMarkAsRead}
-            className="relative size-3 rounded-full flex items-center justify-center"
+            className="relative size-3 rounded-full flex items-center justify-center before:absolute before:content-[''] before:size-8 before:-left-2.5 before:-top-2.5"
           >
             <div className="absolute inset-0 bg-endorsed/20 rounded-full scale-0 group-hover:scale-150 transition-transform" />
             <CircleIcon className="size-full fill-endorsed text-endorsed relative" />

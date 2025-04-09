@@ -9,9 +9,8 @@ import Link from "next/link";
 import { encodeId } from "@/lib/encodeId";
 import { Button } from "@/components/ui/button";
 import { ArrowLeftIcon, ArrowDownIcon, PencilIcon, ExternalLinkIcon } from "lucide-react";
-import { Loader } from "@/components/ui/loader";
 import { ConnectButton } from "@/components/ConnectButton";
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, memo } from "react";
 import { useProfilePoints } from "@/queries/useProfilePoints";
 import { useUserViewpoints } from "@/queries/useUserViewpoints";
 import { Separator } from "@/components/ui/separator";
@@ -27,6 +26,7 @@ import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContain
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
+import { Progress } from "@/components/ui/progress";
 
 const NegateDialog = dynamic(() => import("@/components/NegateDialog").then(mod => mod.NegateDialog), { ssr: false });
 const ProfileEditDialog = dynamic(
@@ -37,12 +37,14 @@ const ProfileEditDialog = dynamic(
     }
 );
 
+const MemoizedPointCard = memo(PointCard);
+const MemoizedViewpointCardWrapper = memo(ViewpointCardWrapper);
+
 interface ProfilePageProps {
     params: Promise<{
         username: string;
     }>;
 }
-
 export default function ProfilePage({ params }: ProfilePageProps) {
     // Unwrap params using React.use()
     const unwrappedParams = React.use(params as any) as { username: string };
@@ -64,6 +66,64 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     const pathname = usePathname();
     const queryClient = useQueryClient();
     const setNegatedPointId = useSetAtom(negatedPointIdAtom);
+
+    const [loadingProgress, setLoadingProgress] = useState(0);
+    const [maxProgressReached, setMaxProgressReached] = useState(0);
+    const [loadingStage, setLoadingStage] = useState("Initializing");
+
+    useEffect(() => {
+        if (isLoadingPoints || isLoadingViewpoints || isLoadingEndorsedPoints) {
+            let completedSteps = 0;
+            const totalSteps = 3; // points, viewpoints, endorsements
+
+            if (!isLoadingPoints) {
+                completedSteps++;
+                setLoadingStage("Loading user activity...");
+            }
+
+            if (!isLoadingViewpoints && completedSteps === 1) {
+                completedSteps++;
+                setLoadingStage("Loading rationales...");
+            } else if (!isLoadingViewpoints && completedSteps > 1) {
+                completedSteps++;
+            }
+
+            if (!isLoadingEndorsedPoints && completedSteps === 2) {
+                completedSteps++;
+                setLoadingStage("Loading endorsements...");
+            } else if (!isLoadingEndorsedPoints && completedSteps > 2) {
+                completedSteps++;
+            }
+
+            const currentProgress = (completedSteps / totalSteps) * 100;
+
+            if (completedSteps < totalSteps) {
+                const timer = setTimeout(() => {
+                    const targetProgress = Math.min(
+                        currentProgress + 20,
+                        (completedSteps + 0.8) / totalSteps * 100
+                    );
+
+                    // Ensure progress never goes backward by using maxProgressReached
+                    setLoadingProgress(prev => {
+                        const newProgress = Math.max(
+                            Math.min(prev + 2, targetProgress),
+                            maxProgressReached
+                        );
+                        if (newProgress > maxProgressReached) {
+                            setMaxProgressReached(newProgress);
+                        }
+                        return newProgress;
+                    });
+                }, 150);
+                return () => clearTimeout(timer);
+            } else {
+                const newProgress = Math.max(100, maxProgressReached);
+                setLoadingProgress(newProgress);
+                setMaxProgressReached(newProgress);
+            }
+        }
+    }, [isLoadingPoints, isLoadingViewpoints, isLoadingEndorsedPoints, loadingProgress, maxProgressReached]);
 
     // Wrap myPoints in useMemo to stabilize it
     const myPoints = useMemo(() => profilePoints || [], [profilePoints]);
@@ -194,11 +254,44 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     }, [username, queryClient]);
 
     // Loading states should be checked after all hooks are called
-    if (!ready || isLoadingPoints || isLoadingViewpoints || isLoadingEndorsedPoints) {
+    if (isLoadingPoints || isLoadingViewpoints || isLoadingEndorsedPoints) {
         return (
             <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow bg-background">
-                <div className="w-full sm:col-[2] flex flex-col border-x items-center justify-center min-h-[calc(100vh-var(--header-height))] sm:min-h-0">
-                    <Loader className="size-6" />
+                <div className="w-full sm:col-[2] flex flex-col border-x items-center justify-center min-h-[calc(100vh-var(--header-height))] sm:min-h-0 p-6">
+                    <div className="w-full max-w-md flex flex-col items-center">
+                        <h2 className="text-2xl font-semibold mb-2">Loading Profile</h2>
+                        <p className="text-muted-foreground mb-8 text-center">
+                            Retrieving {username}&apos;s data and contributions
+                        </p>
+
+                        <div className="w-full space-y-6">
+                            <Progress value={loadingProgress} className="h-2 w-full" />
+
+                            <div className="border p-4 rounded-lg bg-muted/20">
+                                <p className="font-medium text-sm mb-4">Currently:</p>
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`size-3 rounded-full ${!isLoadingPoints ? 'bg-green-500' : 'bg-primary animate-pulse'}`}></div>
+                                        <span className="text-sm">User activity {!isLoadingPoints ? 'loaded' : 'in progress...'}</span>
+                                    </div>
+
+                                    <div className="flex items-center gap-3">
+                                        <div className={`size-3 rounded-full ${!isLoadingViewpoints ? 'bg-green-500' : 'bg-primary animate-pulse'}`}></div>
+                                        <span className="text-sm">Rationales {!isLoadingViewpoints ? 'loaded' : 'in progress...'}</span>
+                                    </div>
+
+                                    <div className="flex items-center gap-3">
+                                        <div className={`size-3 rounded-full ${!isLoadingEndorsedPoints ? 'bg-green-500' : 'bg-primary animate-pulse'}`}></div>
+                                        <span className="text-sm">Endorsements {!isLoadingEndorsedPoints ? 'loaded' : 'in progress...'}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="text-center text-sm text-muted-foreground">
+                                <p>{loadingStage}</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </main>
         );
@@ -389,16 +482,16 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                 <>
                                                     <h5 className="text-sm font-medium text-muted-foreground ml-2">Rationales</h5>
                                                     {filteredViewpoints.map((viewpoint) => (
-                                                        <ViewpointCardWrapper
+                                                        <MemoizedViewpointCardWrapper
                                                             key={viewpoint.id}
                                                             id={viewpoint.id}
                                                             title={viewpoint.title}
                                                             description={viewpoint.description}
                                                             author={viewpoint.author}
                                                             createdAt={new Date(viewpoint.createdAt)}
-                                                            className="mb-2"
+                                                            className="flex-grow"
                                                             space={viewpoint.space ?? "global"}
-                                                            statistics={{
+                                                            statistics={viewpoint.statistics || {
                                                                 views: 0,
                                                                 copies: 0,
                                                                 totalCred: 0,
@@ -431,7 +524,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                                 }
                                                             }}
                                                         >
-                                                            <PointCard
+                                                            <MemoizedPointCard
                                                                 className="flex-grow"
                                                                 pointId={point.pointId}
                                                                 content={point.content}
@@ -495,7 +588,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                 }
                                             }}
                                         >
-                                            <PointCard
+                                            <MemoizedPointCard
                                                 className="flex-grow"
                                                 pointId={point.pointId}
                                                 content={point.content}
@@ -536,7 +629,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                 <div className="space-y-2">
                                                     <h5 className="text-sm font-medium text-muted-foreground ml-2">Rationales</h5>
                                                     {spaceViewpoints.map(viewpoint => (
-                                                        <ViewpointCardWrapper
+                                                        <MemoizedViewpointCardWrapper
                                                             key={viewpoint.id}
                                                             id={viewpoint.id}
                                                             title={viewpoint.title}
@@ -544,8 +637,8 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                             author={viewpoint.author}
                                                             createdAt={new Date(viewpoint.createdAt)}
                                                             space={viewpoint.space ?? "global"}
-                                                            className="mb-2"
-                                                            statistics={{
+                                                            className="flex-grow"
+                                                            statistics={viewpoint.statistics || {
                                                                 views: 0,
                                                                 copies: 0,
                                                                 totalCred: 0,
@@ -577,7 +670,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                             }
                                                         }}
                                                     >
-                                                        <PointCard
+                                                        <MemoizedPointCard
                                                             className="flex-grow"
                                                             pointId={point.pointId}
                                                             content={point.content}

@@ -198,6 +198,7 @@ export const copyViewpointToStorage = (
     // Get the current space
     const space = getSpaceFromUrl();
 
+    // Use the provided description instead of generating a template
     const copyData = {
       graph: regeneratedGraph,
       title: title,
@@ -242,11 +243,27 @@ export const copyViewpointAndNavigate = async (
   console.log("Copying graph with nodes:", graphToCopy.nodes.length);
 
   try {
+    let summaryDescription = `Copy of the rationale "${title.trim()}". This is a copy of an existing rationale.`;
+
+    const { generateRationaleSummary } = await import(
+      "@/actions/generateRationaleSummary"
+    );
+
+    try {
+      summaryDescription = await generateRationaleSummary({
+        title,
+        description,
+        graph: graphToCopy,
+      });
+    } catch (summaryError) {
+      console.error("Error generating rationale summary:", summaryError);
+    }
+
     // Store the copy in session storage
     const success = copyViewpointToStorage(
       graphToCopy,
       title,
-      description,
+      summaryDescription,
       sourceId
     );
 

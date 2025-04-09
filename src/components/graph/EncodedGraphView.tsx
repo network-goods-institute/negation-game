@@ -2,6 +2,9 @@
 
 // Do not ever use this for viewpoints, this is specfically for the graph view for plain points only.
 
+import { GlobalExpandPointDialog } from "@/components/graph/ExpandPointDialog";
+import { MergeNodesDialog } from "@/components/graph/MergeNodesDialog";
+
 import { AddPointNode } from "@/components/graph/AddPointNode";
 import { AppNode } from "@/components/graph/AppNode";
 import { NegationEdge } from "@/components/graph/NegationEdge";
@@ -108,6 +111,8 @@ export const GraphView = ({
                 className="[&>svg]:w-[120px] [&>svg]:h-[90px] sm:[&>svg]:w-[200px] sm:[&>svg]:h-[150px]"
             />
             <Controls />
+            <GlobalExpandPointDialog />
+            <MergeNodesDialog />
         </ReactFlow>
     );
 };

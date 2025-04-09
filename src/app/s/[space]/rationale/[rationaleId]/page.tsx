@@ -1,6 +1,6 @@
 "use client";
 
-import { viewpointGraphAtom, collapsedPointIdsAtom } from "@/atoms/viewpointAtoms";
+import { viewpointGraphAtom, collapsedPointIdsAtom, ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
@@ -41,12 +41,12 @@ import { ReactFlowInstance } from "@xyflow/react";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
 import { ViewpointStatsBar } from "@/components/ViewpointStatsBar";
 import { use } from "react";
-import { getBackButtonHandler } from "@/utils/backButtonUtils";
+import { handleBackNavigation } from "@/utils/backButtonUtils";
 import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 import { copyViewpointAndNavigate } from "@/utils/copyViewpoint";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 
-// Create dynamic ReactMarkdown component
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
   loading: () => <div className="animate-pulse h-32 bg-muted/30 rounded-md" />,
   ssr: false // Disable server-side rendering
@@ -113,7 +113,6 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
   const [isMobile, setIsMobile] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
   const [isCopyingUrl, setIsCopyingUrl] = useState(false);
-  const { markPointAsRead } = useVisitedPoints();
 
   const [editableTitle, setEditableTitle] = useState("");
   const [editableDescription, setEditableDescription] = useState("");
@@ -123,6 +122,9 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
   const updateDetailsMutation = useUpdateViewpointDetails();
 
   const setInitialTab = useSetAtom(initialSpaceTabAtom);
+
+  const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
+  const [isGraphModified, setIsGraphModified] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -197,6 +199,13 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     const titleChanged = originalTitleRef.current !== editableTitle;
     const descriptionChanged = originalDescriptionRef.current !== editableDescription;
 
+    console.log("[RationalePage] Content changed:", {
+      titleChanged,
+      descriptionChanged,
+      originalTitle: originalTitleRef.current,
+      newTitle: editableTitle
+    });
+
     if (titleChanged || descriptionChanged) {
       // Mark as modified to show save button
       setIsContentModified(true);
@@ -218,7 +227,12 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     setIsDescriptionEditing(false);
   }, [viewpoint, editableTitle, editableDescription, queryClient]);
 
-  const onSaveChanges = useCallback(async () => {
+  const onSaveChanges = useCallback(async (filteredGraph: ViewpointGraph) => {
+    if (!filteredGraph) {
+      console.error("[RationalePage] No graph state to save");
+      return false;
+    }
+
     try {
       setIsSaving(true);
 
@@ -228,11 +242,8 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
           // Get the current space
           const currentSpace = space?.data?.id || 'default';
 
-          // Get the CURRENT graph state directly from React Flow
-          const currentGraph = {
-            nodes: reactFlow.getNodes(),
-            edges: reactFlow.getEdges()
-          };
+          // Use the filtered graph passed from GraphView
+          const currentGraph = filteredGraph;
 
           // Store the viewpoint data in session storage with space information
           const viewpointData = {
@@ -277,14 +288,16 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
         setIsDescriptionEditing(false);
       }
 
-      if (localGraph && viewpoint) {
+      if (filteredGraph && viewpoint) {
         // Update local query cache with new graph
         queryClient.setQueryData(["viewpoint", viewpoint.id], {
           ...viewpoint,
           title: editableTitle,
           description: editableDescription,
-          graph: localGraph,
+          graph: filteredGraph,
         });
+
+        setLocalGraph(filteredGraph);
       }
       // Reset collapsed points when saving changes
       setCollapsedPointIds(new Set());
@@ -313,12 +326,32 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     router,
     basePath,
     setCollapsedPointIds,
-    localGraph,
+    setLocalGraph,
     space?.data?.id,
     editableTitle,
     editableDescription,
-    updateDetailsMutation
+    updateDetailsMutation,
+    setIsContentModified
   ]);
+
+  useEffect(() => {
+    if (reactFlow && editableTitle) {
+      reactFlow.setNodes((nodes: AppNode[]) => {
+        return nodes.map(node => {
+          if (node.id === "statement" && node.type === "statement") {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                statement: editableTitle
+              }
+            };
+          }
+          return node;
+        });
+      });
+    }
+  }, [editableTitle, reactFlow]);
 
   const [editFlowInstance, setEditFlowInstance] = useState<ReactFlowInstance<AppNode> | null>(null);
 
@@ -418,7 +451,21 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     }
   }, [viewpoint, queryClient, originalGraph, setLocalGraph]);
 
-  const handleBackClick = getBackButtonHandler(router, setInitialTab);
+  const handleBackClick = useCallback(() => {
+    if (isGraphModified || isContentModified) {
+      setIsDiscardDialogOpen(true);
+      return;
+    }
+
+    // Otherwise proceed with normal back navigation
+    handleBackNavigation(router, setInitialTab);
+  }, [router, setInitialTab, isGraphModified, isContentModified]);
+
+  const handleDiscard = useCallback(() => {
+    resetContentModifications();
+    setIsDiscardDialogOpen(false);
+    handleBackNavigation(router, setInitialTab);
+  }, [resetContentModifications, router, setInitialTab]);
 
   if (!viewpoint)
     return (
@@ -448,9 +495,9 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                   <ArrowLeftIcon className="size-3.5" />
                   <span className="text-xs">Back</span>
                 </Button>
-                <h1 className="text-sm font-bold items-center gap-2 ml-2 md:block hidden">
+                <h1 className="text-sm font-bold items-center gap-2 ml-2 md:flex hidden">
                   <ViewpointIcon className="size-4" />
-                  Rationale
+                  <span>Rationale</span>
                 </h1>
                 {/* Graph toggle on mobile */}
                 <div className="md:hidden">
@@ -464,45 +511,47 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                   </Button>
                 </div>
                 {/* Rationale text on mobile */}
-                <h1 className="text-[10px] font-bold flex items-center gap-1.5 md:hidden">
-                  <ViewpointIcon className="size-3" />
-                  Rationale
+                <h1 className="text-sm font-bold flex items-center gap-2 md:hidden">
+                  <ViewpointIcon className="size-4" />
+                  <span>Rationale</span>
                 </h1>
               </div>
-              {/* Copy buttons for both mobile and desktop */}
-              <div className="flex items-center gap-1.5">
+              {/* Mobile copy buttons */}
+              <div className="flex items-center gap-1 md:hidden">
                 <Button
                   variant="outline"
+                  size="sm"
                   className={cn(
-                    "rounded-full flex items-center gap-1 px-1.5 text-[10px] md:text-sm md:px-3 md:gap-2 shrink-0 h-7",
+                    "rounded-full flex items-center gap-1 px-2 py-1 h-7 text-xs",
                     isCopyingUrl && "text-green-500 border-green-500"
                   )}
                   onClick={handleCopyUrl}
                 >
-                  <span className="font-bold whitespace-nowrap">
-                    {isCopyingUrl ? "Copied!" : "Copy Link"}
+                  <span className="font-medium whitespace-nowrap">
+                    {isCopyingUrl ? "Copied" : "Link"}
                   </span>
                   {isCopyingUrl ? (
-                    <CheckIcon className="size-3 md:size-4 shrink-0" />
+                    <CheckIcon className="size-3" />
                   ) : (
-                    <LinkIcon className="size-3 md:size-4 shrink-0" />
+                    <LinkIcon className="size-3" />
                   )}
                 </Button>
                 <AuthenticatedActionButton
-                  variant="outline"
-                  className="rounded-full flex items-center gap-1 px-1.5 text-[10px] md:text-sm md:px-3 md:gap-2 shrink-0 h-7"
+                  variant="default"
+                  size="sm"
+                  className="rounded-full flex items-center gap-1 px-2 py-1 h-7 text-xs"
                   onClick={handleCopy}
                   disabled={isCopying}
                 >
                   {isCopying ? (
-                    <div className="flex items-center gap-1 md:gap-2">
-                      <span className="size-3 md:size-4 border-2 border-background border-t-transparent rounded-full animate-spin shrink-0" />
-                      <span className="font-bold whitespace-nowrap">Copying...</span>
+                    <div className="flex items-center gap-1">
+                      <span className="size-3 border border-background border-t-transparent rounded-full animate-spin" />
+                      <span className="font-medium whitespace-nowrap">Copying</span>
                     </div>
                   ) : (
                     <>
-                      <span className="font-bold whitespace-nowrap">Make a Copy</span>
-                      <CopyIcon className="size-3 md:size-4 shrink-0" />
+                      <span className="font-medium whitespace-nowrap">Copy</span>
+                      <CopyIcon className="size-3" />
                     </>
                   )}
                 </AuthenticatedActionButton>
@@ -514,6 +563,41 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
             <div className="hidden md:block">
               <div className="sticky top-[calc(2.5rem+1px)] z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background">
                 <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "rounded-full flex items-center gap-2 px-4",
+                      isCopyingUrl && "text-green-500 border-green-500"
+                    )}
+                    onClick={handleCopyUrl}
+                  >
+                    <span className="text-sm font-bold">
+                      {isCopyingUrl ? "Copied!" : "Copy Link"}
+                    </span>
+                    {isCopyingUrl ? (
+                      <CheckIcon className="size-4" />
+                    ) : (
+                      <LinkIcon className="size-4" />
+                    )}
+                  </Button>
+                  <AuthenticatedActionButton
+                    variant="default"
+                    className="rounded-full flex items-center gap-2 px-4"
+                    onClick={handleCopy}
+                    disabled={isCopying}
+                  >
+                    {isCopying ? (
+                      <div className="flex items-center gap-2">
+                        <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                        <span className="text-sm font-bold">Copying...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="text-sm font-bold">Make a Copy</span>
+                        <CopyIcon className="size-4" />
+                      </>
+                    )}
+                  </AuthenticatedActionButton>
                 </div>
               </div>
               <Separator />
@@ -615,12 +699,18 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                   <div
                     className="prose dark:prose-invert max-w-none [&>p]:mb-4 [&>p]:leading-7 [&>h1]:mt-8 [&>h1]:mb-4 [&>h2]:mt-6 [&>h2]:mb-4 [&>h3]:mt-4 [&>h3]:mb-2 [&>ul]:mb-4 [&>ul]:ml-6 [&>ol]:mb-4 [&>ol]:ml-6 [&>li]:mb-2 [&>blockquote]:border-l-4 [&>blockquote]:border-muted [&>blockquote]:pl-4 [&>blockquote]:italic px-2 py-2"
                   >
-                    <DynamicMarkdown
-                      remarkPlugins={markdownPlugins}
-                      components={customMarkdownComponents}
-                    >
-                      {description}
-                    </DynamicMarkdown>
+                    {description ? (
+                      <DynamicMarkdown
+                        remarkPlugins={markdownPlugins}
+                        components={customMarkdownComponents}
+                      >
+                        {description}
+                      </DynamicMarkdown>
+                    ) : (
+                      <div className="text-muted-foreground italic">
+                        {canEdit() ? "Click edit to add a description..." : "No description provided"}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -672,10 +762,40 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                 : undefined
             }
             closeButtonClassName="top-4 right-4"
+            onNodesChange={(changes) => {
+              const { viewport, ...graph } = reactFlow.toObject();
+              setGraph(graph);
+            }}
+            onModifiedChange={setIsGraphModified}
           />
         </Dynamic>
 
         <NegateDialog />
+
+        <AlertDialog open={isDiscardDialogOpen} onOpenChange={setIsDiscardDialogOpen}>
+          <AlertDialogContent className="sm:max-w-[425px]">
+            <AlertDialogHeader>
+              <AlertDialogTitle>You have unsaved changes</AlertDialogTitle>
+              <AlertDialogDescription>
+                Do you want to save your changes or discard them?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel
+                onClick={() => setIsDiscardDialogOpen(false)}
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDiscard}
+                className="bg-secondary text-secondary-foreground hover:bg-secondary/80"
+              >
+                Discard changes
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </EditModeProvider>
   );

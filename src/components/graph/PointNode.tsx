@@ -1,29 +1,17 @@
-import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
-import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
+import {
+  CircleIcon,
+  XIcon,
+} from "lucide-react";
+import { Position, NodeProps, useReactFlow, Node, useNodeConnections, useUpdateNodeInternals } from "@xyflow/react";
 import { PointCard } from "@/components/PointCard";
-import { useOriginalPoster } from "@/components/graph/OriginalPosterContext";
-import { cn } from "@/lib/cn";
-import { usePointData, usePrefetchPoint } from "@/queries/usePointData";
-import {
-  usePrefetchUserEndorsements,
-  useUserEndorsement,
-} from "@/queries/useUserEndorsements";
-import {
-  Handle,
-  Node,
-  NodeProps,
-  Position,
-  useNodeConnections,
-  useReactFlow,
-  useUpdateNodeInternals,
-} from "@xyflow/react";
+import { Handle } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
-import { XIcon, CircleIcon } from "lucide-react";
-import { nanoid } from "nanoid";
+import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
+import { cn } from "@/lib/cn";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { collapsedPointIdsAtom, collapsedNodePositionsAtom, CollapsedNodePosition } from "@/atoms/viewpointAtoms";
-import { useViewpoint } from "@/queries/useViewpoint";
+import { usePointData, usePrefetchPoint } from "@/queries/usePointData";
 import { useParams, usePathname } from "next/navigation";
+import { findOverlappingPoints } from "@/utils/findDuplicatePoints";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,8 +22,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { expandDialogAtom } from "./ExpandPointDialog";
+import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
+import { nanoid } from "nanoid";
+import { useOriginalPoster } from "@/components/graph/OriginalPosterContext";
+import {
+  usePrefetchUserEndorsements,
+  useUserEndorsement,
+} from "@/queries/useUserEndorsements";
+import { collapsedPointIdsAtom, collapsedNodePositionsAtom, CollapsedNodePosition } from "@/atoms/viewpointAtoms";
+import { useViewpoint } from "@/queries/useViewpoint";
 import { recentlyCreatedNegationIdAtom } from "@/atoms/recentlyCreatedNegationIdAtom";
-import { expandDialogAtom } from "@/components/graph/ExpandPointDialog";
+import { DuplicatePointNode, mergeNodesDialogAtom } from "@/atoms/mergeNodesAtom";
 
 export type PointNodeData = {
   pointId: number;
@@ -113,8 +111,6 @@ export const PointNode = ({
 
   const [_, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
   const [collapsedNodePositions, setCollapsedNodePositions] = useAtom(collapsedNodePositionsAtom);
-
-
 
   const expandNegations = useCallback(() => {
     const allNodes = getNodes();
@@ -558,7 +554,6 @@ export const PointNode = ({
     }
   }, [collapseSelfAndNegations]);
 
-
   // Reset animation state after mount
   useEffect(() => {
     if (!hasAnimationPlayed && (isExpanding || dataIsExpanding)) {
@@ -718,12 +713,165 @@ export const PointNode = ({
       }));
   }, [pointData, pointId]);
 
+  const [hasDuplicates, setHasDuplicates] = useState(false);
+  const setMergeDialogState = useSetAtom(mergeNodesDialogAtom);
+  const mergeCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const stableStateRef = useRef({
+    hasOverlap: false,
+    lastOverlapTime: 0,
+    lastDialogCloseTime: 0
+  });
+
+  const findDuplicateNodes = useCallback(() => {
+    const allNodes = getNodes();
+    const duplicates = findOverlappingPoints(allNodes, 60);
+
+    if (!duplicates.has(pointId)) return null;
+
+    const nodeIds = duplicates.get(pointId) || [];
+    if (nodeIds.length <= 1) return null;
+
+    const duplicateNodeData: DuplicatePointNode[] = nodeIds.map(nodeId => {
+      const nodeConnections = getEdges().filter(edge => edge.source === nodeId);
+      const parentIds = nodeConnections.map(conn => {
+        const parentNode = getNode(conn.target);
+        return parentNode?.data?.pointId || conn.target;
+      }) as (string | number)[];
+
+      return {
+        id: nodeId,
+        pointId,
+        parentIds: parentIds
+      };
+    });
+
+    return duplicateNodeData;
+  }, [getNodes, getEdges, pointId, getNode]);
+
+  useEffect(() => {
+    const duplicates = findDuplicateNodes();
+    const hasNewDuplicates = !!duplicates && duplicates.length > 1;
+    setHasDuplicates(hasNewDuplicates);
+
+    const checkForOverlappingNodes = () => {
+      const currentDuplicates = findDuplicateNodes();
+      const hasCurrentDuplicates = !!currentDuplicates && currentDuplicates.length > 1;
+
+      setHasDuplicates(hasCurrentDuplicates);
+
+      const currentTime = Date.now();
+
+      if (hasCurrentDuplicates !== stableStateRef.current.hasOverlap) {
+        stableStateRef.current.hasOverlap = hasCurrentDuplicates;
+
+        if (hasCurrentDuplicates) {
+          stableStateRef.current.lastOverlapTime = currentTime;
+        }
+      }
+
+      if (hasCurrentDuplicates) {
+        setMergeDialogState(state => {
+          if (!state.isOpen) {
+            return {
+              isOpen: true,
+              pointId: pointId,
+              duplicateNodes: currentDuplicates,
+              onClose: () => {
+                stableStateRef.current.lastDialogCloseTime = Date.now();
+
+                setTimeout(() => {
+                  startMergeCheckInterval();
+                }, 2000);
+              }
+            };
+          } else if (state.pointId === pointId) {
+            return {
+              ...state,
+              duplicateNodes: currentDuplicates
+            };
+          }
+          return state;
+        });
+      } else {
+        // If no duplicates, close the dialog if it's open for this pointId
+        setMergeDialogState(state => {
+          if (state.isOpen && state.pointId === pointId) {
+            return {
+              ...state,
+              isOpen: false
+            };
+          }
+          return state;
+        });
+      }
+    };
+
+    // Start periodic checks for duplicates
+    const startMergeCheckInterval = () => {
+      if (mergeCheckIntervalRef.current) {
+        clearInterval(mergeCheckIntervalRef.current);
+      }
+
+      // Always run a check immediately
+      checkForOverlappingNodes();
+
+      // Then set up the interval - use a moderate interval to balance responsiveness and performance
+      mergeCheckIntervalRef.current = setInterval(checkForOverlappingNodes, 2000);
+    };
+
+    // Start the checking interval
+    startMergeCheckInterval();
+
+    // Clean up when unmounting
+    return () => {
+      if (mergeCheckIntervalRef.current) {
+        clearInterval(mergeCheckIntervalRef.current);
+        mergeCheckIntervalRef.current = null;
+      }
+    };
+  }, [findDuplicateNodes, setMergeDialogState, pointId, id, getNode]);
+
+  const level = useMemo(() => {
+    let currentLevel = 0;
+    let currentId = id;
+
+    const edges = getEdges();
+
+    while (currentId) {
+      const edge = edges.find(e => e.source === currentId);
+      if (!edge) break;
+
+      const targetNode = getNode(edge.target);
+      if (!targetNode) break;
+
+      currentLevel++;
+      currentId = edge.target;
+
+      if (targetNode.type === 'statement') break;
+    }
+
+    return currentLevel;
+  }, [id, getNode, getEdges]);
+
   return (
     <>
       <div
         data-loading={pointData === undefined}
         className={cn(
-          "relative bg-background rounded-md border-2 min-h-28 w-64",
+          "relative bg-background border-2 min-h-28 w-64",
+          // Base styles for all nodes
+          "transition-all duration-200",
+          // Even levels (negations) get rounded corners and subtle styling
+          level % 2 === 0 && [
+            "rounded-lg",
+            "border-l-4"
+          ],
+          // Odd levels (options and their "grandchildren") get sharp corners
+          level % 2 === 1 && [
+            "rounded-none",
+            "bg-background"
+          ],
           endorsedByOp && "border-yellow-500",
           hoveredPoint === pointId && "border-primary",
           (!hasAnimationPlayed && (isExpanding || dataIsExpanding)) && "animate-node-expand"
@@ -823,6 +971,7 @@ export const PointNode = ({
         )}
       </div>
 
+      {/* Disconnect point confirmation dialog */}
       <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

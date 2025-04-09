@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { copyViewpointAndNavigate } from "@/utils/copyViewpoint";
 import { cn } from "@/lib/cn";
+import { MergeNodesDialog } from "@/components/graph/MergeNodesDialog";
 
 function debounce<T extends (...args: any[]) => any>(
   func: T,
@@ -76,7 +77,7 @@ function debounce<T extends (...args: any[]) => any>(
 
 export interface GraphViewProps
   extends Omit<ReactFlowProps<AppNode>, "onDelete"> {
-  onSaveChanges?: () => Promise<boolean | void>;
+  onSaveChanges?: (graph: ViewpointGraph) => Promise<boolean | void>;
   canModify?: boolean;
   rootPointId?: number;
   statement?: string;
@@ -89,6 +90,7 @@ export interface GraphViewProps
   isNew?: boolean;
   isContentModified?: boolean;
   onResetContent?: () => void;
+  onModifiedChange?: (isModified: boolean) => void;
 }
 
 export const GraphView = ({
@@ -106,6 +108,7 @@ export const GraphView = ({
   isContentModified,
   onResetContent,
   unsavedChangesModalClassName,
+  onModifiedChange,
   ...props
 }: GraphViewProps) => {
   const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
@@ -124,10 +127,13 @@ export const GraphView = ({
   // Track if the graph has been modified since loading or last save
   const [isModified, setIsModified] = useState(false);
   const [isSaving_local, setIsSaving_local] = useState(false);
-  // Track if this is the first mount
+
+  useEffect(() => {
+    onModifiedChange?.(isModified);
+  }, [isModified, onModifiedChange]);
+
   const isInitialMount = useRef(true);
 
-  // Get the current rationale ID from the route params first
   const params = useParams();
   const rationaleId = (params.rationaleId || params.viewpointId) as string;
 
@@ -167,8 +173,6 @@ export const GraphView = ({
       }, 250),
     [setLocalGraph]
   );
-
-
 
   const filteredEdges = useMemo(() => {
     // First filter edges to only include those connected to visible nodes
@@ -388,16 +392,34 @@ export const GraphView = ({
       setIsSaving_local(true);
 
       try {
-        // Filter out collapsed nodes
-        const filteredNodes = nodes.filter((n) => {
-          const shouldInclude = n.type !== "point" || !collapsedPointIds.has(n.data.pointId);
-          return shouldInclude;
+        // First, ensure the statement node is updated with the current statement
+        // This ensures the title changes are reflected in the graph
+        const updatedNodes = nodes.map(node => {
+          if (node.id === "statement" && node.type === "statement") {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                statement: statement || "",
+                _lastUpdated: Date.now()
+              }
+            };
+          }
+          return node;
         });
 
+        // Instead of filtering nodes based on collapsedPointIds,
+        // we'll directly use the current nodes in the graph
+        // this for some reason fixes the isue where direct children of statement nodes like to vanish randomly
+        // This ensures we only keep nodes that are actually visible
+        const filteredNodes = updatedNodes;
+
+        // Filter edges to only include those connected to nodes in the graph
         const filteredEdges = edges.filter((e) =>
-          filteredNodes.some((n) => n.id === e.source) &&
-          filteredNodes.some((n) => n.id === e.target)
+          updatedNodes.some((n) => n.id === e.source) &&
+          updatedNodes.some((n) => n.id === e.target)
         );
+
         const filteredGraph: ViewpointGraph = {
           nodes: filteredNodes,
           edges: filteredEdges,
@@ -428,10 +450,12 @@ export const GraphView = ({
             setLocalGraph(filteredGraph);
           }
 
+          setNodes(updatedNodes);
+
           // Call onSaveChanges for any additional updates
           try {
             if (onSaveChanges) {
-              const saveResult = await onSaveChanges();
+              const saveResult = await onSaveChanges(filteredGraph);
               if (saveResult === false) {
                 saveSuccess = false;
               }
@@ -486,14 +510,14 @@ export const GraphView = ({
     [
       nodes,
       edges,
-      collapsedPointIds,
       onSaveChanges,
       setLocalGraph,
       rationaleId,
       setIsModified,
       canModify,
       statement,
-      handleCopy
+      handleCopy,
+      setNodes
     ]
   );
 
@@ -684,6 +708,7 @@ export const GraphView = ({
       </ReactFlow>
 
       <GlobalExpandPointDialog />
+      <MergeNodesDialog />
 
       <AlertDialog open={isDiscardDialogOpen} onOpenChange={setIsDiscardDialogOpen}>
         <AlertDialogContent className={cn("sm:max-w-[425px]", unsavedChangesModalClassName)}>
@@ -696,15 +721,17 @@ export const GraphView = ({
           <AlertDialogFooter>
             <AlertDialogCancel
               disabled={isSaving_local || isDiscarding}
-              onClick={() => handleDiscard()}
+              onClick={() => setIsDiscardDialogOpen(false)}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
-              {isDiscarding ? "Discarding..." : "Discard changes"}
+              Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               disabled={isSaving_local || isDiscarding}
-              onClick={() => handleSave()}
+              onClick={() => handleDiscard()}
+              className="bg-secondary text-secondary-foreground hover:bg-secondary/80"
             >
-              {isSaving_local ? "Saving..." : "Save changes"}
+              {isDiscarding ? "Discarding..." : "Discard changes"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

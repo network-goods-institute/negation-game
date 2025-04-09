@@ -1,5 +1,5 @@
 import { cn } from "@/lib/cn";
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import dynamic from "next/dynamic";
 import remarkGfm from "remark-gfm";
@@ -17,6 +17,34 @@ const DynamicMarkdown = dynamic(() => import('react-markdown'), {
     loading: () => <div className="animate-pulse h-32 bg-muted/30 rounded-md" />,
     ssr: false
 });
+
+const stripMarkdown = (text: string): string => {
+    return text
+        // Remove headers
+        .replace(/#{1,6}\s+/g, '')
+        // Remove bold and italic
+        .replace(/[*_]{1,3}([^*_]+)[*_]{1,3}/g, '$1')
+        // Remove links
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        // Remove images
+        .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+        // Remove code blocks
+        .replace(/```[\s\S]*?```/g, '')
+        // Remove inline code
+        .replace(/`([^`]+)`/g, '$1')
+        // Remove blockquotes
+        .replace(/^>\s+/gm, '')
+        // Remove horizontal rules
+        .replace(/^---+$/gm, '')
+        // Remove list markers
+        .replace(/^[\s-]*[-+*]\s+/gm, '')
+        .replace(/^\s*\d+\.\s+/gm, '')
+        // Remove HTML tags
+        .replace(/<[^>]*>/g, '')
+        // Collapse multiple newlines
+        .replace(/\n{2,}/g, '\n')
+        .trim();
+};
 
 export interface ViewpointCardProps extends React.HTMLAttributes<HTMLDivElement> {
     id: string;
@@ -55,6 +83,8 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
     const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [isSelecting, setIsSelecting] = useState(false);
     const mouseDownRef = useRef<{ x: number, y: number } | null>(null);
+
+    const plainDescription = useMemo(() => stripMarkdown(description), [description]);
 
     // Monitor selection changes
     useEffect(() => {
@@ -183,7 +213,7 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                             </div>
 
                             <div className="text-sm text-muted-foreground line-clamp-2 mb-2 h-10 overflow-hidden select-text">
-                                {description}
+                                {plainDescription}
                             </div>
 
                             <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
