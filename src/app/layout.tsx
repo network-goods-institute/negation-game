@@ -43,15 +43,15 @@ export default function RootLayout({
             <QueryClientProvider>
               <TooltipProvider>
                 <header className="sticky top-0 z-20 border-b py-sm flex justify-between container-padding items-center w-full bg-background h-[var(--header-height)]">
-                  <div className="flex items-center" id="header-container">
-                    <div className="flex items-center">
-                      <Link href="/" className="font-bold" id="header-logo">
+                  <div className="flex items-center min-w-0" id="header-container">
+                    <div className="flex items-center min-w-0 overflow-hidden">
+                      <Link href="/" className="font-bold whitespace-nowrap" id="header-logo">
                         Negation Game
                       </Link>
-                      <div id="space-header" className="flex items-center ml-2"></div>
+                      <div id="space-header" className="flex items-center ml-2 min-w-0 overflow-hidden"></div>
                     </div>
                   </div>
-                  <div className="flex gap-sm">
+                  <div className="flex gap-1 sm:gap-sm ml-2 flex-shrink-0">
                     <Dynamic>
                       <ModeToggle className="col-start-3 justify-self-end" />
                     </Dynamic>

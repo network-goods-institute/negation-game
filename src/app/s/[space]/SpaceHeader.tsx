@@ -37,24 +37,21 @@ export function SpaceHeader({ spaceData }: { spaceData?: SpaceData | null }) {
       // Clone the content of the header logo
       const logoClone = headerLogo.cloneNode(true) as HTMLElement;
       logoClone.removeAttribute('id');
-      // Remove the href attribute as we're already wrapping in a link
-      if (logoClone instanceof HTMLAnchorElement) {
-        logoClone.removeAttribute('href');
-      }
+      logoClone.className = 'font-bold text-xs sm:text-base';
 
       // Remove the original link functionality to avoid nested links
       headerLogo.style.display = 'none';
 
       // Create the space part
       const spaceSeparator = document.createElement('span');
-      spaceSeparator.className = 'text-muted-foreground mx-1';
+      spaceSeparator.className = 'text-muted-foreground mx-0.5 sm:mx-1 text-xs sm:text-base';
       spaceSeparator.textContent = '×';
 
       const spaceInfo = document.createElement('div');
       spaceInfo.className = 'flex items-center';
 
       const iconContainer = document.createElement('div');
-      iconContainer.className = 'relative w-6 h-6 border-2 border-background rounded-full overflow-hidden mr-1';
+      iconContainer.className = 'relative w-4 h-4 sm:w-6 sm:h-6 border-2 border-background rounded-full overflow-hidden mr-0.5 sm:mr-1';
 
       if (spaceData.icon) {
         const img = document.createElement('img');
@@ -64,13 +61,13 @@ export function SpaceHeader({ spaceData }: { spaceData?: SpaceData | null }) {
         iconContainer.appendChild(img);
       } else {
         const placeholder = document.createElement('div');
-        placeholder.className = 'w-full h-full flex items-center justify-center bg-muted text-sm font-bold text-muted-foreground';
+        placeholder.className = 'w-full h-full flex items-center justify-center bg-muted text-[10px] sm:text-sm font-bold text-muted-foreground';
         placeholder.textContent = spaceData.id.charAt(0).toUpperCase();
         iconContainer.appendChild(placeholder);
       }
 
       const spaceName = document.createElement('span');
-      spaceName.className = 'font-semibold';
+      spaceName.className = 'font-semibold text-xs sm:text-base';
       spaceName.textContent = `s/${spaceData.id}`;
 
       spaceInfo.appendChild(iconContainer);

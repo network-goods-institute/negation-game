@@ -28,17 +28,13 @@ export const ConnectButton = () => {
     return (
       <Button
         key="connect"
-        className="w-36 rounded-full"
+        className="w-28 sm:w-36 rounded-full text-sm"
         size={"sm"}
         onClick={login}
         disabled={privyUser !== null}
       >
         <p className="overflow-clip max-w-full">
-          {privyUser ? (
-            <LoaderCircleIcon className="animate-spin" />
-          ) : (
-            "Connect"
-          )}
+          {privyUser ? <LoaderCircleIcon className="animate-spin" /> : "Connect"}
         </p>
       </Button>
     );
@@ -49,7 +45,7 @@ export const ConnectButton = () => {
         <OnboardingDialog open={!isLoading} />
         <Button
           key="connect"
-          className="w-36 rounded-full"
+          className="w-28 sm:w-36 rounded-full text-sm"
           size={"sm"}
           disabled
         >
@@ -63,7 +59,7 @@ export const ConnectButton = () => {
       <>
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
-            <Button variant={"outline"} key="connect" className="w-36">
+            <Button variant={"outline"} key="connect" className="w-28 sm:w-36 text-sm">
               <p className="overflow-clip max-w-full">{user.username}</p>
             </Button>
           </DropdownMenuTrigger>

@@ -484,16 +484,16 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
         <div className="w-full md:col-[2] flex flex-col border-x pb-10 overflow-auto">
           <div className="relative flex-grow bg-background">
             {/* New back navigation row */}
-            <div className="sticky top-0 z-10 w-full flex items-center justify-between px-4 py-2 bg-background">
-              <div className="flex items-center gap-2">
+            <div className="sticky top-0 z-10 w-full flex items-center justify-between px-2 py-1.5 bg-background">
+              <div className="flex items-center gap-1.5">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex items-center gap-1.5 px-2 rounded-md -ml-1"
+                  className="flex items-center gap-1 px-1.5 rounded-md -ml-1 h-7"
                   onClick={handleBackClick}
                 >
-                  <ArrowLeftIcon className="size-4" />
-                  <span className="text-sm">Back</span>
+                  <ArrowLeftIcon className="size-3.5" />
+                  <span className="text-xs">Back</span>
                 </Button>
                 <h1 className="text-sm font-bold items-center gap-2 ml-2 md:flex hidden">
                   <ViewpointIcon className="size-4" />
@@ -504,10 +504,10 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                   <Button
                     size={"icon"}
                     variant={canvasEnabled ? "default" : "outline"}
-                    className="rounded-full p-2 size-9"
+                    className="rounded-full p-1 size-7"
                     onClick={() => setCanvasEnabled(!canvasEnabled)}
                   >
-                    <NetworkIcon className="" />
+                    <NetworkIcon className="size-3.5" />
                   </Button>
                 </div>
                 {/* Rationale text on mobile */}
@@ -559,7 +559,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
             </div>
             <Separator />
 
-            {/* Desktop-only header */}
+            {/* Desktop-only header*/}
             <div className="hidden md:block">
               <div className="sticky top-[calc(2.5rem+1px)] z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background">
                 <div className="flex items-center gap-2">
