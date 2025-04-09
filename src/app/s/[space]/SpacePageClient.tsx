@@ -902,6 +902,16 @@ export function SpacePageClient({ params, searchParams }: PageProps) {
                             <SearchIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                             <span>Search</span>
                         </button>
+                        {space?.data?.id === DEFAULT_SPACE && (
+                            <Button
+                                className="ml-auto py-1.5 sm:py-2 px-3 sm:px-4 text-xs sm:text-sm flex items-center gap-1"
+                                variant="ghost"
+                                onClick={() => router.push(`${basePath}/chat`)}
+                            >
+                                <BrainCircuitIcon className="size-3.5 sm:size-4" />
+                                <span>AI Assistant</span>
+                            </Button>
+                        )}
                     </div>
 
                     {selectedTab === "search" && (
