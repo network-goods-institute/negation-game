@@ -5,7 +5,6 @@ import { getUserId } from "@/actions/getUserId";
 import {
   endorsementsTable,
   pointsWithDetailsView,
-  effectiveRestakesView,
   doubtsTable,
   pointFavorHistoryView,
 } from "@/db/schema";
@@ -13,6 +12,14 @@ import { addFavor } from "@/db/utils/addFavor";
 import { db } from "@/services/db";
 import { and, eq, sql } from "drizzle-orm";
 import { FeedPoint } from "./fetchFeed";
+import {
+  viewerCredSql,
+  restakesByPointSql,
+  slashedAmountSql,
+  doubtedAmountSql,
+  totalRestakeAmountSql,
+  viewerDoubtSql,
+} from "./utils/pointSqlUtils";
 
 export const fetchPriorityPoints = async (limit = 5): Promise<FeedPoint[]> => {
   const viewerId = await getUserId();
@@ -45,55 +52,19 @@ export const fetchPriorityPoints = async (limit = 5): Promise<FeedPoint[]> => {
           LIMIT 1
         ), 0)
       `.mapWith(Number),
-      viewerCred: sql<number>`
-        COALESCE((
-          SELECT SUM(${endorsementsTable.cred})
-          FROM ${endorsementsTable}
-          WHERE ${endorsementsTable.pointId} = ${pointsWithDetailsView.pointId}
-            AND ${endorsementsTable.userId} = ${viewerId}
-        ), 0)
-      `.mapWith(Number),
-      restakesByPoint: sql<number>`
-        COALESCE((
-          SELECT SUM(er.amount)
-          FROM ${effectiveRestakesView} AS er
-          WHERE er.point_id = ${pointsWithDetailsView.pointId}
-            AND er.slashed_amount < er.amount
-        ), 0)
-      `.mapWith(Number),
-      slashedAmount: sql<number>`
-        COALESCE((
-          SELECT SUM(er.slashed_amount)
-          FROM ${effectiveRestakesView} AS er
-          WHERE er.point_id = ${pointsWithDetailsView.pointId}
-        ), 0)
-      `.mapWith(Number),
-      doubtedAmount: sql<number>`
-        COALESCE((
-          SELECT SUM(er.doubted_amount)
-          FROM ${effectiveRestakesView} AS er
-          WHERE er.point_id = ${pointsWithDetailsView.pointId}
-        ), 0)
-      `.mapWith(Number),
-      totalRestakeAmount: sql<number>`
-        COALESCE((
-          SELECT SUM(CASE 
-            WHEN er.slashed_amount >= er.amount THEN 0
-            ELSE er.amount
-          END)
-          FROM ${effectiveRestakesView} AS er
-          WHERE er.point_id = ${pointsWithDetailsView.pointId}
-          AND er.negation_id = ANY("negation_ids")
-        ), 0)
-      `.mapWith(Number),
-      doubt: {
-        id: doubtsTable.id,
-        amount: doubtsTable.amount,
-        userAmount: doubtsTable.amount,
-        isUserDoubt: sql<boolean>`${doubtsTable.userId} = ${viewerId}`.as(
-          "is_user_doubt"
-        ),
-      },
+      viewerCred: viewerCredSql(viewerId),
+      restakesByPoint: restakesByPointSql,
+      slashedAmount: slashedAmountSql,
+      doubtedAmount: doubtedAmountSql,
+      totalRestakeAmount: totalRestakeAmountSql,
+      doubt: viewerId
+        ? viewerDoubtSql(viewerId)
+        : {
+            id: sql<number | null>`null`.mapWith((v) => v),
+            amount: sql<number | null>`null`.mapWith((v) => v),
+            userAmount: sql<number>`0`.mapWith(Number),
+            isUserDoubt: sql<boolean>`false`.mapWith(Boolean),
+          },
     })
     .from(pointsWithDetailsView)
     .innerJoin(

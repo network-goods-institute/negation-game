@@ -1268,7 +1268,7 @@ export default function AIAssistant() {
                                             Alpha
                                         </span>
                                     </TooltipTrigger>
-                                    <TooltipContent>
+                                    <TooltipContent side="bottom">
                                         <p className="max-w-xs">This is a rough Alpha version. Features and performance may change significantly.</p>
                                     </TooltipContent>
                                 </Tooltip>

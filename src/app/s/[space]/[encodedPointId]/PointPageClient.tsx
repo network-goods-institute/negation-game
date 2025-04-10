@@ -112,7 +112,7 @@ type PageProps = {
     searchParams: { [key: string]: string | string[] | undefined };
 };
 
-const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, handleNegate, point, prefetchRestakeData, setRestakePoint, handleNegationHover, prefetchPoint, loadingCardId, onCardClick }: any) => {
+const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, handleNegate, point, prefetchRestakeData, setRestakePoint, handleNegationHover, handleNegationHoverEnd, prefetchPoint, loadingCardId, onCardClick }: any) => {
     const [favorHistoryLoaded, setFavorHistoryLoaded] = useState(false);
     const favorHistoryKey = useMemo(() => [negation.pointId, "favor-history", "1W"], [negation.pointId]);
     const queryClient = useQueryClient();
@@ -157,6 +157,7 @@ const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, ha
                 key={negation.pointId}
                 className="flex border-b cursor-pointer hover:bg-accent"
                 onMouseEnter={handleHover}
+                onMouseLeave={handleNegationHoverEnd}
             >
                 <PointCard
                     onNegate={(e) => {
@@ -513,20 +514,17 @@ export function PointPageClient({
     };
 
     const handleNegationHover = useCallback((negationId: number) => {
-        // Check if we've already fetched this data
+        setHoveredPointId(negationId);
         const queryKey = [negationId, "point", privyUser?.id];
         const existingData = queryClient.getQueryData(queryKey);
-
-        if (existingData) {
-            // Data already in cache, no need to refetch
-            return;
+        if (!existingData) {
+            prefetchPoint(negationId);
         }
+    }, [prefetchPoint, queryClient, privyUser?.id, setHoveredPointId]);
 
-        // Immediate prefetch - most important data first
-        prefetchPoint(negationId);
-
-
-    }, [prefetchPoint, queryClient, privyUser?.id]);
+    const handleNegationHoverEnd = useCallback(() => {
+        setHoveredPointId(undefined);
+    }, [setHoveredPointId]);
 
     const isPointOwner = useMemo(() => {
         return point?.createdBy === privyUser?.id;
@@ -756,7 +754,8 @@ export function PointPageClient({
                             data-show-hover={canvasEnabled && hoveredPointId === pointId}
                             onMouseEnter={() => setHoveredPointId(pointId)}
                             onMouseLeave={() => setHoveredPointId(undefined)}
-                            className=" px-4 py-3 border-b data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]">
+                            className=" px-4 py-3 border-b data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
+                        >
                             <div className="flex items-start gap-2">
                                 <p className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg mb-sm break-words whitespace-normal min-w-0">
                                     {point?.content}
@@ -979,22 +978,28 @@ export function PointPageClient({
                                             // Filter out this point's ID from the negations list
                                             .filter(negation => negation.pointId !== pointId)
                                             .map((negation, i) => (
-                                                <NegationCard
+                                                <div
                                                     key={`${negation.pointId}-${i}`}
-                                                    negation={negation}
-                                                    viewParam={viewParam}
-                                                    basePath={basePath}
-                                                    privyUser={privyUser}
-                                                    login={login}
-                                                    handleNegate={handleNegate}
-                                                    point={point}
-                                                    prefetchRestakeData={prefetchRestakeData}
-                                                    setRestakePoint={setRestakePoint}
-                                                    handleNegationHover={handleNegationHover}
-                                                    prefetchPoint={prefetchPoint}
-                                                    loadingCardId={loadingCardId}
-                                                    onCardClick={handleCardClick}
-                                                />
+                                                    data-show-hover={canvasEnabled && hoveredPointId === negation.pointId}
+                                                    className="relative border-b data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
+                                                >
+                                                    <NegationCard
+                                                        negation={negation}
+                                                        viewParam={viewParam}
+                                                        basePath={basePath}
+                                                        privyUser={privyUser}
+                                                        login={login}
+                                                        handleNegate={handleNegate}
+                                                        point={point}
+                                                        prefetchRestakeData={prefetchRestakeData}
+                                                        setRestakePoint={setRestakePoint}
+                                                        handleNegationHover={handleNegationHover}
+                                                        handleNegationHoverEnd={handleNegationHoverEnd}
+                                                        prefetchPoint={prefetchPoint}
+                                                        loadingCardId={loadingCardId}
+                                                        onCardClick={handleCardClick}
+                                                    />
+                                                </div>
                                             ))
                                         }
                                     </div>

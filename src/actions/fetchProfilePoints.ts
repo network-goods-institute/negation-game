@@ -1,19 +1,21 @@
 "use server";
 
 import { db } from "@/services/db";
-import {
-  pointsWithDetailsView,
-  endorsementsTable,
-  effectiveRestakesView,
-  doubtsTable,
-  usersTable,
-} from "@/db/schema";
+import { pointsWithDetailsView, doubtsTable, usersTable } from "@/db/schema";
 import { getUserId } from "@/actions/getUserId";
 import { eq, and } from "drizzle-orm";
 import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
 import { sql } from "drizzle-orm";
 import { deduplicatePoints } from "@/db/utils/deduplicatePoints";
+import {
+  viewerCredSql,
+  restakesByPointSql,
+  slashedAmountSql,
+  doubtedAmountSql,
+  totalRestakeAmountSql,
+  viewerDoubtSql,
+} from "./utils/pointSqlUtils";
 
 export type ProfilePoint = {
   pointId: number;
@@ -33,8 +35,8 @@ export type ProfilePoint = {
   doubtedAmount: number;
   totalRestakeAmount: number;
   doubt?: {
-    id: number;
-    amount: number;
+    id: number | null;
+    amount: number | null;
     userAmount: number;
     isUserDoubt: boolean;
   } | null;
@@ -44,7 +46,6 @@ export const fetchProfilePoints = async (
   username?: string
 ): Promise<ProfilePoint[] | null> => {
   const userId = await getUserId();
-  if (!userId) return [];
 
   // If no username provided, use the current user's ID
   let targetUserId = userId;
@@ -61,70 +62,43 @@ export const fetchProfilePoints = async (
     targetUserId = user[0].id;
   }
 
-  return db
-    .select({
-      ...getColumns(pointsWithDetailsView),
-      viewerCred: sql<number>`
-        COALESCE((
-          SELECT SUM(${endorsementsTable.cred})
-          FROM ${endorsementsTable}
-          WHERE ${endorsementsTable.pointId} = ${pointsWithDetailsView.pointId}
-            AND ${endorsementsTable.userId} = ${userId}
-        ), 0)
-      `.mapWith(Number),
-      restakesByPoint: sql<number>`
-        COALESCE((
-          SELECT SUM(er1.amount)
-          FROM ${effectiveRestakesView} AS er1
-          WHERE er1.point_id = ${pointsWithDetailsView.pointId}
-            AND er1.slashed_amount < er1.amount
-        ), 0)
-      `.mapWith(Number),
-      slashedAmount: sql<number>`
-        COALESCE((
-          SELECT SUM(er1.slashed_amount)
-          FROM ${effectiveRestakesView} AS er1
-          WHERE er1.point_id = ${pointsWithDetailsView.pointId}
-        ), 0)
-      `.mapWith(Number),
-      doubtedAmount: sql<number>`
-        COALESCE((
-          SELECT SUM(er1.doubted_amount)
-          FROM ${effectiveRestakesView} AS er1
-          WHERE er1.point_id = ${pointsWithDetailsView.pointId}
-        ), 0)
-      `.mapWith(Number),
-      totalRestakeAmount: sql<number>`
-        COALESCE((
-          SELECT SUM(CASE 
-            WHEN er.slashed_amount >= er.amount THEN 0
-            ELSE er.amount
-          END)
-          FROM ${effectiveRestakesView} AS er
-          WHERE er.point_id = ${pointsWithDetailsView.pointId}
-          AND er.negation_id = ANY(${pointsWithDetailsView.negationIds})
-        ), 0)
-      `.mapWith(Number),
-      doubt: {
-        id: doubtsTable.id,
-        amount: doubtsTable.amount,
-        userAmount: doubtsTable.amount,
-        isUserDoubt: sql<boolean>`${doubtsTable.userId} = ${userId}`.as(
-          "is_user_doubt"
-        ),
-      },
-    })
-    .from(pointsWithDetailsView)
-    .leftJoin(
-      doubtsTable,
-      and(
-        eq(doubtsTable.pointId, pointsWithDetailsView.pointId),
-        eq(doubtsTable.userId, userId)
+  // If no target user could be determined (e.g., viewer not logged in and no username provided)
+  if (!targetUserId) return [];
+
+  // Ensure targetUserId is not null before using in eq()
+  const whereCondition = eq(pointsWithDetailsView.createdBy, targetUserId);
+
+  return (
+    db
+      .select({
+        ...getColumns(pointsWithDetailsView),
+        viewerCred: viewerCredSql(userId),
+        restakesByPoint: restakesByPointSql,
+        slashedAmount: slashedAmountSql,
+        doubtedAmount: doubtedAmountSql,
+        totalRestakeAmount: totalRestakeAmountSql,
+        doubt: userId
+          ? viewerDoubtSql(userId)
+          : {
+              id: sql<number | null>`null`.mapWith((v) => v),
+              amount: sql<number | null>`null`.mapWith((v) => v),
+              userAmount: sql<number>`0`.mapWith(Number),
+              isUserDoubt: sql<boolean>`false`.mapWith(Boolean),
+            },
+      })
+      .from(pointsWithDetailsView)
+      .leftJoin(
+        doubtsTable,
+        and(
+          eq(doubtsTable.pointId, pointsWithDetailsView.pointId),
+          eq(doubtsTable.userId, userId ?? "")
+        )
       )
-    )
-    .where(eq(pointsWithDetailsView.createdBy, targetUserId))
-    .then((results) => {
-      const uniquePoints = deduplicatePoints(results);
-      return addFavor(uniquePoints);
-    });
+      // Filter points created by the TARGET user
+      .where(whereCondition)
+      .then((results) => {
+        const uniquePoints = deduplicatePoints(results);
+        return addFavor(uniquePoints);
+      })
+  );
 };

@@ -1,17 +1,18 @@
 "use server";
 
 import { getSpace } from "@/actions/getSpace";
-import {
-  embeddingsTable,
-  pointsWithDetailsView,
-  effectiveRestakesView,
-} from "@/db/schema";
+import { embeddingsTable, pointsWithDetailsView } from "@/db/schema";
 import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
 import { openai } from "@ai-sdk/openai";
 import { embed } from "ai";
 import { and, cosineDistance, desc, eq, gt, sql } from "drizzle-orm";
+import {
+  restakesByPointSql,
+  slashedAmountSql,
+  doubtedAmountSql,
+} from "./utils/pointSqlUtils";
 
 export type SimilarPointsResult = Awaited<
   ReturnType<typeof fetchSimilarPoints>
@@ -32,31 +33,9 @@ export const fetchSimilarPoints = async ({ query }: { query: string }) => {
     .select({
       similarity,
       ...getColumns(pointsWithDetailsView),
-      restakesByPoint: sql<number>`
-        COALESCE(
-          (SELECT SUM(er1.amount)
-           FROM ${effectiveRestakesView} AS er1
-           WHERE er1.point_id = ${pointsWithDetailsView.pointId}
-           AND er1.slashed_amount < er1.amount), 
-          0
-        )
-      `.mapWith(Number),
-      slashedAmount: sql<number>`
-        COALESCE(
-          (SELECT SUM(er1.slashed_amount)
-           FROM ${effectiveRestakesView} AS er1
-           WHERE er1.point_id = ${pointsWithDetailsView.pointId}), 
-          0
-        )
-      `.mapWith(Number),
-      doubtedAmount: sql<number>`
-        COALESCE(
-          (SELECT SUM(er1.doubted_amount)
-           FROM ${effectiveRestakesView} AS er1
-           WHERE er1.point_id = ${pointsWithDetailsView.pointId}), 
-          0
-        )
-      `.mapWith(Number),
+      restakesByPoint: restakesByPointSql,
+      slashedAmount: slashedAmountSql,
+      doubtedAmount: doubtedAmountSql,
     })
     .from(embeddingsTable)
     .innerJoin(

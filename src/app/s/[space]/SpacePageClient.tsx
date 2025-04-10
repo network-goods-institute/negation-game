@@ -842,11 +842,13 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
                             <h1 className="text-lg sm:text-xl font-semibold">s/{space.data.id}</h1>
                         </div>
                         <Button
+                            asChild
                             className="h-12 w-auto px-6"
-                            onClick={() => router.push(`${basePath}/chat`)}
                         >
-                            <BrainCircuitIcon className="size-6" />
-                            <span className="ml-sm">AI Assistant</span>
+                            <Link href={`${basePath}/chat`}>
+                                <BrainCircuitIcon className="size-6" />
+                                <span className="ml-sm">AI Assistant</span>
+                            </Link>
                         </Button>
                     </div>
                 )}
@@ -900,12 +902,14 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
                         </button>
                         {space?.data?.id === DEFAULT_SPACE && (
                             <Button
+                                asChild
                                 className="ml-auto py-1.5 sm:py-2 px-2 sm:px-4 text-xs sm:text-sm flex items-center gap-1"
                                 variant="ghost"
-                                onClick={() => router.push(`${basePath}/chat`)}
                             >
-                                <BrainCircuitIcon className="size-3.5 sm:size-4" />
-                                <span className="hidden sm:inline">AI Assistant</span>
+                                <Link href={`${basePath}/chat`}>
+                                    <BrainCircuitIcon className="size-3.5 sm:size-4" />
+                                    <span className="hidden sm:inline">AI Assistant</span>
+                                </Link>
                             </Button>
                         )}
                     </div>

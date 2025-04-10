@@ -27,6 +27,11 @@ import {
 } from "drizzle-orm";
 import { z } from "zod";
 import { withRetry } from "@/lib/withRetry";
+import {
+  restakesByPointSql,
+  slashedAmountSql,
+  doubtedAmountSql,
+} from "./utils/pointSqlUtils";
 
 export interface FindCounterpointCandidatesArgs {
   negatedPointId: Point["id"];
@@ -109,31 +114,9 @@ export const findCounterpointCandidatesAction = async ({
         )
       ), 0)
     `.mapWith(Number),
-      restakesByPoint: sql<number>`
-        COALESCE(
-          (SELECT SUM(er1.amount)
-           FROM ${effectiveRestakesView} AS er1
-           WHERE er1.point_id = ${pointsTable.id}
-           AND er1.slashed_amount < er1.amount), 
-          0
-        )
-      `.mapWith(Number),
-      slashedAmount: sql<number>`
-        COALESCE(
-          (SELECT SUM(er1.slashed_amount)
-           FROM ${effectiveRestakesView} AS er1
-           WHERE er1.point_id = ${pointsTable.id}), 
-          0
-        )
-      `.mapWith(Number),
-      doubtedAmount: sql<number>`
-        COALESCE(
-          (SELECT SUM(er1.doubted_amount)
-           FROM ${effectiveRestakesView} AS er1
-           WHERE er1.point_id = ${pointsTable.id}), 
-          0
-        )
-      `.mapWith(Number),
+      restakesByPoint: restakesByPointSql,
+      slashedAmount: slashedAmountSql,
+      doubtedAmount: doubtedAmountSql,
     })
     .from(embeddingsTable)
     .innerJoin(pointsTable, eq(pointsTable.id, embeddingsTable.id))

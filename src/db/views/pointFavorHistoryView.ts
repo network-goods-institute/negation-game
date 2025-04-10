@@ -200,13 +200,20 @@ export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
 
   return qb
     .select({
-      pointId: sql`all_events_with_stats.point_id`.as("point_id"),
-      eventType: sql`all_events_with_stats.event_type`.as("event_type"),
-      eventTime: sql`all_events_with_stats.event_time`.as("event_time"),
-      cred: sql`all_events_with_stats.cred`.as("cred"),
-      negationsCred: sql`all_events_with_stats.negations_cred`.as(
-        "negations_cred"
-      ),
+      pointId: sql<number>`all_events_with_stats.point_id`
+        .mapWith(Number)
+        .as("point_id"),
+      eventType:
+        sql<PointFavorHistoryViewEventType>`all_events_with_stats.event_type`
+          .mapWith(String)
+          .as("event_type"),
+      eventTime: sql<Date>`all_events_with_stats.event_time`
+        .mapWith(Date)
+        .as("event_time"),
+      cred: sql<number>`all_events_with_stats.cred`.mapWith(Number).as("cred"),
+      negationsCred: sql<number>`all_events_with_stats.negations_cred`
+        .mapWith(Number)
+        .as("negations_cred"),
       favor: sql<number>`
         CASE
           WHEN all_events_with_stats.cred = 0 THEN 0

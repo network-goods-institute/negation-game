@@ -3,13 +3,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUser } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
-import { useFeed } from "@/queries/useFeed";
 import { PointCard } from "@/components/PointCard";
 import Link from "next/link";
 import { encodeId } from "@/lib/encodeId";
 import { Button } from "@/components/ui/button";
 import { ArrowLeftIcon, ArrowDownIcon, PencilIcon, ExternalLinkIcon } from "lucide-react";
-import { ConnectButton } from "@/components/ConnectButton";
 import { useState, useMemo, useCallback, useEffect, memo } from "react";
 import { useProfilePoints } from "@/queries/useProfilePoints";
 import { useUserViewpoints } from "@/queries/useUserViewpoints";
@@ -27,6 +25,8 @@ import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { Progress } from "@/components/ui/progress";
+
+type ProfileTab = "profile" | "endorsements" | "dashboard";
 
 const NegateDialog = dynamic(() => import("@/components/NegateDialog").then(mod => mod.NegateDialog), { ssr: false });
 const ProfileEditDialog = dynamic(
@@ -53,14 +53,10 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     // All hooks must be called at the top level, before any conditionals
     const { user: privyUser, ready, login } = usePrivy();
     const router = useRouter();
-    const { data: points, isLoading: isLoadingPoints } = useFeed();
     const [isTimelineAscending, setIsTimelineAscending] = useState(false);
     const [isEndorsementsAscending, setIsEndorsementsAscending] = useState(false);
     const { data: profilePoints } = useProfilePoints(username);
-    const { data: userViewpoints, isLoading: isLoadingViewpoints } = useUserViewpoints(username);
-    const { data: endorsedPoints, isLoading: isLoadingEndorsedPoints } = useUserEndorsedPoints(username);
-    const { data: userData } = useUser(username);
-    const [editProfileOpen, setEditProfileOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState<ProfileTab>("profile");
     const setInitialTab = useSetAtom(initialSpaceTabAtom);
     const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
     const pathname = usePathname();
@@ -68,62 +64,45 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     const setNegatedPointId = useSetAtom(negatedPointIdAtom);
 
     const [loadingProgress, setLoadingProgress] = useState(0);
-    const [maxProgressReached, setMaxProgressReached] = useState(0);
     const [loadingStage, setLoadingStage] = useState("Initializing");
 
+    // Fetch viewpoints always (needed for profile and dashboard)
+    const { data: userViewpoints, isLoading: isLoadingViewpoints } = useUserViewpoints(username);
+    // Fetch endorsed points always (needed for profile stats)
+    const { data: endorsedPoints, isLoading: isLoadingEndorsedPoints } = useUserEndorsedPoints(username);
+    const { data: userData } = useUser(username);
+    const [editProfileOpen, setEditProfileOpen] = useState(false);
+
+    const isInitialLoading = isLoadingViewpoints || isLoadingEndorsedPoints;
+
     useEffect(() => {
-        if (isLoadingPoints || isLoadingViewpoints || isLoadingEndorsedPoints) {
+        // Progress reflects loading both viewpoints and endorsements
+        if (isInitialLoading) {
             let completedSteps = 0;
-            const totalSteps = 3; // points, viewpoints, endorsements
+            const totalSteps = 2; // viewpoints, endorsements
 
-            if (!isLoadingPoints) {
-                completedSteps++;
-                setLoadingStage("Loading user activity...");
-            }
+            if (!isLoadingViewpoints) completedSteps++;
+            if (!isLoadingEndorsedPoints) completedSteps++;
 
-            if (!isLoadingViewpoints && completedSteps === 1) {
-                completedSteps++;
-                setLoadingStage("Loading rationales...");
-            } else if (!isLoadingViewpoints && completedSteps > 1) {
-                completedSteps++;
-            }
+            const stage = completedSteps === 0 ? "Loading rationales..." :
+                completedSteps === 1 ? "Loading endorsements..." : "Finalizing...";
+            setLoadingStage(stage);
 
-            if (!isLoadingEndorsedPoints && completedSteps === 2) {
-                completedSteps++;
-                setLoadingStage("Loading endorsements...");
-            } else if (!isLoadingEndorsedPoints && completedSteps > 2) {
-                completedSteps++;
-            }
 
-            const currentProgress = (completedSteps / totalSteps) * 100;
+            const timer = setTimeout(() => {
+                setLoadingProgress(prev => {
+                    const increment = completedSteps < totalSteps ? 15 : 50; // Smaller increments while waiting, larger jump when done
+                    const currentTarget = (completedSteps + (completedSteps < totalSteps ? 0.8 : 1)) / totalSteps * 100;
+                    return Math.min(prev + increment, currentTarget);
+                });
+            }, 150);
+            return () => clearTimeout(timer);
 
-            if (completedSteps < totalSteps) {
-                const timer = setTimeout(() => {
-                    const targetProgress = Math.min(
-                        currentProgress + 20,
-                        (completedSteps + 0.8) / totalSteps * 100
-                    );
-
-                    // Ensure progress never goes backward by using maxProgressReached
-                    setLoadingProgress(prev => {
-                        const newProgress = Math.max(
-                            Math.min(prev + 2, targetProgress),
-                            maxProgressReached
-                        );
-                        if (newProgress > maxProgressReached) {
-                            setMaxProgressReached(newProgress);
-                        }
-                        return newProgress;
-                    });
-                }, 150);
-                return () => clearTimeout(timer);
-            } else {
-                const newProgress = Math.max(100, maxProgressReached);
-                setLoadingProgress(newProgress);
-                setMaxProgressReached(newProgress);
-            }
+        } else {
+            setLoadingProgress(100);
+            setLoadingStage("Ready");
         }
-    }, [isLoadingPoints, isLoadingViewpoints, isLoadingEndorsedPoints, loadingProgress, maxProgressReached]);
+    }, [isInitialLoading, isLoadingViewpoints, isLoadingEndorsedPoints]); // Dependencies updated
 
     // Wrap myPoints in useMemo to stabilize it
     const myPoints = useMemo(() => profilePoints || [], [profilePoints]);
@@ -253,107 +232,25 @@ export default function ProfilePage({ params }: ProfilePageProps) {
         };
     }, [username, queryClient]);
 
-    // Loading states should be checked after all hooks are called
-    if (isLoadingPoints || isLoadingViewpoints || isLoadingEndorsedPoints) {
+    // --- Main Loading Check --- 
+    // Show loading screen if initial data is loading
+    if (isInitialLoading) {
         return (
             <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow bg-background">
-                <div className="w-full sm:col-[2] flex flex-col border-x items-center justify-center min-h-[calc(100vh-var(--header-height))] sm:min-h-0 p-6">
-                    <div className="w-full max-w-md flex flex-col items-center">
-                        <h2 className="text-2xl font-semibold mb-2">Loading Profile</h2>
-                        <p className="text-muted-foreground mb-8 text-center">
-                            Retrieving {username}&apos;s data and contributions
-                        </p>
-
-                        <div className="w-full space-y-6">
-                            <Progress value={loadingProgress} className="h-2 w-full" />
-
-                            <div className="border p-4 rounded-lg bg-muted/20">
-                                <p className="font-medium text-sm mb-4">Currently:</p>
-                                <div className="space-y-2">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`size-3 rounded-full ${!isLoadingPoints ? 'bg-green-500' : 'bg-primary animate-pulse'}`}></div>
-                                        <span className="text-sm">User activity {!isLoadingPoints ? 'loaded' : 'in progress...'}</span>
-                                    </div>
-
-                                    <div className="flex items-center gap-3">
-                                        <div className={`size-3 rounded-full ${!isLoadingViewpoints ? 'bg-green-500' : 'bg-primary animate-pulse'}`}></div>
-                                        <span className="text-sm">Rationales {!isLoadingViewpoints ? 'loaded' : 'in progress...'}</span>
-                                    </div>
-
-                                    <div className="flex items-center gap-3">
-                                        <div className={`size-3 rounded-full ${!isLoadingEndorsedPoints ? 'bg-green-500' : 'bg-primary animate-pulse'}`}></div>
-                                        <span className="text-sm">Endorsements {!isLoadingEndorsedPoints ? 'loaded' : 'in progress...'}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="text-center text-sm text-muted-foreground">
-                                <p>{loadingStage}</p>
-                            </div>
+                <div className="hidden sm:block"></div>
+                <div className="px-4 pt-20 pb-4 flex-grow">
+                    <div className="flex justify-center items-center h-full">
+                        <div className="w-full max-w-md p-8 bg-muted/30 rounded-lg shadow">
+                            <h2 className="text-2xl font-semibold text-center mb-6">Loading Profile</h2>
+                            <Progress value={loadingProgress} className="w-full h-2 mb-4" />
+                            <p className="text-center text-sm text-muted-foreground mb-6">{loadingStage}</p>
                         </div>
                     </div>
                 </div>
+                <div className="hidden sm:block"></div>
             </main>
         );
     }
-
-    // Handle invalid username - show not found page
-    if (profilePoints === null) {
-        return (
-            <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow bg-background">
-                <div className="w-full sm:col-[2] flex flex-col border-x">
-                    <div className="sticky top-0 z-10 w-full flex items-center gap-3 px-4 py-3 bg-background/70 backdrop-blur">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center gap-1.5 px-2 rounded-md -ml-1"
-                            onClick={handleBackClick}
-                        >
-                            <ArrowLeftIcon className="size-4" />
-                            <span className="text-sm">Back</span>
-                        </Button>
-                    </div>
-                    <div className="flex flex-col items-center justify-center flex-grow gap-3 p-8 text-center">
-                        <h2 className="text-2xl font-semibold">User Not Found</h2>
-                        <p className="text-muted-foreground">
-                            The user &quot;{username}&quot; does not exist
-                        </p>
-                        <Button onClick={() => router.push("/")}>
-                            Return Home
-                        </Button>
-                    </div>
-                </div>
-            </main>
-        );
-    }
-
-    if (!privyUser) {
-        return (
-            <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow bg-background">
-                <div className="w-full sm:col-[2] flex flex-col border-x">
-                    <div className="sticky top-0 z-10 w-full flex items-center gap-3 px-4 py-3 bg-background/70 backdrop-blur">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center gap-1.5 px-2 rounded-md -ml-1"
-                            onClick={handleBackClick}
-                        >
-                            <ArrowLeftIcon className="size-4" />
-                            <span className="text-sm">Back</span>
-                        </Button>
-                    </div>
-                    <div className="flex flex-col items-center justify-center flex-grow gap-3 p-8 text-center">
-                        <p className="text-muted-foreground">
-                            You need to be logged in to continue
-                        </p>
-                        <ConnectButton />
-                    </div>
-                </div>
-            </main>
-        );
-    }
-
-    if (!points) return null;
 
     // Main render
     return (
@@ -417,14 +314,19 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                         </div>
                     )}
 
-                    <Tabs defaultValue="profile" className="w-full">
+                    <Tabs
+                        defaultValue="profile"
+                        value={activeTab}
+                        onValueChange={(value) => setActiveTab(value as ProfileTab)}
+                        className="w-full"
+                    >
                         <TabsList>
                             <TabsTrigger value="profile">Profile</TabsTrigger>
                             <TabsTrigger value="endorsements">Endorsements</TabsTrigger>
                             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value="profile" className="mt-4" keepMounted>
+                        <TabsContent value="profile" className="mt-4">
                             <div className="space-y-6">
                                 <div className="p-4 border rounded-lg">
                                     <h3 className="font-medium mb-2">Stats</h3>
@@ -555,7 +457,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                             </div>
                         </TabsContent>
 
-                        <TabsContent value="endorsements" keepMounted>
+                        <TabsContent value="endorsements" className="mt-4">
                             <div className="space-y-4">
                                 <div className="flex items-center justify-end">
                                     <Button
@@ -615,7 +517,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                             </div>
                         </TabsContent>
 
-                        <TabsContent value="dashboard" keepMounted>
+                        <TabsContent value="dashboard" className="mt-4">
                             <div className="space-y-6">
                                 {memoizedPointsBySpace.map(({ space, points, spaceViewpoints }) => (
                                     <div key={space} className="space-y-4">

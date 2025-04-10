@@ -5,7 +5,6 @@ import { getUserId } from "@/actions/getUserId";
 import {
   endorsementsTable,
   pointsWithDetailsView,
-  effectiveRestakesView,
   doubtsTable,
   usersTable,
 } from "@/db/schema";
@@ -14,6 +13,14 @@ import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { deduplicatePoints } from "@/db/utils/deduplicatePoints";
+import {
+  viewerCredSql,
+  restakesByPointSql,
+  slashedAmountSql,
+  doubtedAmountSql,
+  totalRestakeAmountSql,
+  viewerDoubtSql,
+} from "./utils/pointSqlUtils";
 
 export type UserEndorsedPoint = {
   pointId: number;
@@ -34,8 +41,8 @@ export type UserEndorsedPoint = {
   doubtedAmount: number;
   totalRestakeAmount: number;
   doubt?: {
-    id: number;
-    amount: number;
+    id: number | null;
+    amount: number | null;
     userAmount: number;
     isUserDoubt: boolean;
   } | null;
@@ -49,10 +56,8 @@ export const fetchUserEndorsedPoints = async (
 
   const space = await getSpace();
 
-  // If no username provided, use the current user's ID
   let targetUserId = viewerId;
 
-  // If username provided, look up the user
   if (username) {
     const user = await db
       .select({ id: usersTable.id })
@@ -64,7 +69,6 @@ export const fetchUserEndorsedPoints = async (
     targetUserId = user[0].id;
   }
 
-  // First get all points endorsed by the target user
   const endorsedPointIds = await db
     .select({ pointId: endorsementsTable.pointId })
     .from(endorsementsTable)
@@ -77,10 +81,8 @@ export const fetchUserEndorsedPoints = async (
 
   if (endorsedPointIds.length === 0) return [];
 
-  // Extract just the IDs into an array
   const pointIds = endorsedPointIds.map((e) => e.pointId);
 
-  // Then fetch the full details for those points
   return db
     .select({
       ...getColumns(pointsWithDetailsView),
@@ -92,55 +94,19 @@ export const fetchUserEndorsedPoints = async (
             AND ${endorsementsTable.userId} = ${targetUserId}
         ), 0)
       `.mapWith(Number),
-      viewerCred: sql<number>`
-        COALESCE((
-          SELECT SUM(${endorsementsTable.cred})
-          FROM ${endorsementsTable}
-          WHERE ${endorsementsTable.pointId} = ${pointsWithDetailsView.pointId}
-            AND ${endorsementsTable.userId} = ${viewerId}
-        ), 0)
-      `.mapWith(Number),
-      restakesByPoint: sql<number>`
-        COALESCE((
-          SELECT SUM(er1.amount)
-          FROM ${effectiveRestakesView} AS er1
-          WHERE er1.point_id = ${pointsWithDetailsView.pointId}
-            AND er1.slashed_amount < er1.amount
-        ), 0)
-      `.mapWith(Number),
-      slashedAmount: sql<number>`
-        COALESCE((
-          SELECT SUM(er1.slashed_amount)
-          FROM ${effectiveRestakesView} AS er1
-          WHERE er1.point_id = ${pointsWithDetailsView.pointId}
-        ), 0)
-      `.mapWith(Number),
-      doubtedAmount: sql<number>`
-        COALESCE((
-          SELECT SUM(er1.doubted_amount)
-          FROM ${effectiveRestakesView} AS er1
-          WHERE er1.point_id = ${pointsWithDetailsView.pointId}
-        ), 0)
-      `.mapWith(Number),
-      totalRestakeAmount: sql<number>`
-        COALESCE((
-          SELECT SUM(CASE 
-            WHEN er.slashed_amount >= er.amount THEN 0
-            ELSE er.amount
-          END)
-          FROM ${effectiveRestakesView} AS er
-          WHERE er.point_id = ${pointsWithDetailsView.pointId}
-          AND er.negation_id = ANY(${pointsWithDetailsView.negationIds})
-        ), 0)
-      `.mapWith(Number),
-      doubt: {
-        id: doubtsTable.id,
-        amount: doubtsTable.amount,
-        userAmount: doubtsTable.amount,
-        isUserDoubt: sql<boolean>`${doubtsTable.userId} = ${viewerId}`.as(
-          "is_user_doubt"
-        ),
-      },
+      viewerCred: viewerCredSql(viewerId),
+      restakesByPoint: restakesByPointSql,
+      slashedAmount: slashedAmountSql,
+      doubtedAmount: doubtedAmountSql,
+      totalRestakeAmount: totalRestakeAmountSql,
+      doubt: viewerId
+        ? viewerDoubtSql(viewerId)
+        : {
+            id: sql<number | null>`null`.mapWith((v) => v),
+            amount: sql<number | null>`null`.mapWith((v) => v),
+            userAmount: sql<number>`0`.mapWith(Number),
+            isUserDoubt: sql<boolean>`false`.mapWith(Boolean),
+          },
     })
     .from(pointsWithDetailsView)
     .leftJoin(

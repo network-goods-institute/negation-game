@@ -9,7 +9,7 @@ import { Switch } from "./ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeftIcon, ExternalLinkIcon } from "lucide-react";
 import DOMPurify from 'dompurify';
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { updateUserProfile } from "@/actions/updateUserProfile";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -120,6 +120,26 @@ const ProfileEditDialogContent = ({
         }
     };
 
+    const sanitizedDelegationUrl = useMemo(() => {
+        if (!delegationUrl) return '';
+        const urlToSanitize = delegationUrl.startsWith("http") ? delegationUrl : `https://${delegationUrl}`;
+        return typeof window !== 'undefined' ? DOMPurify.sanitize(urlToSanitize) : urlToSanitize;
+    }, [delegationUrl]);
+
+    const displayedDelegationUrl = useMemo(() => {
+        return displayUrl(delegationUrl);
+    }, [delegationUrl]);
+
+    const sanitizedDiscourseUrl = useMemo(() => {
+        if (!discourseCommunityUrl) return '';
+        const urlToSanitize = discourseCommunityUrl.startsWith("http") ? discourseCommunityUrl : `https://${discourseCommunityUrl}`;
+        return typeof window !== 'undefined' ? DOMPurify.sanitize(urlToSanitize) : urlToSanitize;
+    }, [discourseCommunityUrl]);
+
+    const displayedDiscourseUrl = useMemo(() => {
+        return displayUrl(discourseCommunityUrl);
+    }, [discourseCommunityUrl]);
+
     return (
         <DialogContent className="flex flex-col h-[90vh] max-h-[800px] p-0 gap-0">
             <DialogHeader className="flex-none px-4 py-3 border-b">
@@ -174,7 +194,7 @@ const ProfileEditDialogContent = ({
                                         <div className="flex items-center gap-2">
                                             <span className="text-sm font-medium">Preview:</span>
                                             <a
-                                                href={DOMPurify.sanitize(delegationUrl.startsWith("http") ? delegationUrl : `https://${delegationUrl}`)}
+                                                href={sanitizedDelegationUrl}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="text-primary flex items-center gap-1 ml-auto text-xs hover:underline"
@@ -183,7 +203,7 @@ const ProfileEditDialogContent = ({
                                             </a>
                                         </div>
                                         <div className="mt-1.5 text-sm overflow-hidden text-ellipsis">
-                                            {displayUrl(delegationUrl)}
+                                            {displayedDelegationUrl}
                                         </div>
                                     </div>
                                 )}
@@ -230,7 +250,7 @@ const ProfileEditDialogContent = ({
                                             <div className="flex items-center gap-2">
                                                 <span className="text-sm font-medium">Preview:</span>
                                                 <a
-                                                    href={DOMPurify.sanitize(discourseCommunityUrl.startsWith("http") ? discourseCommunityUrl : `https://${discourseCommunityUrl}`)}
+                                                    href={sanitizedDiscourseUrl}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="text-primary flex items-center gap-1 ml-auto text-xs hover:underline"
@@ -239,7 +259,7 @@ const ProfileEditDialogContent = ({
                                                 </a>
                                             </div>
                                             <div className="mt-1.5 text-sm overflow-hidden text-ellipsis">
-                                                {displayUrl(discourseCommunityUrl)}
+                                                {displayedDiscourseUrl}
                                             </div>
                                         </div>
                                     )}
