@@ -6,7 +6,13 @@ import { DoubtIcon } from "@/components/icons/DoubtIcon";
 import { EndorseIcon } from "@/components/icons/EndorseIcon";
 import { NegateIcon } from "@/components/icons/NegateIcon";
 import { RestakeIcon } from "@/components/icons/RestakeIcon";
-import { PointIcon, PinnedIcon, FeedCommandIcon } from "@/components/icons/AppIcons";
+import {
+  PointIcon,
+  PinnedIcon,
+  FeedCommandIcon,
+  ThickCircleIcon,
+  SlashedCircleIcon,
+} from "@/components/icons/AppIcons";
 import { Badge } from "@/components/ui/badge";
 import {
   Popover,
@@ -111,6 +117,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   onPinBadgeClickCapture?: React.MouseEventHandler;
   linkDisabled?: boolean;
   inGraphNode?: boolean;
+  graphNodeLevel?: number;
   inRationale?: boolean;
   favorHistory?: Array<{ timestamp: Date; favor: number; }>;
   disablePopover?: boolean;
@@ -146,6 +153,7 @@ export const PointCard = ({
   onPinBadgeClickCapture,
   linkDisabled,
   inGraphNode,
+  graphNodeLevel,
   inRationale,
   favorHistory: initialFavorHistory,
   disablePopover = !inRationale,
@@ -348,7 +356,13 @@ export const PointCard = ({
       )}
       <div className="flex flex-col flex-grow w-full min-w-0">
         <div className={cn("flex items-start gap-2", inGraphNode && "pt-4")}>
-          {isCommand && space && space !== 'global' ? (
+          {inGraphNode && graphNodeLevel !== undefined ? (
+            graphNodeLevel % 2 === 0 ? (
+              <SlashedCircleIcon />
+            ) : (
+              <ThickCircleIcon />
+            )
+          ) : isCommand && space && space !== 'global' ? (
             <FeedCommandIcon />
           ) : isPinned && space && space !== 'global' ? (
             <PinnedIcon />
