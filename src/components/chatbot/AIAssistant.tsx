@@ -22,8 +22,8 @@ import { MemoizedMarkdown } from "@/components/ui/MemoizedMarkdown";
 import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
 import { fetchUserEndorsedPoints } from "@/actions/fetchUserEndorsedPoints";
 import { getSpace } from "@/actions/getSpace";
-import { Skeleton } from "./ui/skeleton";
-import { AutosizeTextarea } from "./ui/autosize-textarea";
+import { Skeleton } from "../ui/skeleton";
+import { AutosizeTextarea } from "../ui/autosize-textarea";
 import { fetchUserViewpoints } from "@/actions/fetchUserViewpoints";
 import { generateChatName } from "@/actions/generateChatName";
 import {
@@ -33,10 +33,10 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-import { DiscourseConnectDialog } from "./DiscourseConnectDialog";
-import { DiscourseMessagesDialog } from "./DiscourseMessagesDialog";
-import { DiscourseConsentDialog } from "./DiscourseConsentDialog";
-import { ChatSettingsDialog } from "./ChatSettingsDialog";
+import { DiscourseConnectDialog } from "@/components/chatbot/DiscourseConnectDialog";
+import { DiscourseMessagesDialog } from "@/components/chatbot/DiscourseMessagesDialog";
+import { DiscourseConsentDialog } from "@/components/chatbot/DiscourseConsentDialog";
+import { ChatSettingsDialog } from "@/components/chatbot/ChatSettingsDialog";
 
 export interface DiscourseMessage {
     id: number;

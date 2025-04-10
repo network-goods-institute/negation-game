@@ -1,6 +1,6 @@
 "use client";
 
-import { OnboardingDialog } from "@/components/OnboardingDialog";
+import { OnboardingDialog } from "@/components/forms/OnboardingDialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
