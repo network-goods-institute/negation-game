@@ -872,6 +872,7 @@ export const PointNode = ({
             "rounded-none",
             "bg-background"
           ],
+          "border-muted-foreground/60 dark:border-muted-foreground/40",
           endorsedByOp && "border-yellow-500",
           hoveredPoint === pointId && "border-primary",
           (!hasAnimationPlayed && (isExpanding || dataIsExpanding)) && "animate-node-expand"

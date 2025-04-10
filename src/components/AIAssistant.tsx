@@ -177,18 +177,8 @@ export default function AIAssistant() {
     const [showDiscourseDialog, setShowDiscourseDialog] = useState(false);
     const [isConnectingToDiscourse, setIsConnectingToDiscourse] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [discourseUsername, setDiscourseUsername] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('discourse_username') || '';
-        }
-        return '';
-    });
-    const [discourseUrl, setDiscourseUrl] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('discourse_url') || 'https://forum.scroll.io';
-        }
-        return 'https://forum.scroll.io';
-    });
+    const [discourseUsername, setDiscourseUsername] = useState('');
+    const [discourseUrl, setDiscourseUrl] = useState('https://forum.scroll.io');
     const [storedMessages, setStoredMessages] = useState<DiscourseMessage[]>([]);
     const [showMessagesModal, setShowMessagesModal] = useState(false);
     const [showConsentDialog, setShowConsentDialog] = useState(false);
@@ -240,6 +230,8 @@ export default function AIAssistant() {
     });
 
     const [isUpdatingConsent, setIsUpdatingConsent] = useState(false);
+
+    const isNonGlobalSpace = currentSpace !== null && currentSpace !== 'global';
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -311,13 +303,14 @@ export default function AIAssistant() {
         }
 
         const newChatId = nanoid();
+        const initialMessage = {
+            role: 'assistant' as const,
+            content: `Hello! I'm here to help you write your rationale description or discuss your points. What topic should we explore?`
+        };
         const newChat: SavedChat = {
             id: newChatId,
             title: 'New Chat',
-            messages: [{
-                role: 'assistant',
-                content: `Hello! I'm here to help you write your rationale description or discuss your points. What topic should we explore?`
-            }],
+            messages: [initialMessage],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             space: currentSpace
@@ -332,7 +325,7 @@ export default function AIAssistant() {
         });
 
         setCurrentChatId(newChatId);
-        setChatMessages(newChat.messages);
+        setChatMessages([initialMessage]);
     }, [currentSpace]);
 
     const updateChat = useCallback((chatId: string, messages: ChatMessage[], title?: string) => {
@@ -365,7 +358,7 @@ export default function AIAssistant() {
         const isNewChat = !currentChatId &&
             chatMessages.length === 1 &&
             chatMessages[0].role === 'assistant' &&
-            chatMessages[0].content === `Hello! I'm here to help you write your rationale description or design your graph. What topic should we explore?`;
+            chatMessages[0].content === `Hello! I'm here to help you write your rationale description or discuss your points. What topic should we explore?`;
 
         // Create new chat if needed
         let activeChatId = currentChatId;
@@ -398,7 +391,8 @@ export default function AIAssistant() {
         setStreamingContent('');
 
         try {
-            const systemMessages: ChatMessage[] = settings.includeDiscourseMessages ? storedMessages.map(msg => ({
+            // Only include Discourse messages if we're in a non-global space and settings allow it
+            const systemMessages: ChatMessage[] = (isNonGlobalSpace && settings.includeDiscourseMessages) ? storedMessages.map(msg => ({
                 role: 'system',
                 content: `From forum post "${msg.topic_title || 'Untitled'}": ${msg.content}`
             })) : [];
@@ -606,6 +600,14 @@ export default function AIAssistant() {
     }, [currentSpace]);
 
     useEffect(() => {
+        if (!isNonGlobalSpace) {
+            setStoredMessages([]);
+            setHasStoredMessages(false);
+            setConnectionStatus('disconnected');
+            setIsCheckingDiscourse(false);
+            return;
+        }
+
         const checkStoredMessages = () => {
             setIsCheckingDiscourse(true);
             try {
@@ -632,7 +634,34 @@ export default function AIAssistant() {
         };
 
         checkStoredMessages();
-    }, []);
+    }, [isNonGlobalSpace]);
+
+    useEffect(() => {
+        if (!isNonGlobalSpace) {
+            setConnectionStatus('disconnected');
+            return;
+        }
+
+        if (isCheckingDiscourse) return;
+
+        if (storedMessages.length > 0) {
+            if (discourseUsername.trim() && discourseUrl.trim()) {
+                setConnectionStatus('connected');
+            } else {
+                setConnectionStatus('partially_connected');
+            }
+        } else if (discourseUsername.trim() && discourseUrl.trim()) {
+            setConnectionStatus('pending');
+        } else {
+            setConnectionStatus('disconnected');
+        }
+    }, [isCheckingDiscourse, storedMessages.length, discourseUsername, discourseUrl, isNonGlobalSpace]);
+
+    useEffect(() => {
+        if (userData?.discourseUsername && !discourseUsername) {
+            setDiscourseUsername(userData.discourseUsername);
+        }
+    }, [userData, discourseUsername]);
 
     const loadStoredMessages = () => {
         try {
@@ -736,6 +765,10 @@ export default function AIAssistant() {
 
     const handleConnectToDiscourse = useCallback(async () => {
         if (isConnectingToDiscourse) return;
+        if (!currentSpace) {
+            setError('Discourse integration is only available in spaces');
+            return;
+        }
 
         try {
             if (!discourseUsername.trim()) {
@@ -759,7 +792,6 @@ export default function AIAssistant() {
             setFetchProgress(10);
 
             const cleanUrl = discourseUrl.trim().replace(/\/$/, '');
-            const encodedUrl = encodeURIComponent(cleanUrl);
 
             if (userData.discourseUsername !== discourseUsername ||
                 userData.discourseCommunityUrl !== cleanUrl ||
@@ -776,7 +808,7 @@ export default function AIAssistant() {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 60000);
 
-            const eventSource = new EventSource(`/api/discourse/posts/stream?username=${encodeURIComponent(discourseUsername)}&url=${encodedUrl}`);
+            const eventSource = new EventSource(`/api/discourse/posts/stream?username=${encodeURIComponent(discourseUsername)}&url=${encodeURIComponent(cleanUrl)}`);
 
             eventSource.onmessage = (event) => {
                 try {
@@ -796,7 +828,7 @@ export default function AIAssistant() {
                 eventSource.close();
             };
 
-            const response = await fetch(`/api/discourse/posts?username=${encodeURIComponent(discourseUsername)}&url=${encodedUrl}`, {
+            const response = await fetch(`/api/discourse/posts?username=${encodeURIComponent(discourseUsername)}&url=${encodeURIComponent(cleanUrl)}`, {
                 signal: controller.signal
             });
 
@@ -849,7 +881,7 @@ export default function AIAssistant() {
             setIsConnectingToDiscourse(false);
             setTimeout(() => setFetchProgress(0), 1000);
         }
-    }, [discourseUsername, discourseUrl, userData, handleUpdateProfile, saveMessagesToStorage, isConnectingToDiscourse]);
+    }, [discourseUsername, discourseUrl, userData, handleUpdateProfile, saveMessagesToStorage, isConnectingToDiscourse, currentSpace]);
 
     const handleConsentAndConnect = async () => {
         if (isUpdatingConsent) return;
@@ -883,49 +915,6 @@ export default function AIAssistant() {
             setIsUpdatingConsent(false);
         }
     };
-
-    useEffect(() => {
-        if (isCheckingDiscourse) return;
-
-        if (storedMessages.length > 0) {
-            if (discourseUsername.trim() && discourseUrl.trim()) {
-                setConnectionStatus('connected');
-            } else {
-                setConnectionStatus('partially_connected');
-            }
-        } else if (discourseUsername.trim() && discourseUrl.trim()) {
-            setConnectionStatus('pending');
-        } else {
-            setConnectionStatus('disconnected');
-        }
-    }, [isCheckingDiscourse, storedMessages.length, discourseUsername, discourseUrl]);
-
-    useEffect(() => {
-        if (userData?.discourseUsername && !discourseUsername) {
-            setDiscourseUsername(userData.discourseUsername);
-            if (typeof window !== 'undefined') {
-                localStorage.setItem('discourse_username', userData.discourseUsername);
-            }
-        }
-        if (userData?.discourseCommunityUrl && !discourseUrl) {
-            setDiscourseUrl(userData.discourseCommunityUrl);
-            if (typeof window !== 'undefined') {
-                localStorage.setItem('discourse_url', userData.discourseCommunityUrl);
-            }
-        }
-    }, [userData, discourseUsername, discourseUrl]);
-
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            localStorage.setItem('discourse_username', discourseUsername);
-        }
-    }, [discourseUsername]);
-
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            localStorage.setItem('discourse_url', discourseUrl);
-        }
-    }, [discourseUrl]);
 
     return (
         <div className="flex h-[calc(100vh-var(--header-height))]">
@@ -1081,48 +1070,52 @@ export default function AIAssistant() {
                     </div>
                     <div className="flex items-center gap-3">
                         {/* Connection status - compact on mobile */}
-                        <div
-                            className={`flex items-center gap-2 ${isMobile ? 'bg-transparent p-0' : 'bg-background/80 py-1.5 px-3 rounded-full border'} cursor-pointer hover:bg-accent/50 transition-colors`}
-                            onClick={() => setShowDiscourseDialog(true)}
-                            role="button"
-                            title="Open Discourse Settings"
-                        >
-                            {isCheckingDiscourse ? (
-                                <div className="flex items-center gap-1.5">
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    {!isMobile && <span className="text-sm text-muted-foreground">Checking...</span>}
+                        {isNonGlobalSpace && (
+                            <>
+                                <div
+                                    className={`flex items-center gap-2 ${isMobile ? 'bg-transparent p-0' : 'bg-background/80 py-1.5 px-3 rounded-full border'} cursor-pointer hover:bg-accent/50 transition-colors`}
+                                    onClick={() => setShowDiscourseDialog(true)}
+                                    role="button"
+                                    title="Open Discourse Settings"
+                                >
+                                    {isCheckingDiscourse ? (
+                                        <div className="flex items-center gap-1.5">
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            {!isMobile && <span className="text-sm text-muted-foreground">Checking...</span>}
+                                        </div>
+                                    ) : connectionStatus === 'connected' ? (
+                                        <div className="flex items-center gap-1.5">
+                                            <CircleDotIcon className="h-3.5 w-3.5 text-green-500" />
+                                            {!isMobile && <span className="text-sm">Connected</span>}
+                                        </div>
+                                    ) : connectionStatus === 'partially_connected' ? (
+                                        <div className="flex items-center gap-1.5">
+                                            <CircleDotIcon className="h-3.5 w-3.5 text-yellow-500" />
+                                            {!isMobile && <span className="text-sm">Partially Connected</span>}
+                                        </div>
+                                    ) : connectionStatus === 'pending' ? (
+                                        <div className="flex items-center gap-1.5">
+                                            <CircleDotIcon className="h-3.5 w-3.5 text-blue-500" />
+                                            {!isMobile && <span className="text-sm">Pending</span>}
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-1.5">
+                                            <CircleIcon className="h-3.5 w-3.5" />
+                                            {!isMobile && <span className="text-sm text-muted-foreground">Not Connected</span>}
+                                        </div>
+                                    )}
                                 </div>
-                            ) : connectionStatus === 'connected' ? (
-                                <div className="flex items-center gap-1.5">
-                                    <CircleDotIcon className="h-3.5 w-3.5 text-green-500" />
-                                    {!isMobile && <span className="text-sm">Connected</span>}
-                                </div>
-                            ) : connectionStatus === 'partially_connected' ? (
-                                <div className="flex items-center gap-1.5">
-                                    <CircleDotIcon className="h-3.5 w-3.5 text-yellow-500" />
-                                    {!isMobile && <span className="text-sm">Partially Connected</span>}
-                                </div>
-                            ) : connectionStatus === 'pending' ? (
-                                <div className="flex items-center gap-1.5">
-                                    <CircleDotIcon className="h-3.5 w-3.5 text-blue-500" />
-                                    {!isMobile && <span className="text-sm">Pending</span>}
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-1.5">
-                                    <CircleIcon className="h-3.5 w-3.5" />
-                                    {!isMobile && <span className="text-sm text-muted-foreground">Not Connected</span>}
-                                </div>
-                            )}
-                        </div>
-                        <AuthenticatedActionButton
-                            variant="outline"
-                            size="icon"
-                            onClick={() => setShowDiscourseDialog(true)}
-                            className="rounded-full h-9 w-9"
-                            title="Connect Discourse"
-                        >
-                            <Settings2 className="h-4 w-4" />
-                        </AuthenticatedActionButton>
+                                <AuthenticatedActionButton
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setShowDiscourseDialog(true)}
+                                    className="rounded-full h-9 w-9"
+                                    title="Connect Discourse"
+                                >
+                                    <Settings2 className="h-4 w-4" />
+                                </AuthenticatedActionButton>
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -1140,11 +1133,11 @@ export default function AIAssistant() {
                                     >
                                         <div
                                             className={`${isMobile ? 'max-w-[90%]' : 'max-w-[80%]'} rounded-2xl p-4 shadow-sm ${msg.role === 'user'
-                                                ? 'bg-primary text-primary-foreground ml-4'
-                                                : 'bg-card mr-4'
+                                                ? 'bg-primary text-white ml-4'
+                                                : 'bg-card text-foreground mr-4'
                                                 } [&_.markdown]:text-base ${isMobile ? '[&_.markdown]:text-sm' : ''} relative group`}
                                         >
-                                            <MemoizedMarkdown content={msg.content} id={`msg-${i}`} />
+                                            <MemoizedMarkdown content={msg.content} id={`msg-${i}`} isUserMessage={msg.role === 'user'} />
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -1155,11 +1148,11 @@ export default function AIAssistant() {
 
                                                     await navigator.clipboard.writeText(msg.content);
 
-                                                    button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="h-3 w-3"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+                                                    button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3"><polyline points="20 6 9 17 4 12"></polyline></svg>';
 
                                                     setTimeout(() => {
                                                         if (button) {
-                                                            button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="h-3 w-3"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>';
+                                                            button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>';
                                                         }
                                                     }, 2000);
                                                 }}
@@ -1175,7 +1168,7 @@ export default function AIAssistant() {
                                 ))}
                                 {streamingContent && (
                                     <div className="flex justify-start">
-                                        <div className="max-w-[80%] rounded-2xl p-4 shadow-sm bg-card mr-4 [&_.markdown]:text-base">
+                                        <div className="max-w-[80%] rounded-2xl p-4 shadow-sm bg-card text-foreground mr-4 [&_.markdown]:text-base">
                                             <MemoizedMarkdown content={streamingContent} id="streaming" />
                                         </div>
                                     </div>
@@ -1231,197 +1224,302 @@ export default function AIAssistant() {
                             >
                                 {isGenerating ? 'Thinking...' : 'Send'}
                             </AuthenticatedActionButton>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setShowSettingsDialog(true)}
-                                className="rounded-lg h-10 w-10 text-muted-foreground hover:text-foreground"
-                                title="Chat Settings"
-                            >
-                                <SlidersHorizontal className="h-4 w-4" />
-                            </Button>
+                            {isNonGlobalSpace && (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setShowSettingsDialog(true)}
+                                    className="rounded-lg h-10 w-10 text-muted-foreground hover:text-foreground"
+                                    title="Chat Settings"
+                                >
+                                    <SlidersHorizontal className="h-4 w-4" />
+                                </Button>
+                            )}
                         </div>
                     </form>
                 </div>
             </div>
 
-            {/* Dialogs - Add mobile-specific classes */}
-            <Dialog open={showDiscourseDialog} onOpenChange={setShowDiscourseDialog}>
-                <DialogContent className={`${isMobile ? 'w-[95vw] rounded-lg' : 'sm:max-w-[500px]'}`}>
-                    <DialogHeader>
-                        <DialogTitle>Connect Discourse Account</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <p className="text-sm text-muted-foreground">
-                            Connect your Discourse account to enhance the AI&apos;s understanding of your writing style and arguments.
-                            This is optional but recommended for better assistance.
-                        </p>
-
-                        {/* Connection Status Banner */}
-                        {connectionStatus === 'partially_connected' && (
-                            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-                                <div className="flex items-center gap-2">
-                                    <CircleDotIcon className="h-4 w-4 text-yellow-500" />
-                                    <p className="text-sm font-medium text-yellow-500">Partially Connected</p>
-                                </div>
-                                <p className="text-sm text-muted-foreground mt-2">
-                                    You have stored messages but no active connection. Please enter your credentials to reconnect.
+            {/* Dialogs - Only render if explicitly in a non-global space */}
+            {isNonGlobalSpace && (
+                <>
+                    <Dialog open={showDiscourseDialog} onOpenChange={setShowDiscourseDialog}>
+                        <DialogContent className={`${isMobile ? 'w-[95vw] rounded-lg' : 'sm:max-w-[500px]'}`}>
+                            <DialogHeader>
+                                <DialogTitle>Connect Discourse Account</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                                <p className="text-sm text-muted-foreground">
+                                    Connect your Discourse account to enhance the AI&apos;s understanding of your writing style and arguments.
+                                    This is optional but recommended for better assistance.
                                 </p>
-                            </div>
-                        )}
 
-                        {connectionStatus === 'pending' && (
-                            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                                <div className="flex items-center gap-2">
-                                    <CircleDotIcon className="h-4 w-4 text-blue-500" />
-                                    <p className="text-sm font-medium text-blue-500">Connection Pending</p>
-                                </div>
-                                <p className="text-sm text-muted-foreground mt-2">
-                                    Credentials set but no messages fetched yet. Click connect to fetch your messages.
-                                </p>
-                            </div>
-                        )}
-
-                        {/* Message count indicator */}
-                        {storedMessages.length > 0 && (
-                            <div className="bg-muted/50 rounded-lg p-4 border">
-                                <div className="flex justify-between items-center">
-                                    <div>
-                                        <p className="text-sm font-medium">
-                                            {storedMessages.length} {storedMessages.length === 1 ? 'message' : 'messages'} stored
-                                        </p>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            Last updated: {storedMessages.length > 0
-                                                ? new Date(Math.max(...storedMessages.map(m => new Date(m.created_at).getTime()))).toLocaleString()
-                                                : 'N/A'}
+                                {/* Connection Status Banner */}
+                                {connectionStatus === 'partially_connected' && (
+                                    <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+                                        <div className="flex items-center gap-2">
+                                            <CircleDotIcon className="h-4 w-4 text-yellow-500" />
+                                            <p className="text-sm font-medium text-yellow-500">Partially Connected</p>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground mt-2">
+                                            You have stored messages but no active connection. Please enter your credentials to reconnect.
                                         </p>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => {
-                                                handleViewMessages();
-                                            }}
-                                            className="text-xs"
-                                        >
-                                            View Messages
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handleDeleteMessages()}
-                                            className="text-xs text-destructive hover:text-destructive"
-                                        >
-                                            Clear
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                                )}
 
-                        <div className="space-y-2">
-                            <Label htmlFor="discourse-url">Discourse URL</Label>
-                            <Input
-                                id="discourse-url"
-                                value={discourseUrl}
-                                onChange={(e) => setDiscourseUrl(e.target.value)}
-                                placeholder="https://forum.scroll.io"
-                                disabled={isConnectingToDiscourse}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="discourse-username">Username</Label>
-                            <Input
-                                id="discourse-username"
-                                value={discourseUsername}
-                                onChange={(e) => setDiscourseUsername(e.target.value)}
-                                placeholder="Your Discourse username"
-                                disabled={isConnectingToDiscourse}
-                            />
-                        </div>
-                        {isConnectingToDiscourse && fetchProgress > 0 && (
-                            <div className="space-y-2">
-                                <Progress value={fetchProgress} className="w-full h-2" />
-                                <p className="text-xs text-muted-foreground text-center">
-                                    {fetchProgress < 20 && "Initializing..."}
-                                    {fetchProgress >= 20 && fetchProgress < 90 && "Fetching messages..."}
-                                    {fetchProgress >= 90 && fetchProgress < 95 && "Processing data..."}
-                                    {fetchProgress >= 95 && "Finishing up..."}
+                                {connectionStatus === 'pending' && (
+                                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                                        <div className="flex items-center gap-2">
+                                            <CircleDotIcon className="h-4 w-4 text-blue-500" />
+                                            <p className="text-sm font-medium text-blue-500">Connection Pending</p>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground mt-2">
+                                            Credentials set but no messages fetched yet. Click connect to fetch your messages.
+                                        </p>
+                                    </div>
+                                )}
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="discourse-username">What&apos;s your Discourse username for Scroll?</Label>
+                                    <Input
+                                        id="discourse-username"
+                                        value={discourseUsername}
+                                        onChange={(e) => setDiscourseUsername(e.target.value)}
+                                        placeholder="Your Discourse username"
+                                        disabled={isConnectingToDiscourse}
+                                    />
+                                </div>
+
+                                {/* Message count indicator */}
+                                {storedMessages.length > 0 && (
+                                    <div className="bg-muted/50 rounded-lg p-4 border">
+                                        <div className="flex justify-between items-center">
+                                            <div>
+                                                <p className="text-sm font-medium">
+                                                    {storedMessages.length} {storedMessages.length === 1 ? 'message' : 'messages'} stored
+                                                </p>
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    Last updated: {storedMessages.length > 0
+                                                        ? new Date(Math.max(...storedMessages.map(m => new Date(m.created_at).getTime()))).toLocaleString()
+                                                        : 'N/A'}
+                                                </p>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        handleViewMessages();
+                                                    }}
+                                                    className="text-xs"
+                                                >
+                                                    View Messages
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleDeleteMessages()}
+                                                    className="text-xs text-destructive hover:text-destructive"
+                                                >
+                                                    Clear
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {isConnectingToDiscourse && fetchProgress > 0 && (
+                                    <div className="space-y-2">
+                                        <Progress value={fetchProgress} className="w-full h-2" />
+                                        <p className="text-xs text-muted-foreground text-center">
+                                            {fetchProgress < 20 && "Initializing..."}
+                                            {fetchProgress >= 20 && fetchProgress < 90 && "Fetching messages..."}
+                                            {fetchProgress >= 90 && fetchProgress < 95 && "Processing data..."}
+                                            {fetchProgress >= 95 && "Finishing up..."}
+                                        </p>
+                                    </div>
+                                )}
+                                {error && (
+                                    <p className="text-sm text-destructive">{error}</p>
+                                )}
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setShowDiscourseDialog(false)}
+                                    disabled={isConnectingToDiscourse}
+                                >
+                                    Cancel
+                                </Button>
+                                <AuthenticatedActionButton
+                                    onClick={() => handleConnectToDiscourse()}
+                                    disabled={isConnectingToDiscourse || !discourseUsername.trim()}
+                                    rightLoading={isConnectingToDiscourse}
+                                >
+                                    {isConnectingToDiscourse ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Connecting...
+                                        </>
+                                    ) : (
+                                        'Connect'
+                                    )}
+                                </AuthenticatedActionButton>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+
+                    <Dialog open={showConsentDialog} onOpenChange={setShowConsentDialog}>
+                        <DialogContent className="sm:max-w-[500px]">
+                            <DialogHeader>
+                                <DialogTitle>Feature Improvement Consent</DialogTitle>
+                            </DialogHeader>
+                            <div className="py-4">
+                                <p className="text-sm text-muted-foreground mb-4">
+                                    To help improve and use our features, we&apos;d like to use your public forum messages. This data will be used to:
+                                </p>
+                                <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground mb-6">
+                                    <li>Enhance the overall user experience</li>
+                                    <li>Facilitate the ChatBot feature</li>
+                                    <li>Enhance our AI suggestions and improvements</li>
+                                    <li>And more!</li>
+                                </ul>
+                                <p className="text-sm text-muted-foreground">
+                                    You can change this setting anytime in your profile settings.
                                 </p>
                             </div>
-                        )}
-                        {error && (
-                            <p className="text-sm text-destructive">{error}</p>
-                        )}
-                    </div>
-                    <div className="flex justify-end gap-2">
-                        <Button
-                            variant="outline"
-                            onClick={() => setShowDiscourseDialog(false)}
-                            disabled={isConnectingToDiscourse}
-                        >
-                            Cancel
-                        </Button>
-                        <AuthenticatedActionButton
-                            onClick={() => handleConnectToDiscourse()}
-                            disabled={isConnectingToDiscourse || !discourseUsername.trim()}
-                            rightLoading={isConnectingToDiscourse}
-                        >
-                            {isConnectingToDiscourse ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Connecting...
-                                </>
-                            ) : (
-                                'Connect'
-                            )}
-                        </AuthenticatedActionButton>
-                    </div>
-                </DialogContent>
-            </Dialog>
+                            <div className="flex justify-end gap-3">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setShowConsentDialog(false)}
+                                    disabled={isUpdatingConsent}
+                                >
+                                    Cancel
+                                </Button>
+                                <AuthenticatedActionButton
+                                    onClick={handleConsentAndConnect}
+                                    disabled={isUpdatingConsent}
+                                    rightLoading={isUpdatingConsent}
+                                >
+                                    {isUpdatingConsent ? 'Updating...' : 'Allow and Connect'}
+                                </AuthenticatedActionButton>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
 
-            {/* Consent Dialog */}
-            <Dialog open={showConsentDialog} onOpenChange={setShowConsentDialog}>
-                <DialogContent className="sm:max-w-[500px]">
-                    <DialogHeader>
-                        <DialogTitle>Feature Improvement Consent</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-4">
-                        <p className="text-sm text-muted-foreground mb-4">
-                            To help improve and use our features, we&apos;d like to use your public forum messages. This data will be used to:
-                        </p>
-                        <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground mb-6">
-                            <li>Enhance the overall user experience</li>
-                            <li>Facilitate the ChatBot feature</li>
-                            <li>Enhance our AI suggestions and improvements</li>
-                            <li>And more!</li>
-                        </ul>
-                        <p className="text-sm text-muted-foreground">
-                            You can change this setting anytime in your profile settings.
-                        </p>
-                    </div>
-                    <div className="flex justify-end gap-3">
-                        <Button
-                            variant="outline"
-                            onClick={() => setShowConsentDialog(false)}
-                            disabled={isUpdatingConsent}
-                        >
-                            Cancel
-                        </Button>
-                        <AuthenticatedActionButton
-                            onClick={handleConsentAndConnect}
-                            disabled={isUpdatingConsent}
-                            rightLoading={isUpdatingConsent}
-                        >
-                            {isUpdatingConsent ? 'Updating...' : 'Allow and Connect'}
-                        </AuthenticatedActionButton>
-                    </div>
-                </DialogContent>
-            </Dialog>
+                    <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Chat Settings</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <Label>Include Discourse Messages</Label>
+                                        <p className="text-sm text-muted-foreground">
+                                            Send your forum messages to the AI for context
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={settings.includeDiscourseMessages}
+                                        onCheckedChange={(checked) =>
+                                            setSettings(prev => ({ ...prev, includeDiscourseMessages: checked }))
+                                        }
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <Label>Include Points</Label>
+                                        <p className="text-sm text-muted-foreground">
+                                            Send your points to the AI for context
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={settings.includePoints}
+                                        onCheckedChange={(checked) =>
+                                            setSettings(prev => ({ ...prev, includePoints: checked }))
+                                        }
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <Label>Include Endorsements</Label>
+                                        <p className="text-sm text-muted-foreground">
+                                            Send your endorsed points to the AI for context
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={settings.includeEndorsements}
+                                        onCheckedChange={(checked) =>
+                                            setSettings(prev => ({ ...prev, includeEndorsements: checked }))
+                                        }
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <Label>Include Rationales</Label>
+                                        <p className="text-sm text-muted-foreground">
+                                            Send your rationales to the AI for context
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={settings.includeRationales}
+                                        onCheckedChange={(checked) =>
+                                            setSettings(prev => ({ ...prev, includeRationales: checked }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
 
-            {/* Delete Chat Confirmation Dialog */}
+                    <Dialog open={showMessagesModal} onOpenChange={setShowMessagesModal}>
+                        <DialogContent className="sm:max-w-[700px] max-h-[80vh]">
+                            <DialogHeader>
+                                <DialogTitle>Discourse Messages</DialogTitle>
+                            </DialogHeader>
+                            <ScrollArea className="max-h-[60vh] pr-4">
+                                <div className="space-y-4 py-4">
+                                    {storedMessages.length === 0 ? (
+                                        <p className="text-center text-muted-foreground">No messages found</p>
+                                    ) : (
+                                        [...storedMessages]
+                                            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                                            .map((message) => (
+                                                <div key={message.id} className="border rounded-lg p-4 bg-card">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div className="space-y-1">
+                                                            {message.topic_title && (
+                                                                <p className="text-sm font-medium">Topic: {message.topic_title}</p>
+                                                            )}
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {new Date(message.created_at).toLocaleString()}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="prose dark:prose-invert max-w-none text-sm mt-2">
+                                                        <div dangerouslySetInnerHTML={{ __html: message.content }} />
+                                                    </div>
+                                                </div>
+                                            ))
+                                    )}
+                                </div>
+                            </ScrollArea>
+                            <div className="flex justify-between pt-4 items-center">
+                                <p className="text-xs text-muted-foreground">
+                                    {storedMessages.length} messages sorted by newest first
+                                </p>
+                                <Button onClick={() => setShowMessagesModal(false)}>
+                                    Close
+                                </Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                </>
+            )}
+
+            {/* These dialogs should always be available */}
             <AlertDialog open={!!chatToDelete} onOpenChange={(open) => !open && setChatToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -1446,7 +1544,6 @@ export default function AIAssistant() {
                 </AlertDialogContent>
             </AlertDialog>
 
-            {/* Add rename dialog */}
             <Dialog open={chatToRename !== null} onOpenChange={(open) => !open && setChatToRename(null)}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
@@ -1479,117 +1576,6 @@ export default function AIAssistant() {
                             </Button>
                         </div>
                     </form>
-                </DialogContent>
-            </Dialog>
-
-            {/* View Messages Dialog */}
-            <Dialog open={showMessagesModal} onOpenChange={setShowMessagesModal}>
-                <DialogContent className="sm:max-w-[700px] max-h-[80vh]">
-                    <DialogHeader>
-                        <DialogTitle>Discourse Messages</DialogTitle>
-                    </DialogHeader>
-                    <ScrollArea className="max-h-[60vh] pr-4">
-                        <div className="space-y-4 py-4">
-                            {storedMessages.length === 0 ? (
-                                <p className="text-center text-muted-foreground">No messages found</p>
-                            ) : (
-                                [...storedMessages]
-                                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                                    .map((message) => (
-                                        <div key={message.id} className="border rounded-lg p-4 bg-card">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div className="space-y-1">
-                                                    {message.topic_title && (
-                                                        <p className="text-sm font-medium">Topic: {message.topic_title}</p>
-                                                    )}
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {new Date(message.created_at).toLocaleString()}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="prose dark:prose-invert max-w-none text-sm mt-2">
-                                                <div dangerouslySetInnerHTML={{ __html: message.content }} />
-                                            </div>
-                                        </div>
-                                    ))
-                            )}
-                        </div>
-                    </ScrollArea>
-                    <div className="flex justify-between pt-4 items-center">
-                        <p className="text-xs text-muted-foreground">
-                            {storedMessages.length} messages sorted by newest first
-                        </p>
-                        <Button onClick={() => setShowMessagesModal(false)}>
-                            Close
-                        </Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
-
-            {/* Settings Dialog */}
-            <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Chat Settings</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-0.5">
-                                <Label>Include Discourse Messages</Label>
-                                <p className="text-sm text-muted-foreground">
-                                    Send your forum messages to the AI for context
-                                </p>
-                            </div>
-                            <Switch
-                                checked={settings.includeDiscourseMessages}
-                                onCheckedChange={(checked) =>
-                                    setSettings(prev => ({ ...prev, includeDiscourseMessages: checked }))
-                                }
-                            />
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-0.5">
-                                <Label>Include Points</Label>
-                                <p className="text-sm text-muted-foreground">
-                                    Send your points to the AI for context
-                                </p>
-                            </div>
-                            <Switch
-                                checked={settings.includePoints}
-                                onCheckedChange={(checked) =>
-                                    setSettings(prev => ({ ...prev, includePoints: checked }))
-                                }
-                            />
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-0.5">
-                                <Label>Include Endorsements</Label>
-                                <p className="text-sm text-muted-foreground">
-                                    Send your endorsed points to the AI for context
-                                </p>
-                            </div>
-                            <Switch
-                                checked={settings.includeEndorsements}
-                                onCheckedChange={(checked) =>
-                                    setSettings(prev => ({ ...prev, includeEndorsements: checked }))
-                                }
-                            />
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-0.5">
-                                <Label>Include Rationales</Label>
-                                <p className="text-sm text-muted-foreground">
-                                    Send your rationales to the AI for context
-                                </p>
-                            </div>
-                            <Switch
-                                checked={settings.includeRationales}
-                                onCheckedChange={(checked) =>
-                                    setSettings(prev => ({ ...prev, includeRationales: checked }))
-                                }
-                            />
-                        </div>
-                    </div>
                 </DialogContent>
             </Dialog>
         </div>

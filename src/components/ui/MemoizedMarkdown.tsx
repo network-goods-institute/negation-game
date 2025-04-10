@@ -104,8 +104,7 @@ const CodeBlock = memo(({ className, children, ...props }: { className?: string;
 CodeBlock.displayName = 'CodeBlock';
 
 const MemoizedMarkdownBlock = memo(
-    ({ content }: { content: string }) => {
-
+    ({ content, isUserMessage }: { content: string; isUserMessage?: boolean }) => {
         // Don't split inline formatting across blocks
         const processedContent = content
             // Join inline formatting that was split
@@ -119,61 +118,90 @@ const MemoizedMarkdownBlock = memo(
                 remarkPlugins={[remarkGfm]}
                 components={{
                     p: ({ children }) => (
-                        <p className="whitespace-pre-wrap break-words my-4 leading-7">
+                        <p className={cn(
+                            "whitespace-pre-wrap break-words my-4 leading-7",
+                            isUserMessage && "text-white"
+                        )}>
                             {children}
                         </p>
                     ),
                     a: ({ children, href }) => (
-                        <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                        <a href={href} target="_blank" rel="noopener noreferrer" className={cn(
+                            "hover:underline",
+                            isUserMessage ? "text-white" : "text-primary"
+                        )}>
                             {children}
                         </a>
                     ),
                     ul: ({ children }) => (
-                        <ul className="my-6 list-disc list-outside ml-6 space-y-2">
+                        <ul className={cn(
+                            "my-6 list-disc list-outside ml-6 space-y-2",
+                            isUserMessage && "text-white"
+                        )}>
                             {children}
                         </ul>
                     ),
                     ol: ({ children }) => (
-                        <ol className="my-6 list-decimal list-outside ml-6 space-y-2">
+                        <ol className={cn(
+                            "my-6 list-decimal list-outside ml-6 space-y-2",
+                            isUserMessage && "text-white"
+                        )}>
                             {children}
                         </ol>
                     ),
                     li: ({ children, ...props }) => (
-                        <li className="pl-2" {...props}>
+                        <li className={cn(
+                            "pl-2",
+                            isUserMessage && "text-white"
+                        )} {...props}>
                             {children}
                         </li>
                     ),
                     code: ({ className, children, ...props }) => {
-                        console.log('Rendering code component:', { className, children });
                         const match = /language-(\w+)/.exec(className || '');
                         return className && match ? (
                             <CodeBlock className={className} {...props}>
                                 {String(children).replace(/\n$/, '')}
                             </CodeBlock>
                         ) : (
-                            <code className="bg-muted rounded px-1.5 py-0.5 text-sm" {...props}>
+                            <code className={cn(
+                                "bg-muted rounded px-1.5 py-0.5 text-sm",
+                                isUserMessage ? "bg-white/20 text-white" : "bg-muted"
+                            )} {...props}>
                                 {children}
                             </code>
                         );
                     },
                     pre: ({ children }) => <>{children}</>,
                     blockquote: ({ children }) => (
-                        <blockquote className="border-l-4 border-muted pl-4 italic my-6">
+                        <blockquote className={cn(
+                            "border-l-4 border-muted pl-4 italic my-6",
+                            isUserMessage ? "border-white/30 text-white" : "border-muted"
+                        )}>
                             {children}
                         </blockquote>
                     ),
                     h1: ({ children }) => (
-                        <h1 className="text-2xl font-bold mt-8 mb-4">
+                        <h1 className={cn(
+                            "text-2xl font-bold mt-8 mb-4",
+                            isUserMessage && "text-white"
+                        )}>
                             {children}
                         </h1>
                     ),
                     h2: ({ children }) => (
-                        <h2 className="text-xl font-semibold mt-6 mb-4">
+                        <h2 className={cn(
+                            "text-xl font-semibold mt-6 mb-4",
+                            isUserMessage && "text-white"
+                        )}>
                             {children}
                         </h2>
                     ),
                     h3: ({ children }) => (
-                        <h3 className="text-lg font-medium mt-4 mb-3">
+                        <h3 className={cn(
+                            "text-lg font-medium mt-4 mb-3",
+                            isUserMessage && "text-white"
+                        )}>
                             {children}
                         </h3>
                     ),
@@ -183,20 +211,24 @@ const MemoizedMarkdownBlock = memo(
             </ReactMarkdown>
         );
     },
-    (prevProps, nextProps) => prevProps.content === nextProps.content
+    (prevProps, nextProps) => prevProps.content === nextProps.content && prevProps.isUserMessage === nextProps.isUserMessage
 );
 
 MemoizedMarkdownBlock.displayName = 'MemoizedMarkdownBlock';
 
 export const MemoizedMarkdown = memo(
-    ({ content, id }: { content: string; id: string }) => {
+    ({ content, id, isUserMessage }: { content: string; id: string; isUserMessage?: boolean }) => {
         const blocks = useMemo(() => parseMarkdownIntoBlocks(content), [content]);
 
         return (
-            <div className="prose dark:prose-invert max-w-none [&_p]:text-base [&_li]:text-base [&_code]:text-base">
+            <div className={cn(
+                "prose dark:prose-invert max-w-none [&_p]:text-base [&_li]:text-base [&_code]:text-base",
+                isUserMessage && "prose-invert [&_*]:text-white"
+            )}>
                 {blocks.map((block, index) => (
                     <MemoizedMarkdownBlock
                         content={block}
+                        isUserMessage={isUserMessage}
                         key={`${id}-${index}-${block.slice(0, 20)}`}
                     />
                 ))}
