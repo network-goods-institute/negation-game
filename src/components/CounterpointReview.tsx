@@ -93,6 +93,7 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                                     key={counterpointCandidate.id}
                                     className="flex flex-col gap-3 p-4 w-full bg-background cursor-pointer border rounded-md transition-colors shadow-sm hover:border-primary hover:ring-1 hover:ring-primary relative"
                                     onClick={(e) => {
+                                        e.stopPropagation();
                                         if ((e.target as HTMLElement).closest('.external-link-btn')) {
                                             return;
                                         }
@@ -189,7 +190,8 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                             {reviewResults.suggestions.map((suggestion, i) => (
                                 <div
                                     key={`rephrasing-${i}`}
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                        e.stopPropagation();
                                         setGuidanceNotes(
                                             <>
                                                 <SquarePenIcon className="size-3 align-[-1.5px] inline-block" />{" "}
@@ -197,7 +199,8 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                                                 <Button
                                                     variant={"link"}
                                                     className="text-xs size-fit inline-block p-0 font-normal underline underline-offset-1 ml-1"
-                                                    onClick={() => {
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
                                                         setCounterpointContent(counterpointContent);
                                                         setGuidanceNotes(undefined);
                                                     }}
@@ -243,7 +246,8 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                     </div>
 
                     <div
-                        onClick={() => {
+                        onClick={(e) => {
+                            e.stopPropagation();
                             setGuidanceNotes(
                                 reviewResults.rating < GOOD_ENOUGH_POINT_RATING ? (
                                     <>
@@ -252,7 +256,8 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                                         <Button
                                             variant={"link"}
                                             className="text-xs size-fit inline-block p-0 font-normal underline underline-offset-1 ml-1"
-                                            onClick={() => {
+                                            onClick={(e) => {
+                                                e.stopPropagation();
                                                 setGuidanceNotes(undefined);
                                             }}
                                         >

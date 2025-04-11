@@ -8,7 +8,25 @@ import {
   pointsTable,
   endorsementsTable,
   pointFavorHistoryView,
+  pointsWithDetailsView,
 } from "@/db/schema";
+import { getUserId } from "./getUserId";
+
+type PointResultBeforeFavor = {
+  pointId: number;
+  content: string;
+  createdAt: Date;
+  createdBy: string;
+  space: string | null;
+  amountNegations: number;
+  amountSupporters: number;
+  cred: number;
+  negationsCred: number;
+  negationIds: number[];
+  username: string;
+  relevance: number;
+  viewerCred: number;
+};
 
 export type SearchResult = {
   type: "point" | "rationale";
@@ -19,7 +37,7 @@ export type SearchResult = {
   author: string;
   relevance: number;
   // Point-specific fields
-  pointData?: Awaited<ReturnType<typeof addFavor>>[number];
+  pointData?: PointResultBeforeFavor & { favor: number };
   // Viewpoint-specific fields
   description?: string;
   space?: string | null;
@@ -37,12 +55,18 @@ export const searchContent = async (query: string): Promise<SearchResult[]> => {
   }
 
   const space = await getSpace();
+  const viewerId = await getUserId();
   const searchTerm = `%${query.trim().toLowerCase()}%`;
 
-  const pointResults = await db
-    .execute(
+  const pointResultsBeforeFavor = await db
+    .execute<
+      Omit<PointResultBeforeFavor, "createdAt" | "relevance"> & {
+        createdAt: string | Date;
+        relevance: number | string;
+      }
+    >(
       sql`
-    SELECT 
+    SELECT
       p.id as "pointId",
       p.content as "content",
       p.created_at as "createdAt",
@@ -54,31 +78,41 @@ export const searchContent = async (query: string): Promise<SearchResult[]> => {
       p.negations_cred as "negationsCred",
       p.negation_ids as "negationIds",
       u.username as "username",
+      COALESCE((
+        SELECT SUM(e.cred)
+        FROM ${endorsementsTable} e
+        WHERE e.point_id = p.id AND e.user_id = ${viewerId}
+      ), 0) as "viewerCred",
       1 as "relevance"
-    FROM point_with_details_view p
+    FROM ${pointsWithDetailsView} p
     INNER JOIN users u ON u.id = p.created_by
-    WHERE p.space = ${space} 
+    WHERE p.space = ${space}
     AND (p.content ILIKE ${searchTerm} OR u.username ILIKE ${searchTerm})
     LIMIT 50
   `
     )
     .then((result) => {
-      const points = result.map((row: any) => ({
-        pointId: row.pointId,
+      const points: PointResultBeforeFavor[] = result.map((row) => ({
+        pointId: Number(row.pointId),
         content: row.content,
         createdAt: new Date(row.createdAt),
         createdBy: row.createdBy,
         space: row.space,
-        amountNegations: row.amountNegations,
-        amountSupporters: row.amountSupporters,
-        cred: row.cred,
-        negationsCred: row.negationsCred,
-        negationIds: row.negationIds,
+        amountNegations: Number(row.amountNegations ?? 0),
+        amountSupporters: Number(row.amountSupporters ?? 0),
+        cred: Number(row.cred ?? 0),
+        negationsCred: Number(row.negationsCred ?? 0),
+        negationIds: Array.isArray(row.negationIds)
+          ? row.negationIds.map(Number)
+          : [],
         username: row.username,
-        relevance: row.relevance,
+        viewerCred: Number(row.viewerCred ?? 0),
+        relevance: Number(row.relevance ?? 1),
       }));
-      return addFavor(points);
+      return points;
     });
+
+  const pointResults = await addFavor(pointResultsBeforeFavor);
 
   const viewpointResults = await db.execute(sql`
     SELECT 
