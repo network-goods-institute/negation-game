@@ -756,12 +756,6 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
             onResetContent={resetContentModifications}
             isSaving={isSaving}
             isContentModified={isContentModified}
-            onClose={
-              isMobile
-                ? () => setCanvasEnabled(false)
-                : undefined
-            }
-            closeButtonClassName="top-4 right-4"
             onNodesChange={(changes) => {
               const { viewport, ...graph } = reactFlow.toObject();
               setGraph(graph);
