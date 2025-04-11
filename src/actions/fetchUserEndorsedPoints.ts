@@ -95,9 +95,9 @@ export const fetchUserEndorsedPoints = async (
         ), 0)
       `.mapWith(Number),
       viewerCred: viewerCredSql(viewerId),
-      restakesByPoint: restakesByPointSql,
-      slashedAmount: slashedAmountSql,
-      doubtedAmount: doubtedAmountSql,
+      restakesByPoint: restakesByPointSql(pointsWithDetailsView),
+      slashedAmount: slashedAmountSql(pointsWithDetailsView),
+      doubtedAmount: doubtedAmountSql(pointsWithDetailsView),
       totalRestakeAmount: totalRestakeAmountSql,
       doubt: viewerId
         ? viewerDoubtSql(viewerId)

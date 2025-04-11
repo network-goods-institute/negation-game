@@ -73,9 +73,9 @@ export const fetchProfilePoints = async (
       .select({
         ...getColumns(pointsWithDetailsView),
         viewerCred: viewerCredSql(userId),
-        restakesByPoint: restakesByPointSql,
-        slashedAmount: slashedAmountSql,
-        doubtedAmount: doubtedAmountSql,
+        restakesByPoint: restakesByPointSql(pointsWithDetailsView),
+        slashedAmount: slashedAmountSql(pointsWithDetailsView),
+        doubtedAmount: doubtedAmountSql(pointsWithDetailsView),
         totalRestakeAmount: totalRestakeAmountSql,
         doubt: userId
           ? viewerDoubtSql(userId)

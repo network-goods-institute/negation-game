@@ -33,9 +33,9 @@ export const fetchSimilarPoints = async ({ query }: { query: string }) => {
     .select({
       similarity,
       ...getColumns(pointsWithDetailsView),
-      restakesByPoint: restakesByPointSql,
-      slashedAmount: slashedAmountSql,
-      doubtedAmount: doubtedAmountSql,
+      restakesByPoint: restakesByPointSql(pointsWithDetailsView),
+      slashedAmount: slashedAmountSql(pointsWithDetailsView),
+      doubtedAmount: doubtedAmountSql(pointsWithDetailsView),
     })
     .from(embeddingsTable)
     .innerJoin(

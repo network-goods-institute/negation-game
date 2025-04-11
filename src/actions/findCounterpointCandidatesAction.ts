@@ -114,9 +114,9 @@ export const findCounterpointCandidatesAction = async ({
         )
       ), 0)
     `.mapWith(Number),
-      restakesByPoint: restakesByPointSql,
-      slashedAmount: slashedAmountSql,
-      doubtedAmount: doubtedAmountSql,
+      restakesByPoint: restakesByPointSql(pointsTable),
+      slashedAmount: slashedAmountSql(pointsTable),
+      doubtedAmount: doubtedAmountSql(pointsTable),
     })
     .from(embeddingsTable)
     .innerJoin(pointsTable, eq(pointsTable.id, embeddingsTable.id))

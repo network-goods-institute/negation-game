@@ -92,9 +92,9 @@ export const fetchPoints = async (ids: number[]) => {
         ELSE NULL
       END`.mapWith((val) => val),
       viewerCred: viewerCredSql(viewerId),
-      restakesByPoint: restakesByPointSql,
-      slashedAmount: slashedAmountSql,
-      doubtedAmount: doubtedAmountSql,
+      restakesByPoint: restakesByPointSql(pointsWithDetailsView),
+      slashedAmount: slashedAmountSql(pointsWithDetailsView),
+      doubtedAmount: doubtedAmountSql(pointsWithDetailsView),
       totalRestakeAmount: totalRestakeAmountSql,
       doubt: viewerId
         ? viewerDoubtSql(viewerId)
