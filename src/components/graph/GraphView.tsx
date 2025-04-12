@@ -23,7 +23,7 @@ import {
   useEdgesState,
   useNodesState,
 } from "@xyflow/react";
-import { XIcon } from "lucide-react";
+import { XIcon, SaveIcon, Undo2Icon, Share2Icon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useCallback, useMemo, useEffect, useState, useRef, useLayoutEffect } from "react";
 import { useAtom } from "jotai";
@@ -31,7 +31,7 @@ import { collapsedPointIdsAtom, ViewpointGraph } from "@/atoms/viewpointAtoms";
 import React from "react";
 import { updateViewpointGraph } from "@/actions/updateViewpointGraph";
 import { updateViewpointDetails } from "@/actions/updateViewpointDetails";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useViewpoint } from "@/queries/useViewpoint";
 import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
 import {
@@ -47,6 +47,9 @@ import {
 import { copyViewpointAndNavigate } from "@/utils/copyViewpoint";
 import { cn } from "@/lib/cn";
 import { MergeNodesDialog } from "@/components/graph/MergeNodesDialog";
+import { ShareRationaleDialog } from "@/components/graph/ShareRationalePointsDialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Loader } from "@/components/ui/loader";
 
 function debounce<T extends (...args: any[]) => any>(
   func: T,
@@ -91,6 +94,8 @@ export interface GraphViewProps
   isContentModified?: boolean;
   onResetContent?: () => void;
   onModifiedChange?: (isModified: boolean) => void;
+  canvasEnabled?: boolean;
+  hideShareButton?: boolean;
 }
 
 export const GraphView = ({
@@ -102,13 +107,15 @@ export const GraphView = ({
   onEdgesChange: onEdgesChangeProp,
   onSaveChanges,
   setLocalGraph,
-  isSaving,
+  isSaving: isSavingProp,
   canModify,
   isNew,
   isContentModified,
   onResetContent,
   unsavedChangesModalClassName,
   onModifiedChange,
+  canvasEnabled,
+  hideShareButton,
   ...props
 }: GraphViewProps) => {
   const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
@@ -135,12 +142,13 @@ export const GraphView = ({
   const isInitialMount = useRef(true);
 
   const params = useParams();
-  const rationaleId = (params.rationaleId || params.viewpointId) as string;
+  const rationaleId = (params.rationaleId || params.viewpointId) as string | undefined;
+  const spaceId = params.space as string;
 
-  // Then use it in the hook
-  const { data: viewpoint } = useViewpoint(rationaleId, {
-    enabled: !isNew,
+  const viewpointQueryResult = useViewpoint(rationaleId!, {
+    enabled: !isNew && typeof rationaleId === 'string',
   });
+  const viewpoint = viewpointQueryResult.data;
 
   // reset isModified when viewpoint data changes, but only if not already modified
   useEffect(() => {
@@ -427,7 +435,7 @@ export const GraphView = ({
 
         let saveSuccess = true;
 
-        if (canModify) {
+        if (canModify && rationaleId) {
           // For owners, update both the graph and details in DB
           await Promise.all([
             updateViewpointGraph({
@@ -635,6 +643,37 @@ export const GraphView = ({
     }
   }, [flowInstance, props.defaultNodes, props.defaultEdges, nodes.length, setNodes, setEdges]);
 
+  const searchParams = useSearchParams();
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [shareDialogMode, setShareDialogMode] = useState<'share' | 'view'>('share');
+  const [sharedPoints, setSharedPoints] = useState<number[]>([]);
+  const [sharedByUsername, setSharedByUsername] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    const viewParam = searchParams?.get('view');
+    const pointsParam = searchParams?.get('points');
+    const byParam = searchParams?.get('by');
+
+    if (viewParam === 'shared' && pointsParam) {
+      const pointIds = pointsParam.split(',').map(Number).filter(id => !isNaN(id));
+      if (pointIds.length > 0) {
+        setSharedPoints(pointIds);
+        setSharedByUsername(byParam ?? undefined);
+        setShareDialogMode('view');
+        setIsShareDialogOpen(true);
+      }
+    } else {
+      setShareDialogMode('share');
+    }
+  }, [searchParams]);
+
+  const openShareDialogInShareMode = () => {
+    setSharedPoints([]);
+    setSharedByUsername(undefined);
+    setShareDialogMode('share');
+    setIsShareDialogOpen(true);
+  };
+
   return (
     <>
       <ReactFlow
@@ -653,62 +692,160 @@ export const GraphView = ({
         onPaneClick={handlePaneClick}
         {...effectiveProps}
       >
-        {!!onClose && (
-          <Panel position="top-right" className={closeButtonClassName}>
-            <Button size="icon" variant={"ghost"} onClick={() => {
-              onClose();
-            }}>
-              <XIcon />
-            </Button>
-          </Panel>
-        )}
         <Background
           bgColor="hsl(var(--background))"
           color="hsl(var(--muted))"
           variant={BackgroundVariant.Dots}
         />
-        <MiniMap
-          zoomable
-          pannable
-          className="[&>svg]:w-[120px] [&>svg]:h-[90px] sm:[&>svg]:w-[200px] sm:[&>svg]:h-[150px]"
-        />
-        <Controls />
-        {(isModified && !isNew) && (
-          <Panel position="top-right" className="z-50 mt-16 md:mt-4">
-            <div className="bg-background border rounded-lg shadow-lg p-4 flex flex-col gap-2 min-w-[200px]">
-              <div className="text-sm font-medium text-muted-foreground">
-                Unsaved Changes
-              </div>
-              <div className="flex flex-col gap-2">
-                <AuthenticatedActionButton
-                  id="save-button"
-                  className="w-full"
-                  disabled={isSaving || isSaving_local}
-                  onClick={handleButtonClick}
-                  rightLoading={isSaving || isSaving_local}
-                >
-                  {canModify
-                    ? isNew
-                      ? "Publish Rationale"
-                      : "Publish Changes"
-                    : "Copy Rationale to Save Changes"}
-                </AuthenticatedActionButton>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  disabled={isSaving || isSaving_local}
-                  onClick={() => setIsDiscardDialogOpen(true)}
-                >
-                  Discard Changes
-                </Button>
-              </div>
+
+        {/* Position MiniMap with margin using Panel and inner div */}
+        <Panel position="bottom-right" className="m-2">
+          {/* Responsive bottom offset */}
+          <div className="relative bottom-[10px] md:bottom-[20px]">
+            <MiniMap nodeStrokeWidth={3} zoomable pannable />
+          </div>
+        </Panel>
+
+        {/* Position Controls with margin using Panel and inner div */}
+        <Panel position="bottom-left" className="m-2">
+          {/* Responsive bottom offset */}
+          <div className="relative bottom-[10px] md:bottom-[20px]">
+            <Controls />
+          </div>
+        </Panel>
+
+        {onClose && (
+          <Panel position="top-right">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className={cn("m-2 bg-background/80", closeButtonClassName)}
+            >
+              <XIcon />
+            </Button>
+          </Panel>
+        )}
+        {(isModified || isContentModified) && !isNew && (
+          <Panel position="top-right" className="m-2">
+            {/* Inner div for positioning and layering - Responsive top */}
+            <div className="relative top-[50px] md:top-[15px] z-50 flex flex-col gap-2">
+              {/* Save Button (Conditional) */}
+              {canModify && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <AuthenticatedActionButton
+                      variant="outline"
+                      onClick={handleSave}
+                      disabled={isSavingProp || isSaving_local}
+                      className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 min-w-[140px]"
+                      id="graph-save-button"
+                    >
+                      {isSavingProp || isSaving_local ? (
+                        <Loader className="size-4 animate-spin" />
+                      ) : (
+                        <span className="text-xs">
+                          {canModify
+                            ? isNew
+                              ? "Publish Rationale"
+                              : "Publish Changes"
+                            : "Copy Rationale to Save Changes"}
+                        </span>
+                      )}
+                    </AuthenticatedActionButton>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Save changes</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              {/* Discard Button (Conditional) */}
+              {canModify && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsDiscardDialogOpen(true)}
+                      disabled={isSavingProp || isSaving_local || isDiscarding}
+                      className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 min-w-[140px]"
+                    >
+                      {isDiscarding ? <Loader className="size-4 animate-spin" /> : <Undo2Icon className="size-4" />}
+                      <span className="text-xs">Discard</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Discard changes</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
             </div>
           </Panel>
         )}
+
+        {/* Always visible Share Button Panel (unless hidden by prop) */}
+        {!hideShareButton && (
+          <Panel position="top-right" className="m-2">
+            {/* Position below the potential save/discard buttons */}
+            <div className={cn(
+              "relative z-40 flex flex-col gap-2",
+              // If Save/Discard are shown, position Share below them (approx 85px height + 8px gap)
+              // Otherwise, use the default top offset
+              (isModified || isContentModified) && canModify ? "top-[calc(50px+85px+8px)] md:top-[calc(15px+85px+8px)]" : "top-[50px] md:top-[15px]"
+            )}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    onClick={openShareDialogInShareMode}
+                    disabled={isSavingProp || isSaving_local || isDiscarding}
+                    className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 min-w-[140px]"
+                  >
+                    <Share2Icon className="size-4" />
+                    <span className="text-xs">Share Points</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Share selected points from this rationale</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </Panel>
+        )}
+
+        <GlobalExpandPointDialog />
       </ReactFlow>
 
-      <GlobalExpandPointDialog />
-      <MergeNodesDialog />
+      {!canvasEnabled && (isModified || isContentModified) && canModify && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 p-3 bg-background border-t z-30 flex justify-center gap-4">
+          <Button
+            variant="outline"
+            onClick={() => setIsDiscardDialogOpen(true)}
+            disabled={isSavingProp || isSaving_local || isDiscarding || !(isModified || isContentModified)}
+            className="flex-1 shadow-md"
+          >
+            {isDiscarding ? <Loader className="size-4 animate-spin mr-2" /> : <Undo2Icon className="size-4 mr-2" />}
+            Discard
+          </Button>
+          <AuthenticatedActionButton
+            onClick={handleSave}
+            disabled={isSavingProp || isSaving_local || !(isModified || isContentModified)}
+            className="flex-1 shadow-md flex items-center justify-center min-w-[140px]"
+          >
+            {isSavingProp || isSaving_local ? (
+              <Loader className="size-4 animate-spin" />
+            ) : (
+              <>
+                <SaveIcon className="size-4 mr-2" />
+                {canModify
+                  ? isNew
+                    ? "Publish Rationale"
+                    : "Publish Changes"
+                  : "Copy Rationale to Save Changes"}
+              </>
+            )}
+          </AuthenticatedActionButton>
+        </div>
+      )}
 
       <AlertDialog open={isDiscardDialogOpen} onOpenChange={setIsDiscardDialogOpen}>
         <AlertDialogContent className={cn("sm:max-w-[425px]", unsavedChangesModalClassName)}>
@@ -736,6 +873,18 @@ export const GraphView = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ShareRationaleDialog
+        open={isShareDialogOpen}
+        onOpenChange={setIsShareDialogOpen}
+        rationaleId={rationaleId}
+        spaceId={spaceId}
+        isViewMode={shareDialogMode === 'view'}
+        initialPoints={shareDialogMode === 'view' ? sharedPoints : undefined}
+        sharedBy={shareDialogMode === 'view' ? sharedByUsername : undefined}
+      />
+
+      <MergeNodesDialog />
     </>
   );
 };

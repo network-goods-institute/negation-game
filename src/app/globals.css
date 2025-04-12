@@ -135,3 +135,13 @@
     animation: nodeExpand 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
   }
 }
+
+/* Fix for GraphView background color on Rationale page desktop dark mode */
+/* I have no fucking idea why this happens, and I'm not going to spend more time on it */
+@media (min-width: 768px) {
+
+  /* Corresponds to md: breakpoint */
+  .dark .react-flow__pane {
+    background-color: hsl(var(--background)) !important;
+  }
+}

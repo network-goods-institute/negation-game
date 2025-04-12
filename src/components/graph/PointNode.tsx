@@ -873,8 +873,8 @@ export const PointNode = ({
             "bg-background"
           ],
           "border-muted-foreground/60 dark:border-muted-foreground/40",
-          endorsedByOp && "border-yellow-500",
-          hoveredPoint === pointId && "border-primary",
+          endorsedByOp && "border-yellow-500 dark:border-yellow-500",
+          hoveredPoint === pointId && "border-primary dark:border-primary",
           (!hasAnimationPlayed && (isExpanding || dataIsExpanding)) && "animate-node-expand"
         )}
         onMouseOver={() => setHoveredPoint(pointId)}

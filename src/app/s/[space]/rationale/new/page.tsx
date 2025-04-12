@@ -507,8 +507,8 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
     <main className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
       <div className="w-full sm:col-[2] flex flex-col border-x">
         <div className="relative flex-grow bg-background">
-          <div className="sticky top-0 z-10 w-full flex items-center justify-between px-4 py-2 bg-background/70 backdrop-blur">
-            <div className="flex items-center gap-2">
+          <div className="sticky top-0 z-30 w-full flex items-center justify-between px-2 py-1.5 bg-background border-b">
+            <div className="flex items-center gap-1.5">
               <Button
                 variant="outline"
                 size="sm"
@@ -523,7 +523,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
           </div>
           <Separator />
 
-          <div className="sticky top-[calc(2.5rem+1px)] z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
+          <div className="sticky top-[calc(2.5rem+1px)] z-50 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
             {space?.data && space.data.id !== DEFAULT_SPACE ? (
               <div className="flex items-center gap-2">
                 <Avatar className="border-4 border-background size-8">
@@ -551,7 +551,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
                 variant={canvasEnabled ? "default" : "outline"}
                 className="rounded-full p-2 size-9 sm:hidden"
                 onClick={() => {
-                  setCanvasEnabled(true);
+                  setCanvasEnabled(!canvasEnabled);
                 }}
               >
                 <NetworkIcon className="" />
@@ -688,13 +688,6 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
           }}
           defaultNodes={graph.nodes}
           defaultEdges={graph.edges}
-          onClose={
-            isMobile
-              ? () => {
-                setCanvasEnabled(false);
-              }
-              : undefined
-          }
           onNodesChange={(changes) => {
             const { viewport, ...graph } = reactFlow.toObject();
             setGraph(graph);
@@ -735,6 +728,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
             "!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset]  !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md: !z-10 md:z-auto",
             !canvasEnabled && isMobile && "hidden"
           )}
+          hideShareButton={true}
         />
       </Dynamic>
 

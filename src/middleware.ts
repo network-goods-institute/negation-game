@@ -181,12 +181,12 @@ export default function middleware(req: NextRequest) {
     return response;
   }
 
+  // If path doesn't start with /s/, rewrite it to /s/global, preserving search params
   if (!url.pathname.startsWith("/s/")) {
     const space = DEFAULT_SPACE;
-
-    const response = NextResponse.rewrite(
-      new URL(`/s/global${url.pathname}`, req.url)
-    );
+    const rewritePath = `/s/global${url.pathname}${url.search}`;
+    const rewriteUrlObject = new URL(rewritePath, req.url);
+    const response = NextResponse.rewrite(rewriteUrlObject);
     response.headers.set(SPACE_HEADER, space);
     return response;
   }
@@ -198,8 +198,11 @@ export default function middleware(req: NextRequest) {
 
   const response =
     space === DEFAULT_SPACE
-      ? NextResponse.redirect(
-          new URL(url.origin + url.pathname.replace(spaceBasePath(space), ""))
+      ? // Redirect from /s/global/* to /*, preserving search params
+        NextResponse.redirect(
+          url.origin +
+            url.pathname.replace(spaceBasePath(space), "") +
+            url.search
         )
       : NextResponse.next();
   response.headers.set(SPACE_HEADER, space);
