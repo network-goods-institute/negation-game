@@ -1,6 +1,6 @@
 import { useRouter } from "next/navigation";
 import { FC, useCallback, useMemo, useState, useEffect, memo, useRef } from "react";
-import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
+import { Portal } from "@radix-ui/react-portal";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { usePrivy } from "@privy-io/react-auth";
@@ -24,6 +24,8 @@ import { useQueries } from "@tanstack/react-query";
 import { pointFetcher } from "@/queries/usePointData";
 
 interface ShareRationaleDialogProps extends DialogProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
     isViewMode?: boolean;
     sharedBy?: string;
     rationaleId: string | undefined;
@@ -186,7 +188,6 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
     rationaleId,
     spaceId,
     initialPoints = [],
-    ...props
 }) => {
     const router = useRouter();
     const [selectedPoints, setSelectedPoints] = useState<Set<number>>(new Set());
@@ -195,6 +196,13 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
     const { data: viewpoint } = useViewpoint(rationaleId!, {
         enabled: !!rationaleId
     });
+
+    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [modalSize, setModalSize] = useState({ width: 480, height: 550 });
+    const [isMobile, setIsMobile] = useState(false);
+    const modalRef = useRef<HTMLDivElement>(null);
+    const isDragging = useRef(false);
+    const dragStart = useRef({ x: 0, y: 0 });
 
     const pointsSource = useMemo(() => {
         if (isViewMode) {
@@ -287,17 +295,16 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
             return [];
         }
         if (!lowerSearchTerm) {
-            return pointsSource; // No search term, return all
+            return pointsSource;
         }
         if (isPointDataLoading) {
             return pointsSource;
         }
 
-        // Filter based on search term and fetched point data
         return pointsSource.filter(pointId => {
             const pointData = pointDataMap.get(pointId);
             if (!pointData || !pointData.content) {
-                return false; // Don't include if data is missing or has no content
+                return false;
             }
             return pointData.content.toLowerCase().includes(lowerSearchTerm);
         });
@@ -320,7 +327,6 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
             setSelectedPoints(prev => {
                 const next = new Set(prev);
                 if (next.has(pointId)) {
-                    // eslint-disable-next-line drizzle/enforce-delete-with-where
                     next.delete(pointId);
                 } else {
                     next.add(pointId);
@@ -333,15 +339,16 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
     const handleClose = useCallback(() => {
         if (isViewMode) {
             const url = new URL(window.location.href);
-            // eslint-disable-next-line drizzle/enforce-delete-with-where
             url.searchParams.delete('view');
-            // eslint-disable-next-line drizzle/enforce-delete-with-where
             url.searchParams.delete('points');
-            // eslint-disable-next-line drizzle/enforce-delete-with-where
             url.searchParams.delete('by');
             router.push(url.pathname + url.search, { scroll: false });
         }
         onOpenChange?.(false);
+        setSearchTerm('');
+        if (!isViewMode) {
+            setSelectedPoints(new Set());
+        }
     }, [isViewMode, router, onOpenChange]);
 
     const sortedPoints = useMemo(() => {
@@ -364,6 +371,131 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
         return generateShareUrl(selectedPoints);
     }, [generateShareUrl, selectedPoints]);
 
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => {
+            window.removeEventListener('resize', checkMobile);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!open) return;
+
+        if (isMobile) {
+            const dialogWidth = Math.min(window.innerWidth - 50, 330);
+            const dialogHeight = Math.min(window.innerHeight * 0.6, 450);
+
+            setModalSize({ width: dialogWidth, height: dialogHeight });
+            setPosition({
+                x: (window.innerWidth - dialogWidth) / 2,
+                y: 60
+            });
+        } else {
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const dialogWidth = Math.min(480, viewportWidth - 40);
+            const dialogHeight = modalSize.height;
+
+            setModalSize(prev => ({ ...prev, width: dialogWidth }));
+
+            const rightPadding = 20;
+            const bottomPadding = 20;
+            const xPos = viewportWidth - dialogWidth - rightPadding;
+            const yPos = viewportHeight - dialogHeight - bottomPadding;
+
+            setPosition({
+                x: Math.max(20, xPos),
+                y: Math.max(20, yPos)
+            });
+        }
+    }, [open, isMobile, modalSize.height]);
+
+    useEffect(() => {
+        if (open && !isMobile && modalRef.current) {
+            const newWidth = Math.min(480, window.innerWidth - 40);
+            setModalSize(prev => ({ ...prev, width: newWidth }));
+        }
+    }, [open, isMobile]);
+
+    const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+        if ((e.target as HTMLElement).closest('.modal-header')) {
+            if (!(e.target as HTMLElement).closest('button')) {
+                isDragging.current = true;
+                dragStart.current = {
+                    x: e.clientX - position.x,
+                    y: e.clientY - position.y
+                };
+                e.preventDefault();
+            }
+        }
+    };
+
+    const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+        if ((e.target as HTMLElement).closest('.modal-header')) {
+            if (!(e.target as HTMLElement).closest('button') && e.touches.length === 1) {
+                isDragging.current = true;
+                dragStart.current = {
+                    x: e.touches[0].clientX - position.x,
+                    y: e.touches[0].clientY - position.y
+                };
+            }
+        }
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+        if (isDragging.current) {
+            const newX = e.clientX - dragStart.current.x;
+            const newY = e.clientY - dragStart.current.y;
+            const maxX = window.innerWidth - (modalRef.current?.offsetWidth || modalSize.width);
+            const maxY = window.innerHeight - (modalRef.current?.offsetHeight || modalSize.height);
+            setPosition({
+                x: Math.max(0, Math.min(newX, maxX)),
+                y: Math.max(0, Math.min(newY, maxY))
+            });
+        }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+        if (isDragging.current && e.touches.length === 1) {
+            const newX = e.touches[0].clientX - dragStart.current.x;
+            const newY = e.touches[0].clientY - dragStart.current.y;
+            const maxX = window.innerWidth - (modalRef.current?.offsetWidth || modalSize.width);
+            const maxY = window.innerHeight - (modalRef.current?.offsetHeight || modalSize.height);
+            setPosition({
+                x: Math.max(0, Math.min(newX, maxX)),
+                y: Math.max(0, Math.min(newY, maxY))
+            });
+        }
+    };
+
+    const handleMouseUp = () => {
+        isDragging.current = false;
+    };
+
+    const handleTouchEnd = () => {
+        isDragging.current = false;
+    };
+
+    useEffect(() => {
+        if (open) {
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+            document.addEventListener('touchmove', handleTouchMove, { passive: false });
+            document.addEventListener('touchend', handleTouchEnd);
+
+            return () => {
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+                document.removeEventListener('touchmove', handleTouchMove);
+                document.removeEventListener('touchend', handleTouchEnd);
+            };
+        }
+    }, [open]);
+
     const PointsList = (
         <VirtualizedPointsList
             points={sortedPoints}
@@ -375,10 +507,27 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
         />
     );
 
+    if (!open) return null;
+
     return (
-        <Dialog {...props} open={open} onOpenChange={handleClose}>
-            <DialogContent className="max-w-2xl h-[80vh] flex flex-col gap-0 p-0">
-                <div className="flex items-center justify-between p-4 border-b">
+        <Portal>
+            <div
+                ref={modalRef}
+                className={cn(
+                    "fixed z-50 bg-background rounded-lg border-2 shadow-lg overflow-hidden flex flex-col",
+                )}
+                style={{
+                    left: `${position.x}px`,
+                    top: `${position.y}px`,
+                    width: `${modalSize.width}px`,
+                    height: `${modalSize.height}px`,
+                }}
+            >
+                <div
+                    className="modal-header flex items-center justify-between p-4 border-b cursor-move"
+                    onMouseDown={handleMouseDown}
+                    onTouchStart={handleTouchStart}
+                >
                     <Button
                         variant="ghost"
                         size="icon"
@@ -387,26 +536,26 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
                     >
                         <ArrowLeftIcon className="h-4 w-4" />
                     </Button>
-                    <DialogTitle>
+                    <h3 className="font-medium text-lg text-center">
                         {isViewMode ? (
-                            <>Rationale Points {sharedBy ? `by ${sharedBy}` : ""}</>
+                            sharedBy ? `${sharedBy} thought you'd like these points` : "Someone thought you'd like these points"
                         ) : (
                             "Share Rationale Points"
                         )}
-                    </DialogTitle>
-                    <div className="w-8" /> {/* Spacer for centering */}
+                    </h3>
+                    <div className="w-8" />
                 </div>
 
-                {/* Only show search and controls in sender mode */}
                 {!isViewMode && (
                     <div className="p-4 border-b">
                         <div className="relative flex items-center">
                             <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
-                                placeholder="Search points... (Filtering requires point content)"
+                                placeholder="Search points..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="pl-9 pr-9"
+                                disabled={isPointDataLoading}
                             />
                             {searchTerm && (
                                 <Button
@@ -419,12 +568,14 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
                                 </Button>
                             )}
                         </div>
+                        {isPointDataLoading && <p className="text-xs text-muted-foreground mt-1 text-center">Loading points for search...</p>}
                         <div className="flex justify-between mt-2">
                             <Button
                                 variant="outline"
                                 size="sm"
                                 className="h-7 text-xs"
                                 onClick={handleSelectAll}
+                                disabled={isPointDataLoading}
                             >
                                 Select All
                             </Button>
@@ -433,6 +584,7 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
                                 size="sm"
                                 className="h-7 text-xs"
                                 onClick={handleUnselectAll}
+                                disabled={isPointDataLoading}
                             >
                                 Unselect All
                             </Button>
@@ -440,15 +592,14 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
                     </div>
                 )}
 
-                {/* Changed "overflow-hidden" to "overflow-auto" below to enable scrolling */}
                 <div className="flex-1 overflow-auto">
-                    {isLoading ? (
+                    {isLoading && !isPointDataLoading ? (
                         <div className="p-4 space-y-2">
                             {Array.from({ length: 3 }).map((_, i) => (
                                 <Skeleton key={i} className="h-[120px] w-full" />
                             ))}
                         </div>
-                    ) : sortedPoints.length === 0 ? (
+                    ) : sortedPoints.length === 0 && !isPointDataLoading ? (
                         <div className="flex h-full items-center justify-center p-4">
                             <p className="text-muted-foreground">
                                 {isViewMode
@@ -467,7 +618,7 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
                 </div>
 
                 {!isViewMode && (
-                    <div className="p-4 border-t space-y-3">
+                    <div className="p-4 border-t space-y-3 bg-background">
                         {selectedPoints.size > 0 && (
                             <div className="flex items-center gap-2 p-2 bg-muted/50 rounded text-sm">
                                 <div className="truncate flex-1">
@@ -513,8 +664,8 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
                         </Button>
                     </div>
                 )}
-            </DialogContent>
-        </Dialog>
+            </div>
+        </Portal>
     );
 });
 
