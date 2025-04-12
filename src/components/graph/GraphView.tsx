@@ -473,13 +473,8 @@ export const GraphView = ({
             console.error("[GraphView] Error in onSaveChanges:", saveError);
           }
         } else {
-          // For non-owners, treat this as a copy operation
-          console.log("Non-owner saving changes, triggering copy operation");
-          // Set a longer timeout to ensure we don't get interrupted
-          setIsSaving_local(true);
+          // For non-owners or when copying, use the copyViewpointAndNavigate function
           const copyResult = await handleCopy(filteredGraph);
-
-          // Keep the save button loading while the page navigates
           return copyResult;
         }
 
@@ -495,7 +490,6 @@ export const GraphView = ({
           } else if (error.message === "Only the owner can update this rationale") {
             alert("Only the owner can update this rationale. Your changes will be copied to a new rationale.");
             // Trigger copy operation on this error
-            console.log("Owner restriction error, triggering copy fallback");
             return handleCopy({ nodes, edges });
           } else {
             alert("Failed to save changes. Please try again.");
@@ -730,54 +724,50 @@ export const GraphView = ({
           <Panel position="top-right" className="m-2">
             {/* Inner div for positioning and layering - Responsive top */}
             <div className="relative top-[50px] md:top-[15px] z-50 flex flex-col gap-2">
-              {/* Save Button (Conditional) */}
-              {canModify && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AuthenticatedActionButton
-                      variant="outline"
-                      onClick={handleSave}
-                      disabled={isSavingProp || isSaving_local}
-                      className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 min-w-[140px]"
-                      id="graph-save-button"
-                    >
-                      {isSavingProp || isSaving_local ? (
-                        <Loader className="size-4 animate-spin" />
-                      ) : (
-                        <span className="text-xs">
-                          {canModify
-                            ? isNew
-                              ? "Publish Rationale"
-                              : "Publish Changes"
-                            : "Copy Rationale to Save Changes"}
-                        </span>
-                      )}
-                    </AuthenticatedActionButton>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Save changes</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-              {/* Discard Button (Conditional) */}
-              {canModify && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsDiscardDialogOpen(true)}
-                      disabled={isSavingProp || isSaving_local || isDiscarding}
-                      className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 min-w-[140px]"
-                    >
-                      {isDiscarding ? <Loader className="size-4 animate-spin" /> : <Undo2Icon className="size-4" />}
-                      <span className="text-xs">Discard</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Discard changes</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
+              {/* Save Button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <AuthenticatedActionButton
+                    variant="outline"
+                    onClick={handleSave}
+                    disabled={isSavingProp || isSaving_local}
+                    className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 w-[140px]"
+                    id="graph-save-button"
+                  >
+                    {isSavingProp || isSaving_local ? (
+                      <Loader className="size-4 animate-spin" />
+                    ) : (
+                      <span className="text-xs">
+                        {canModify
+                          ? isNew
+                            ? "Publish Rationale"
+                            : "Publish Changes"
+                          : "Copy to Save"}
+                      </span>
+                    )}
+                  </AuthenticatedActionButton>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Save changes</p>
+                </TooltipContent>
+              </Tooltip>
+              {/* Discard Button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsDiscardDialogOpen(true)}
+                    disabled={isSavingProp || isSaving_local || isDiscarding}
+                    className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 w-[140px]"
+                  >
+                    {isDiscarding ? <Loader className="size-4 animate-spin" /> : <Undo2Icon className="size-4" />}
+                    <span className="text-xs">Discard</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Discard changes</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
           </Panel>
         )}
@@ -790,7 +780,7 @@ export const GraphView = ({
               "relative z-40 flex flex-col gap-2",
               // If Save/Discard are shown, position Share below them (approx 85px height + 8px gap)
               // Otherwise, use the default top offset
-              (isModified || isContentModified) && canModify ? "top-[calc(50px+85px+8px)] md:top-[calc(15px+85px+8px)]" : "top-[50px] md:top-[15px]"
+              (isModified || isContentModified) ? "top-[calc(50px+85px+8px)] md:top-[calc(15px+85px+8px)]" : "top-[50px] md:top-[15px]"
             )}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -798,7 +788,7 @@ export const GraphView = ({
                     variant="outline"
                     onClick={openShareDialogInShareMode}
                     disabled={isSavingProp || isSaving_local || isDiscarding}
-                    className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 min-w-[140px]"
+                    className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 w-[140px]"
                   >
                     <Share2Icon className="size-4" />
                     <span className="text-xs">Share Points</span>
@@ -815,12 +805,12 @@ export const GraphView = ({
         <GlobalExpandPointDialog />
       </ReactFlow>
 
-      {!canvasEnabled && (isModified || isContentModified) && canModify && (
+      {!canvasEnabled && (isModified || isContentModified) && (
         <div className="md:hidden fixed bottom-0 left-0 right-0 p-3 bg-background border-t z-30 flex justify-center gap-4">
           <Button
             variant="outline"
             onClick={() => setIsDiscardDialogOpen(true)}
-            disabled={isSavingProp || isSaving_local || isDiscarding || !(isModified || isContentModified)}
+            disabled={isSavingProp || isSaving_local || isDiscarding}
             className="flex-1 shadow-md"
           >
             {isDiscarding ? <Loader className="size-4 animate-spin mr-2" /> : <Undo2Icon className="size-4 mr-2" />}
@@ -828,7 +818,7 @@ export const GraphView = ({
           </Button>
           <AuthenticatedActionButton
             onClick={handleSave}
-            disabled={isSavingProp || isSaving_local || !(isModified || isContentModified)}
+            disabled={isSavingProp || isSaving_local}
             className="flex-1 shadow-md flex items-center justify-center min-w-[140px]"
           >
             {isSavingProp || isSaving_local ? (
@@ -840,7 +830,7 @@ export const GraphView = ({
                   ? isNew
                     ? "Publish Rationale"
                     : "Publish Changes"
-                  : "Copy Rationale to Save Changes"}
+                  : "Copy Rationale"}
               </>
             )}
           </AuthenticatedActionButton>
