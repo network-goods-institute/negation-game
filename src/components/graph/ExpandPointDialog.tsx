@@ -443,7 +443,7 @@ export const GlobalExpandPointDialog: React.FC = () => {
 
                 setModalSize({
                     width: dialogWidth,
-                    height: Math.min(400, availableHeight)
+                    height: Math.min(400, window.innerHeight * 0.6)
                 });
 
                 setPosition({ x: dialogX, y: dialogY });
@@ -642,6 +642,18 @@ export const GlobalExpandPointDialog: React.FC = () => {
         }
     };
 
+    const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+        if ((e.target as HTMLElement).closest('.modal-header')) {
+            if (!(e.target as HTMLElement).closest('button') && e.touches.length === 1) {
+                isDragging.current = true;
+                dragStart.current = {
+                    x: e.touches[0].clientX - position.x,
+                    y: e.touches[0].clientY - position.y
+                };
+            }
+        }
+    };
+
     const handleMouseMove = (e: MouseEvent) => {
         if (isDragging.current) {
             const newX = e.clientX - dragStart.current.x;
@@ -657,7 +669,26 @@ export const GlobalExpandPointDialog: React.FC = () => {
         }
     };
 
+    const handleTouchMove = (e: TouchEvent) => {
+        if (isDragging.current && e.touches.length === 1) {
+            const newX = e.touches[0].clientX - dragStart.current.x;
+            const newY = e.touches[0].clientY - dragStart.current.y;
+
+            const maxX = window.innerWidth - (modalRef.current?.offsetWidth || 400);
+            const maxY = window.innerHeight - (modalRef.current?.offsetHeight || 500);
+
+            setPosition({
+                x: Math.max(0, Math.min(newX, maxX)),
+                y: Math.max(0, Math.min(newY, maxY))
+            });
+        }
+    };
+
     const handleMouseUp = () => {
+        isDragging.current = false;
+    };
+
+    const handleTouchEnd = () => {
         isDragging.current = false;
     };
 
@@ -665,10 +696,14 @@ export const GlobalExpandPointDialog: React.FC = () => {
         if (dialogState.isOpen) {
             document.addEventListener('mousemove', handleMouseMove);
             document.addEventListener('mouseup', handleMouseUp);
+            document.addEventListener('touchmove', handleTouchMove, { passive: true }); // Use passive for performance
+            document.addEventListener('touchend', handleTouchEnd);
 
             return () => {
                 document.removeEventListener('mousemove', handleMouseMove);
                 document.removeEventListener('mouseup', handleMouseUp);
+                document.removeEventListener('touchmove', handleTouchMove);
+                document.removeEventListener('touchend', handleTouchEnd);
             };
         }
     }, [dialogState.isOpen]);
@@ -728,6 +763,7 @@ export const GlobalExpandPointDialog: React.FC = () => {
                     maxHeight: `${modalSize.height}px`,
                 }}
                 onMouseDown={handleMouseDown}
+                onTouchStart={handleTouchStart}
             >
                 <div className={cn(
                     "modal-header flex justify-between items-center border-b bg-background cursor-move",
@@ -758,7 +794,9 @@ export const GlobalExpandPointDialog: React.FC = () => {
                         <Input
                             placeholder="Search for points..."
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => {
+                                setSearchTerm(e.target.value);
+                            }}
                             className={cn(
                                 "pl-9 pr-9 focus-visible:ring-primary focus-visible:ring-offset-0",
                                 isMobile ? "h-7 text-xs" : "h-9"
@@ -820,11 +858,8 @@ export const GlobalExpandPointDialog: React.FC = () => {
                         <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
                             No points available
                         </div>
-                    ) : visiblePointsCount === 0 ? (
-                        <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-                            No points match your search
-                        </div>
                     ) : (
+                        // Always map the points, ExpandablePointNode handles its own visibility
                         dialogState.points.map((point) => {
                             const isExpanded = effectiveExpandedPointIds.has(point.pointId);
                             return (

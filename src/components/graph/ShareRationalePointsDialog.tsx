@@ -318,9 +318,7 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
         return [...selected, ...unselected];
     }, [filteredPoints, selectedPoints, isViewMode]);
 
-    const shareUrl = useMemo(() => {
-        return generateShareUrl(selectedPoints);
-    }, [generateShareUrl, selectedPoints]);
+    const shareUrl = useMemo(() => generateShareUrl(selectedPoints), [selectedPoints, generateShareUrl]);
 
     const PointsList = (
         <VirtualizedPointsList
