@@ -20,6 +20,8 @@ import { useUser } from "@/queries/useUser";
 import { AppNode } from "@/components/graph/AppNode";
 import { PointNode } from "@/components/graph/PointNode";
 import { getPointUrl } from "@/lib/getPointUrl";
+import { useQueries } from "@tanstack/react-query";
+import { pointFetcher } from "@/queries/usePointData";
 
 interface ShareRationaleDialogProps extends DialogProps {
     isViewMode?: boolean;
@@ -210,7 +212,31 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
         return Array.from(uniquePointIds);
     }, [viewpoint, isViewMode, initialPoints]);
 
-    const isLoading = (isViewMode ? false : !viewpoint) || userLoading;
+    const pointDataQueries = useQueries({
+        queries: pointsSource.map(pointId => ({
+            queryKey: ['pointData', pointId],
+            queryFn: () => pointFetcher.fetch(pointId),
+            staleTime: 5 * 60 * 1000,
+            enabled: !!pointId && !isViewMode,
+        })),
+    });
+
+    const isPointDataLoading = useMemo(() => {
+        if (isViewMode) return false;
+        return pointDataQueries.some(query => query.isLoading);
+    }, [pointDataQueries, isViewMode]);
+
+    const pointDataMap = useMemo(() => {
+        const map = new Map<number, any>();
+        pointDataQueries.forEach(query => {
+            if (query.data) {
+                map.set(query.data.pointId, query.data);
+            }
+        });
+        return map;
+    }, [pointDataQueries]);
+
+    const isLoading = (isViewMode ? false : !viewpoint || isPointDataLoading) || userLoading;
 
     const generateShareUrl = useCallback((pointIds: Set<number>) => {
         if (pointIds.size === 0 || isViewMode || !rationaleId) return "";
@@ -252,14 +278,30 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
     }, []);
 
     const filteredPoints = useMemo(() => {
+        const lowerSearchTerm = searchTerm.toLowerCase().trim();
+
         if (isViewMode) {
             return pointsSource;
         }
-        if (!pointsSource || !Array.isArray(pointsSource)) return [];
-        if (!searchTerm) return pointsSource;
+        if (!pointsSource || !Array.isArray(pointsSource)) {
+            return [];
+        }
+        if (!lowerSearchTerm) {
+            return pointsSource; // No search term, return all
+        }
+        if (isPointDataLoading) {
+            return pointsSource;
+        }
 
-        return pointsSource;
-    }, [pointsSource, searchTerm, isViewMode]);
+        // Filter based on search term and fetched point data
+        return pointsSource.filter(pointId => {
+            const pointData = pointDataMap.get(pointId);
+            if (!pointData || !pointData.content) {
+                return false; // Don't include if data is missing or has no content
+            }
+            return pointData.content.toLowerCase().includes(lowerSearchTerm);
+        });
+    }, [pointsSource, searchTerm, isViewMode, isPointDataLoading, pointDataMap]);
 
     const handleSelectAll = useCallback(() => {
         if (!isViewMode) {
@@ -318,7 +360,9 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
         return [...selected, ...unselected];
     }, [filteredPoints, selectedPoints, isViewMode]);
 
-    const shareUrl = useMemo(() => generateShareUrl(selectedPoints), [selectedPoints, generateShareUrl]);
+    const shareUrl = useMemo(() => {
+        return generateShareUrl(selectedPoints);
+    }, [generateShareUrl, selectedPoints]);
 
     const PointsList = (
         <VirtualizedPointsList

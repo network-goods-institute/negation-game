@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { create, keyResolver, windowScheduler } from "@yornaath/batshit";
 import { useCallback } from "react";
 
-const pointFetcher = create({
+export const pointFetcher = create({
   fetcher: async (ids: number[]) => {
     const points = await fetchPoints(ids);
     return points.map((point) => ({
