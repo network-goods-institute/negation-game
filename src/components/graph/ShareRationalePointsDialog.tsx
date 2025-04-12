@@ -20,7 +20,7 @@ import { useUser } from "@/queries/useUser";
 import { AppNode } from "@/components/graph/AppNode";
 import { PointNode } from "@/components/graph/PointNode";
 import { getPointUrl } from "@/lib/getPointUrl";
-import { useQueries } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { pointFetcher } from "@/queries/usePointData";
 
 interface ShareRationaleDialogProps extends DialogProps {
@@ -220,29 +220,27 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
         return Array.from(uniquePointIds);
     }, [viewpoint, isViewMode, initialPoints]);
 
-    const pointDataQueries = useQueries({
-        queries: pointsSource.map(pointId => ({
-            queryKey: ['pointData', pointId],
-            queryFn: () => pointFetcher.fetch(pointId),
-            staleTime: 5 * 60 * 1000,
-            enabled: !!pointId && !isViewMode,
-        })),
+    const { data: pointsData, isLoading: isPointsLoading } = useQuery({
+        queryKey: ['pointsData', pointsSource, isViewMode],
+        queryFn: async () => {
+            if (isViewMode || !pointsSource.length) return new Map();
+            const results = await Promise.all(
+                pointsSource.map(pointId => pointFetcher.fetch(pointId))
+            );
+            return new Map(results.map(point => [point.pointId, point]));
+        },
+        enabled: !isViewMode && pointsSource.length > 0,
+        staleTime: 5 * 60 * 1000,
     });
 
     const isPointDataLoading = useMemo(() => {
         if (isViewMode) return false;
-        return pointDataQueries.some(query => query.isLoading);
-    }, [pointDataQueries, isViewMode]);
+        return isPointsLoading;
+    }, [isViewMode, isPointsLoading]);
 
     const pointDataMap = useMemo(() => {
-        const map = new Map<number, any>();
-        pointDataQueries.forEach(query => {
-            if (query.data) {
-                map.set(query.data.pointId, query.data);
-            }
-        });
-        return map;
-    }, [pointDataQueries]);
+        return pointsData || new Map();
+    }, [pointsData]);
 
     const isLoading = (isViewMode ? false : !viewpoint || isPointDataLoading) || userLoading;
 
@@ -327,6 +325,7 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
             setSelectedPoints(prev => {
                 const next = new Set(prev);
                 if (next.has(pointId)) {
+                    // eslint-disable-next-line drizzle/enforce-delete-with-where
                     next.delete(pointId);
                 } else {
                     next.add(pointId);
@@ -339,8 +338,11 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
     const handleClose = useCallback(() => {
         if (isViewMode) {
             const url = new URL(window.location.href);
+            // eslint-disable-next-line drizzle/enforce-delete-with-where
             url.searchParams.delete('view');
+            // eslint-disable-next-line drizzle/enforce-delete-with-where
             url.searchParams.delete('points');
+            // eslint-disable-next-line drizzle/enforce-delete-with-where
             url.searchParams.delete('by');
             router.push(url.pathname + url.search, { scroll: false });
         }
@@ -421,6 +423,56 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
         }
     }, [open, isMobile]);
 
+    useEffect(() => {
+        if (!open) return;
+
+        const handleMouseMove = (e: MouseEvent) => {
+            if (isDragging.current) {
+                const newX = e.clientX - dragStart.current.x;
+                const newY = e.clientY - dragStart.current.y;
+                const maxX = window.innerWidth - (modalRef.current?.offsetWidth || modalSize.width);
+                const maxY = window.innerHeight - (modalRef.current?.offsetHeight || modalSize.height);
+                setPosition({
+                    x: Math.max(0, Math.min(newX, maxX)),
+                    y: Math.max(0, Math.min(newY, maxY))
+                });
+            }
+        };
+
+        const handleTouchMove = (e: TouchEvent) => {
+            if (isDragging.current && e.touches.length === 1) {
+                const newX = e.touches[0].clientX - dragStart.current.x;
+                const newY = e.touches[0].clientY - dragStart.current.y;
+                const maxX = window.innerWidth - (modalRef.current?.offsetWidth || modalSize.width);
+                const maxY = window.innerHeight - (modalRef.current?.offsetHeight || modalSize.height);
+                setPosition({
+                    x: Math.max(0, Math.min(newX, maxX)),
+                    y: Math.max(0, Math.min(newY, maxY))
+                });
+            }
+        };
+
+        const handleMouseUp = () => {
+            isDragging.current = false;
+        };
+
+        const handleTouchEnd = () => {
+            isDragging.current = false;
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+        document.addEventListener('touchmove', handleTouchMove, { passive: false });
+        document.addEventListener('touchend', handleTouchEnd);
+
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            document.removeEventListener('touchmove', handleTouchMove);
+            document.removeEventListener('touchend', handleTouchEnd);
+        };
+    }, [open, modalRef, modalSize.width, modalSize.height]);
+
     const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
         if ((e.target as HTMLElement).closest('.modal-header')) {
             if (!(e.target as HTMLElement).closest('button')) {
@@ -445,56 +497,6 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
             }
         }
     };
-
-    const handleMouseMove = (e: MouseEvent) => {
-        if (isDragging.current) {
-            const newX = e.clientX - dragStart.current.x;
-            const newY = e.clientY - dragStart.current.y;
-            const maxX = window.innerWidth - (modalRef.current?.offsetWidth || modalSize.width);
-            const maxY = window.innerHeight - (modalRef.current?.offsetHeight || modalSize.height);
-            setPosition({
-                x: Math.max(0, Math.min(newX, maxX)),
-                y: Math.max(0, Math.min(newY, maxY))
-            });
-        }
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-        if (isDragging.current && e.touches.length === 1) {
-            const newX = e.touches[0].clientX - dragStart.current.x;
-            const newY = e.touches[0].clientY - dragStart.current.y;
-            const maxX = window.innerWidth - (modalRef.current?.offsetWidth || modalSize.width);
-            const maxY = window.innerHeight - (modalRef.current?.offsetHeight || modalSize.height);
-            setPosition({
-                x: Math.max(0, Math.min(newX, maxX)),
-                y: Math.max(0, Math.min(newY, maxY))
-            });
-        }
-    };
-
-    const handleMouseUp = () => {
-        isDragging.current = false;
-    };
-
-    const handleTouchEnd = () => {
-        isDragging.current = false;
-    };
-
-    useEffect(() => {
-        if (open) {
-            document.addEventListener('mousemove', handleMouseMove);
-            document.addEventListener('mouseup', handleMouseUp);
-            document.addEventListener('touchmove', handleTouchMove, { passive: false });
-            document.addEventListener('touchend', handleTouchEnd);
-
-            return () => {
-                document.removeEventListener('mousemove', handleMouseMove);
-                document.removeEventListener('mouseup', handleMouseUp);
-                document.removeEventListener('touchmove', handleTouchMove);
-                document.removeEventListener('touchend', handleTouchEnd);
-            };
-        }
-    }, [open]);
 
     const PointsList = (
         <VirtualizedPointsList
