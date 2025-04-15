@@ -365,26 +365,42 @@ export default function AIAssistant() {
             const response = await generateChatBotResponse(
                 [...systemMessages, ...initialMessages],
                 contextEndorsements,
-                contextRationales
+                contextRationales,
+                storedMessages
             );
 
             if (!response) throw new Error("Failed to get response stream");
 
-            // --- Stream handling ---
-            let content = '';
-            for await (const chunk of response) {
-                if (chunk === null || chunk === undefined) continue;
-                content += String(chunk) + '\n\n';
-                setStreamingContent(content);
-            }
+            console.log("[AIAssistant][startChat] Received response object from action. Type:", typeof response);
 
-            // 1. Normalize line endings
+            let content = '';
+            setStreamingContent('');
+            console.log("[AIAssistant][startChat] Starting stream processing loop...");
+            try {
+                for await (const chunk of response) {
+                    if (chunk === null || chunk === undefined) continue;
+                    const chunkString = String(chunk);
+                    console.log("[AIAssistant][startChat] Received chunk:", chunkString); // Log each chunk
+                    content += chunkString + '\n\n';
+                    setStreamingContent(content);
+                }
+            } catch (streamError) {
+                console.error("[AIAssistant][startChat] Error processing stream chunk:", streamError);
+                toast.error("Error reading AI response stream.");
+                content += "\\n\\n[Error processing stream]";
+            }
+            console.log("[AIAssistant][startChat] Stream processing loop finished.");
+            console.log("[AIAssistant][startChat] Final accumulated content:", content); // Should now log the full message
+
+            // Post-process content
             content = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-            // 2. Trim trailing spaces/newlines
             content = content.trim();
+            console.log("[AIAssistant][startChat] Final processed content:", content);
 
             const assistantMessage: ChatMessage = { role: 'assistant', content };
             const finalMessages = [...initialMessages, assistantMessage];
+
+            console.log("[AIAssistant][startChat] Updating final chat messages...");
             setChatMessages(finalMessages);
             setStreamingContent('');
 
@@ -402,12 +418,10 @@ export default function AIAssistant() {
                             if (chunk === null || chunk === undefined) continue;
                             title += String(chunk);
                         }
-                        title = title.trim().slice(0, 50); // Limit title length
-
+                        title = title.trim().slice(0, 50);
                         if (title) {
                             updateChat(chatIdToUse, finalMessages, title);
                         } else {
-                            // Fallback title if generation fails or returns empty
                             const userMsgContent = initialUserMessage.slice(0, 47) + (initialUserMessage.length > 47 ? '...' : '');
                             updateChat(chatIdToUse, finalMessages, userMsgContent || 'Chat');
                         }
@@ -422,21 +436,23 @@ export default function AIAssistant() {
             }
 
         } catch (error) {
-            console.error('Error starting chat with option:', error);
+            console.error('[AIAssistant][startChat] Error starting chat with option:', error);
+            toast.error(error instanceof Error ? error.message : "Failed to start chat");
             const errorMessage: ChatMessage = {
                 role: 'assistant',
-                content: 'I apologize, but I encountered an error starting this chat. Please try again.'
+                content: 'I apologize, but I encountered an error processing your request. Please check the console for details.'
             };
-            const errorMessages = [...initialMessages, errorMessage];
+            const currentMessages = chatIdToUse ? (savedChats.find(c => c.id === chatIdToUse)?.messages || initialMessages) : initialMessages;
+            const errorMessages = [...currentMessages, errorMessage];
             setChatMessages(errorMessages);
             if (chatIdToUse) {
                 updateChat(chatIdToUse, errorMessages);
             }
         } finally {
             setIsGenerating(false);
-            setStreamingContent('');
+            if (streamingContent) setStreamingContent(''); // Clear on exit
         }
-    }, [currentSpace, currentChatId, userRationales, storedMessages, settings, endorsedPoints, updateChat, savedChats, isAuthenticated]);
+    }, [currentSpace, currentChatId, userRationales, storedMessages, settings, endorsedPoints, updateChat, savedChats, isAuthenticated, streamingContent]);
 
     const deleteChat = useCallback((chatId: string) => {
         if (!currentSpace || !isAuthenticated) return;
@@ -999,8 +1015,12 @@ export default function AIAssistant() {
     }, [chatMessages, streamingContent]);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        console.log("[AIAssistant] handleSubmit triggered.");
         e.preventDefault();
-        if (!message.trim() || isGenerating || !currentSpace || !isAuthenticated) return;
+        if (!message.trim() || isGenerating || !currentSpace || !isAuthenticated) {
+            console.log("[AIAssistant] handleSubmit exiting early due to condition check.");
+            return;
+        }
 
         const newMessage: ChatMessage = { role: 'user', content: message };
         let activeChatId = currentChatId;
@@ -1030,47 +1050,55 @@ export default function AIAssistant() {
             updateChat(activeChatId, updatedMessages);
         }
 
-
         const messagesForApi = isNewChatCreation ? [newMessage] : [...chatMessages, newMessage];
         setMessage('');
         setIsGenerating(true);
         setStreamingContent('');
 
         try {
-            const systemMessages: ChatMessage[] = [];
-            if (settings.includeDiscourseMessages && storedMessages.length > 0) {
-                systemMessages.push(...storedMessages.map(msg => ({
-                    role: 'system' as const,
-                    content: `From forum post "${msg.topic_title || 'Untitled'}": ${msg.raw || msg.content}` // Prefer raw content for less noise? no idea rn
-                })));
-            }
 
-            // Prepare context data based on settings
-            const contextEndorsements = settings.includeEndorsements && settings.includePoints ? endorsedPoints : undefined;
-            const contextRationales = settings.includeRationales ? userRationales : undefined;
+            const contextEndorsements = (settings.includeEndorsements && settings.includePoints) ? endorsedPoints : [];
+            const contextRationales = settings.includeRationales ? userRationales : [];
+            const contextDiscourse = settings.includeDiscourseMessages ? storedMessages : [];
 
             const response = await generateChatBotResponse(
-                [...systemMessages, ...messagesForApi],
+                messagesForApi,
                 contextEndorsements,
-                contextRationales
+                contextRationales,
+                contextDiscourse
             );
 
             if (!response) throw new Error("Failed to get response stream");
 
-            let content = '';
-            for await (const chunk of response) {
-                if (chunk === null || chunk === undefined) continue;
-                content += String(chunk) + '\n\n';
-                setStreamingContent(content);
-            }
+            console.log("[AIAssistant] Received response object from action. Type:", typeof response);
 
+            let content = '';
+            setStreamingContent('');
+            console.log("[AIAssistant] Starting stream processing loop...");
+            try {
+                for await (const chunk of response) {
+                    if (chunk === null || chunk === undefined) continue;
+                    const chunkString = String(chunk);
+                    console.log("[AIAssistant] Received chunk:", chunkString); // Log each chunk
+                    content += chunkString + '\n\n';
+                    setStreamingContent(content);
+                }
+            } catch (streamError) {
+                console.error("[AIAssistant] Error processing stream chunk:", streamError);
+                toast.error("Error reading AI response stream.");
+                content += "\\n\\n[Error processing stream]";
+            }
+            console.log("[AIAssistant] Stream processing loop finished.");
+            console.log("[AIAssistant] Final accumulated content:", content); // Should now log the full message
 
             content = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
             content = content.trim();
+            console.log("[AIAssistant] Final processed content:", content);
+
             const assistantMessage: ChatMessage = { role: 'assistant', content };
             const finalMessages = [...messagesForApi, assistantMessage];
             setChatMessages(finalMessages);
-            setStreamingContent('');
+            setStreamingContent(''); // Clear streaming content after final update
 
             if (activeChatId) {
                 const chatToUpdate = savedChats.find(c => c.id === activeChatId);
@@ -1104,19 +1132,21 @@ export default function AIAssistant() {
             }
 
         } catch (error) {
-            console.error('Error generating response:', error);
+            console.error('[AIAssistant] Error generating response (outer catch):', error);
+            toast.error(error instanceof Error ? error.message : "Failed to get response");
             const errorMessage: ChatMessage = {
                 role: 'assistant',
-                content: 'I apologize, but I encountered an error processing your request. Please try again.'
+                content: 'I apologize, but I encountered an error processing your request. Please check the console for details.'
             };
-            const errorMessages = [...messagesForApi, errorMessage];
+            const currentMessages = activeChatId ? (savedChats.find(c => c.id === activeChatId)?.messages || messagesForApi) : messagesForApi;
+            const errorMessages = [...currentMessages, errorMessage];
             setChatMessages(errorMessages);
             if (activeChatId) {
                 updateChat(activeChatId, errorMessages);
             }
         } finally {
             setIsGenerating(false);
-            setStreamingContent('');
+            if (streamingContent) setStreamingContent('');
         }
     };
 
