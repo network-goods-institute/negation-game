@@ -63,51 +63,90 @@ CodeBlock.displayName = 'CodeBlock';
 
 const pointRefRegex = /\[Point:(\d+)(?:\s+"([^"\n]+)")?\]/;
 const rationaleRefRegex = /\[Rationale:([\w-]+)(?:\s+"([^"\n]+)")?\]/;
-const sourceCiteRegex = /\(Source:\s*(Rationale|Endorsed Point|Discourse Post)\s*ID:([\w-]+)(?:\s*Title:"([^"\n]+)")?\)/;
+const discoursePostRefRegex = /\[Discourse Post:(\d+)(?:\s+"([^"\n]+)")?\]/;
+// Regex to match (Source: Type "Title" ID:ID) or (Source: Type ID:ID Title/Topic:"Title")
+const sourceCiteRegex = /\(Source:\s*(Rationale|Endorsed Point|Discourse Post)\s*(?:(?:"([^"\n]+)"\s*ID:([\w-]+))|(?:(?:ID:)?([\w-]+)(?:\s*(?:Title|Topic):"([^"\n]+)")?))\)/;
+const inlineRationaleRefRegex = /Rationale\s+"([^"]+)"\s+\(ID:([\w-]+)\)/;
 const combinedInlineRegex = new RegExp(
-    `(${pointRefRegex.source})|(${rationaleRefRegex.source})|(${sourceCiteRegex.source})`,
+    `(${pointRefRegex.source})|(${rationaleRefRegex.source})|(${discoursePostRefRegex.source})|(${sourceCiteRegex.source})|(${inlineRationaleRefRegex.source})`,
     'g'
 );
 
 const suggestTagRegex = /^\[(Suggest Point|Suggest Negation For:(\d+))\]>/;
 
-// Function to parse text nodes and replace tags with components
-const renderTextWithInlineTags = (text: string): ReactNode[] => {
+type AnyDiscourseMessage = { id: number | string; raw?: string; content?: string;[key: string]: any };
+
+const renderTextWithInlineTags = (
+    text: string,
+    space: string | null,
+    discourseUrl: string,
+    storedMessages: AnyDiscourseMessage[]
+): ReactNode[] => {
     const parts: ReactNode[] = [];
     let lastIndex = 0;
     let match;
-    let keyIndex = 0; // For unique keys
+    let keyIndex = 0;
 
-    // Reset regex lastIndex before each use
     combinedInlineRegex.lastIndex = 0;
 
     while ((match = combinedInlineRegex.exec(text)) !== null) {
-        // Add preceding text if any
         if (match.index > lastIndex) {
             parts.push(<Fragment key={`text-${keyIndex++}`}>{text.substring(lastIndex, match.index)}</Fragment>);
         }
 
-        // Check which type of tag matched
-        if (match[1]) { // Point Reference match (Groups 2, 3)
+        if (match[1]) { // Point Reference
             const pointId = parseInt(match[2], 10);
             const snippet = match[3];
-            parts.push(<PointReference key={`point-${pointId}-${keyIndex++}`} id={pointId} snippet={snippet} />);
-        } else if (match[4]) { // Rationale Reference match (Groups 5, 6)
+            parts.push(<PointReference key={`point-${pointId}-${keyIndex++}`} id={pointId} snippet={snippet} space={space} />);
+        } else if (match[4]) { // Rationale Reference
             const rationaleId = match[5];
             const snippet = match[6];
-            // Render Rationale using PointReference component, passing ID as string
-            parts.push(<PointReference key={`rationale-${rationaleId}-${keyIndex++}`} id={rationaleId as any} snippet={snippet} />);
-        } else if (match[7]) { // Source Citation match (Groups 8, 9, 10)
-            const sourceType = match[8] as 'Rationale' | 'Endorsed Point' | 'Discourse Post';
-            const sourceId = match[9];
-            const sourceTitle = match[10];
-            parts.push(<SourceCitation key={`cite-${sourceId}-${keyIndex++}`} type={sourceType} id={sourceId} title={sourceTitle} />);
+            parts.push(<PointReference key={`rationale-${rationaleId}-${keyIndex++}`} id={rationaleId as any} snippet={snippet} space={space} />);
+        } else if (match[7]) { // Discourse Post Reference [Discourse Post:ID]
+            const postId = match[8];
+            const message = storedMessages.find(m => String(m.id) === String(postId));
+            parts.push(<SourceCitation
+                key={`discourse-${postId}-${keyIndex++}`}
+                type="Discourse Post"
+                id={postId}
+                title={undefined}
+                rawContent={message?.raw}
+                htmlContent={message?.content}
+                space={space}
+                discourseUrl={discourseUrl}
+            />);
+        } else if (match[10]) { // Source Citation (Source: ...)
+            const sourceType = match[11] as 'Rationale' | 'Endorsed Point' | 'Discourse Post';
+            const sourceTitle = match[12] || match[15];
+            const sourceId = match[13] || match[14];
+            if (sourceId) {
+                let rawContent: string | undefined = undefined;
+                let htmlContent: string | undefined = undefined;
+                if (sourceType === 'Discourse Post') {
+                    const message = storedMessages.find(m => String(m.id) === String(sourceId));
+                    rawContent = message?.raw;
+                    htmlContent = message?.content;
+                }
+                parts.push(<SourceCitation
+                    key={`cite-${sourceId}-${keyIndex++}`}
+                    type={sourceType}
+                    id={sourceId}
+                    title={sourceType !== 'Discourse Post' ? sourceTitle : undefined}
+                    rawContent={rawContent}
+                    htmlContent={htmlContent}
+                    space={space}
+                    discourseUrl={discourseUrl}
+                />);
+            }
+        } else if (match[16]) { // Inline Rationale Reference
+            const rationaleTitle = match[17];
+            const rationaleId = match[18];
+            parts.push(<PointReference key={`inline-rationale-${rationaleId}-${keyIndex++}`} id={rationaleId as any} snippet={rationaleTitle} space={space} />);
         }
 
         lastIndex = match.index + match[0].length;
     }
 
-    // Add remaining text after the last match
     if (lastIndex < text.length) {
         parts.push(<Fragment key={`text-${keyIndex++}`}>{text.substring(lastIndex)}</Fragment>);
     }
@@ -123,8 +162,17 @@ interface StandardComponentProps {
     [key: string]: any;
 }
 
+interface MemoizedMarkdownProps {
+    content: string;
+    id: string;
+    isUserMessage?: boolean;
+    space: string | null;
+    discourseUrl: string;
+    storedMessages: AnyDiscourseMessage[];
+}
+
 export const MemoizedMarkdown = memo(
-    ({ content, id, isUserMessage }: { content: string; id: string; isUserMessage?: boolean }) => {
+    ({ content, id, isUserMessage, space, discourseUrl, storedMessages }: MemoizedMarkdownProps) => {
 
         const customRenderers = {
             // Custom renderer for paragraphs
@@ -137,12 +185,10 @@ export const MemoizedMarkdown = memo(
                     if (suggestMatch) {
                         const type = suggestMatch[1] === 'Suggest Point' ? 'point' : 'negation';
                         const targetId = suggestMatch[2] ? parseInt(suggestMatch[2], 10) : undefined;
-                        // Get text after the tag, potentially merging subsequent text nodes
                         let suggestionText = textValue.substring(suggestMatch[0].length).trimStart();
                         if (node.children.length > 1) {
                             suggestionText += node.children.slice(1).map((n: any) => n.value || '').join('');
                         }
-                        // Render SuggestionBlock instead of the paragraph
                         return <SuggestionBlock type={type} targetId={targetId} text={suggestionText} />;
                     }
                 }
@@ -150,9 +196,8 @@ export const MemoizedMarkdown = memo(
                 // Default paragraph rendering, but process children for inline tags
                 const processedChildren = React.Children.map(children, (child) => {
                     if (typeof child === 'string') {
-                        return renderTextWithInlineTags(child);
+                        return renderTextWithInlineTags(child, space, discourseUrl, storedMessages);
                     }
-                    // Potentially handle nested components if needed, basic case for now
                     return child;
                 });
                 return <p {...props}>{processedChildren}</p>;

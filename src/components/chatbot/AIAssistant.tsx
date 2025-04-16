@@ -380,22 +380,37 @@ export default function AIAssistant() {
                 for await (const chunk of response) {
                     if (chunk === null || chunk === undefined) continue;
                     const chunkString = String(chunk);
-                    console.log("[AIAssistant][startChat] Received chunk:", chunkString); // Log each chunk
-                    content += chunkString + '\n\n';
+                    console.log("[AIAssistant][startChat] Received chunk:", chunkString);
+                    content += chunkString;
                     setStreamingContent(content);
                 }
             } catch (streamError) {
                 console.error("[AIAssistant][startChat] Error processing stream chunk:", streamError);
                 toast.error("Error reading AI response stream.");
-                content += "\\n\\n[Error processing stream]";
+                content += "\n\n[Error processing stream]";
             }
             console.log("[AIAssistant][startChat] Stream processing loop finished.");
-            console.log("[AIAssistant][startChat] Final accumulated content:", content); // Should now log the full message
+            console.log("[AIAssistant][startChat] Final accumulated content:", content);
 
-            // Post-process content
             content = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
             content = content.trim();
             console.log("[AIAssistant][startChat] Final processed content:", content);
+
+            if (content === '') {
+                console.log("[AIAssistant][startChat] Empty content detected - likely a content moderation issue");
+                content = `## Sorry, I couldn't process that request
+
+I wasn't able to generate a response based on the provided content. This might be due to:
+
+1. Content policy restrictions in your rationales or points
+2. Test data or placeholder content that needs to be replaced
+3. Formatting issues in the source content
+
+Please try:
+- Using rationales with more substantial content
+- Removing any test data, placeholders, or potentially inappropriate content
+- Rephrasing your request with clearer instructions`;
+            }
 
             const assistantMessage: ChatMessage = { role: 'assistant', content };
             const finalMessages = [...initialMessages, assistantMessage];
@@ -1079,21 +1094,37 @@ export default function AIAssistant() {
                 for await (const chunk of response) {
                     if (chunk === null || chunk === undefined) continue;
                     const chunkString = String(chunk);
-                    console.log("[AIAssistant] Received chunk:", chunkString); // Log each chunk
-                    content += chunkString + '\n\n';
+                    console.log("[AIAssistant] Received chunk:", chunkString);
+                    content += chunkString;
                     setStreamingContent(content);
                 }
             } catch (streamError) {
                 console.error("[AIAssistant] Error processing stream chunk:", streamError);
                 toast.error("Error reading AI response stream.");
-                content += "\\n\\n[Error processing stream]";
+                content += "\n\n[Error processing stream]";
             }
             console.log("[AIAssistant] Stream processing loop finished.");
-            console.log("[AIAssistant] Final accumulated content:", content); // Should now log the full message
+            console.log("[AIAssistant] Final accumulated content:", content);
 
             content = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
             content = content.trim();
             console.log("[AIAssistant] Final processed content:", content);
+
+            if (content === '') {
+                console.log("[AIAssistant] Empty content detected - likely a content moderation issue");
+                content = `## Sorry, I couldn't process that request
+
+I wasn't able to generate a response based on the provided content. This might be due to:
+
+1. Content policy restrictions in your rationales or points
+2. Test data or placeholder content that needs to be replaced
+3. Formatting issues in the source content
+
+Please try:
+- Using rationales with more substantial content
+- Removing any test data, placeholders, or potentially inappropriate content
+- Rephrasing your request with clearer instructions`;
+            }
 
             const assistantMessage: ChatMessage = { role: 'assistant', content };
             const finalMessages = [...messagesForApi, assistantMessage];
@@ -1410,7 +1441,14 @@ export default function AIAssistant() {
                                                 : 'bg-card text-card-foreground'
                                                 } relative group [&_.markdown]:text-sm [&_.markdown]:md:text-base`}
                                         >
-                                            <MemoizedMarkdown content={msg.content} id={`msg-${i}`} isUserMessage={msg.role === 'user'} />
+                                            <MemoizedMarkdown
+                                                content={msg.content}
+                                                id={`msg-${i}`}
+                                                isUserMessage={msg.role === 'user'}
+                                                space={currentSpace}
+                                                discourseUrl={discourseUrl}
+                                                storedMessages={storedMessages}
+                                            />
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -1441,7 +1479,13 @@ export default function AIAssistant() {
                                 {streamingContent && (
                                     <div className="flex justify-start">
                                         <div className={`${isMobile ? 'max-w-[90%]' : 'max-w-[80%]'} rounded-xl md:rounded-2xl p-3 md:p-4 shadow-sm bg-card text-card-foreground mr-4 [&_.markdown]:text-sm [&_.markdown]:md:text-base`}>
-                                            <MemoizedMarkdown content={streamingContent + " ▋"} id="streaming" />
+                                            <MemoizedMarkdown
+                                                content={streamingContent + " ▋"}
+                                                id="streaming"
+                                                space={currentSpace}
+                                                discourseUrl={discourseUrl}
+                                                storedMessages={storedMessages}
+                                            />
                                         </div>
                                     </div>
                                 )}
