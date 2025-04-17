@@ -82,7 +82,7 @@ export const PointReference: React.FC<PointReferenceProps> = ({ id, snippet, spa
                 // Point: Show ID and snippet (potentially placeholder)
                 <span className="flex items-center gap-1 overflow-hidden">
                     <span className="flex-shrink-0">{typeText} {displayId}</span>
-                    {displaySnippet && <span className="text-muted-foreground/80 truncate">: "{displaySnippet}"</span>}
+                    {displaySnippet && <span className="text-muted-foreground/80 truncate">: &quot;{displaySnippet}&quot;</span>}
                 </span>
             )}
         </span>
