@@ -7,6 +7,7 @@ import { FileText, MessageSquareQuote, ExternalLink } from 'lucide-react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
+import { encodeId } from '@/lib/encodeId';
 
 interface SourceCitationProps {
     type: 'Rationale' | 'Endorsed Point' | 'Discourse Post';
@@ -39,7 +40,13 @@ export const SourceCitation: React.FC<SourceCitationProps> = ({ type, id, title,
         displayContent = title ? `"${title}"` : `Rationale ${id}`;
         tooltipSimpleText = `${type}: ${displayContent}`;
     } else if (isPoint) {
-        href = `/s/${space}/${id}`;
+        try {
+            const encodedPointId = encodeId(Number(id));
+            href = space ? `/s/${space}/${encodedPointId}` : `/p/${encodedPointId}`;
+        } catch (e) {
+            console.error(`SourceCitation: Failed to encode point ID ${id}`, e);
+            href = space ? `/s/${space}/${id}` : `/p/${id}`;
+        }
         Icon = FileText;
         displayContent = title ? `"${title}"` : `Point ${id}`;
         tooltipSimpleText = `${type}: ${displayContent}`;

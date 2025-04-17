@@ -5,6 +5,7 @@ import { streamText } from "ai";
 import { withRetry } from "@/lib/withRetry";
 import { searchContent, SearchResult } from "./searchContent";
 import { getUserId } from "./getUserId";
+import { generateSearchQueries } from "./generateSearchQueries";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -35,6 +36,13 @@ interface DiscourseMessageContext {
   raw?: string;
   topic_title?: string;
   topic_id?: number;
+}
+
+interface ChatSettings {
+  includeEndorsements: boolean;
+  includeRationales: boolean;
+  includePoints: boolean;
+  includeDiscourseMessages: boolean;
 }
 
 const sanitizeText = (text: string): string => {
@@ -91,15 +99,12 @@ const filterProblematicContent = (
 
 export const generateChatBotResponse = async (
   messages: Message[],
+  settings: ChatSettings,
   allEndorsedPoints: EndorsedPoint[] = [],
   allRationales: RationaleContext[] = [],
   allDiscourseMessages: DiscourseMessageContext[] = []
 ) => {
   try {
-    if (!messages || messages.length === 0) {
-      throw new Error("No messages provided for chat response generation");
-    }
-
     const contextMessages = messages.filter((m) => m.role === "system");
     const chatMessages = messages.filter((m) => m.role !== "system");
 
@@ -107,104 +112,86 @@ export const generateChatBotResponse = async (
       throw new Error("No chat messages found for response generation");
     }
 
-    console.log("[generateChatBotResponse] Starting relevance filtering...");
+    console.log(
+      "[generateChatBotResponse] Starting agentic context retrieval..."
+    );
     const viewerId = await getUserId();
     console.log(`[generateChatBotResponse] Viewer ID: ${viewerId}`);
 
-    const filteredRationales = filterProblematicContent(allRationales);
-    console.log(
-      `[generateChatBotResponse] Filtered out ${allRationales.length - filteredRationales.length} problematic rationales`
+    const queryGenContext = settings.includeDiscourseMessages
+      ? allDiscourseMessages
+      : [];
+
+    const searchQueries = await generateSearchQueries(
+      chatMessages,
+      queryGenContext
     );
 
-    // Specific message sent by frontend for distill flow
+    let searchResults: SearchResult[] = [];
+    if (viewerId && searchQueries.length > 0) {
+      console.log(
+        `[generateChatBotResponse] Calling searchContent with ${searchQueries.length} generated queries...`
+      );
+      try {
+        searchResults = await searchContent(searchQueries);
+        console.log(
+          `[generateChatBotResponse] searchContent returned ${searchResults.length} unique results.`
+        );
+      } catch (searchError) {
+        console.error(
+          "[generateChatBotResponse] Error during relevance search:",
+          searchError
+        );
+        searchResults = [];
+      }
+    } else {
+      console.log(
+        "[generateChatBotResponse] Skipping relevance search (no viewerId or no queries generated)."
+      );
+    }
+
+    const filteredRationales = filterProblematicContent(allRationales);
+    const MAX_RELEVANT_POINTS = 5;
+    const MAX_RELEVANT_RATIONALES = 3;
+
+    const relevantPoints = searchResults
+      .filter((r) => r.type === "point")
+      .slice(0, MAX_RELEVANT_POINTS);
+    console.log(
+      `[generateChatBotResponse] Filtered to ${relevantPoints.length} relevant points (endorsement filter removed).`
+    );
+
+    // Special handling for distill flow
     const distillInitialMessage =
       "I'd like to distill my existing rationales into a well-structured essay. Please help me organize and refine my thoughts based on my rationales that you can see.";
     const isDistillFlowStart =
       chatMessages.length === 1 &&
       chatMessages[0].content === distillInitialMessage;
 
-    // Define limits (can be adjusted)
-    const RELEVANCE_SEARCH_MESSAGE_COUNT = 4;
-    const MAX_RELEVANT_POINTS = 5;
-    const MAX_RELEVANT_RATIONALES = 3;
-    const MAX_RELEVANT_DISCOURSE = 5;
-
-    let relevantPoints: SearchResult[] = [];
     let relevantRationales: RationaleContext[] | SearchResult[] = [];
-    let relevantDiscourseMessages: DiscourseMessageContext[] = [];
-
-    if (viewerId && chatMessages.length > 0) {
-      const searchQuery = chatMessages
-        .slice(-RELEVANCE_SEARCH_MESSAGE_COUNT)
-        .map((m) => m.content)
-        .join("\\n\\n");
-
+    if (isDistillFlowStart) {
+      relevantRationales = filteredRationales;
       console.log(
-        "[generateChatBotResponse] Constructed Search Query:",
-        searchQuery
+        `[generateChatBotResponse] Distill flow detected, using all ${filteredRationales.length} filtered rationales directly.`
       );
-
-      if (searchQuery.trim().length > 0) {
-        try {
-          console.log("[generateChatBotResponse] Calling searchContent...");
-          const searchResults = await searchContent(searchQuery);
-          console.log(
-            `[generateChatBotResponse] searchContent returned ${searchResults.length} results.`
-          );
-
-          relevantPoints = searchResults
-            .filter(
-              (r) =>
-                r.type === "point" &&
-                allEndorsedPoints.some((p) => p.pointId === r.id)
-            )
-            .slice(0, MAX_RELEVANT_POINTS);
-          console.log(
-            `[generateChatBotResponse] Filtered to ${relevantPoints.length} relevant points.`
-          );
-
-          if (isDistillFlowStart) {
-            relevantRationales = filteredRationales;
-            console.log(
-              `[generateChatBotResponse] Distill flow detected, using all ${filteredRationales.length} filtered rationales directly.`
-            );
-          } else {
-            relevantRationales = searchResults
-              .filter(
-                (r) =>
-                  r.type === "rationale" &&
-                  filteredRationales.some(
-                    (rat) => String(rat.id) === String(r.id)
-                  )
-              )
-              .slice(0, MAX_RELEVANT_RATIONALES);
-            console.log(
-              `[generateChatBotResponse] Filtered to ${relevantRationales.length} relevant rationales via search.`
-            );
-          }
-        } catch (searchError) {
-          console.error(
-            "[generateChatBotResponse] Error during relevance search:",
-            searchError
-          );
-          // Fallback or proceed with empty relevant points/rationales
-        }
-      }
-
-      if (allDiscourseMessages.length > 0) {
-        relevantDiscourseMessages = allDiscourseMessages.slice(
-          -MAX_RELEVANT_DISCOURSE
-        );
-        console.log(
-          `[generateChatBotResponse] Using latest ${relevantDiscourseMessages.length} discourse messages.`
-        );
-      }
     } else {
+      relevantRationales = searchResults
+        .filter(
+          (r) =>
+            r.type === "rationale" &&
+            filteredRationales.some((rat) => String(rat.id) === String(r.id))
+        )
+        .slice(0, MAX_RELEVANT_RATIONALES);
       console.log(
-        "[generateChatBotResponse] Skipping relevance search (no viewerId or chatHistory). Using empty context."
+        `[generateChatBotResponse] Filtered to ${relevantRationales.length} relevant rationales via search.`
       );
     }
-    console.log("[generateChatBotResponse] Relevance filtering finished.");
+
+    const relevantDiscourseMessagesForPrompt = settings.includeDiscourseMessages
+      ? allDiscourseMessages.slice(-3)
+      : [];
+
+    console.log("[generateChatBotResponse] Context retrieval finished.");
 
     console.log(
       "[generateChatBotResponse] Data for prompt - relevantPoints:",
@@ -218,12 +205,15 @@ export const generateChatBotResponse = async (
     );
     console.log(
       "[generateChatBotResponse] Data for prompt - relevantDiscourseMessages:",
-      relevantDiscourseMessages.length
+      relevantDiscourseMessagesForPrompt.length
     );
 
-    console.log("[generateChatBotResponse] Constructing prompt string...");
+    console.log(
+      "[generateChatBotResponse] Constructing final prompt string..."
+    );
     let prompt;
     try {
+      // Build prompt using the VERIFIED and FILTERED context
       prompt = `You are an AI assistant in the Negation Game platform. Your goal is to help users articulate, refine, and structure their arguments using points, negations, and rationales.
 
 RULES & CAPABILITIES:
@@ -243,19 +233,21 @@ RULES & CAPABILITIES:
         *   \`(Source: Discourse Post ID:456)\`
     *   **Usage:** Add this *after* presenting information derived from a specific source in the context.
 
-4.  **Suggesting New Points:** Use \`[Suggest Point]>\` on its own line, followed by the suggested point text on the next line(s).
+4.  **Suggesting New Points:** When suggesting a new, independent point, use \`[Suggest Point]>\` on **its own line**, followed by the suggested point text on the next line(s). Render this as a distinct block.
     *   Example:
         [Suggest Point]>
         We should consider the long-term maintenance costs.
 
-5.  **Suggesting Negations:** Use \`[Suggest Negation For:ID]>\` on its own line, followed by the suggested negation text on the next line(s). \`ID\` is the ID of the point being negated.
-    *   Example:
-        [Suggest Negation For:123]>
-        The proposal overlooks the potential security risks involved.
+5.  **Suggesting Negations:** When suggesting a negation for a specific **existing point** (e.g., Point 123 provided in the CONTEXT), place the \`[Suggest Negation For:123]>\` tag **immediately after discussing Point 123**, on a **new line**, potentially indented or formatted like a sub-item. Follow the tag immediately with the negation text. \`ID\` **must be the numeric ID of an EXISTING Point** provided in the CONTEXT section. **DO NOT suggest negations for Rationales (string IDs) or Discourse Posts (numeric IDs). Do NOT invent Point IDs.**
+    *   Example (after discussing Point 123):
+        ... discussion referencing Point 123 (Source: Endorsed Point ID:123).
+        - [Suggest Negation For:123]> The proposal overlooks the potential security risks involved.
 
 6.  **Structure & Style:** Follow essay structure and writing style guidelines below. Maintain logical flow and use clear language.
 
 7.  **Formatting:** STRICTLY follow Markdown formatting rules below. Double newlines between paragraphs are crucial.
+
+8.  **Rule 8: Do not invent Point IDs.** Only use the \`[Point:ID]\` or \`(Source: ... ID:ID)\` tags for points explicitly provided in the CONTEXT section with their numeric IDs. Do not create tags like \`[Point:1 "Some Concept"]\` for concepts you are introducing.
 
 MARKDOWN FORMATTING:
 *   Use standard Markdown (GFM).
@@ -329,9 +321,9 @@ ${
 }
 
 ${
-  relevantDiscourseMessages.length > 0
+  relevantDiscourseMessagesForPrompt.length > 0
     ? // Provide context as: Post ID:ID - Content... (Source: Discourse Post ID:ID)
-      `Relevant Recent Discourse Posts:\n${relevantDiscourseMessages.map((m) => `- Post ID:${m.id} - ${m.raw || m.content} (Source: Discourse Post ID:${m.id})`).join("\n\n")}`
+      `Relevant Recent Discourse Posts:\n${relevantDiscourseMessagesForPrompt.map((m) => `- Post ID:${m.id} - ${m.raw || m.content} (Source: Discourse Post ID:${m.id})`).join("\n\n")}`
     : "No recent Discourse posts provided or deemed relevant."
 }
 ---
@@ -344,6 +336,15 @@ Remember:
 2.  Use the correct tag formats: \`[...]\` for inline references (ID only for Discourse), \`(Source: ...)\` for attribution (ID only for Discourse), \`[Suggest...]>/...\` for suggestions.
 3.  Cite sources accurately when using information from the Context section.
 4.  Adhere strictly to Markdown rules, especially double newlines between paragraphs.
+
+INSTRUCTIONS:
+*   Answer the user's latest message based on the conversation history and the provided context.
+*   Strictly adhere to the specified tag formats for referencing and source attribution.
+*   If summarizing or using information from the context, ALWAYS cite the source using the (Source:...) tag immediately after the information.
+*   If directly mentioning a point, rationale, or post inline, use the [...] tag format.
+*   Be concise and helpful.
+*   **DO NOT use the source tag '(Source:...)' if you have just used the corresponding inline reference tag '[Point:ID...]' or '[Rationale:ID...]' for the *exact same ID* in the same sentence or clause.** This avoids redundancy.
+*   Suggest new points or negations using the specified tags when appropriate...
 
 A:`;
       console.log(
@@ -361,7 +362,6 @@ A:`;
     console.log(
       "[generateChatBotResponse] Calling AI model (streamText) with retry..."
     );
-    // Use withRetry for the AI call
     const aiResult = await withRetry(async () => {
       try {
         console.log(

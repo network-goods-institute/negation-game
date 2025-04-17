@@ -364,6 +364,7 @@ export default function AIAssistant() {
 
             const response = await generateChatBotResponse(
                 [...systemMessages, ...initialMessages],
+                settings,
                 contextEndorsements,
                 contextRationales,
                 storedMessages
@@ -1078,6 +1079,7 @@ Please try:
 
             const response = await generateChatBotResponse(
                 messagesForApi,
+                settings,
                 contextEndorsements,
                 contextRationales,
                 contextDiscourse
@@ -1197,7 +1199,7 @@ Please try:
                     <div className="h-16 border-b flex items-center justify-between px-4 md:px-6">
                         <h2 className="text-lg font-semibold flex items-center gap-2">
                             <MessageSquare className="h-5 w-5 text-primary" />
-                            Chats
+                            <span className="text-base md:text-lg">Chats</span>
                         </h2>
                         <div className="flex items-center gap-1">
                             <AuthenticatedActionButton
@@ -1243,7 +1245,7 @@ Please try:
                                                     <TooltipProvider delayDuration={300}>
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
-                                                                <span className={`block text-sm truncate ${chat.id === currentChatId ? 'font-semibold text-accent-foreground' : 'text-foreground'}`}>
+                                                                <span className={`block text-xs md:text-sm truncate ${chat.id === currentChatId ? 'font-semibold text-accent-foreground' : 'text-foreground'}`}>
                                                                     {chat.title}
                                                                 </span>
                                                             </TooltipTrigger>
@@ -1321,7 +1323,7 @@ Please try:
                             </Button>
                         )}
                         <div className="flex items-center gap-2">
-                            <h2 className="text-lg font-semibold">AI Assistant</h2>
+                            <h2 className="text-base md:text-lg font-semibold">AI Assistant</h2>
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger>
@@ -1394,18 +1396,18 @@ Please try:
                         <div className="h-full flex items-center justify-center p-4 md:p-6">
                             <div className="max-w-2xl w-full space-y-6 md:space-y-8">
                                 <div className="text-center space-y-1">
-                                    <h2 className="text-xl md:text-2xl font-bold">How can I help?</h2>
-                                    <p className="text-muted-foreground text-sm">Select an option or start typing below</p>
+                                    <h2 className="text-lg md:text-xl font-bold">How can I help?</h2>
+                                    <p className="text-muted-foreground text-xs md:text-sm">Select an option or start typing below</p>
                                 </div>
                                 <div className="grid gap-3 md:gap-4 sm:grid-cols-2">
                                     <AuthenticatedActionButton
                                         variant="outline"
-                                        className="h-auto min-h-[7rem] md:min-h-[8rem] flex flex-col items-center justify-center gap-1.5 p-3 md:p-4 text-center rounded-lg hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2"
+                                        className="h-auto min-h-[6rem] p-2 md:min-h-[8rem] md:p-4 flex flex-col items-center justify-center gap-1.5 text-center rounded-lg hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2"
                                         onClick={() => startChatWithOption('distill')}
                                         disabled={isGenerating || userRationales.length === 0}
                                     >
-                                        <div className="text-base md:text-lg font-semibold">Distill Rationales</div>
-                                        <p className="text-xs md:text-sm text-muted-foreground text-balance">
+                                        <div className="text-sm md:text-lg font-semibold">Distill Rationales</div>
+                                        <p className="text-xs text-muted-foreground text-balance">
                                             {userRationales.length === 0
                                                 ? "You don't have any rationales yet."
                                                 : "Organize your existing rationales into an essay."}
@@ -1413,12 +1415,12 @@ Please try:
                                     </AuthenticatedActionButton>
                                     <Button
                                         variant="outline"
-                                        className="h-auto min-h-[7rem] md:min-h-[8rem] flex flex-col items-center justify-center gap-1.5 p-3 md:p-4 text-center rounded-lg hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 opacity-50 cursor-not-allowed"
+                                        className="h-auto min-h-[6rem] p-2 md:min-h-[8rem] md:p-4 flex flex-col items-center justify-center gap-1.5 text-center rounded-lg hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 opacity-50 cursor-not-allowed"
                                         disabled
                                         aria-disabled="true"
                                     >
-                                        <div className="text-base md:text-lg font-semibold">Build from Posts</div>
-                                        <p className="text-xs md:text-sm text-muted-foreground text-balance">
+                                        <div className="text-sm md:text-lg font-semibold">Build from Posts</div>
+                                        <p className="text-xs text-muted-foreground text-balance">
                                             Create rationales from your forum posts.
                                         </p>
                                         <span className="text-xs text-primary font-medium mt-1">Coming Soon</span>
@@ -1428,18 +1430,18 @@ Please try:
                             </div>
                         </div>
                     ) : (
-                        <ScrollArea className="h-full" id="chat-scroll-area">
-                            <div className={`space-y-4 md:space-y-6 py-4 md:py-6 px-2 md:px-4 lg:max-w-3xl xl:max-w-4xl mx-auto`}>
+                        <div className="h-full overflow-y-auto" id="chat-scroll-area">
+                            <div className={`space-y-4 md:space-y-6 py-4 md:py-6 px-2 md:px-4`}>
                                 {chatMessages.map((msg, i) => (
                                     <div
                                         key={`${currentChatId || 'nochat'}-${i}`}
-                                        className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                                        className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                     >
                                         <div
-                                            className={`${isMobile ? 'max-w-[90%]' : 'max-w-[80%]'} rounded-xl md:rounded-2xl p-3 md:p-4 shadow-sm ${msg.role === 'user'
+                                            className={`${isMobile ? 'max-w-[90%]' : 'max-w-[80%]'} rounded-xl md:rounded-2xl p-3 md:p-4 shadow-sm relative group [&_.markdown]:text-sm [&_.markdown]:md:text-base ${msg.role === 'user'
                                                 ? 'bg-primary text-primary-foreground'
                                                 : 'bg-card text-card-foreground'
-                                                } relative group [&_.markdown]:text-sm [&_.markdown]:md:text-base`}
+                                                }`}
                                         >
                                             <MemoizedMarkdown
                                                 content={msg.content}
@@ -1491,7 +1493,7 @@ Please try:
                                 )}
                                 <div ref={chatEndRef} className="h-1" />
                             </div>
-                        </ScrollArea>
+                        </div>
                     )}
                 </div>
 
@@ -1501,7 +1503,7 @@ Please try:
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
                             placeholder={!isAuthenticated ? "Login to chat..." : isGenerating ? "Waiting for response..." : "Type your message here... (Ctrl+Enter to send)"}
-                            className="flex-1 py-2.5 px-3 md:px-4 text-[11px] sm:text-sm md:text-base rounded-lg border shadow-sm resize-none focus-visible:ring-1 focus-visible:ring-ring"
+                            className="flex-1 py-2.5 px-3 md:px-4 text-xs sm:text-sm md:text-base rounded-lg border shadow-sm resize-none focus-visible:ring-1 focus-visible:ring-ring"
                             disabled={isGenerating || isInitializing || !currentSpace || !isAuthenticated}
                             style={{
                                 minHeight: '40px',
@@ -1518,7 +1520,7 @@ Please try:
                             type="submit"
                             disabled={isGenerating || !message.trim() || !currentSpace || isInitializing}
                             rightLoading={isGenerating}
-                            className="rounded-lg h-10 px-4"
+                            className="rounded-lg h-9 px-3 md:h-10 md:px-4"
                             title="Send Message (Ctrl+Enter)"
                         >
                             {isGenerating ? (
@@ -1534,7 +1536,7 @@ Please try:
                             variant="ghost"
                             size="icon"
                             onClick={() => setShowSettingsDialog(true)}
-                            className="rounded-lg h-10 w-10 text-muted-foreground hover:text-foreground"
+                            className="rounded-lg h-9 w-9 md:h-10 md:w-10 text-muted-foreground hover:text-foreground"
                             title="Chat Settings"
                         >
                             <SlidersHorizontal className="h-4 w-4" />
