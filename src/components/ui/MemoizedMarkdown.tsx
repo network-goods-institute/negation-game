@@ -219,7 +219,7 @@ export const MemoizedMarkdown = memo(
                 if (pointMatch) {
                     const suggestionText = pointMatch[1].trim();
                     if (suggestionText) {
-                        return <SuggestionBlock key={`suggest-point-block-${id}-${Math.random()}`} type="point" text={suggestionText} />;
+                        return <SuggestionBlock key={`suggest-point-block-${id}-${Math.random()}`} type="point" text={suggestionText} space={space} />;
                     }
                 }
 
@@ -260,6 +260,7 @@ export const MemoizedMarkdown = memo(
                                 type="negation"
                                 targetId={targetId}
                                 text={suggestionText}
+                                space={space}
                             />
                         );
                     }

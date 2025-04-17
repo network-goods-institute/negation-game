@@ -1083,8 +1083,6 @@ export function PointPageClient({
                 </ReactFlowProvider>
             )}
 
-            <NegateDialog />
-
             <SelectNegationDialog
                 open={selectNegationDialogOpen}
                 onOpenChange={toggleSelectNegationDialog}

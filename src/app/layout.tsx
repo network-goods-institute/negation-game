@@ -10,6 +10,7 @@ import { Analytics } from "@vercel/analytics/react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { GitHubButton } from "@/components/ui/GitHubButton";
+import { GlobalDialogs } from "@/components/GlobalDialogs";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DevOnly } from "@/components/utils/DevOnly";
@@ -65,6 +66,7 @@ export default function RootLayout({
                 {children}
 
                 <Toaster />
+                <GlobalDialogs />
                 <Analytics />
               </TooltipProvider>
               <DevOnly>

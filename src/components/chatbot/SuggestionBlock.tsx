@@ -2,15 +2,24 @@ import React from 'react';
 import { Button } from "@/components/ui/button";
 import { PenSquare, GitBranchPlus } from 'lucide-react';
 import { encodeId } from '@/lib/encodeId';
+import { useSetAtom } from 'jotai';
+import { makePointSuggestionAtom } from '@/atoms/makePointSuggestionAtom';
+import { negatedPointIdAtom } from '@/atoms/negatedPointIdAtom';
+import { negationContentAtom } from '@/atoms/negationContentAtom';
+import { DEFAULT_SPACE } from '@/constants/config';
 
 interface SuggestionBlockProps {
     type: 'point' | 'negation';
     targetId?: number;
     text: string;
+    space?: string | null;
 }
 
-export const SuggestionBlock: React.FC<SuggestionBlockProps> = ({ type, targetId, text }) => {
+export const SuggestionBlock: React.FC<SuggestionBlockProps> = ({ type, targetId, text, space }) => {
     const Icon = type === 'point' ? GitBranchPlus : PenSquare;
+    const setMakePointSuggestion = useSetAtom(makePointSuggestionAtom);
+    const setNegatedPointId = useSetAtom(negatedPointIdAtom);
+    const setNegationContent = useSetAtom(negationContentAtom(targetId));
 
     let displayTargetId: string | number | undefined;
     if (type === 'negation' && targetId !== undefined) {
@@ -29,7 +38,14 @@ export const SuggestionBlock: React.FC<SuggestionBlockProps> = ({ type, targetId
             : 'Suggestion';
 
     const handleClick = () => {
-        console.log('Suggestion clicked:', { type, targetId, text });
+        if (type === 'point') {
+            console.log('[SuggestionBlock] Make Point clicked. Setting atom with:', { text, spaceId: space ?? DEFAULT_SPACE });
+            setMakePointSuggestion({ text, context: 'chat', spaceId: space ?? DEFAULT_SPACE });
+        } else if (type === 'negation' && targetId !== undefined) {
+            console.log('Negation Suggestion clicked:', { type, targetId, text, spaceId: space ?? DEFAULT_SPACE });
+        } else {
+            console.log('Suggestion clicked (unknown type):', { type, targetId, text });
+        }
     };
 
     return (

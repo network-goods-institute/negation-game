@@ -760,34 +760,32 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                         canvasEnabled={canvasEnabled}
                     />
                 </Dynamic>
-
-                <NegateDialog />
-
-                <AlertDialog open={isDiscardDialogOpen} onOpenChange={setIsDiscardDialogOpen}>
-                    <AlertDialogContent className="sm:max-w-[425px]">
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>You have unsaved changes</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Do you want to save your changes or discard them?
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel
-                                onClick={() => setIsDiscardDialogOpen(false)}
-                                className="bg-primary text-primary-foreground hover:bg-primary/90"
-                            >
-                                Cancel
-                            </AlertDialogCancel>
-                            <AlertDialogAction
-                                onClick={handleDiscard}
-                                className="bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                            >
-                                Discard changes
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
             </main>
+
+            <AlertDialog open={isDiscardDialogOpen} onOpenChange={setIsDiscardDialogOpen}>
+                <AlertDialogContent className="sm:max-w-[425px]">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>You have unsaved changes</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Do you want to save your changes or discard them?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel
+                            onClick={() => setIsDiscardDialogOpen(false)}
+                            className="bg-primary text-primary-foreground hover:bg-primary/90"
+                        >
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDiscard}
+                            className="bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                        >
+                            Discard changes
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </EditModeProvider>
     );
 }

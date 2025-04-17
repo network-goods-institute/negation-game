@@ -616,8 +616,6 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                     currentDiscourseConsentGiven={userData?.discourseConsentGiven}
                 />
             )}
-
-            <NegateDialog />
         </main>
     );
 } 

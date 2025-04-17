@@ -50,9 +50,9 @@ export interface NegateDialogProps
 
 export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   const [negatedPointId, setNegatedPointId] = useAtom(negatedPointIdAtom);
-  const { data: negatedPoint } = usePointData(negatedPointId);
+  const { data: negatedPoint, isLoading: isLoadingNegatedPoint } = usePointData(negatedPointId);
   const [counterpointContent, setCounterpointContent] = useAtom(
-    negationContentAtom(negatedPoint?.pointId)
+    negationContentAtom(negatedPointId)
   );
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [lastReviewedContent, setLastReviewedContent] = useState<string>("");
@@ -368,9 +368,16 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
               />
             </div>
             <div className="@container/point flex-grow flex flex-col mb-md pt-1">
-              <p className="tracking-tight text-md @sm/point:text-lg mb-lg -mt-2">
-                {negatedPoint?.content}
-              </p>
+              {isLoadingNegatedPoint ? (
+                <div className="animate-pulse">
+                  <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+                  <div className="h-4 bg-muted rounded w-1/2"></div>
+                </div>
+              ) : (
+                <p className="tracking-tight text-md @sm/point:text-lg mb-lg -mt-2">
+                  {negatedPoint?.content}
+                </p>
+              )}
             </div>
           </div>
 

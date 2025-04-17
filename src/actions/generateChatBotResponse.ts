@@ -233,12 +233,12 @@ RULES & CAPABILITIES:
         *   \`(Source: Discourse Post ID:456)\`
     *   **Usage:** Add this *after* presenting information derived from a specific source in the context.
 
-4.  **Suggesting New Points:** When suggesting a new, independent point, use \`[Suggest Point]>\` on **its own line**, followed by the suggested point text on the next line(s). Render this as a distinct block.
+4.  **Suggesting New Points:** When suggesting a new, independent point, use \`[Suggest Point]>\` on **its own line**, followed by the suggested point text on the next line(s). Render this as a distinct block. **The suggested point text MUST be less than 160 characters.**
     *   Example:
         [Suggest Point]>
         We should consider the long-term maintenance costs.
 
-5.  **Suggesting Negations:** When suggesting a negation for a specific **existing point** (e.g., Point 123 provided in the CONTEXT), place the \`[Suggest Negation For:123]>\` tag **immediately after discussing Point 123**, on a **new line**, potentially indented or formatted like a sub-item. Follow the tag immediately with the negation text. \`ID\` **must be the numeric ID of an EXISTING Point** provided in the CONTEXT section. **DO NOT suggest negations for Rationales (string IDs) or Discourse Posts (numeric IDs). Do NOT invent Point IDs.**
+5.  **Suggesting Negations:** When suggesting a negation for a specific **existing point** (e.g., Point 123 provided in the CONTEXT), place the \`[Suggest Negation For:123]>\` tag **immediately after discussing Point 123**, on a **new line**, potentially indented or formatted like a sub-item. Follow the tag immediately with the negation text. \`ID\` **must be the numeric ID of an EXISTING Point** provided in the CONTEXT section. **DO NOT suggest negations for Rationales (string IDs) or Discourse Posts (numeric IDs). Do NOT invent Point IDs.** **The suggested negation text MUST be less than 160 characters.**
     *   Example (after discussing Point 123):
         ... discussion referencing Point 123 (Source: Endorsed Point ID:123).
         - [Suggest Negation For:123]> The proposal overlooks the potential security risks involved.

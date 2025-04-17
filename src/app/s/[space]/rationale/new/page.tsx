@@ -732,8 +732,6 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
         />
       </Dynamic>
 
-      <NegateDialog />
-
       <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
