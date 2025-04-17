@@ -20,7 +20,7 @@ export const useSearch = () => {
         return [] as SearchResult[];
       }
       setHasSearched(true);
-      return searchContent(debouncedQuery);
+      return searchContent([debouncedQuery]);
     },
     enabled: debouncedQuery.trim().length >= 2,
     staleTime: 30000,
