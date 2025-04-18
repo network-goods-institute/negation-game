@@ -37,6 +37,7 @@ import { DiscourseConnectDialog } from "@/components/chatbot/DiscourseConnectDia
 import { DiscourseMessagesDialog } from "@/components/chatbot/DiscourseMessagesDialog";
 import { DiscourseConsentDialog } from "@/components/chatbot/DiscourseConsentDialog";
 import { ChatSettingsDialog } from "@/components/chatbot/ChatSettingsDialog";
+import { DetailedSourceList } from './DetailedSourceList';
 
 export interface DiscourseMessage {
     id: number;
@@ -51,6 +52,7 @@ export interface DiscourseMessage {
 interface ChatMessage {
     role: 'user' | 'assistant' | 'system';
     content: string;
+    sources?: Array<{ type: string; id: string | number }>;
 }
 
 interface SavedChat {
@@ -168,6 +170,107 @@ function useIsMobile() {
 
 type InitialOption = 'distill' | 'build' | null;
 
+const pointRefRegex = /\[Point:(\d+)(?:\s+\"[^\"\\n]+?\")?\]/g;
+const multiPointRefRegex = /\[Point:\d+(?:,\s*Point:\d+)*\]/g;
+const rationaleRefRegex = /\[Rationale:([\w-]+)(?:\s+\"[^\"\\n]+?\")?\]/g;
+const discoursePostRefRegex = /\[Discourse Post:(\d+)\]/g;
+const multiDiscoursePostRefRegex = /\[Discourse Post:\d+(?:,\s*Discourse Post:\d+)*\]/g;
+const sourceCiteRegex = /\(Source:\s*(Rationale|Endorsed Point|Discourse Post)\s*(?:\"[^\"\\n]+?\"\s*)?ID:([\w\s,-]+)\)/g;
+const inlineRationaleRefRegex = /Rationale\s+\"[^\"\\n]+?\"\s+\(ID:([\w-]+)\)/g;
+
+const extractSourcesFromMarkdown = (content: string): ChatMessage['sources'] => {
+    const sources: ChatMessage['sources'] = [];
+    const foundIds = new Set<string>();
+
+    const addSource = (type: string, id: string | number) => {
+        const key = `${type}-${id}`;
+        if (!foundIds.has(key)) {
+            sources.push({ type, id });
+            foundIds.add(key);
+        }
+    };
+
+    let match;
+    const digitRegex = /\d+/g;
+
+    console.log("[AIAssistant DBG] Starting multiDiscoursePostRefRegex loop. Content:", content);
+    multiDiscoursePostRefRegex.lastIndex = 0;
+    while ((match = multiDiscoursePostRefRegex.exec(content)) !== null) {
+        const fullMatch = match[0];
+        console.log("[AIAssistant DBG] multiDiscoursePostRefRegex matched:", fullMatch);
+        let digitMatch;
+        digitRegex.lastIndex = 0; // Reset for this inner loop
+        while ((digitMatch = digitRegex.exec(fullMatch)) !== null) {
+            const id = parseInt(digitMatch[0], 10);
+            if (!isNaN(id)) {
+                console.log("[AIAssistant DBG] Extracted ID from multi-discourse:", id);
+                addSource('Discourse Post', id);
+            }
+        }
+    }
+    console.log("[AIAssistant DBG] Finished multiDiscoursePostRefRegex loop.");
+
+    console.log("[AIAssistant DBG] Starting multiPointRefRegex loop. Content:", content);
+    multiPointRefRegex.lastIndex = 0;
+    while ((match = multiPointRefRegex.exec(content)) !== null) {
+        const fullMatch = match[0];
+        console.log("[AIAssistant DBG] multiPointRefRegex matched:", fullMatch);
+        let digitMatch;
+        while ((digitMatch = digitRegex.exec(fullMatch)) !== null) {
+            const id = parseInt(digitMatch[0], 10);
+            if (!isNaN(id)) {
+                console.log("[AIAssistant DBG] Extracted ID from multi-point:", id);
+                addSource('Endorsed Point', id);
+            }
+        }
+        digitRegex.lastIndex = 0;
+    }
+    console.log("[AIAssistant DBG] Finished multiPointRefRegex loop.");
+
+    console.log("[AIAssistant DBG] Starting pointRefRegex loop. Content:", content);
+    pointRefRegex.lastIndex = 0;
+    while ((match = pointRefRegex.exec(content)) !== null) {
+        if (match[0].includes(', Point:')) continue;
+        console.log("[AIAssistant DBG] pointRefRegex matched:", match[0], "ID:", match[1]);
+        addSource('Endorsed Point', parseInt(match[1], 10));
+    }
+    console.log("[AIAssistant DBG] Finished pointRefRegex loop.");
+
+    console.log("[AIAssistant DBG] Starting discoursePostRefRegex loop. Content:", content);
+    discoursePostRefRegex.lastIndex = 0;
+    while ((match = discoursePostRefRegex.exec(content)) !== null) {
+        if (match[0].includes(', Discourse Post:')) continue;
+        console.log("[AIAssistant DBG] discoursePostRefRegex matched:", match[0], "ID:", match[1]);
+        addSource('Discourse Post', parseInt(match[1], 10));
+    }
+    console.log("[AIAssistant DBG] Finished discoursePostRefRegex loop.");
+
+    rationaleRefRegex.lastIndex = 0;
+    while ((match = rationaleRefRegex.exec(content)) !== null) {
+        addSource('Rationale', match[1]);
+    }
+    inlineRationaleRefRegex.lastIndex = 0;
+    while ((match = inlineRationaleRefRegex.exec(content)) !== null) {
+        addSource('Rationale', match[1]);
+    }
+
+    sourceCiteRegex.lastIndex = 0;
+    while ((match = sourceCiteRegex.exec(content)) !== null) {
+        const sourceType = match[1];
+        const sourceIdString = match[2];
+        const sourceIds = sourceIdString.split(',').map(id => id.trim()).filter(id => id);
+        sourceIds.forEach(id => {
+            const parsedId = sourceType === 'Discourse Post' ? parseInt(id, 10) : id;
+            if (typeof parsedId === 'string' || (typeof parsedId === 'number' && !isNaN(parsedId))) {
+                addSource(sourceType, parsedId);
+            }
+        });
+    }
+
+    console.log("[AIAssistant] Extracted sources from content:", sources);
+    return sources;
+};
+
 export default function AIAssistant() {
     const router = useRouter();
     const { user: privyUser } = usePrivy();
@@ -257,10 +360,15 @@ export default function AIAssistant() {
         setSavedChats(prev => {
             const updatedChats = prev.map(chat => {
                 if (chat.id === chatId) {
+                    const messagesToSave = messages.map(msg => ({
+                        role: msg.role,
+                        content: msg.content,
+                        ...(msg.sources && { sources: msg.sources })
+                    }));
                     return {
                         ...chat,
                         title: title || chat.title,
-                        messages,
+                        messages: messagesToSave,
                         updatedAt: new Date().toISOString()
                     };
                 }
@@ -346,6 +454,8 @@ export default function AIAssistant() {
         setSelectedOption(option);
         setIsGenerating(true);
         setStreamingContent('');
+        let fullContent = '';
+        let sources: ChatMessage['sources'] | undefined = undefined;
 
         try {
             let contextRationales: ChatRationale[] | undefined = undefined;
@@ -374,32 +484,28 @@ export default function AIAssistant() {
 
             console.log("[AIAssistant][startChat] Received response object from action. Type:", typeof response);
 
-            let content = '';
-            setStreamingContent('');
             console.log("[AIAssistant][startChat] Starting stream processing loop...");
             try {
                 for await (const chunk of response) {
                     if (chunk === null || chunk === undefined) continue;
                     const chunkString = String(chunk);
-                    console.log("[AIAssistant][startChat] Received chunk:", chunkString);
-                    content += chunkString;
-                    setStreamingContent(content);
+                    fullContent += chunkString;
+                    setStreamingContent(fullContent);
                 }
             } catch (streamError) {
                 console.error("[AIAssistant][startChat] Error processing stream chunk:", streamError);
                 toast.error("Error reading AI response stream.");
-                content += "\n\n[Error processing stream]";
+                fullContent += "\n\n[Error processing stream]";
             }
             console.log("[AIAssistant][startChat] Stream processing loop finished.");
-            console.log("[AIAssistant][startChat] Final accumulated content:", content);
 
-            content = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-            content = content.trim();
-            console.log("[AIAssistant][startChat] Final processed content:", content);
+            fullContent = fullContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            fullContent = fullContent.trim();
+            sources = extractSourcesFromMarkdown(fullContent);
 
-            if (content === '') {
+            if (fullContent === '') {
                 console.log("[AIAssistant][startChat] Empty content detected - likely a content moderation issue");
-                content = `## Sorry, I couldn't process that request
+                fullContent = `## Sorry, I couldn't process that request
 
 I wasn't able to generate a response based on the provided content. This might be due to:
 
@@ -413,7 +519,7 @@ Please try:
 - Rephrasing your request with clearer instructions`;
             }
 
-            const assistantMessage: ChatMessage = { role: 'assistant', content };
+            const assistantMessage: ChatMessage = { role: 'assistant', content: fullContent, sources };
             const finalMessages = [...initialMessages, assistantMessage];
 
             console.log("[AIAssistant][startChat] Updating final chat messages...");
@@ -466,7 +572,7 @@ Please try:
             }
         } finally {
             setIsGenerating(false);
-            if (streamingContent) setStreamingContent(''); // Clear on exit
+            if (streamingContent) setStreamingContent('');
         }
     }, [currentSpace, currentChatId, userRationales, storedMessages, settings, endorsedPoints, updateChat, savedChats, isAuthenticated, streamingContent]);
 
@@ -977,8 +1083,17 @@ Please try:
                 let chats: SavedChat[] = [];
                 if (savedChatsStr) {
                     try {
-                        chats = JSON.parse(savedChatsStr);
-                        if (!Array.isArray(chats)) chats = [];
+                        const parsedChats = JSON.parse(savedChatsStr);
+                        if (Array.isArray(parsedChats)) {
+                            chats = parsedChats.map(chat => ({
+                                ...chat,
+                                messages: chat.messages.map((msg: any) => ({
+                                    role: msg.role,
+                                    content: msg.content,
+                                    sources: msg.sources
+                                }))
+                            }));
+                        }
                         chats.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
                     } catch (e) { chats = []; }
                 }
@@ -1070,9 +1185,10 @@ Please try:
         setMessage('');
         setIsGenerating(true);
         setStreamingContent('');
+        let fullContent = '';
+        let sources: ChatMessage['sources'] | undefined = undefined;
 
         try {
-
             const contextEndorsements = (settings.includeEndorsements && settings.includePoints) ? endorsedPoints : [];
             const contextRationales = settings.includeRationales ? userRationales : [];
             const contextDiscourse = settings.includeDiscourseMessages ? storedMessages : [];
@@ -1089,32 +1205,28 @@ Please try:
 
             console.log("[AIAssistant] Received response object from action. Type:", typeof response);
 
-            let content = '';
-            setStreamingContent('');
             console.log("[AIAssistant] Starting stream processing loop...");
             try {
                 for await (const chunk of response) {
                     if (chunk === null || chunk === undefined) continue;
                     const chunkString = String(chunk);
-                    console.log("[AIAssistant] Received chunk:", chunkString);
-                    content += chunkString;
-                    setStreamingContent(content);
+                    fullContent += chunkString;
+                    setStreamingContent(fullContent);
                 }
             } catch (streamError) {
                 console.error("[AIAssistant] Error processing stream chunk:", streamError);
                 toast.error("Error reading AI response stream.");
-                content += "\n\n[Error processing stream]";
+                fullContent += "\n\n[Error processing stream]";
             }
             console.log("[AIAssistant] Stream processing loop finished.");
-            console.log("[AIAssistant] Final accumulated content:", content);
 
-            content = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-            content = content.trim();
-            console.log("[AIAssistant] Final processed content:", content);
+            fullContent = fullContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            fullContent = fullContent.trim();
+            sources = extractSourcesFromMarkdown(fullContent);
 
-            if (content === '') {
+            if (fullContent === '') {
                 console.log("[AIAssistant] Empty content detected - likely a content moderation issue");
-                content = `## Sorry, I couldn't process that request
+                fullContent = `## Sorry, I couldn't process that request
 
 I wasn't able to generate a response based on the provided content. This might be due to:
 
@@ -1128,10 +1240,10 @@ Please try:
 - Rephrasing your request with clearer instructions`;
             }
 
-            const assistantMessage: ChatMessage = { role: 'assistant', content };
+            const assistantMessage: ChatMessage = { role: 'assistant', content: fullContent, sources };
             const finalMessages = [...messagesForApi, assistantMessage];
             setChatMessages(finalMessages);
-            setStreamingContent(''); // Clear streaming content after final update
+            setStreamingContent('');
 
             if (activeChatId) {
                 const chatToUpdate = savedChats.find(c => c.id === activeChatId);
@@ -1438,43 +1550,56 @@ Please try:
                                         className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                     >
                                         <div
-                                            className={`${isMobile ? 'max-w-[90%]' : 'max-w-[80%]'} rounded-xl md:rounded-2xl p-3 md:p-4 shadow-sm relative group [&_.markdown]:text-sm [&_.markdown]:md:text-base ${msg.role === 'user'
+                                            className={`${isMobile ? 'max-w-[90%]' : 'max-w-[80%]'} rounded-xl md:rounded-2xl p-3 md:p-4 shadow-sm ${msg.role === 'user'
                                                 ? 'bg-primary text-primary-foreground'
                                                 : 'bg-card text-card-foreground'
                                                 }`}
                                         >
-                                            <MemoizedMarkdown
-                                                content={msg.content}
-                                                id={`msg-${i}`}
-                                                isUserMessage={msg.role === 'user'}
-                                                space={currentSpace}
-                                                discourseUrl={discourseUrl}
-                                                storedMessages={storedMessages}
-                                            />
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="absolute bottom-1 right-1 h-6 w-6 text-muted-foreground opacity-0 group-hover:opacity-70 focus-visible:opacity-100 hover:opacity-100 transition-opacity duration-150"
-                                                onClick={async (e) => {
-                                                    const button = e.currentTarget;
-                                                    try {
-                                                        await navigator.clipboard.writeText(msg.content);
-                                                        button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3 text-green-500"><polyline points="20 6 9 17 4 12"></polyline></svg>';
-                                                        setTimeout(() => {
-                                                            button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>';
-                                                        }, 1500);
-                                                    } catch (err) {
-                                                        console.error("Failed to copy:", err);
-                                                        toast.error("Failed to copy text");
-                                                    }
-                                                }}
-                                                title="Copy message"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
-                                                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-                                                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-                                                </svg>
-                                            </Button>
+                                            <div className="relative group">
+                                                <MemoizedMarkdown
+                                                    content={msg.content}
+                                                    id={`msg-${i}`}
+                                                    isUserMessage={msg.role === 'user'}
+                                                    space={currentSpace}
+                                                    discourseUrl={discourseUrl}
+                                                    storedMessages={storedMessages}
+                                                />
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="absolute bottom-1 right-1 h-6 w-6 text-muted-foreground opacity-0 group-hover:opacity-70 focus-visible:opacity-100 hover:opacity-100 transition-opacity duration-150"
+                                                    onClick={async (e) => {
+                                                        const button = e.currentTarget;
+                                                        try {
+                                                            await navigator.clipboard.writeText(msg.content);
+                                                            button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3 text-green-500"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+                                                            setTimeout(() => {
+                                                                button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>';
+                                                            }, 1500);
+                                                        } catch (err) {
+                                                            console.error("Failed to copy:", err);
+                                                            toast.error("Failed to copy text");
+                                                        }
+                                                    }}
+                                                    title="Copy message"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
+                                                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                                                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                                                    </svg>
+                                                </Button>
+                                            </div>
+
+                                            {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && (
+                                                <div className="mt-2 pt-1">
+                                                    <DetailedSourceList
+                                                        sources={msg.sources}
+                                                        space={currentSpace}
+                                                        discourseUrl={discourseUrl}
+                                                        storedMessages={storedMessages}
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 ))}

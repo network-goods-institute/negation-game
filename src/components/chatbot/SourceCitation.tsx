@@ -8,6 +8,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
 import { encodeId } from '@/lib/encodeId';
+import { useQuery } from '@tanstack/react-query';
+import { fetchPoint } from '@/actions/fetchPoint';
 
 interface SourceCitationProps {
     type: 'Rationale' | 'Endorsed Point' | 'Discourse Post';
@@ -24,6 +26,17 @@ export const SourceCitation: React.FC<SourceCitationProps> = ({ type, id, title,
     const isRationale = type === 'Rationale';
     const isPoint = type === 'Endorsed Point';
     const isDiscourse = type === 'Discourse Post';
+    const numericId = (isRationale || isDiscourse) ? null : Number(id);
+
+    const { data: pointData, isLoading: isLoadingPoint } = useQuery({
+        queryKey: ['pointSourceDetails', numericId],
+        queryFn: () => fetchPoint(numericId!),
+        enabled: isPoint && numericId !== null,
+        staleTime: 5 * 60 * 1000,
+        gcTime: 10 * 60 * 1000,
+    });
+
+    const fetchedTitle = pointData?.content;
 
     let href: string | undefined = undefined;
     let Icon = ExternalLink;
@@ -48,8 +61,13 @@ export const SourceCitation: React.FC<SourceCitationProps> = ({ type, id, title,
             href = space ? `/s/${space}/${id}` : `/p/${id}`;
         }
         Icon = FileText;
-        displayContent = title ? `"${title}"` : `Point ${id}`;
-        tooltipSimpleText = `${type}: ${displayContent}`;
+        const encodedPointIdForDisplay = href?.split('/').pop() || String(id);
+        displayContent = fetchedTitle ? `"${fetchedTitle}"`
+            : title ? `"${title}"`
+                : `Point ${encodedPointIdForDisplay}`;
+        tooltipSimpleText = fetchedTitle ? `${type}: "${fetchedTitle}"`
+            : title ? `${type}: "${title}"`
+                : `${type}: Point ${encodedPointIdForDisplay}`;
     } else if (isDiscourse) {
         if (discourseUrl) {
             const baseUrl = discourseUrl.endsWith('/') ? discourseUrl.slice(0, -1) : discourseUrl;

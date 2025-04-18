@@ -61,19 +61,22 @@ const CodeBlock = memo(({ className, children, ...props }: { className?: string;
 
 CodeBlock.displayName = 'CodeBlock';
 
-const pointRefRegex = /\[Point:(\d+)(?:\s+"([^"\n]+?)")?\]/;
-const rationaleRefRegex = /\[Rationale:([\w-]+)(?:\s+"([^"\n]+?)")?\]/;
+const pointRefRegex = /\[Point:(\d+)(?:\s+\"([^\"\n]+?)\")?\]/;
+const multiPointRefRegex = /\[Point:\d+(?:,\s*Point:\d+)*\]/;
+const rationaleRefRegex = /\[Rationale:([\w-]+)(?:\s+\"([^\"\n]+?)\")?\]/;
 const discoursePostRefRegex = /\[Discourse Post:(\d+)\]/;
+const multiDiscoursePostRefRegex = /\[Discourse Post:\d+(?:,\s*Discourse Post:\d+)*\]/;
 const sourceCiteRegex = /\(Source:\s*(Rationale|Endorsed Point|Discourse Post)\s*(?:"([^"\n]+?)"\s*)?ID:([\w\s,-]+)\)/;
 const inlineRationaleRefRegex = /Rationale\s+"([^"\n]+?)"\s+\(ID:([\w-]+)\)/;
 
-
 const combinedInlineRegex = new RegExp(
-    `(${pointRefRegex.source})|` + // Grp 1-3
-    `(${rationaleRefRegex.source})|` + // Grp 4-6
-    `(${discoursePostRefRegex.source})|` + // Grp 7-8
-    `(${sourceCiteRegex.source})|` + // Grp 9-12 (Type, Title?, ID_str)
-    `(${inlineRationaleRefRegex.source})`, // Grp 13-15
+    `(${multiDiscoursePostRefRegex.source})|` +
+    `(${multiPointRefRegex.source})|` +
+    `(${pointRefRegex.source})|` +
+    `(${rationaleRefRegex.source})|` +
+    `(${discoursePostRefRegex.source})|` +
+    `(${sourceCiteRegex.source})|` +
+    `(${inlineRationaleRefRegex.source})`,
     'g'
 );
 
@@ -95,29 +98,61 @@ const renderTextWithInlineTags = (
 
     combinedInlineRegex.lastIndex = 0;
 
+    const digitRegex = /\d+/g;
+
     while ((match = combinedInlineRegex.exec(text)) !== null) {
         if (match.index > lastIndex) {
             parts.push(<Fragment key={`text-${keyIndex++}`}>{text.substring(lastIndex, match.index)}</Fragment>);
         }
 
-        if (match[1]) { // PointRef
-            const pointId = parseInt(match[2], 10);
-            const snippet = match[3];
+        const fullMatchedString = match[0];
+
+        if (match[1]) { // Matched multiDiscoursePostRefRegex (Group 1)
+            let digitMatch;
+            let firstDigit = true;
+            digitRegex.lastIndex = 0; // Reset for this match
+            while ((digitMatch = digitRegex.exec(fullMatchedString)) !== null) {
+                const postId = parseInt(digitMatch[0], 10);
+                if (!isNaN(postId)) {
+                    const message = storedMessages.find(m => String(m.id) === String(postId));
+                    if (!firstDigit) {
+                        parts.push(<Fragment key={`comma-disc-${keyIndex++}`}>, </Fragment>);
+                    }
+                    parts.push(<SourceCitation key={`discourse-${postId}-${keyIndex++}`} type="Discourse Post" id={postId} title={undefined} rawContent={message?.raw} htmlContent={message?.content} space={space} discourseUrl={discourseUrl} />);
+                    firstDigit = false;
+                }
+            }
+        } else if (match[2]) { // Matched multiPointRefRegex (Group 2)
+            let digitMatch;
+            let firstDigit = true;
+            digitRegex.lastIndex = 0; // Reset for this match
+            while ((digitMatch = digitRegex.exec(fullMatchedString)) !== null) {
+                const pointId = parseInt(digitMatch[0], 10);
+                if (!isNaN(pointId)) {
+                    if (!firstDigit) {
+                        // Add separator before subsequent points
+                        parts.push(<Fragment key={`comma-${keyIndex++}`}>, </Fragment>);
+                    }
+                    parts.push(<PointReference key={`point-${pointId}-${keyIndex++}`} id={pointId} space={space} />);
+                    firstDigit = false;
+                }
+            }
+        } else if (match[3]) { // Matched pointRefRegex (Group 3)
+            const pointId = parseInt(match[4], 10); // ID is Group 4
+            const snippet = match[5]; // Snippet is Group 5
             parts.push(<PointReference key={`point-${pointId}-${keyIndex++}`} id={pointId} snippet={snippet} space={space} />);
-        } else if (match[4]) { // RationaleRef
-            const rationaleId = match[5];
-            const snippet = match[6];
+        } else if (match[6]) { // Matched rationaleRefRegex (Group 6)
+            const rationaleId = match[7]; // ID is Group 7
+            const snippet = match[8]; // Snippet is Group 8
             parts.push(<PointReference key={`rationale-${rationaleId}-${keyIndex++}`} id={rationaleId as any} snippet={snippet} space={space} />);
-        } else if (match[7]) { // DiscourseRef
-            const postId = match[8];
+        } else if (match[9]) { // Matched discoursePostRefRegex (Group 9)
+            const postId = match[10]; // ID is Group 10
             const message = storedMessages.find(m => String(m.id) === String(postId));
             parts.push(<SourceCitation key={`discourse-${postId}-${keyIndex++}`} type="Discourse Post" id={postId} title={undefined} rawContent={message?.raw} htmlContent={message?.content} space={space} discourseUrl={discourseUrl} />);
-
-            // --- Source Citation --- 
-        } else if (match[9]) {
-            const sourceType = match[10] as 'Rationale' | 'Endorsed Point' | 'Discourse Post';
-            const sourceTitle = match[11]; // Optional title immediately before ID:
-            const sourceIdString = match[12]; // ID string (potentially comma-separated)
+        } else if (match[11]) {
+            const sourceType = match[12] as 'Rationale' | 'Endorsed Point' | 'Discourse Post';
+            const sourceTitle = match[13];
+            const sourceIdString = match[14];
 
             if (sourceIdString && sourceType) {
                 const sourceIds = sourceIdString.split(',').map(id => id.trim()).filter(id => id);
@@ -147,11 +182,10 @@ const renderTextWithInlineTags = (
                 console.warn("Source citation regex matched but failed to extract parts:", match[0]);
                 parts.push(<Fragment key={`text-error-${keyIndex++}`}>{match[0]}</Fragment>);
             }
-        } else if (match[13]) { // Inline RationaleRef
-            const rationaleTitle = match[14];
-            const rationaleId = match[15];
+        } else if (match[15]) { // Matched inlineRationaleRefRegex (Group 15)
+            const rationaleTitle = match[16]; // Title is Group 16
+            const rationaleId = match[17]; // ID is Group 17
             parts.push(<PointReference key={`inline-rationale-${rationaleId}-${keyIndex++}`} id={rationaleId as any} snippet={rationaleTitle} space={space} />);
-
         }
 
         lastIndex = match.index + match[0].length;

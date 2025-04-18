@@ -1,10 +1,12 @@
 import React from 'react';
 import Link from 'next/link';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import * as TooltipPrimitive from "@radix-ui/react-tooltip"; // Import Radix primitive
-import { FileText, MessageSquareQuote } from 'lucide-react'; // Point and Rationale icons
+import * as TooltipPrimitive from "@radix-ui/react-tooltip"
+import { FileText, MessageSquareQuote } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import { encodeId } from '@/lib/encodeId'; // Correct import path
+import { encodeId } from '@/lib/encodeId';
+import { useQuery } from '@tanstack/react-query';
+import { fetchPoint } from '@/actions/fetchPoint';
 
 interface PointReferenceProps {
     id: number | string; // Can be number (Point) or string (Rationale)
@@ -20,6 +22,17 @@ export const PointReference: React.FC<PointReferenceProps> = ({ id, snippet, spa
     const isRationale = typeof id === 'string';
     const typeText = isRationale ? 'Rationale' : 'Point';
     const Icon = isRationale ? MessageSquareQuote : FileText;
+    const numericId = isRationale ? null : Number(id);
+
+    const { data: pointData, isLoading: isLoadingPoint } = useQuery({
+        queryKey: ['pointDetails', numericId],
+        queryFn: () => fetchPoint(numericId!),
+        enabled: !isRationale && numericId !== null, // Only fetch for valid numeric point IDs
+        staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+        gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    });
+
+    const fetchedTitle = pointData?.content;
 
     let displayId: string;
     let href: string | null = null;
@@ -52,7 +65,24 @@ export const PointReference: React.FC<PointReferenceProps> = ({ id, snippet, spa
         ? snippet.substring(0, MAX_TOOLTIP_SNIPPET_LENGTH) + '…'
         : snippet;
 
-    const tooltipContent = tooltipSnippet ? `${typeText} ${displayId}: "${tooltipSnippet}"` : `${typeText} ${displayId}`;
+    let tooltipContent: string;
+    if (isRationale) {
+        tooltipContent = tooltipSnippet ? `${typeText} ${displayId}: "${tooltipSnippet}"` : `${typeText} ${displayId}`;
+    } else {
+        const baseText = `${typeText} ${displayId}`;
+        if (isLoadingPoint) {
+            tooltipContent = `${baseText} (Loading...)`;
+        } else if (fetchedTitle) {
+            const truncatedFetchedTitle = fetchedTitle.length > MAX_TOOLTIP_SNIPPET_LENGTH
+                ? fetchedTitle.substring(0, MAX_TOOLTIP_SNIPPET_LENGTH) + '…'
+                : fetchedTitle;
+            tooltipContent = `${baseText}: "${truncatedFetchedTitle}"`;
+        } else if (tooltipSnippet) {
+            tooltipContent = `${baseText}: "${tooltipSnippet}"`;
+        } else {
+            tooltipContent = baseText;
+        }
+    }
 
     const triggerAppearance = (
         <span
@@ -79,10 +109,9 @@ export const PointReference: React.FC<PointReferenceProps> = ({ id, snippet, spa
                 // Rationale: Show title/snippet (truncated)
                 <span className="truncate">{displaySnippet || `Rationale ${displayId}`}</span>
             ) : (
-                // Point: Show ID and snippet (potentially placeholder)
+                // Point: Show ID (keep this simple, tooltip has title)
                 <span className="flex items-center gap-1 overflow-hidden">
                     <span className="flex-shrink-0">{typeText} {displayId}</span>
-                    {displaySnippet && <span className="text-muted-foreground/80 truncate">: &quot;{displaySnippet}&quot;</span>}
                 </span>
             )}
         </span>
