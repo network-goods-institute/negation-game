@@ -1,12 +1,14 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { PenSquare, GitBranchPlus } from 'lucide-react';
+import { PenSquare, GitBranchPlus, Loader2 } from 'lucide-react';
 import { encodeId } from '@/lib/encodeId';
 import { useSetAtom } from 'jotai';
 import { makePointSuggestionAtom } from '@/atoms/makePointSuggestionAtom';
+import { makeNegationSuggestionAtom } from '@/atoms/makeNegationSuggestionAtom';
 import { negatedPointIdAtom } from '@/atoms/negatedPointIdAtom';
 import { negationContentAtom } from '@/atoms/negationContentAtom';
 import { DEFAULT_SPACE } from '@/constants/config';
+import { usePointData } from '@/queries/usePointData';
 
 interface SuggestionBlockProps {
     type: 'point' | 'negation';
@@ -15,11 +17,30 @@ interface SuggestionBlockProps {
     space?: string | null;
 }
 
+const TargetPointDisplay: React.FC<{ pointId: number }> = ({ pointId }) => {
+    const { data: targetPoint, isLoading, error } = usePointData(pointId);
+
+    if (isLoading) {
+        return <div className="flex items-center text-xs text-muted-foreground"><Loader2 className="h-3 w-3 mr-1.5 animate-spin" /> Loading target point...</div>;
+    }
+
+    if (error || !targetPoint) {
+        return <div className="text-xs text-destructive">Error loading target point {encodeId(pointId)}.</div>;
+    }
+
+    return (
+        <blockquote className="mb-3 border-l-4 bg-muted/30 p-3 rounded-r-md">
+            <p className="text-sm text-muted-foreground">
+                {targetPoint.content}
+            </p>
+        </blockquote>
+    );
+};
+
 export const SuggestionBlock: React.FC<SuggestionBlockProps> = ({ type, targetId, text, space }) => {
     const Icon = type === 'point' ? GitBranchPlus : PenSquare;
     const setMakePointSuggestion = useSetAtom(makePointSuggestionAtom);
-    const setNegatedPointId = useSetAtom(negatedPointIdAtom);
-    const setNegationContent = useSetAtom(negationContentAtom(targetId));
+    const setMakeNegationSuggestion = useSetAtom(makeNegationSuggestionAtom);
 
     let displayTargetId: string | number | undefined;
     if (type === 'negation' && targetId !== undefined) {
@@ -33,33 +54,46 @@ export const SuggestionBlock: React.FC<SuggestionBlockProps> = ({ type, targetId
         displayTargetId = targetId;
     }
 
-    const buttonText = type === 'point' ? 'Make Point'
-        : type === 'negation' && displayTargetId !== undefined ? `Negate Point ${displayTargetId}`
-            : 'Suggestion';
+    const isNegationSuggestion = type === 'negation' && targetId !== undefined;
 
     const handleClick = () => {
         if (type === 'point') {
             console.log('[SuggestionBlock] Make Point clicked. Setting atom with:', { text, spaceId: space ?? DEFAULT_SPACE });
             setMakePointSuggestion({ text, context: 'chat', spaceId: space ?? DEFAULT_SPACE });
-        } else if (type === 'negation' && targetId !== undefined) {
-            console.log('Negation Suggestion clicked:', { type, targetId, text, spaceId: space ?? DEFAULT_SPACE });
+        } else if (isNegationSuggestion) {
+            console.log('[SuggestionBlock] Negation Suggestion clicked. Setting atom with:', { targetId, text, spaceId: space ?? DEFAULT_SPACE });
+            setMakeNegationSuggestion({ targetId, text, context: 'chat', spaceId: space ?? DEFAULT_SPACE });
         } else {
             console.log('Suggestion clicked (unknown type):', { type, targetId, text });
         }
     };
 
+    let buttonText = 'Suggestion';
+    if (type === 'point') {
+        buttonText = 'Make Point';
+    } else if (isNegationSuggestion) {
+        buttonText = 'Suggest Negation';
+    }
+
     return (
         <div className="my-4 p-4 border rounded-lg bg-card/50 overflow-hidden">
-            <p className="mb-3 text-sm whitespace-pre-wrap break-words">{text}</p>
-            <Button
-                size="sm"
-                variant="outline"
-                onClick={handleClick}
-                className="text-xs"
-            >
-                <Icon className="h-3.5 w-3.5 mr-1.5" />
-                {buttonText}
-            </Button>
+            {isNegationSuggestion && (
+                <TargetPointDisplay pointId={targetId} />
+            )}
+            <p className="mb-3 text-sm whitespace-pre-wrap break-words">
+                {text}
+            </p>
+            <div>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleClick}
+                    className="text-xs"
+                >
+                    <Icon className="h-3.5 w-3.5 mr-1.5" />
+                    {buttonText}
+                </Button>
+            </div>
         </div>
     );
 }; 
