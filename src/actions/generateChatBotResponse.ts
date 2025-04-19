@@ -151,8 +151,8 @@ export const generateChatBotResponse = async (
     }
 
     const filteredRationales = filterProblematicContent(allRationales);
-    const MAX_RELEVANT_POINTS = 5;
-    const MAX_RELEVANT_RATIONALES = 3;
+    const MAX_RELEVANT_POINTS = 10;
+    const MAX_RELEVANT_RATIONALES = 10;
 
     const relevantPoints = searchResults
       .filter((r) => r.type === "point")

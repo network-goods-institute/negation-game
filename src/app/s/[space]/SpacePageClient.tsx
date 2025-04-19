@@ -628,6 +628,7 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
     const { data: viewpoints, isLoading: viewpointsLoading } = useViewpoints(space.data?.id || "global");
 
     const [selectedTab, setSelectedTab] = useState<Tab | null>(null);
+    const [isAiAssistantLoading, setIsAiAssistantLoading] = useState(false);
 
 
     useEffect(() => {
@@ -648,8 +649,10 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
 
     useEffect(() => {
         setLoadingCardId(null);
+        setIsAiAssistantLoading(false);
         return () => {
             setLoadingCardId(null);
+            setIsAiAssistantLoading(false);
         };
     }, [pathname]);
 
@@ -787,6 +790,11 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
 
     const prefetchPoint = usePrefetchPoint();
 
+    const handleAiAssistantClick = () => {
+        setIsAiAssistantLoading(true);
+        router.push(`${basePath}/chat`);
+    };
+
     if (selectedTab === null) {
         return (
             <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow bg-background">
@@ -817,13 +825,22 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
                             <h1 className="text-lg sm:text-xl font-semibold">s/{space.data.id}</h1>
                         </div>
                         <Button
-                            asChild
+                            asChild={false}
+                            onClick={handleAiAssistantClick}
+                            disabled={isAiAssistantLoading}
                             className="h-12 w-auto px-6"
                         >
-                            <Link href={`${basePath}/chat`}>
-                                <BrainCircuitIcon className="size-6" />
-                                <span className="ml-sm">AI Assistant</span>
-                            </Link>
+                            {isAiAssistantLoading ? (
+                                <>
+                                    <Loader className="size-6 mr-sm" />
+                                    <span>Loading...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <BrainCircuitIcon className="size-6" />
+                                    <span className="ml-sm">AI Assistant</span>
+                                </>
+                            )}
                         </Button>
                     </div>
                 )}
@@ -877,14 +894,23 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
                         </button>
                         {space?.data?.id === DEFAULT_SPACE && (
                             <Button
-                                asChild
+                                asChild={false}
+                                onClick={handleAiAssistantClick}
+                                disabled={isAiAssistantLoading}
                                 className="ml-auto py-1.5 sm:py-2 px-2 sm:px-4 text-xs sm:text-sm flex items-center gap-1"
                                 variant="ghost"
                             >
-                                <Link href={`${basePath}/chat`}>
-                                    <BrainCircuitIcon className="size-3.5 sm:size-4" />
-                                    <span className="hidden sm:inline">AI Assistant</span>
-                                </Link>
+                                {isAiAssistantLoading ? (
+                                    <>
+                                        <Loader className="size-3.5 sm:size-4 mr-1" />
+                                        <span className="hidden sm:inline">Loading...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <BrainCircuitIcon className="size-3.5 sm:size-4" />
+                                        <span className="hidden sm:inline">AI Assistant</span>
+                                    </>
+                                )}
                             </Button>
                         )}
                     </div>

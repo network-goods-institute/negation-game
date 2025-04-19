@@ -38,6 +38,9 @@ import { DiscourseMessagesDialog } from "@/components/chatbot/DiscourseMessagesD
 import { DiscourseConsentDialog } from "@/components/chatbot/DiscourseConsentDialog";
 import { ChatSettingsDialog } from "@/components/chatbot/ChatSettingsDialog";
 import { DetailedSourceList } from './DetailedSourceList';
+import { useSetAtom } from 'jotai';
+import { initialSpaceTabAtom } from '@/atoms/navigationAtom';
+import { handleBackNavigation } from '@/utils/backButtonUtils';
 
 export interface DiscourseMessage {
     id: number;
@@ -273,11 +276,12 @@ const extractSourcesFromMarkdown = (content: string): ChatMessage['sources'] => 
 
 export default function AIAssistant() {
     const router = useRouter();
-    const { user: privyUser } = usePrivy();
+    const { user: privyUser, authenticated } = usePrivy(); // Remove non-existent loading
     const { data: userData } = useUser(privyUser?.id);
     const queryClient = useQueryClient();
     const isMobile = useIsMobile();
     const isAuthenticated = !!privyUser;
+    const setInitialTab = useSetAtom(initialSpaceTabAtom);
 
     // loading states
     const [isInitializing, setIsInitializing] = useState(true);
@@ -319,7 +323,6 @@ export default function AIAssistant() {
     // Chat-related state
     const [currentChatId, setCurrentChatId] = useState<string | null>(null);
     const [savedChats, setSavedChats] = useState<SavedChat[]>([]);
-    const [showSidebar, _] = useState(true);
     const [message, setMessage] = useState('');
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -1148,9 +1151,11 @@ Please try:
             }
         };
 
-        initializeAssistant();
-    }, [isAuthenticated]);
+        if (authenticated !== null && authenticated !== undefined) {
+            initializeAssistant();
+        }
 
+    }, [authenticated, isAuthenticated]);
     useEffect(() => {
         if (chatMessages.length > 0 || streamingContent) {
             setTimeout(() => {
@@ -1481,7 +1486,7 @@ Please try:
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => router.push('/')}
+                                onClick={() => handleBackNavigation(router, setInitialTab)}
                                 className="text-primary hover:bg-primary/10 rounded-full h-9 w-9"
                                 title="Back to Dashboard"
                             >
@@ -1767,7 +1772,7 @@ Please try:
             <AlertDialog open={!!chatToDelete} onOpenChange={(open) => !open && setChatToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Chat</AlertDialogTitle>
+                        <AlertDialogTitle className="break-words">Delete Chat</AlertDialogTitle>
                         <AlertDialogDescription>
                             Are you sure you want to delete this chat ({savedChats.find(c => c.id === chatToDelete)?.title || ''})? This action cannot be undone.
                         </AlertDialogDescription>
@@ -1826,7 +1831,7 @@ Please try:
             <AlertDialog open={showDeleteAllConfirmation} onOpenChange={setShowDeleteAllConfirmation}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete All Chats?</AlertDialogTitle>
+                        <AlertDialogTitle className="break-words">Delete All Chats?</AlertDialogTitle>
                         <AlertDialogDescription>
                             Are you sure you want to delete all {savedChats.length} chats in the '{currentSpace}' space? This action cannot be undone.
                         </AlertDialogDescription>
