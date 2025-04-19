@@ -125,8 +125,8 @@ export const searchContent = async (
 
   const pointResults = await addFavor(pointResultsBeforeFavor);
 
-  const viewpointResults = await db.execute(sql`
-    SELECT 
+  const viewpointResultsKeyword = await db.execute(sql`
+    SELECT
       v.id as "id", v.title as "title", v.content as "description",
       v.created_by as "createdBy", v.created_at as "createdAt", v.space as "space",
       v.graph as "graph", u.username as "username",
@@ -139,6 +139,43 @@ export const searchContent = async (
     ORDER BY v.created_at DESC
     LIMIT 50
   `);
+
+  let viewpointResultsPointInclusion: any[] = [];
+  const foundPointIds = pointResults.map((p) => p.pointId);
+
+  if (foundPointIds.length > 0) {
+    viewpointResultsPointInclusion = await db.execute(sql`
+      SELECT
+        v.id as "id", v.title as "title", v.content as "description",
+        v.created_by as "createdBy", v.created_at as "createdAt", v.space as "space",
+        v.graph as "graph", u.username as "username",
+        vi.views as "views", vi.copies as "copies"
+      FROM viewpoints v
+      INNER JOIN users u ON u.id = v.created_by
+      LEFT JOIN viewpoint_interactions vi ON vi.viewpoint_id = v.id
+      WHERE v.space = ${space}
+      AND EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements(v.graph->'nodes') AS node
+        WHERE node->>'type' = 'point'
+        AND (node->'data'->>'pointId')::int IN ${sql`${foundPointIds}`}
+      )
+      ORDER BY v.created_at DESC
+      LIMIT 50 -- Apply limit here too, although merging might reduce final count
+    `);
+  }
+
+  // Merge and de-duplicate viewpoint results
+  const combinedViewpointResultsMap = new Map<string, any>();
+  viewpointResultsKeyword.forEach((vp: any) =>
+    combinedViewpointResultsMap.set(vp.id, vp)
+  );
+  viewpointResultsPointInclusion.forEach((vp: any) =>
+    combinedViewpointResultsMap.set(vp.id, vp)
+  );
+  const combinedViewpointResults = Array.from(
+    combinedViewpointResultsMap.values()
+  );
 
   const uniqueResultsMap = new Map<string, SearchResult>();
 
@@ -158,7 +195,7 @@ export const searchContent = async (
   });
 
   await Promise.all(
-    viewpointResults.map(async (viewpoint: any) => {
+    combinedViewpointResults.map(async (viewpoint: any) => {
       const key = `rationale-${viewpoint.id}`;
       if (uniqueResultsMap.has(key)) return;
 

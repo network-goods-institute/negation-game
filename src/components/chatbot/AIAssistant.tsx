@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, ArrowLeft, Trash2, MessageSquare, CircleIcon, CircleDotIcon, Plus, Menu, X, SlidersHorizontal } from "lucide-react";
+import { Loader2, ArrowLeft, Trash2, MessageSquare, CircleIcon, CircleDotIcon, Plus, Menu, X, SlidersHorizontal, Pencil } from "lucide-react";
 import { useUser } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { updateUserProfile } from "@/actions/updateUserProfile";
@@ -332,6 +332,7 @@ export default function AIAssistant() {
     const [selectedOption, setSelectedOption] = useState<InitialOption>(null);
     const [showMobileMenu, setShowMobileMenu] = useState(false);
     const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+    const [showDeleteAllConfirmation, setShowDeleteAllConfirmation] = useState(false);
     const [settings, setSettings] = useState<ChatSettings>(() => {
         // Try to load settings from localStorage
         if (typeof window !== 'undefined') {
@@ -540,7 +541,7 @@ Please try:
                             if (chunk === null || chunk === undefined) continue;
                             title += String(chunk);
                         }
-                        title = title.trim().slice(0, 50);
+                        title = title.trim();
                         if (title) {
                             updateChat(chatIdToUse, finalMessages, title);
                         } else {
@@ -612,7 +613,7 @@ Please try:
 
         setSavedChats(prev => {
             const updated = prev.map(chat =>
-                chat.id === chatId ? { ...chat, title: newTitle.trim().slice(0, 50) } : chat // Limit title length on rename
+                chat.id === chatId ? { ...chat, title: newTitle.trim() } : chat
             );
             localStorage.setItem(`saved_chats_${currentSpace}`, JSON.stringify(updated));
             return updated;
@@ -620,6 +621,19 @@ Please try:
 
         setChatToRename(null);
         setNewChatTitle('');
+    }, [currentSpace, isAuthenticated]);
+
+    const deleteAllChats = useCallback(() => {
+        if (!currentSpace || !isAuthenticated) return;
+        setShowMobileMenu(false);
+
+        localStorage.removeItem(`saved_chats_${currentSpace}`);
+        setSavedChats([]);
+        setCurrentChatId(null);
+        setChatMessages([]);
+        setSelectedOption(null);
+        setShowDeleteAllConfirmation(false);
+        toast.success('All chats in this space deleted successfully.');
     }, [currentSpace, isAuthenticated]);
 
     useEffect(() => {
@@ -1259,7 +1273,7 @@ Please try:
                             if (chunk === null || chunk === undefined) continue;
                             title += String(chunk);
                         }
-                        title = title.trim().slice(0, 50);
+                        title = title.trim();
                         if (title) {
                             updateChat(activeChatId, finalMessages, title);
                         } else {
@@ -1314,6 +1328,25 @@ Please try:
                             <span className="text-base md:text-lg">Chats</span>
                         </h2>
                         <div className="flex items-center gap-1">
+                            <TooltipProvider delayDuration={200}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <AuthenticatedActionButton
+                                            variant="ghost"
+                                            size="icon"
+                                            className="rounded-full h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                            onClick={() => setShowDeleteAllConfirmation(true)}
+                                            disabled={savedChats.length === 0 || !isAuthenticated || isInitializing}
+                                            title="Delete All Chats"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </AuthenticatedActionButton>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom" sideOffset={5}>
+                                        Delete All Chats ({savedChats.length})
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                             <AuthenticatedActionButton
                                 variant="ghost"
                                 size="icon"
@@ -1357,8 +1390,11 @@ Please try:
                                                     <TooltipProvider delayDuration={300}>
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
-                                                                <span className={`block text-xs md:text-sm truncate ${chat.id === currentChatId ? 'font-semibold text-accent-foreground' : 'text-foreground'}`}>
-                                                                    {chat.title}
+                                                                <span className={`block text-xs md:text-sm ${chat.id === currentChatId ? 'font-semibold text-accent-foreground' : 'text-foreground'} overflow-hidden text-ellipsis whitespace-nowrap`}>
+                                                                    {((): string => {
+                                                                        const maxLength = isMobile ? 20 : 15;
+                                                                        return chat.title.length > maxLength ? `${chat.title.slice(0, maxLength)}...` : chat.title;
+                                                                    })()}
                                                                 </span>
                                                             </TooltipTrigger>
                                                             <TooltipContent side="right" className="max-w-[250px] break-words" sideOffset={5}>
@@ -1370,18 +1406,36 @@ Please try:
                                                         {new Date(chat.updatedAt).toLocaleDateString()} · {chat.messages.filter(m => m.role === 'user' || m.role === 'assistant').length} msg
                                                     </span>
                                                 </div>
-                                                <AuthenticatedActionButton
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className={`h-6 w-6 shrink-0 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity text-muted-foreground hover:text-destructive`}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setChatToDelete(chat.id);
-                                                    }}
-                                                    title="Delete chat"
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </AuthenticatedActionButton>
+                                                {/* Action Buttons Container */}
+                                                <div className={`flex items-center shrink-0 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
+                                                    {/* Rename Button */}
+                                                    <AuthenticatedActionButton
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className={`h-6 w-6 text-muted-foreground hover:text-primary`}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setChatToRename(chat.id);
+                                                            setNewChatTitle(chat.title);
+                                                        }}
+                                                        title="Rename chat"
+                                                    >
+                                                        <Pencil className="h-3.5 w-3.5" />
+                                                    </AuthenticatedActionButton>
+                                                    {/* Delete Button */}
+                                                    <AuthenticatedActionButton
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className={`h-6 w-6 text-muted-foreground hover:text-destructive`}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setChatToDelete(chat.id);
+                                                        }}
+                                                        title="Delete chat"
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </AuthenticatedActionButton>
+                                                </div>
                                             </div>
                                         </ContextMenu.Trigger>
                                         <ContextMenu.Content className="min-w-[160px] bg-popover text-popover-foreground rounded-md border shadow-md p-1 z-50">
@@ -1754,7 +1808,6 @@ Please try:
                                     onChange={(e) => setNewChatTitle(e.target.value)}
                                     placeholder="Enter new chat name"
                                     autoComplete="off"
-                                    maxLength={50}
                                 />
                             </div>
                         </div>
@@ -1769,6 +1822,26 @@ Please try:
                     </form>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={showDeleteAllConfirmation} onOpenChange={setShowDeleteAllConfirmation}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete All Chats?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete all {savedChats.length} chats in the '{currentSpace}' space? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AuthenticatedActionButton
+                            onClick={deleteAllChats}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Delete All
+                        </AuthenticatedActionButton>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
         </div>
     );
