@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { fetchPoint } from '@/actions/fetchPoint';
 import { fetchViewpoint } from '@/actions/fetchViewpoint';
-import { DiscourseMessage } from '@/components/chatbot/AIAssistant';
+import { DiscourseMessage } from '@/types/chat';
 import { encodeId } from '@/lib/encodeId';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';

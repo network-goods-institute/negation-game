@@ -7,10 +7,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, CircleIcon, CircleDotIcon } from "lucide-react";
+import { CircleIcon, CircleDotIcon } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
-import type { DiscourseMessage, DiscourseConnectionStatus } from "./AIAssistant";
+import { DiscourseConnectionStatus, DiscourseMessage } from '@/types/chat';
 
 interface DiscourseConnectDialogProps {
     isOpen: boolean;
@@ -176,14 +176,7 @@ export function DiscourseConnectDialog({
                             disabled={isConnectingToDiscourse || !discourseUsername.trim()}
                             rightLoading={isConnectingToDiscourse}
                         >
-                            {isConnectingToDiscourse ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Connecting...
-                                </>
-                            ) : (
-                                'Connect'
-                            )}
+                            Connect
                         </AuthenticatedActionButton>
                     )}
                 </div>

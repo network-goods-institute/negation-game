@@ -6,7 +6,7 @@ import {
     AccordionItem,
     AccordionTrigger,
 } from "@/components/ui/accordion";
-import { DiscourseMessage } from '@/components/chatbot/AIAssistant'; // Import DiscourseMessage type if not already globally available
+import { DiscourseMessage } from '@/types/chat';
 
 interface MessageSource {
     type: string; // e.g., 'Rationale', 'Endorsed Point', 'Discourse Post'
