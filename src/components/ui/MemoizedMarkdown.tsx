@@ -66,7 +66,7 @@ const multiPointRefRegex = /\[Point:\d+(?:,\s*Point:\d+)*\]/;
 const rationaleRefRegex = /\[Rationale:([\w-]+)(?:\s+\"([^\"\n]+?)\")?\]/;
 const discoursePostRefRegex = /\[Discourse Post:(\d+)\]/;
 const multiDiscoursePostRefRegex = /\[Discourse Post:\d+(?:,\s*Discourse Post:\d+)*\]/;
-const sourceCiteRegex = /\(Source:\s*(Rationale|Endorsed Point|Discourse Post)\s*(?:"([^"\n]+?)"\s*)?ID:([\w\s,:;-]+)\)/;
+const sourceCiteRegex = /\(Source:\s*(Rationale|Endorsed Points?|Discourse Post)\s*(?:"([^"\n]+?)"\s*)?ID:([\w\s,:;-]+)\)/;
 const inlineRationaleRefRegex = /Rationale\s+"([^"\n]+?)"\s+\(ID:([\w-]+)\)/;
 
 const combinedInlineRegex = new RegExp(
@@ -150,11 +150,14 @@ const renderTextWithInlineTags = (
             const message = storedMessages.find(m => String(m.id) === String(postId));
             parts.push(<SourceCitation key={`discourse-${postId}-${keyIndex++}`} type="Discourse Post" id={postId} title={undefined} rawContent={message?.raw} htmlContent={message?.content} space={space} discourseUrl={discourseUrl} />);
         } else if (match[11]) {
-            const sourceType = match[12] as 'Rationale' | 'Endorsed Point' | 'Discourse Post';
+            const sourceTypeRaw = match[12]; // Raw captured type (e.g., "Endorsed Point", "Endorsed Points")
             const sourceTitle = match[13];
             const sourceIdString = match[14];
             console.log("[Markdown Debug] Matched Source Citation Block:", match[0]);
             console.log("[Markdown Debug] Extracted sourceIdString:", sourceIdString);
+
+            const sourceType: 'Rationale' | 'Endorsed Point' | 'Discourse Post' =
+                sourceTypeRaw === 'Endorsed Points' ? 'Endorsed Point' : sourceTypeRaw as any;
 
             if (sourceIdString && sourceType) {
                 const sourceIds = sourceIdString.split(',').map(id => id.trim()).filter(id => id);
@@ -273,9 +276,36 @@ export const MemoizedMarkdown = memo(
                         rawText = paragraphNode.value || '';
                     }
                 } else {
-                    rawText = React.Children.toArray(children).map(child => typeof child === 'string' ? child : '').join('');
+                    // Attempt to reconstruct text if it's fragmented (e.g., contains inline formatting)
+                    rawText = React.Children.toArray(children).map(child => {
+                        if (typeof child === 'string') return child;
+                        // Recursively get text from child elements if needed
+                        const getRawText = (nodes: any): string => {
+                            if (typeof nodes === 'string') return nodes;
+                            if (Array.isArray(nodes)) return nodes.map(getRawText).join('');
+                            if (nodes?.props?.children) return getRawText(nodes.props.children);
+                            return '';
+                        };
+                        return getRawText(child);
+                    }).join('');
                 }
                 const trimmedText = rawText.trim();
+
+                // Check for Block Suggest Point within the list item
+                const pointMatch = trimmedText.match(blockSuggestPointRegex);
+                if (pointMatch) {
+                    const suggestionText = pointMatch[1].trim();
+                    if (suggestionText) {
+                        return (
+                            <SuggestionBlock
+                                key={`suggest-point-block-li-${id}-${Math.random()}`}
+                                type="point"
+                                text={suggestionText}
+                                space={space}
+                            />
+                        );
+                    }
+                }
 
                 // Check for Block Suggest Negation within the list item
                 const negationMatch = trimmedText.match(blockSuggestNegationRegex);
@@ -295,6 +325,7 @@ export const MemoizedMarkdown = memo(
                     }
                 }
 
+                // Default rendering if no suggestion block is detected
                 return <li {...props}>{children}</li>;
             },
             // Keep existing code renderer

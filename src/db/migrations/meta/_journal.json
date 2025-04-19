@@ -302,6 +302,13 @@
       "when": 1745038144462,
       "tag": "0042_organic_mister_fear",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1745057354587,
+      "tag": "0043_harsh_frightful_four",
+      "breakpoints": true
     }
   ]
 }

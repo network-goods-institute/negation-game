@@ -21,6 +21,7 @@ export interface SavedChat {
   createdAt: string;
   updatedAt: string;
   space: string;
+  state_hash: string;
 }
 
 export interface ChatRationale {

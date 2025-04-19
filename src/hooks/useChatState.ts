@@ -25,7 +25,7 @@ interface UseChatStateProps {
   storedMessages: DiscourseMessage[];
   savedChats: SavedChat[];
   updateChat: (chatId: string, messages: ChatMessage[], title?: string) => void;
-  createNewChat: () => string | null;
+  createNewChat: () => Promise<string | null>;
 }
 
 export function useChatState({
@@ -76,7 +76,14 @@ export function useChatState({
       const chatToUpdate = savedChats.find((c) => c.id === chatId);
       const needsTitle = !chatToUpdate || chatToUpdate.title === "New Chat";
 
+      console.log(
+        `[generateAndSetTitle] Called for chat ${chatId}. Needs title: ${needsTitle}`
+      );
+
       if (!needsTitle) {
+        console.log(
+          `[generateAndSetTitle] Chat ${chatId} already has title '${chatToUpdate?.title}'. Calling updateChat without title change.`
+        );
         updateChat(chatId, finalMessages);
         return;
       }
@@ -86,13 +93,44 @@ export function useChatState({
         if (!titleStream) throw new Error("Failed to get title stream");
 
         let title = "";
-        for await (const chunk of titleStream) {
-          if (chunk === null || chunk === undefined) continue;
-          title += String(chunk);
+        const reader = titleStream.getReader();
+        try {
+          console.log(
+            `[generateAndSetTitle] Reading title stream for chat ${chatId}...`
+          );
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+              console.log("[generateAndSetTitle] Title stream finished.");
+              break;
+            }
+            if (typeof value === "string") {
+              title += value;
+            } else if (value !== null && value !== undefined) {
+              console.warn(
+                "[generateAndSetTitle] Received unexpected chunk type:",
+                value
+              );
+            }
+          }
+        } catch (titleStreamError) {
+          console.error(
+            "[generateAndSetTitle] Error reading title stream:",
+            titleStreamError instanceof Error
+              ? titleStreamError.message
+              : String(titleStreamError),
+            titleStreamError
+          );
+        } finally {
+          reader.releaseLock();
+          console.log("[generateAndSetTitle] Title reader lock released.");
         }
         title = title.trim();
 
         if (title) {
+          console.log(
+            `[generateAndSetTitle] Generated title for ${chatId}: '${title}'. Calling updateChat.`
+          );
           updateChat(chatId, finalMessages, title);
         } else {
           const assistantMsgContent =
@@ -101,15 +139,24 @@ export function useChatState({
           const fallbackTitle =
             assistantMsgContent.split("\n")[0].slice(0, 47) +
             (assistantMsgContent.length > 47 ? "..." : "");
+          console.log(
+            `[generateAndSetTitle] Title generation failed or empty for ${chatId}. Using fallback: '${fallbackTitle}'. Calling updateChat.`
+          );
           updateChat(chatId, finalMessages, fallbackTitle || "Chat");
         }
       } catch (titleError) {
-        console.error("Error generating chat name:", titleError);
+        console.error(
+          `[generateAndSetTitle] Error during title generation for ${chatId}:`,
+          titleError
+        );
         const assistantMsgContent =
           finalMessages.find((m) => m.role === "assistant")?.content || "Chat";
         const fallbackTitle =
           assistantMsgContent.split("\n")[0].slice(0, 47) +
           (assistantMsgContent.length > 47 ? "..." : "");
+        console.log(
+          `[generateAndSetTitle] Error caught for ${chatId}. Using fallback: '${fallbackTitle}'. Calling updateChat.`
+        );
         updateChat(chatId, finalMessages, fallbackTitle || "Chat");
       }
     },
@@ -156,35 +203,75 @@ export function useChatState({
           "[handleGenericResponse] Starting stream processing loop..."
         );
 
+        let firstChunkReceived = false;
         try {
-          let firstChunkReceived = false;
+          console.log(
+            `[handleGenericResponse Stream ${chatIdToUse}] Entering for-await loop.`
+          );
           for await (const chunk of response) {
+            console.log(
+              `[handleGenericResponse Stream ${chatIdToUse}] Received chunk. Type: ${typeof chunk}`,
+              chunk
+            );
             if (!firstChunkReceived) {
               setIsFetchingContext(false);
               firstChunkReceived = true;
               console.log(
-                "[handleGenericResponse] First chunk received, isFetchingContext=false"
+                `[handleGenericResponse Stream ${chatIdToUse}] First chunk received, isFetchingContext=false`
               );
             }
-            if (chunk === null || chunk === undefined) continue;
-            const chunkString = String(chunk);
-            fullContent += chunkString;
-            setStreamingContent(fullContent);
+            if (typeof chunk === "string" && chunk.length > 0) {
+              console.log(
+                `[handleGenericResponse Stream ${chatIdToUse}] Processing valid string chunk (length ${chunk.length}).`
+              );
+              fullContent += chunk;
+              setStreamingContent(fullContent);
+              console.log(
+                `[handleGenericResponse Stream ${chatIdToUse}] Updated streamingContent.`
+              );
+            } else if (chunk !== null && chunk !== undefined) {
+              console.warn(
+                `[handleGenericResponse Stream ${chatIdToUse}] Received unexpected chunk type or empty chunk:`,
+                chunk
+              );
+            }
+            console.log(
+              `[handleGenericResponse Stream ${chatIdToUse}] End of loop iteration.`
+            );
           }
+          console.log(
+            `[handleGenericResponse Stream ${chatIdToUse}] Successfully finished for-await loop.`
+          );
         } catch (streamError) {
           console.error(
-            "[handleGenericResponse] Error processing stream chunk:",
-            streamError
+            `[handleGenericResponse Stream ${chatIdToUse}] Error processing stream chunk with for-await:`, // Updated log source
+            streamError instanceof Error
+              ? streamError.message
+              : String(streamError),
+            streamError,
+            {
+              currentFullContent: fullContent,
+              firstChunkReceived: firstChunkReceived,
+            }
           );
           toast.error("Error reading AI response stream.");
           fullContent += "\n\n[Error processing stream]";
         }
+
         console.log("[handleGenericResponse] Stream processing loop finished.");
 
         if (isFetchingContext) setIsFetchingContext(false);
 
+        console.log(
+          `[handleGenericResponse ${chatIdToUse}] Final fullContent before processing:`,
+          JSON.stringify(fullContent)
+        );
         fullContent = fullContent.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
         fullContent = fullContent.trim();
+        console.log(
+          `[handleGenericResponse ${chatIdToUse}] Final fullContent after trim/replace:`,
+          JSON.stringify(fullContent)
+        );
         sources = extractSourcesFromMarkdown(fullContent);
 
         // Handle potential content moderation or empty response
@@ -237,7 +324,11 @@ Please try:
         setChatMessages(errorMessages);
         updateChat(chatIdToUse, errorMessages);
       } finally {
+        console.log("[handleGenericResponse] Setting isGenerating to false...");
         setIsGenerating(false);
+        console.log(
+          "[handleGenericResponse] isGenerating state should now be false."
+        );
         setIsFetchingContext(false);
         if (streamingContent) setStreamingContent("");
         console.log(
@@ -264,7 +355,7 @@ Please try:
       let isNewChat = false;
 
       if (!chatIdToUse) {
-        const newId = createNewChat();
+        const newId = await createNewChat();
         if (!newId) {
           toast.error("Failed to create new chat.");
           return;
@@ -335,33 +426,33 @@ Please try:
         return;
       }
 
-      const userMessageContent = message;
-      setMessage("");
-
-      let activeChatId = currentChatId;
-      let isNewChatCreation = false;
-
-      if (!activeChatId) {
-        const newId = createNewChat();
-        if (!newId) {
-          toast.error("Failed to create new chat.");
-          return;
-        }
-        activeChatId = newId;
-        isNewChatCreation = true;
-      }
-
+      const userMessageContent = message.trim();
       const newMessage: ChatMessage = {
         role: "user",
         content: userMessageContent,
       };
-      const updatedMessages = [...chatMessages, newMessage];
+      const newMessages = [...chatMessages, newMessage];
+      setChatMessages(newMessages);
+      setMessage("");
 
-      setChatMessages(updatedMessages);
+      let chatIdToUse = currentChatId;
+      let isNewChat = false;
+      if (!chatIdToUse) {
+        const newId = await createNewChat();
+        if (!newId) {
+          toast.error("Failed to create new chat.");
+          setChatMessages(chatMessages);
+          return;
+        }
+        chatIdToUse = newId;
+        isNewChat = true;
+      }
 
-      await generateAndSetTitle(activeChatId, updatedMessages);
+      updateChat(chatIdToUse, newMessages);
 
-      await handleGenericResponse(updatedMessages, activeChatId);
+      const messagesForApi = [...newMessages];
+
+      await handleGenericResponse(messagesForApi, chatIdToUse);
     },
     [
       message,
@@ -372,7 +463,7 @@ Please try:
       chatMessages,
       handleGenericResponse,
       createNewChat,
-      generateAndSetTitle,
+      updateChat,
     ]
   );
 

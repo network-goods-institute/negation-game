@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageSquare, Plus, Trash2, X, Pencil } from "lucide-react";
+import { MessageSquare, Plus, Trash2, X, Pencil, Share2 } from "lucide-react";
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import {
     Tooltip,
@@ -12,6 +12,9 @@ import {
 import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
 import { SavedChat } from '@/types/chat';
 import { Skeleton } from '../ui/skeleton';
+import { shareChat } from '@/actions/chatSharingActions';
+import { toast } from 'sonner';
+import { Input } from '@/components/ui/input';
 
 const ChatListSkeleton = () => {
     return (
@@ -140,6 +143,43 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                                     </ContextMenu.Trigger>
                                     <ContextMenu.Content className="min-w-[160px] bg-popover text-popover-foreground rounded-md border shadow-md p-1 z-50">
                                         <ContextMenu.Item className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent focus:bg-accent hover:text-accent-foreground focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50" onSelect={() => { onTriggerRename(chat.id, chat.title); }} disabled={!isAuthenticated}>Rename</ContextMenu.Item>
+                                        <ContextMenu.Item
+                                            className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent focus:bg-accent hover:text-accent-foreground focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                                            disabled={!isAuthenticated}
+                                            onSelect={async (event) => {
+                                                event.preventDefault();
+                                                try {
+                                                    toast.loading("Generating share link...");
+                                                    const result = await shareChat(chat.id);
+                                                    toast.dismiss();
+                                                    if (result.success && result.shareId) {
+                                                        const shareUrl = `${window.location.origin}/c/${result.shareId}`;
+                                                        toast.success(
+                                                            <div className="flex flex-col gap-1">
+                                                                <span>Share link created!</span>
+                                                                <Input
+                                                                    readOnly
+                                                                    value={shareUrl}
+                                                                    className="text-xs h-7 bg-background text-foreground"
+                                                                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                                                                />
+                                                                <span className="text-xs text-muted-foreground">(Click input to select)</span>
+                                                            </div>,
+                                                            { duration: 10000 }
+                                                        );
+                                                    } else {
+                                                        toast.error(result.error || "Failed to create share link.");
+                                                    }
+                                                } catch (error) {
+                                                    toast.dismiss();
+                                                    console.error("Error sharing chat:", error);
+                                                    toast.error("An error occurred while creating the share link.");
+                                                }
+                                            }}
+                                        >
+                                            <Share2 className="mr-2 h-4 w-4" /> Share
+                                        </ContextMenu.Item>
+                                        <ContextMenu.Separator className="h-[1px] bg-border m-[5px]" />
                                         <ContextMenu.Item className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-destructive focus:bg-destructive hover:text-destructive-foreground focus:text-destructive-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50" onSelect={() => onTriggerDelete(chat.id)} disabled={!isAuthenticated}>Delete</ContextMenu.Item>
                                     </ContextMenu.Content>
                                 </ContextMenu.Root>

@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
 import { usersTable } from "./usersTable";
 
 export const chatsTable = pgTable("chats", {
@@ -12,6 +12,7 @@ export const chatsTable = pgTable("chats", {
   spaceId: text("space_id").notNull(),
   title: text("title").notNull(),
   messages: jsonb("messages").notNull().default("[]"),
+  state_hash: text("state_hash"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -19,6 +20,10 @@ export const chatsTable = pgTable("chats", {
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
+  is_deleted: boolean("is_deleted").notNull().default(false),
+  deleted_at: timestamp("deleted_at", { withTimezone: true }),
+  is_shared: boolean("is_shared").notNull().default(false),
+  share_id: text("share_id").unique(),
 });
 
 export const chatsRelations = relations(chatsTable, ({ one }) => ({
