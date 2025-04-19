@@ -1869,7 +1869,7 @@ Please try:
                     <AlertDialogHeader>
                         <AlertDialogTitle className="break-words">Delete All Chats?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Are you sure you want to delete all {savedChats.length} chats in the '{currentSpace}' space? This action cannot be undone.
+                            Are you sure you want to delete all {savedChats.length} chats in the &apos;{currentSpace}&apos; space? This action cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
