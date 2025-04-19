@@ -203,36 +203,46 @@ export function useChatState({
           "[handleGenericResponse] Starting stream processing loop..."
         );
 
+        const reader = response.getReader();
         let firstChunkReceived = false;
         try {
           console.log(
-            `[handleGenericResponse Stream ${chatIdToUse}] Entering for-await loop.`
+            `[handleGenericResponse Stream ${chatIdToUse}] Entering getReader() loop.`
           );
-          for await (const chunk of response) {
+          while (true) {
+            const { done, value } = await reader.read();
             console.log(
-              `[handleGenericResponse Stream ${chatIdToUse}] Received chunk. Type: ${typeof chunk}`,
-              chunk
+              `[handleGenericResponse Stream ${chatIdToUse}] read() returned: done=${done}, value type=${typeof value}`
             );
-            if (!firstChunkReceived) {
+
+            if (!firstChunkReceived && !done) {
               setIsFetchingContext(false);
               firstChunkReceived = true;
               console.log(
                 `[handleGenericResponse Stream ${chatIdToUse}] First chunk received, isFetchingContext=false`
               );
             }
-            if (typeof chunk === "string" && chunk.length > 0) {
+
+            if (done) {
               console.log(
-                `[handleGenericResponse Stream ${chatIdToUse}] Processing valid string chunk (length ${chunk.length}).`
+                `[handleGenericResponse Stream ${chatIdToUse}] Stream finished (done=true).`
               );
-              fullContent += chunk;
+              break;
+            }
+
+            if (typeof value === "string" && value.length > 0) {
+              console.log(
+                `[handleGenericResponse Stream ${chatIdToUse}] Processing valid string chunk (length ${value.length}).`
+              );
+              fullContent += value;
               setStreamingContent(fullContent);
               console.log(
                 `[handleGenericResponse Stream ${chatIdToUse}] Updated streamingContent.`
               );
-            } else if (chunk !== null && chunk !== undefined) {
+            } else if (value !== null && value !== undefined && value !== "") {
               console.warn(
-                `[handleGenericResponse Stream ${chatIdToUse}] Received unexpected chunk type or empty chunk:`,
-                chunk
+                `[handleGenericResponse Stream ${chatIdToUse}] Received unexpected chunk type or empty string:`,
+                value
               );
             }
             console.log(
@@ -240,11 +250,11 @@ export function useChatState({
             );
           }
           console.log(
-            `[handleGenericResponse Stream ${chatIdToUse}] Successfully finished for-await loop.`
+            `[handleGenericResponse Stream ${chatIdToUse}] Successfully finished getReader() loop.`
           );
         } catch (streamError) {
           console.error(
-            `[handleGenericResponse Stream ${chatIdToUse}] Error processing stream chunk with for-await:`, // Updated log source
+            `[handleGenericResponse Stream ${chatIdToUse}] Error processing stream chunk with getReader():`, // Updated log source
             streamError instanceof Error
               ? streamError.message
               : String(streamError),
@@ -256,7 +266,13 @@ export function useChatState({
           );
           toast.error("Error reading AI response stream.");
           fullContent += "\n\n[Error processing stream]";
+        } finally {
+          reader.releaseLock();
+          console.log(
+            `[handleGenericResponse Stream ${chatIdToUse}] Reader lock released.`
+          );
         }
+        // --- End getReader() for main response stream ---
 
         console.log("[handleGenericResponse] Stream processing loop finished.");
 
