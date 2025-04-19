@@ -326,6 +326,7 @@ export default function AIAssistant() {
     const [message, setMessage] = useState('');
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [isFetchingContext, setIsFetchingContext] = useState(false); // New state for context fetching phase
     const [streamingContent, setStreamingContent] = useState('');
     const chatEndRef = useRef<HTMLDivElement>(null);
     const [chatToDelete, setChatToDelete] = useState<string | null>(null);
@@ -458,6 +459,8 @@ export default function AIAssistant() {
         setSelectedOption(option);
         setIsGenerating(true);
         setStreamingContent('');
+        setIsFetchingContext(true);
+        console.log('[startChatWithOption] START: isGenerating=true, isFetchingContext=true');
         let fullContent = '';
         let sources: ChatMessage['sources'] | undefined = undefined;
 
@@ -489,6 +492,7 @@ export default function AIAssistant() {
             console.log("[AIAssistant][startChat] Received response object from action. Type:", typeof response);
 
             console.log("[AIAssistant][startChat] Starting stream processing loop...");
+            setIsFetchingContext(false);
             try {
                 for await (const chunk of response) {
                     if (chunk === null || chunk === undefined) continue;
@@ -548,22 +552,25 @@ Please try:
                         if (title) {
                             updateChat(chatIdToUse, finalMessages, title);
                         } else {
-                            const userMsgContent = initialUserMessage.slice(0, 47) + (initialUserMessage.length > 47 ? '...' : '');
-                            updateChat(chatIdToUse, finalMessages, userMsgContent || 'Chat');
+                            const assistantMsgContent = fullContent.split('\n')[0].slice(0, 47) + (fullContent.length > 47 ? '...' : '');
+                            updateChat(chatIdToUse, finalMessages, assistantMsgContent || 'Chat');
                         }
                     } catch (titleError) {
                         console.error("Error generating chat name:", titleError);
-                        const userMsgContent = initialUserMessage.slice(0, 47) + (initialUserMessage.length > 47 ? '...' : '');
-                        updateChat(chatIdToUse, finalMessages, userMsgContent || 'Chat'); // Fallback title on error
+                        const assistantMsgContent = fullContent.split('\n')[0].slice(0, 47) + (fullContent.length > 47 ? '...' : '');
+                        updateChat(chatIdToUse, finalMessages, assistantMsgContent || 'Chat');
                     }
                 } else {
                     updateChat(chatIdToUse, finalMessages);
                 }
             }
 
+            console.log('[startChatWithOption] TRY block finished successfully.');
+
         } catch (error) {
             console.error('[AIAssistant][startChat] Error starting chat with option:', error);
             toast.error(error instanceof Error ? error.message : "Failed to start chat");
+            console.log('[startChatWithOption] CATCH block executed:', error);
             const errorMessage: ChatMessage = {
                 role: 'assistant',
                 content: 'I apologize, but I encountered an error processing your request. Please check the console for details.'
@@ -576,7 +583,9 @@ Please try:
             }
         } finally {
             setIsGenerating(false);
+            setIsFetchingContext(false); // Ensure fetching context is always reset
             if (streamingContent) setStreamingContent('');
+            console.log('[startChatWithOption] FINALLY: isGenerating=false');
         }
     }, [currentSpace, currentChatId, userRationales, storedMessages, settings, endorsedPoints, updateChat, savedChats, isAuthenticated, streamingContent]);
 
@@ -1204,6 +1213,8 @@ Please try:
         setMessage('');
         setIsGenerating(true);
         setStreamingContent('');
+        setIsFetchingContext(true);
+        console.log('[handleSubmit] START: isGenerating=true, isFetchingContext=true');
         let fullContent = '';
         let sources: ChatMessage['sources'] | undefined = undefined;
 
@@ -1225,8 +1236,15 @@ Please try:
             console.log("[AIAssistant] Received response object from action. Type:", typeof response);
 
             console.log("[AIAssistant] Starting stream processing loop...");
+            // setIsFetchingContext(false); 
             try {
+                let firstChunkReceived = false;
                 for await (const chunk of response) {
+                    if (!firstChunkReceived) {
+                        setIsFetchingContext(false);
+                        firstChunkReceived = true;
+                        console.log('[handleSubmit] First chunk received, isFetchingContext=false');
+                    }
                     if (chunk === null || chunk === undefined) continue;
                     const chunkString = String(chunk);
                     fullContent += chunkString;
@@ -1236,6 +1254,7 @@ Please try:
                 console.error("[AIAssistant] Error processing stream chunk:", streamError);
                 toast.error("Error reading AI response stream.");
                 fullContent += "\n\n[Error processing stream]";
+                console.log('[handleSubmit] STREAM ERROR:', streamError);
             }
             console.log("[AIAssistant] Stream processing loop finished.");
 
@@ -1270,34 +1289,42 @@ Please try:
 
                 if (needsTitle) {
                     try {
+                        console.log('[handleSubmit] Attempting to generate title for messages:', finalMessages);
                         const titleStream = await generateChatName(finalMessages);
                         if (!titleStream) throw new Error("Failed to get title stream");
+
 
                         let title = "";
                         for await (const chunk of titleStream) {
                             if (chunk === null || chunk === undefined) continue;
+                            console.log('[handleSubmit] Title chunk:', String(chunk));
                             title += String(chunk);
                         }
                         title = title.trim();
+                        console.log('[handleSubmit] Final generated title:', title);
                         if (title) {
                             updateChat(activeChatId, finalMessages, title);
                         } else {
-                            const userMsgContent = newMessage.content.slice(0, 47) + (newMessage.content.length > 47 ? '...' : '');
-                            updateChat(activeChatId, finalMessages, userMsgContent || 'Chat');
+                            const assistantMsgContent = fullContent.split('\n')[0].slice(0, 47) + (fullContent.length > 47 ? '...' : '');
+                            updateChat(activeChatId, finalMessages, assistantMsgContent || 'Chat');
                         }
                     } catch (titleError) {
                         console.error("Error generating chat name:", titleError);
-                        const userMsgContent = newMessage.content.slice(0, 47) + (newMessage.content.length > 47 ? '...' : '');
-                        updateChat(activeChatId, finalMessages, userMsgContent || 'Chat'); // Fallback title on error
+                        // Use assistant's response for fallback title on error
+                        const assistantMsgContent = fullContent.split('\n')[0].slice(0, 47) + (fullContent.length > 47 ? '...' : '');
+                        updateChat(activeChatId, finalMessages, assistantMsgContent || 'Chat');
                     }
                 } else {
                     updateChat(activeChatId, finalMessages);
                 }
             }
 
+            console.log('[handleSubmit] TRY block finished successfully.');
+
         } catch (error) {
             console.error('[AIAssistant] Error generating response (outer catch):', error);
             toast.error(error instanceof Error ? error.message : "Failed to get response");
+            console.log('[handleSubmit] CATCH block executed:', error);
             const errorMessage: ChatMessage = {
                 role: 'assistant',
                 content: 'I apologize, but I encountered an error processing your request. Please check the console for details.'
@@ -1310,7 +1337,9 @@ Please try:
             }
         } finally {
             setIsGenerating(false);
+            setIsFetchingContext(false);
             if (streamingContent) setStreamingContent('');
+            console.log('[handleSubmit] FINALLY: isGenerating=false');
         }
     };
 
@@ -1662,6 +1691,15 @@ Please try:
                                         </div>
                                     </div>
                                 ))}
+                                {/* Dedicated Fetching Indicator - Show when generating but before stream starts visually */}
+                                {isGenerating && !streamingContent && (
+                                    <div className="flex justify-center items-center p-4">
+                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            Fetching relevant Negation Game user activity...
+                                        </div>
+                                    </div>
+                                )}
                                 {streamingContent && (
                                     <div className="flex justify-start">
                                         <div className={`${isMobile ? 'max-w-[90%]' : 'max-w-[80%]'} rounded-xl md:rounded-2xl p-3 md:p-4 shadow-sm bg-card text-card-foreground mr-4 [&_.markdown]:text-sm [&_.markdown]:md:text-base`}>
@@ -1707,9 +1745,7 @@ Please try:
                             className="rounded-lg h-9 px-3 md:h-10 md:px-4"
                             title="Send Message (Ctrl+Enter)"
                         >
-                            {isGenerating ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
+                            {!isGenerating && (
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
                                     <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
                                 </svg>

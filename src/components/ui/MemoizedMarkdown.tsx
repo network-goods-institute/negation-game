@@ -66,7 +66,7 @@ const multiPointRefRegex = /\[Point:\d+(?:,\s*Point:\d+)*\]/;
 const rationaleRefRegex = /\[Rationale:([\w-]+)(?:\s+\"([^\"\n]+?)\")?\]/;
 const discoursePostRefRegex = /\[Discourse Post:(\d+)\]/;
 const multiDiscoursePostRefRegex = /\[Discourse Post:\d+(?:,\s*Discourse Post:\d+)*\]/;
-const sourceCiteRegex = /\(Source:\s*(Rationale|Endorsed Point|Discourse Post)\s*(?:"([^"\n]+?)"\s*)?ID:([\w\s,-]+)\)/;
+const sourceCiteRegex = /\(Source:\s*(Rationale|Endorsed Point|Discourse Post)\s*(?:"([^"\n]+?)"\s*)?ID:([\w\s,:;-]+)\)/;
 const inlineRationaleRefRegex = /Rationale\s+"([^"\n]+?)"\s+\(ID:([\w-]+)\)/;
 
 const combinedInlineRegex = new RegExp(
@@ -153,21 +153,29 @@ const renderTextWithInlineTags = (
             const sourceType = match[12] as 'Rationale' | 'Endorsed Point' | 'Discourse Post';
             const sourceTitle = match[13];
             const sourceIdString = match[14];
+            console.log("[Markdown Debug] Matched Source Citation Block:", match[0]);
+            console.log("[Markdown Debug] Extracted sourceIdString:", sourceIdString);
 
             if (sourceIdString && sourceType) {
                 const sourceIds = sourceIdString.split(',').map(id => id.trim()).filter(id => id);
+                console.log("[Markdown Debug] Split sourceIds:", sourceIds);
+
                 sourceIds.forEach((sourceId, index) => {
+                    console.log(`[Markdown Debug] Processing sourceId[${index}]:`, sourceId);
+                    const cleanedSourceId = sourceId.replace(/^ID:/i, '').trim();
+                    console.log(`[Markdown Debug] Cleaned sourceId[${index}]:`, cleanedSourceId);
+
                     let rawContent: string | undefined = undefined;
                     let htmlContent: string | undefined = undefined;
                     if (sourceType === 'Discourse Post') {
-                        const message = storedMessages.find(m => String(m.id) === String(sourceId));
+                        const message = storedMessages.find(m => String(m.id) === String(cleanedSourceId));
                         rawContent = message?.raw;
                         htmlContent = message?.content;
                     }
                     parts.push(<SourceCitation
-                        key={`cite-${sourceId}-${keyIndex++}`}
+                        key={`cite-${cleanedSourceId}-${keyIndex++}`}
                         type={sourceType}
-                        id={sourceId}
+                        id={cleanedSourceId}
                         title={sourceType !== 'Discourse Post' ? sourceTitle : undefined}
                         rawContent={rawContent}
                         htmlContent={htmlContent}
@@ -220,51 +228,38 @@ export const MemoizedMarkdown = memo(
 
         const customRenderers: import('react-markdown').Components = {
             p: ({ node, children, ...props }: StandardComponentProps) => {
-                // 1. Reconstruct the full raw text content from ALL children of the paragraph node
                 const getRawText = (nodes: any): string => {
-                    return React.Children.toArray(nodes).map((childNode: any) => {
-                        if (typeof childNode === 'string') {
-                            return childNode;
-                        }
-                        if (childNode?.type === 'text') {
-                            return childNode.value || '';
-                        }
-                        // @ts-ignore
-                        if (React.isValidElement(childNode) && childNode.props?.children) {
-                            // Assume props.children exists if isValidElement and props?.children is truthy
-                            // @ts-ignore
-                            return getRawText(childNode.props.children);
-                        }
-                        if (typeof childNode === 'object' && childNode !== null && childNode.props?.node?.children) {
-                            // @ts-ignore
-                            return getRawText(childNode.props.node.children);
-                        }
-                        if (typeof childNode === 'object' && childNode !== null && childNode.children) {
-                            return getRawText(childNode.children);
-                        }
-                        return '';
-                    }).join('');
+                    if (typeof nodes === 'string') return nodes;
+                    if (Array.isArray(nodes)) return nodes.map(getRawText).join('');
+                    if (nodes?.props?.children) return getRawText(nodes.props.children);
+                    return '';
                 };
 
-                const fullRawText = getRawText(children);
-                const trimmedText = fullRawText.trim();
+                let potentialMatchText = '';
+                if (Array.isArray(children) && children.length > 0 && typeof children[0] === 'string') {
+                    potentialMatchText = children[0];
+                } else if (typeof children === 'string') {
+                    potentialMatchText = children;
+                }
 
-                const pointMatch = trimmedText.match(blockSuggestPointRegex);
+                const pointMatch = blockSuggestPointRegex.exec(potentialMatchText);
+                const negationMatch = blockSuggestNegationRegex.exec(potentialMatchText);
+
                 if (pointMatch) {
-                    const suggestionText = pointMatch[1].trim();
-                    if (suggestionText) {
-                        return <SuggestionBlock key={`suggest-point-block-${id}-${Math.random()}`} type="point" text={suggestionText} space={space} />;
-                    }
+                    const fullText = getRawText(children).replace(blockSuggestPointRegex, '$1').trim();
+                    return <SuggestionBlock type="point" text={fullText} space={space} />;
                 }
 
-                const processedContent = renderTextWithInlineTags(fullRawText, space, discourseUrl, storedMessages);
-
-                const validChildren = React.Children.toArray(processedContent).filter(Boolean);
-                if (validChildren.length === 0 || (validChildren.length === 1 && validChildren[0] === '')) {
-                    return null; // Don't render <p></p>
+                if (negationMatch) {
+                    const fullText = getRawText(children).replace(blockSuggestNegationRegex, '$2').trim();
+                    const targetPointId = parseInt(negationMatch[1], 10);
+                    return <SuggestionBlock type="negation" targetId={targetPointId} text={fullText} space={space} />;
                 }
 
-                return <p {...props}>{processedContent}</p>;
+
+                const rawText = getRawText(children);
+                const processedChildren = renderTextWithInlineTags(rawText, space, discourseUrl, storedMessages);
+                return <p {...props}>{processedChildren}</p>;
             },
             li: ({ node, children, ...props }: StandardComponentProps) => {
                 let rawText = '';
