@@ -1,7 +1,7 @@
 "use server";
 
 import { google } from "@ai-sdk/google";
-import { streamObject } from "ai";
+import { streamText } from "ai";
 import { z } from "zod";
 import { withRetry } from "@/lib/withRetry";
 
@@ -16,9 +16,12 @@ export const generateChatName = async (messages: Message[]) => {
       throw new Error("No messages provided for chat name generation");
     }
 
-    const prompt = `Generate a concise title (max 30 chars) for this chat:
+    const prompt = `Generate a concise title (max 30 chars) for this chat based on the initial messages:
 
-${messages.map((m) => m.role.toUpperCase() + ": " + m.content).join("\n\n")}
+${messages
+  .slice(0, 3)
+  .map((m) => `${m.role.toUpperCase()}: ${m.content.substring(0, 100)}...`)
+  .join("\n\n")}
 
 Rules:
 - Title must be 30 characters or less
@@ -26,15 +29,14 @@ Rules:
 - Just the title text
 - Be descriptive and clear
 
-A:`;
+TITLE:`;
 
-    const { elementStream } = await withRetry(async () => {
+    const { textStream } = await withRetry(async () => {
       try {
-        const response = await streamObject({
+        const response = await streamText({
           model: google("gemini-2.0-flash"),
-          output: "array",
-          schema: z.string().describe("Chat title"),
           prompt,
+          maxTokens: 20,
         });
 
         if (!response) {
@@ -48,16 +50,20 @@ A:`;
             "AI service is currently busy. Please try again in a moment."
           );
         }
-        throw error;
+        console.error("[generateChatName Action Error]", error);
+        throw new Error(
+          `AI title generation failed: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     });
 
-    if (!elementStream) {
-      throw new Error("Failed to initialize response stream");
+    if (!textStream) {
+      throw new Error("Failed to initialize response text stream");
     }
 
-    return elementStream;
+    return textStream;
   } catch (error) {
+    console.error("[generateChatName Top Level Error]", error);
     throw error;
   }
 };

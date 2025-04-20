@@ -149,20 +149,19 @@ const ClientChatDataSchema = z.object({
  */
 export async function createDbChat(
   chatData: unknown
-): Promise<{ success: boolean; id: string | null }> {
+): Promise<{ success: boolean; id: string | null; error?: string }> {
   const userId = await getUserId();
   if (!userId) {
     console.error("[createDbChat] User not authenticated.");
-    return { success: false, id: null };
+    const error = "User not authenticated.";
+    return { success: false, id: null, error };
   }
 
   const validation = ClientChatDataSchema.safeParse(chatData);
   if (!validation.success) {
-    console.error(
-      "[createDbChat] Invalid chat data provided:",
-      validation.error
-    );
-    return { success: false, id: null };
+    const error = `Invalid chat data: ${validation.error.message}`;
+    console.error("[createDbChat]", error);
+    return { success: false, id: null, error };
   }
   const { id, title, messages, state_hash, spaceId } = validation.data;
 
@@ -179,7 +178,9 @@ export async function createDbChat(
     return { success: true, id: id };
   } catch (error) {
     console.error(`[createDbChat] Error creating chat with id ${id}:`, error);
-    return { success: false, id: null };
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    return { success: false, id: null, error: errorMessage };
   }
 }
 
@@ -190,11 +191,11 @@ export async function createDbChat(
  */
 export async function updateDbChat(
   chatData: unknown
-): Promise<{ success: boolean }> {
+): Promise<{ success: boolean; error?: string }> {
   const userId = await getUserId();
   if (!userId) {
     console.error("[updateDbChat] User not authenticated.");
-    return { success: false };
+    return { success: false, error: "User not authenticated." };
   }
 
   const validation = ClientChatDataSchema.pick({
@@ -204,11 +205,9 @@ export async function updateDbChat(
     state_hash: true,
   }).safeParse(chatData);
   if (!validation.success) {
-    console.error(
-      "[updateDbChat] Invalid chat data provided:",
-      validation.error
-    );
-    return { success: false };
+    const error = `Invalid chat data: ${validation.error.message}`;
+    console.error("[updateDbChat]", error);
+    return { success: false, error };
   }
   const { id, title, messages, state_hash } = validation.data;
 
@@ -228,14 +227,16 @@ export async function updateDbChat(
       console.warn(
         `[updateDbChat] Chat not found or access denied for update, chatId: ${id}`
       );
-      return { success: false };
+      return { success: false, error: "Chat not found or access denied." };
     }
 
     console.log(`[updateDbChat] Successfully updated chat with id: ${id}`);
     return { success: true };
   } catch (error) {
     console.error(`[updateDbChat] Error updating chat with id ${id}:`, error);
-    return { success: false };
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    return { success: false, error: errorMessage };
   }
 }
 
@@ -246,16 +247,16 @@ export async function updateDbChat(
  */
 export async function markChatAsDeleted(
   chatId: string
-): Promise<{ success: boolean }> {
+): Promise<{ success: boolean; error?: string }> {
   const userId = await getUserId();
   if (!userId) {
     console.error("[markChatAsDeleted] User not authenticated.");
-    return { success: false };
+    return { success: false, error: "User not authenticated." };
   }
 
   if (!chatId) {
     console.error("[markChatAsDeleted] No chatId provided.");
-    return { success: false };
+    return { success: false, error: "No chatId provided." };
   }
 
   try {
@@ -279,7 +280,10 @@ export async function markChatAsDeleted(
       console.warn(
         `[markChatAsDeleted] Chat not found, already deleted, or access denied for deletion, chatId: ${chatId}`
       );
-      return { success: true };
+      return {
+        success: false,
+        error: "Chat not found, already deleted, or access denied.",
+      };
     }
 
     console.log(
@@ -291,6 +295,8 @@ export async function markChatAsDeleted(
       `[markChatAsDeleted] Error marking chat as deleted ${chatId}:`,
       error
     );
-    return { success: false };
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    return { success: false, error: errorMessage };
   }
 }

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CircleIcon, CircleDotIcon } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
+import { AuthenticatedActionButton } from "@/components/AuthenticatedActionButton";
 import { DiscourseConnectionStatus, DiscourseMessage } from '@/types/chat';
 
 interface DiscourseConnectDialogProps {

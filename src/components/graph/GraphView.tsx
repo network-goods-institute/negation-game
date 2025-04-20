@@ -33,7 +33,7 @@ import { updateViewpointGraph } from "@/actions/updateViewpointGraph";
 import { updateViewpointDetails } from "@/actions/updateViewpointDetails";
 import { useParams, useSearchParams } from "next/navigation";
 import { useViewpoint } from "@/queries/useViewpoint";
-import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
+import { AuthenticatedActionButton } from "@/components/AuthenticatedActionButton";
 import {
   AlertDialog,
   AlertDialogAction,

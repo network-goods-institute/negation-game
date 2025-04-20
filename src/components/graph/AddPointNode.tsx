@@ -6,7 +6,7 @@ import {
 } from "@/actions/fetchSimilarPoints";
 import { PointEditor } from "@/components/PointEditor";
 import { PointStats } from "@/components/PointStats";
-import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
+import { AuthenticatedActionButton } from "@/components/AuthenticatedActionButton";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

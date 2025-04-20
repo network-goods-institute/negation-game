@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '../../utils/test-utils';
-import { AuthenticatedActionButton } from '@/components/ui/AuthenticatedActionButton';
+import { AuthenticatedActionButton } from '@/components/AuthenticatedActionButton';
 import { usePrivy } from '@privy-io/react-auth';
 import { handleAuthError } from '@/lib/auth/handleAuthError';
 import { setPrivyToken } from '@/lib/privy/setPrivyToken';

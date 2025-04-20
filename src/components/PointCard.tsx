@@ -56,7 +56,7 @@ import {
   Fragment,
   useRef,
 } from "react";
-import { AuthenticatedActionButton } from "./ui/AuthenticatedActionButton";
+import { AuthenticatedActionButton } from "./AuthenticatedActionButton";
 import { Button } from "./ui/button";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";

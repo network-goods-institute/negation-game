@@ -5,45 +5,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import {
-    Loader2,
-    ArrowLeft,
-    CircleIcon,
-    CircleDotIcon,
-    Menu,
-    SlidersHorizontal,
-    RefreshCw
-} from "lucide-react";
 import { useUser } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
-import { EndorsedPoint } from "@/actions/generateChatBotResponse";
+import { EndorsedPoint } from "@/actions/generateDistillRationaleChatBotResponse";
 import { nanoid } from "nanoid";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { MemoizedMarkdown } from "@/components/ui/MemoizedMarkdown";
-import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
+import { AuthenticatedActionButton } from "@/components/AuthenticatedActionButton";
 import { fetchUserEndorsedPoints } from "@/actions/fetchUserEndorsedPoints";
 import { getSpace } from "@/actions/getSpace";
-import { Skeleton } from "../ui/skeleton";
 import { AutosizeTextarea } from "../ui/autosize-textarea";
 import { fetchUserViewpoints } from "@/actions/fetchUserViewpoints";
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip";
-
 import { DiscourseConnectDialog } from "@/components/chatbot/DiscourseConnectDialog";
 import { DiscourseMessagesDialog } from "@/components/chatbot/DiscourseMessagesDialog";
 import { DiscourseConsentDialog } from "@/components/chatbot/DiscourseConsentDialog";
 import { ChatSettingsDialog } from "@/components/chatbot/ChatSettingsDialog";
-import { DetailedSourceList } from './DetailedSourceList';
 import { useSetAtom } from 'jotai';
 import { initialSpaceTabAtom } from '@/atoms/navigationAtom';
 import { handleBackNavigation } from '@/utils/backButtonUtils';
-import { ChatRationale, ChatSettings, InitialOption, SavedChat } from '@/types/chat';
+import { ChatRationale, ChatSettings, DiscourseMessage, InitialOption, SavedChat, ChatMessage } from '@/types/chat';
 import { useDiscourseIntegration } from "@/hooks/useDiscourseIntegration";
 import { useChatListManagement } from "@/hooks/useChatListManagement";
 import { useChatState } from "@/hooks/useChatState";
@@ -56,36 +37,9 @@ import {
     ChatMetadata
 } from "@/actions/chatSyncActions";
 import { fetchSharedChatContent } from "@/actions/chatSharingActions";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-
-const ChatLoadingState = () => {
-    return (
-        <div className="flex-1 flex flex-col h-full overflow-hidden bg-muted/30">
-            <div className="p-6 space-y-6">
-                <div className="flex flex-col space-y-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-4 w-64" />
-                </div>
-                <div className="flex justify-end space-y-2">
-                    <div className="w-1/2">
-                        <Skeleton className="h-24 w-full rounded-xl" />
-                    </div>
-                </div>
-                <div className="flex flex-col space-y-2">
-                    <Skeleton className="h-4 w-40" />
-                    <Skeleton className="h-4 w-80" />
-                    <Skeleton className="h-4 w-64" />
-                </div>
-                <div className="flex justify-end space-y-2">
-                    <div className="w-1/2">
-                        <Skeleton className="h-16 w-full rounded-xl" />
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
+import { ChatHeader } from "./ChatHeader";
+import { ChatMessageArea } from "./ChatMessageArea";
+import { ChatInputForm } from "./ChatInputForm";
 function useIsMobile() {
     const [isMobile, setIsMobile] = useState(false);
 
@@ -107,6 +61,13 @@ interface SyncStats {
     pulled: number;
     pushedUpdates: number;
     pushedCreates: number;
+    errors: number;
+}
+
+interface BackgroundSyncStatsRef {
+    creates: number;
+    updates: number;
+    deletes: number;
     errors: number;
 }
 
@@ -147,19 +108,57 @@ export default function AIAssistant() {
 
     const [isSyncing, setIsSyncing] = useState(false);
     const [syncActivity, setSyncActivity] = useState<'idle' | 'checking' | 'pulling' | 'saving' | 'error'>('idle');
-    const [isPulling, setIsPulling] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
     const [lastSyncTime, setLastSyncTime] = useState<number | null>(null);
     const [lastSyncStats, setLastSyncStats] = useState<SyncStats | null>(null);
     const [syncError, setSyncError] = useState<string | null>(null);
     const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+    const backgroundStatsRef = useRef<BackgroundSyncStatsRef>({ creates: 0, updates: 0, deletes: 0, errors: 0 });
+
     const isNonGlobalSpace = currentSpace !== null && currentSpace !== 'global';
 
-    const chatList = useChatListManagement({ currentSpace, isAuthenticated });
+    const chatList = useChatListManagement({
+        currentSpace,
+        isAuthenticated,
+        onBackgroundCreateSuccess: (chatId) => {
+            console.log(`[Background Stat] Create success: ${chatId}`);
+            backgroundStatsRef.current.creates++;
+        },
+        onBackgroundCreateError: (chatId, error) => {
+            console.log(`[Background Stat] Create error: ${chatId}`, error);
+            backgroundStatsRef.current.errors++;
+        },
+        onBackgroundUpdateSuccess: (chatId) => {
+            console.log(`[Background Stat] Update success: ${chatId}`);
+            backgroundStatsRef.current.updates++;
+        },
+        onBackgroundUpdateError: (chatId, error) => {
+            console.log(`[Background Stat] Update error: ${chatId}`, error);
+            backgroundStatsRef.current.errors++;
+        },
+        onBackgroundDeleteSuccess: (chatId) => {
+            console.log(`[Background Stat] Delete success: ${chatId}`);
+            backgroundStatsRef.current.deletes++;
+        },
+        onBackgroundDeleteError: (chatId, error) => {
+            console.log(`[Background Stat] Delete error: ${chatId}`, error);
+            backgroundStatsRef.current.errors++;
+        }
+    });
     const { isInitialized: isChatListInitialized } = chatList;
     const discourse = useDiscourseIntegration({ userData, isAuthenticated, isNonGlobalSpace, currentSpace, privyUserId: privyUser?.id });
-    const chatState = useChatState({ currentChatId: chatList.currentChatId, currentSpace, isAuthenticated, settings, endorsedPoints, userRationales, storedMessages: discourse.storedMessages, savedChats: chatList.savedChats, updateChat: chatList.updateChat, createNewChat: chatList.createNewChat as unknown as () => Promise<string | null> });
+    const chatState = useChatState({
+        currentChatId: chatList.currentChatId,
+        currentSpace,
+        isAuthenticated,
+        settings,
+        endorsedPoints,
+        userRationales,
+        storedMessages: discourse.storedMessages,
+        savedChats: chatList.savedChats,
+        updateChat: chatList.updateChat,
+        createNewChat: chatList.createNewChat,
+    });
 
     useEffect(() => {
         const importChatId = searchParams.get('importChat');
@@ -209,7 +208,7 @@ export default function AIAssistant() {
         };
 
         importAndSaveChat();
-    }, [searchParams, isChatListInitialized, isAuthenticated, currentSpace, router, chatList.updateChat]);
+    }, [searchParams, isChatListInitialized, isAuthenticated, currentSpace, router, chatList.updateChat, chatList]);
 
     useEffect(() => {
         const initializeAssistant = async () => {
@@ -285,9 +284,11 @@ export default function AIAssistant() {
         chatState.handleSubmit(e);
     };
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            chatState.handleSubmit(e);
+            if (chatState.message.trim()) {
+                chatState.handleSubmit();
+            }
         }
     };
 
@@ -301,6 +302,11 @@ export default function AIAssistant() {
             return;
         }
 
+        const currentPendingPushIds = chatList.pendingPushIds;
+        if (currentPendingPushIds.size > 0) {
+            console.log(`[Sync] Info: Detected ${currentPendingPushIds.size} pending push operations. Sync will proceed cautiously.`);
+        }
+
         console.log("[Sync] Starting sync process...");
         const maxRetries = 2;
         const initialDelay = 2000;
@@ -309,7 +315,17 @@ export default function AIAssistant() {
             console.log(`[Sync Attempt] Starting attempt ${retryCount + 1}/${maxRetries + 1}`);
             setSyncError(null);
             setSyncActivity('checking');
-            let currentStats: SyncStats = { pulled: 0, pushedUpdates: 0, pushedCreates: 0, errors: 0 };
+
+            const bgStats = { ...backgroundStatsRef.current };
+            backgroundStatsRef.current = { creates: 0, updates: 0, deletes: 0, errors: 0 };
+            console.log("[Sync] Background stats captured and reset:", bgStats);
+
+            let currentStats: SyncStats = {
+                pulled: 0,
+                pushedUpdates: bgStats.updates,
+                pushedCreates: bgStats.creates,
+                errors: bgStats.errors
+            };
             let activitySet = false;
 
             try {
@@ -345,6 +361,17 @@ export default function AIAssistant() {
                 console.log("[Sync] Pass 1: Checking server chats against local...");
                 for (const serverChat of serverMetadata) {
                     const localChat = localMap.get(serverChat.id);
+
+                    if (serverChat.id === chatList.currentChatId && chatState.isGenerating) {
+                        console.log(`[Sync] Skipping pull check for active generating chat ${serverChat.id}`);
+                        continue;
+                    }
+
+                    if (currentPendingPushIds.has(serverChat.id)) {
+                        console.log(`[Sync] Skipping PULL check for chat ${serverChat.id} as a local push is pending.`);
+                        continue;
+                    }
+
                     if (!localChat) {
                         console.log(`[Sync] Action: PULL needed for server chat ${serverChat.id} (not found locally).`);
                         if (!activitySet) { setSyncActivity('pulling'); activitySet = true; }
@@ -374,6 +401,10 @@ export default function AIAssistant() {
                         const serverUpdatedAt = serverChat.updatedAt.getTime();
 
                         if (serverChat.state_hash !== localHash && serverUpdatedAt > localUpdatedAt) {
+                            if (currentPendingPushIds.has(serverChat.id)) {
+                                console.log(`[Sync] Skipping PULL (overwrite case) for chat ${serverChat.id} as a local push is pending.`);
+                                continue;
+                            }
                             console.log(`[Sync] Action: PULL needed for chat ${serverChat.id} (server newer & hash mismatch).`);
                             if (!activitySet) { setSyncActivity('pulling'); activitySet = true; }
                             currentStats.pulled++;
@@ -400,16 +431,46 @@ export default function AIAssistant() {
                 for (const localChat of localChats) {
                     const serverChat = serverMap.get(localChat.id);
                     if (!serverChat) {
-                        console.log(`[Sync] Action: DELETE LOCALLY chat ${localChat.id} (not found in active server metadata).`);
-                        chatsToDeleteLocally.push(localChat.id);
+                        if (currentPendingPushIds.has(localChat.id)) {
+                            console.log(`[Sync] Action: Skipping DELETE LOCAL for chat ${localChat.id} as a push operation is pending.`);
+                            continue;
+                        }
+
+                        const creationTime = new Date(localChat.createdAt).getTime();
+                        const now = Date.now();
+                        const ageInMs = now - creationTime;
+                        const RECENT_THRESHOLD_MS = 30000;
+
+                        if (ageInMs < RECENT_THRESHOLD_MS) {
+                            console.log(
+                                `[Sync] Action: Skipping DELETE LOCAL for recently created chat ${localChat.id} (age: ${Math.round(ageInMs / 1000)}s). Assuming server create is pending.`
+                            );
+                            continue;
+                        } else {
+                            console.log(
+                                `[Sync] Action: DELETE LOCAL needed for chat ${localChat.id} (not found on server, age: ${Math.round(ageInMs / 1000)}s > threshold).`
+                            );
+                            chatsToDeleteLocally.push(localChat.id);
+                        }
                     } else {
-                        const localHash = localChat.state_hash || await computeChatStateHash(localChat.title, localChat.messages);
+                        if (localChat.id === chatList.currentChatId && chatState.isGenerating) {
+                            console.log(`[Sync] Skipping push check for active generating chat ${localChat.id}`);
+                            continue;
+                        }
+
+                        if (currentPendingPushIds.has(localChat.id)) {
+                            console.log(`[Sync] Skipping PUSH check for chat ${localChat.id} as a local push is already pending.`);
+                            continue;
+                        }
+
+                        const localHash =
+                            localChat.state_hash ||
+                            (await computeChatStateHash(localChat.title, localChat.messages));
                         const localUpdatedAt = new Date(localChat.updatedAt).getTime();
                         const serverUpdatedAt = serverChat.updatedAt.getTime();
+
                         if (serverChat.state_hash !== localHash && localUpdatedAt > serverUpdatedAt) {
                             console.log(`[Sync] Action: PUSH UPDATE needed for chat ${localChat.id} (local newer & hash mismatch).`);
-                            if (!activitySet) { setSyncActivity('saving'); activitySet = true; }
-                            currentStats.pushedUpdates++;
                             chatsToPush.push(localChat);
                         }
                     }
@@ -419,8 +480,15 @@ export default function AIAssistant() {
                     console.log(`[Sync] Executing ${promisesToAwait.length} pulls and ${chatsToPush.length} pushes...`);
 
                     chatsToPush.forEach(localChat => {
+                        if (currentPendingPushIds.has(localChat.id)) {
+                            console.log(`[Sync] Skipping PUSH execution for ${localChat.id} from sync cycle as a local push is pending.`);
+                            return;
+                        }
+
+                        if (!activitySet) { setSyncActivity('saving'); activitySet = true; }
+                        currentStats.pushedUpdates++;
                         promisesToAwait.push(updateDbChat(localChat).catch(e => {
-                            console.error(`[Sync] Error pushing update for ${localChat.id}`, e);
+                            console.error(`[Sync] Error pushing update for ${localChat.id} from sync cycle`, e);
                             currentStats.errors++;
                             throw e;
                         }));
@@ -443,9 +511,17 @@ export default function AIAssistant() {
 
                 console.log(`[Sync] Applying local updates: ${chatsToUpdateLocally.length} updates, ${chatsToDeleteLocally.length} deletions.`);
                 chatsToUpdateLocally.forEach(chat => {
+                    if (currentPendingPushIds.has(chat.id)) {
+                        console.warn(`[Sync] Suppressing local update for chat ${chat.id} due to pending push operation.`);
+                        return;
+                    }
                     chatList.replaceChat(chat.id, chat);
                 });
                 chatsToDeleteLocally.forEach(id => {
+                    if (currentPendingPushIds.has(id)) {
+                        console.warn(`[Sync] Suppressing local delete for chat ${id} due to pending push operation.`);
+                        return;
+                    }
                     try {
                         chatList.deleteChatLocally(id);
                     } catch (e) {
@@ -454,7 +530,7 @@ export default function AIAssistant() {
                     }
                 });
 
-                console.log(`[Sync Success] Attempt ${retryCount + 1} successful.`);
+                console.log(`[Sync Success] Attempt ${retryCount + 1} successful. Final Stats:`, currentStats);
                 setLastSyncTime(Date.now());
                 setLastSyncStats(currentStats);
                 setSyncError(null);
@@ -483,7 +559,7 @@ export default function AIAssistant() {
 
         await attemptSync(0);
 
-    }, [isAuthenticated, currentSpace, chatList]);
+    }, [isAuthenticated, currentSpace, chatList, isSyncing, chatState.isGenerating]);
 
     const prevDeps = useRef({ isAuthenticated, currentSpace });
     const syncChatsRef = useRef(syncChats);
@@ -538,6 +614,44 @@ export default function AIAssistant() {
         }
     }, [isAuthenticated, currentSpace]);
 
+    const handleTriggerEdit = (index: number, content: string) => {
+        setEditingMessageIndex(index);
+        setEditingMessageContent(content);
+        setShowEditDialog(true);
+    };
+
+    const [loadingChat, setLoadingChat] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleFetchChatContent = async (selectedChatId: string) => {
+        if (!selectedChatId) return;
+
+        console.log(`[AIAssistant:fetchChatContent] Fetching content for chat ID: ${selectedChatId}`);
+        setLoadingChat(true);
+        setError(null);
+        try {
+            const content = await fetchChatContent(selectedChatId);
+            if (content) {
+                console.log(`[AIAssistant:fetchChatContent] Successfully fetched content for ${selectedChatId}`, content);
+                const mappedMessages: ChatMessage[] = content.messages.map((msg: any) => ({
+                    role: msg.role,
+                    content: msg.content,
+                    sources: msg.sources,
+                    error: undefined,
+                }));
+                chatState.setChatMessages(mappedMessages);
+            } else {
+                console.warn(`[AIAssistant:fetchChatContent] No content found for chat ${selectedChatId}.`);
+                setError("No content found for the selected chat.");
+            }
+        } catch (e) {
+            console.error(`[AIAssistant:fetchChatContent] Error fetching content for chat ${selectedChatId}:`, e);
+            setError("An error occurred while fetching the chat content.");
+        } finally {
+            setLoadingChat(false);
+        }
+    };
+
     return (
         <div className="flex h-[calc(100vh-var(--header-height))] bg-background">
             {isMobile && showMobileMenu && (
@@ -564,283 +678,50 @@ export default function AIAssistant() {
             />
 
             <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-                <div className="fixed top-[var(--header-height)] h-16 border-b bg-background/95 backdrop-blur-sm flex items-center justify-between px-4 md:px-6 z-20 left-0 md:left-72 right-0">
-                    <div className="flex items-center gap-2 md:gap-3">
-                        {isMobile ? (
-                            <Button variant="ghost" size="icon" onClick={() => setShowMobileMenu(true)} className="text-primary hover:bg-primary/10 rounded-full h-9 w-9"><Menu className="h-5 w-5" /></Button>
-                        ) : (
-                            <Button variant="ghost" size="icon" onClick={() => handleBackNavigation(router, setInitialTab)} className="text-primary hover:bg-primary/10 rounded-full h-9 w-9" title="Back to Dashboard"><ArrowLeft className="h-5 w-5" /></Button>
-                        )}
-                        <div className="flex items-center gap-2">
-                            <h2 className="text-base md:text-lg font-semibold">AI Assistant</h2>
-                            <TooltipProvider><Tooltip><TooltipTrigger><span className="inline-flex items-center rounded-md bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive ring-1 ring-inset ring-destructive/20">Alpha</span></TooltipTrigger><TooltipContent side="bottom"><p className="max-w-xs">This is a rough Alpha version. Features and performance may change significantly.</p></TooltipContent></Tooltip></TooltipProvider>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2 md:gap-3">
-                        {isAuthenticated && (
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant="ghost" size="sm" className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs h-auto ${isSyncing ? 'text-blue-600 bg-blue-100/60 dark:text-blue-400 dark:bg-blue-900/30' : syncActivity === 'error' ? 'text-destructive bg-destructive/10' : 'text-muted-foreground hover:bg-accent'}`}>
-                                        <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                                        <span>
-                                            {syncActivity === 'checking' ? 'Checking...' :
-                                                syncActivity === 'pulling' ? 'Pulling Chats' :
-                                                    syncActivity === 'saving' ? 'Saving Chats' :
-                                                        syncActivity === 'error' ? 'Sync Error' :
-                                                            'Up to date'}
-                                        </span>
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-64 text-sm p-3" side="bottom" align="end">
-                                    <div className="font-medium mb-2 border-b pb-2">Sync Status</div>
-                                    <div className="space-y-1.5">
-                                        <p>Status: {
-                                            syncActivity === 'checking' ? 'Checking for changes...' :
-                                                syncActivity === 'pulling' ? 'Pulling changes...' :
-                                                    syncActivity === 'saving' ? 'Saving changes...' :
-                                                        syncActivity === 'error' ? <span className="text-destructive">Error</span> :
-                                                            'Idle (Up to date)'
-                                        }</p>
-                                        <p>Space: <span className="font-medium">{currentSpace || 'N/A'}</span></p>
-                                        <p>Last Sync: {lastSyncTime ? new Date(lastSyncTime).toLocaleTimeString() : 'Never'}</p>
-                                        {lastSyncStats && !isSyncing && syncActivity !== 'error' && (
-                                            <div className="text-xs pt-1 text-muted-foreground">
-                                                <p>Synced from server: {lastSyncStats.pulled}</p>
-                                                <p>Saved to server (Update): {lastSyncStats.pushedUpdates}</p>
-                                                <p>Saved to server (Create): {lastSyncStats.pushedCreates}</p>
-                                                {lastSyncStats.errors > 0 && <p className="text-destructive">Errors: {lastSyncStats.errors}</p>}
-                                            </div>
-                                        )}
-                                        {syncError && (
-                                            <p className="text-xs text-destructive pt-1">Error: {syncError.substring(0, 200)}</p>
-                                        )}
-                                    </div>
-                                    <div className="flex flex-wrap items-center gap-2 mt-3">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="flex-1 text-xs"
-                                            onClick={() => {
-                                                console.log("[Sync Button] 'Check for Pulls' triggered.");
-                                                setIsPulling(true);
-                                                syncChatsRef.current();
-                                            }}
-                                            disabled={isSyncing}
-                                            title="Check server for newer chats or deletions"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`mr-1.5 h-3.5 w-3.5 ${isPulling ? 'animate-spin' : ''}`}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-                                            {isPulling ? 'Pulling...' : 'Check for Pulls'}
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="flex-1 text-xs"
-                                            onClick={() => {
-                                                console.log("[Sync Button] 'Push Local Changes' triggered.");
-                                                setIsSaving(true);
-                                                syncChatsRef.current();
-                                            }}
-                                            disabled={isSyncing}
-                                            title="Ensure local updates are saved to the server"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`mr-1.5 h-3.5 w-3.5 ${isSaving ? 'animate-spin' : ''}`}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
-                                            {isSaving ? 'Saving...' : 'Push Local Changes'}
-                                        </Button>
-                                    </div>
-                                </PopoverContent>
-                            </Popover>
-                        )}
+                <ChatHeader
+                    isMobile={isMobile}
+                    isAuthenticated={isAuthenticated}
+                    isInitializing={isInitializing}
+                    currentSpace={currentSpace}
+                    isSyncing={isSyncing}
+                    syncActivity={syncActivity}
+                    lastSyncTime={lastSyncTime}
+                    lastSyncStats={lastSyncStats}
+                    syncError={syncError}
+                    discourse={discourse}
+                    isNonGlobalSpace={isNonGlobalSpace}
+                    onShowMobileMenu={() => setShowMobileMenu(true)}
+                    onBack={() => handleBackNavigation(router, setInitialTab)}
+                    onTriggerSync={syncChatsRef.current}
+                    isPulling={syncActivity === 'pulling'}
+                    isSaving={syncActivity === 'saving'}
+                />
 
-                        {isNonGlobalSpace && !isInitializing && (
-                            <>
-                                <TooltipProvider delayDuration={200}>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <AuthenticatedActionButton
-                                                variant="ghost" className={`flex items-center gap-1.5 cursor-pointer transition-colors p-1.5 rounded-full ${isMobile ? '' : 'hover:bg-accent'}`}
-                                                onClick={() => discourse.setShowDiscourseDialog(true)} role="button"
-                                            >
-                                                {discourse.isCheckingDiscourse ? (
-                                                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                                                ) : discourse.connectionStatus === 'connected' ? (
-                                                    <CircleDotIcon className="h-4 w-4 text-green-500" />
-                                                ) : discourse.connectionStatus === 'partially_connected' ? (
-                                                    <CircleDotIcon className="h-4 w-4 text-yellow-500" />
-                                                ) : discourse.connectionStatus === 'pending' ? (
-                                                    <CircleDotIcon className="h-4 w-4 text-blue-500" />
-                                                ) : discourse.connectionStatus === 'unavailable_logged_out' ? (
-                                                    <CircleIcon className="h-4 w-4 text-gray-500" />
-                                                ) : (
-                                                    <CircleIcon className="h-4 w-4 text-muted-foreground" />
-                                                )}
-                                                <span className="text-xs font-medium mr-1">
-                                                    {discourse.isCheckingDiscourse ? 'Checking' :
-                                                        discourse.connectionStatus === 'connected' ? 'Connected' :
-                                                            discourse.connectionStatus === 'partially_connected' ? 'Messages Stored' :
-                                                                discourse.connectionStatus === 'pending' ? 'Pending Fetch' :
-                                                                    discourse.connectionStatus === 'unavailable_logged_out' ? 'Login Required' :
-                                                                        'Not Connected'}
-                                                </span>
-                                            </AuthenticatedActionButton>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="bottom">
-                                            {discourse.isCheckingDiscourse ? 'Checking Discourse connection...' :
-                                                discourse.connectionStatus === 'connected' ? `Connected as ${discourse.discourseUsername}` :
-                                                    discourse.connectionStatus === 'partially_connected' ? 'Stored messages found. Connect to update.' :
-                                                        discourse.connectionStatus === 'pending' ? 'Ready to fetch messages. Click settings to connect.' :
-                                                            discourse.connectionStatus === 'unavailable_logged_out' ? 'Login required to connect Discourse' :
-                                                                'Connect to Discourse'}
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </>
-                        )}
-                    </div>
-                </div>
+                <ChatMessageArea
+                    isInitializing={isInitializing}
+                    chatState={chatState}
+                    chatList={chatList}
+                    discourse={discourse}
+                    isAuthenticated={isAuthenticated}
+                    userRationales={userRationales}
+                    currentSpace={currentSpace}
+                    isMobile={isMobile}
+                    onStartChatOption={handleStartChatOption}
+                    onTriggerEdit={handleTriggerEdit}
+                />
 
-                <div className="flex-1 overflow-y-auto bg-muted/20 min-h-0 pt-16 pb-24 md:pb-28">
-                    {isInitializing ? (
-                        <ChatLoadingState />
-                    ) : chatState.chatMessages.length === 0 ? (
-                        <div className="h-full flex items-center justify-center p-4 md:p-6">
-                            <div className="max-w-2xl w-full space-y-6 md:space-y-8">
-                                <div className="text-center space-y-1">
-                                    <h2 className="text-lg md:text-xl font-bold">How can I help?</h2>
-                                    <p className="text-muted-foreground text-xs md:text-sm">Select an option or start typing below</p>
-                                </div>
-                                <div className="grid gap-3 md:gap-4 sm:grid-cols-2">
-                                    <AuthenticatedActionButton
-                                        variant="outline" className="h-auto min-h-[6rem] p-2 md:min-h-[8rem] md:p-4 flex flex-col items-center justify-center gap-1.5 text-center rounded-lg hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2"
-                                        onClick={() => handleStartChatOption('distill')}
-                                        disabled={chatState.isGenerating || !isAuthenticated || userRationales.length === 0}
-                                    >
-                                        <div className="text-sm md:text-lg font-semibold">Distill Rationales</div>
-                                        <p className="text-xs text-muted-foreground text-balance">
-                                            {!isAuthenticated
-                                                ? "Log in to see your rationales"
-                                                : userRationales.length === 0
-                                                    ? "You don't have any rationales yet."
-                                                    : "Organize your existing rationales into an essay."}
-                                        </p>
-                                    </AuthenticatedActionButton>
-                                    <Button variant="outline" className="h-auto min-h-[6rem] p-2 md:min-h-[8rem] md:p-4 flex flex-col items-center justify-center gap-1.5 text-center rounded-lg hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 opacity-50 cursor-not-allowed" disabled aria-disabled="true">
-                                        <div className="text-sm md:text-lg font-semibold">Build from Posts</div><p className="text-xs text-muted-foreground text-balance">Create rationales from your forum posts.</p><span className="text-xs text-primary font-medium mt-1">Coming Soon</span>
-                                    </Button>
-                                </div>
-                                <p className="text-center text-xs text-muted-foreground">Or, just type your message below to start a general chat.</p>
-                            </div>
-                        </div>
-                    ) : (
-                        <div id="chat-scroll-area">
-                            <div className={`space-y-4 md:space-y-6 py-4 md:py-6 px-2 md:px-4`}>
-                                {chatState.chatMessages.map((msg, i) => (
-                                    <div key={`${chatList.currentChatId || 'nochat'}-${i}`} className={`group flex w-full flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                                        <div
-                                            className={`relative ${isMobile ? 'max-w-[90%]' : 'max-w-[80%]'} rounded-xl md:rounded-2xl shadow-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-card text-card-foreground'} p-3 md:p-4`}
-                                        >
-                                            <MemoizedMarkdown
-                                                content={msg.content} id={`msg-${i}`}
-                                                isUserMessage={msg.role === 'user'}
-                                                space={currentSpace}
-                                                discourseUrl={discourse.discourseUrl}
-                                                storedMessages={discourse.storedMessages}
-                                            />
-
-                                            {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && (
-                                                <div className="mt-2 pt-1">
-                                                    <DetailedSourceList
-                                                        sources={msg.sources} space={currentSpace}
-                                                        discourseUrl={discourse.discourseUrl}
-                                                        storedMessages={discourse.storedMessages}
-                                                    />
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className={`mt-1 flex w-full gap-1.5 ${msg.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" title="Copy" onClick={() => chatState.handleCopy(i)} disabled={chatState.isGenerating}>
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
-                                            </Button>
-
-                                            {/* Only show Edit button for user messages */}
-                                            {msg.role === 'user' && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                                    title="Edit"
-                                                    onClick={() => {
-                                                        setEditingMessageIndex(i);
-                                                        setEditingMessageContent(msg.content);
-                                                        setShowEditDialog(true);
-                                                    }}
-                                                    disabled={chatState.isGenerating || editingMessageIndex !== null} // Disable if any edit dialog is potentially open (or generating)
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
-                                                </Button>
-                                            )}
-
-                                            {msg.role === 'assistant' && (
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" title="Retry" onClick={() => chatState.handleRetry(i)} disabled={chatState.isGenerating || editingMessageIndex !== null || i === 0}>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
-                                                </Button>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                                {chatState.isGenerating && chatState.isFetchingContext && (
-                                    <div className="flex justify-center items-center p-4">
-                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                            Fetching relevant Negation Game user activity...
-                                        </div>
-                                    </div>
-                                )}
-                                {chatState.streamingContent && (
-                                    <div className="flex justify-start">
-                                        <div className={`${isMobile ? 'max-w-[90%]' : 'max-w-[80%]'} rounded-xl md:rounded-2xl p-3 md:p-4 shadow-sm bg-card text-card-foreground mr-4 [&_.markdown]:text-sm [&_.markdown]:md:text-base`}>
-                                            <MemoizedMarkdown
-                                                content={chatState.streamingContent + " ▋"} id="streaming"
-                                                space={currentSpace} discourseUrl={discourse.discourseUrl}
-                                                storedMessages={discourse.storedMessages}
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-                                <div ref={chatState.chatEndRef} className="h-1" />
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                <div className={`fixed bottom-0 border-t bg-background ${isMobile ? 'p-2' : 'p-4'} left-0 md:left-72 right-0 z-20`}>
-                    <form className={`w-full lg:max-w-3xl xl:max-w-4xl mx-auto flex items-end gap-2 md:gap-3`} onSubmit={handleFormSubmit}>
-                        <AutosizeTextarea
-                            value={chatState.message}
-                            onChange={(e) => chatState.setMessage(e.target.value)}
-                            placeholder={!isAuthenticated ? "Login to chat..." : chatState.isGenerating ? "Waiting for response..." : "Type your message here... (Ctrl+Enter to send)"}
-                            className={`flex-1 py-2.5 px-3 md:px-4 text-xs sm:text-sm md:text-base rounded-lg border shadow-sm resize-none focus-visible:ring-1 focus-visible:ring-ring`}
-                            disabled={chatState.isGenerating || isInitializing || !currentSpace || !isAuthenticated}
-                            minHeight={40}
-                            maxHeight={isMobile ? 100 : 160}
-                            onKeyDown={handleKeyDown}
-                        />
-                        <AuthenticatedActionButton
-                            type="submit"
-                            disabled={chatState.isGenerating || !chatState.message.trim() || !isAuthenticated || isInitializing}
-                            rightLoading={chatState.isGenerating}
-                            className="rounded-lg h-9 px-3 md:h-10 md:px-4"
-                            title={"Send Message (Ctrl+Enter)"}
-                        >
-                            {!chatState.isGenerating && (
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" /></svg>
-                            )}
-                        </AuthenticatedActionButton>
-                        <AuthenticatedActionButton type="button" variant="ghost" size="icon" onClick={() => setShowSettingsDialog(true)} className="rounded-lg h-9 w-9 md:h-10 md:w-10 text-muted-foreground hover:text-foreground" title="Chat Settings">
-                            <SlidersHorizontal className="h-4 w-4" />
-                        </AuthenticatedActionButton>
-                    </form>
-                </div>
+                <ChatInputForm
+                    message={chatState.message}
+                    setMessage={chatState.setMessage}
+                    isGenerating={chatState.isGenerating}
+                    isAuthenticated={isAuthenticated}
+                    isInitializing={isInitializing}
+                    isMobile={isMobile}
+                    currentSpace={currentSpace}
+                    onSubmit={handleFormSubmit}
+                    onKeyDown={handleKeyDown}
+                    onShowSettings={() => setShowSettingsDialog(true)}
+                />
             </div>
 
             {isNonGlobalSpace && (
@@ -969,7 +850,6 @@ export default function AIAssistant() {
                     </div>
                 </DialogContent>
             </Dialog>
-            {/* --- End Edit Message Dialog --- */}
         </div>
     );
 } 

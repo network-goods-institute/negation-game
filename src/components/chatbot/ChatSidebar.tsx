@@ -9,7 +9,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
+import { AuthenticatedActionButton } from "@/components/AuthenticatedActionButton";
 import { SavedChat } from '@/types/chat';
 import { Skeleton } from '../ui/skeleton';
 import { toast } from 'sonner';
@@ -160,7 +160,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                                                     </Tooltip>
                                                 </TooltipProvider>
                                                 <span className="text-xs text-muted-foreground truncate block mt-0.5">
-                                                    {new Date(chat.updatedAt).toLocaleDateString()} · {chat.messages.filter(m => m.role === 'user' || m.role === 'assistant').length} msg
+                                                    {new Date(chat.updatedAt).toLocaleDateString()} · {chat.messages.length} msg
                                                 </span>
                                             </div>
                                             <div className={`flex items-center shrink-0 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>

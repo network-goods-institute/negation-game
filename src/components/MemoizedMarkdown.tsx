@@ -1,12 +1,12 @@
 import React, { memo, useState, ReactNode, Fragment } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Button } from './button';
+import { Button } from '@/components/ui/button';
 import { CheckIcon, CopyIcon } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import { PointReference } from '../chatbot/PointReference';
-import { SuggestionBlock } from '../chatbot/SuggestionBlock';
-import { SourceCitation } from '../chatbot/SourceCitation';
+import { PointReference } from '@/components/chatbot/PointReference';
+import { SuggestionBlock } from '@/components/chatbot/SuggestionBlock';
+import { SourceCitation } from '@/components/chatbot/SourceCitation';
 
 const CodeBlock = memo(({ className, children, ...props }: { className?: string; children: string }) => {
     const [copied, setCopied] = useState(false);
@@ -149,44 +149,45 @@ const renderTextWithInlineTags = (
             const postId = match[10]; // ID is Group 10
             const message = storedMessages.find(m => String(m.id) === String(postId));
             parts.push(<SourceCitation key={`discourse-${postId}-${keyIndex++}`} type="Discourse Post" id={postId} title={undefined} rawContent={message?.raw} htmlContent={message?.content} space={space} discourseUrl={discourseUrl} />);
-        } else if (match[11]) {
+        } else if (match[11]) { // Matched sourceCiteRegex
             const sourceTypeRaw = match[12]; // Raw captured type (e.g., "Endorsed Point", "Endorsed Points")
             const sourceTitle = match[13];
-            const sourceIdString = match[14];
+            const sourceIdString = match[14]; // Raw string containing potentially multiple IDs and labels
             console.log("[Markdown Debug] Matched Source Citation Block:", match[0]);
-            console.log("[Markdown Debug] Extracted sourceIdString:", sourceIdString);
+            console.log("[Markdown Debug] Extracted full sourceIdString:", sourceIdString);
 
             const sourceType: 'Rationale' | 'Endorsed Point' | 'Discourse Post' =
                 sourceTypeRaw === 'Endorsed Points' ? 'Endorsed Point' : sourceTypeRaw as any;
 
             if (sourceIdString && sourceType) {
-                const sourceIds = sourceIdString.split(',').map(id => id.trim()).filter(id => id);
-                console.log("[Markdown Debug] Split sourceIds:", sourceIds);
+                // Improved ID extraction: Find all digits sequences within the raw string
+                const extractedIds = sourceIdString.match(/\d+/g) || [];
+                console.log("[Markdown Debug] Extracted numeric IDs:", extractedIds);
 
-                sourceIds.forEach((sourceId, index) => {
-                    console.log(`[Markdown Debug] Processing sourceId[${index}]:`, sourceId);
-                    const cleanedSourceId = sourceId.replace(/^ID:/i, '').trim();
-                    console.log(`[Markdown Debug] Cleaned sourceId[${index}]:`, cleanedSourceId);
+                extractedIds.forEach((numericId, index) => {
+                    console.log(`[Markdown Debug] Processing numericId[${index}]:`, numericId);
 
                     let rawContent: string | undefined = undefined;
                     let htmlContent: string | undefined = undefined;
                     if (sourceType === 'Discourse Post') {
-                        const message = storedMessages.find(m => String(m.id) === String(cleanedSourceId));
+                        const message = storedMessages.find(m => String(m.id) === numericId);
                         rawContent = message?.raw;
                         htmlContent = message?.content;
                     }
+
+                    // Now passing only the numeric string to SourceCitation
                     parts.push(<SourceCitation
-                        key={`cite-${cleanedSourceId}-${keyIndex++}`}
+                        key={`cite-${numericId}-${keyIndex++}`}
                         type={sourceType}
-                        id={cleanedSourceId}
-                        title={sourceType !== 'Discourse Post' ? sourceTitle : undefined}
+                        id={numericId}
+                        title={extractedIds.length === 1 && sourceType !== 'Discourse Post' ? sourceTitle : undefined} // Only use title if single ID
                         rawContent={rawContent}
                         htmlContent={htmlContent}
                         space={space}
                         discourseUrl={discourseUrl}
                     />);
-                    if (index < sourceIds.length - 1) {
-                        parts.push(<Fragment key={`space-${keyIndex++}`}> </Fragment>);
+                    if (index < extractedIds.length - 1) {
+                        parts.push(<Fragment key={`space-${keyIndex++}`}> </Fragment>); // Keep space between multiple citations
                     }
                 });
             } else {

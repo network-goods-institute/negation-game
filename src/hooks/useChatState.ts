@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import {
   generateChatBotResponse,
   EndorsedPoint,
-} from "@/actions/generateChatBotResponse";
+} from "@/actions/generateDistillRationaleChatBotResponse";
 import { generateChatName } from "@/actions/generateChatName";
 import { extractSourcesFromMarkdown } from "@/utils/chatUtils";
 import {
@@ -49,29 +49,38 @@ export function useChatState({
   const [selectedOption, setSelectedOption] = useState<InitialOption>(null);
 
   useEffect(() => {
-    if (isGenerating) {
-      console.log("[useEffect savedChats] Skipping update while generating.");
-      return;
-    }
-
+    const chats = savedChats;
     if (currentChatId) {
-      const currentChat = savedChats.find((c) => c.id === currentChatId);
+      const currentChat = chats.find((c) => c.id === currentChatId);
       console.log(
-        `[useEffect savedChats] Syncing messages for chat ${currentChatId}. ` +
+        `[useEffect currentChatId Change] Loading messages for new chat ID: ${currentChatId}. ` +
           `Found chat: ${!!currentChat}. ` +
-          `Messages in found chat: ${currentChat?.messages?.length ?? "N/A"}. ` +
-          `First message content sample: ${currentChat?.messages?.[0]?.content?.substring(0, 50) ?? "N/A"}`
+          `Messages: ${currentChat?.messages?.length ?? "N/A"}.`
       );
-      setChatMessages(currentChat?.messages || []);
+
+      setChatMessages((prevMessages) => {
+        const newMessages = currentChat?.messages || [];
+        if (
+          prevMessages.length === newMessages.length &&
+          prevMessages.every(
+            (msg, i) =>
+              msg.content === newMessages[i]?.content &&
+              msg.role === newMessages[i]?.role
+          )
+        ) {
+          return prevMessages;
+        }
+        return newMessages;
+      });
       setSelectedOption(null);
     } else {
       console.log(
-        "[useEffect savedChats] No currentChatId, clearing messages."
+        "[useEffect currentChatId Change] No currentChatId, clearing messages."
       );
       setChatMessages([]);
       setSelectedOption(null);
     }
-  }, [currentChatId, savedChats, isGenerating]);
+  }, [currentChatId]);
 
   useEffect(() => {
     if (chatMessages.length > 0 || streamingContent) {
@@ -80,7 +89,7 @@ export function useChatState({
           behavior: "smooth",
           block: "end",
         });
-      }, 50);
+      }, 100);
       return () => clearTimeout(timer);
     }
   }, [chatMessages, streamingContent]);
@@ -343,16 +352,27 @@ Please try:
         });
 
         setStreamingContent("");
+        setIsGenerating(false);
+        console.log(
+          "[handleGenericResponse] Stream finished, UI unlocked (isGenerating=false). Starting title generation/save..."
+        );
 
         if (chatIdToUse) {
-          await generateAndSetTitle(chatIdToUse, finalMessages);
+          generateAndSetTitle(chatIdToUse, finalMessages).catch((error) => {
+            console.error(
+              "[handleGenericResponse] Error during background title/save:",
+              error
+            );
+          });
         } else {
           console.warn(
             "[handleGenericResponse] No chatIdToUse available for title generation."
           );
         }
 
-        console.log("[handleGenericResponse] TRY block finished successfully.");
+        console.log(
+          "[handleGenericResponse] TRY block finished (title/save running in background)."
+        );
       } catch (error) {
         console.error(
           "[handleGenericResponse] Error generating response (outer catch): ",
@@ -370,21 +390,16 @@ Please try:
         if (chatIdToUse) {
           updateChat(chatIdToUse, [...messagesForApi, errorMessage]);
         }
+        setStreamingContent("");
       } finally {
-        console.log("[handleGenericResponse] Setting isGenerating to false...");
-        setIsGenerating(false);
         console.log(
-          "[handleGenericResponse] isGenerating state should now be false."
-        );
-        setIsFetchingContext(false);
-        if (streamingContent) setStreamingContent("");
-        console.log(
-          "[handleGenericResponse] FINALLY: isGenerating=false, isFetchingContext=false"
+          "[handleGenericResponse] FINALLY block reached (isGenerating was already set)."
         );
       }
     },
     [
       settings,
+      isGenerating,
       endorsedPoints,
       userRationales,
       storedMessages,
@@ -489,7 +504,7 @@ Please try:
 
       toast.success("Message updated & regenerating response...");
     },
-    [currentChatId, chatMessages, updateChat, savedChats, handleGenericResponse] // Added handleGenericResponse dependency
+    [currentChatId, chatMessages, updateChat, handleGenericResponse]
   );
 
   const startChatWithOption = useCallback(
@@ -556,11 +571,11 @@ Please try:
 
   const handleSubmit = useCallback(
     async (
-      e:
+      e?:
         | React.FormEvent<HTMLFormElement>
         | React.KeyboardEvent<HTMLTextAreaElement>
     ) => {
-      e.preventDefault();
+      if (e) e.preventDefault();
       if (
         !message.trim() ||
         isGenerating ||
