@@ -126,9 +126,11 @@ export function useChatListManagement({
       } finally {
         setPendingPushIds((prev) => {
           const next = new Set(prev);
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
           next.delete(chatId);
           return next;
         });
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
         pendingChatUpdatesRef.current.delete(chatId);
       }
     },
@@ -425,6 +427,7 @@ export function useChatListManagement({
       } finally {
         setPendingPushIds((prev) => {
           const next = new Set(prev);
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
           next.delete(newChatId);
           return next;
         });
@@ -519,6 +522,7 @@ export function useChatListManagement({
         } finally {
           setPendingPushIds((prev) => {
             const next = new Set(prev);
+            // eslint-disable-next-line drizzle/enforce-delete-with-where
             next.delete(chatId);
             return next;
           });
@@ -658,6 +662,7 @@ export function useChatListManagement({
 
       setPendingPushIds((prev) => {
         const next = new Set(prev);
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
         chatIdsToDelete.forEach((id) => next.delete(id));
         return next;
       });
@@ -694,6 +699,7 @@ export function useChatListManagement({
       );
       setPendingPushIds((prev) => {
         const next = new Set(prev);
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
         chatIdsToDelete.forEach((id) => next.delete(id));
         return next;
       });
@@ -783,7 +789,7 @@ export function useChatListManagement({
         }
       }
     },
-    [currentSpace, savedChats, currentChatId]
+    [currentSpace, currentChatId]
   );
 
   return {

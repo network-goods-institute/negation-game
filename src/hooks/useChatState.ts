@@ -80,7 +80,7 @@ export function useChatState({
       setChatMessages([]);
       setSelectedOption(null);
     }
-  }, [currentChatId]);
+  }, [currentChatId, savedChats]);
 
   useEffect(() => {
     if (chatMessages.length > 0 || streamingContent) {
@@ -406,7 +406,6 @@ Please try:
       generateAndSetTitle,
       updateChat,
       isFetchingContext,
-      streamingContent,
     ]
   );
 
