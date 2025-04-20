@@ -35,7 +35,6 @@ import { usePrefetchPoint } from "@/queries/usePointData";
 import React from "react";
 import { ViewpointCardWrapper } from "@/components/ViewpointCardWrapper";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
-import { SharePointsDialog } from "@/components/SharePointsDialog";
 
 interface PageProps {
     params: { space: string };
@@ -1099,17 +1098,6 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
                 open={leaderboardOpen}
                 onOpenChange={setLeaderboardOpen}
                 space={space.data?.id || "global"}
-            />
-            <SharePointsDialog
-                open={shareDialogOpen || isSharedView}
-                onOpenChange={(open) => {
-                    if (!isSharedView) {
-                        setShareDialogOpen(open);
-                    }
-                }}
-                isViewMode={isSharedView}
-                sharedBy={sharedBy}
-                initialPoints={sharedPoints}
             />
         </main>
     );

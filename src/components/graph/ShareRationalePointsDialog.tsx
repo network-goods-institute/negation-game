@@ -4,7 +4,7 @@ import { Portal } from "@radix-ui/react-portal";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { usePrivy } from "@privy-io/react-auth";
-import { usePointData } from "@/queries/usePointData";
+import { usePointData, PointData } from "@/queries/usePointData";
 import { PointCard } from "../PointCard";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { ArrowLeftIcon, SearchIcon, XIcon, CheckIcon, CopyIcon, ExternalLinkIcon } from "lucide-react";
@@ -17,11 +17,11 @@ import { Skeleton } from "../ui/skeleton";
 import { toast } from "sonner";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useUser } from "@/queries/useUser";
-import { AppNode } from "@/components/graph/AppNode";
 import { PointNode } from "@/components/graph/PointNode";
 import { getPointUrl } from "@/lib/getPointUrl";
 import { useQuery } from "@tanstack/react-query";
 import { pointFetcher } from "@/queries/usePointData";
+import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
 
 interface ShareRationaleDialogProps extends DialogProps {
     open: boolean;
@@ -49,26 +49,45 @@ const PointCardWrapper: FC<PointCardWrapperProps> = memo(({ pointId, isSelected,
     const { login, user: privyUser } = usePrivy();
     const setNegatedPointId = useSetAtom(negatedPointIdAtom);
 
-    if (!pointData || isLoading) {
+    const anyPointData = pointData as any;
+
+    if (isLoading || !anyPointData || typeof anyPointData.pointId !== 'number') {
         return (
             <div className="w-full h-24 bg-muted animate-pulse rounded-md" />
         );
     }
 
     return (
-        <div className="relative">
+        <div className={cn(
+            "relative h-full",
+            !isViewMode && !isSelected && "opacity-50 transition-opacity duration-200",
+            "hover:bg-accent transition-colors duration-200"
+        )}>
+            {!isViewMode && (
+                <CheckboxPrimitive.Root
+                    checked={isSelected}
+                    onCheckedChange={onSelect}
+                    className="absolute top-4 right-4 z-10 h-5 w-5 rounded-sm border border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                    aria-label={`Select point ${pointId}`}
+                >
+                    <CheckboxPrimitive.Indicator className={cn("flex items-center justify-center text-current")}>
+                        <CheckIcon className="h-4 w-4" />
+                    </CheckboxPrimitive.Indicator>
+                </CheckboxPrimitive.Root>
+            )}
             <MemoizedPointCard
                 className="flex-grow p-4"
-                favor={pointData.favor}
-                content={pointData.content}
-                createdAt={pointData.createdAt}
-                amountSupporters={pointData.amountSupporters}
-                amountNegations={pointData.amountNegations}
-                pointId={pointData.pointId}
-                cred={pointData.cred}
-                viewerContext={{ viewerCred: pointData.viewerCred }}
+                favor={anyPointData.favor}
+                content={anyPointData.content}
+                createdAt={anyPointData.createdAt}
+                amountSupporters={anyPointData.amountSupporters}
+                amountNegations={anyPointData.amountNegations}
+                pointId={anyPointData.pointId}
+                cred={anyPointData.cred}
+                viewerContext={{ viewerCred: anyPointData.viewerCred }}
                 linkDisabled={true}
                 disablePopover={true}
+                disableVisitedMarker={true}
                 onNegate={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -120,14 +139,14 @@ const VirtualizedPointsList = memo(({ points, selectedPoints, onSelect, isViewMo
     const virtualizer = useVirtualizer({
         count: points.length,
         getScrollElement: () => parentRef.current,
-        estimateSize: () => POINT_CARD_HEIGHT + 16,
+        estimateSize: () => POINT_CARD_HEIGHT + 48,
         overscan: 5
     });
 
     return (
         <div
             ref={parentRef}
-            className="relative overflow-auto pb-8"
+            className="relative pb-8"
         >
             <div
                 style={{
@@ -150,17 +169,8 @@ const VirtualizedPointsList = memo(({ points, selectedPoints, onSelect, isViewMo
                                 transform: `translateY(${virtualRow.start}px)`,
                             }}
                             className={cn(
-                                "border-b last:border-b-0 p-2",
-                                !isViewMode && selectedPoints.has(pointId) ? 'bg-purple-500/10 hover:bg-purple-500/20' : 'hover:bg-accent'
+                                "border-b last:border-b-0 p-2 transition-colors duration-200",
                             )}
-                            onClick={(e) => {
-                                if (isViewMode) return;
-                                if (window.getSelection()?.toString() ||
-                                    (e.target as HTMLElement).closest('[data-action-button="true"]')) {
-                                    return;
-                                }
-                                onSelect(pointId);
-                            }}
                         >
                             <PointCardWrapper
                                 pointId={pointId}
@@ -198,7 +208,7 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
     });
 
     const [position, setPosition] = useState({ x: 0, y: 0 });
-    const [modalSize, setModalSize] = useState({ width: 480, height: 550 });
+    const [modalSize, setModalSize] = useState({ width: 480, height: 650 });
     const [isMobile, setIsMobile] = useState(false);
     const modalRef = useRef<HTMLDivElement>(null);
     const isDragging = useRef(false);
@@ -209,40 +219,42 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
             return initialPoints;
         }
         if (!viewpoint?.graph?.nodes) return [];
-        const uniquePointIds = new Set(
-            viewpoint.graph.nodes
-                .filter((node): node is AppNode => node.type === 'point')
-                .map(node => {
-                    const pointNode = node as PointNode;
-                    return pointNode.data.pointId;
-                })
-        );
+        const uniquePointIds = new Set<number>();
+        const nodes = viewpoint.graph.nodes as any[];
+        for (const node of nodes) {
+            if (node && node.type === 'point') {
+                const pointNode = node as PointNode;
+                if (typeof pointNode.data?.pointId === 'number') {
+                    uniquePointIds.add(pointNode.data.pointId);
+                }
+            }
+        }
         return Array.from(uniquePointIds);
     }, [viewpoint, isViewMode, initialPoints]);
 
-    const { data: pointsData, isLoading: isPointsLoading } = useQuery({
+    const { data: pointsData, isLoading: isPointsLoading } = useQuery<Map<number, PointData>>({
         queryKey: ['pointsData', pointsSource, isViewMode],
         queryFn: async () => {
-            if (isViewMode || !pointsSource.length) return new Map();
+            if (isViewMode || !pointsSource.length) return new Map<number, PointData>();
             const results = await Promise.all(
-                pointsSource.map(pointId => pointFetcher.fetch(pointId))
+                pointsSource.map(async (pointId) => {
+                    const fetchedPoint = await pointFetcher.fetch(pointId);
+                    return fetchedPoint && typeof fetchedPoint.pointId === 'number'
+                        ? [pointId, fetchedPoint as PointData] as const
+                        : null;
+                })
             );
-            return new Map(results.map(point => [point.pointId, point]));
+            return new Map<number, PointData>(results.filter((r): r is [number, PointData] => r !== null));
         },
         enabled: !isViewMode && pointsSource.length > 0,
         staleTime: 5 * 60 * 1000,
     });
 
-    const isPointDataLoading = useMemo(() => {
-        if (isViewMode) return false;
-        return isPointsLoading;
-    }, [isViewMode, isPointsLoading]);
-
     const pointDataMap = useMemo(() => {
-        return pointsData || new Map();
+        return pointsData || new Map<number, PointData>();
     }, [pointsData]);
 
-    const isLoading = (isViewMode ? false : !viewpoint || isPointDataLoading) || userLoading;
+    const isLoading = (isViewMode ? false : !viewpoint || isPointsLoading) || userLoading;
 
     const generateShareUrl = useCallback((pointIds: Set<number>) => {
         if (pointIds.size === 0 || isViewMode || !rationaleId) return "";
@@ -295,18 +307,19 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
         if (!lowerSearchTerm) {
             return pointsSource;
         }
-        if (isPointDataLoading) {
+        if (isPointsLoading) {
             return pointsSource;
         }
 
         return pointsSource.filter(pointId => {
             const pointData = pointDataMap.get(pointId);
-            if (!pointData || !pointData.content) {
+            const anyPointData = pointData as any;
+            if (!anyPointData || !anyPointData.content) {
                 return false;
             }
-            return pointData.content.toLowerCase().includes(lowerSearchTerm);
+            return anyPointData.content.toLowerCase().includes(lowerSearchTerm);
         });
-    }, [pointsSource, searchTerm, isViewMode, isPointDataLoading, pointDataMap]);
+    }, [pointsSource, searchTerm, isViewMode, isPointsLoading, pointDataMap]);
 
     const handleSelectAll = useCallback(() => {
         if (!isViewMode) {
@@ -356,18 +369,8 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
     const sortedPoints = useMemo(() => {
         if (!filteredPoints) return [];
         if (isViewMode) return filteredPoints;
-
-        const selected = [];
-        const unselected = [];
-        for (const pointId of filteredPoints) {
-            if (selectedPoints.has(pointId)) {
-                selected.push(pointId);
-            } else {
-                unselected.push(pointId);
-            }
-        }
-        return [...selected, ...unselected];
-    }, [filteredPoints, selectedPoints, isViewMode]);
+        return filteredPoints;
+    }, [filteredPoints, isViewMode]);
 
     const shareUrl = useMemo(() => {
         return generateShareUrl(selectedPoints);
@@ -557,7 +560,7 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="pl-9 pr-9"
-                                disabled={isPointDataLoading}
+                                disabled={isPointsLoading}
                             />
                             {searchTerm && (
                                 <Button
@@ -570,14 +573,14 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
                                 </Button>
                             )}
                         </div>
-                        {isPointDataLoading && <p className="text-xs text-muted-foreground mt-1 text-center">Loading points for search...</p>}
+                        {isPointsLoading && <p className="text-xs text-muted-foreground mt-1 text-center">Loading points for search...</p>}
                         <div className="flex justify-between mt-2">
                             <Button
                                 variant="outline"
                                 size="sm"
                                 className="h-7 text-xs"
                                 onClick={handleSelectAll}
-                                disabled={isPointDataLoading}
+                                disabled={isPointsLoading}
                             >
                                 Select All
                             </Button>
@@ -586,7 +589,7 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
                                 size="sm"
                                 className="h-7 text-xs"
                                 onClick={handleUnselectAll}
-                                disabled={isPointDataLoading}
+                                disabled={isPointsLoading}
                             >
                                 Unselect All
                             </Button>
@@ -595,13 +598,13 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
                 )}
 
                 <div className="flex-1 overflow-auto">
-                    {isLoading && !isPointDataLoading ? (
+                    {isLoading && !isPointsLoading ? (
                         <div className="p-4 space-y-2">
                             {Array.from({ length: 3 }).map((_, i) => (
                                 <Skeleton key={i} className="h-[120px] w-full" />
                             ))}
                         </div>
-                    ) : sortedPoints.length === 0 && !isPointDataLoading ? (
+                    ) : sortedPoints.length === 0 && !isPointsLoading ? (
                         <div className="flex h-full items-center justify-center p-4">
                             <p className="text-muted-foreground">
                                 {isViewMode

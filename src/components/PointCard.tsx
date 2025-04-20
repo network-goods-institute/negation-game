@@ -123,6 +123,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   disablePopover?: boolean;
   isInPointPage?: boolean;
   isLoading?: boolean;
+  disableVisitedMarker?: boolean;
 }
 
 export const PointCard = ({
@@ -159,6 +160,7 @@ export const PointCard = ({
   disablePopover = !inRationale,
   isInPointPage = false,
   isLoading = false,
+  disableVisitedMarker = false,
   ...props
 }: PointCardProps) => {
   const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
@@ -354,7 +356,7 @@ export const PointCard = ({
           <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       )}
-      <div className="flex flex-col flex-grow w-full min-w-0">
+      <div className="flex flex-col flex-grow w-full min-w-0 pr-8">
         <div className={cn("flex items-start gap-2", inGraphNode && "pt-4")}>
           {inGraphNode && graphNodeLevel !== undefined ? (
             graphNodeLevel % 2 === 0 ? (
@@ -665,7 +667,7 @@ export const PointCard = ({
           </Portal>
         </Tooltip>
       )}
-      {!visited && privyUser && (
+      {!visited && privyUser && !disableVisitedMarker && (
         <div className="absolute top-0.5 right-3 group flex items-center gap-2">
           <span className="text-sm text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
             Tap to mark seen
