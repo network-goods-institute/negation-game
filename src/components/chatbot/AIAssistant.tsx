@@ -694,7 +694,7 @@ export default function AIAssistant() {
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-hidden bg-muted/20">
+                <div className="flex-1 overflow-y-auto bg-muted/20">
                     {isInitializing ? (
                         <ChatLoadingState />
                     ) : chatState.chatMessages.length === 0 ? (
