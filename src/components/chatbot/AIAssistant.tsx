@@ -559,8 +559,8 @@ export default function AIAssistant() {
                 onCloseMobileMenu={() => setShowMobileMenu(false)}
             />
 
-            <div className="flex-1 flex flex-col h-full overflow-hidden">
-                <div className="shrink-0 h-16 border-b bg-background/95 backdrop-blur-sm flex items-center justify-between px-4 md:px-6">
+            <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+                <div className="fixed top-0 h-16 border-b bg-background/95 backdrop-blur-sm flex items-center justify-between px-4 md:px-6 z-20 left-0 md:left-72 right-0">
                     <div className="flex items-center gap-2 md:gap-3">
                         {isMobile ? (
                             <Button variant="ghost" size="icon" onClick={() => setShowMobileMenu(true)} className="text-primary hover:bg-primary/10 rounded-full h-9 w-9"><Menu className="h-5 w-5" /></Button>
@@ -694,7 +694,7 @@ export default function AIAssistant() {
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto bg-muted/20 min-h-0">
+                <div className="flex-1 overflow-y-auto bg-muted/20 min-h-0 pt-16 pb-24 md:pb-28">
                     {isInitializing ? (
                         <ChatLoadingState />
                     ) : chatState.chatMessages.length === 0 ? (
@@ -781,7 +781,7 @@ export default function AIAssistant() {
                     )}
                 </div>
 
-                <div className={`flex-shrink-0 border-t bg-background ${isMobile ? 'p-2' : 'p-4'}`}>
+                <div className={`fixed bottom-0 border-t bg-background ${isMobile ? 'p-2' : 'p-4'} left-0 md:left-72 right-0 z-20`}>
                     <form className={`w-full lg:max-w-3xl xl:max-w-4xl mx-auto flex items-end gap-2 md:gap-3`} onSubmit={handleFormSubmit}>
                         <AutosizeTextarea
                             value={chatState.message}
