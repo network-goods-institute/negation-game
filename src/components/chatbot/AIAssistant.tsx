@@ -298,8 +298,8 @@ export default function AIAssistant() {
         }
 
         console.log("[Sync] Starting sync process...");
-        const maxRetries = 2; // Total 3 attempts (0, 1, 2)
-        const initialDelay = 2000; // ms
+        const maxRetries = 2;
+        const initialDelay = 2000;
 
         const attemptSync = async (retryCount: number) => {
             console.log(`[Sync Attempt] Starting attempt ${retryCount + 1}/${maxRetries + 1}`);
