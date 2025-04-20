@@ -727,7 +727,7 @@ export default function AIAssistant() {
                             </div>
                         </div>
                     ) : (
-                        <div className="h-full overflow-y-auto" id="chat-scroll-area">
+                        <div id="chat-scroll-area">
                             <div className={`space-y-4 md:space-y-6 py-4 md:py-6 px-2 md:px-4`}>
                                 {chatState.chatMessages.map((msg, i) => (
                                     <div key={`${chatList.currentChatId || 'nochat'}-${i}`} className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
