@@ -560,7 +560,7 @@ export default function AIAssistant() {
             />
 
             <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-                <div className="fixed top-0 h-16 border-b bg-background/95 backdrop-blur-sm flex items-center justify-between px-4 md:px-6 z-20 left-0 md:left-72 right-0">
+                <div className="fixed top-[var(--header-height)] h-16 border-b bg-background/95 backdrop-blur-sm flex items-center justify-between px-4 md:px-6 z-20 left-0 md:left-72 right-0">
                     <div className="flex items-center gap-2 md:gap-3">
                         {isMobile ? (
                             <Button variant="ghost" size="icon" onClick={() => setShowMobileMenu(true)} className="text-primary hover:bg-primary/10 rounded-full h-9 w-9"><Menu className="h-5 w-5" /></Button>
