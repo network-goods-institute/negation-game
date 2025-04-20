@@ -7,7 +7,8 @@ import { MemoizedMarkdown } from "@/components/MemoizedMarkdown";
 import { AuthenticatedActionButton } from "@/components/AuthenticatedActionButton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DetailedSourceList } from "./DetailedSourceList";
-import { InitialOption, ChatRationale } from "@/types/chat";
+import { ChatRationale } from "@/types/chat";
+import { InitialOptionObject } from "./AIAssistant";
 import { useChatState } from "@/hooks/useChatState";
 import { useChatListManagement } from "@/hooks/useChatListManagement";
 import { useDiscourseIntegration } from "@/hooks/useDiscourseIntegration";
@@ -50,7 +51,8 @@ interface ChatMessageAreaProps {
     userRationales: ChatRationale[];
     currentSpace: string | null;
     isMobile: boolean;
-    onStartChatOption: (option: InitialOption) => void;
+    initialOptions: InitialOptionObject[];
+    onStartChatOption: (option: InitialOptionObject) => void;
     onTriggerEdit: (index: number, content: string) => void;
 }
 
@@ -63,6 +65,7 @@ export function ChatMessageArea({
     userRationales,
     currentSpace,
     isMobile,
+    initialOptions,
     onStartChatOption,
     onTriggerEdit,
 }: ChatMessageAreaProps) {
@@ -79,24 +82,36 @@ export function ChatMessageArea({
                             <h2 className="text-lg md:text-xl font-bold">How can I help?</h2>
                             <p className="text-muted-foreground text-xs md:text-sm">Select an option or start typing below</p>
                         </div>
-                        <div className="grid gap-3 md:gap-4 sm:grid-cols-2">
-                            <AuthenticatedActionButton
-                                variant="outline" className="h-auto min-h-[6rem] p-2 md:min-h-[8rem] md:p-4 flex flex-col items-center justify-center gap-1.5 text-center rounded-lg hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2"
-                                onClick={() => onStartChatOption('distill')}
-                                disabled={chatState.isGenerating || !isAuthenticated || userRationales.length === 0}
-                            >
-                                <div className="text-sm md:text-lg font-semibold">Distill Rationales</div>
-                                <p className="text-xs text-muted-foreground text-balance">
-                                    {!isAuthenticated
-                                        ? "Log in to see your rationales"
-                                        : userRationales.length === 0
-                                            ? "You don't have any rationales yet."
-                                            : "Organize your existing rationales into an essay."}
-                                </p>
-                            </AuthenticatedActionButton>
-                            <Button variant="outline" className="h-auto min-h-[6rem] p-2 md:min-h-[8rem] md:p-4 flex flex-col items-center justify-center gap-1.5 text-center rounded-lg hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 opacity-50 cursor-not-allowed" disabled aria-disabled="true">
-                                <div className="text-sm md:text-lg font-semibold">Build from Posts</div><p className="text-xs text-muted-foreground text-balance">Create rationales from your forum posts.</p><span className="text-xs text-primary font-medium mt-1">Coming Soon</span>
-                            </Button>
+                        <div className="grid gap-3 md:gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            {initialOptions.map((option) => {
+                                const isDisabled = option.id === 'distill' 
+                                    ? !isAuthenticated || userRationales.length === 0
+                                    : option.disabled || !isAuthenticated;
+                                const description = option.id === 'distill' 
+                                    ? "Organize your existing rationales into an essay."
+                                    : option.description;
+                                    
+                                return (
+                                    <AuthenticatedActionButton
+                                        key={option.id}
+                                        variant="outline"
+                                        className={`h-auto min-h-[6rem] p-2 md:min-h-[8rem] md:p-4 flex flex-col items-center justify-center gap-1.5 text-center rounded-lg hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                                            isDisabled || option.comingSoon ? 'opacity-50 cursor-not-allowed' : ''
+                                        }`}
+                                        onClick={() => onStartChatOption(option)}
+                                        disabled={isDisabled || option.comingSoon || chatState.isGenerating}
+                                        aria-disabled={isDisabled || option.comingSoon}
+                                    >
+                                        <div className="text-sm md:text-lg font-semibold">{option.title}</div>
+                                        <p className="text-xs text-muted-foreground text-balance">
+                                            {description}
+                                        </p>
+                                        {option.comingSoon && (
+                                            <span className="text-xs text-primary font-medium mt-1">Coming Soon</span>
+                                        )}
+                                    </AuthenticatedActionButton>
+                                );
+                            })}
                         </div>
                         <p className="text-center text-xs text-muted-foreground">Or, just type your message below to start a general chat.</p>
                     </div>

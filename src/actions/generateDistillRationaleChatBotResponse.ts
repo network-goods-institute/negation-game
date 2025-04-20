@@ -100,7 +100,6 @@ const filterProblematicContent = (
 export const generateChatBotResponse = async (
   messages: Message[],
   settings: ChatSettings,
-  allEndorsedPoints: EndorsedPoint[] = [],
   allRationales: RationaleContext[] = [],
   allDiscourseMessages: DiscourseMessageContext[] = []
 ) => {
@@ -213,7 +212,6 @@ export const generateChatBotResponse = async (
     );
     let prompt;
     try {
-      // Build prompt using the VERIFIED and FILTERED context
       prompt = `You are an AI assistant in the Negation Game platform. Your goal is to help users articulate, refine, and structure their arguments using points, negations, and rationales.
 
 RULES & CAPABILITIES:

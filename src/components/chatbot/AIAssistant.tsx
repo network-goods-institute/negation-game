@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,7 @@ import { nanoid } from "nanoid";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { AuthenticatedActionButton } from "@/components/AuthenticatedActionButton";
 import { fetchUserEndorsedPoints } from "@/actions/fetchUserEndorsedPoints";
+import { fetchProfilePoints, ProfilePoint } from "@/actions/fetchProfilePoints";
 import { getSpace } from "@/actions/getSpace";
 import { AutosizeTextarea } from "../ui/autosize-textarea";
 import { fetchUserViewpoints } from "@/actions/fetchUserViewpoints";
@@ -40,6 +41,19 @@ import { fetchSharedChatContent } from "@/actions/chatSharingActions";
 import { ChatHeader } from "./ChatHeader";
 import { ChatMessageArea } from "./ChatMessageArea";
 import { ChatInputForm } from "./ChatInputForm";
+import { fetchAllSpacePoints, PointInSpace } from "@/actions/fetchAllSpacePoints";
+
+type OwnedPoint = ProfilePoint;
+
+export type InitialOptionObject = {
+    id: 'distill' | 'build' | 'generate';
+    title: string;
+    prompt: string;
+    description: string;
+    disabled?: boolean;
+    comingSoon?: boolean;
+};
+
 function useIsMobile() {
     const [isMobile, setIsMobile] = useState(false);
 
@@ -83,6 +97,8 @@ export default function AIAssistant() {
     const [isInitializing, setIsInitializing] = useState(true);
     const [currentSpace, setCurrentSpace] = useState<string | null>(null);
     const [endorsedPoints, setEndorsedPoints] = useState<EndorsedPoint[]>([]);
+    const [ownedPoints, setOwnedPoints] = useState<OwnedPoint[]>([]);
+    const [allPointsInSpace, setAllPointsInSpace] = useState<PointInSpace[]>([]);
     const [userRationales, setUserRationales] = useState<ChatRationale[]>([]);
     const [settings, setSettings] = useState<ChatSettings>(() => {
         if (typeof window !== 'undefined') {
@@ -147,12 +163,16 @@ export default function AIAssistant() {
     });
     const { isInitialized: isChatListInitialized } = chatList;
     const discourse = useDiscourseIntegration({ userData, isAuthenticated, isNonGlobalSpace, currentSpace, privyUserId: privyUser?.id });
+    const ownedPointIds = useMemo(() => new Set(ownedPoints.map(p => p.pointId)), [ownedPoints]);
+    const endorsedPointIds = useMemo(() => new Set(endorsedPoints.map(p => p.pointId)), [endorsedPoints]);
     const chatState = useChatState({
         currentChatId: chatList.currentChatId,
         currentSpace,
         isAuthenticated,
         settings,
-        endorsedPoints,
+        allPointsInSpace,
+        ownedPointIds,
+        endorsedPointIds,
         userRationales,
         storedMessages: discourse.storedMessages,
         savedChats: chatList.savedChats,
@@ -217,11 +237,17 @@ export default function AIAssistant() {
                 const space = await getSpace();
                 setCurrentSpace(space);
                 if (isAuthenticated) {
-                    const [points, rationalesResult] = await Promise.all([
+                    const [allPointsResult, profilePointsResult, endorsedPointsResult, rationalesResult] = await Promise.all([
+                        fetchAllSpacePoints(),
+                        fetchProfilePoints(),
                         fetchUserEndorsedPoints(),
                         fetchUserViewpoints()
                     ]);
-                    setEndorsedPoints(points || []);
+
+                    setAllPointsInSpace(allPointsResult || []);
+                    setOwnedPoints(profilePointsResult || []);
+                    setEndorsedPoints(endorsedPointsResult || []);
+
                     const convertedRationales: ChatRationale[] = (rationalesResult || []).map((r: any): ChatRationale => {
                         const defaultGraph = { nodes: [], edges: [] };
                         const graphData = r.graph || defaultGraph;
@@ -241,12 +267,16 @@ export default function AIAssistant() {
                     });
                     setUserRationales(convertedRationales);
                 } else {
+                    setAllPointsInSpace([]);
+                    setOwnedPoints([]);
                     setEndorsedPoints([]);
                     setUserRationales([]);
                 }
             } catch (error) {
                 console.error('Error initializing:', error);
                 setCurrentSpace('global');
+                setAllPointsInSpace([]);
+                setOwnedPoints([]);
                 setEndorsedPoints([]);
                 setUserRationales([]);
             } finally {
@@ -275,7 +305,9 @@ export default function AIAssistant() {
             setShowMobileMenu(false);
         }
     };
-    const handleStartChatOption = (option: InitialOption) => {
+    const handleStartChatOption = (option: InitialOptionObject) => {
+        if (option.disabled || option.comingSoon) return;
+        console.log("[AIAssistant] Starting chat with option:", option.id);
         chatState.startChatWithOption(option);
         setShowMobileMenu(false);
     };
@@ -651,6 +683,28 @@ export default function AIAssistant() {
             setLoadingChat(false);
         }
     };
+    const initialChatOptions: InitialOptionObject[] = [
+        {
+            id: 'distill',
+            title: "Distill Rationales",
+            prompt: "I'd like to distill my existing rationales into a well-structured essay. Please help me organize and refine my thoughts based on my rationales that you can see.",
+            description: "Organize your existing rationales into an essay.",
+        },
+        {
+            id: 'generate',
+            title: "Suggest Points",
+            prompt: "Help me brainstorm new points or suggest negations for my existing points based on the context you can see (existing points, owned points, endorsements).",
+            description: "Get suggestions for new points or negations based on your context.",
+        },
+        {
+            id: 'build',
+            title: "Build from Posts",
+            prompt: "I'd like to build a new rationale from my forum posts and our discussion. Please help me organize my thoughts based on my forum posts and my points.",
+            description: "Create rationales from your forum posts.",
+            disabled: true,
+            comingSoon: true,
+        },
+    ];
 
     return (
         <div className="flex h-[calc(100vh-var(--header-height))] bg-background">
@@ -706,6 +760,7 @@ export default function AIAssistant() {
                     userRationales={userRationales}
                     currentSpace={currentSpace}
                     isMobile={isMobile}
+                    initialOptions={initialChatOptions}
                     onStartChatOption={handleStartChatOption}
                     onTriggerEdit={handleTriggerEdit}
                 />
