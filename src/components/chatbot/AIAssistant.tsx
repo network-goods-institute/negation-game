@@ -560,7 +560,7 @@ export default function AIAssistant() {
             />
 
             <div className="flex-1 flex flex-col h-full overflow-hidden">
-                <div className="sticky top-0 z-10 h-16 border-b bg-background/95 backdrop-blur-sm flex items-center justify-between px-4 md:px-6">
+                <div className="shrink-0 h-16 border-b bg-background/95 backdrop-blur-sm flex items-center justify-between px-4 md:px-6">
                     <div className="flex items-center gap-2 md:gap-3">
                         {isMobile ? (
                             <Button variant="ghost" size="icon" onClick={() => setShowMobileMenu(true)} className="text-primary hover:bg-primary/10 rounded-full h-9 w-9"><Menu className="h-5 w-5" /></Button>
@@ -694,7 +694,7 @@ export default function AIAssistant() {
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto bg-muted/20">
+                <div className="flex-1 overflow-y-auto bg-muted/20 min-h-0">
                     {isInitializing ? (
                         <ChatLoadingState />
                     ) : chatState.chatMessages.length === 0 ? (
