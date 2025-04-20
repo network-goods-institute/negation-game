@@ -17,7 +17,7 @@ import {
 import { useUser } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { EndorsedPoint } from "@/actions/generateChatBotResponse";
 import { nanoid } from "nanoid";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -55,6 +55,7 @@ import {
     updateDbChat,
     ChatMetadata
 } from "@/actions/chatSyncActions";
+import { fetchSharedChatContent } from "@/actions/chatSharingActions";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const ChatLoadingState = () => {
@@ -111,6 +112,7 @@ interface SyncStats {
 
 export default function AIAssistant() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { user: privyUser, authenticated } = usePrivy();
     const { data: userData } = useUser(privyUser?.id);
     const isMobile = useIsMobile();
@@ -140,7 +142,7 @@ export default function AIAssistant() {
     const [showSettingsDialog, setShowSettingsDialog] = useState(false);
 
     const [isSyncing, setIsSyncing] = useState(false);
-    const [syncActivity, setSyncActivity] = useState<'idle' | 'pulling' | 'saving' | 'error'>('idle');
+    const [syncActivity, setSyncActivity] = useState<'idle' | 'checking' | 'pulling' | 'saving' | 'error'>('idle');
     const [isPulling, setIsPulling] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [lastSyncTime, setLastSyncTime] = useState<number | null>(null);
@@ -151,8 +153,59 @@ export default function AIAssistant() {
     const isNonGlobalSpace = currentSpace !== null && currentSpace !== 'global';
 
     const chatList = useChatListManagement({ currentSpace, isAuthenticated });
+    const { isInitialized: isChatListInitialized } = chatList;
     const discourse = useDiscourseIntegration({ userData, isAuthenticated, isNonGlobalSpace, currentSpace, privyUserId: privyUser?.id });
     const chatState = useChatState({ currentChatId: chatList.currentChatId, currentSpace, isAuthenticated, settings, endorsedPoints, userRationales, storedMessages: discourse.storedMessages, savedChats: chatList.savedChats, updateChat: chatList.updateChat, createNewChat: chatList.createNewChat as unknown as () => Promise<string | null> });
+
+    useEffect(() => {
+        const importChatId = searchParams.get('importChat');
+
+        if (!isChatListInitialized || !importChatId || !isAuthenticated || !currentSpace || !router || !chatList.updateChat) {
+            return;
+        }
+
+        console.log(`[Chat Import] Initialized. Detected importChat query param: ${importChatId}`);
+
+        const alreadyExists = chatList.savedChats.some(chat =>
+            chat.title.includes(`Imported:`) &&
+            chat.messages[0]?.content.includes(importChatId)
+        );
+
+        if (alreadyExists) {
+            console.log(`[Chat Import] Chat ${importChatId} appears to be already imported.`);
+            toast("Chat already imported.");
+            router.replace(`/s/${currentSpace}/chat`);
+            return;
+        }
+
+        const importAndSaveChat = async () => {
+            let toastId = toast.loading("Importing chat...");
+            try {
+                const sharedContent = await fetchSharedChatContent(importChatId);
+
+                if (sharedContent) {
+                    console.log(`[Chat Import] Fetched content for ${importChatId}, attempting to save via updateChat.`);
+                    const newChatId = nanoid();
+                    await chatList.updateChat(
+                        newChatId,
+                        sharedContent.messages,
+                        `Imported: ${sharedContent.title}`.substring(0, 100)
+                    );
+                    toast.dismiss(toastId);
+                } else {
+                    console.error(`[Chat Import] Failed to fetch content for ${importChatId}.`);
+                    toast.error("Failed to import chat. Link may be invalid or chat not shared.", { id: toastId });
+                }
+            } catch (error) {
+                console.error("[Chat Import] Error during import process:", error);
+                toast.error("An error occurred during chat import.", { id: toastId });
+            } finally {
+                router.replace(`/s/${currentSpace}/chat`);
+            }
+        };
+
+        importAndSaveChat();
+    }, [searchParams, isChatListInitialized, isAuthenticated, currentSpace, router, chatList.updateChat]);
 
     useEffect(() => {
         const initializeAssistant = async () => {
@@ -245,138 +298,188 @@ export default function AIAssistant() {
         }
 
         console.log("[Sync] Starting sync process...");
-        setIsSyncing(true);
-        setSyncError(null);
-        let currentStats: SyncStats = { pulled: 0, pushedUpdates: 0, pushedCreates: 0, errors: 0 };
-        let activitySet = false;
+        const maxRetries = 2; // Total 3 attempts (0, 1, 2)
+        const initialDelay = 2000; // ms
 
-        try {
-            console.log("[Sync] Fetching server metadata...");
-            const serverMetadata: ChatMetadata[] = await fetchUserChatMetadata();
-            console.log(`[Sync] Found ${serverMetadata.length} chats on server.`);
+        const attemptSync = async (retryCount: number) => {
+            console.log(`[Sync Attempt] Starting attempt ${retryCount + 1}/${maxRetries + 1}`);
+            setSyncError(null);
+            setSyncActivity('checking');
+            let currentStats: SyncStats = { pulled: 0, pushedUpdates: 0, pushedCreates: 0, errors: 0 };
+            let activitySet = false;
 
-            let localChats: SavedChat[] = [];
-            const localDataString = localStorage.getItem(`saved_chats_${currentSpace}`);
-            if (localDataString) {
-                try {
-                    localChats = (JSON.parse(localDataString) as SavedChat[]).map(c => ({ ...c, state_hash: c.state_hash || "" }));
-                } catch (e) {
-                    console.error("[Sync] Error parsing local chats from storage:", e);
-
-                    localChats = [];
-                    currentStats.errors++;
+            try {
+                if (retryCount === 0) {
+                    setIsSyncing(true);
                 }
-            }
+                setSyncActivity('pulling');
+                activitySet = true;
 
-            console.log(`[Sync] Found ${localChats.length} chats locally for comparison.`);
+                console.log("[Sync] Fetching server metadata...");
+                const serverMetadata: ChatMetadata[] = await fetchUserChatMetadata();
+                console.log(`[Sync] Found ${serverMetadata.length} chats on server.`);
 
-            const serverMap = new Map(serverMetadata.map(m => [m.id, m]));
-            const localMap = new Map(localChats.map(c => [c.id, c]));
+                let localChats: SavedChat[] = [];
+                const localDataString = localStorage.getItem(`saved_chats_${currentSpace}`);
+                if (localDataString) {
+                    try {
+                        localChats = (JSON.parse(localDataString) as SavedChat[]).map(c => ({ ...c, state_hash: c.state_hash || "" }));
+                    } catch (e) {
+                        console.error("[Sync] Error parsing local chats from storage:", e);
+                        localChats = [];
+                    }
+                }
+                console.log(`[Sync] Found ${localChats.length} chats locally for comparison.`);
 
-            const promisesToAwait: Promise<any>[] = [];
+                const serverMap = new Map(serverMetadata.map(m => [m.id, m]));
+                const localMap = new Map(localChats.map(c => [c.id, c]));
+                const promisesToAwait: Promise<any>[] = [];
+                const chatsToUpdateLocally: SavedChat[] = [];
+                const chatsToDeleteLocally: string[] = [];
+                const chatsToPush: SavedChat[] = [];
 
-            console.log("[Sync] Pass 1: Checking server chats against local...");
-            for (const serverChat of serverMetadata) {
-                const localChat = localMap.get(serverChat.id);
-                if (!localChat) {
-                    console.log(`[Sync] Action: PULL needed for server chat ${serverChat.id} (not found locally).`);
-                    if (!activitySet) { setSyncActivity('pulling'); activitySet = true; }
-                    console.log(`[Sync Stats] Incrementing pulled: ${currentStats.pulled} -> ${currentStats.pulled + 1}`);
-                    currentStats.pulled++;
-                    promisesToAwait.push((async () => {
-                        try {
-                            const content = await fetchChatContent(serverChat.id);
-                            if (content) {
-                                const stateHash = await computeChatStateHash(content.title, content.messages);
-                                chatList.replaceChat(serverChat.id, { ...content, id: serverChat.id, state_hash: stateHash, updatedAt: serverChat.updatedAt.toISOString(), space: currentSpace });
-                            } else { console.warn(`[Sync] Content for pulled chat ${serverChat.id} was null.`); currentStats.errors++; }
-                        } catch (e) { console.error(`[Sync] Error pulling chat ${serverChat.id}:`, e); currentStats.errors++; }
-                    })());
-                } else {
-                    const localHash = localChat.state_hash || await computeChatStateHash(localChat.title, localChat.messages);
-                    const localUpdatedAt = new Date(localChat.updatedAt).getTime();
-                    const serverUpdatedAt = serverChat.updatedAt.getTime();
-
-                    if (serverChat.state_hash !== localHash && serverUpdatedAt > localUpdatedAt) {
-                        console.log(`[Sync] Action: PULL needed for chat ${serverChat.id} (server newer & hash mismatch).`);
+                console.log("[Sync] Pass 1: Checking server chats against local...");
+                for (const serverChat of serverMetadata) {
+                    const localChat = localMap.get(serverChat.id);
+                    if (!localChat) {
+                        console.log(`[Sync] Action: PULL needed for server chat ${serverChat.id} (not found locally).`);
                         if (!activitySet) { setSyncActivity('pulling'); activitySet = true; }
-                        console.log(`[Sync Stats] Incrementing pulled: ${currentStats.pulled} -> ${currentStats.pulled + 1}`);
                         currentStats.pulled++;
                         promisesToAwait.push((async () => {
                             try {
                                 const content = await fetchChatContent(serverChat.id);
                                 if (content) {
-                                    chatList.replaceChat(serverChat.id, { ...content, id: serverChat.id, state_hash: serverChat.state_hash, updatedAt: serverChat.updatedAt.toISOString(), space: currentSpace });
-                                } else { console.warn(`[Sync] Content for pulled chat ${serverChat.id} was null (overwrite case).`); currentStats.errors++; }
-                            } catch (e) { console.error(`[Sync] Error pulling chat ${serverChat.id} (overwrite case):`, e); currentStats.errors++; }
+                                    const stateHash = await computeChatStateHash(content.title, content.messages);
+                                    chatsToUpdateLocally.push({
+                                        ...content,
+                                        id: serverChat.id,
+                                        state_hash: stateHash,
+                                        createdAt: content.createdAt.toISOString(),
+                                        updatedAt: serverChat.updatedAt.toISOString(),
+                                        space: currentSpace
+                                    } as SavedChat);
+                                } else {
+                                    console.warn(`[Sync] Content for pulled chat ${serverChat.id} was null.`);
+                                    currentStats.errors++;
+                                }
+                            } catch (e) { console.error(`[Sync] Error pulling chat ${serverChat.id}:`, e); currentStats.errors++; throw e; }
                         })());
-                    } else if (serverChat.state_hash !== localHash && localUpdatedAt > serverUpdatedAt) {
-                        console.log(`[Sync] Info: Local chat ${localChat.id} seems newer, will check for push in Pass 2.`);
                     } else {
-                        // console.log(`[Sync] Info: Chat ${serverChat.id} is synchronized or local hash needs recalculation.`);
+                        const localHash = localChat.state_hash || await computeChatStateHash(localChat.title, localChat.messages);
+                        const localUpdatedAt = new Date(localChat.updatedAt).getTime();
+                        const serverUpdatedAt = serverChat.updatedAt.getTime();
+
+                        if (serverChat.state_hash !== localHash && serverUpdatedAt > localUpdatedAt) {
+                            console.log(`[Sync] Action: PULL needed for chat ${serverChat.id} (server newer & hash mismatch).`);
+                            if (!activitySet) { setSyncActivity('pulling'); activitySet = true; }
+                            currentStats.pulled++;
+                            promisesToAwait.push((async () => {
+                                try {
+                                    const content = await fetchChatContent(serverChat.id);
+                                    if (content) {
+                                        chatsToUpdateLocally.push({
+                                            ...content,
+                                            id: serverChat.id,
+                                            state_hash: serverChat.state_hash,
+                                            createdAt: content.createdAt.toISOString(),
+                                            updatedAt: serverChat.updatedAt.toISOString(),
+                                            space: currentSpace
+                                        } as SavedChat);
+                                    } else { console.warn(`[Sync] Content for pulled chat ${serverChat.id} was null (overwrite case).`); currentStats.errors++; }
+                                } catch (e) { console.error(`[Sync] Error pulling chat ${serverChat.id} (overwrite case):`, e); currentStats.errors++; throw e; }
+                            })());
+                        }
                     }
                 }
-            }
 
-            console.log("[Sync] Pass 2: Checking local chats against server...");
-            for (const localChat of localChats) {
-                const serverChat = serverMap.get(localChat.id);
-                if (serverChat) {
-                    const localHash = localChat.state_hash || await computeChatStateHash(localChat.title, localChat.messages);
-                    const localUpdatedAt = new Date(localChat.updatedAt).getTime();
-                    const serverUpdatedAt = serverChat.updatedAt.getTime();
-                    if (serverChat.state_hash !== localHash && localUpdatedAt > serverUpdatedAt) {
-                        console.log(`[Sync] Action: PUSH UPDATE needed for chat ${localChat.id} (local newer & hash mismatch).`);
-                        if (!activitySet) { setSyncActivity('saving'); activitySet = true; }
-                        console.log(`[Sync Stats] Incrementing pushedUpdates: ${currentStats.pushedUpdates} -> ${currentStats.pushedUpdates + 1}`);
-                        currentStats.pushedUpdates++;
+                console.log("[Sync] Pass 2: Checking local chats against server...");
+                for (const localChat of localChats) {
+                    const serverChat = serverMap.get(localChat.id);
+                    if (!serverChat) {
+                        console.log(`[Sync] Action: DELETE LOCALLY chat ${localChat.id} (not found in active server metadata).`);
+                        chatsToDeleteLocally.push(localChat.id);
+                    } else {
+                        const localHash = localChat.state_hash || await computeChatStateHash(localChat.title, localChat.messages);
+                        const localUpdatedAt = new Date(localChat.updatedAt).getTime();
+                        const serverUpdatedAt = serverChat.updatedAt.getTime();
+                        if (serverChat.state_hash !== localHash && localUpdatedAt > serverUpdatedAt) {
+                            console.log(`[Sync] Action: PUSH UPDATE needed for chat ${localChat.id} (local newer & hash mismatch).`);
+                            if (!activitySet) { setSyncActivity('saving'); activitySet = true; }
+                            currentStats.pushedUpdates++;
+                            chatsToPush.push(localChat);
+                        }
+                    }
+                }
+
+                if (promisesToAwait.length > 0 || chatsToPush.length > 0) {
+                    console.log(`[Sync] Executing ${promisesToAwait.length} pulls and ${chatsToPush.length} pushes...`);
+
+                    chatsToPush.forEach(localChat => {
                         promisesToAwait.push(updateDbChat(localChat).catch(e => {
                             console.error(`[Sync] Error pushing update for ${localChat.id}`, e);
-                            console.log(`[Sync Stats] Incrementing errors: ${currentStats.errors} -> ${currentStats.errors + 1}`);
                             currentStats.errors++;
+                            throw e;
                         }));
+                    });
+
+                    const results = await Promise.allSettled(promisesToAwait);
+                    console.log("[Sync] Network operations settled.");
+
+                    if (results.some(result => result.status === 'rejected')) {
+                        results.forEach(result => {
+                            if (result.status === 'rejected') {
+                                console.error("[Sync] Operation failed:", result.reason);
+                            }
+                        });
+                        throw new Error("One or more sync operations failed.");
                     }
                 } else {
+                    console.log("[Sync] No network operations needed for this attempt.");
+                }
 
-                    console.log(`[Sync] Action: DELETE LOCALLY chat ${localChat.id} (not found in active server metadata).`);
+                console.log(`[Sync] Applying local updates: ${chatsToUpdateLocally.length} updates, ${chatsToDeleteLocally.length} deletions.`);
+                chatsToUpdateLocally.forEach(chat => {
+                    chatList.replaceChat(chat.id, chat);
+                });
+                chatsToDeleteLocally.forEach(id => {
                     try {
-                        chatList.deleteChatLocally(localChat.id);
+                        chatList.deleteChatLocally(id);
                     } catch (e) {
-                        console.error(`[Sync] Error deleting chat locally ${localChat.id} during sync:`, e);
-                        console.log(`[Sync Stats] Incrementing errors on sync local delete catch: ${currentStats.errors} -> ${currentStats.errors + 1}`);
+                        console.error(`[Sync] Error deleting chat locally ${id} after sync:`, e);
                         currentStats.errors++;
                     }
+                });
+
+                console.log(`[Sync Success] Attempt ${retryCount + 1} successful.`);
+                setLastSyncTime(Date.now());
+                setLastSyncStats(currentStats);
+                setSyncError(null);
+                setSyncActivity('idle');
+                setIsSyncing(false);
+
+            } catch (error) {
+                console.error(`[Sync Error] Attempt ${retryCount + 1} failed:`, error);
+                const message = error instanceof Error ? error.message : "An unknown error occurred during sync";
+                setSyncError(message);
+                setSyncActivity('error');
+
+                if (retryCount < maxRetries) {
+                    const delay = initialDelay * Math.pow(2, retryCount);
+                    console.log(`[Sync Retry] Will retry in ${delay / 1000}s...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    await attemptSync(retryCount + 1);
+                } else {
+                    console.error("[Sync Failed] Max retries reached. Sync failed permanently for this cycle.");
+                    toast.error(`Chat sync failed: ${message.substring(0, 100)}`);
+                    setLastSyncStats(null);
+                    setIsSyncing(false);
                 }
             }
+        };
 
-            if (promisesToAwait.length > 0) {
-                console.log(`[Sync] Executing ${promisesToAwait.length} sync actions (Pulls/Updates)...`);
-                await Promise.allSettled(promisesToAwait);
-                console.log("[Sync] Pull/Update actions settled.");
-            } else {
-                console.log("[Sync] No Pull/Update actions needed.");
-            }
+        await attemptSync(0);
 
-            setLastSyncTime(Date.now());
-            setLastSyncStats(currentStats);
-
-        } catch (error) {
-            console.error("[Sync] Error during chat synchronization (outer catch):", error);
-            const message = error instanceof Error ? error.message : "An unknown error occurred";
-            toast.error(`Chat sync failed: ${message.substring(0, 100)}`);
-            setSyncError(message);
-            setLastSyncStats(null);
-            setSyncActivity('error');
-        } finally {
-            setIsSyncing(false);
-            setIsPulling(false);
-            setIsSaving(false);
-            if (syncActivity !== 'error') {
-                setSyncActivity('idle');
-            }
-            console.log(`[Sync] Finished sync process. Final Activity: ${syncActivity}`);
-        }
-    }, [isAuthenticated, currentSpace, chatList, isSyncing, syncActivity]);
+    }, [isAuthenticated, currentSpace, chatList]);
 
     const prevDeps = useRef({ isAuthenticated, currentSpace });
     const syncChatsRef = useRef(syncChats);
@@ -395,12 +498,12 @@ export default function AIAssistant() {
         } else {
             console.log(`[Sync Setup] useEffect triggered without apparent dependency change (might be syncChats identity).`, { isAuthenticated, currentSpace });
         }
-        prevDeps.current = { isAuthenticated, currentSpace }; // Update previous deps
+        prevDeps.current = { isAuthenticated, currentSpace };
 
         if (isAuthenticated && currentSpace) {
             console.log("[Sync Setup] Conditions met (authenticated and space exists). Setting up sync interval and listener.");
-            console.log("[Sync] Triggering initial sync.");
-            syncChats();
+            console.log("[Sync] Triggering initial sync via ref.");
+            syncChatsRef.current();
 
             if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
             syncIntervalRef.current = setInterval(() => {
@@ -429,7 +532,7 @@ export default function AIAssistant() {
                 syncIntervalRef.current = null;
             }
         }
-    }, [isAuthenticated, currentSpace, syncChats]);
+    }, [isAuthenticated, currentSpace]);
 
     return (
         <div className="flex h-[calc(100vh-var(--header-height))] bg-background">
@@ -447,6 +550,7 @@ export default function AIAssistant() {
                 isAuthenticated={isAuthenticated}
                 savedChats={chatList.savedChats}
                 currentChatId={chatList.currentChatId}
+                currentSpace={currentSpace}
                 onSwitchChat={chatList.switchChat}
                 onNewChat={handleCreateNewChat}
                 onTriggerDeleteAll={handleTriggerDeleteAll}
@@ -469,17 +573,17 @@ export default function AIAssistant() {
                         </div>
                     </div>
                     <div className="flex items-center gap-2 md:gap-3">
-                        {/* Sync Status Indicator - Now uses Popover */}
                         {isAuthenticated && (
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button variant="ghost" size="sm" className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs h-auto ${isSyncing ? 'text-blue-600 bg-blue-100/60 dark:text-blue-400 dark:bg-blue-900/30' : syncActivity === 'error' ? 'text-destructive bg-destructive/10' : 'text-muted-foreground hover:bg-accent'}`}>
                                         <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
                                         <span>
-                                            {syncActivity === 'pulling' ? 'Pulling Chats' :
-                                                syncActivity === 'saving' ? 'Saving Chats' :
-                                                    syncActivity === 'error' ? 'Sync Error' :
-                                                        'Up to date'}
+                                            {syncActivity === 'checking' ? 'Checking...' :
+                                                syncActivity === 'pulling' ? 'Pulling Chats' :
+                                                    syncActivity === 'saving' ? 'Saving Chats' :
+                                                        syncActivity === 'error' ? 'Sync Error' :
+                                                            'Up to date'}
                                         </span>
                                     </Button>
                                 </PopoverTrigger>
@@ -487,10 +591,11 @@ export default function AIAssistant() {
                                     <div className="font-medium mb-2 border-b pb-2">Sync Status</div>
                                     <div className="space-y-1.5">
                                         <p>Status: {
-                                            syncActivity === 'pulling' ? 'Pulling changes...' :
-                                                syncActivity === 'saving' ? 'Saving changes...' :
-                                                    syncActivity === 'error' ? <span className="text-destructive">Error</span> :
-                                                        'Idle (Up to date)'
+                                            syncActivity === 'checking' ? 'Checking for changes...' :
+                                                syncActivity === 'pulling' ? 'Pulling changes...' :
+                                                    syncActivity === 'saving' ? 'Saving changes...' :
+                                                        syncActivity === 'error' ? <span className="text-destructive">Error</span> :
+                                                            'Idle (Up to date)'
                                         }</p>
                                         <p>Space: <span className="font-medium">{currentSpace || 'N/A'}</span></p>
                                         <p>Last Sync: {lastSyncTime ? new Date(lastSyncTime).toLocaleTimeString() : 'Never'}</p>
@@ -506,7 +611,6 @@ export default function AIAssistant() {
                                             <p className="text-xs text-destructive pt-1">Error: {syncError.substring(0, 200)}</p>
                                         )}
                                     </div>
-                                    {/* Force Sync Buttons - Allow wrapping */}
                                     <div className="flex flex-wrap items-center gap-2 mt-3">
                                         <Button
                                             variant="outline"
@@ -515,7 +619,6 @@ export default function AIAssistant() {
                                             onClick={() => {
                                                 console.log("[Sync Button] 'Check for Pulls' triggered.");
                                                 setIsPulling(true);
-                                                setSyncActivity('pulling');
                                                 syncChatsRef.current();
                                             }}
                                             disabled={isSyncing}
@@ -531,7 +634,6 @@ export default function AIAssistant() {
                                             onClick={() => {
                                                 console.log("[Sync Button] 'Push Local Changes' triggered.");
                                                 setIsSaving(true);
-                                                setSyncActivity('saving');
                                                 syncChatsRef.current();
                                             }}
                                             disabled={isSyncing}
@@ -606,9 +708,16 @@ export default function AIAssistant() {
                                     <AuthenticatedActionButton
                                         variant="outline" className="h-auto min-h-[6rem] p-2 md:min-h-[8rem] md:p-4 flex flex-col items-center justify-center gap-1.5 text-center rounded-lg hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2"
                                         onClick={() => handleStartChatOption('distill')}
-                                        disabled={chatState.isGenerating || userRationales.length === 0 || !isAuthenticated}
+                                        disabled={chatState.isGenerating || !isAuthenticated || userRationales.length === 0}
                                     >
-                                        <div className="text-sm md:text-lg font-semibold">Distill Rationales</div><p className="text-xs text-muted-foreground text-balance">{userRationales.length === 0 ? "You don't have any rationales yet." : "Organize your existing rationales into an essay."}</p>
+                                        <div className="text-sm md:text-lg font-semibold">Distill Rationales</div>
+                                        <p className="text-xs text-muted-foreground text-balance">
+                                            {!isAuthenticated
+                                                ? "Log in to see your rationales"
+                                                : userRationales.length === 0
+                                                    ? "You don't have any rationales yet."
+                                                    : "Organize your existing rationales into an essay."}
+                                        </p>
                                     </AuthenticatedActionButton>
                                     <Button variant="outline" className="h-auto min-h-[6rem] p-2 md:min-h-[8rem] md:p-4 flex flex-col items-center justify-center gap-1.5 text-center rounded-lg hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 opacity-50 cursor-not-allowed" disabled aria-disabled="true">
                                         <div className="text-sm md:text-lg font-semibold">Build from Posts</div><p className="text-xs text-muted-foreground text-balance">Create rationales from your forum posts.</p><span className="text-xs text-primary font-medium mt-1">Coming Soon</span>

@@ -26,6 +26,8 @@ const ChatContentSchema = z.object({
         .optional(),
     })
   ),
+  createdAt: z.date(),
+  updatedAt: z.date(),
 });
 export type ChatContent = z.infer<typeof ChatContentSchema>;
 
@@ -73,7 +75,7 @@ export async function fetchUserChatMetadata(): Promise<ChatMetadata[]> {
 }
 
 /**
- * Fetches the full content (title, messages) of a specific chat, verifying ownership.
+ * Fetches the full content (title, messages, createdAt, updatedAt) of a specific chat, verifying ownership.
  * @param chatId The ID of the chat to fetch.
  * @returns Promise<ChatContent | null>
  */
@@ -91,6 +93,8 @@ export async function fetchChatContent(
       .select({
         title: chatsTable.title,
         messages: chatsTable.messages,
+        createdAt: chatsTable.createdAt,
+        updatedAt: chatsTable.updatedAt,
       })
       .from(chatsTable)
       .where(and(eq(chatsTable.id, chatId), eq(chatsTable.userId, userId)))

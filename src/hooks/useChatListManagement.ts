@@ -24,6 +24,7 @@ export function useChatListManagement({
 }: UseChatListManagementProps) {
   const [savedChats, setSavedChats] = useState<SavedChat[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [chatToDelete, setChatToDelete] = useState<string | null>(null);
   const [chatToRename, setChatToRename] = useState<string | null>(null);
   const [newChatTitle, setNewChatTitle] = useState("");
@@ -82,6 +83,7 @@ export function useChatListManagement({
       isAuthenticated,
       currentSpace,
     });
+    setIsInitialized(false);
     if (
       isAuthenticated === null ||
       isAuthenticated === undefined ||
@@ -153,6 +155,9 @@ export function useChatListManagement({
       setCurrentChatId(null);
       console.log("[ChatList] No chats loaded, setting current ID to null.");
     }
+
+    setIsInitialized(true);
+    console.log("[ChatList] Initialization complete.");
   }, [currentSpace, isAuthenticated]);
 
   const updateChat = useCallback(
@@ -569,6 +574,7 @@ export function useChatListManagement({
     setNewChatTitle,
     showDeleteAllConfirmation,
     setShowDeleteAllConfirmation,
+    isInitialized,
     updateChat,
     createNewChat,
     deleteChat,

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageSquare, Plus, Trash2, X, Pencil, Share2 } from "lucide-react";
+import { MessageSquare, Plus, Trash2, X, Pencil, Share2, ExternalLink } from "lucide-react";
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import {
     Tooltip,
@@ -12,7 +12,6 @@ import {
 import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
 import { SavedChat } from '@/types/chat';
 import { Skeleton } from '../ui/skeleton';
-import { shareChat } from '@/actions/chatSharingActions';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 
@@ -38,6 +37,7 @@ interface ChatSidebarProps {
     isAuthenticated: boolean;
     savedChats: SavedChat[];
     currentChatId: string | null;
+    currentSpace: string | null;
     onSwitchChat: (chatId: string) => void;
     onNewChat: () => void;
     onTriggerDeleteAll: () => void;
@@ -53,6 +53,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
     isAuthenticated,
     savedChats,
     currentChatId,
+    currentSpace,
     onSwitchChat,
     onNewChat,
     onTriggerDeleteAll,
@@ -60,6 +61,41 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
     onTriggerDelete,
     onCloseMobileMenu,
 }) => {
+    const handleShareChat = (chatId: string) => {
+        if (!currentSpace) {
+            toast.error("Cannot share chat: Space context is missing.");
+            return;
+        }
+        if (!isAuthenticated) {
+            toast.error("Login required to share chats.");
+            return;
+        }
+
+        const shareUrl = `${window.location.origin}/s/${currentSpace}/chat?importChat=${chatId}`;
+        toast.success(
+            <div className="flex flex-col gap-1">
+                <span>Share link copied!</span>
+                <Input
+                    readOnly
+                    value={shareUrl}
+                    className="text-xs h-7 bg-background text-foreground"
+                    onClick={(e) => {
+                        const input = e.target as HTMLInputElement;
+                        input.select();
+                        navigator.clipboard.writeText(shareUrl)
+                            .then(() => console.log('Share URL copied to clipboard'))
+                            .catch(err => console.error('Failed to copy share URL: ', err));
+                    }}
+                />
+                <span className="text-xs text-muted-foreground">(Click input to copy)</span>
+            </div>,
+            { duration: 10000 }
+        );
+        navigator.clipboard.writeText(shareUrl)
+            .then(() => console.log('Share URL copied to clipboard automatically'))
+            .catch(err => console.error('Failed to copy share URL automatically: ', err));
+    };
+
     return (
         <div className={`${isMobile ? 'fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out' : 'w-72 border-r flex-shrink-0'}
             ${isMobile ? (showMobileMenu ? 'translate-x-0' : '-translate-x-full') : ''}
@@ -134,6 +170,12 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                                                     title="Rename chat"
                                                 ><Pencil className="h-3.5 w-3.5" /></AuthenticatedActionButton>
                                                 <AuthenticatedActionButton
+                                                    variant="ghost" size="icon" className={`h-6 w-6 text-muted-foreground hover:text-primary`}
+                                                    onClick={(e) => { e.stopPropagation(); handleShareChat(chat.id); }}
+                                                    disabled={!isAuthenticated}
+                                                    title="Share chat"
+                                                ><ExternalLink className="h-3.5 w-3.5" /></AuthenticatedActionButton>
+                                                <AuthenticatedActionButton
                                                     variant="ghost" size="icon" className={`h-6 w-6 text-muted-foreground hover:text-destructive`}
                                                     onClick={(e) => { e.stopPropagation(); onTriggerDelete(chat.id); }}
                                                     title="Delete chat"
@@ -146,38 +188,12 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                                         <ContextMenu.Item
                                             className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent focus:bg-accent hover:text-accent-foreground focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                                             disabled={!isAuthenticated}
-                                            onSelect={async (event) => {
-                                                event.preventDefault();
-                                                try {
-                                                    toast.loading("Generating share link...");
-                                                    const result = await shareChat(chat.id);
-                                                    toast.dismiss();
-                                                    if (result.success && result.shareId) {
-                                                        const shareUrl = `${window.location.origin}/c/${result.shareId}`;
-                                                        toast.success(
-                                                            <div className="flex flex-col gap-1">
-                                                                <span>Share link created!</span>
-                                                                <Input
-                                                                    readOnly
-                                                                    value={shareUrl}
-                                                                    className="text-xs h-7 bg-background text-foreground"
-                                                                    onClick={(e) => (e.target as HTMLInputElement).select()}
-                                                                />
-                                                                <span className="text-xs text-muted-foreground">(Click input to select)</span>
-                                                            </div>,
-                                                            { duration: 10000 }
-                                                        );
-                                                    } else {
-                                                        toast.error(result.error || "Failed to create share link.");
-                                                    }
-                                                } catch (error) {
-                                                    toast.dismiss();
-                                                    console.error("Error sharing chat:", error);
-                                                    toast.error("An error occurred while creating the share link.");
-                                                }
+                                            onSelect={(event) => {
+                                                event.preventDefault(); // Prevent default context menu closing if needed
+                                                handleShareChat(chat.id);
                                             }}
                                         >
-                                            <Share2 className="mr-2 h-4 w-4" /> Share
+                                            Share
                                         </ContextMenu.Item>
                                         <ContextMenu.Separator className="h-[1px] bg-border m-[5px]" />
                                         <ContextMenu.Item className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-destructive focus:bg-destructive hover:text-destructive-foreground focus:text-destructive-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50" onSelect={() => onTriggerDelete(chat.id)} disabled={!isAuthenticated}>Delete</ContextMenu.Item>
