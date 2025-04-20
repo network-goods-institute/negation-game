@@ -141,6 +141,10 @@ export default function AIAssistant() {
     const [showMobileMenu, setShowMobileMenu] = useState(false);
     const [showSettingsDialog, setShowSettingsDialog] = useState(false);
 
+    const [showEditDialog, setShowEditDialog] = useState(false);
+    const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(null);
+    const [editingMessageContent, setEditingMessageContent] = useState<string>("");
+
     const [isSyncing, setIsSyncing] = useState(false);
     const [syncActivity, setSyncActivity] = useState<'idle' | 'checking' | 'pulling' | 'saving' | 'error'>('idle');
     const [isPulling, setIsPulling] = useState(false);
@@ -730,20 +734,18 @@ export default function AIAssistant() {
                         <div id="chat-scroll-area">
                             <div className={`space-y-4 md:space-y-6 py-4 md:py-6 px-2 md:px-4`}>
                                 {chatState.chatMessages.map((msg, i) => (
-                                    <div key={`${chatList.currentChatId || 'nochat'}-${i}`} className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`${isMobile ? 'max-w-[90%]' : 'max-w-[80%]'} rounded-xl md:rounded-2xl p-3 md:p-4 shadow-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-card text-card-foreground'}`}>
-                                            <div className="relative group">
-                                                <MemoizedMarkdown
-                                                    content={msg.content} id={`msg-${i}`}
-                                                    isUserMessage={msg.role === 'user'}
-                                                    space={currentSpace}
-                                                    discourseUrl={discourse.discourseUrl}
-                                                    storedMessages={discourse.storedMessages}
-                                                />
-                                                <Button variant="ghost" size="icon" className="absolute bottom-1 right-1 h-6 w-6 text-muted-foreground opacity-0 group-hover:opacity-70 focus-visible:opacity-100 hover:opacity-100 transition-opacity duration-150" onClick={async (e) => { const button = e.currentTarget; try { await navigator.clipboard.writeText(msg.content); button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3 text-green-500"><polyline points="20 6 9 17 4 12"></polyline></svg>'; setTimeout(() => { button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>'; }, 1500); } catch (err) { console.error("Failed to copy:", err); toast.error("Failed to copy text"); } }} title="Copy message">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
-                                                </Button>
-                                            </div>
+                                    <div key={`${chatList.currentChatId || 'nochat'}-${i}`} className={`group flex w-full flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                                        <div
+                                            className={`relative ${isMobile ? 'max-w-[90%]' : 'max-w-[80%]'} rounded-xl md:rounded-2xl shadow-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-card text-card-foreground'} p-3 md:p-4`}
+                                        >
+                                            <MemoizedMarkdown
+                                                content={msg.content} id={`msg-${i}`}
+                                                isUserMessage={msg.role === 'user'}
+                                                space={currentSpace}
+                                                discourseUrl={discourse.discourseUrl}
+                                                storedMessages={discourse.storedMessages}
+                                            />
+
                                             {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && (
                                                 <div className="mt-2 pt-1">
                                                     <DetailedSourceList
@@ -752,6 +754,36 @@ export default function AIAssistant() {
                                                         storedMessages={discourse.storedMessages}
                                                     />
                                                 </div>
+                                            )}
+                                        </div>
+
+                                        <div className={`mt-1 flex w-full gap-1.5 ${msg.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" title="Copy" onClick={() => chatState.handleCopy(i)} disabled={chatState.isGenerating}>
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+                                            </Button>
+
+                                            {/* Only show Edit button for user messages */}
+                                            {msg.role === 'user' && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                                    title="Edit"
+                                                    onClick={() => {
+                                                        setEditingMessageIndex(i);
+                                                        setEditingMessageContent(msg.content);
+                                                        setShowEditDialog(true);
+                                                    }}
+                                                    disabled={chatState.isGenerating || editingMessageIndex !== null} // Disable if any edit dialog is potentially open (or generating)
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                                                </Button>
+                                            )}
+
+                                            {msg.role === 'assistant' && (
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" title="Retry" onClick={() => chatState.handleRetry(i)} disabled={chatState.isGenerating || editingMessageIndex !== null || i === 0}>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
+                                                </Button>
                                             )}
                                         </div>
                                     </div>
@@ -787,9 +819,10 @@ export default function AIAssistant() {
                             value={chatState.message}
                             onChange={(e) => chatState.setMessage(e.target.value)}
                             placeholder={!isAuthenticated ? "Login to chat..." : chatState.isGenerating ? "Waiting for response..." : "Type your message here... (Ctrl+Enter to send)"}
-                            className="flex-1 py-2.5 px-3 md:px-4 text-xs sm:text-sm md:text-base rounded-lg border shadow-sm resize-none focus-visible:ring-1 focus-visible:ring-ring"
+                            className={`flex-1 py-2.5 px-3 md:px-4 text-xs sm:text-sm md:text-base rounded-lg border shadow-sm resize-none focus-visible:ring-1 focus-visible:ring-ring`}
                             disabled={chatState.isGenerating || isInitializing || !currentSpace || !isAuthenticated}
-                            style={{ minHeight: '40px', maxHeight: isMobile ? '100px' : '160px' }}
+                            minHeight={40}
+                            maxHeight={isMobile ? 100 : 160}
                             onKeyDown={handleKeyDown}
                         />
                         <AuthenticatedActionButton
@@ -797,7 +830,7 @@ export default function AIAssistant() {
                             disabled={chatState.isGenerating || !chatState.message.trim() || !isAuthenticated || isInitializing}
                             rightLoading={chatState.isGenerating}
                             className="rounded-lg h-9 px-3 md:h-10 md:px-4"
-                            title="Send Message (Ctrl+Enter)"
+                            title={"Send Message (Ctrl+Enter)"}
                         >
                             {!chatState.isGenerating && (
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" /></svg>
@@ -897,6 +930,46 @@ export default function AIAssistant() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <Dialog open={showEditDialog} onOpenChange={(open) => {
+                if (!open) {
+                    setShowEditDialog(false);
+                    setEditingMessageIndex(null);
+                    setEditingMessageContent("");
+                }
+            }}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader><DialogTitle>Edit Message</DialogTitle></DialogHeader>
+                    <div className="py-4">
+                        <AutosizeTextarea
+                            value={editingMessageContent}
+                            onChange={(e) => setEditingMessageContent(e.target.value)}
+                            placeholder="Edit your message..."
+                            className="w-full min-h-[100px] rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                            minHeight={100}
+                            maxHeight={300}
+                            autoFocus
+                        />
+                    </div>
+                    <div className="flex items-center justify-end space-x-2 pt-2">
+                        <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
+                        <AuthenticatedActionButton
+                            onClick={() => {
+                                if (editingMessageIndex !== null) {
+                                    chatState.handleSaveEdit(editingMessageIndex, editingMessageContent);
+                                    setShowEditDialog(false);
+                                    setEditingMessageIndex(null);
+                                    setEditingMessageContent("");
+                                }
+                            }}
+                            disabled={!editingMessageContent.trim()}
+                        >
+                            Save Changes
+                        </AuthenticatedActionButton>
+                    </div>
+                </DialogContent>
+            </Dialog>
+            {/* --- End Edit Message Dialog --- */}
         </div>
     );
 } 

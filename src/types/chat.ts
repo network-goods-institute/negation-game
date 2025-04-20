@@ -12,6 +12,7 @@ export interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
   sources?: Array<{ type: string; id: string | number }>;
+  error?: boolean;
 }
 
 export interface SavedChat {

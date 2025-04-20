@@ -49,15 +49,29 @@ export function useChatState({
   const [selectedOption, setSelectedOption] = useState<InitialOption>(null);
 
   useEffect(() => {
+    if (isGenerating) {
+      console.log("[useEffect savedChats] Skipping update while generating.");
+      return;
+    }
+
     if (currentChatId) {
       const currentChat = savedChats.find((c) => c.id === currentChatId);
+      console.log(
+        `[useEffect savedChats] Syncing messages for chat ${currentChatId}. ` +
+          `Found chat: ${!!currentChat}. ` +
+          `Messages in found chat: ${currentChat?.messages?.length ?? "N/A"}. ` +
+          `First message content sample: ${currentChat?.messages?.[0]?.content?.substring(0, 50) ?? "N/A"}`
+      );
       setChatMessages(currentChat?.messages || []);
       setSelectedOption(null);
     } else {
+      console.log(
+        "[useEffect savedChats] No currentChatId, clearing messages."
+      );
       setChatMessages([]);
       setSelectedOption(null);
     }
-  }, [currentChatId, savedChats]);
+  }, [currentChatId, savedChats, isGenerating]);
 
   useEffect(() => {
     if (chatMessages.length > 0 || streamingContent) {
@@ -165,6 +179,13 @@ export function useChatState({
 
   const handleGenericResponse = useCallback(
     async (messagesForApi: ChatMessage[], chatIdToUse: string) => {
+      if (isGenerating) {
+        console.warn(
+          "[handleGenericResponse] Already generating, skipping call."
+        );
+        return;
+      }
+
       setIsGenerating(true);
       setStreamingContent("");
       setIsFetchingContext(true);
@@ -315,12 +336,21 @@ Please try:
           content: fullContent,
           sources,
         };
-        const finalMessages = [...messagesForApi, assistantMessage];
+        let finalMessages: ChatMessage[] = [];
+        setChatMessages((currentMsgs) => {
+          finalMessages = [...messagesForApi, assistantMessage];
+          return finalMessages;
+        });
 
-        setChatMessages(finalMessages);
         setStreamingContent("");
 
-        await generateAndSetTitle(chatIdToUse, finalMessages);
+        if (chatIdToUse) {
+          await generateAndSetTitle(chatIdToUse, finalMessages);
+        } else {
+          console.warn(
+            "[handleGenericResponse] No chatIdToUse available for title generation."
+          );
+        }
 
         console.log("[handleGenericResponse] TRY block finished successfully.");
       } catch (error) {
@@ -334,11 +364,12 @@ Please try:
         const errorMessage: ChatMessage = {
           role: "assistant",
           content:
-            "I apologize, but I encountered an error processing your request. Please check the console for details.",
+            "I apologize, but I encountered an error processing your request. Please try again or check the console for details.",
         };
-        const errorMessages = [...messagesForApi, errorMessage];
-        setChatMessages(errorMessages);
-        updateChat(chatIdToUse, errorMessages);
+        setChatMessages((currentMsgs) => [...messagesForApi, errorMessage]);
+        if (chatIdToUse) {
+          updateChat(chatIdToUse, [...messagesForApi, errorMessage]);
+        }
       } finally {
         console.log("[handleGenericResponse] Setting isGenerating to false...");
         setIsGenerating(false);
@@ -362,6 +393,103 @@ Please try:
       isFetchingContext,
       streamingContent,
     ]
+  );
+
+  const handleCopy = useCallback(
+    async (index: number) => {
+      if (index < 0 || index >= chatMessages.length) return;
+      const contentToCopy = chatMessages[index].content;
+      try {
+        await navigator.clipboard.writeText(contentToCopy);
+        toast.success("Message copied!");
+      } catch (err) {
+        console.error("Failed to copy message:", err);
+        toast.error("Failed to copy message.");
+      }
+    },
+    [chatMessages]
+  );
+
+  const handleRetry = useCallback(
+    async (index: number) => {
+      if (
+        index <= 0 ||
+        index >= chatMessages.length ||
+        chatMessages[index].role !== "assistant" ||
+        isGenerating
+      ) {
+        console.warn(
+          "[handleAssistantRetry] Invalid index, role, or already generating. Skipping.",
+          { index, role: chatMessages[index]?.role, isGenerating }
+        );
+        return;
+      }
+
+      let chatIdToUse = currentChatId;
+      if (!chatIdToUse) {
+        toast.error("Cannot retry: Current chat ID is missing.");
+        console.error("[handleAssistantRetry] No currentChatId found.");
+        return;
+      }
+
+      console.log(
+        `[handleAssistantRetry] Retrying generation for assistant message at index: ${index}`
+      );
+      const historyForRetry = chatMessages.slice(0, index);
+      setChatMessages(historyForRetry);
+      updateChat(chatIdToUse, historyForRetry);
+      await handleGenericResponse(historyForRetry, chatIdToUse);
+    },
+    [
+      chatMessages,
+      isGenerating,
+      currentChatId,
+      handleGenericResponse,
+      updateChat,
+    ]
+  );
+
+  const handleSaveEdit = useCallback(
+    (index: number, newContent: string) => {
+      const trimmedNewContent = newContent.trim();
+      if (
+        !currentChatId ||
+        index === null ||
+        index < 0 ||
+        index >= chatMessages.length ||
+        chatMessages[index].role !== "user" ||
+        !trimmedNewContent || // Prevent saving empty edits
+        chatMessages[index].content === trimmedNewContent // Prevent saving if content hasn't changed
+      ) {
+        console.warn(
+          "[handleSaveEdit] Invalid state for saving edit. Cannot edit non-user messages, index out of bounds, content empty or unchanged."
+        );
+        // Optionally show a toast here if desired
+        return;
+      }
+
+      console.log(
+        `[handleSaveEdit] Saving edit for message index: ${index} in chat ${currentChatId}`
+      );
+
+      // 1. Create the edited message
+      const editedMessage: ChatMessage = {
+        ...chatMessages[index],
+        content: trimmedNewContent,
+      };
+
+      const historyForEdit = [...chatMessages.slice(0, index), editedMessage];
+
+      setChatMessages(historyForEdit);
+
+      updateChat(currentChatId, historyForEdit);
+
+      console.log(`[handleSaveEdit] Triggering regeneration after edit.`);
+      handleGenericResponse(historyForEdit, currentChatId);
+
+      toast.success("Message updated & regenerating response...");
+    },
+    [currentChatId, chatMessages, updateChat, savedChats, handleGenericResponse] // Added handleGenericResponse dependency
   );
 
   const startChatWithOption = useCallback(
@@ -443,13 +571,13 @@ Please try:
       }
 
       const userMessageContent = message.trim();
+      setMessage("");
       const newMessage: ChatMessage = {
         role: "user",
         content: userMessageContent,
       };
       const newMessages = [...chatMessages, newMessage];
       setChatMessages(newMessages);
-      setMessage("");
 
       let chatIdToUse = currentChatId;
       let isNewChat = false;
@@ -458,6 +586,7 @@ Please try:
         if (!newId) {
           toast.error("Failed to create new chat.");
           setChatMessages(chatMessages);
+          setMessage(userMessageContent);
           return;
         }
         chatIdToUse = newId;
@@ -465,9 +594,7 @@ Please try:
       }
 
       updateChat(chatIdToUse, newMessages);
-
       const messagesForApi = [...newMessages];
-
       await handleGenericResponse(messagesForApi, chatIdToUse);
     },
     [
@@ -496,5 +623,8 @@ Please try:
     setSelectedOption,
     startChatWithOption,
     handleSubmit,
+    handleCopy,
+    handleRetry,
+    handleSaveEdit,
   };
 }
