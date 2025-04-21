@@ -4,6 +4,8 @@ import React from "react";
 import { AutosizeTextarea } from "@/components/ui/autosize-textarea";
 import { AuthenticatedActionButton } from "@/components/AuthenticatedActionButton";
 import { SlidersHorizontal } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ArrowUp } from "lucide-react";
 
 interface ChatInputFormProps {
     message: string;

@@ -313,12 +313,13 @@ export default function AIAssistant() {
     };
     const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        if (chatState.generatingChats.has(chatList.currentChatId || "")) return;
         chatState.handleSubmit(e);
     };
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            if (chatState.message.trim()) {
+            if (chatState.message.trim() && !chatState.generatingChats.has(chatList.currentChatId || "")) {
                 chatState.handleSubmit();
             }
         }
@@ -394,7 +395,7 @@ export default function AIAssistant() {
                 for (const serverChat of serverMetadata) {
                     const localChat = localMap.get(serverChat.id);
 
-                    if (serverChat.id === chatList.currentChatId && chatState.isGenerating) {
+                    if (chatState.generatingChats.has(serverChat.id)) {
                         console.log(`[Sync] Skipping pull check for active generating chat ${serverChat.id}`);
                         continue;
                     }
@@ -485,7 +486,7 @@ export default function AIAssistant() {
                             chatsToDeleteLocally.push(localChat.id);
                         }
                     } else {
-                        if (localChat.id === chatList.currentChatId && chatState.isGenerating) {
+                        if (chatState.generatingChats.has(localChat.id)) {
                             console.log(`[Sync] Skipping push check for active generating chat ${localChat.id}`);
                             continue;
                         }
@@ -591,7 +592,7 @@ export default function AIAssistant() {
 
         await attemptSync(0);
 
-    }, [isAuthenticated, currentSpace, chatList, isSyncing, chatState.isGenerating]);
+    }, [isAuthenticated, currentSpace, chatList, isSyncing, chatState.generatingChats]);
 
     const prevDeps = useRef({ isAuthenticated, currentSpace });
     const syncChatsRef = useRef(syncChats);
@@ -749,11 +750,15 @@ export default function AIAssistant() {
                     onTriggerSync={syncChatsRef.current}
                     isPulling={syncActivity === 'pulling'}
                     isSaving={syncActivity === 'saving'}
+                    isGenerating={chatState.generatingChats.has(chatList.currentChatId || "")}
                 />
 
                 <ChatMessageArea
                     isInitializing={isInitializing}
                     chatState={chatState}
+                    isGeneratingCurrent={chatState.generatingChats.has(chatList.currentChatId || "")}
+                    isFetchingCurrentContext={chatState.fetchingContextChats.has(chatList.currentChatId || "")}
+                    currentStreamingContent={chatState.streamingContents.get(chatList.currentChatId || "") || ""}
                     chatList={chatList}
                     discourse={discourse}
                     isAuthenticated={isAuthenticated}
@@ -768,7 +773,7 @@ export default function AIAssistant() {
                 <ChatInputForm
                     message={chatState.message}
                     setMessage={chatState.setMessage}
-                    isGenerating={chatState.isGenerating}
+                    isGenerating={chatState.generatingChats.has(chatList.currentChatId || "")}
                     isAuthenticated={isAuthenticated}
                     isInitializing={isInitializing}
                     isMobile={isMobile}

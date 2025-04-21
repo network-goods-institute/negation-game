@@ -50,9 +50,15 @@ export function useChatState({
 }: UseChatStateProps) {
   const [message, setMessage] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isFetchingContext, setIsFetchingContext] = useState(false);
-  const [streamingContent, setStreamingContent] = useState("");
+  const [generatingChats, setGeneratingChats] = useState<Set<string>>(
+    new Set()
+  );
+  const [fetchingContextChats, setFetchingContextChats] = useState<Set<string>>(
+    new Set()
+  );
+  const [streamingContents, setStreamingContents] = useState<
+    Map<string, string>
+  >(new Map());
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [currentFlowType, setCurrentFlowType] = useState<FlowType>("default");
 
@@ -91,7 +97,11 @@ export function useChatState({
   }, [currentChatId, savedChats]);
 
   useEffect(() => {
-    if (chatMessages.length > 0 || streamingContent) {
+    if (
+      chatMessages.length > 0 ||
+      streamingContents.get(currentChatId || "") ||
+      streamingContents.size > 0
+    ) {
       const timer = setTimeout(() => {
         chatEndRef.current?.scrollIntoView({
           behavior: "smooth",
@@ -100,7 +110,7 @@ export function useChatState({
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [chatMessages, streamingContent]);
+  }, [chatMessages, streamingContents, currentChatId]);
 
   const generateAndSetTitle = useCallback(
     async (chatId: string, finalMessages: ChatMessage[]) => {
@@ -200,18 +210,19 @@ export function useChatState({
       chatIdToUse: string,
       flowType: FlowType
     ) => {
-      if (isGenerating) {
+      if (generatingChats.has(chatIdToUse)) {
         console.warn(
-          `[handleResponse ${flowType}] Already generating, skipping call.`
+          `[handleResponse ${flowType}] Already generating for chat ${chatIdToUse}, skipping call.`
         );
         return;
       }
 
-      setIsGenerating(true);
-      setStreamingContent("");
-      setIsFetchingContext(true);
+      setGeneratingChats((prev) => new Set(prev).add(chatIdToUse));
+      setFetchingContextChats((prev) => new Set(prev).add(chatIdToUse));
+      setStreamingContents((prev) => new Map(prev).set(chatIdToUse, ""));
+
       console.log(
-        `[handleResponse ${flowType}] START: isGenerating=true, isFetchingContext=true`
+        `[handleResponse ${flowType}] START for chat ${chatIdToUse}: isGenerating=true, isFetchingContext=true`
       );
       let fullContent = "";
       let sources: ChatMessage["sources"] | undefined = undefined;
@@ -269,7 +280,7 @@ export function useChatState({
           );
 
         console.log(
-          `[handleResponse ${flowType}] Received response object from action.`
+          `[handleResponse ${flowType}] Received response object for chat ${chatIdToUse}.`
         );
         console.log("[handleResponse] Starting stream processing loop...");
 
@@ -286,7 +297,11 @@ export function useChatState({
             );
 
             if (!firstChunkReceived && !done) {
-              setIsFetchingContext(false);
+              setFetchingContextChats((prev) => {
+                const newSet = new Set(prev);
+                newSet.delete(chatIdToUse);
+                return newSet;
+              });
               firstChunkReceived = true;
               console.log(
                 `[handleResponse ${flowType} Stream ${chatIdToUse}] First chunk received, isFetchingContext=false`
@@ -305,7 +320,9 @@ export function useChatState({
                 `[handleResponse ${flowType} Stream ${chatIdToUse}] Processing valid string chunk (length ${value.length}).`
               );
               fullContent += value;
-              setStreamingContent(fullContent);
+              setStreamingContents((prev) =>
+                new Map(prev).set(chatIdToUse, fullContent)
+              );
               console.log(
                 `[handleResponse ${flowType} Stream ${chatIdToUse}] Updated streamingContent.`
               );
@@ -344,15 +361,9 @@ export function useChatState({
         }
 
         console.log(
-          `[handleResponse ${flowType}] Stream processing loop finished.`
+          `[handleResponse ${flowType}] Stream processing loop finished for chat ${chatIdToUse}.`
         );
 
-        if (isFetchingContext) setIsFetchingContext(false);
-
-        console.log(
-          `[handleResponse ${flowType} ${chatIdToUse}] Final fullContent before processing:`,
-          JSON.stringify(fullContent)
-        );
         fullContent = fullContent
           .replace(/\r\n/g, "\n")
           .replace(/\r/g, "\n")
@@ -389,17 +400,25 @@ Please try:
         };
         const finalMessages = [...messagesForApi, assistantMessage];
 
-        setChatMessages(finalMessages);
-        setStreamingContent("");
-        setIsGenerating(false);
         console.log(
-          `[handleResponse ${flowType}] Stream finished, UI unlocked. Starting title generation/save...`
+          `[handleResponse ${flowType}] Saving results via generateAndSetTitle for chat ${chatIdToUse}...`
         );
+
+        if (chatIdToUse === currentChatId) {
+          setChatMessages(finalMessages);
+          console.log(
+            `[handleResponse ${flowType}] Updated local chatMessages state for ${chatIdToUse}`
+          );
+        } else {
+          console.log(
+            `[handleResponse ${flowType}] User switched away from chat ${chatIdToUse} before final local state update.`
+          );
+        }
 
         if (chatIdToUse) {
           generateAndSetTitle(chatIdToUse, finalMessages).catch((error) => {
             console.error(
-              `[handleResponse ${flowType}] Error during background title/save:`,
+              `[handleResponse ${flowType}] Error during background title/save for chat ${chatIdToUse}:`,
               error
             );
           });
@@ -408,10 +427,6 @@ Please try:
             `[handleResponse ${flowType}] No chatIdToUse available for title generation.`
           );
         }
-
-        console.log(
-          `[handleResponse ${flowType}] TRY block finished (title/save running in background).`
-        );
       } catch (error) {
         console.error(
           `[handleResponse ${flowType}] Error generating response (outer catch): `,
@@ -422,25 +437,37 @@ Please try:
             ? error.message
             : `Failed to get ${flowType} response`
         );
+        const errorMessageContent = `I apologize, but I encountered an error processing your ${flowType} request. Please try again.`;
         const errorMessage: ChatMessage = {
           role: "assistant",
-          content: `I apologize, but I encountered an error processing your ${flowType} request. Please try again.`,
+          content: errorMessageContent,
         };
-        setChatMessages((currentMsgs) => [...messagesForApi, errorMessage]);
         if (chatIdToUse) {
           updateChat(chatIdToUse, [...messagesForApi, errorMessage]);
         }
-        setStreamingContent("");
-        setIsGenerating(false);
-        if (isFetchingContext) setIsFetchingContext(false);
       } finally {
-        console.log(`[handleResponse ${flowType}] FINALLY block reached.`);
+        setGeneratingChats((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(chatIdToUse);
+          return newSet;
+        });
+        setFetchingContextChats((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(chatIdToUse);
+          return newSet;
+        });
+        setStreamingContents((prev) => {
+          const newMap = new Map(prev);
+          newMap.delete(chatIdToUse);
+          return newMap;
+        });
+        console.log(
+          `[handleResponse ${flowType}] FINALLY block reached for chat ${chatIdToUse}. Cleared generation state.`
+        );
       }
     },
     [
       settings,
-      isGenerating,
-      isFetchingContext,
       allPointsInSpace,
       ownedPointIds,
       endorsedPointIds,
@@ -448,6 +475,8 @@ Please try:
       storedMessages,
       generateAndSetTitle,
       updateChat,
+      generatingChats,
+      currentChatId,
     ]
   );
 
@@ -472,11 +501,15 @@ Please try:
         index <= 0 ||
         index >= chatMessages.length ||
         chatMessages[index].role !== "assistant" ||
-        isGenerating
+        generatingChats.has(currentChatId || "")
       ) {
         console.warn(
           "[handleAssistantRetry] Invalid index, role, or already generating. Skipping.",
-          { index, role: chatMessages[index]?.role, isGenerating }
+          {
+            index,
+            role: chatMessages[index]?.role,
+            generatingChats: generatingChats.has(currentChatId || ""),
+          }
         );
         return;
       }
@@ -493,21 +526,19 @@ Please try:
       );
       const historyForRetry = chatMessages.slice(0, index);
       setChatMessages(historyForRetry);
-      updateChat(chatIdToUse, historyForRetry);
       await handleResponse(historyForRetry, chatIdToUse, currentFlowType);
     },
     [
       chatMessages,
-      isGenerating,
+      generatingChats,
       currentChatId,
       currentFlowType,
       handleResponse,
-      updateChat,
     ]
   );
 
   const handleSaveEdit = useCallback(
-    (index: number, newContent: string) => {
+    async (index: number, newContent: string) => {
       const trimmedNewContent = newContent.trim();
       if (
         !currentChatId ||
@@ -535,16 +566,15 @@ Please try:
       const historyForEdit = [...chatMessages.slice(0, index), editedMessage];
 
       setChatMessages(historyForEdit);
-      updateChat(currentChatId, historyForEdit);
-
-      console.log(
-        `[handleSaveEdit] Triggering regeneration after edit with flow: ${currentFlowType}`
+      await handleResponse(
+        historyForEdit,
+        currentChatId || "",
+        currentFlowType
       );
-      handleResponse(historyForEdit, currentChatId, currentFlowType);
 
       toast.success("Message updated & regenerating response...");
     },
-    [currentChatId, chatMessages, updateChat, handleResponse, currentFlowType]
+    [currentChatId, chatMessages, handleResponse, currentFlowType]
   );
 
   const startChatWithOption = useCallback(
@@ -591,8 +621,11 @@ Please try:
         { role: "user", content: initialUserMessage },
       ];
 
+      // Set local state immediately
       setChatMessages(initialMessages);
+      // Immediately save this initial message to storage/backend
       updateChat(chatIdToUse, initialMessages);
+      // Set the flow type for the upcoming generation
       setCurrentFlowType(option.id);
 
       let systemMessages: ChatMessage[] = [];
@@ -609,6 +642,7 @@ Please try:
 
       const messagesForApi = [...systemMessages, ...initialMessages];
 
+      // Now start the generation
       await handleResponse(messagesForApi, chatIdToUse, option.id);
     },
     [
@@ -619,8 +653,8 @@ Please try:
       settings,
       storedMessages,
       handleResponse,
-      updateChat,
       createNewChat,
+      updateChat,
     ]
   );
 
@@ -633,7 +667,7 @@ Please try:
       if (e) e.preventDefault();
       if (
         !message.trim() ||
-        isGenerating ||
+        generatingChats.has(currentChatId || "") ||
         !currentSpace ||
         !isAuthenticated
       ) {
@@ -663,18 +697,11 @@ Please try:
       }
 
       setChatMessages(messagesForHistory);
-      updateChat(chatIdToUse, messagesForHistory);
-
-      const flowTypeForApi = currentFlowType;
-      console.log(
-        `[handleSubmit] Sending message with flow: ${flowTypeForApi}`
-      );
-
-      await handleResponse(messagesForHistory, chatIdToUse, flowTypeForApi);
+      await handleResponse(messagesForHistory, chatIdToUse, currentFlowType);
     },
     [
       message,
-      isGenerating,
+      generatingChats,
       currentSpace,
       isAuthenticated,
       currentChatId,
@@ -682,7 +709,6 @@ Please try:
       currentFlowType,
       handleResponse,
       createNewChat,
-      updateChat,
     ]
   );
 
@@ -691,9 +717,9 @@ Please try:
     setMessage,
     chatMessages,
     setChatMessages,
-    isGenerating,
-    isFetchingContext,
-    streamingContent,
+    generatingChats,
+    fetchingContextChats,
+    streamingContents,
     chatEndRef,
     currentFlowType,
     startChatWithOption,

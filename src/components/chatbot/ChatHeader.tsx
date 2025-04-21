@@ -42,6 +42,7 @@ interface ChatHeaderProps {
     syncError: string | null;
     discourse: ReturnType<typeof useDiscourseIntegration>;
     isNonGlobalSpace: boolean;
+    isGenerating: boolean;
     onShowMobileMenu: () => void;
     onBack: () => void;
     onTriggerSync: () => void;
@@ -61,6 +62,7 @@ export function ChatHeader({
     syncError,
     discourse,
     isNonGlobalSpace,
+    isGenerating,
     onShowMobileMenu,
     onBack,
     onTriggerSync,
@@ -110,6 +112,12 @@ export function ChatHeader({
                         </Tooltip>
                     </TooltipProvider>
                 </div>
+                {isGenerating && (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title="Assistant is generating a response for this chat...">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <span>Generating...</span>
+                    </div>
+                )}
             </div>
             <div className="flex items-center gap-2 md:gap-3">
                 {isAuthenticated && (
