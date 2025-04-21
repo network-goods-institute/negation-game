@@ -708,99 +708,99 @@ export const GraphView = ({
           </div>
         </Panel>
 
-        {onClose && (
-          <Panel position="top-right">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              className={cn("m-2 bg-background/80", closeButtonClassName)}
-            >
-              <XIcon />
-            </Button>
-          </Panel>
-        )}
-        {(isModified || isContentModified) && !isNew && (
-          <Panel position="top-right" className="m-2">
-            {/* Inner div for positioning and layering - Responsive top */}
-            <div className="relative top-[50px] md:top-[15px] z-50 flex flex-col gap-2">
-              {/* Save Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <AuthenticatedActionButton
-                    variant="outline"
-                    onClick={handleSave}
-                    disabled={isSavingProp || isSaving_local}
-                    className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 w-[140px]"
-                    id="graph-save-button"
-                  >
-                    {isSavingProp || isSaving_local ? (
-                      <Loader className="size-4 animate-spin" />
-                    ) : (
-                      <span className="text-xs">
-                        {canModify
-                          ? isNew
-                            ? "Publish Rationale"
-                            : "Publish Changes"
-                          : "Copy to Save"}
-                      </span>
-                    )}
-                  </AuthenticatedActionButton>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Save changes</p>
-                </TooltipContent>
-              </Tooltip>
-              {/* Discard Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsDiscardDialogOpen(true)}
-                    disabled={isSavingProp || isSaving_local || isDiscarding}
-                    className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 w-[140px]"
-                  >
-                    {isDiscarding ? <Loader className="size-4 animate-spin" /> : <Undo2Icon className="size-4" />}
-                    <span className="text-xs">Discard</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Discard changes</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          </Panel>
-        )}
+        {/* Combined top-right panel for all controls */}
+        <Panel position="top-right" className="m-2">
+          <div className="flex flex-col items-end gap-2">
+            {onClose && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+                className={cn("bg-background/80", closeButtonClassName)}
+              >
+                <XIcon />
+              </Button>
+            )}
 
-        {/* Always visible Share Button Panel (unless hidden by prop) */}
-        {!hideShareButton && (
-          <Panel position="top-right" className="m-2">
-            {/* Position below the potential save/discard buttons */}
-            <div className={cn(
-              "relative z-40 flex flex-col gap-2",
-              // If Save/Discard are shown, position Share below them (approx 85px height + 8px gap)
-              // Otherwise, use the default top offset
-              (isModified || isContentModified) ? "top-[calc(50px+85px+8px)] md:top-[calc(15px+85px+8px)]" : "top-[50px] md:top-[15px]"
-            )}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    onClick={openShareDialogInShareMode}
-                    disabled={isSavingProp || isSaving_local || isDiscarding}
-                    className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 w-[140px]"
-                  >
-                    <Share2Icon className="size-4" />
-                    <span className="text-xs">Share Points</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Share selected points from this rationale</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          </Panel>
-        )}
+            {(isModified || isContentModified) && !isNew && (
+              <div className="flex flex-col gap-2">
+                {/* Save Button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <AuthenticatedActionButton
+                      variant="outline"
+                      onClick={handleSave}
+                      disabled={isSavingProp || isSaving_local}
+                      className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center w-[140px]"
+                      id="graph-save-button"
+                    >
+                      {isSavingProp || isSaving_local ? (
+                        <Loader className="size-4 animate-spin" />
+                      ) : (
+                        <div className="flex items-center">
+                          <SaveIcon className="size-4 mr-2" />
+                          <span className="text-xs">
+                            {canModify
+                              ? isNew
+                                ? "Publish Rationale"
+                                : "Publish Changes"
+                              : "Copy to Save"}
+                          </span>
+                        </div>
+                      )}
+                    </AuthenticatedActionButton>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Save changes</p>
+                  </TooltipContent>
+                </Tooltip>
+                {/* Discard Button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsDiscardDialogOpen(true)}
+                      disabled={isSavingProp || isSaving_local || isDiscarding}
+                      className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 w-[140px]"
+                    >
+                      {isDiscarding ? <Loader className="size-4 animate-spin" /> : <Undo2Icon className="size-4" />}
+                      <span className="text-xs">Discard</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Discard changes</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            )}
+
+            {/* Share Button */}
+            {!hideShareButton && (
+              <div className={cn(
+                "flex flex-col gap-2",
+                // Add margin-top only when save/discard buttons are not shown
+                !(isModified || isContentModified) && "mt-[50px] md:mt-[15px]"
+              )}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      onClick={openShareDialogInShareMode}
+                      disabled={isSavingProp || isSaving_local || isDiscarding}
+                      className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 w-[140px]"
+                    >
+                      <Share2Icon className="size-4" />
+                      <span className="text-xs">Share Points</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Share selected points from this rationale</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            )}
+          </div>
+        </Panel>
 
         <GlobalExpandPointDialog />
       </ReactFlow>
@@ -824,14 +824,16 @@ export const GraphView = ({
             {isSavingProp || isSaving_local ? (
               <Loader className="size-4 animate-spin" />
             ) : (
-              <>
+              <div className="flex items-center">
                 <SaveIcon className="size-4 mr-2" />
-                {canModify
-                  ? isNew
-                    ? "Publish Rationale"
-                    : "Publish Changes"
-                  : "Copy Rationale"}
-              </>
+                <span className="text-xs">
+                  {canModify
+                    ? isNew
+                      ? "Publish Rationale"
+                      : "Publish Changes"
+                    : "Copy Rationale"}
+                </span>
+              </div>
             )}
           </AuthenticatedActionButton>
         </div>
