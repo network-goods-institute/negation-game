@@ -6,23 +6,39 @@ import { userQueryKey } from "@/queries/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useAtom } from "jotai";
+import { visitedPointsAtom } from "@/atoms/visitedPointsAtom";
 
 export const useNegate = () => {
   const queryClient = useQueryClient();
   const { user } = usePrivy();
   const invalidateRelatedPoints = useInvalidateRelatedPoints();
   const { markPointAsRead } = useVisitedPoints();
+  const [visitedPoints, setVisitedPoints] = useAtom(visitedPointsAtom);
+
   return useAuthenticatedMutation({
     mutationFn: negate,
     onSuccess: (_negationId, { negatedPointId, counterpointId }) => {
       toast.success("Negation created successfully");
 
-      // Invalidate both points involved
       invalidateRelatedPoints(negatedPointId);
       invalidateRelatedPoints(counterpointId);
 
-      // mark the negated point as visited
       markPointAsRead(negatedPointId);
+
+      setVisitedPoints((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(negatedPointId);
+        return newSet;
+      });
+
+      markPointAsRead(counterpointId);
+      setVisitedPoints((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(counterpointId);
+        return newSet;
+      });
+
       // Invalidate point-negations to update relationships
       queryClient.invalidateQueries({
         queryKey: [negatedPointId, "point-negations"],

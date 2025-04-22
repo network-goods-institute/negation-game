@@ -12,15 +12,14 @@ export const useMakePoint = () => {
   const queryClient = useQueryClient();
   const { user } = usePrivy();
   const { markPointAsRead } = useVisitedPoints();
-  const [_, setVisitedPoints] = useAtom(visitedPointsAtom);
+  const [visitedPoints, setVisitedPoints] = useAtom(visitedPointsAtom);
 
   return useAuthenticatedMutation({
     mutationFn: makePoint,
     onSuccess: (pointId) => {
       toast.success("Point created successfully");
-
-      // Mark the point as visited
       markPointAsRead(pointId);
+
       setVisitedPoints((prev) => {
         const newSet = new Set(prev);
         newSet.add(pointId);
@@ -30,7 +29,6 @@ export const useMakePoint = () => {
       queryClient.invalidateQueries({
         queryKey: ["feed"],
       });
-      //update cred balance
       queryClient.invalidateQueries({
         queryKey: userQueryKey(user?.id),
       });
