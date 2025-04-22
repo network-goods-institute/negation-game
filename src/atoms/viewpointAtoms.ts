@@ -9,7 +9,6 @@ import { atom } from "jotai";
 import { atomWithStorage, createJSONStorage } from "jotai/utils";
 
 const createSpaceSpecificStorage = () => {
-  // Use the built-in JSON storage as the base
   const baseStorage = typeof window !== "undefined" ? localStorage : null;
 
   return createJSONStorage<string>(() => ({
@@ -108,6 +107,8 @@ export interface CollapsedNodePosition {
 }
 
 export const collapsedNodePositionsAtom = atom<CollapsedNodePosition[]>([]);
+
+export const selectedPointIdsAtom = atom<Set<number>>(new Set<number>());
 
 export const clearViewpointState = (isPublishing = true) => {
   // If we have access to the window, handle the justPublished flag

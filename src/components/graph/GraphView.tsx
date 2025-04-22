@@ -27,7 +27,7 @@ import { XIcon, SaveIcon, Undo2Icon, Share2Icon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useCallback, useMemo, useEffect, useState, useRef, useLayoutEffect } from "react";
 import { useAtom } from "jotai";
-import { collapsedPointIdsAtom, ViewpointGraph } from "@/atoms/viewpointAtoms";
+import { collapsedPointIdsAtom, ViewpointGraph, selectedPointIdsAtom } from "@/atoms/viewpointAtoms";
 import React from "react";
 import { updateViewpointGraph } from "@/actions/updateViewpointGraph";
 import { updateViewpointDetails } from "@/actions/updateViewpointDetails";
@@ -96,6 +96,10 @@ export interface GraphViewProps
   onModifiedChange?: (isModified: boolean) => void;
   canvasEnabled?: boolean;
   hideShareButton?: boolean;
+  isSharing?: boolean;
+  toggleSharingMode?: () => void;
+  handleGenerateAndCopyShareLink?: () => void;
+  originalGraphData?: ViewpointGraph;
 }
 
 export const GraphView = ({
@@ -116,6 +120,10 @@ export const GraphView = ({
   onModifiedChange,
   canvasEnabled,
   hideShareButton,
+  isSharing,
+  toggleSharingMode,
+  handleGenerateAndCopyShareLink,
+  originalGraphData,
   ...props
 }: GraphViewProps) => {
   const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
@@ -332,11 +340,16 @@ export const GraphView = ({
   // Memoize nodeTypes and edgeTypes
   const nodeTypes = useMemo(
     () => ({
-      point: (props: any) => <PointNode {...props} />,
+      point: (pointProps: any) => (
+        <PointNode
+          {...pointProps}
+          isSharing={isSharing}
+        />
+      ),
       statement: StatementNode,
       addPoint: AddPointNode,
     }),
-    []
+    [isSharing]
   );
 
   const edgeTypes = useMemo(() => ({ negation: NegationEdge }), []);
@@ -595,15 +608,11 @@ export const GraphView = ({
 
       setIsModified(false);
 
-      if (props.defaultNodes && props.defaultEdges) {
-        setNodes(props.defaultNodes);
-        setEdges(props.defaultEdges);
+      if (originalGraphData) {
+        setNodes(originalGraphData.nodes);
+        setEdges(originalGraphData.edges);
         if (setLocalGraph) {
-          const originalGraph = {
-            nodes: props.defaultNodes,
-            edges: props.defaultEdges,
-          };
-          setLocalGraph(originalGraph);
+          setLocalGraph(originalGraphData);
         }
 
         setCollapsedPointIds(new Set());
@@ -617,7 +626,11 @@ export const GraphView = ({
     } finally {
       setIsDiscarding(false);
     }
-  }, [onResetContent, props.defaultNodes, props.defaultEdges, setNodes, setEdges, setLocalGraph, setCollapsedPointIds, flowInstance, setIsModified]);
+  }, [
+    onResetContent,
+    originalGraphData,
+    setNodes, setEdges, setLocalGraph, setCollapsedPointIds, flowInstance, setIsModified
+  ]);
 
   // Add a special effect to fix nodes that might not have loaded properly in a copy operation
   useLayoutEffect(() => {
@@ -661,13 +674,6 @@ export const GraphView = ({
     }
   }, [searchParams]);
 
-  const openShareDialogInShareMode = () => {
-    setSharedPoints([]);
-    setSharedByUsername(undefined);
-    setShareDialogMode('share');
-    setIsShareDialogOpen(true);
-  };
-
   return (
     <>
       <ReactFlow
@@ -710,7 +716,8 @@ export const GraphView = ({
 
         {/* Combined top-right panel for all controls */}
         <Panel position="top-right" className="m-2">
-          <div className="flex flex-col items-end gap-2">
+          {/* Apply responsive margin to the inner div */}
+          <div className="flex flex-col items-end gap-2 mt-16 sm:mt-0">
             {onClose && (
               <Button
                 variant="ghost"
@@ -774,29 +781,36 @@ export const GraphView = ({
               </div>
             )}
 
-            {/* Share Button */}
+            {/* Share Button Logic */}
             {!hideShareButton && (
               <div className={cn(
                 "flex flex-col gap-2",
                 // Add margin-top only when save/discard buttons are not shown
                 !(isModified || isContentModified) && "mt-[50px] md:mt-[15px]"
               )}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      onClick={openShareDialogInShareMode}
-                      disabled={isSavingProp || isSaving_local || isDiscarding}
-                      className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 w-[140px]"
-                    >
-                      <Share2Icon className="size-4" />
-                      <span className="text-xs">Share Points</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Share selected points from this rationale</p>
-                  </TooltipContent>
-                </Tooltip>
+                {isSharing ? (
+                  <ShareControls
+                    handleGenerateAndCopyShareLink={handleGenerateAndCopyShareLink}
+                    toggleSharingMode={toggleSharingMode}
+                  />
+                ) : (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        onClick={toggleSharingMode} // Toggles sharing mode on
+                        disabled={isSavingProp || isSaving_local || isDiscarding}
+                        className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 w-[140px]"
+                      >
+                        <Share2Icon className="size-4" />
+                        <span className="text-xs">Share Points</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Select points to share</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
               </div>
             )}
           </div>
@@ -804,40 +818,6 @@ export const GraphView = ({
 
         <GlobalExpandPointDialog />
       </ReactFlow>
-
-      {!canvasEnabled && (isModified || isContentModified) && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 p-3 bg-background border-t z-30 flex justify-center gap-4">
-          <Button
-            variant="outline"
-            onClick={() => setIsDiscardDialogOpen(true)}
-            disabled={isSavingProp || isSaving_local || isDiscarding}
-            className="flex-1 shadow-md"
-          >
-            {isDiscarding ? <Loader className="size-4 animate-spin mr-2" /> : <Undo2Icon className="size-4 mr-2" />}
-            Discard
-          </Button>
-          <AuthenticatedActionButton
-            onClick={handleSave}
-            disabled={isSavingProp || isSaving_local}
-            className="flex-1 shadow-md flex items-center justify-center min-w-[140px]"
-          >
-            {isSavingProp || isSaving_local ? (
-              <Loader className="size-4 animate-spin" />
-            ) : (
-              <div className="flex items-center">
-                <SaveIcon className="size-4 mr-2" />
-                <span className="text-xs">
-                  {canModify
-                    ? isNew
-                      ? "Publish Rationale"
-                      : "Publish Changes"
-                    : "Copy Rationale"}
-                </span>
-              </div>
-            )}
-          </AuthenticatedActionButton>
-        </div>
-      )}
 
       <AlertDialog open={isDiscardDialogOpen} onOpenChange={setIsDiscardDialogOpen}>
         <AlertDialogContent className={cn("sm:max-w-[425px]", unsavedChangesModalClassName)}>
@@ -871,12 +851,58 @@ export const GraphView = ({
         onOpenChange={setIsShareDialogOpen}
         rationaleId={rationaleId}
         spaceId={spaceId}
-        isViewMode={shareDialogMode === 'view'}
         initialPoints={shareDialogMode === 'view' ? sharedPoints : undefined}
         sharedBy={shareDialogMode === 'view' ? sharedByUsername : undefined}
       />
 
       <MergeNodesDialog />
+    </>
+  );
+};
+
+const ShareControls = ({ handleGenerateAndCopyShareLink, toggleSharingMode }: {
+  handleGenerateAndCopyShareLink?: () => void;
+  toggleSharingMode?: () => void;
+}) => {
+  const [selectedIds] = useAtom(selectedPointIdsAtom);
+  const numberOfSelectedPoints = selectedIds.size;
+
+  return (
+    <>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="default"
+            onClick={handleGenerateAndCopyShareLink}
+            disabled={numberOfSelectedPoints === 0}
+            className="shadow-md px-3 py-1.5 flex items-center justify-center gap-2 w-[140px] h-8 text-xs"
+          >
+            <Share2Icon className="size-3.5" />
+            <span>Generate Link</span>
+            {numberOfSelectedPoints > 0 && (
+              <span className="ml-1 font-bold">({numberOfSelectedPoints})</span>
+            )}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Copy share link for selected points</p>
+        </TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="outline"
+            onClick={toggleSharingMode}
+            className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 w-[140px] h-8 text-xs"
+          >
+            <XIcon className="size-3.5" />
+            <span>Cancel Sharing</span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Exit sharing mode</p>
+        </TooltipContent>
+      </Tooltip>
     </>
   );
 };

@@ -44,7 +44,7 @@ import { useUserEndorsement } from "@/queries/useUserEndorsements";
 import { usePrivy } from "@privy-io/react-auth";
 import { useToggle } from "@uidotdev/usehooks";
 import { useAtom } from "jotai";
-import { CircleIcon } from "lucide-react";
+import { CircleIcon, CheckIcon } from "lucide-react";
 import { Portal } from "@radix-ui/react-portal";
 import {
   HTMLAttributes,
@@ -64,6 +64,8 @@ import { ExternalLinkIcon } from "lucide-react";
 import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
 import { useQueryClient } from "@tanstack/react-query";
 import { getPointUrl } from "@/lib/getPointUrl";
+import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
+import { selectedPointIdsAtom } from "@/atoms/viewpointAtoms";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -124,6 +126,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   isInPointPage?: boolean;
   isLoading?: boolean;
   disableVisitedMarker?: boolean;
+  isSharing?: boolean;
 }
 
 export const PointCard = ({
@@ -161,6 +164,7 @@ export const PointCard = ({
   isInPointPage = false,
   isLoading = false,
   disableVisitedMarker = false,
+  isSharing = false,
   ...props
 }: PointCardProps) => {
   const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
@@ -184,6 +188,22 @@ export const PointCard = ({
   const [isOpen, setIsOpen] = useState(false);
   const [isLoadingFavorHistory, setIsLoadingFavorHistory] = useState(false);
   const [popoverFavorHistory, setPopoverFavorHistory] = useState<Array<{ timestamp: Date; favor: number }> | null>(null);
+
+  const [selectedIds, setSelectedIds] = useAtom(selectedPointIdsAtom);
+  const isSelected = useMemo(() => selectedIds.has(pointId), [selectedIds, pointId]);
+
+  const handleSelect = useCallback(() => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(pointId)) {
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        newSet.delete(pointId);
+      } else {
+        newSet.add(pointId);
+      }
+      return newSet;
+    });
+  }, [pointId, setSelectedIds]);
 
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -335,6 +355,7 @@ export const PointCard = ({
         isPinned && "border-l-4 border-primary",
         isPriority && !isPinned && "border-l-4 border-amber-400",
         inGraphNode && "pt-2.5",
+        isSharing && !isSelected && "opacity-50 transition-opacity duration-200",
         className
       )}
       onMouseEnter={() => {
@@ -355,6 +376,18 @@ export const PointCard = ({
         <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
           <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
+      )}
+      {isSharing && (
+        <CheckboxPrimitive.Root
+          checked={isSelected}
+          onCheckedChange={handleSelect}
+          className="absolute top-4 right-4 z-10 h-5 w-5 rounded-sm border border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+          aria-label={`Select point ${pointId}`}
+        >
+          <CheckboxPrimitive.Indicator className={cn("flex items-center justify-center text-current")}>
+            <CheckIcon className="h-4 w-4" />
+          </CheckboxPrimitive.Indicator>
+        </CheckboxPrimitive.Root>
       )}
       <div className="flex flex-col flex-grow w-full min-w-0 pr-8">
         <div className={cn("flex items-start gap-2", inGraphNode && "pt-4")}>
@@ -667,7 +700,7 @@ export const PointCard = ({
           </Portal>
         </Tooltip>
       )}
-      {!visited && privyUser && !disableVisitedMarker && (
+      {!isSharing && !visited && privyUser && !disableVisitedMarker && (
         <div className="absolute top-0.5 right-3 group flex items-center gap-2">
           <span className="text-sm text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
             Tap to mark seen

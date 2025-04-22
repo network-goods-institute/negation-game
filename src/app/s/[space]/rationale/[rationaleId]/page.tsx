@@ -23,7 +23,7 @@ import { useSpace } from "@/queries/useSpace";
 import { useUser } from "@/queries/useUser";
 import { ReactFlowProvider, useReactFlow, } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
-import { NetworkIcon, CopyIcon, LinkIcon, CheckIcon, ArrowLeftIcon } from "lucide-react";
+import { NetworkIcon, CopyIcon, LinkIcon, CheckIcon, ArrowLeftIcon, Share2Icon } from "lucide-react";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import dynamic from 'next/dynamic';
 import remarkGfm from 'remark-gfm';
@@ -35,7 +35,7 @@ import { useFavorHistory } from "@/queries/useFavorHistory";
 import { useGraphPoints } from "@/components/graph/useGraphPoints";
 import { Loader } from "@/components/ui/loader";
 import { useViewpoint } from "@/queries/useViewpoint";
-import { useRouter, notFound } from "next/navigation";
+import { useRouter, notFound, useSearchParams } from "next/navigation";
 import { EditModeProvider, useEditMode } from "@/components/graph/EditModeContext";
 import { ReactFlowInstance } from "@xyflow/react";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
@@ -45,6 +45,9 @@ import { handleBackNavigation } from "@/utils/backButtonUtils";
 import { copyViewpointAndNavigate } from "@/utils/copyViewpoint";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
+import { ShareRationaleDialog } from "@/components/graph/ShareRationalePointsDialog";
+import { toast } from "sonner";
+import { selectedPointIdsAtom } from "@/atoms/viewpointAtoms";
 
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
     loading: () => <div className="animate-pulse h-32 bg-muted/30 rounded-md" />,
@@ -60,9 +63,11 @@ const customMarkdownComponents = {
 function PointCardWrapper({
     point,
     className,
+    isSharing,
 }: {
     point: { pointId: number; parentId?: number | string };
     className?: string;
+    isSharing?: boolean;
 }) {
     const { data: pointData } = usePointData(point.pointId);
     const { originalPosterId } = useOriginalPoster();
@@ -97,6 +102,7 @@ function PointCardWrapper({
             onNegate={() => setNegatedPointId(point.pointId)}
             inRationale={true}
             favorHistory={favorHistory}
+            isSharing={isSharing}
         />
     );
 }
@@ -123,6 +129,14 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
     const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
     const [isGraphModified, setIsGraphModified] = useState(false);
+
+    const [isSharing, setIsSharing] = useState(false);
+    const [selectedPointIds, setSelectedPointIds] = useAtom(selectedPointIdsAtom);
+    const [isViewSharedDialogOpen, setIsViewSharedDialogOpen] = useState(false);
+    const [viewSharedPoints, setViewSharedPoints] = useState<number[]>([]);
+    const [sharedByUsername, setSharedByUsername] = useState<string | undefined>(undefined);
+
+    const searchParams = useSearchParams();
 
     useEffect(() => {
         const checkMobile = () => {
@@ -414,6 +428,65 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
         }
     }, [canEdit]);
 
+    const toggleSharingMode = useCallback(() => {
+        const nextIsSharing = !isSharing;
+        setIsSharing(nextIsSharing);
+        if (!nextIsSharing) {
+            setSelectedPointIds(new Set());
+        }
+    }, [isSharing, setSelectedPointIds]);
+
+    const handleGenerateAndCopyShareLink = useCallback(() => {
+        if (selectedPointIds.size === 0) {
+            toast.info("Select some points first to generate a share link.");
+            return;
+        }
+
+        const url = new URL(window.location.href);
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        url.searchParams.delete('view');
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        url.searchParams.delete('points');
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        url.searchParams.delete('by');
+        // Add new params
+        url.searchParams.set('view', 'shared');
+        url.searchParams.set('points', Array.from(selectedPointIds).join(','));
+        if (user?.username) {
+            url.searchParams.set('by', user.username);
+        }
+        const urlToCopy = url.toString();
+
+        navigator.clipboard.writeText(urlToCopy)
+            .then(() => {
+                toast.success(`Share link copied for ${selectedPointIds.size} point(s)!`);
+                setIsSharing(false);
+                setSelectedPointIds(new Set());
+            })
+            .catch(err => {
+                console.error('Failed to copy share link: ', err);
+                toast.error("Failed to copy link. Please try again.");
+            });
+
+    }, [selectedPointIds, user?.username, setSelectedPointIds]);
+
+    useEffect(() => {
+        const viewParam = searchParams?.get('view');
+        const pointsParam = searchParams?.get('points');
+        const byParam = searchParams?.get('by');
+
+        if (viewParam === 'shared' && pointsParam) {
+            const pointIds = pointsParam.split(',').map(Number).filter(id => !isNaN(id));
+            if (pointIds.length > 0) {
+                setViewSharedPoints(pointIds);
+                setSharedByUsername(byParam ?? undefined);
+                setIsViewSharedDialogOpen(true);
+            }
+        } else {
+            setIsViewSharedDialogOpen(false);
+        }
+    }, [searchParams]);
+
     const resetContentModifications = useCallback(() => {
         if (viewpoint) {
             setEditableTitle(originalTitleRef.current);
@@ -440,7 +513,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                 setLocalGraph(originalGraph);
             }
         }
-    }, [viewpoint, queryClient, originalGraph, setLocalGraph]); // Remove localGraph dependency
+    }, [viewpoint, queryClient, originalGraph, setLocalGraph]);
 
     const handleBackClick = useCallback(() => {
         if (isGraphModified || isContentModified) {
@@ -498,7 +571,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                             {/* Graph toggle on mobile */}
                             <div className="md:hidden">
                                 <Button
-                                    size={"icon"}
+                                    size="icon"
                                     variant={canvasEnabled ? "default" : "outline"}
                                     className="rounded-full p-1 size-7"
                                     onClick={() => setCanvasEnabled(!canvasEnabled)}
@@ -509,11 +582,20 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                             {/* Rationale text on mobile */}
                             <h1 className="text-sm font-bold flex items-center gap-2 md:hidden">
                                 <ViewpointIcon className="size-4" />
-                                <span>Rationale</span>
+                                <span>Rationale{isSharing ? ' (Sharing)' : ''}</span>
                             </h1>
                         </div>
                         {/* Mobile copy buttons */}
                         <div className="flex items-center gap-1 md:hidden">
+                            <Button
+                                size="icon"
+                                variant={isSharing ? "default" : "outline"}
+                                className="rounded-full p-1 size-7"
+                                onClick={toggleSharingMode}
+                            >
+                                <Share2Icon className="size-3.5" />
+                            </Button>
+                            {/* Mobile Copy Buttons */}
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -603,7 +685,8 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                         "flex-grow overflow-y-auto pb-10",
                         canvasEnabled && "hidden md:block", // Hide content on mobile when canvas active
                         // Add extra padding-bottom on mobile if canvas is OFF and changes exist
-                        !canvasEnabled && (isGraphModified || isContentModified) && isOwner && "pb-24 md:pb-10"
+                        !canvasEnabled && (isGraphModified || isContentModified) && isOwner && "pb-24 md:pb-10",
+                        isSharing && "pb-24 md:pb-24"
                     )}>
                         {/* Content: Title, Author, Stats, Desc, Points */}
                         <div className="flex flex-col p-2 gap-0">
@@ -718,8 +801,10 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                                             "border-b",
                                             hoveredPointId === point.pointId &&
                                             "shadow-[inset_0_0_0_2px_hsl(var(--primary))]",
-                                            editMode && "pr-10"
+                                            editMode && "pr-10",
+                                            isSharing && selectedPointIds.has(point.pointId) && "bg-primary/10"
                                         )}
+                                        isSharing={isSharing}
                                     />
                                 ))}
                             </Dynamic>
@@ -755,9 +840,14 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                         onNodesChange={(changes) => {
                             const { viewport, ...graph } = reactFlow.toObject();
                             setGraph(graph);
+                            setLocalGraph(graph);
                         }}
                         onModifiedChange={setIsGraphModified}
                         canvasEnabled={canvasEnabled}
+                        isSharing={isSharing}
+                        toggleSharingMode={toggleSharingMode}
+                        handleGenerateAndCopyShareLink={handleGenerateAndCopyShareLink}
+                        originalGraphData={originalGraph}
                     />
                 </Dynamic>
 
@@ -787,6 +877,15 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
+
+                <ShareRationaleDialog
+                    open={isViewSharedDialogOpen}
+                    onOpenChange={setIsViewSharedDialogOpen}
+                    rationaleId={viewpointId}
+                    spaceId={space?.data?.id || 'global'}
+                    initialPoints={viewSharedPoints}
+                    sharedBy={sharedByUsername}
+                />
             </main>
         </EditModeProvider>
     );

@@ -134,6 +134,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
   const [isDiscardingWithoutNav, setIsDiscardingWithoutNav] = useState(false);
   const [isCopyOperation, setIsCopyOperation] = useState(false);
   const hasLoadedCopyData = useRef(false);
+  const [graphRevision, setGraphRevision] = useState(0);
 
   const spaceQuery = useSpace();
   const space = spaceQuery;
@@ -143,7 +144,6 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
   const [isMobile, setIsMobile] = useState(false);
   const reactFlow = useReactFlow<AppNode>();
   const [graph, setGraph] = useAtom(viewpointGraphAtom);
-  const [graphRevision, setGraphRevision] = useState(0);
   const points = useGraphPoints();
   const [statement, setStatement] = useAtom(viewpointStatementAtom);
   const [reasoning, setReasoning] = useAtom(viewpointReasoningAtom);
@@ -217,57 +217,13 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
             setReasoning(parsedData.description);
           }
 
-          // Then, if ReactFlow is ready, set its nodes and edges
-          if (reactFlow) {
-            // IMPORTANT: Use a longer delay to ensure all initialization is complete
-            setTimeout(() => {
-              // Guard against component unmounting
-              if (!reactFlow) return;
+          // Increment revision to force GraphView remount, as copying is a bit flaky
+          setGraphRevision(prev => prev + 1);
 
-              try {
-                // First, clear any existing nodes and edges
-                reactFlow.setNodes([]);
-                reactFlow.setEdges([]);
-
-                // Force a layout update between clearing and setting
-                setTimeout(() => {
-                  // Guard against component unmounting
-                  if (!reactFlow) return;
-
-                  try {
-                    // Set nodes all at once
-                    reactFlow.setNodes(parsedData.graph.nodes);
-
-                    setTimeout(() => {
-                      // Guard against component unmounting
-                      if (!reactFlow) return;
-
-                      try {
-                        reactFlow.setEdges(parsedData.graph.edges);
-
-                        // Force a graph revision update to trigger a remount of the graph component
-                        setGraphRevision(prev => prev + 1);
-
-                        // Also update the statement node
-                        updateNodeData("statement", {
-                          statement: parsedData.title || PLACEHOLDER_STATEMENT,
-                          _lastUpdated: Date.now()
-                        });
-                      } catch (edgeError) {
-                        console.error("Error setting edges:", edgeError);
-                      }
-                    }, 100);
-                  } catch (nodeError) {
-                    console.error("Error setting nodes:", nodeError);
-                  }
-                }, 100);
-              } catch (clearError) {
-                console.error("Error clearing nodes/edges:", clearError);
-              }
-            }, 300);
-          } else {
-            console.warn("ReactFlow not ready when trying to set nodes/edges");
-          }
+          updateNodeData("statement", {
+            statement: parsedData.title || PLACEHOLDER_STATEMENT,
+            _lastUpdated: Date.now()
+          });
 
           // Clear the session storage data after loading
           sessionStorage.removeItem(storageKey);
