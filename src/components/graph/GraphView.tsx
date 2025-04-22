@@ -698,25 +698,54 @@ export const GraphView = ({
           variant={BackgroundVariant.Dots}
         />
 
-        {/* Position MiniMap with margin using Panel and inner div */}
-        <Panel position="bottom-right" className="m-2">
-          {/* Responsive bottom offset */}
-          <div className="relative bottom-[10px] md:bottom-[20px]">
-            <MiniMap nodeStrokeWidth={3} zoomable pannable />
+        {/* Share controls and MiniMap in bottom-right */}
+        <Panel position="bottom-right" className="mr-4 mb-4">
+          <div className="flex flex-col gap-2">
+            {/* Share controls */}
+            {!hideShareButton && (
+              <div className="flex flex-col gap-2 mb-48 mr-6 bg-background/95 p-3 rounded-md shadow-md border border-border">
+                {isSharing ? (
+                  <ShareControls
+                    handleGenerateAndCopyShareLink={handleGenerateAndCopyShareLink}
+                    toggleSharingMode={toggleSharingMode}
+                  />
+                ) : (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="secondary"
+                        onClick={toggleSharingMode}
+                        disabled={isSavingProp || isSaving_local || isDiscarding}
+                        className="bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-lg px-4 py-2 flex items-center justify-center gap-2 w-[160px] text-sm"
+                      >
+                        <Share2Icon className="size-4" />
+                        <span className="text-sm font-medium">Share Points</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Select points to share</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            )}
+            {/* MiniMap */}
+            <div className="relative bottom-8 mt-4">
+              <MiniMap nodeStrokeWidth={3} zoomable pannable />
+            </div>
           </div>
         </Panel>
 
         {/* Position Controls with margin using Panel and inner div */}
         <Panel position="bottom-left" className="m-2">
           {/* Responsive bottom offset */}
-          <div className="relative bottom-[10px] md:bottom-[20px]">
+          <div className="relative bottom-[10px] md:bottom-[20px] mb-4">
             <Controls />
           </div>
         </Panel>
 
-        {/* Combined top-right panel for all controls */}
+        {/* Save/Discard panel in top-right */}
         <Panel position="top-right" className="m-2">
-          {/* Apply responsive margin to the inner div */}
           <div className="flex flex-col items-end gap-2 mt-16 sm:mt-0">
             {onClose && (
               <Button
@@ -730,15 +759,15 @@ export const GraphView = ({
             )}
 
             {(isModified || isContentModified) && !isNew && (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 bg-background/95 p-3 rounded-md shadow-md border border-border">
                 {/* Save Button */}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <AuthenticatedActionButton
-                      variant="outline"
+                      variant="default"
                       onClick={handleSave}
                       disabled={isSavingProp || isSaving_local}
-                      className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center w-[140px]"
+                      className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg px-4 py-2 flex items-center justify-center w-[160px]"
                       id="graph-save-button"
                     >
                       {isSavingProp || isSaving_local ? (
@@ -746,7 +775,7 @@ export const GraphView = ({
                       ) : (
                         <div className="flex items-center">
                           <SaveIcon className="size-4 mr-2" />
-                          <span className="text-xs">
+                          <span className="text-sm font-medium">
                             {canModify
                               ? isNew
                                 ? "Publish Rationale"
@@ -765,52 +794,19 @@ export const GraphView = ({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
-                      variant="outline"
+                      variant="secondary"
                       onClick={() => setIsDiscardDialogOpen(true)}
                       disabled={isSavingProp || isSaving_local || isDiscarding}
-                      className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 w-[140px]"
+                      className="bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-lg px-4 py-2 flex items-center justify-center gap-2 w-[160px]"
                     >
                       {isDiscarding ? <Loader className="size-4 animate-spin" /> : <Undo2Icon className="size-4" />}
-                      <span className="text-xs">Discard</span>
+                      <span className="text-sm font-medium">Discard</span>
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>Discard changes</p>
                   </TooltipContent>
                 </Tooltip>
-              </div>
-            )}
-
-            {/* Share Button Logic */}
-            {!hideShareButton && (
-              <div className={cn(
-                "flex flex-col gap-2",
-                // Add margin-top only when save/discard buttons are not shown
-                !(isModified || isContentModified) && "mt-[50px] md:mt-[15px]"
-              )}>
-                {isSharing ? (
-                  <ShareControls
-                    handleGenerateAndCopyShareLink={handleGenerateAndCopyShareLink}
-                    toggleSharingMode={toggleSharingMode}
-                  />
-                ) : (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        onClick={toggleSharingMode} // Toggles sharing mode on
-                        disabled={isSavingProp || isSaving_local || isDiscarding}
-                        className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 w-[140px]"
-                      >
-                        <Share2Icon className="size-4" />
-                        <span className="text-xs">Share Points</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Select points to share</p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
               </div>
             )}
           </div>
@@ -875,9 +871,9 @@ const ShareControls = ({ handleGenerateAndCopyShareLink, toggleSharingMode }: {
             variant="default"
             onClick={handleGenerateAndCopyShareLink}
             disabled={numberOfSelectedPoints === 0}
-            className="shadow-md px-3 py-1.5 flex items-center justify-center gap-2 w-[140px] h-8 text-xs"
+            className="shadow-lg px-4 py-2 flex items-center justify-center gap-2 w-[160px] text-sm"
           >
-            <Share2Icon className="size-3.5" />
+            <Share2Icon className="size-4" />
             <span>Generate Link</span>
             {numberOfSelectedPoints > 0 && (
               <span className="ml-1 font-bold">({numberOfSelectedPoints})</span>
@@ -891,11 +887,11 @@ const ShareControls = ({ handleGenerateAndCopyShareLink, toggleSharingMode }: {
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
-            variant="outline"
+            variant="secondary"
             onClick={toggleSharingMode}
-            className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 w-[140px] h-8 text-xs"
+            className="bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-lg px-4 py-2 flex items-center justify-center gap-2 w-[160px] text-sm"
           >
-            <XIcon className="size-3.5" />
+            <XIcon className="size-4" />
             <span>Cancel Sharing</span>
           </Button>
         </TooltipTrigger>
