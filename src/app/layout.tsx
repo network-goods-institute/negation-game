@@ -1,23 +1,22 @@
-import { ConnectButton } from "@/components/ConnectButton";
 import { QueryClientProvider } from "@/components/providers/QueryClientProvider";
 import { ThemedPrivyProvider } from "@/components/providers/ThemedPrivyProvider";
-import { ModeToggle } from "@/components/ui/ModeToggle";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
-import { Dynamic } from "@/components/utils/Dynamic";
 import { cn } from "@/lib/cn";
 import { Analytics } from "@vercel/analytics/react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { GitHubButton } from "@/components/ui/GitHubButton";
-
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DevOnly } from "@/components/utils/DevOnly";
 import { ToggleableReactQueryDevTools } from "@/components/utils/ToggleableReactQueryDevTools";
 import "@xyflow/react/dist/style.css";
-import Link from "next/link";
 import "./globals.css";
+import { OnboardingProvider } from "@/contexts/OnboardingContext";
+import { HeaderActions } from "@/components/layout/HeaderActions";
+import {
+  DynamicHeaderContent
 
+} from "@/components/layout/DynamicHeaderContent";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -41,35 +40,26 @@ export default function RootLayout({
         >
           <ThemedPrivyProvider>
             <QueryClientProvider>
-              <TooltipProvider>
-                <header className="sticky top-0 z-20 border-b py-sm flex justify-between container-padding items-center w-full bg-background h-[var(--header-height)]">
-                  <div className="flex items-center min-w-0" id="header-container">
-                    <div className="flex items-center min-w-0 overflow-hidden">
-                      <Link href="/" className="font-bold whitespace-nowrap" id="header-logo">
-                        Negation Game
-                      </Link>
-                      <div id="space-header" className="flex items-center ml-2 min-w-0 overflow-hidden"></div>
+              <OnboardingProvider>
+                <TooltipProvider>
+                  <header className="sticky top-0 z-20 border-b py-sm flex justify-between container-padding items-center w-full bg-background h-[var(--header-height)]">
+                    <div className="flex items-center min-w-0" id="header-container">
+                      <div className="flex items-center min-w-0 overflow-hidden" id="dynamic-header-content">
+                        <DynamicHeaderContent />
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex gap-1 sm:gap-sm ml-2 flex-shrink-0">
-                    <Dynamic>
-                      <ModeToggle className="col-start-3 justify-self-end" />
-                    </Dynamic>
-                    <ConnectButton />
-                    <Dynamic>
-                      <GitHubButton />
-                    </Dynamic>
-                  </div>
-                </header>
+                    <HeaderActions />
+                  </header>
 
-                {children}
+                  {children}
 
-                <Toaster />
-                <Analytics />
-              </TooltipProvider>
-              <DevOnly>
-                <ToggleableReactQueryDevTools />
-              </DevOnly>
+                  <Toaster />
+                  <Analytics />
+                </TooltipProvider>
+                <DevOnly>
+                  <ToggleableReactQueryDevTools />
+                </DevOnly>
+              </OnboardingProvider>
             </QueryClientProvider>
           </ThemedPrivyProvider>
         </ThemeProvider>
