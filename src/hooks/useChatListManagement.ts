@@ -48,6 +48,11 @@ export function useChatListManagement({
   const [pendingPushIds, setPendingPushIds] = useState<Set<string>>(new Set());
   const pushDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingChatUpdatesRef = useRef<Map<string, SavedChat>>(new Map());
+  const savedChatsRef = useRef<SavedChat[]>([]);
+
+  useEffect(() => {
+    savedChatsRef.current = savedChats;
+  }, [savedChats]);
 
   const executePush = useCallback(
     async (chatData: SavedChat) => {
@@ -270,85 +275,79 @@ export function useChatListManagement({
   }, [currentChatId, currentSpace, isAuthenticated]);
 
   const updateChat = useCallback(
-    async (
+    (
       chatId: string,
       messages: ChatMessage[],
       title?: string,
-      isNewChat = false
+      distillRationaleId?: string | null
     ) => {
-      if (!currentSpace) return;
+      if (!currentSpace) {
+        console.error("updateChat called without currentSpace");
+        return null;
+      }
 
       let updatedChatDataForPush: SavedChat | null = null;
 
       setSavedChats((prev) => {
-        let chatExists = false;
-        const now = new Date().toISOString();
-        let updatedChats = [...prev];
-
-        const chatIndex = updatedChats.findIndex((c) => c.id === chatId);
-
-        if (chatIndex !== -1) {
-          chatExists = true;
-          const currentChat = updatedChats[chatIndex];
-          const messagesToSave = messages.map((msg) => ({
-            role: msg.role,
-            content: msg.content,
-            ...(msg.sources && { sources: msg.sources }),
-          }));
-          const newTitle = title || currentChat.title;
-
-          updatedChats[chatIndex] = {
-            ...currentChat,
-            title: newTitle,
-            messages: messagesToSave,
-            updatedAt: now,
-          };
-          updatedChatDataForPush = updatedChats[chatIndex];
-        } else if (isNewChat) {
-          console.warn(
-            `updateChat called for non-existent chatId: ${chatId} with isNewChat=true. Creating.`
-          );
-          const newChat: SavedChat = {
-            id: chatId,
-            title: title || "New Chat",
-            messages: messages.map((msg) => ({
-              role: msg.role,
-              content: msg.content,
-              ...(msg.sources && { sources: msg.sources }),
-            })),
-            createdAt: now,
-            updatedAt: now,
-            space: currentSpace,
-            state_hash: "",
-          };
-          updatedChats.unshift(newChat);
-          updatedChatDataForPush = newChat;
-          chatExists = true;
-        } else {
+        const internalChatIndex = prev.findIndex((c) => c.id === chatId);
+        if (internalChatIndex === -1) {
           console.error(
-            `updateChat called for non-existent chatId: ${chatId} without isNewChat flag. Aborting update.`
+            `updateChat (sync) called for non-existent chatId: ${chatId}. Aborting update.`
           );
           return prev;
         }
 
-        if (chatExists && updatedChatDataForPush) {
-          updatedChats.sort(
-            (a, b) =>
-              new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-          );
-          localStorage.setItem(
-            `saved_chats_${currentSpace}`,
-            JSON.stringify(updatedChats)
-          );
+        const currentChat = prev[internalChatIndex];
+        const now = new Date().toISOString();
+        const messagesToSave = messages.map((msg) => ({
+          role: msg.role,
+          content: msg.content,
+          ...(msg.sources && { sources: msg.sources }),
+        }));
 
-          console.log(`[ChatList Update] Queuing push for chat ${chatId}.`);
-          queuePushUpdate(updatedChatDataForPush);
+        const updatedFields: Partial<SavedChat> = {
+          messages: messagesToSave,
+          updatedAt: now,
+        };
 
-          return updatedChats;
-        } else {
-          return prev;
+        const finalTitle = title !== undefined ? title : currentChat.title;
+        if (finalTitle !== currentChat.title) {
+          updatedFields.title = finalTitle;
         }
+
+        if (distillRationaleId !== undefined) {
+          updatedFields.distillRationaleId = distillRationaleId;
+        }
+
+        const placeholderHash = `sync_update_${Date.now()}`;
+        updatedFields.state_hash = placeholderHash;
+
+        const updatedChats = [...prev];
+        const finalUpdatedChat: SavedChat = {
+          ...currentChat,
+          ...updatedFields,
+        };
+
+        updatedChats[internalChatIndex] = finalUpdatedChat;
+
+        updatedChats.sort(
+          (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        );
+        localStorage.setItem(
+          `saved_chats_${currentSpace}`,
+          JSON.stringify(updatedChats)
+        );
+
+        console.log(`[ChatList Update Sync] Queuing push for chat ${chatId}.`);
+        queuePushUpdate(finalUpdatedChat);
+
+        updatedChatDataForPush = finalUpdatedChat;
+
+        return updatedChats;
       });
+
+      return updatedChatDataForPush;
     },
     [currentSpace, queuePushUpdate]
   );
@@ -363,6 +362,8 @@ export function useChatListManagement({
 
     const newChatId = nanoid();
     const now = new Date().toISOString();
+    const newChatHash = `sync_create_${Date.now()}`;
+
     const newChat: SavedChat = {
       id: newChatId,
       title: "New Chat",
@@ -370,7 +371,8 @@ export function useChatListManagement({
       createdAt: now,
       updatedAt: now,
       space: currentSpace,
-      state_hash: await computeChatStateHash("New Chat", []),
+      distillRationaleId: null,
+      state_hash: newChatHash,
     };
 
     setSavedChats((prev) => {
@@ -391,10 +393,17 @@ export function useChatListManagement({
         console.log(
           `[ChatList] Attempting background server create for new chat ${newChatId}...`
         );
-        const result = await createDbChat({
+        const actualHash = await computeChatStateHash(
+          newChat.title,
+          newChat.messages
+        );
+        const payloadToServer = {
           ...newChat,
+          state_hash: actualHash,
           spaceId: currentSpace,
-        });
+        };
+
+        const result = await createDbChat(payloadToServer);
 
         if (!result.success) {
           console.error(

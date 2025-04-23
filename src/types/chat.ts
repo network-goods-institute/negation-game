@@ -23,6 +23,7 @@ export interface SavedChat {
   updatedAt: string;
   space: string;
   state_hash: string;
+  distillRationaleId?: string | null;
 }
 
 export interface ChatRationale {

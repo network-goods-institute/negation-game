@@ -41,8 +41,8 @@ import { ReactFlowInstance } from "@xyflow/react";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
 import { ViewpointStatsBar } from "@/components/ViewpointStatsBar";
 import { use } from "react";
-import { handleBackNavigation } from "@/utils/backButtonUtils";
-import { copyViewpointAndNavigate } from "@/utils/copyViewpoint";
+import { handleBackNavigation } from "@/lib/backButtonUtils";
+import { copyViewpointAndNavigate } from "@/lib/copyViewpoint";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 

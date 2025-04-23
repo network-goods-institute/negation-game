@@ -22,10 +22,11 @@ import { DiscourseConnectDialog } from "@/components/chatbot/DiscourseConnectDia
 import { DiscourseMessagesDialog } from "@/components/chatbot/DiscourseMessagesDialog";
 import { DiscourseConsentDialog } from "@/components/chatbot/DiscourseConsentDialog";
 import { ChatSettingsDialog } from "@/components/chatbot/ChatSettingsDialog";
+import { RationaleSelectionDialog } from "@/components/chatbot/RationaleSelectionDialog";
 import { useSetAtom } from 'jotai';
 import { initialSpaceTabAtom } from '@/atoms/navigationAtom';
-import { handleBackNavigation } from '@/utils/backButtonUtils';
-import { ChatRationale, ChatSettings, DiscourseMessage, InitialOption, SavedChat, ChatMessage } from '@/types/chat';
+import { handleBackNavigation } from '@/lib/backButtonUtils';
+import { ChatRationale, ChatSettings, SavedChat, ChatMessage } from '@/types/chat';
 import { useDiscourseIntegration } from "@/hooks/useDiscourseIntegration";
 import { useChatListManagement } from "@/hooks/useChatListManagement";
 import { useChatState } from "@/hooks/useChatState";
@@ -118,6 +119,8 @@ export default function AIAssistant() {
     const [showMobileMenu, setShowMobileMenu] = useState(false);
     const [showSettingsDialog, setShowSettingsDialog] = useState(false);
 
+    const [showRationaleSelectionDialog, setShowRationaleSelectionDialog] = useState(false);
+
     const [showEditDialog, setShowEditDialog] = useState(false);
     const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(null);
     const [editingMessageContent, setEditingMessageContent] = useState<string>("");
@@ -128,6 +131,7 @@ export default function AIAssistant() {
     const [lastSyncStats, setLastSyncStats] = useState<SyncStats | null>(null);
     const [syncError, setSyncError] = useState<string | null>(null);
     const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const [isOffline, setIsOffline] = useState<boolean>(false);
 
     const backgroundStatsRef = useRef<BackgroundSyncStatsRef>({ creates: 0, updates: 0, deletes: 0, errors: 0 });
 
@@ -161,7 +165,9 @@ export default function AIAssistant() {
             backgroundStatsRef.current.errors++;
         }
     });
-    const { isInitialized: isChatListInitialized } = chatList;
+    const {
+        isInitialized: isChatListInitialized,
+    } = chatList;
     const discourse = useDiscourseIntegration({ userData, isAuthenticated, isNonGlobalSpace, currentSpace, privyUserId: privyUser?.id });
     const ownedPointIds = useMemo(() => new Set(ownedPoints.map(p => p.pointId)), [ownedPoints]);
     const endorsedPointIds = useMemo(() => new Set(endorsedPoints.map(p => p.pointId)), [endorsedPoints]);
@@ -180,55 +186,120 @@ export default function AIAssistant() {
         createNewChat: chatList.createNewChat,
     });
 
+    const importStatusRef = useRef<{ importing: boolean, importId: string | null }>({ importing: false, importId: null });
+
+    const handleImportChat = useCallback(async (importChatId: string) => {
+        console.log(`[handleImportChat] Called for ID: ${importChatId}`);
+
+        let toastId = toast.loading("Importing chat...");
+        let importSuccess = false;
+
+        try {
+            const sharedContent = await fetchSharedChatContent(importChatId);
+            if (!sharedContent) {
+                throw new Error("Failed to fetch shared content");
+            }
+            console.log(`[handleImportChat] Fetched content for ${importChatId}. Creating new chat...`);
+
+            const newChatId = await chatList.createNewChat();
+            if (!newChatId || typeof newChatId !== 'string') {
+                throw new Error("Failed to create new chat");
+            }
+            console.log(`[handleImportChat] Created chat ${newChatId}, updating with content...`);
+
+            await chatList.updateChat(
+                newChatId,
+                sharedContent.messages,
+                `Imported: ${sharedContent.title}`.substring(0, 100)
+            );
+            console.log(`[handleImportChat] Successfully imported chat ${importChatId} as ${newChatId}`);
+            toast.success("Chat imported successfully!", { id: toastId });
+            importSuccess = true;
+
+        } catch (error) {
+            console.error("[handleImportChat] Error:", error);
+            toast.error(
+                error instanceof Error ? error.message : "Failed to import chat",
+                { id: toastId }
+            );
+        } finally {
+            console.log("[handleImportChat Cleanup] Entered finally block.");
+            importStatusRef.current = { importing: false, importId: null };
+            console.log("[handleImportChat Cleanup] Import status ref cleared.");
+
+            if (importSuccess) {
+                console.log("[handleImportChat Cleanup] Import was successful. Proceeding with URL cleanup.");
+                try {
+                    const currentUrl = new URL(window.location.href);
+                    if (currentUrl.searchParams.has('importChat')) {
+                        // eslint-disable-next-line drizzle/enforce-delete-with-where
+                        currentUrl.searchParams.delete('importChat');
+                        const newUrl = currentUrl.pathname + currentUrl.search;
+                        console.log(`[handleImportChat Cleanup] Cleaning URL. Old: ${window.location.href}, New: ${newUrl}`);
+                        router.push(newUrl, { scroll: false });
+                        console.log("[handleImportChat Cleanup] router.push called for successful import.");
+                    } else {
+                        console.log("[handleImportChat Cleanup] Success, but importChat param already removed?");
+                    }
+                } catch (e) {
+                    console.error("[handleImportChat Cleanup] Error cleaning URL after success:", e);
+                }
+            } else {
+                console.log("[handleImportChat Cleanup] Import failed. Skipping URL cleanup.");
+                if (router && currentSpace) {
+                    try {
+                        const currentUrl = new URL(window.location.href);
+                        if (currentUrl.searchParams.has('importChat')) {
+                            // eslint-disable-next-line drizzle/enforce-delete-with-where
+                            currentUrl.searchParams.delete('importChat');
+                            const newUrl = currentUrl.pathname + currentUrl.search;
+                            console.log("[handleImportChat Cleanup] Cleaning URL after failure.");
+                            router.push(newUrl, { scroll: false });
+                        }
+                    } catch (e) { /* Ignore cleanup error on fail */ }
+                }
+            }
+            console.log("[handleImportChat Cleanup] Exiting finally block.");
+        }
+    }, [
+        router,
+        currentSpace,
+        chatList
+    ]);
+
     useEffect(() => {
         const importChatId = searchParams.get('importChat');
 
-        if (!isChatListInitialized || !importChatId || !isAuthenticated || !currentSpace || !router || !chatList.updateChat) {
+        if (!importChatId || !router || !currentSpace) {
             return;
         }
 
-        console.log(`[Chat Import] Initialized. Detected importChat query param: ${importChatId}`);
-
-        const alreadyExists = chatList.savedChats.some(chat =>
-            chat.title.includes(`Imported:`) &&
-            chat.messages[0]?.content.includes(importChatId)
-        );
-
-        if (alreadyExists) {
-            console.log(`[Chat Import] Chat ${importChatId} appears to be already imported.`);
-            toast("Chat already imported.");
-            router.replace(`/s/${currentSpace}/chat`);
+        if (!isAuthenticated || !isChatListInitialized || isInitializing) {
+            console.log(`[Import Trigger Effect] Waiting for initialization... Auth: ${isAuthenticated}, ChatList: ${isChatListInitialized}, Init: ${!isInitializing}`);
             return;
         }
 
-        const importAndSaveChat = async () => {
-            let toastId = toast.loading("Importing chat...");
-            try {
-                const sharedContent = await fetchSharedChatContent(importChatId);
-
-                if (sharedContent) {
-                    console.log(`[Chat Import] Fetched content for ${importChatId}, attempting to save via updateChat.`);
-                    const newChatId = nanoid();
-                    await chatList.updateChat(
-                        newChatId,
-                        sharedContent.messages,
-                        `Imported: ${sharedContent.title}`.substring(0, 100)
-                    );
-                    toast.dismiss(toastId);
-                } else {
-                    console.error(`[Chat Import] Failed to fetch content for ${importChatId}.`);
-                    toast.error("Failed to import chat. Link may be invalid or chat not shared.", { id: toastId });
-                }
-            } catch (error) {
-                console.error("[Chat Import] Error during import process:", error);
-                toast.error("An error occurred during chat import.", { id: toastId });
-            } finally {
-                router.replace(`/s/${currentSpace}/chat`);
+        if (importStatusRef.current.importing) {
+            if (importStatusRef.current.importId === importChatId) {
+                console.log(`[Import Trigger Effect] Import already in progress for ${importChatId} (Effect Guard).`);
+            } else {
+                console.warn(`[Import Trigger Effect] Effect triggered for ${importChatId} while import for ${importStatusRef.current.importId} is in progress. Aborting new trigger.`);
             }
-        };
+            return;
+        }
+        console.log(`[Import Trigger Effect] Conditions met. Setting flag and calling handleImportChat for ${importChatId}`);
+        importStatusRef.current = { importing: true, importId: importChatId };
+        handleImportChat(importChatId);
 
-        importAndSaveChat();
-    }, [searchParams, isChatListInitialized, isAuthenticated, currentSpace, router, chatList.updateChat, chatList]);
+    }, [
+        searchParams,
+        isChatListInitialized,
+        isAuthenticated,
+        isInitializing,
+        handleImportChat,
+        currentSpace,
+        router,
+    ]);
 
     useEffect(() => {
         const initializeAssistant = async () => {
@@ -307,9 +378,18 @@ export default function AIAssistant() {
     };
     const handleStartChatOption = (option: InitialOptionObject) => {
         if (option.disabled || option.comingSoon) return;
-        console.log("[AIAssistant] Starting chat with option:", option.id);
-        chatState.startChatWithOption(option);
-        setShowMobileMenu(false);
+
+        if (option.id === 'distill') {
+            if (!isAuthenticated || userRationales.length === 0) {
+                toast.info("You need to be logged in and have rationales to use this feature.");
+                return;
+            }
+            setShowRationaleSelectionDialog(true);
+            setShowMobileMenu(false);
+        } else {
+            chatState.startChatWithOption(option);
+            setShowMobileMenu(false);
+        }
     };
     const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -326,14 +406,15 @@ export default function AIAssistant() {
     };
 
     const syncChats = useCallback(async () => {
+        console.log(`[Sync Triggered] State Check: isAuthenticated=${isAuthenticated}, currentSpace=${currentSpace}, isSyncing=${isSyncing}`);
+
         if (!isAuthenticated || !currentSpace) {
             console.log("[Sync] Skipping: Not authenticated or no space.");
             return;
         }
-        if (isSyncing) {
-            console.log("[Sync] Skipping: Already in progress.");
-            return;
-        }
+
+        setIsSyncing(true);
+        console.log("[Sync] Set isSyncing = true");
 
         const currentPendingPushIds = chatList.pendingPushIds;
         if (currentPendingPushIds.size > 0) {
@@ -362,9 +443,6 @@ export default function AIAssistant() {
             let activitySet = false;
 
             try {
-                if (retryCount === 0) {
-                    setIsSyncing(true);
-                }
                 setSyncActivity('pulling');
                 activitySet = true;
 
@@ -568,31 +646,51 @@ export default function AIAssistant() {
                 setLastSyncStats(currentStats);
                 setSyncError(null);
                 setSyncActivity('idle');
-                setIsSyncing(false);
+                setIsOffline(false);
 
             } catch (error) {
                 console.error(`[Sync Error] Attempt ${retryCount + 1} failed:`, error);
                 const message = error instanceof Error ? error.message : "An unknown error occurred during sync";
-                setSyncError(message);
-                setSyncActivity('error');
 
-                if (retryCount < maxRetries) {
-                    const delay = initialDelay * Math.pow(2, retryCount);
-                    console.log(`[Sync Retry] Will retry in ${delay / 1000}s...`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                    await attemptSync(retryCount + 1);
+                const isNetworkError = error instanceof TypeError && message.includes('Failed to fetch');
+
+                if (isNetworkError) {
+                    setSyncActivity('error');
+                    setSyncError("Network error. Please check connection.");
+                    if (!isOffline) {
+                        toast.warning("You appear to be offline. Chat sync paused. Please check your connection and manually sync when back online.", { duration: 10000 });
+                        setIsOffline(true);
+                    }
+                    return;
                 } else {
-                    console.error("[Sync Failed] Max retries reached. Sync failed permanently for this cycle.");
-                    toast.error(`Chat sync failed: ${message.substring(0, 100)}`);
-                    setLastSyncStats(null);
-                    setIsSyncing(false);
+                    setIsOffline(false);
+                    setSyncError(message);
+                    setSyncActivity('error');
+                    if (retryCount < maxRetries) {
+                        const delay = initialDelay * Math.pow(2, retryCount);
+                        console.log(`[Sync Retry] Will retry in ${delay / 1000}s...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        await attemptSync(retryCount + 1);
+                        return;
+                    } else {
+                        console.error("[Sync Failed] Max retries reached. Sync failed permanently for this cycle.");
+                        toast.error(`Chat sync failed: ${message.substring(0, 100)}`);
+                        setLastSyncStats(null);
+                    }
                 }
+            } finally {
+                console.log("[Sync] Sync process finished (or aborted). Setting isSyncing = false");
+                setIsSyncing(false);
             }
         };
 
-        await attemptSync(0);
+        try {
+            await attemptSync(0);
+        } finally {
+            console.log("[Sync] Sync process finished (or aborted). Setting isSyncing = false");
+        }
 
-    }, [isAuthenticated, currentSpace, chatList, isSyncing, chatState.generatingChats]);
+    }, [isAuthenticated, currentSpace, chatList, isSyncing, chatState.generatingChats, isOffline]);
 
     const prevDeps = useRef({ isAuthenticated, currentSpace });
     const syncChatsRef = useRef(syncChats);
@@ -612,6 +710,16 @@ export default function AIAssistant() {
             console.log(`[Sync Setup] useEffect triggered without apparent dependency change (might be syncChats identity).`, { isAuthenticated, currentSpace });
         }
         prevDeps.current = { isAuthenticated, currentSpace };
+
+        if (isOffline) {
+            console.log("[Sync Setup] Paused: Currently offline.");
+            if (syncIntervalRef.current) {
+                clearInterval(syncIntervalRef.current);
+                syncIntervalRef.current = null;
+                console.log("[Sync Setup] Cleared existing sync interval due to offline status.");
+            }
+            return;
+        }
 
         if (isAuthenticated && currentSpace) {
             console.log("[Sync Setup] Conditions met (authenticated and space exists). Setting up sync interval and listener.");
@@ -645,7 +753,7 @@ export default function AIAssistant() {
                 syncIntervalRef.current = null;
             }
         }
-    }, [isAuthenticated, currentSpace]);
+    }, [isAuthenticated, currentSpace, isOffline]);
 
     const handleTriggerEdit = (index: number, content: string) => {
         setEditingMessageIndex(index);
@@ -684,12 +792,19 @@ export default function AIAssistant() {
             setLoadingChat(false);
         }
     };
+
+    const handleRationaleSelectedForDistill = (rationale: ChatRationale) => {
+        console.log(`[AIAssistant] Rationale selected for distillation:`, rationale);
+        chatState.startDistillChat(rationale.id, rationale.title, rationale);
+        setShowRationaleSelectionDialog(false);
+    };
+
     const initialChatOptions: InitialOptionObject[] = [
         {
             id: 'distill',
-            title: "Distill Rationales",
-            prompt: "I'd like to distill my existing rationales into a well-structured essay. Please help me organize and refine my thoughts based on my rationales that you can see.",
-            description: "Organize your existing rationales into an essay.",
+            title: "Distill Rationale",
+            prompt: "",
+            description: "Select one of your rationales to generate an essay.",
         },
         {
             id: 'generate',
@@ -724,6 +839,7 @@ export default function AIAssistant() {
                 savedChats={chatList.savedChats}
                 currentChatId={chatList.currentChatId}
                 currentSpace={currentSpace}
+                generatingTitles={chatState.generatingTitles}
                 onSwitchChat={chatList.switchChat}
                 onNewChat={handleCreateNewChat}
                 onTriggerDeleteAll={handleTriggerDeleteAll}
@@ -751,6 +867,7 @@ export default function AIAssistant() {
                     isPulling={syncActivity === 'pulling'}
                     isSaving={syncActivity === 'saving'}
                     isGenerating={chatState.generatingChats.has(chatList.currentChatId || "")}
+                    isOffline={isOffline}
                 />
 
                 <ChatMessageArea
@@ -783,6 +900,13 @@ export default function AIAssistant() {
                     onShowSettings={() => setShowSettingsDialog(true)}
                 />
             </div>
+
+            <RationaleSelectionDialog
+                isOpen={showRationaleSelectionDialog}
+                onOpenChange={setShowRationaleSelectionDialog}
+                rationales={userRationales}
+                onRationaleSelected={handleRationaleSelectedForDistill}
+            />
 
             {isNonGlobalSpace && (
                 <>

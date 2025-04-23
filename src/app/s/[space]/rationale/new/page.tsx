@@ -68,7 +68,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useFavorHistory } from "@/queries/useFavorHistory";
-import { getBackButtonHandler } from "@/utils/backButtonUtils";
+import { getBackButtonHandler } from "@/lib/backButtonUtils";
 import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 
 function PointCardWrapper({

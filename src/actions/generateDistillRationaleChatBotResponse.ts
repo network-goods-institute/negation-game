@@ -6,6 +6,14 @@ import { withRetry } from "@/lib/withRetry";
 import { searchContent, SearchResult } from "./searchContent";
 import { getUserId } from "./getUserId";
 import { generateSearchQueries } from "./generateSearchQueries";
+import { ViewpointGraph } from "@/atoms/viewpointAtoms";
+import { AppNode } from "@/components/graph/AppNode";
+import { AppEdge } from "@/components/graph/AppEdge";
+import { PointNodeData } from "@/components/graph/PointNode";
+import { db } from "@/services/db";
+import { endorsementsTable, viewpointsTable, pointsTable } from "@/db/schema";
+import { SelectViewpoint } from "@/db/tables/viewpointsTable";
+import { and, eq, inArray } from "drizzle-orm";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -16,18 +24,6 @@ export interface EndorsedPoint {
   pointId: number;
   content: string;
   cred: number;
-}
-
-interface RationaleContext {
-  id: string;
-  title: string;
-  description: string;
-  statistics?: {
-    views?: number;
-    copies?: number;
-    totalCred?: number;
-    averageFavor?: number;
-  };
 }
 
 interface DiscourseMessageContext {
@@ -45,6 +41,15 @@ interface ChatSettings {
   includeDiscourseMessages: boolean;
 }
 
+type PromptRationaleItem = {
+  id: string | number;
+  title: string;
+  content?: string;
+  description?: string;
+  graph?: ViewpointGraph;
+  createdBy?: string;
+};
+
 const sanitizeText = (text: string): string => {
   if (!text) return "";
   return text
@@ -60,51 +65,13 @@ const sanitizeText = (text: string): string => {
     .replace(/\b(test+|aaa+|ddd+|www+|lorem|ipsum)\b/gi, "[placeholder]");
 };
 
-const filterProblematicContent = (
-  rationales: RationaleContext[]
-): RationaleContext[] => {
-  const profanityRegex =
-    /\b(fuck|shit|damn|ass|bitch|cunt|dick|twat|kill|murder)\b/i;
-  const gibberishRegex =
-    /\b(a{4,}|w{4,}|d{4,}|test|lorem|ipsum|aaaaa|ddddd)\b/i;
-
-  return rationales.filter((r) => {
-    if (
-      !r.title ||
-      r.title.length < 3 ||
-      !r.description ||
-      r.description.length < 10
-    ) {
-      console.log(`[Filtering] Skipping rationale with ID:${r.id} - too short`);
-      return false;
-    }
-
-    if (profanityRegex.test(r.title) || profanityRegex.test(r.description)) {
-      console.log(
-        `[Filtering] Skipping rationale with ID:${r.id} - contains profanity`
-      );
-      return false;
-    }
-
-    if (gibberishRegex.test(r.title) || gibberishRegex.test(r.description)) {
-      console.log(
-        `[Filtering] Skipping rationale with ID:${r.id} - contains gibberish/test content`
-      );
-      return false;
-    }
-
-    return true;
-  });
-};
-
-export const generateChatBotResponse = async (
+export const generateDistillRationaleChatBotResponse = async (
   messages: Message[],
   settings: ChatSettings,
-  allRationales: RationaleContext[] = [],
-  allDiscourseMessages: DiscourseMessageContext[] = []
+  allDiscourseMessages: DiscourseMessageContext[] = [],
+  selectedRationaleId: string | null = null
 ) => {
   try {
-    const contextMessages = messages.filter((m) => m.role === "system");
     const chatMessages = messages.filter((m) => m.role !== "system");
 
     if (chatMessages.length === 0) {
@@ -112,117 +79,275 @@ export const generateChatBotResponse = async (
     }
 
     console.log(
-      "[generateChatBotResponse] Starting agentic context retrieval..."
+      `[generateDistillRationaleChatBotResponse] Starting... Selected Rationale ID: ${selectedRationaleId}`
     );
     const viewerId = await getUserId();
-    console.log(`[generateChatBotResponse] Viewer ID: ${viewerId}`);
-
-    const queryGenContext = settings.includeDiscourseMessages
-      ? allDiscourseMessages
-      : [];
-
-    const searchQueries = await generateSearchQueries(
-      chatMessages,
-      queryGenContext
-    );
-
-    let searchResults: SearchResult[] = [];
-    if (viewerId && searchQueries.length > 0) {
-      console.log(
-        `[generateChatBotResponse] Calling searchContent with ${searchQueries.length} generated queries...`
-      );
-      try {
-        searchResults = await searchContent(searchQueries);
-        console.log(
-          `[generateChatBotResponse] searchContent returned ${searchResults.length} unique results.`
-        );
-      } catch (searchError) {
-        console.error(
-          "[generateChatBotResponse] Error during relevance search:",
-          searchError
-        );
-        searchResults = [];
-      }
-    } else {
-      console.log(
-        "[generateChatBotResponse] Skipping relevance search (no viewerId or no queries generated)."
-      );
-    }
-
-    const filteredRationales = filterProblematicContent(allRationales);
-    const MAX_RELEVANT_POINTS = 10;
-    const MAX_RELEVANT_RATIONALES = 10;
-
-    const relevantPoints = searchResults
-      .filter((r) => r.type === "point")
-      .slice(0, MAX_RELEVANT_POINTS);
     console.log(
-      `[generateChatBotResponse] Filtered to ${relevantPoints.length} relevant points (endorsement filter removed).`
+      `[generateDistillRationaleChatBotResponse] Viewer ID: ${viewerId}`
     );
 
-    // Special handling for distill flow
-    const distillInitialMessage =
-      "I'd like to distill my existing rationales into a well-structured essay. Please help me organize and refine my thoughts based on my rationales that you can see.";
-    const isDistillFlowStart =
-      chatMessages.length === 1 &&
-      chatMessages[0].content === distillInitialMessage;
+    let fetchedRationaleData: SelectViewpoint | undefined = undefined;
+    let creatorEndorsementsString = "";
+    let contextRationaleSection = "";
+    let nodesString = "";
+    let edgesString = "";
+    let pointIdsInGraph: number[] = [];
+    let relevantPoints: SearchResult[] = [];
+    let relevantRationalesFromSearch: PromptRationaleItem[] = [];
+    let pointsDataMap = new Map<number, string>();
 
-    let relevantRationales: RationaleContext[] | SearchResult[] = [];
-    if (isDistillFlowStart) {
-      relevantRationales = filteredRationales;
-      console.log(
-        `[generateChatBotResponse] Distill flow detected, using all ${filteredRationales.length} filtered rationales directly.`
-      );
+    if (selectedRationaleId) {
+      try {
+        fetchedRationaleData = await db.query.viewpointsTable.findFirst({
+          where: eq(viewpointsTable.id, selectedRationaleId),
+        });
+        if (!fetchedRationaleData) throw new Error(`Rationale not found.`);
+        console.log(
+          `[generateDistillRationaleChatBotResponse] Fetched rationale ${selectedRationaleId}.`
+        );
+      } catch (dbError) {
+        console.error(
+          `[generateDistillRationaleChatBotResponse] DB error fetching rationale ${selectedRationaleId}:`,
+          dbError
+        );
+        throw new Error(`Failed to fetch rationale data.`);
+      }
+
+      const rationaleDescription = fetchedRationaleData.description;
+      const rationaleCreatorId = fetchedRationaleData.createdBy;
+      const rationaleGraph = fetchedRationaleData.graph;
+      const rationaleTitle = fetchedRationaleData.title;
+
+      pointIdsInGraph =
+        rationaleGraph?.nodes
+          .filter(
+            (n) =>
+              n.type === "point" &&
+              typeof (n.data as PointNodeData).pointId === "number"
+          )
+          .map((n) => (n.data as PointNodeData).pointId)
+          .filter((value, index, self) => self.indexOf(value) === index) || [];
+
+      if (pointIdsInGraph.length > 0) {
+        try {
+          const pointsData = await db
+            .select({
+              id: pointsTable.id,
+              content: pointsTable.content,
+            })
+            .from(pointsTable)
+            .where(inArray(pointsTable.id, pointIdsInGraph));
+          pointsDataMap = new Map(
+            pointsData.map((p) => [p.id, p.content || "[Content missing]"])
+          );
+          console.log(
+            `[generateDistillRationaleChatBotResponse] Fetched content for ${pointsDataMap.size} points in graph.`
+          );
+        } catch (dbError) {
+          console.error(
+            `[generateDistillRationaleChatBotResponse] Failed to fetch point content for rationale ${selectedRationaleId}:`,
+            dbError
+          );
+        }
+
+        try {
+          type EndorsementRecord = { pointId: number; cred: number };
+          const creatorEndorsements: EndorsementRecord[] = await db
+            .select({
+              pointId: endorsementsTable.pointId,
+              cred: endorsementsTable.cred,
+            })
+            .from(endorsementsTable)
+            .where(
+              and(
+                eq(endorsementsTable.userId, rationaleCreatorId),
+                inArray(endorsementsTable.pointId, pointIdsInGraph)
+              )
+            );
+
+          creatorEndorsementsString =
+            creatorEndorsements.length > 0
+              ? `Points Endorsed by Creator (ID: ${rationaleCreatorId}):\n${creatorEndorsements.map((e) => `- [Point:${e.pointId}] (Cred: ${e.cred})`).join("\n")}`
+              : "No points in this rationale were endorsed by the creator.";
+          console.log(
+            `[generateDistillRationaleChatBotResponse] Fetched ${creatorEndorsements.length} creator endorsements.`
+          );
+        } catch (dbError) {
+          console.error(
+            `[generateDistillRationaleChatBotResponse] Failed to fetch creator endorsements:`,
+            dbError
+          );
+          creatorEndorsementsString = "Error fetching creator endorsements.";
+        }
+
+        const getNodePromptString = (node: AppNode): string => {
+          let idPart = "";
+          let textPart = "";
+
+          if (node.type === "point") {
+            const pointId = (node.data as PointNodeData).pointId;
+            idPart = pointId ? ` Point ID: ${pointId}` : "";
+            textPart = pointId
+              ? pointsDataMap.get(pointId) ||
+                `[Content Missing for ID: ${pointId}]`
+              : `[Invalid Point Node Data]`;
+          } else if (node.type === "statement") {
+            textPart = node.data.statement || "";
+          } else if (node.type === "addPoint") {
+            textPart = node.data.content || "";
+            if (!textPart && !node.data.hasContent) {
+              textPart = "[Empty Add Point Node]";
+            }
+          } else {
+            textPart = "[Unknown Node Type]";
+          }
+
+          return `- Node ${node.id}${idPart}: ${sanitizeText(textPart).substring(0, 150)}...`;
+        };
+
+        nodesString =
+          rationaleGraph?.nodes?.map(getNodePromptString)?.join("\n") ||
+          "No nodes found.";
+        edgesString =
+          rationaleGraph?.edges
+            ?.map((e: AppEdge) => `- Edge: ${e.source} -> ${e.target}`)
+            ?.join("\n") || "No edges found.";
+
+        contextRationaleSection = `Selected Rationale for Distillation:\n- Rationale Title: "${sanitizeText(rationaleTitle)}" (ID:${selectedRationaleId})\n- Description: ${sanitizeText(rationaleDescription).substring(0, 500)}...\n- ${creatorEndorsementsString}\n- Graph Structure:\n    Nodes:\n${nodesString}\n    Edges:\n${edgesString}\n(Source: Rationale "${sanitizeText(rationaleTitle)}" ID:${selectedRationaleId})`;
+      } else {
+        console.log(
+          `[generateDistillRationaleChatBotResponse] No point nodes found in rationale graph.`
+        );
+        creatorEndorsementsString =
+          "No points found in this rationale to check for creator endorsements.";
+      }
+
+      contextRationaleSection = `Selected Rationale for Distillation:\n- Rationale Title: "${sanitizeText(rationaleTitle)}" (ID:${selectedRationaleId})\n- Description: ${sanitizeText(rationaleDescription).substring(0, 500)}...\n- ${creatorEndorsementsString}\n(Source: Rationale "${sanitizeText(rationaleTitle)}" ID:${selectedRationaleId})`;
     } else {
-      relevantRationales = searchResults
-        .filter(
-          (r) =>
-            r.type === "rationale" &&
-            filteredRationales.some((rat) => String(rat.id) === String(r.id))
-        )
-        .slice(0, MAX_RELEVANT_RATIONALES);
-      console.log(
-        `[generateChatBotResponse] Filtered to ${relevantRationales.length} relevant rationales via search.`
+      const queryGenContext = settings.includeDiscourseMessages
+        ? allDiscourseMessages
+        : [];
+      const searchQueries = await generateSearchQueries(
+        chatMessages,
+        queryGenContext
       );
+      let searchResults: SearchResult[] = [];
+      if (viewerId && searchQueries.length > 0) {
+        console.log(
+          `[generateDistillRationaleChatBotResponse] Non-Distill: Calling searchContent...`
+        );
+        try {
+          searchResults = await searchContent(searchQueries);
+          console.log(
+            `[generateDistillRationaleChatBotResponse] Non-Distill: searchContent returned ${searchResults.length} results.`
+          );
+        } catch (searchError) {
+          console.error(
+            "[generateDistillRationaleChatBotResponse] Non-Distill: Error during search:",
+            searchError
+          );
+        }
+      }
+      const MAX_RELEVANT_POINTS = 10;
+      const MAX_RELEVANT_RATIONALES_SEARCH = 5;
+      relevantPoints = searchResults
+        .filter((r) => r.type === "point")
+        .slice(0, MAX_RELEVANT_POINTS);
+      relevantRationalesFromSearch = searchResults
+        .filter((r) => r.type === "rationale")
+        .slice(0, MAX_RELEVANT_RATIONALES_SEARCH)
+        .map((r) => ({
+          id: r.id,
+          title: r.title || "[Untitled Search Result]",
+          content: r.content,
+        }));
     }
 
     const relevantDiscourseMessagesForPrompt = settings.includeDiscourseMessages
       ? allDiscourseMessages.slice(-3)
       : [];
 
-    console.log("[generateChatBotResponse] Context retrieval finished.");
+    console.log(
+      "[generateDistillRationaleChatBotResponse] Context preparation finished."
+    );
 
     console.log(
-      "[generateChatBotResponse] Data for prompt - relevantPoints:",
+      "[generateDistillRationaleChatBotResponse] Data for prompt - relevantPoints:",
       relevantPoints.length
     );
     console.log(
-      "[generateChatBotResponse] Data for prompt - relevantRationales:",
-      relevantRationales
+      "[generateDistillRationaleChatBotResponse] Data for prompt - relevantRationales:",
+      relevantRationalesFromSearch
         .map((r) => ({ id: (r as any).id, title: (r as any).title }))
         .slice(0, 10)
     );
     console.log(
-      "[generateChatBotResponse] Data for prompt - relevantDiscourseMessages:",
+      "[generateDistillRationaleChatBotResponse] Data for prompt - relevantDiscourseMessages:",
       relevantDiscourseMessagesForPrompt.length
     );
 
     console.log(
-      "[generateChatBotResponse] Constructing final prompt string..."
+      "[generateDistillRationaleChatBotResponse] Constructing final prompt string..."
     );
-    let prompt;
+    let finalPromptString;
     try {
-      prompt = `You are an AI assistant in the Negation Game platform. Your goal is to help users articulate, refine, and structure their arguments using points, negations, and rationales.
+      let mainGoalInstruction = "";
+      let suggestionRule = "";
+      let contextSectionBuild = "";
+      let distillSpecificRules = "";
+
+      if (selectedRationaleId && fetchedRationaleData) {
+        mainGoalInstruction = `Your goal is to help the user distill their selected rationale (ID: ${selectedRationaleId}) into a well-structured **first-person essay**. Write **as if you are the author** articulating the arguments and structure contained within the rationale. Focus *exclusively* on presenting the content and arguments from the rationale details provided below (Title, Description, Creator Endorsements, **Graph Structure**). **Do NOT suggest new points or negations.** **Do NOT analyze or critique the rationale itself**; simply present its arguments coherently from the first-person perspective using the provided graph structure to understand the flow.`;
+        suggestionRule = `**IMPORTANT:** Do NOT suggest new points or negations using \`[Suggest Point]>\` or \`[Suggest Negation For:ID]>\` tags in this distillation task.`;
+        distillSpecificRules = `**IMPORTANT (Distill Flow):** Do NOT use \`[Point:ID]\` or \`[Rationale:ID]\` tags in your essay response. Weave the arguments from the provided points (mentioned in the Description, Endorsements, or Graph Nodes) into the narrative naturally without using bracket tags.`;
+
+        contextSectionBuild = `${contextRationaleSection}\n\n${relevantDiscourseMessagesForPrompt.length > 0 ? `Relevant Recent Discourse Posts:\n${relevantDiscourseMessagesForPrompt.map((m) => `- Post ID:${m.id} - ${m.raw || m.content} (Source: Discourse Post ID:${m.id})`).join("\n\n")}` : "No relevant Discourse posts provided."}`;
+      } else {
+        mainGoalInstruction = `You are an AI assistant in the Negation Game platform. Your goal is to help users articulate, refine, and structure their arguments using points, negations, and rationales.`;
+        suggestionRule = `4.  **Suggesting New Points:** When suggesting a new, independent point, use \`[Suggest Point]>\` on **its own line**, followed by the suggested point text on the next line(s). Render this as a distinct block. **The suggested point text MUST be less than 160 characters.**
+    *   Example:
+        [Suggest Point]>\n        We should consider the long-term maintenance costs.\n\n5.  **Suggesting Negations:** When suggesting a negation for a specific **existing point** (e.g., Point 123 provided in the CONTEXT), place the \`[Suggest Negation For:123]>\` tag **immediately after discussing Point 123**, on a **new line**, potentially indented or formatted like a sub-item. Follow the tag immediately with the negation text. \`ID\` **must be the numeric ID of an EXISTING Point** provided in the CONTEXT section. **DO NOT suggest negations for Rationales (string IDs) or Discourse Posts (numeric IDs). Do NOT invent Point IDs.** **The suggested negation text MUST be less than 160 characters.**
+    *   Example (after discussing Point 123):\n        ... discussion referencing Point 123 (Source: Endorsed Point ID:123).\n        - [Suggest Negation For:123]> The proposal overlooks the potential security risks involved.`;
+
+        const nonDistillRationaleContext =
+          relevantRationalesFromSearch.length > 0
+            ? `Relevant Rationales (from search):\n${relevantRationalesFromSearch
+                .map((r) => {
+                  const sanitizedTitle = sanitizeText(r.title) || "[Untitled]";
+                  const sanitizedContent =
+                    sanitizeText(r.content || "") || "[No content]";
+                  return `- Rationale "${sanitizedTitle}" (ID:${r.id}) - ${sanitizedContent.substring(0, 150)}... (Source: Search Result Rationale ID:${r.id})`;
+                })
+                .join("\n")}`
+            : "No specific rationales found via search for the current discussion turn.";
+
+        const viewerEndorsedPointsSection =
+          relevantPoints.length > 0
+            ? `Relevant Endorsed Points (by You, the Viewer - User ID: ${viewerId}):\n${relevantPoints
+                .map(
+                  (p) =>
+                    `- [Point:${p.id} \"${p.content}\"] (Source: Endorsed Point ID:${p.id})`
+                )
+                .join("\n")}`
+            : "You have not endorsed any relevant points recently.";
+
+        contextSectionBuild = `${viewerEndorsedPointsSection}\n\n${nonDistillRationaleContext}\n\n${relevantDiscourseMessagesForPrompt.length > 0 ? `Relevant Recent Discourse Posts:\n${relevantDiscourseMessagesForPrompt.map((m) => `- Post ID:${m.id} - ${m.raw || m.content} (Source: Discourse Post ID:${m.id})`).join("\n\n")}` : "No relevant Discourse posts provided."}`;
+      }
+
+      finalPromptString = `You are an AI assistant in the Negation Game platform. ${mainGoalInstruction}
 
 RULES & CAPABILITIES:
-1.  **Argument Construction:** Help users build arguments. Suggest new points or negations where appropriate.
+1.  **Argument Construction:** Help users build arguments. Suggest new points or negations where appropriate (unless in distill flow).
 2.  **Referencing (Inline):** Use bracketed tags for direct inline references within your text. These become clickable links.
     *   Points: \`[Point:ID "Optional Snippet"]\` (e.g., \`[Point:123 "key phrase"]\`)
     *   Rationales: \`[Rationale:ID "Optional Title"]\` (e.g., \`[Rationale:abc-123 "Main Argument"]\`)
     *   Discourse Posts: \`[Discourse Post:ID]\` (e.g., \`[Discourse Post:456]\`) - **Do not include titles/snippets for Discourse Posts.**
     *   **Usage:** Use these when directly mentioning an entity. Include a short, relevant snippet/title for Points/Rationales only if needed for clarity or to quote a specific part. Avoid redundancy.
 
+${distillSpecificRules}
+
 3.  **Source Attribution:** Use parentheses for citing the source of information you are summarizing or directly quoting. This adds context about where the information came from.
+    *   **DISTILL FLOW Exception:** When distilling (selectedRationaleId is present), **only use (Source: ...) tags for context elements *other than* the main rationale being distilled** (e.g., for Creator Endorsed Points or Discourse Posts). Do not add a source tag every time you reference content from the main rationale itself, as the entire essay represents that rationale.
     *   Format (Points/Rationales): \`(Source: Type ID:ID Title:"Title")\` or \`(Source: Type "Title" ID:ID)\`
     *   Format (Discourse): \`(Source: Discourse Post ID:ID)\` - **Do not include Topic/Title for Discourse Posts.**
     *   Examples:
@@ -231,29 +356,19 @@ RULES & CAPABILITIES:
         *   \`(Source: Discourse Post ID:456)\`
     *   **Usage:** Add this *after* presenting information derived from a specific source in the context.
 
-4.  **Suggesting New Points:** When suggesting a new, independent point, use \`[Suggest Point]>\` on **its own line**, followed by the suggested point text on the next line(s). Render this as a distinct block. **The suggested point text MUST be less than 160 characters.**
-    *   Example:
-        [Suggest Point]>
-        We should consider the long-term maintenance costs.
-
-5.  **Suggesting Negations:** When suggesting a negation for a specific **existing point** (e.g., Point 123 provided in the CONTEXT), place the \`[Suggest Negation For:123]>\` tag **immediately after discussing Point 123**, on a **new line**, potentially indented or formatted like a sub-item. Follow the tag immediately with the negation text. \`ID\` **must be the numeric ID of an EXISTING Point** provided in the CONTEXT section. **DO NOT suggest negations for Rationales (string IDs) or Discourse Posts (numeric IDs). Do NOT invent Point IDs.** **The suggested negation text MUST be less than 160 characters.**
-    *   Example (after discussing Point 123):
-        ... discussion referencing Point 123 (Source: Endorsed Point ID:123).
-        - [Suggest Negation For:123]> The proposal overlooks the potential security risks involved.
+${suggestionRule}
 
 6.  **Structure & Style:** Follow essay structure and writing style guidelines below. Maintain logical flow and use clear language.
 
 7.  **Formatting:** STRICTLY follow Markdown formatting rules below. Double newlines between paragraphs are crucial.
 
-8.  **Rule 8: Do not invent Point IDs.** Only use the \`[Point:ID]\` or \`(Source: ... ID:ID)\` tags for points explicitly provided in the CONTEXT section with their numeric IDs. Do not create tags like \`[Point:1 "Some Concept"]\` for concepts you are introducing.
+8.  **Rule 8: Do not invent Point IDs.** Only use the \`[Point:ID]\` or \`(Source: ... ID:ID)\` tags for points explicitly provided in the CONTEXT section with their numeric IDs. Do not create tags like \`[Point:1 "Some Concept"]\` for concepts you are introducing. (This rule is less relevant for the distill flow now, given the added restriction).
 
 MARKDOWN FORMATTING:
 *   Use standard Markdown (GFM).
 *   **Double newlines** between paragraphs.
 *   Proper list formatting (newlines, indentation).
-*   Headings: \`#\`, \`##\`, \`###\`.
-*   Emphasis: \`**bold**\`, \`*italic*\`.
-*   Ensure spacing around lists, headings, blocks. Use newlines generously.
+*   Headings: \`#\`, \`##\`, \`###\`.\n*   Emphasis: \`**bold**\`, \`*italic*\`.\n*   Ensure spacing around lists, headings, blocks. Use newlines generously.
 
 ESSAY/RATIONALE STRUCTURE:
 *   Clear thesis/main argument.
@@ -267,118 +382,58 @@ WRITING STYLE:
 *   Objective tone. Active voice preferred.
 *   Concise, varied sentences. Specific examples.
 *   Effective transitions. Clear takeaways.
+*   **DISTILL FLOW:** Write in the **first person** (I, my, we). Present the rationale's arguments directly and constructively. Avoid meta-commentary or analysis *of* the rationale.
 
 ---
-CONTEXT FOR THIS RESPONSE (Use this information and cite sources using the \`(Source: ...)\` format):
+CONTEXT FOR THIS RESPONSE (Use this information and cite sources using the \`(Source: ...)\` format ONLY for external context like Discourse Posts):
 
-${
-  // Use RELEVANT points
-  relevantPoints.length > 0
-    ? `Relevant Endorsed Points:\n${relevantPoints.map((p) => `- [Point:${p.id} \"${p.content}\"] (Source: Endorsed Point ID:${p.id})`).join("\n")}`
-    : "No specific points seem highly relevant to the current discussion turn."
-}
-
-${
-  // Use RELEVANT rationales
-  relevantRationales.length > 0
-    ? `Relevant Rationales:\n${relevantRationales
-        .map((r, index) => {
-          try {
-            const title =
-              (r as SearchResult).title ?? (r as RationaleContext).title;
-            const id = (r as SearchResult).id ?? (r as RationaleContext).id;
-            const description =
-              ((r as RationaleContext).description ??
-                (r as SearchResult).content) ||
-              ""; // Ensure description is string
-
-            const sanitizedTitle = sanitizeText(title) || "[Untitled]";
-            const sanitizedDescription =
-              sanitizeText(description) || "[No description]";
-
-            if (title === undefined || id === undefined) {
-              console.warn(
-                `[Prompt Map Warning] Missing title or id for rationale at index ${index}:`,
-                r
-              );
-              return `- [Skipped Rationale due to missing title/id at index ${index}]`;
-            }
-            // Provide context as: Rationale "Title" (ID:ID) - Description... (Source: Rationale "Title" ID:ID)
-            return `- Rationale \"${sanitizedTitle}\" (ID:${id}) - ${sanitizedDescription.substring(0, 150)}... (Source: Rationale \"${sanitizedTitle}\" ID:${id})`;
-          } catch (mapError) {
-            console.error(
-              `[Prompt Map Error] Failed to process rationale at index ${index}:`,
-              mapError,
-              r
-            );
-            return `- [Error processing rationale at index ${index}]`; // Indicate error in prompt
-          }
-        })
-        .join("\n")}`
-    : "No specific rationales seem highly relevant or provided for the current discussion turn."
-}
-
-${
-  relevantDiscourseMessagesForPrompt.length > 0
-    ? // Provide context as: Post ID:ID - Content... (Source: Discourse Post ID:ID)
-      `Relevant Recent Discourse Posts:\n${relevantDiscourseMessagesForPrompt.map((m) => `- Post ID:${m.id} - ${m.raw || m.content} (Source: Discourse Post ID:${m.id})`).join("\n\n")}`
-    : "No recent Discourse posts provided or deemed relevant."
-}
+${contextSectionBuild}
 ---
 
 CHAT HISTORY:
 ${chatMessages.map((m) => m.role.toUpperCase() + ":\n" + m.content + "\n").join("\n")}
 
-Remember: 
-1.  Focus on helping the user build structured arguments within the Negation Game framework.
-2.  Use the correct tag formats: \`[...]\` for inline references (ID only for Discourse), \`(Source: ...)\` for attribution (ID only for Discourse), \`[Suggest...]>/...\` for suggestions.
-3.  Cite sources accurately when using information from the Context section.
-4.  Adhere strictly to Markdown rules, especially double newlines between paragraphs.
+Remember:
+${selectedRationaleId ? "5. You are distilling. Use source tags only for external context. **Do not use bracket tags like [Point:ID] in your response.**" : "1. Focus on helping..."}
 
 INSTRUCTIONS:
-*   Answer the user's latest message based on the conversation history and the provided context.
-*   Strictly adhere to the specified tag formats for referencing and source attribution.
-*   If summarizing or using information from the context, ALWAYS cite the source using the (Source:...) tag immediately after the information.
-*   If directly mentioning a point, rationale, or post inline, use the [...] tag format.
-*   Be concise and helpful.
-*   **DO NOT use the source tag '(Source:...)' if you have just used the corresponding inline reference tag '[Point:ID...]' or '[Rationale:ID...]' for the *exact same ID* in the same sentence or clause.** This avoids redundancy.
-*   Suggest new points or negations using the specified tags when appropriate...
+${selectedRationaleId && fetchedRationaleData ? "*   Follow the **first-person** perspective...\n*   **DO NOT suggest new points or negations...**\n*   **DO NOT use bracket tags like [Point:ID] or [Rationale:ID] in your essay.**" : "*   Suggest new points or negations..."}
 
 A:`;
+
       console.log(
-        "[generateChatBotResponse] Prompt string constructed successfully."
+        "[generateDistillRationaleChatBotResponse] Prompt string constructed successfully."
       );
-      console.log(prompt);
     } catch (promptError) {
       console.error(
-        "[generateChatBotResponse] FATAL ERROR during prompt construction:",
+        "[generateDistillRationaleChatBotResponse] FATAL ERROR during prompt construction:",
         promptError
       );
       throw new Error("Failed during prompt construction");
     }
 
     console.log(
-      "[generateChatBotResponse] Calling AI model (streamText) with retry..."
+      "[generateDistillRationaleChatBotResponse] Calling AI model (streamText) with retry..."
     );
     const aiResult = await withRetry(async () => {
       try {
         console.log(
-          "[generateChatBotResponse][withRetry] Calling streamText..."
+          "[generateDistillRationaleChatBotResponse][withRetry] Calling streamText..."
         );
         const response = await streamText({
           model: google("gemini-1.5-flash"),
-          prompt,
+          prompt: finalPromptString,
         });
 
         if (!response) {
           console.error(
-            "[generateChatBotResponse][withRetry] Failed to get response object from AI model."
+            "[generateDistillRationaleChatBotResponse][withRetry] Failed to get response object from AI model."
           );
           throw new Error("Failed to get response from AI model");
         }
 
         console.log(
-          "[generateChatBotResponse][withRetry] AI call successful, returning response object."
+          "[generateDistillRationaleChatBotResponse][withRetry] AI call successful, returning response object."
         );
         return response;
       } catch (error) {
@@ -399,7 +454,7 @@ A:`;
           }
         }
         console.error(
-          "[generateChatBotResponse][withRetry] Non-retriable error during AI call:",
+          "[generateDistillRationaleChatBotResponse][withRetry] Non-retriable error during AI call:",
           error
         );
         throw error;
@@ -409,17 +464,17 @@ A:`;
     const elementStream = aiResult.textStream;
     if (!elementStream) {
       console.error(
-        "[generateChatBotResponse] Failed to get textStream from AI model result after retry."
+        "[generateDistillRationaleChatBotResponse] Failed to get textStream from AI model result after retry."
       );
       throw new Error("Failed to initialize response stream");
     }
 
     console.log(
-      "[generateChatBotResponse] Returning elementStream directly (safety/testing temporarily bypassed)."
+      "[generateDistillRationaleChatBotResponse] Returning elementStream."
     );
     return elementStream;
   } catch (error) {
-    console.error("Error in generateChatBotResponse:", error);
+    console.error("Error in generateDistillRationaleChatBotResponse:", error);
 
     if (error instanceof Error) {
       console.log(error.message);
@@ -434,6 +489,12 @@ A:`;
       ) {
         throw error;
       }
+      if (error.message.startsWith("Permission Denied:")) {
+        throw error;
+      }
+    }
+    if (error instanceof Error && error.message === "Rationale not found.") {
+      throw error;
     }
     throw new Error("Failed to generate AI response. Please try again.");
   }

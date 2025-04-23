@@ -38,6 +38,7 @@ interface ChatSidebarProps {
     savedChats: SavedChat[];
     currentChatId: string | null;
     currentSpace: string | null;
+    generatingTitles: Set<string>;
     onSwitchChat: (chatId: string) => void;
     onNewChat: () => void;
     onTriggerDeleteAll: () => void;
@@ -54,6 +55,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
     savedChats,
     currentChatId,
     currentSpace,
+    generatingTitles,
     onSwitchChat,
     onNewChat,
     onTriggerDeleteAll,
@@ -153,10 +155,18 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
                                                             <span className={`block text-xs md:text-sm ${chat.id === currentChatId ? 'font-semibold text-accent-foreground' : 'text-foreground'} overflow-hidden text-ellipsis whitespace-nowrap`}>
-                                                                {((): string => { const max = isMobile ? 20 : 15; return chat.title.length > max ? `${chat.title.slice(0, max)}...` : chat.title; })()}
+                                                                {generatingTitles.has(chat.id) ? (
+                                                                    <span className="flex items-center gap-2">
+                                                                        <span className="animate-pulse">Generating title...</span>
+                                                                    </span>
+                                                                ) : (
+                                                                    ((): string => { const max = isMobile ? 20 : 15; return chat.title.length > max ? `${chat.title.slice(0, max)}...` : chat.title; })()
+                                                                )}
                                                             </span>
                                                         </TooltipTrigger>
-                                                        <TooltipContent side="right" className="max-w-[250px] break-words" sideOffset={5}>{chat.title}</TooltipContent>
+                                                        <TooltipContent side="right" className="max-w-[250px] break-words" sideOffset={5}>
+                                                            {generatingTitles.has(chat.id) ? "Generating title..." : chat.title}
+                                                        </TooltipContent>
                                                     </Tooltip>
                                                 </TooltipProvider>
                                                 <span className="text-xs text-muted-foreground truncate block mt-0.5">

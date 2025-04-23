@@ -1,20 +1,19 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import {
-  generateChatBotResponse,
+  generateDistillRationaleChatBotResponse,
   EndorsedPoint,
 } from "@/actions/generateDistillRationaleChatBotResponse";
 import { generateSuggestionChatBotResponse } from "@/actions/generateSuggestionChatBotResponse";
 import { PointInSpace } from "@/actions/fetchAllSpacePoints";
 import { generateChatName } from "@/actions/generateChatName";
-import { extractSourcesFromMarkdown } from "@/utils/chatUtils";
+import { extractSourcesFromMarkdown } from "@/lib/chatUtils";
 import {
   ChatMessage,
   SavedChat,
   ChatRationale,
   DiscourseMessage,
   ChatSettings,
-  InitialOption,
 } from "@/types/chat";
 
 type FlowType = "distill" | "build" | "generate" | "default";
@@ -30,7 +29,12 @@ interface UseChatStateProps {
   userRationales: ChatRationale[];
   storedMessages: DiscourseMessage[];
   savedChats: SavedChat[];
-  updateChat: (chatId: string, messages: ChatMessage[], title?: string) => void;
+  updateChat: (
+    chatId: string,
+    messages: ChatMessage[],
+    title?: string,
+    distillRationaleId?: string | null
+  ) => void;
   createNewChat: () => Promise<string | null>;
 }
 
@@ -59,41 +63,37 @@ export function useChatState({
   const [streamingContents, setStreamingContents] = useState<
     Map<string, string>
   >(new Map());
+  const [generatingTitles, setGeneratingTitles] = useState<Set<string>>(
+    new Set()
+  );
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const [currentFlowType, setCurrentFlowType] = useState<FlowType>("default");
+  const prevChatIdRef = useRef<string | null>(null);
+  const activeGeneratingChatRef = useRef<string | null>(null);
 
   useEffect(() => {
     const chats = savedChats;
+    const didChatIdChange = currentChatId !== prevChatIdRef.current;
+
     if (currentChatId) {
       const currentChat = chats.find((c) => c.id === currentChatId);
-      console.log(
-        `[useEffect currentChatId Change] Loading messages for new chat ID: ${currentChatId}. ` +
-          `Found chat: ${!!currentChat}. ` +
-          `Messages: ${currentChat?.messages?.length ?? "N/A"}.`
-      );
+      const newMessages = currentChat?.messages || [];
 
       setChatMessages((prevMessages) => {
-        const newMessages = currentChat?.messages || [];
-        if (
-          prevMessages.length === newMessages.length &&
-          prevMessages.every(
-            (msg, i) =>
-              msg.content === newMessages[i]?.content &&
-              msg.role === newMessages[i]?.role
-          )
-        ) {
+        const areMessagesDifferent =
+          JSON.stringify(newMessages) !== JSON.stringify(prevMessages);
+        if (didChatIdChange || areMessagesDifferent) {
+          return newMessages;
+        } else {
           return prevMessages;
         }
-        return newMessages;
       });
-      setCurrentFlowType("default");
     } else {
-      console.log(
-        "[useEffect currentChatId Change] No currentChatId, clearing messages."
-      );
-      setChatMessages([]);
-      setCurrentFlowType("default");
+      if (didChatIdChange) {
+        setChatMessages([]);
+      }
     }
+
+    prevChatIdRef.current = currentChatId;
   }, [currentChatId, savedChats]);
 
   useEffect(() => {
@@ -115,21 +115,23 @@ export function useChatState({
   const generateAndSetTitle = useCallback(
     async (chatId: string, finalMessages: ChatMessage[]) => {
       const chatToUpdate = savedChats.find((c) => c.id === chatId);
+      const rationaleIdForUpdate = chatToUpdate?.distillRationaleId ?? null;
       const needsTitle = !chatToUpdate || chatToUpdate.title === "New Chat";
 
       console.log(
-        `[generateAndSetTitle] Called for chat ${chatId}. Needs title: ${needsTitle}`
+        `[generateAndSetTitle] Called for chat ${chatId}. Needs title: ${needsTitle}. Rationale ID: ${rationaleIdForUpdate}`
       );
 
       if (!needsTitle) {
         console.log(
           `[generateAndSetTitle] Chat ${chatId} already has title '${chatToUpdate?.title}'. Calling updateChat without title change.`
         );
-        updateChat(chatId, finalMessages);
+        updateChat(chatId, finalMessages, undefined, rationaleIdForUpdate);
         return;
       }
 
       try {
+        setGeneratingTitles((prev) => new Set(prev).add(chatId));
         const titleStream = await generateChatName(finalMessages);
         if (!titleStream) throw new Error("Failed to get title stream");
 
@@ -172,7 +174,7 @@ export function useChatState({
           console.log(
             `[generateAndSetTitle] Generated title for ${chatId}: '${title}'. Calling updateChat.`
           );
-          updateChat(chatId, finalMessages, title);
+          updateChat(chatId, finalMessages, title, rationaleIdForUpdate);
         } else {
           const assistantMsgContent =
             finalMessages.find((m) => m.role === "assistant")?.content ||
@@ -183,7 +185,12 @@ export function useChatState({
           console.log(
             `[generateAndSetTitle] Title generation failed or empty for ${chatId}. Using fallback: '${fallbackTitle}'. Calling updateChat.`
           );
-          updateChat(chatId, finalMessages, fallbackTitle || "Chat");
+          updateChat(
+            chatId,
+            finalMessages,
+            fallbackTitle || "Chat",
+            rationaleIdForUpdate
+          );
         }
       } catch (titleError) {
         console.error(
@@ -198,7 +205,19 @@ export function useChatState({
         console.log(
           `[generateAndSetTitle] Error caught for ${chatId}. Using fallback: '${fallbackTitle}'. Calling updateChat.`
         );
-        updateChat(chatId, finalMessages, fallbackTitle || "Chat");
+        updateChat(
+          chatId,
+          finalMessages,
+          fallbackTitle || "Chat",
+          rationaleIdForUpdate
+        );
+      } finally {
+        setGeneratingTitles((prev) => {
+          const next = new Set(prev);
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
+          next.delete(chatId);
+          return next;
+        });
       }
     },
     [savedChats, updateChat]
@@ -208,7 +227,8 @@ export function useChatState({
     async (
       messagesForApi: ChatMessage[],
       chatIdToUse: string,
-      flowType: FlowType
+      flowType: FlowType,
+      selectedRationaleId?: string | null
     ) => {
       if (generatingChats.has(chatIdToUse)) {
         console.warn(
@@ -217,12 +237,13 @@ export function useChatState({
         return;
       }
 
+      activeGeneratingChatRef.current = chatIdToUse;
       setGeneratingChats((prev) => new Set(prev).add(chatIdToUse));
       setFetchingContextChats((prev) => new Set(prev).add(chatIdToUse));
       setStreamingContents((prev) => new Map(prev).set(chatIdToUse, ""));
 
       console.log(
-        `[handleResponse ${flowType}] START for chat ${chatIdToUse}: isGenerating=true, isFetchingContext=true`
+        `[handleResponse ${flowType}] START for chat ${chatIdToUse}: isGenerating=true, isFetchingContext=true. Selected Rationale ID: ${selectedRationaleId ?? "N/A"}`
       );
       let fullContent = "";
       let sources: ChatMessage["sources"] | undefined = undefined;
@@ -254,22 +275,27 @@ export function useChatState({
           );
         } else if (flowType === "distill") {
           console.log(
-            `[handleResponse distill] Calling generateChatBotResponse for chat ${chatIdToUse}`
+            `[handleResponse distill] Calling generateDistillRationaleChatBotResponse for chat ${chatIdToUse} with selected rationale ID: ${selectedRationaleId}`
           );
-          responseStream = await generateChatBotResponse(
+          responseStream = await generateDistillRationaleChatBotResponse(
             mappedMessages,
             settings,
-            userRationales,
-            settings.includeDiscourseMessages ? storedMessages : []
+            settings.includeDiscourseMessages ? storedMessages : [],
+            selectedRationaleId
           );
         } else {
           console.log(
-            `[handleResponse ${flowType}] Calling generateChatBotResponse for chat ${chatIdToUse}`
+            `[handleResponse ${flowType}] Calling default generateChatBotResponse for chat ${chatIdToUse}`
           );
-          responseStream = await generateChatBotResponse(
+          console.warn(
+            `[handleResponse] Unexpected flowType: ${flowType}. Falling back to generate.`
+          );
+          responseStream = await generateSuggestionChatBotResponse(
             mappedMessages,
             settings,
-            userRationales,
+            allPointsInSpace,
+            ownedPointIds,
+            endorsedPointIds,
             settings.includeDiscourseMessages ? storedMessages : []
           );
         }
@@ -402,17 +428,17 @@ Please try:
         const finalMessages = [...messagesForApi, assistantMessage];
 
         console.log(
-          `[handleResponse ${flowType}] Saving results via generateAndSetTitle for chat ${chatIdToUse}...`
+          `[handleResponse ${flowType}] Saving results for chat ${chatIdToUse}... (Skipping existence check)`
         );
 
-        if (chatIdToUse === currentChatId) {
+        if (activeGeneratingChatRef.current === chatIdToUse) {
           setChatMessages(finalMessages);
           console.log(
             `[handleResponse ${flowType}] Updated local chatMessages state for ${chatIdToUse}`
           );
         } else {
           console.log(
-            `[handleResponse ${flowType}] User switched away from chat ${chatIdToUse} before final local state update.`
+            `[handleResponse ${flowType}] Chat ${chatIdToUse} is no longer the active generating chat. State not updated directly.`
           );
         }
 
@@ -442,11 +468,26 @@ Please try:
         const errorMessage: ChatMessage = {
           role: "assistant",
           content: errorMessageContent,
+          error: true,
         };
+        const messagesWithError = [...messagesForApi, errorMessage];
+
+        if (activeGeneratingChatRef.current === chatIdToUse) {
+          setChatMessages(messagesWithError);
+        }
+
         if (chatIdToUse) {
-          updateChat(chatIdToUse, [...messagesForApi, errorMessage]);
+          updateChat(
+            chatIdToUse,
+            messagesWithError,
+            undefined,
+            flowType === "distill" ? selectedRationaleId : null
+          );
         }
       } finally {
+        if (activeGeneratingChatRef.current === chatIdToUse) {
+          activeGeneratingChatRef.current = null;
+        }
         setGeneratingChats((prev) => {
           const newSet = new Set(prev);
           // eslint-disable-next-line drizzle/enforce-delete-with-where
@@ -475,12 +516,10 @@ Please try:
       allPointsInSpace,
       ownedPointIds,
       endorsedPointIds,
-      userRationales,
       storedMessages,
       generateAndSetTitle,
       updateChat,
       generatingChats,
-      currentChatId,
     ]
   );
 
@@ -507,38 +546,32 @@ Please try:
         chatMessages[index].role !== "assistant" ||
         generatingChats.has(currentChatId || "")
       ) {
-        console.warn(
-          "[handleAssistantRetry] Invalid index, role, or already generating. Skipping.",
-          {
-            index,
-            role: chatMessages[index]?.role,
-            generatingChats: generatingChats.has(currentChatId || ""),
-          }
-        );
         return;
       }
 
       let chatIdToUse = currentChatId;
       if (!chatIdToUse) {
         toast.error("Cannot retry: Current chat ID is missing.");
-        console.error("[handleAssistantRetry] No currentChatId found.");
         return;
       }
 
-      console.log(
-        `[handleAssistantRetry] Retrying generation for message index: ${index} with flow: ${currentFlowType}`
-      );
       const historyForRetry = chatMessages.slice(0, index);
       setChatMessages(historyForRetry);
-      await handleResponse(historyForRetry, chatIdToUse, currentFlowType);
+
+      const currentChatData = savedChats.find((c) => c.id === chatIdToUse);
+      const rationaleIdForRetry = currentChatData?.distillRationaleId ?? null;
+      const flowForRetry: FlowType = rationaleIdForRetry
+        ? "distill"
+        : "default";
+
+      await handleResponse(
+        historyForRetry,
+        chatIdToUse,
+        flowForRetry,
+        rationaleIdForRetry
+      );
     },
-    [
-      chatMessages,
-      generatingChats,
-      currentChatId,
-      currentFlowType,
-      handleResponse,
-    ]
+    [chatMessages, generatingChats, currentChatId, handleResponse, savedChats]
   );
 
   const handleSaveEdit = useCallback(
@@ -560,7 +593,7 @@ Please try:
       }
 
       console.log(
-        `[handleSaveEdit] Saving edit for index: ${index} in chat ${currentChatId} with flow: ${currentFlowType}`
+        `[handleSaveEdit] Saving edit for index: ${index} in chat ${currentChatId}`
       );
 
       const editedMessage: ChatMessage = {
@@ -570,15 +603,27 @@ Please try:
       const historyForEdit = [...chatMessages.slice(0, index), editedMessage];
 
       setChatMessages(historyForEdit);
+      console.warn(
+        "[handleSaveEdit] Editing a user message might lose the specific rationale context if it was a distill flow."
+      );
+      const currentChatDataForEdit = savedChats.find(
+        (c) => c.id === currentChatId
+      );
+      const flowForEdit: FlowType = currentChatDataForEdit?.distillRationaleId
+        ? "distill"
+        : "default";
+      const rationaleIdForEdit = currentChatDataForEdit?.distillRationaleId;
+
       await handleResponse(
         historyForEdit,
         currentChatId || "",
-        currentFlowType
+        flowForEdit,
+        rationaleIdForEdit
       );
 
       toast.success("Message updated & regenerating response...");
     },
-    [currentChatId, chatMessages, handleResponse, currentFlowType]
+    [currentChatId, chatMessages, handleResponse, savedChats]
   );
 
   const startChatWithOption = useCallback(
@@ -587,11 +632,17 @@ Please try:
       title: string;
       prompt: string;
     }) => {
-      if (!option || !currentSpace || !isAuthenticated) return;
+      if (
+        !option ||
+        !currentSpace ||
+        !isAuthenticated ||
+        option.id === "distill"
+      )
+        return;
       let chatIdToUse = currentChatId;
       let isNewChat = false;
 
-      if (!chatIdToUse || chatMessages.length > 0) {
+      if (!chatIdToUse) {
         const newId = await createNewChat();
         if (!newId) {
           toast.error("Failed to create new chat.");
@@ -600,15 +651,17 @@ Please try:
         chatIdToUse = newId;
         isNewChat = true;
         setChatMessages([]);
+        console.log(
+          `[startChatWithOption] Created new chat ${chatIdToUse} for option ${option.id}`
+        );
       } else {
-        setCurrentFlowType("default");
+        console.log(
+          `[startChatWithOption] Using existing chat ${chatIdToUse} for option ${option.id}`
+        );
       }
 
       let initialUserMessage: string;
       switch (option.id) {
-        case "distill":
-          initialUserMessage = option.prompt;
-          break;
         case "build":
           initialUserMessage = option.prompt;
           break;
@@ -616,7 +669,10 @@ Please try:
           initialUserMessage = option.prompt;
           break;
         default:
-          console.warn("Unknown chat option ID:", option.id);
+          console.warn(
+            "Unknown chat option ID in startChatWithOption:",
+            option.id
+          );
           initialUserMessage = "Let's chat.";
           break;
       }
@@ -625,12 +681,8 @@ Please try:
         { role: "user", content: initialUserMessage },
       ];
 
-      // Set local state immediately
       setChatMessages(initialMessages);
-      // Immediately save this initial message to storage/backend
-      updateChat(chatIdToUse, initialMessages);
-      // Set the flow type for the upcoming generation
-      setCurrentFlowType(option.id);
+      updateChat(chatIdToUse, initialMessages, undefined, null);
 
       let systemMessages: ChatMessage[] = [];
       if (
@@ -646,19 +698,65 @@ Please try:
 
       const messagesForApi = [...systemMessages, ...initialMessages];
 
-      // Now start the generation
-      await handleResponse(messagesForApi, chatIdToUse, option.id);
+      await handleResponse(messagesForApi, chatIdToUse, option.id, null);
     },
     [
       currentSpace,
       isAuthenticated,
       currentChatId,
-      chatMessages,
       settings,
       storedMessages,
       handleResponse,
       createNewChat,
       updateChat,
+    ]
+  );
+
+  const startDistillChat = useCallback(
+    async (
+      selectedRationaleId: string,
+      selectedRationaleTitle: string,
+      rationale: ChatRationale
+    ) => {
+      if (!selectedRationaleId || !currentSpace || !isAuthenticated) return;
+
+      let chatIdToUse = currentChatId;
+
+      if (!chatIdToUse || chatMessages.length > 0) {
+        const newId = await createNewChat();
+        if (!newId) {
+          toast.error("Failed to create new chat for distillation.");
+          return;
+        }
+        chatIdToUse = newId;
+        // Wait for the next tick to ensure chat is created in local state
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+
+      const initialUserMessage = `Please help me distill my rationale titled "${selectedRationaleTitle}" (ID: ${selectedRationaleId}) into a well-structured essay. The rationale has ${rationale.graph.nodes.length} points and ${rationale.graph.edges.length} connections. Focus on organizing these points into a coherent argument. Here's the description: "${rationale.description}". Please incorporate relevant context about my endorsed points related to this topic. Do not suggest new points or negations.`;
+
+      const initialMessages: ChatMessage[] = [
+        { role: "user", content: initialUserMessage },
+      ];
+
+      setChatMessages(initialMessages);
+      updateChat(chatIdToUse, initialMessages, undefined, selectedRationaleId);
+
+      await handleResponse(
+        initialMessages,
+        chatIdToUse,
+        "distill",
+        selectedRationaleId
+      );
+    },
+    [
+      currentSpace,
+      isAuthenticated,
+      handleResponse,
+      createNewChat,
+      updateChat,
+      currentChatId,
+      chatMessages,
     ]
   );
 
@@ -688,6 +786,27 @@ Please try:
       let chatIdToUse = currentChatId;
       let messagesForHistory = [...chatMessages, newMessage];
 
+      const currentChatData = savedChats.find((c) => c.id === chatIdToUse);
+
+      let flowToUse: FlowType = "generate";
+      let rationaleIdToUse: string | null = null;
+
+      if (currentChatData?.distillRationaleId) {
+        flowToUse = "distill";
+        rationaleIdToUse = currentChatData.distillRationaleId;
+      } else if (chatMessages.length > 0) {
+        const firstMessage = chatMessages[0];
+        if (
+          firstMessage?.content?.includes("Please help me distill my rationale")
+        ) {
+          const match = firstMessage.content.match(/\(ID: ([^)]+)\)/);
+          if (match && match[1]) {
+            flowToUse = "distill";
+            rationaleIdToUse = match[1];
+          }
+        }
+      }
+
       if (!chatIdToUse) {
         const newId = await createNewChat();
         if (!newId) {
@@ -697,11 +816,18 @@ Please try:
         }
         chatIdToUse = newId;
         messagesForHistory = [newMessage];
-        setCurrentFlowType("default");
+        await new Promise((resolve) => setTimeout(resolve, 0));
       }
 
       setChatMessages(messagesForHistory);
-      await handleResponse(messagesForHistory, chatIdToUse, currentFlowType);
+      updateChat(chatIdToUse, messagesForHistory, undefined, rationaleIdToUse);
+
+      await handleResponse(
+        messagesForHistory,
+        chatIdToUse,
+        flowToUse,
+        rationaleIdToUse
+      );
     },
     [
       message,
@@ -710,9 +836,10 @@ Please try:
       isAuthenticated,
       currentChatId,
       chatMessages,
-      currentFlowType,
       handleResponse,
       createNewChat,
+      savedChats,
+      updateChat,
     ]
   );
 
@@ -725,8 +852,9 @@ Please try:
     fetchingContextChats,
     streamingContents,
     chatEndRef,
-    currentFlowType,
+    generatingTitles,
     startChatWithOption,
+    startDistillChat,
     handleSubmit,
     handleCopy,
     handleRetry,

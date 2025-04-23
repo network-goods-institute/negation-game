@@ -20,8 +20,10 @@ import {
     CircleDotIcon,
     Menu,
     RefreshCw,
+    WifiOff,
 } from "lucide-react";
 import { useDiscourseIntegration } from "@/hooks/useDiscourseIntegration";
+import { toast } from "sonner";
 
 interface SyncStats {
     pulled: number;
@@ -48,6 +50,7 @@ interface ChatHeaderProps {
     onTriggerSync: () => void;
     isPulling: boolean;
     isSaving: boolean;
+    isOffline: boolean;
 }
 
 export function ChatHeader({
@@ -68,6 +71,7 @@ export function ChatHeader({
     onTriggerSync,
     isPulling,
     isSaving,
+    isOffline,
 }: ChatHeaderProps) {
     return (
         <div className="fixed top-[var(--header-height)] h-16 border-b bg-background/95 backdrop-blur-sm flex items-center justify-between px-4 md:px-6 z-20 left-0 md:left-72 right-0">
@@ -120,6 +124,18 @@ export function ChatHeader({
                 )}
             </div>
             <div className="flex items-center gap-2 md:gap-3">
+                {isOffline && (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger>
+                                <WifiOff className="h-4 w-4 text-destructive" />
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">
+                                <p>Offline. Sync paused.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                )}
                 {isAuthenticated && (
                     <Popover>
                         <PopoverTrigger asChild>
@@ -222,8 +238,11 @@ export function ChatHeader({
                                     className="flex-1 text-xs"
                                     onClick={() => {
                                         console.log("[Sync Button] 'Check for Pulls' triggered.");
-                                        // setIsPulling(true); // State managed by parent
-                                        onTriggerSync();
+                                        if (isSyncing) {
+                                            toast.info("Sync already in progress. Please wait.");
+                                        } else {
+                                            onTriggerSync();
+                                        }
                                     }}
                                     disabled={isSyncing}
                                     title="Check server for newer chats or deletions"
@@ -237,8 +256,11 @@ export function ChatHeader({
                                     className="flex-1 text-xs"
                                     onClick={() => {
                                         console.log("[Sync Button] 'Push Local Changes' triggered.");
-                                        // setIsSaving(true); // State managed by parent
-                                        onTriggerSync();
+                                        if (isSyncing) {
+                                            toast.info("Sync already in progress. Please wait.");
+                                        } else {
+                                            onTriggerSync();
+                                        }
                                     }}
                                     disabled={isSyncing}
                                     title="Ensure local updates are saved to the server"

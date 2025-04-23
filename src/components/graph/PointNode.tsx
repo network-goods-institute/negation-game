@@ -11,7 +11,7 @@ import { cn } from "@/lib/cn";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { usePointData, usePrefetchPoint } from "@/queries/usePointData";
 import { useParams, usePathname } from "next/navigation";
-import { findOverlappingPoints } from "@/utils/findDuplicatePoints";
+import { findOverlappingPoints } from "@/lib/findDuplicatePoints";
 import {
   AlertDialog,
   AlertDialogAction,
