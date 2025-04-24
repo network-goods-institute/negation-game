@@ -136,6 +136,8 @@ export default function AIAssistant() {
     const [isOffline, setIsOffline] = useState<boolean>(false);
 
     const backgroundStatsRef = useRef<BackgroundSyncStatsRef>({ creates: 0, updates: 0, deletes: 0, errors: 0 });
+    const importStatusRef = useRef<{ importing: boolean, importId: string | null }>({ importing: false, importId: null });
+    const processedImportIdsRef = useRef(new Set<string>());
 
     const isNonGlobalSpace = currentSpace !== null && currentSpace !== 'global';
 
@@ -188,8 +190,6 @@ export default function AIAssistant() {
         updateChat: chatList.updateChat,
         createNewChat: chatList.createNewChat,
     });
-
-    const importStatusRef = useRef<{ importing: boolean, importId: string | null }>({ importing: false, importId: null });
 
     const handleImportChat = useCallback(async (importChatId: string) => {
         console.log(`[handleImportChat] Called for ID: ${importChatId}`);
@@ -277,8 +277,21 @@ export default function AIAssistant() {
             return;
         }
 
-        if (!isAuthenticated || !isChatListInitialized || isInitializing) {
-            console.log(`[Import Trigger Effect] Waiting for initialization... Auth: ${isAuthenticated}, ChatList: ${isChatListInitialized}, Init: ${!isInitializing}`);
+        if (processedImportIdsRef.current.has(importChatId)) {
+            console.log(`[Import Trigger Effect] Import ID ${importChatId} already processed this session. Skipping.`);
+            try {
+                const currentUrl = new URL(window.location.href);
+                if (currentUrl.searchParams.has('importChat')) {
+                    currentUrl.searchParams.delete('importChat');
+                    const newUrl = currentUrl.pathname + currentUrl.search;
+                    router.push(newUrl, { scroll: false });
+                }
+            } catch (e) {/* Ignore error */ }
+            return;
+        }
+
+        if (!isAuthenticated || !isChatListInitialized || isInitializing || isFetchingRationales) {
+            console.log(`[Import Trigger Effect] Waiting for initialization... Auth: ${isAuthenticated}, ChatList: ${isChatListInitialized}, Init: ${!isInitializing}, FetchingRationales: ${isFetchingRationales}`);
             return;
         }
 
@@ -290,8 +303,27 @@ export default function AIAssistant() {
             }
             return;
         }
-        console.log(`[Import Trigger Effect] Conditions met. Setting flag and calling handleImportChat for ${importChatId}`);
+
+        console.log(`[Import Trigger Effect] Conditions met. Preparing to import ${importChatId}.`);
+
+        try {
+            const currentUrl = new URL(window.location.href);
+            if (currentUrl.searchParams.has('importChat')) {
+                currentUrl.searchParams.delete('importChat');
+                const newUrl = currentUrl.pathname + currentUrl.search;
+                console.log(`[Import Trigger Effect] Clearing URL parameter immediately. New target URL: ${newUrl}`);
+                router.push(newUrl, { scroll: false });
+            } else {
+                console.log(`[Import Trigger Effect] URL parameter already cleared? Skipping router.push.`);
+            }
+        } catch (e) {
+            console.error("[Import Trigger Effect] Error clearing URL parameter proactively:", e);
+        }
+
+        console.log(`[Import Trigger Effect] Setting import guard and calling handleImportChat for ${importChatId}`);
         importStatusRef.current = { importing: true, importId: importChatId };
+        processedImportIdsRef.current.add(importChatId);
+
         handleImportChat(importChatId);
 
     }, [
@@ -299,6 +331,7 @@ export default function AIAssistant() {
         isChatListInitialized,
         isAuthenticated,
         isInitializing,
+        isFetchingRationales,
         handleImportChat,
         currentSpace,
         router,
