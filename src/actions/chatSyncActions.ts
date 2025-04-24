@@ -33,9 +33,13 @@ export type ChatContent = z.infer<typeof ChatContentSchema>;
 
 /**
  * Fetches metadata (id, state_hash, updatedAt) for all chats belonging to the current user.
+ * Fetches metadata (id, state_hash, updatedAt) for chats belonging to the current user within a specific space.
+ * @param spaceId The ID of the space to filter chats by.
  * @returns Promise<ChatMetadata[]>
  */
-export async function fetchUserChatMetadata(): Promise<ChatMetadata[]> {
+export async function fetchUserChatMetadata(
+  spaceId: string
+): Promise<ChatMetadata[]> {
   const userId = await getUserId();
   if (!userId) {
     console.error("[fetchUserChatMetadata] User not authenticated.");
@@ -51,7 +55,11 @@ export async function fetchUserChatMetadata(): Promise<ChatMetadata[]> {
       })
       .from(chatsTable)
       .where(
-        and(eq(chatsTable.userId, userId), eq(chatsTable.is_deleted, false))
+        and(
+          eq(chatsTable.userId, userId),
+          eq(chatsTable.is_deleted, false),
+          eq(chatsTable.spaceId, spaceId)
+        )
       )
       .orderBy(chatsTable.updatedAt);
 

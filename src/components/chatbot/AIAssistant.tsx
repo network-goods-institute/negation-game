@@ -97,6 +97,7 @@ export default function AIAssistant() {
 
     const [isInitializing, setIsInitializing] = useState(true);
     const [currentSpace, setCurrentSpace] = useState<string | null>(null);
+    const [isFetchingRationales, setIsFetchingRationales] = useState(true);
     const [endorsedPoints, setEndorsedPoints] = useState<EndorsedPoint[]>([]);
     const [ownedPoints, setOwnedPoints] = useState<OwnedPoint[]>([]);
     const [allPointsInSpace, setAllPointsInSpace] = useState<PointInSpace[]>([]);
@@ -306,22 +307,32 @@ export default function AIAssistant() {
     useEffect(() => {
         const initializeAssistant = async () => {
             setIsInitializing(true);
+            setIsFetchingRationales(true);
             try {
                 const space = await getSpace();
                 setCurrentSpace(space);
                 if (isAuthenticated) {
-                    const [allPointsResult, profilePointsResult, endorsedPointsResult, rationalesResult] = await Promise.all([
+                    const [allPointsResult, profilePointsResult, endorsedPointsResult] = await Promise.all([
                         fetchAllSpacePoints(),
                         fetchProfilePoints(),
                         fetchUserEndorsedPoints(),
-                        fetchViewpoints(space)
                     ]);
 
                     setAllPointsInSpace(allPointsResult || []);
                     setOwnedPoints(profilePointsResult || []);
                     setEndorsedPoints(endorsedPointsResult || []);
 
-                    const convertedRationales: ChatRationale[] = (rationalesResult || []).map((r: any): ChatRationale => {
+                    let fetchedRationales: any[] = [];
+                    try {
+                        fetchedRationales = await fetchViewpoints(space);
+                    } catch (rationaleError) {
+                        console.error('Error fetching rationales:', rationaleError);
+                        toast.error("Failed to load rationales for distillation.");
+                    } finally {
+                        setIsFetchingRationales(false);
+                    }
+
+                    const convertedRationales: ChatRationale[] = (fetchedRationales || []).map((r: any): ChatRationale => {
                         const defaultGraph = { nodes: [], edges: [] };
                         const graphData = r.graph || defaultGraph;
                         const defaultStats = { views: 0, copies: 0, totalCred: 0, averageFavor: 0 };
@@ -346,6 +357,7 @@ export default function AIAssistant() {
                     setEndorsedPoints([]);
                     setUserRationales([]);
                     setAvailableRationales([]);
+                    setIsFetchingRationales(false);
                 }
             } catch (error) {
                 console.error('Error initializing:', error);
@@ -355,6 +367,7 @@ export default function AIAssistant() {
                 setEndorsedPoints([]);
                 setUserRationales([]);
                 setAvailableRationales([]);
+                setIsFetchingRationales(false);
             } finally {
                 setTimeout(() => setIsInitializing(false), 200);
             }
@@ -456,7 +469,7 @@ export default function AIAssistant() {
                 activitySet = true;
 
                 console.log("[Sync] Fetching server metadata...");
-                const serverMetadata: ChatMetadata[] = await fetchUserChatMetadata();
+                const serverMetadata: ChatMetadata[] = await fetchUserChatMetadata(currentSpace);
                 console.log(`[Sync] Found ${serverMetadata.length} chats on server.`);
 
                 let localChats: SavedChat[] = [];
@@ -881,6 +894,7 @@ export default function AIAssistant() {
 
                 <ChatMessageArea
                     isInitializing={isInitializing}
+                    isFetchingRationales={isFetchingRationales}
                     chatState={chatState}
                     isGeneratingCurrent={chatState.generatingChats.has(chatList.currentChatId || "")}
                     isFetchingCurrentContext={chatState.fetchingContextChats.has(chatList.currentChatId || "")}
@@ -889,6 +903,7 @@ export default function AIAssistant() {
                     discourse={discourse}
                     isAuthenticated={isAuthenticated}
                     userRationales={userRationales}
+                    availableRationales={availableRationales}
                     currentSpace={currentSpace}
                     isMobile={isMobile}
                     initialOptions={initialChatOptions}

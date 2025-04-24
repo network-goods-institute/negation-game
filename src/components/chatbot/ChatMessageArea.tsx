@@ -44,6 +44,7 @@ const ChatLoadingState = () => {
 
 interface ChatMessageAreaProps {
     isInitializing: boolean;
+    isFetchingRationales: boolean;
     chatState: ReturnType<typeof useChatState>;
     isGeneratingCurrent: boolean;
     isFetchingCurrentContext: boolean;
@@ -52,6 +53,7 @@ interface ChatMessageAreaProps {
     discourse: ReturnType<typeof useDiscourseIntegration>;
     isAuthenticated: boolean;
     userRationales: ChatRationale[];
+    availableRationales: ChatRationale[];
     currentSpace: string | null;
     isMobile: boolean;
     initialOptions: InitialOptionObject[];
@@ -61,6 +63,7 @@ interface ChatMessageAreaProps {
 
 export function ChatMessageArea({
     isInitializing,
+    isFetchingRationales,
     chatState,
     isGeneratingCurrent,
     isFetchingCurrentContext,
@@ -69,6 +72,7 @@ export function ChatMessageArea({
     discourse,
     isAuthenticated,
     userRationales,
+    availableRationales,
     currentSpace,
     isMobile,
     initialOptions,
@@ -90,30 +94,43 @@ export function ChatMessageArea({
                         </div>
                         <div className="grid gap-3 md:gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             {initialOptions.map((option) => {
-                                const isDisabled = option.id === 'distill' 
-                                    ? !isAuthenticated || userRationales.length === 0
+                                const isDisabled = option.id === 'distill'
+                                    ? isFetchingRationales || !isAuthenticated || (!isFetchingRationales && availableRationales.length === 0)
                                     : option.disabled || !isAuthenticated;
-                                const description = option.id === 'distill' 
+                                const description = option.id === 'distill'
                                     ? "Organize your existing rationales into an essay."
                                     : option.description;
-                                    
+
                                 return (
                                     <AuthenticatedActionButton
                                         key={option.id}
                                         variant="outline"
-                                        className={`h-auto min-h-[6rem] p-2 md:min-h-[8rem] md:p-4 flex flex-col items-center justify-center gap-1.5 text-center rounded-lg hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 ${
-                                            isDisabled || option.comingSoon ? 'opacity-50 cursor-not-allowed' : ''
-                                        }`}
+                                        className={`h-auto min-h-[6rem] p-2 md:min-h-[8rem] md:p-4 flex flex-col items-center justify-center gap-1.5 text-center rounded-lg hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 ${isDisabled || option.comingSoon ? 'opacity-50 cursor-not-allowed' : ''
+                                            }`}
                                         onClick={() => onStartChatOption(option)}
                                         disabled={isDisabled || option.comingSoon || isGeneratingCurrent}
                                         aria-disabled={isDisabled || option.comingSoon}
                                     >
-                                        <div className="text-sm md:text-lg font-semibold">{option.title}</div>
-                                        <p className="text-xs text-muted-foreground text-balance">
-                                            {description}
-                                        </p>
-                                        {option.comingSoon && (
-                                            <span className="text-xs text-primary font-medium mt-1">Coming Soon</span>
+                                        {option.id === 'distill' && isInitializing ? (
+                                            <div className="flex flex-col items-center gap-1.5">
+                                                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                                <span className="text-xs text-muted-foreground">Loading Rationales...</span>
+                                            </div>
+                                        ) : option.id === 'distill' && isFetchingRationales ? (
+                                            <div className="flex flex-col items-center gap-1.5">
+                                                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                                <span className="text-xs text-muted-foreground">Loading Rationales...</span>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className="text-sm md:text-lg font-semibold">{option.title}</div>
+                                                <p className="text-xs text-muted-foreground text-balance">
+                                                    {description}
+                                                </p>
+                                                {option.comingSoon && (
+                                                    <span className="text-xs text-primary font-medium mt-1">Coming Soon</span>
+                                                )}
+                                            </>
                                         )}
                                     </AuthenticatedActionButton>
                                 );
@@ -150,13 +167,13 @@ export function ChatMessageArea({
                                 </div>
 
                                 <div className={`mt-1 flex w-full gap-1.5 ${msg.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
-                                    <Button 
-                                       variant="ghost" 
-                                       size="icon" 
-                                       className="h-7 w-7 text-muted-foreground hover:text-foreground" 
-                                       title="Copy" 
-                                       onClick={() => chatState.handleCopy(i)} 
-                                       disabled={isGeneratingCurrent} 
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                        title="Copy"
+                                        onClick={() => chatState.handleCopy(i)}
+                                        disabled={isGeneratingCurrent}
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
                                     </Button>
