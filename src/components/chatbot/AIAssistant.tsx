@@ -282,6 +282,7 @@ export default function AIAssistant() {
             try {
                 const currentUrl = new URL(window.location.href);
                 if (currentUrl.searchParams.has('importChat')) {
+                    // eslint-disable-next-line drizzle/enforce-delete-with-where
                     currentUrl.searchParams.delete('importChat');
                     const newUrl = currentUrl.pathname + currentUrl.search;
                     router.push(newUrl, { scroll: false });
@@ -309,6 +310,7 @@ export default function AIAssistant() {
         try {
             const currentUrl = new URL(window.location.href);
             if (currentUrl.searchParams.has('importChat')) {
+                // eslint-disable-next-line drizzle/enforce-delete-with-where
                 currentUrl.searchParams.delete('importChat');
                 const newUrl = currentUrl.pathname + currentUrl.search;
                 console.log(`[Import Trigger Effect] Clearing URL parameter immediately. New target URL: ${newUrl}`);
