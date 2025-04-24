@@ -605,16 +605,46 @@ Please try:
       const historyForEdit = [...chatMessages.slice(0, index), editedMessage];
 
       setChatMessages(historyForEdit);
-      console.warn(
-        "[handleSaveEdit] Editing a user message might lose the specific rationale context if it was a distill flow."
-      );
+
       const currentChatDataForEdit = savedChats.find(
         (c) => c.id === currentChatId
       );
-      const flowForEdit: FlowType = currentChatDataForEdit?.distillRationaleId
-        ? "distill"
-        : "default";
-      const rationaleIdForEdit = currentChatDataForEdit?.distillRationaleId;
+      let flowForEdit: FlowType = "default";
+      let rationaleIdForEdit: string | null = null;
+
+      if (currentChatDataForEdit?.distillRationaleId) {
+        flowForEdit = "distill";
+        rationaleIdForEdit = currentChatDataForEdit.distillRationaleId;
+        console.log(
+          `[handleSaveEdit] Determined flow 'distill' from saved chat data.`
+        );
+      } else {
+        const originalFirstMessage = chatMessages[0];
+        if (
+          originalFirstMessage?.role === "user" &&
+          originalFirstMessage.content.includes(
+            "Please help me distill my rationale"
+          )
+        ) {
+          const regex = new RegExp("\\(ID: ([^)]+)\\)");
+          const match = originalFirstMessage.content.match(regex);
+          if (match && match[1]) {
+            flowForEdit = "distill";
+            rationaleIdForEdit = match[1];
+            console.warn(
+              `[handleSaveEdit] Determined flow 'distill' via fallback parsing of original first message.`
+            );
+          } else {
+            console.log(
+              `[handleSaveEdit] Determined flow 'default' (first message looked like distill but ID missing?).`
+            );
+          }
+        } else {
+          console.log(
+            `[handleSaveEdit] Determined flow 'default' (no ID in saved state and first message wasn't distill prompt).`
+          );
+        }
+      }
 
       await handleResponse(
         historyForEdit,
@@ -625,7 +655,7 @@ Please try:
 
       toast.success("Message updated & regenerating response...");
     },
-    [currentChatId, chatMessages, handleResponse, savedChats]
+    [currentChatId, chatMessages, handleResponse, savedChats, setChatMessages]
   );
 
   const startChatWithOption = useCallback(
