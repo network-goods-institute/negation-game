@@ -17,7 +17,7 @@ import { fetchUserEndorsedPoints } from "@/actions/fetchUserEndorsedPoints";
 import { fetchProfilePoints, ProfilePoint } from "@/actions/fetchProfilePoints";
 import { getSpace } from "@/actions/getSpace";
 import { AutosizeTextarea } from "../ui/autosize-textarea";
-import { fetchUserViewpoints } from "@/actions/fetchUserViewpoints";
+import { fetchViewpoints } from "@/actions/fetchViewpoints";
 import { DiscourseConnectDialog } from "@/components/chatbot/DiscourseConnectDialog";
 import { DiscourseMessagesDialog } from "@/components/chatbot/DiscourseMessagesDialog";
 import { DiscourseConsentDialog } from "@/components/chatbot/DiscourseConsentDialog";
@@ -101,6 +101,7 @@ export default function AIAssistant() {
     const [ownedPoints, setOwnedPoints] = useState<OwnedPoint[]>([]);
     const [allPointsInSpace, setAllPointsInSpace] = useState<PointInSpace[]>([]);
     const [userRationales, setUserRationales] = useState<ChatRationale[]>([]);
+    const [availableRationales, setAvailableRationales] = useState<ChatRationale[]>([]);
     const [settings, setSettings] = useState<ChatSettings>(() => {
         if (typeof window !== 'undefined') {
             const savedSettings = localStorage.getItem('chat_settings');
@@ -180,6 +181,7 @@ export default function AIAssistant() {
         ownedPointIds,
         endorsedPointIds,
         userRationales,
+        availableRationales,
         storedMessages: discourse.storedMessages,
         savedChats: chatList.savedChats,
         updateChat: chatList.updateChat,
@@ -312,7 +314,7 @@ export default function AIAssistant() {
                         fetchAllSpacePoints(),
                         fetchProfilePoints(),
                         fetchUserEndorsedPoints(),
-                        fetchUserViewpoints()
+                        fetchViewpoints(space)
                     ]);
 
                     setAllPointsInSpace(allPointsResult || []);
@@ -337,11 +339,13 @@ export default function AIAssistant() {
                         };
                     });
                     setUserRationales(convertedRationales);
+                    setAvailableRationales(convertedRationales);
                 } else {
                     setAllPointsInSpace([]);
                     setOwnedPoints([]);
                     setEndorsedPoints([]);
                     setUserRationales([]);
+                    setAvailableRationales([]);
                 }
             } catch (error) {
                 console.error('Error initializing:', error);
@@ -350,6 +354,7 @@ export default function AIAssistant() {
                 setOwnedPoints([]);
                 setEndorsedPoints([]);
                 setUserRationales([]);
+                setAvailableRationales([]);
             } finally {
                 setTimeout(() => setIsInitializing(false), 200);
             }
@@ -382,6 +387,10 @@ export default function AIAssistant() {
         if (option.id === 'distill') {
             if (!isAuthenticated || userRationales.length === 0) {
                 toast.info("You need to be logged in and have rationales to use this feature.");
+                return;
+            }
+            if (!isAuthenticated || availableRationales.length === 0) {
+                toast.info("Login required. No rationales found in this space to distill.");
                 return;
             }
             setShowRationaleSelectionDialog(true);
@@ -904,7 +913,7 @@ export default function AIAssistant() {
             <RationaleSelectionDialog
                 isOpen={showRationaleSelectionDialog}
                 onOpenChange={setShowRationaleSelectionDialog}
-                rationales={userRationales}
+                rationales={availableRationales}
                 onRationaleSelected={handleRationaleSelectedForDistill}
             />
 

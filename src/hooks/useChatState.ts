@@ -27,6 +27,7 @@ interface UseChatStateProps {
   ownedPointIds: Set<number>;
   endorsedPointIds: Set<number>;
   userRationales: ChatRationale[];
+  availableRationales: ChatRationale[];
   storedMessages: DiscourseMessage[];
   savedChats: SavedChat[];
   updateChat: (
@@ -47,6 +48,7 @@ export function useChatState({
   ownedPointIds,
   endorsedPointIds,
   userRationales,
+  availableRationales,
   storedMessages,
   savedChats,
   updateChat,

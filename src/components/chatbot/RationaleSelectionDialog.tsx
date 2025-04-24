@@ -108,7 +108,7 @@ export function RationaleSelectionDialog({
                 <DialogHeader>
                     <DialogTitle>Select a Rationale to Distill</DialogTitle>
                     <DialogDescription>
-                        Choose one of your rationales to transform into a structured essay
+                        Choose a rationale from this space to transform into a structured essay
                     </DialogDescription>
                 </DialogHeader>
 
@@ -164,12 +164,12 @@ export function RationaleSelectionDialog({
                                     <button
                                         key={rationale.id}
                                         onClick={() => handleSelect(rationale)}
-                                        className="w-full group rounded-lg border bg-card text-card-foreground p-4 hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                        className="max-w-[500px] w-full mx-auto group rounded-lg border bg-card text-card-foreground p-4 hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                     >
                                         <div className="flex flex-col gap-2">
                                             <div className="flex justify-between items-start gap-4">
                                                 <h3 className="font-semibold text-left">{rationale.title}</h3>
-                                                <div className="flex gap-2 flex-wrap justify-end">
+                                                <div className="flex gap-2 flex-wrap justify-end items-center">
                                                     {rationale.statistics?.views !== undefined && (
                                                         <Badge variant="secondary" className="whitespace-nowrap">
                                                             {rationale.statistics.views} views
