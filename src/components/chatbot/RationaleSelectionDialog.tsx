@@ -104,15 +104,15 @@ export function RationaleSelectionDialog({
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col">
-                <DialogHeader>
-                    <DialogTitle>Select a Rationale to Distill</DialogTitle>
+            <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col overflow-hidden">
+                <DialogHeader className="text-center pt-6 pb-4 border-b">
+                    <DialogTitle className="text-2xl font-bold">Select a Rationale to Distill</DialogTitle>
                     <DialogDescription>
                         Choose a rationale from this space to transform into a structured essay
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-4 flex-1 overflow-hidden">
+                <div className="space-y-4 pt-4 px-4">
                     <div className="flex flex-col gap-4 sm:flex-row">
                         <div className="relative flex-1">
                             <SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -156,64 +156,67 @@ export function RationaleSelectionDialog({
                     <div className="text-sm text-muted-foreground">
                         {filteredAndSortedRationales.length} {filteredAndSortedRationales.length === 1 ? 'rationale' : 'rationales'} found
                     </div>
-
-                    <ScrollArea className="flex-1 w-full rounded-md border h-[400px]">
-                        <div className="p-4 space-y-3">
-                            {filteredAndSortedRationales.length > 0 ? (
-                                filteredAndSortedRationales.map((rationale) => (
-                                    <button
-                                        key={rationale.id}
-                                        onClick={() => handleSelect(rationale)}
-                                        className="max-w-[500px] w-full mx-auto group rounded-lg border bg-card text-card-foreground p-4 hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                    >
-                                        <div className="flex flex-col gap-2">
-                                            <div className="flex justify-between items-start gap-4">
-                                                <h3 className="font-semibold text-left">{rationale.title}</h3>
-                                                <div className="flex gap-2 flex-wrap justify-end items-center">
-                                                    {rationale.statistics?.views !== undefined && (
-                                                        <Badge variant="secondary" className="whitespace-nowrap">
-                                                            {rationale.statistics.views} views
-                                                        </Badge>
-                                                    )}
-                                                    {rationale.statistics?.totalCred !== undefined && (
-                                                        <Badge variant="secondary" className="whitespace-nowrap">
-                                                            {rationale.statistics.totalCred} cred
-                                                        </Badge>
-                                                    )}
-                                                    {rationale.statistics?.copies !== undefined && rationale.statistics.copies > 0 && (
-                                                        <Badge variant="secondary" className="whitespace-nowrap">
-                                                            {rationale.statistics.copies} copies
-                                                        </Badge>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            {rationale.description && (
-                                                <p className="text-sm text-muted-foreground text-left line-clamp-2">
-                                                    {rationale.description}
-                                                </p>
-                                            )}
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-xs text-muted-foreground">
-                                                    ID: {rationale.id}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </button>
-                                ))
-                            ) : (
-                                <div className="text-center py-8 text-muted-foreground">
-                                    {rationales.length === 0 ? (
-                                        <p>You haven&apos;t created any rationales yet.</p>
-                                    ) : (
-                                        <p>No rationales match your search criteria.</p>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </ScrollArea>
                 </div>
 
-                <DialogFooter className="mt-4">
+                <ScrollArea className="flex-1 w-full overflow-y-auto">
+                    <div className="p-4 space-y-3">
+                        {filteredAndSortedRationales.length > 0 ? (
+                            filteredAndSortedRationales.map((rationale) => (
+                                <button
+                                    key={rationale.id}
+                                    onClick={() => handleSelect(rationale)}
+                                    className="w-full mx-auto group rounded-lg border bg-card text-card-foreground p-4 hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                >
+                                    <div className="flex flex-col gap-2">
+                                        <div className="flex justify-between items-start gap-4">
+                                            <h3 className="font-semibold text-left">{rationale.title}</h3>
+                                            <div className="flex gap-2 flex-wrap justify-end items-center">
+                                                {rationale.statistics?.views !== undefined && (
+                                                    <Badge variant="secondary" className="whitespace-nowrap">
+                                                        {rationale.statistics.views} views
+                                                    </Badge>
+                                                )}
+                                                {rationale.statistics?.totalCred !== undefined && (
+                                                    <Badge variant="secondary" className="whitespace-nowrap">
+                                                        {rationale.statistics.totalCred} cred
+                                                    </Badge>
+                                                )}
+                                                {rationale.statistics?.copies !== undefined && rationale.statistics.copies > 0 && (
+                                                    <Badge variant="secondary" className="whitespace-nowrap">
+                                                        {rationale.statistics.copies} copies
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {rationale.description && (
+                                            <p className="text-sm text-muted-foreground text-left line-clamp-2">
+                                                {rationale.description}
+                                            </p>
+                                        )}
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-xs text-muted-foreground">
+                                                ID: {rationale.id}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground">
+                                                Published: {new Date(rationale.createdAt).toLocaleDateString()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </button>
+                            ))
+                        ) : (
+                            <div className="text-center py-8 text-muted-foreground">
+                                {rationales.length === 0 ? (
+                                    <p>You haven&apos;t created any rationales yet.</p>
+                                ) : (
+                                    <p>No rationales match your search criteria.</p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </ScrollArea>
+
+                <DialogFooter className="mt-auto px-4 pb-4">
                     <Button variant="outline" onClick={() => onOpenChange(false)}>
                         Cancel
                     </Button>

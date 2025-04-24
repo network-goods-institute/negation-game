@@ -49,7 +49,9 @@ export function ChatInputForm({
                             ? "Login to chat..."
                             : isGenerating
                                 ? "Waiting for response..."
-                                : "Type your message here... (Ctrl+Enter to send)"
+                                : isMobile
+                                    ? "Type your message here..."
+                                    : "Type your message here... (Ctrl+Enter to send)"
                     }
                     className={`flex-1 py-2.5 px-3 md:px-4 text-xs sm:text-sm md:text-base rounded-lg border shadow-sm resize-none focus-visible:ring-1 focus-visible:ring-ring`}
                     disabled={

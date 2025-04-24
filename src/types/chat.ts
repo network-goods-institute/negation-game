@@ -31,6 +31,7 @@ export interface ChatRationale {
   title: string;
   description: string;
   author: string;
+  createdAt: string;
   graph: {
     nodes: Array<{
       id: string;

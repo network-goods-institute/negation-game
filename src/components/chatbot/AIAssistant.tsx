@@ -377,6 +377,7 @@ export default function AIAssistant() {
                             title: String(r.title || 'Untitled Rationale'),
                             description: String(r.description || ''),
                             author: String(r.author || 'Unknown Author'),
+                            createdAt: String(r.createdAt || new Date().toISOString()),
                             graph: {
                                 nodes: (graphData.nodes || []).map((n: any) => ({ id: String(n.id || nanoid()), type: ["point", "statement", "addPoint"].includes(n.type) ? n.type as "point" | "statement" | "addPoint" : "statement", data: { content: n.data?.content ? String(n.data.content) : undefined, statement: n.data?.statement ? String(n.data.statement) : undefined, pointId: n.data?.pointId != null ? Number(n.data.pointId) : undefined } })),
                                 edges: (graphData.edges || []).map((e: any) => ({ id: String(e.id || nanoid()), type: String(e.type || 'default'), source: String(e.source || ''), target: String(e.target || '') }))
