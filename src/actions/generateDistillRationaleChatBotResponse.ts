@@ -397,7 +397,7 @@ Remember:
 ${selectedRationaleId ? "5. You are distilling. Use source tags only for external context. **Do not use bracket tags like [Point:ID] in your response.**" : "1. Focus on helping..."}
 
 INSTRUCTIONS:
-${selectedRationaleId && fetchedRationaleData ? "*   Follow the **first-person** perspective...\n*   **DO NOT suggest new points or negations...**\n*   **DO NOT use bracket tags like [Point:ID] or [Rationale:ID] in your essay.**" : "*   Suggest new points or negations..."}
+${selectedRationaleId && fetchedRationaleData ? "*   Follow the **first-person** perspective...\n*   **DO NOT suggest new points or negations...**\n*   **DO NOT use bracket tags like [Point:ID] or [Rationale:ID] in your essay.**\n*   **Consider the entire chat history to understand the user's follow-up requests, but continue writing the essay based *only* on the provided rationale context.**" : "*   Suggest new points or negations..."}
 
 A:`;
 
