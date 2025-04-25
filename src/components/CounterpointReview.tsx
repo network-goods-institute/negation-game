@@ -51,6 +51,8 @@ interface CounterpointReviewProps {
     selectCounterpointCandidate: (candidate: CounterpointCandidate | undefined) => void;
     setGuidanceNotes: (notes: ReactNode | undefined) => void;
     onClose: () => void;
+    onSelectSuggestion: (suggestion: string) => void;
+    onSelectOwnText: () => void;
 }
 
 export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
@@ -60,6 +62,8 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
     selectCounterpointCandidate,
     setGuidanceNotes,
     onClose,
+    onSelectSuggestion,
+    onSelectOwnText,
 }) => {
     return (
         <div className="flex flex-col w-full h-full max-h-[80vh] overflow-hidden relative">
@@ -192,25 +196,7 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                                     key={`rephrasing-${i}`}
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        setGuidanceNotes(
-                                            <>
-                                                <SquarePenIcon className="size-3 align-[-1.5px] inline-block" />{" "}
-                                                {counterpointContent}{" "}
-                                                <Button
-                                                    variant={"link"}
-                                                    className="text-xs size-fit inline-block p-0 font-normal underline underline-offset-1 ml-1"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setCounterpointContent(counterpointContent);
-                                                        setGuidanceNotes(undefined);
-                                                    }}
-                                                >
-                                                    restore
-                                                </Button>
-                                            </>
-                                        );
-                                        setCounterpointContent(suggestion);
-                                        onClose();
+                                        onSelectSuggestion(suggestion);
                                     }}
                                     className="relative flex flex-col gap-2 p-4 w-full bg-background cursor-pointer border border-dashed rounded-md transition-colors shadow-sm hover:border-blue-500 hover:ring-1 hover:ring-blue-500"
                                 >
@@ -248,6 +234,7 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                     <div
                         onClick={(e) => {
                             e.stopPropagation();
+                            onSelectOwnText();
                             setGuidanceNotes(
                                 reviewResults.rating < GOOD_ENOUGH_POINT_RATING ? (
                                     <>
