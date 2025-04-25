@@ -42,7 +42,6 @@ export async function fetchUserChatMetadata(
 ): Promise<ChatMetadata[]> {
   const userId = await getUserId();
   if (!userId) {
-    console.error("[fetchUserChatMetadata] User not authenticated.");
     return [];
   }
 
@@ -65,19 +64,11 @@ export async function fetchUserChatMetadata(
 
     const validatedMetadata = z.array(ChatMetadataSchema).safeParse(metadata);
     if (!validatedMetadata.success) {
-      console.error(
-        "[fetchUserChatMetadata] Failed Zod validation:",
-        validatedMetadata.error
-      );
       throw new Error("Failed to validate chat metadata from database.");
     }
 
     return validatedMetadata.data;
   } catch (error) {
-    console.error(
-      "[fetchUserChatMetadata] Error fetching chat metadata:",
-      error
-    );
     throw new Error("Failed to fetch chat metadata.");
   }
 }
@@ -92,8 +83,7 @@ export async function fetchChatContent(
 ): Promise<ChatContent | null> {
   const userId = await getUserId();
   if (!userId) {
-    console.error("[fetchChatContent] User not authenticated.");
-    return null; // Or throw error
+    return null;
   }
 
   try {
@@ -109,9 +99,6 @@ export async function fetchChatContent(
       .limit(1);
 
     if (result.length === 0) {
-      console.log(
-        `[fetchChatContent] Chat not found or access denied for chatId: ${chatId}`
-      );
       return null;
     }
 
@@ -125,19 +112,11 @@ export async function fetchChatContent(
 
     const validatedContent = ChatContentSchema.safeParse(chatData);
     if (!validatedContent.success) {
-      console.error(
-        "[fetchChatContent] Failed Zod validation:",
-        validatedContent.error
-      );
       throw new Error("Failed to validate chat content from database.");
     }
 
     return validatedContent.data;
   } catch (error) {
-    console.error(
-      `[fetchChatContent] Error fetching chat content for chatId ${chatId}:`,
-      error
-    );
     throw new Error("Failed to fetch chat content.");
   }
 }
@@ -160,7 +139,6 @@ export async function createDbChat(
 ): Promise<{ success: boolean; id: string | null; error?: string }> {
   const userId = await getUserId();
   if (!userId) {
-    console.error("[createDbChat] User not authenticated.");
     const error = "User not authenticated.";
     return { success: false, id: null, error };
   }
@@ -168,7 +146,6 @@ export async function createDbChat(
   const validation = ClientChatDataSchema.safeParse(chatData);
   if (!validation.success) {
     const error = `Invalid chat data: ${validation.error.message}`;
-    console.error("[createDbChat]", error);
     return { success: false, id: null, error };
   }
   const { id, title, messages, state_hash, spaceId } = validation.data;
@@ -182,10 +159,8 @@ export async function createDbChat(
       messages: messages,
       state_hash: state_hash,
     });
-    console.log(`[createDbChat] Successfully created chat with id: ${id}`);
     return { success: true, id: id };
   } catch (error) {
-    console.error(`[createDbChat] Error creating chat with id ${id}:`, error);
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
     return { success: false, id: null, error: errorMessage };
@@ -202,7 +177,6 @@ export async function updateDbChat(
 ): Promise<{ success: boolean; error?: string }> {
   const userId = await getUserId();
   if (!userId) {
-    console.error("[updateDbChat] User not authenticated.");
     return { success: false, error: "User not authenticated." };
   }
 
@@ -214,7 +188,6 @@ export async function updateDbChat(
   }).safeParse(chatData);
   if (!validation.success) {
     const error = `Invalid chat data: ${validation.error.message}`;
-    console.error("[updateDbChat]", error);
     return { success: false, error };
   }
   const { id, title, messages, state_hash } = validation.data;
@@ -232,16 +205,11 @@ export async function updateDbChat(
       .returning({ updatedId: chatsTable.id });
 
     if (result.length === 0) {
-      console.warn(
-        `[updateDbChat] Chat not found or access denied for update, chatId: ${id}`
-      );
       return { success: false, error: "Chat not found or access denied." };
     }
 
-    console.log(`[updateDbChat] Successfully updated chat with id: ${id}`);
     return { success: true };
   } catch (error) {
-    console.error(`[updateDbChat] Error updating chat with id ${id}:`, error);
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
     return { success: false, error: errorMessage };
@@ -258,12 +226,10 @@ export async function markChatAsDeleted(
 ): Promise<{ success: boolean; error?: string }> {
   const userId = await getUserId();
   if (!userId) {
-    console.error("[markChatAsDeleted] User not authenticated.");
     return { success: false, error: "User not authenticated." };
   }
 
   if (!chatId) {
-    console.error("[markChatAsDeleted] No chatId provided.");
     return { success: false, error: "No chatId provided." };
   }
 
@@ -273,7 +239,7 @@ export async function markChatAsDeleted(
       .set({
         is_deleted: true,
         deleted_at: new Date(),
-        updatedAt: new Date(), // Also update updatedAt?
+        updatedAt: new Date(),
       })
       .where(
         and(
@@ -285,24 +251,13 @@ export async function markChatAsDeleted(
       .returning({ updatedId: chatsTable.id });
 
     if (result.length === 0) {
-      console.warn(
-        `[markChatAsDeleted] Chat not found, already deleted, or access denied for deletion, chatId: ${chatId}`
-      );
       return {
         success: false,
         error: "Chat not found, already deleted, or access denied.",
       };
     }
-
-    console.log(
-      `[markChatAsDeleted] Successfully marked chat as deleted: ${chatId}`
-    );
     return { success: true };
   } catch (error) {
-    console.error(
-      `[markChatAsDeleted] Error marking chat as deleted ${chatId}:`,
-      error
-    );
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
     return { success: false, error: errorMessage };

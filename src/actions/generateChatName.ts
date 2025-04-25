@@ -2,7 +2,6 @@
 
 import { google } from "@ai-sdk/google";
 import { streamText } from "ai";
-import { z } from "zod";
 import { withRetry } from "@/lib/withRetry";
 
 interface Message {
@@ -63,7 +62,6 @@ TITLE:`;
 
     return textStream;
   } catch (error) {
-    console.error("[generateChatName Top Level Error]", error);
     throw error;
   }
 };

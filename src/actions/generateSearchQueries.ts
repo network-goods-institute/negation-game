@@ -37,7 +37,6 @@ export const generateSearchQueries = async (
   messages: Message[],
   discourseContext: DiscourseContext[] = []
 ): Promise<string[]> => {
-  console.log("[generateSearchQueries] Starting keyword generation...");
   try {
     const latestMessages = messages.slice(-4);
     const discourseSummary = discourseContext
@@ -60,9 +59,6 @@ Based *only* on the provided history and context, identify the 20-30 most import
 
 Output *only* a JSON object matching the required schema containing a list of these keywords. Do not add any explanation or commentary. List only single words or short acronyms.`;
 
-    console.log(
-      "[generateSearchQueries] Calling generateObject for keywords..."
-    );
     const { object } = await generateObject({
       model: google("gemini-2.0-flash"),
       schema: searchKeywordsSchema,
@@ -70,21 +66,13 @@ Output *only* a JSON object matching the required schema containing a list of th
       mode: "json",
     });
 
-    console.log("[generateSearchQueries] Received object:", object);
-
     if (!object || typeof object !== "object") {
-      console.warn(
-        "[generateSearchQueries] AI returned invalid object structure."
-      );
       return [];
     }
 
     const rawKeywords = Array.isArray(object.keywords) ? object.keywords : [];
 
     if (rawKeywords.length === 0) {
-      console.warn(
-        "[generateSearchQueries] AI did not return any keywords in the array."
-      );
       return [];
     }
 
@@ -94,15 +82,8 @@ Output *only* a JSON object matching the required schema containing a list of th
       .filter((kw) => kw.length >= 2 && kw.length < 25)
       .slice(0, 30);
 
-    console.log(
-      `[generateSearchQueries] Processed ${validKeywords.length} valid keywords (truncated to 30 max).`
-    );
     return validKeywords;
   } catch (error) {
-    console.error(
-      "[generateSearchQueries] Error generating search queries:",
-      error
-    );
     return [];
   }
 };

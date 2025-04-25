@@ -19,9 +19,6 @@ export const fetchAllSpacePoints = async (): Promise<PointInSpace[]> => {
   const space = await getSpace();
 
   if (!space) {
-    console.warn(
-      "[fetchAllSpacePoints] No space found. Returning empty array."
-    );
     return [];
   }
 
@@ -35,15 +32,8 @@ export const fetchAllSpacePoints = async (): Promise<PointInSpace[]> => {
       .from(pointsTable)
       .where(eq(pointsTable.space, space));
 
-    console.log(
-      `[fetchAllSpacePoints] Fetched ${points.length} points for space: ${space}`
-    );
     return points;
   } catch (error) {
-    console.error(
-      `[fetchAllSpacePoints] Error fetching points for space ${space}:`,
-      error
-    );
     return [];
   }
 };

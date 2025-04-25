@@ -46,8 +46,6 @@ export const SourceCitation: React.FC<SourceCitationProps> = ({ type, id, title,
     if (isRationale) {
         if (space) {
             href = `/s/${space}/rationale/${id}`;
-        } else {
-            console.warn("SourceCitation: Missing space prop for Rationale link", { type, id });
         }
         Icon = MessageSquareQuote;
         displayContent = title ? `"${title}"` : `Rationale ${id}`;
@@ -57,7 +55,6 @@ export const SourceCitation: React.FC<SourceCitationProps> = ({ type, id, title,
             const encodedPointId = encodeId(Number(id));
             href = space ? `/s/${space}/${encodedPointId}` : `/p/${encodedPointId}`;
         } catch (e) {
-            console.error(`SourceCitation: Failed to encode point ID ${id}`, e);
             href = space ? `/s/${space}/${id}` : `/p/${id}`;
         }
         Icon = FileText;

@@ -39,18 +39,14 @@ export const PointReference: React.FC<PointReferenceProps> = ({ id, snippet, spa
         displayId = String(id); // Keep string ID as is for rationales
         if (space) {
             href = `/s/${space}/rationale/${displayId}`;
-        } else {
-            console.warn("PointReference: Missing space prop for Rationale link", { id });
         }
     } else {
         displayId = String(id);
         try {
             const encodedPointId = encodeId(Number(id));
             displayId = encodedPointId;
-            // Use space in the link if available
             href = space ? `/s/${space}/${encodedPointId}` : `/p/${encodedPointId}`;
         } catch (e) {
-            console.error(`PointReference: Failed to encode point ID ${id}`, e);
             displayId = String(id);
             href = space ? `/s/${space}/${id}` : `/p/${id}`;
         }
@@ -89,7 +85,6 @@ export const PointReference: React.FC<PointReferenceProps> = ({ id, snippet, spa
                 "inline-flex items-center gap-1.5 px-2 py-0.5 text-xs rounded mx-0.5 align-middle",
                 "bg-secondary text-secondary-foreground",
                 href ? "hover:bg-muted cursor-pointer" : "cursor-default text-muted-foreground/70",
-                // Add overflow handling classes
                 "max-w-full overflow-hidden"
             )}
             onClick={(e) => {

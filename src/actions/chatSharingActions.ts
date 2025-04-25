@@ -33,12 +33,8 @@ export async function fetchSharedChatContent(
   chatId: string
 ): Promise<SharedChatContent | null> {
   if (!chatId) {
-    console.log("[fetchSharedChatContent] No chatId provided.");
     return null;
   }
-  console.log(
-    `[fetchSharedChatContent] Attempting to fetch chat for chatId: ${chatId}`
-  );
 
   try {
     const result = await db
@@ -50,15 +46,7 @@ export async function fetchSharedChatContent(
       .where(and(eq(chatsTable.id, chatId), eq(chatsTable.is_deleted, false)))
       .limit(1);
 
-    console.log(
-      `[fetchSharedChatContent] Query result for chatId ${chatId}:`,
-      result
-    );
-
     if (result.length === 0) {
-      console.log(
-        `[fetchSharedChatContent] Chat not found or deleted for chatId: ${chatId}`
-      );
       return null;
     }
 
@@ -72,21 +60,11 @@ export async function fetchSharedChatContent(
 
     const validatedContent = SharedChatContentSchema.safeParse(chatData);
     if (!validatedContent.success) {
-      console.error(
-        `[fetchSharedChatContent] Failed Zod validation for chatId ${chatId}:`,
-        validatedContent.error,
-        "Raw data:",
-        chatData
-      );
       return null;
     }
 
     return validatedContent.data;
   } catch (error) {
-    console.error(
-      `[fetchSharedChatContent] Error fetching shared chat for chatId ${chatId}:`,
-      error
-    );
     return null;
   }
 }

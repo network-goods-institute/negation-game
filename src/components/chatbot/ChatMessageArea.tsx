@@ -71,7 +71,6 @@ export function ChatMessageArea({
     chatList,
     discourse,
     isAuthenticated,
-    userRationales,
     availableRationales,
     currentSpace,
     isMobile,

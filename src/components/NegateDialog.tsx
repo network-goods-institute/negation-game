@@ -16,7 +16,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  GOOD_ENOUGH_POINT_RATING,
   POINT_MAX_LENGTH,
   POINT_MIN_LENGTH,
 } from "@/constants/config";
@@ -46,7 +45,7 @@ import {
 import CounterpointReview, { CounterpointCandidate } from "@/components/CounterpointReview";
 import { toast } from "sonner";
 import { encodeId } from '@/lib/encodeId';
-import { CreatedNegationView } from './CreatedNegationView';
+import { CreatedNegationView } from './chatbot/CreatedNegationView';
 
 export interface NegateDialogProps
   extends Omit<DialogProps, "open" | "onOpenChange"> { }
@@ -123,7 +122,6 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
       setGuidanceNotes(undefined);
       setLastReviewedContent(content);
 
-      // Cache for rephrasings
       reviewResults.suggestions.forEach((selectedSuggestion) =>
         queryClient.setQueryData<typeof reviewResults>(
           ["counterpoint-review", pointId, selectedSuggestion] as const,
@@ -142,7 +140,6 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     },
   });
 
-  // Simple check if content has been reviewed
   const needsReview = counterpointContent !== lastReviewedContent;
 
   const canReview =
@@ -167,13 +164,11 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   }, [resetFormOnly, setNegationSuggestion, setNegatedPointId]);
 
   const handleExitPreview = useCallback(() => {
-    console.log("[NegateDialog] handleExitPreview called - resetting preview state");
     handleClose();
   }, [handleClose]);
 
   useEffect(() => {
     if (negationSuggestion) {
-      console.log("[NegateDialog] Suggestion received:", negationSuggestion);
       setCounterpointContent(negationSuggestion.text);
       selectCounterpointCandidate(undefined);
       setGuidanceNotes(undefined);
@@ -258,7 +253,6 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
         window.dispatchEvent(event);
 
         if (negationSuggestion?.context === 'chat') {
-          console.log("[NegateDialog] Chat context detected. Setting preview ID:", finalCounterpointId);
           setCreatedCounterpointId(finalCounterpointId);
         } else {
           handleClose();
@@ -322,9 +316,6 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
 
   const isOpen = negationSuggestion !== null || negatedPointId !== undefined;
 
-  useEffect(() => {
-    console.log('[NegateDialog State] isOpen:', isOpen, 'Suggestion:', negationSuggestion, 'Legacy ID:', negatedPointId);
-  }, [isOpen, negationSuggestion, negatedPointId]);
 
   return (
     <Dialog

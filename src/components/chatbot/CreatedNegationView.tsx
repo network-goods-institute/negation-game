@@ -2,7 +2,7 @@ import React from 'react';
 import { usePointData } from '@/queries/usePointData';
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, ExternalLinkIcon } from 'lucide-react';
-import { PointCard } from './PointCard';
+import { PointCard } from '../PointCard';
 import Link from 'next/link';
 import { getPointUrl } from '@/lib/getPointUrl';
 import { useSpace } from '@/queries/useSpace';
@@ -32,29 +32,21 @@ export const CreatedNegationView: React.FC<CreatedNegationViewProps> =
         const counterpointUrl = getPointUrl(counterpointId, spaceData?.id);
 
         const handleNegateOriginal = (e: React.MouseEvent<HTMLButtonElement>) => {
-            console.log("[CreatedNegationView] handleNegateOriginal called");
             e.preventDefault();
-            console.log("[CreatedNegationView] Privy User:", privyUser);
             if (!privyUser) {
-                console.log("[CreatedNegationView] No privy user, calling login");
                 login();
                 return;
             }
-            console.log("[CreatedNegationView] Setting negatedPointIdAtom to:", originalPointId);
             setNegatedPointId(originalPointId);
             onExitPreview();
         };
 
         const handleNegateCounterpoint = (e: React.MouseEvent<HTMLButtonElement>) => {
-            console.log("[CreatedNegationView] handleNegateCounterpoint called");
             e.preventDefault();
-            console.log("[CreatedNegationView] Privy User:", privyUser);
             if (!privyUser) {
-                console.log("[CreatedNegationView] No privy user, calling login");
                 login();
                 return;
             }
-            console.log("[CreatedNegationView] Setting negatedPointIdAtom to:", counterpointId);
             setNegatedPointId(counterpointId);
             onExitPreview();
         };

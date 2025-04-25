@@ -104,12 +104,12 @@ export function ChatHeader({
                         <Tooltip>
                             <TooltipTrigger>
                                 <span className="inline-flex items-center rounded-md bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive ring-1 ring-inset ring-destructive/20">
-                                    Alpha
+                                    Beta
                                 </span>
                             </TooltipTrigger>
                             <TooltipContent side="bottom">
                                 <p className="max-w-xs">
-                                    This is a rough Alpha version. Features and
+                                    This is a Beta version. Features and
                                     performance may change significantly.
                                 </p>
                             </TooltipContent>
@@ -237,7 +237,6 @@ export function ChatHeader({
                                     size="sm"
                                     className="flex-1 text-xs"
                                     onClick={() => {
-                                        console.log("[Sync Button] 'Check for Pulls' triggered.");
                                         if (isSyncing) {
                                             toast.info("Sync already in progress. Please wait.");
                                         } else {
@@ -255,7 +254,6 @@ export function ChatHeader({
                                     size="sm"
                                     className="flex-1 text-xs"
                                     onClick={() => {
-                                        console.log("[Sync Button] 'Push Local Changes' triggered.");
                                         if (isSyncing) {
                                             toast.info("Sync already in progress. Please wait.");
                                         } else {

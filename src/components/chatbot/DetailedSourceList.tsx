@@ -65,7 +65,7 @@ const SourceListItem: React.FC<SourceListItemProps> = ({ source, space, storedMe
     let title: string | undefined = undefined;
     let snippet: string | undefined = undefined;
     let href: string | undefined = undefined;
-    let Icon = BookText; // Default icon
+    let Icon = BookText;
     let displayId = String(source.id);
     let isLoading = false;
 
@@ -79,7 +79,6 @@ const SourceListItem: React.FC<SourceListItemProps> = ({ source, space, storedMe
             displayId = encodedIdStr;
             href = space ? `/s/${space}/${encodedIdStr}` : `/p/${encodedIdStr}`;
         } catch (e) {
-            console.error(`SourceListItem: Failed to encode point ID ${source.id}`, e);
             displayId = String(source.id);
             href = space ? `/s/${space}/${source.id}` : `/p/${source.id}`;
         }

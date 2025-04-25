@@ -12,6 +12,8 @@ import {
 } from "@/db/schema";
 import { getUserId } from "./getUserId";
 
+const RESULT_LIMIT = 20;
+
 type PointResultBeforeFavor = {
   pointId: number;
   content: string;
@@ -36,9 +38,7 @@ export type SearchResult = {
   createdAt: Date;
   author: string;
   relevance: number;
-  // Point-specific fields
   pointData?: PointResultBeforeFavor & { favor: number };
-  // Viewpoint-specific fields
   description?: string;
   space?: string | null;
   statistics?: {
@@ -54,13 +54,8 @@ export const searchContent = async (
 ): Promise<SearchResult[]> => {
   const validKeywords = keywords.filter((k) => k && k.trim().length >= 2);
   if (validKeywords.length === 0) {
-    console.log("[searchContent] No valid keywords provided.");
     return [];
   }
-  console.log(
-    `[searchContent] Searching with ${validKeywords.length} keywords.`
-  );
-
   const space = await getSpace();
   const viewerId = await getUserId();
 
@@ -165,7 +160,6 @@ export const searchContent = async (
     `);
   }
 
-  // Merge and de-duplicate viewpoint results
   const combinedViewpointResultsMap = new Map<string, any>();
   viewpointResultsKeyword.forEach((vp: any) =>
     combinedViewpointResultsMap.set(vp.id, vp)
@@ -266,9 +260,7 @@ export const searchContent = async (
                 : 0;
           }
         }
-      } catch (e) {
-        console.error("Error calculating viewpoint statistics:", e);
-      }
+      } catch (e) {}
 
       uniqueResultsMap.set(key, {
         type: "rationale",
@@ -279,7 +271,7 @@ export const searchContent = async (
         createdAt: new Date(viewpoint.createdAt),
         author: viewpoint.username,
         space: viewpoint.space,
-        relevance: 1, // Placeholder relevance
+        relevance: 1, // placeholder
         statistics: {
           views: viewpoint.views || 0,
           copies: viewpoint.copies || 0,
@@ -300,9 +292,5 @@ export const searchContent = async (
     return dateB.getTime() - dateA.getTime();
   });
 
-  const RESULT_LIMIT = 20;
-  console.log(
-    `[searchContent] Returning ${Math.min(finalResults.length, RESULT_LIMIT)} results after de-duplication.`
-  );
   return finalResults.slice(0, RESULT_LIMIT);
 };

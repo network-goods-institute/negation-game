@@ -26,7 +26,7 @@ import { FC, useCallback, useEffect, useState } from "react";
 import { IterableElement } from "type-fest";
 import { useAtom } from 'jotai';
 import { makePointSuggestionAtom } from '@/atoms/makePointSuggestionAtom';
-import { CreatedPointView } from './CreatedPointView';
+import { CreatedPointView } from './chatbot/CreatedPointView';
 
 export interface MakePointDialogProps extends Omit<DialogProps, 'open' | 'onOpenChange'> { }
 
@@ -60,7 +60,6 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({ ...props }) => {
   );
   const [suggestionSelected, setSuggestionSelected] = useState(false);
 
-  const charactersLeft = POINT_MAX_LENGTH - content.length;
   const debouncedContent = useDebounce(content, 500);
   const { data: similarPoints } = useSimilarPoints(debouncedContent);
   const { mutateAsync: endorse } = useEndorse();
@@ -92,13 +91,6 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({ ...props }) => {
       .filter(Boolean);
     setImprovementSuggestions(suggestions);
   }, [improvementSuggestionsStream]);
-
-  const canSubmit =
-    user &&
-    !createdPointId &&
-    (selectedPoint
-      ? true
-      : (charactersLeft >= 0 && content.length >= POINT_MIN_LENGTH));
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 

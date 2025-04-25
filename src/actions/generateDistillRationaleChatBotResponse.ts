@@ -78,13 +78,7 @@ export const generateDistillRationaleChatBotResponse = async (
       throw new Error("No chat messages found for response generation");
     }
 
-    console.log(
-      `[generateDistillRationaleChatBotResponse] Starting... Selected Rationale ID: ${selectedRationaleId}`
-    );
     const viewerId = await getUserId();
-    console.log(
-      `[generateDistillRationaleChatBotResponse] Viewer ID: ${viewerId}`
-    );
 
     let fetchedRationaleData: SelectViewpoint | undefined = undefined;
     let creatorEndorsementsString = "";
@@ -102,14 +96,7 @@ export const generateDistillRationaleChatBotResponse = async (
           where: eq(viewpointsTable.id, selectedRationaleId),
         });
         if (!fetchedRationaleData) throw new Error(`Rationale not found.`);
-        console.log(
-          `[generateDistillRationaleChatBotResponse] Fetched rationale ${selectedRationaleId}.`
-        );
       } catch (dbError) {
-        console.error(
-          `[generateDistillRationaleChatBotResponse] DB error fetching rationale ${selectedRationaleId}:`,
-          dbError
-        );
         throw new Error(`Failed to fetch rationale data.`);
       }
 
@@ -140,15 +127,7 @@ export const generateDistillRationaleChatBotResponse = async (
           pointsDataMap = new Map(
             pointsData.map((p) => [p.id, p.content || "[Content missing]"])
           );
-          console.log(
-            `[generateDistillRationaleChatBotResponse] Fetched content for ${pointsDataMap.size} points in graph.`
-          );
-        } catch (dbError) {
-          console.error(
-            `[generateDistillRationaleChatBotResponse] Failed to fetch point content for rationale ${selectedRationaleId}:`,
-            dbError
-          );
-        }
+        } catch (dbError) {}
 
         try {
           type EndorsementRecord = { pointId: number; cred: number };
@@ -169,14 +148,7 @@ export const generateDistillRationaleChatBotResponse = async (
             creatorEndorsements.length > 0
               ? `Points Endorsed by Creator (ID: ${rationaleCreatorId}):\n${creatorEndorsements.map((e) => `- [Point:${e.pointId}] (Cred: ${e.cred})`).join("\n")}`
               : "No points in this rationale were endorsed by the creator.";
-          console.log(
-            `[generateDistillRationaleChatBotResponse] Fetched ${creatorEndorsements.length} creator endorsements.`
-          );
         } catch (dbError) {
-          console.error(
-            `[generateDistillRationaleChatBotResponse] Failed to fetch creator endorsements:`,
-            dbError
-          );
           creatorEndorsementsString = "Error fetching creator endorsements.";
         }
 
@@ -201,10 +173,8 @@ export const generateDistillRationaleChatBotResponse = async (
           } else {
             textPart = "[Unknown Node Type]";
           }
-          const sanitizedTextPart =
-            node.type !== "point" ? sanitizeText(textPart) : textPart;
 
-          return `- Node ${node.id}${idPart}: ${sanitizedTextPart}`;
+          return `- Node ${node.id}${idPart}: ${sanitizeText(textPart).substring(0, 150)}...`;
         };
 
         nodesString =
@@ -215,16 +185,13 @@ export const generateDistillRationaleChatBotResponse = async (
             ?.map((e: AppEdge) => `- Edge: ${e.source} -> ${e.target}`)
             ?.join("\n") || "No edges found.";
 
-        contextRationaleSection = `Selected Rationale for Distillation:\n- Rationale Title: \"${sanitizeText(rationaleTitle)}\" (ID:${selectedRationaleId})\n- Description: ${sanitizeText(rationaleDescription)}\n- ${creatorEndorsementsString}\n- Graph Structure:\n    Nodes:\n${nodesString}\n    Edges:\n${edgesString}\n(Source: Rationale \"${sanitizeText(rationaleTitle)}\" ID:${selectedRationaleId})`;
+        contextRationaleSection = `Selected Rationale for Distillation:\n- Rationale Title: "${sanitizeText(rationaleTitle)}" (ID:${selectedRationaleId})\n- Description: ${sanitizeText(rationaleDescription).substring(0, 500)}...\n- ${creatorEndorsementsString}\n- Graph Structure:\n    Nodes:\n${nodesString}\n    Edges:\n${edgesString}\n(Source: Rationale "${sanitizeText(rationaleTitle)}" ID:${selectedRationaleId})`;
       } else {
-        console.log(
-          `[generateDistillRationaleChatBotResponse] No point nodes found in rationale graph.`
-        );
         creatorEndorsementsString =
           "No points found in this rationale to check for creator endorsements.";
       }
 
-      contextRationaleSection = `Selected Rationale for Distillation:\n- Rationale Title: \"${sanitizeText(rationaleTitle)}\" (ID:${selectedRationaleId})\n- Description: ${sanitizeText(rationaleDescription)}\n- ${creatorEndorsementsString}\n(Source: Rationale \"${sanitizeText(rationaleTitle)}\" ID:${selectedRationaleId})`;
+      contextRationaleSection = `Selected Rationale for Distillation:\n- Rationale Title: "${sanitizeText(rationaleTitle)}" (ID:${selectedRationaleId})\n- Description: ${sanitizeText(rationaleDescription).substring(0, 500)}...\n- ${creatorEndorsementsString}\n(Source: Rationale "${sanitizeText(rationaleTitle)}" ID:${selectedRationaleId})`;
     } else {
       const queryGenContext = settings.includeDiscourseMessages
         ? allDiscourseMessages
@@ -235,20 +202,9 @@ export const generateDistillRationaleChatBotResponse = async (
       );
       let searchResults: SearchResult[] = [];
       if (viewerId && searchQueries.length > 0) {
-        console.log(
-          `[generateDistillRationaleChatBotResponse] Non-Distill: Calling searchContent...`
-        );
         try {
           searchResults = await searchContent(searchQueries);
-          console.log(
-            `[generateDistillRationaleChatBotResponse] Non-Distill: searchContent returned ${searchResults.length} results.`
-          );
-        } catch (searchError) {
-          console.error(
-            "[generateDistillRationaleChatBotResponse] Non-Distill: Error during search:",
-            searchError
-          );
-        }
+        } catch (searchError) {}
       }
       const MAX_RELEVANT_POINTS = 10;
       const MAX_RELEVANT_RATIONALES_SEARCH = 5;
@@ -269,28 +225,6 @@ export const generateDistillRationaleChatBotResponse = async (
       ? allDiscourseMessages.slice(-3)
       : [];
 
-    console.log(
-      "[generateDistillRationaleChatBotResponse] Context preparation finished."
-    );
-
-    console.log(
-      "[generateDistillRationaleChatBotResponse] Data for prompt - relevantPoints:",
-      relevantPoints.length
-    );
-    console.log(
-      "[generateDistillRationaleChatBotResponse] Data for prompt - relevantRationales:",
-      relevantRationalesFromSearch
-        .map((r) => ({ id: (r as any).id, title: (r as any).title }))
-        .slice(0, 10)
-    );
-    console.log(
-      "[generateDistillRationaleChatBotResponse] Data for prompt - relevantDiscourseMessages:",
-      relevantDiscourseMessagesForPrompt.length
-    );
-
-    console.log(
-      "[generateDistillRationaleChatBotResponse] Constructing final prompt string..."
-    );
     let finalPromptString;
     try {
       let mainGoalInstruction = "";
@@ -299,14 +233,11 @@ export const generateDistillRationaleChatBotResponse = async (
       let distillSpecificRules = "";
 
       if (selectedRationaleId && fetchedRationaleData) {
-        mainGoalInstruction = `Your primary goal is to distill the selected rationale (ID: ${selectedRationaleId}) into a **first-person essay that reflects the author's perspective *as indicated by their specific endorsements* within this rationale.** Write **as if you are the author**, synthesizing the arguments from the points they endorsed (listed in Creator Endorsements) and the overall rationale structure (Title, Description, Graph). Focus *exclusively* on presenting the content and arguments derived from the rationale details provided below. **Analyze the Creator Endorsements list (point IDs and cred amounts) to understand the author's main focus and conviction levels.** The essay should explain *why* the author endorses certain points, incorporating the **cred amount** as a measure of conviction where appropriate.`;
+        mainGoalInstruction = `Your goal is to help the user distill their selected rationale (ID: ${selectedRationaleId}) into a well-structured **first-person essay**. Write **as if you are the author** articulating the arguments **based primarily on the points you (the creator) have endorsed within this rationale**. Focus on explaining *why* you hold a certain position by unpacking the specific points listed in the 'Points Endorsed by Creator' section below, referencing their content (available in the graph nodes) and the 'Cred' you assigned to them. Use the overall rationale structure (Title, Description, Graph) for context and flow, but **prioritize the endorsed points** to shape the core argument. **Do NOT suggest new points or negations.** **Do NOT analyze or critique the rationale itself**; simply present the argument derived from your endorsed points coherently from the first-person perspective. If endorsed points present conflicting views, acknowledge this tension and explain the overall stance based on the relative 'Cred' assigned.`;
         suggestionRule = `**IMPORTANT:** Do NOT suggest new points or negations using \`[Suggest Point]>\` or \`[Suggest Negation For:ID]>\` tags in this distillation task.`;
         distillSpecificRules = `**IMPORTANT (Distill Flow):**
-*   **Do NOT use \`[Point:ID]\` or \`[Rationale:ID]\` bracket tags in your essay response.**
-*   **Refer to points by synthesizing their FULL content.** You are provided with the complete text for each point node in the 'Graph Structure' section below. Use this full text to accurately represent the arguments.
-*   **Explicitly mention the key points the author endorsed** based on the 'Creator Endorsements' list. Focus your analysis and explanation on the **full arguments** presented in these specific points.
-*   **Incorporate the 'cred' amount** associated with endorsements naturally into the text to signify the level of agreement or importance (e.g., "I strongly agree with the argument that '[full point text summary]', endorsing it with [X] cred because...", or "My [X] cred endorsement for the point stating '[full point text summary]' highlights...").
-*   Use the provided graph structure (Nodes/Edges) to understand the relationships between the endorsed points and structure the essay logically.`;
+        *   **Unpack Endorsed Points:** Explicitly mention the points the creator endorsed (from the 'Points Endorsed by Creator' list) and their associated 'Cred' within the essay body. Explain how these specific points and their endorsement levels support the overall argument.
+        *   **No Bracket Tags:** Do NOT use \`[Point:ID]\` or \`[Rationale:ID]\` tags in your essay response. Weave the arguments from the endorsed points (using their content from the graph nodes) into the narrative naturally.`;
 
         contextSectionBuild = `${contextRationaleSection}\n\n${relevantDiscourseMessagesForPrompt.length > 0 ? `Relevant Recent Discourse Posts:\n${relevantDiscourseMessagesForPrompt.map((m) => `- Post ID:${m.id} - ${m.raw || m.content} (Source: Discourse Post ID:${m.id})`).join("\n\n")}` : "No relevant Discourse posts provided."}`;
       } else {
@@ -323,7 +254,7 @@ export const generateDistillRationaleChatBotResponse = async (
                   const sanitizedTitle = sanitizeText(r.title) || "[Untitled]";
                   const sanitizedContent =
                     sanitizeText(r.content || "") || "[No content]";
-                  return `- Rationale \"${sanitizedTitle}\" (ID:${r.id}) - ${sanitizedContent} (Source: Search Result Rationale ID:${r.id})`;
+                  return `- Rationale "${sanitizedTitle}" (ID:${r.id}) - ${sanitizedContent.substring(0, 150)}... (Source: Search Result Rationale ID:${r.id})`;
                 })
                 .join("\n")}`
             : "No specific rationales found via search for the current discussion turn.";
@@ -389,7 +320,7 @@ WRITING STYLE:
 *   Objective tone. Active voice preferred.
 *   Concise, varied sentences. Specific examples.
 *   Effective transitions. Clear takeaways.
-*   **DISTILL FLOW:** Write in the **first person** (I, my, we). Present the rationale's arguments constructively, **emphasizing the points the author endorsed and their stated conviction (cred amount).** Avoid meta-commentary or analysis *of* the rationale itself; focus on articulating the author's endorsed view *within* it.
+*   **DISTILL FLOW:** Write in the **first person** (I, my, we). Present the rationale's arguments directly and constructively, focusing on the points the *creator endorsed* and their reasoning. Avoid meta-commentary or analysis *of* the rationale.
 
 ---
 CONTEXT FOR THIS RESPONSE (Use this information and cite sources using the \`(Source: ...)\` format ONLY for external context like Discourse Posts):
@@ -401,51 +332,30 @@ CHAT HISTORY:
 ${chatMessages.map((m) => m.role.toUpperCase() + ":\n" + m.content + "\n").join("\n")}
 
 Remember:
-${selectedRationaleId ? "5. You are distilling. Use source tags only for external context. **Do not use bracket tags like [Point:ID] in your response.** Focus on the author's endorsed points and cred." : "1. Focus on helping..."}
+${selectedRationaleId ? "5. You are distilling. Focus on the creator's endorsed points and cred. Use source tags only for external context. **Do not use bracket tags like [Point:ID] in your response.**" : "1. Focus on helping..."}
 
 INSTRUCTIONS:
-${selectedRationaleId && fetchedRationaleData ? "*   Follow the **first-person** perspective...\n*   **Synthesize the 'Creator Endorsements' (points and cred) into the essay's core argument.**\n*   **DO NOT suggest new points or negations...**\n*   **DO NOT use bracket tags like [Point:ID] or [Rationale:ID] in your essay.**\n*   **Consider the entire chat history to understand the user's follow-up requests, but write the essay based *only* on the provided rationale context and endorsements.**" : "*   Suggest new points or negations..."}
+${selectedRationaleId && fetchedRationaleData ? "*   Follow the **first-person** perspective, writing as the rationale creator.\n*   **Base the essay primarily on the points the creator endorsed** (listed in context), explaining their significance and 'Cred' values.\n*   Use the full rationale graph for context but prioritize the endorsed points for the core argument.\n*   **Explicitly detail the endorsed points and their cred within the essay.**\n*   **DO NOT suggest new points or negations...**\n*   **DO NOT use bracket tags like [Point:ID] or [Rationale:ID] in your essay.**\n*   **Consider the entire chat history to understand the user's follow-up requests, but continue writing the essay based *only* on the provided rationale context (prioritizing endorsed points).**" : "*   Suggest new points or negations..."}
 
 A:`;
-
-      console.log(
-        "[generateDistillRationaleChatBotResponse] Prompt string constructed successfully."
-      );
     } catch (promptError) {
-      console.error(
-        "[generateDistillRationaleChatBotResponse] FATAL ERROR during prompt construction:",
-        promptError
-      );
       throw new Error("Failed during prompt construction");
     }
 
-    console.log(
-      "[generateDistillRationaleChatBotResponse] Calling AI model (streamText) with retry..."
-    );
     const aiResult = await withRetry(async () => {
       try {
-        console.log(
-          "[generateDistillRationaleChatBotResponse][withRetry] Calling streamText..."
-        );
         const response = await streamText({
           model: google("gemini-1.5-flash"),
           prompt: finalPromptString,
         });
 
         if (!response) {
-          console.error(
-            "[generateDistillRationaleChatBotResponse][withRetry] Failed to get response object from AI model."
-          );
           throw new Error("Failed to get response from AI model");
         }
 
-        console.log(
-          "[generateDistillRationaleChatBotResponse][withRetry] AI call successful, returning response object."
-        );
         return response;
       } catch (error) {
         if (error instanceof Error) {
-          console.log(error.message);
           if (error.message.includes("rate limit")) {
             throw new Error(
               "AI service is currently busy. Please try again in a moment."
@@ -460,31 +370,18 @@ A:`;
             );
           }
         }
-        console.error(
-          "[generateDistillRationaleChatBotResponse][withRetry] Non-retriable error during AI call:",
-          error
-        );
         throw error;
       }
     });
 
     const elementStream = aiResult.textStream;
     if (!elementStream) {
-      console.error(
-        "[generateDistillRationaleChatBotResponse] Failed to get textStream from AI model result after retry."
-      );
       throw new Error("Failed to initialize response stream");
     }
 
-    console.log(
-      "[generateDistillRationaleChatBotResponse] Returning elementStream."
-    );
     return elementStream;
   } catch (error) {
-    console.error("Error in generateDistillRationaleChatBotResponse:", error);
-
     if (error instanceof Error) {
-      console.log(error.message);
       if (
         error.message.includes("AI response blocked") ||
         error.message.includes("AI response stopped") ||

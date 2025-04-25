@@ -39,7 +39,6 @@ export const MessageSources: React.FC<MessageSourcesProps> = ({
                 <AccordionContent className="pt-2 pb-0">
                     <div className="flex flex-wrap gap-2">
                         {sources.map((source, index) => {
-                            // Attempt to find raw/html content specifically for Discourse posts
                             let rawContent: string | undefined = undefined;
                             let htmlContent: string | undefined = undefined;
                             if (source.type === 'Discourse Post') {

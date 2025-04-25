@@ -5,8 +5,6 @@ import { encodeId } from '@/lib/encodeId';
 import { useSetAtom } from 'jotai';
 import { makePointSuggestionAtom } from '@/atoms/makePointSuggestionAtom';
 import { makeNegationSuggestionAtom } from '@/atoms/makeNegationSuggestionAtom';
-import { negatedPointIdAtom } from '@/atoms/negatedPointIdAtom';
-import { negationContentAtom } from '@/atoms/negationContentAtom';
 import { DEFAULT_SPACE } from '@/constants/config';
 import { usePointData } from '@/queries/usePointData';
 
@@ -47,7 +45,6 @@ export const SuggestionBlock: React.FC<SuggestionBlockProps> = ({ type, targetId
         try {
             displayTargetId = encodeId(targetId);
         } catch (e) {
-            console.error(`SuggestionBlock: Failed to encode target ID ${targetId}`, e);
             displayTargetId = targetId;
         }
     } else {
@@ -58,13 +55,9 @@ export const SuggestionBlock: React.FC<SuggestionBlockProps> = ({ type, targetId
 
     const handleClick = () => {
         if (type === 'point') {
-            console.log('[SuggestionBlock] Make Point clicked. Setting atom with:', { text, spaceId: space ?? DEFAULT_SPACE });
             setMakePointSuggestion({ text, context: 'chat', spaceId: space ?? DEFAULT_SPACE });
         } else if (isNegationSuggestion) {
-            console.log('[SuggestionBlock] Negation Suggestion clicked. Setting atom with:', { targetId, text, spaceId: space ?? DEFAULT_SPACE });
             setMakeNegationSuggestion({ targetId, text, context: 'chat', spaceId: space ?? DEFAULT_SPACE });
-        } else {
-            console.log('Suggestion clicked (unknown type):', { type, targetId, text });
         }
     };
 

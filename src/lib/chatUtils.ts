@@ -72,7 +72,7 @@ export const extractSourcesFromMarkdown = (
   while ((match = multiDiscoursePostRefRegex.exec(content)) !== null) {
     const fullMatch = match[0];
     let digitMatch;
-    digitRegex.lastIndex = 0; // Reset for this inner loop
+    digitRegex.lastIndex = 0;
     while ((digitMatch = digitRegex.exec(fullMatch)) !== null) {
       const id = parseInt(digitMatch[0], 10);
       if (!isNaN(id)) {
@@ -85,7 +85,7 @@ export const extractSourcesFromMarkdown = (
   while ((match = multiPointRefRegex.exec(content)) !== null) {
     const fullMatch = match[0];
     let digitMatch;
-    digitRegex.lastIndex = 0; // Reset for inner loop
+    digitRegex.lastIndex = 0;
     while ((digitMatch = digitRegex.exec(fullMatch)) !== null) {
       const id = parseInt(digitMatch[0], 10);
       if (!isNaN(id)) {
@@ -147,6 +147,5 @@ export const extractSourcesFromMarkdown = (
     });
   }
 
-  console.log("[chatUtils] Extracted sources from content:", sources);
   return sources;
 };

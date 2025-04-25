@@ -22,11 +22,6 @@ interface UseChatListManagementProps {
   onBackgroundDeleteError?: (chatId: string, error: string) => void;
 }
 
-type FullChatData = Omit<SavedChat, "createdAt" | "state_hash"> & {
-  createdAt?: string;
-  state_hash: string;
-};
-
 export function useChatListManagement({
   currentSpace,
   isAuthenticated,
@@ -58,12 +53,10 @@ export function useChatListManagement({
     async (chatData: SavedChat) => {
       if (!isAuthenticated || !currentSpace) return;
       if (!chatData || !chatData.id) {
-        console.warn("[ExecutePush] Invalid chat data provided:", chatData);
         return;
       }
 
       const chatId = chatData.id;
-      console.log(`[ExecutePush] Attempting push for chat ${chatId}...`);
 
       setPendingPushIds((prev) => new Set(prev).add(chatId));
 
@@ -82,18 +75,12 @@ export function useChatListManagement({
 
         if (!success) {
           op = "create";
-          console.log(
-            `[ExecutePush] Update failed for ${chatId}, attempting create...`
-          );
           const createPayload = { ...chatToSend, spaceId: currentSpace };
           result = await createDbChat(createPayload);
           success = result.success;
         }
 
         if (success) {
-          console.log(
-            `[ExecutePush] Successfully pushed (${op}) chat ${chatId} to server.`
-          );
           if (op === "create") {
             onBackgroundCreateSuccess?.(chatId);
           } else {
@@ -101,9 +88,6 @@ export function useChatListManagement({
           }
         } else {
           const errorMessage = result.error || "Unknown push failure";
-          console.error(
-            `[ExecutePush] Failed to push chat ${chatId} to server (tried ${op}). Error: ${errorMessage}`
-          );
           toast.error(
             `Failed to save chat "${chatData.title.substring(0, 20)}..." to server.`
           );
@@ -116,10 +100,6 @@ export function useChatListManagement({
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
-        console.error(
-          `[ExecutePush] Network/unexpected error during push (${op}) for chat ${chatId}:`,
-          error
-        );
         toast.error(
           `Error saving chat "${chatData.title.substring(0, 20)}...". Check connection.`
         );
@@ -156,12 +136,7 @@ export function useChatListManagement({
     pushDebounceTimeoutRef.current = setTimeout(() => {
       const updatesToPush = Array.from(pendingChatUpdatesRef.current.values());
       if (updatesToPush.length > 0) {
-        console.log(
-          `[DebouncedPush] Executing push for ${updatesToPush.length} chats.`
-        );
         updatesToPush.forEach((chatData) => executePush(chatData));
-      } else {
-        console.log("[DebouncedPush] No pending updates to push.");
       }
     }, PUSH_DEBOUNCE_MS);
   }, [executePush]);
@@ -175,24 +150,18 @@ export function useChatListManagement({
   );
 
   useEffect(() => {
-    console.log("[ChatList] Auth/Space Effect Triggered:", {
-      isAuthenticated,
-      currentSpace,
-    });
     setIsInitialized(false);
     if (
       isAuthenticated === null ||
       isAuthenticated === undefined ||
       !currentSpace
     ) {
-      console.log("[ChatList] Waiting for auth status and space...");
       setSavedChats([]);
       setCurrentChatId(null);
       return;
     }
 
     if (isAuthenticated === false) {
-      console.log("[ChatList] User not authenticated. Clearing local state.");
       localStorage.removeItem(`saved_chats_${currentSpace}`);
       setSavedChats([]);
       setCurrentChatId(null);
@@ -200,9 +169,6 @@ export function useChatListManagement({
       return;
     }
 
-    console.log(
-      `[ChatList] Authenticated. Loading chats for space: ${currentSpace}`
-    );
     const savedChatsStr = localStorage.getItem(`saved_chats_${currentSpace}`);
     let chats: SavedChat[] = [];
     if (savedChatsStr) {
@@ -236,7 +202,6 @@ export function useChatListManagement({
       }
     }
     setSavedChats(chats);
-    console.log(`[ChatList] Loaded ${chats.length} chats from localStorage.`);
 
     if (chats.length > 0) {
       const lastChatId = localStorage.getItem(`last_chat_id_${currentSpace}`);
@@ -244,28 +209,17 @@ export function useChatListManagement({
         lastChatId && chats.some((c) => c.id === lastChatId);
       if (validLastChat) {
         setCurrentChatId(lastChatId);
-        console.log(
-          `[ChatList] Set current chat ID from last used: ${lastChatId}`
-        );
       } else if (chats[0].space === currentSpace) {
         setCurrentChatId(chats[0].id);
-        console.log(
-          `[ChatList] Set current chat ID to most recent: ${chats[0].id}`
-        );
         localStorage.setItem(`last_chat_id_${currentSpace}`, chats[0].id);
       } else {
-        console.warn(
-          `[ChatList] Most recent chat space (${chats[0].space}) doesn't match current (${currentSpace}). Not setting current ID.`
-        );
         setCurrentChatId(null);
       }
     } else {
       setCurrentChatId(null);
-      console.log("[ChatList] No chats loaded, setting current ID to null.");
     }
 
     setIsInitialized(true);
-    console.log("[ChatList] Initialization complete.");
   }, [currentSpace, isAuthenticated]);
 
   useEffect(() => {
@@ -282,7 +236,6 @@ export function useChatListManagement({
       distillRationaleId?: string | null
     ) => {
       if (!currentSpace) {
-        console.error("updateChat called without currentSpace");
         return null;
       }
 
@@ -291,9 +244,6 @@ export function useChatListManagement({
       setSavedChats((prev) => {
         const internalChatIndex = prev.findIndex((c) => c.id === chatId);
         if (internalChatIndex === -1) {
-          console.error(
-            `updateChat (sync) called for non-existent chatId: ${chatId}. Aborting update.`
-          );
           return prev;
         }
 
@@ -339,7 +289,6 @@ export function useChatListManagement({
           JSON.stringify(updatedChats)
         );
 
-        console.log(`[ChatList Update Sync] Queuing push for chat ${chatId}.`);
         queuePushUpdate(finalUpdatedChat);
 
         updatedChatDataForPush = finalUpdatedChat;
@@ -354,9 +303,6 @@ export function useChatListManagement({
 
   const createNewChat = useCallback(async () => {
     if (!currentSpace || !isAuthenticated) {
-      console.error(
-        "Cannot create chat: No space selected or not authenticated"
-      );
       return null;
     }
 
@@ -390,9 +336,6 @@ export function useChatListManagement({
 
     (async () => {
       try {
-        console.log(
-          `[ChatList] Attempting background server create for new chat ${newChatId}...`
-        );
         const actualHash = await computeChatStateHash(
           newChat.title,
           newChat.messages
@@ -406,9 +349,6 @@ export function useChatListManagement({
         const result = await createDbChat(payloadToServer);
 
         if (!result.success) {
-          console.error(
-            `[ChatList] Background server create failed for ${newChatId}: ${result.error}`
-          );
           toast.error(
             `Sync Error: Failed to save new chat "${newChat.title}" to server.`
           );
@@ -417,18 +357,11 @@ export function useChatListManagement({
             result.error || "Failed to save new chat to server."
           );
         } else {
-          console.log(
-            `[ChatList] Background server create successful for ${newChatId}.`
-          );
           onBackgroundCreateSuccess?.(newChatId);
         }
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown network error";
-        console.error(
-          `[ChatList] Network error during background server create for ${newChatId}:`,
-          error
-        );
         toast.error(
           `Sync Error: Could not contact server to save new chat "${newChat.title}".`
         );
@@ -462,7 +395,6 @@ export function useChatListManagement({
         chatToDeleteLocally.title.substring(0, 20) +
         (chatToDeleteLocally.title.length > 20 ? "..." : "");
 
-      console.log(`[ChatList] Deleting chat locally immediately: ${chatId}`);
       let nextChatId: string | null = null;
       const updatedChats = savedChats.filter((chat) => chat.id !== chatId);
 
@@ -495,15 +427,9 @@ export function useChatListManagement({
 
       (async () => {
         try {
-          console.log(
-            `[ChatList] Attempting background server delete for ${chatId}...`
-          );
           const result = await markChatAsDeleted(chatId);
 
           if (!result.success) {
-            console.error(
-              `[ChatList] Background server delete failed for ${chatId}: ${result.error}`
-            );
             toast.error(
               `Sync Error: Failed to delete "${shortTitle}" on server. It might reappear on next sync.`
             );
@@ -512,18 +438,11 @@ export function useChatListManagement({
               result.error || "Failed to delete on server."
             );
           } else {
-            console.log(
-              `[ChatList] Background server delete successful for ${chatId}.`
-            );
             onBackgroundDeleteSuccess?.(chatId);
           }
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : "Unknown network error";
-          console.error(
-            `[ChatList] Network error during background server delete for ${chatId}:`,
-            error
-          );
           toast.error(
             `Sync Error: Could not contact server to delete "${shortTitle}". It might reappear.`
           );
@@ -552,17 +471,11 @@ export function useChatListManagement({
     (chatId: string | null) => {
       if (chatId === null) {
         setCurrentChatId(null);
-        console.log("[ChatList] Cleared current chat selection.");
         return;
       }
       const chat = savedChats.find((c) => c.id === chatId);
       if (chat) {
         setCurrentChatId(chatId);
-        console.log(`[ChatList] Switched to chat ID: ${chatId}`);
-      } else {
-        console.warn(
-          `[ChatList] Attempted to switch to non-existent chat ID: ${chatId}`
-        );
       }
     },
     [savedChats]
@@ -590,7 +503,6 @@ export function useChatListManagement({
         });
 
         if (!chatFound) {
-          console.warn(`[Rename Chat] Chat ID ${chatId} not found.`);
           return prev;
         }
 
@@ -607,7 +519,6 @@ export function useChatListManagement({
       });
 
       if (updatedChatDataForPush) {
-        console.log(`[ChatList Rename] Queuing push for chat ${chatId}.`);
         queuePushUpdate(updatedChatDataForPush);
       }
 
@@ -622,9 +533,6 @@ export function useChatListManagement({
 
     const chatIdsToDelete = savedChats.map((chat) => chat.id);
     const spaceName = currentSpace;
-    console.log(
-      `[ChatList] Deleting all ${chatIdsToDelete.length} chats locally for space: ${spaceName}`
-    );
 
     setPendingPushIds((prev) => new Set([...prev, ...chatIdsToDelete]));
 
@@ -636,9 +544,6 @@ export function useChatListManagement({
       `All ${chatIdsToDelete.length} chats removed locally from space '${spaceName}'.`
     );
 
-    console.log(
-      `[ChatList] Attempting background server delete for ${chatIdsToDelete.length} chats...`
-    );
     const deletePromises = chatIdsToDelete.map((id) =>
       markChatAsDeleted(id)
         .then((result) => ({ ...result, id }))
@@ -657,15 +562,7 @@ export function useChatListManagement({
         if (result.status === "fulfilled" && !result.value.success) {
           failedDeletions.push(result.value.id);
           const errorMsg = result.value.error || "Unknown reason";
-          console.error(
-            `[ChatList DeleteAll] Server delete failed for ${result.value.id}: ${errorMsg}`
-          );
           onBackgroundDeleteError?.(result.value.id, errorMsg);
-        } else if (result.status === "rejected") {
-          console.error(
-            `[ChatList DeleteAll] Promise rejected during delete:`,
-            result.reason
-          );
         }
       });
 
@@ -677,9 +574,6 @@ export function useChatListManagement({
       });
 
       if (failedDeletions.length > 0) {
-        console.error(
-          `[ChatList] Background server delete failed for ${failedDeletions.length} chats.`
-        );
         toast.error(
           `Sync Error: Failed to delete ${failedDeletions.length} chat(s) on the server. They might reappear.`
         );
@@ -687,22 +581,11 @@ export function useChatListManagement({
           onBackgroundDeleteError?.(id, "Failed during bulk delete.")
         );
       } else {
-        console.log(
-          `[ChatList] Background server delete successful for all ${chatIdsToDelete.length} chats.`
-        );
         chatIdsToDelete
           .filter((id) => !failedDeletions.includes(id))
           .forEach((id) => onBackgroundDeleteSuccess?.(id));
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "Unknown error during bulk delete";
-      console.error(
-        "[ChatList] Unexpected error during background delete all:",
-        error
-      );
       toast.error(
         "Sync Error: An unexpected issue occurred while deleting chats on the server."
       );
@@ -756,9 +639,6 @@ export function useChatListManagement({
       });
 
       if (chatId === currentChatId) {
-        console.log(
-          `[Sync Replace] Replaced currently active chat ${chatId}. UI should update.`
-        );
       }
     },
     [currentSpace, currentChatId]
@@ -767,9 +647,6 @@ export function useChatListManagement({
   const deleteChatLocally = useCallback(
     (chatId: string) => {
       if (!currentSpace) return;
-      console.log(
-        `[ChatList Sync Delete] Deleting chat locally only: ${chatId}`
-      );
       let nextChatId: string | null = null;
       let originalChats: SavedChat[] = [];
 

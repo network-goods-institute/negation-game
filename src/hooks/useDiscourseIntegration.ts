@@ -36,7 +36,7 @@ export function useDiscourseIntegration({
   const [isConnectingToDiscourse, setIsConnectingToDiscourse] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [discourseUsername, setDiscourseUsername] = useState("");
-  const [discourseUrl, setDiscourseUrl] = useState("https://forum.scroll.io"); // Consider making this configurable?
+  const [discourseUrl, setDiscourseUrl] = useState("https://forum.scroll.io");
   const [storedMessages, setStoredMessages] = useState<DiscourseMessage[]>([]);
   const [showMessagesModal, setShowMessagesModal] = useState(false);
   const [showConsentDialog, setShowConsentDialog] = useState(false);
@@ -58,7 +58,6 @@ export function useDiscourseIntegration({
         }
       }
     } catch (error) {
-      console.error("Error parsing stored messages:", error);
       localStorage.removeItem("discourse_messages");
     }
     return [];
@@ -80,7 +79,6 @@ export function useDiscourseIntegration({
         setHasStoredMessages(true);
       }
     } catch (error) {
-      console.error("Error saving messages to localStorage:", error);
       toast.error("Error saving messages: Storage error");
     }
   }, []);
@@ -94,7 +92,6 @@ export function useDiscourseIntegration({
         toast.error("No messages found. Please connect to Discourse first.");
       }
     } catch (error) {
-      console.error("Error loading messages:", error);
       toast.error("Error loading messages from storage");
     }
   }, [loadStoredMessages]);
@@ -144,7 +141,6 @@ export function useDiscourseIntegration({
           throw new Error(result.error || "Unknown error updating profile");
         }
       } catch (error) {
-        console.error("Failed to update profile:", error);
         throw error;
       }
     },
@@ -212,7 +208,6 @@ export function useDiscourseIntegration({
         if (!eventSourceClosed) {
           eventSource.close();
           eventSourceClosed = true;
-          console.log("EventSource closed.");
         }
       };
 
@@ -225,16 +220,12 @@ export function useDiscourseIntegration({
             );
           }
           if (data.done) {
-            console.log("EventSource received done message.");
             closeEventSource();
           }
-        } catch (e) {
-          console.error("Error parsing SSE message:", e);
-        }
+        } catch (e) {}
       };
 
       eventSource.onerror = (err) => {
-        console.error("EventSource failed:", err);
         closeEventSource();
       };
 
@@ -280,12 +271,10 @@ export function useDiscourseIntegration({
           );
           if (firstArrayKey) {
             rawPosts = data[firstArrayKey];
-            console.warn(`Using discovered array key: ${firstArrayKey}`);
           }
         }
       } else if (Array.isArray(data)) {
         rawPosts = data;
-        console.log("API response is a direct array.");
       }
       if (!Array.isArray(rawPosts)) {
         throw new Error("Could not extract posts array from API response");
@@ -329,7 +318,6 @@ export function useDiscourseIntegration({
         setError(
           `Connection failed: ${error.message || "Please check username/URL and try again."}`
         );
-        console.error("handleConnectToDiscourse Error:", error);
       }
       setFetchProgress(0);
     } finally {
@@ -372,7 +360,6 @@ export function useDiscourseIntegration({
         handleConnectToDiscourse();
       }, 100);
     } catch (error) {
-      console.error("Failed to update consent:", error);
       toast.error(
         "Failed to update consent settings. Please try connecting again."
       );
@@ -412,7 +399,6 @@ export function useDiscourseIntegration({
         setStoredMessages(messages);
         setHasStoredMessages(messages.length > 0);
       } catch (error) {
-        console.error("Error checking stored messages:", error);
         setStoredMessages([]);
         setHasStoredMessages(false);
       } finally {

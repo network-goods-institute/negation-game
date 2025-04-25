@@ -107,7 +107,7 @@ export default function AIAssistant() {
         if (typeof window !== 'undefined') {
             const savedSettings = localStorage.getItem('chat_settings');
             if (savedSettings) {
-                try { return JSON.parse(savedSettings); } catch (e) { console.error('Error parsing settings:', e); }
+                try { return JSON.parse(savedSettings); } catch (e) { /* Ignore error */ }
             }
         }
         return { includeEndorsements: true, includeRationales: true, includePoints: true, includeDiscourseMessages: true };
@@ -145,27 +145,21 @@ export default function AIAssistant() {
         currentSpace,
         isAuthenticated,
         onBackgroundCreateSuccess: (chatId) => {
-            console.log(`[Background Stat] Create success: ${chatId}`);
             backgroundStatsRef.current.creates++;
         },
         onBackgroundCreateError: (chatId, error) => {
-            console.log(`[Background Stat] Create error: ${chatId}`, error);
             backgroundStatsRef.current.errors++;
         },
         onBackgroundUpdateSuccess: (chatId) => {
-            console.log(`[Background Stat] Update success: ${chatId}`);
             backgroundStatsRef.current.updates++;
         },
         onBackgroundUpdateError: (chatId, error) => {
-            console.log(`[Background Stat] Update error: ${chatId}`, error);
             backgroundStatsRef.current.errors++;
         },
         onBackgroundDeleteSuccess: (chatId) => {
-            console.log(`[Background Stat] Delete success: ${chatId}`);
             backgroundStatsRef.current.deletes++;
         },
         onBackgroundDeleteError: (chatId, error) => {
-            console.log(`[Background Stat] Delete error: ${chatId}`, error);
             backgroundStatsRef.current.errors++;
         }
     });
@@ -192,8 +186,6 @@ export default function AIAssistant() {
     });
 
     const handleImportChat = useCallback(async (importChatId: string) => {
-        console.log(`[handleImportChat] Called for ID: ${importChatId}`);
-
         let toastId = toast.loading("Importing chat...");
         let importSuccess = false;
 
@@ -202,53 +194,40 @@ export default function AIAssistant() {
             if (!sharedContent) {
                 throw new Error("Failed to fetch shared content");
             }
-            console.log(`[handleImportChat] Fetched content for ${importChatId}. Creating new chat...`);
 
             const newChatId = await chatList.createNewChat();
             if (!newChatId || typeof newChatId !== 'string') {
                 throw new Error("Failed to create new chat");
             }
-            console.log(`[handleImportChat] Created chat ${newChatId}, updating with content...`);
 
             await chatList.updateChat(
                 newChatId,
                 sharedContent.messages,
                 `Imported: ${sharedContent.title}`.substring(0, 100)
             );
-            console.log(`[handleImportChat] Successfully imported chat ${importChatId} as ${newChatId}`);
             toast.success("Chat imported successfully!", { id: toastId });
             importSuccess = true;
 
         } catch (error) {
-            console.error("[handleImportChat] Error:", error);
             toast.error(
                 error instanceof Error ? error.message : "Failed to import chat",
                 { id: toastId }
             );
         } finally {
-            console.log("[handleImportChat Cleanup] Entered finally block.");
             importStatusRef.current = { importing: false, importId: null };
-            console.log("[handleImportChat Cleanup] Import status ref cleared.");
 
             if (importSuccess) {
-                console.log("[handleImportChat Cleanup] Import was successful. Proceeding with URL cleanup.");
                 try {
                     const currentUrl = new URL(window.location.href);
                     if (currentUrl.searchParams.has('importChat')) {
                         // eslint-disable-next-line drizzle/enforce-delete-with-where
                         currentUrl.searchParams.delete('importChat');
                         const newUrl = currentUrl.pathname + currentUrl.search;
-                        console.log(`[handleImportChat Cleanup] Cleaning URL. Old: ${window.location.href}, New: ${newUrl}`);
                         router.push(newUrl, { scroll: false });
-                        console.log("[handleImportChat Cleanup] router.push called for successful import.");
-                    } else {
-                        console.log("[handleImportChat Cleanup] Success, but importChat param already removed?");
                     }
                 } catch (e) {
-                    console.error("[handleImportChat Cleanup] Error cleaning URL after success:", e);
                 }
             } else {
-                console.log("[handleImportChat Cleanup] Import failed. Skipping URL cleanup.");
                 if (router && currentSpace) {
                     try {
                         const currentUrl = new URL(window.location.href);
@@ -256,13 +235,11 @@ export default function AIAssistant() {
                             // eslint-disable-next-line drizzle/enforce-delete-with-where
                             currentUrl.searchParams.delete('importChat');
                             const newUrl = currentUrl.pathname + currentUrl.search;
-                            console.log("[handleImportChat Cleanup] Cleaning URL after failure.");
                             router.push(newUrl, { scroll: false });
                         }
                     } catch (e) { /* Ignore cleanup error on fail */ }
                 }
             }
-            console.log("[handleImportChat Cleanup] Exiting finally block.");
         }
     }, [
         router,
@@ -278,7 +255,6 @@ export default function AIAssistant() {
         }
 
         if (processedImportIdsRef.current.has(importChatId)) {
-            console.log(`[Import Trigger Effect] Import ID ${importChatId} already processed this session. Skipping.`);
             try {
                 const currentUrl = new URL(window.location.href);
                 if (currentUrl.searchParams.has('importChat')) {
@@ -292,20 +268,14 @@ export default function AIAssistant() {
         }
 
         if (!isAuthenticated || !isChatListInitialized || isInitializing || isFetchingRationales) {
-            console.log(`[Import Trigger Effect] Waiting for initialization... Auth: ${isAuthenticated}, ChatList: ${isChatListInitialized}, Init: ${!isInitializing}, FetchingRationales: ${isFetchingRationales}`);
             return;
         }
 
         if (importStatusRef.current.importing) {
             if (importStatusRef.current.importId === importChatId) {
-                console.log(`[Import Trigger Effect] Import already in progress for ${importChatId} (Effect Guard).`);
-            } else {
-                console.warn(`[Import Trigger Effect] Effect triggered for ${importChatId} while import for ${importStatusRef.current.importId} is in progress. Aborting new trigger.`);
             }
             return;
         }
-
-        console.log(`[Import Trigger Effect] Conditions met. Preparing to import ${importChatId}.`);
 
         try {
             const currentUrl = new URL(window.location.href);
@@ -313,16 +283,11 @@ export default function AIAssistant() {
                 // eslint-disable-next-line drizzle/enforce-delete-with-where
                 currentUrl.searchParams.delete('importChat');
                 const newUrl = currentUrl.pathname + currentUrl.search;
-                console.log(`[Import Trigger Effect] Clearing URL parameter immediately. New target URL: ${newUrl}`);
                 router.push(newUrl, { scroll: false });
-            } else {
-                console.log(`[Import Trigger Effect] URL parameter already cleared? Skipping router.push.`);
             }
         } catch (e) {
-            console.error("[Import Trigger Effect] Error clearing URL parameter proactively:", e);
         }
 
-        console.log(`[Import Trigger Effect] Setting import guard and calling handleImportChat for ${importChatId}`);
         importStatusRef.current = { importing: true, importId: importChatId };
         processedImportIdsRef.current.add(importChatId);
 
@@ -361,7 +326,6 @@ export default function AIAssistant() {
                     try {
                         fetchedRationales = await fetchViewpoints(space);
                     } catch (rationaleError) {
-                        console.error('Error fetching rationales:', rationaleError);
                         toast.error("Failed to load rationales for distillation.");
                     } finally {
                         setIsFetchingRationales(false);
@@ -396,7 +360,6 @@ export default function AIAssistant() {
                     setIsFetchingRationales(false);
                 }
             } catch (error) {
-                console.error('Error initializing:', error);
                 setCurrentSpace('global');
                 setAllPointsInSpace([]);
                 setOwnedPoints([]);
@@ -464,33 +427,25 @@ export default function AIAssistant() {
     };
 
     const syncChats = useCallback(async () => {
-        console.log(`[Sync Triggered] State Check: isAuthenticated=${isAuthenticated}, currentSpace=${currentSpace}, isSyncing=${isSyncing}`);
-
         if (!isAuthenticated || !currentSpace) {
-            console.log("[Sync] Skipping: Not authenticated or no space.");
             return;
         }
 
         setIsSyncing(true);
-        console.log("[Sync] Set isSyncing = true");
 
         const currentPendingPushIds = chatList.pendingPushIds;
         if (currentPendingPushIds.size > 0) {
-            console.log(`[Sync] Info: Detected ${currentPendingPushIds.size} pending push operations. Sync will proceed cautiously.`);
         }
 
-        console.log("[Sync] Starting sync process...");
         const maxRetries = 2;
         const initialDelay = 2000;
 
         const attemptSync = async (retryCount: number) => {
-            console.log(`[Sync Attempt] Starting attempt ${retryCount + 1}/${maxRetries + 1}`);
             setSyncError(null);
             setSyncActivity('checking');
 
             const bgStats = { ...backgroundStatsRef.current };
             backgroundStatsRef.current = { creates: 0, updates: 0, deletes: 0, errors: 0 };
-            console.log("[Sync] Background stats captured and reset:", bgStats);
 
             let currentStats: SyncStats = {
                 pulled: 0,
@@ -504,9 +459,7 @@ export default function AIAssistant() {
                 setSyncActivity('pulling');
                 activitySet = true;
 
-                console.log("[Sync] Fetching server metadata...");
                 const serverMetadata: ChatMetadata[] = await fetchUserChatMetadata(currentSpace);
-                console.log(`[Sync] Found ${serverMetadata.length} chats on server.`);
 
                 let localChats: SavedChat[] = [];
                 const localDataString = localStorage.getItem(`saved_chats_${currentSpace}`);
@@ -514,11 +467,9 @@ export default function AIAssistant() {
                     try {
                         localChats = (JSON.parse(localDataString) as SavedChat[]).map(c => ({ ...c, state_hash: c.state_hash || "" }));
                     } catch (e) {
-                        console.error("[Sync] Error parsing local chats from storage:", e);
                         localChats = [];
                     }
                 }
-                console.log(`[Sync] Found ${localChats.length} chats locally for comparison.`);
 
                 const serverMap = new Map(serverMetadata.map(m => [m.id, m]));
                 const localMap = new Map(localChats.map(c => [c.id, c]));
@@ -527,22 +478,18 @@ export default function AIAssistant() {
                 const chatsToDeleteLocally: string[] = [];
                 const chatsToPush: SavedChat[] = [];
 
-                console.log("[Sync] Pass 1: Checking server chats against local...");
                 for (const serverChat of serverMetadata) {
                     const localChat = localMap.get(serverChat.id);
 
                     if (chatState.generatingChats.has(serverChat.id)) {
-                        console.log(`[Sync] Skipping pull check for active generating chat ${serverChat.id}`);
                         continue;
                     }
 
                     if (currentPendingPushIds.has(serverChat.id)) {
-                        console.log(`[Sync] Skipping PULL check for chat ${serverChat.id} as a local push is pending.`);
                         continue;
                     }
 
                     if (!localChat) {
-                        console.log(`[Sync] Action: PULL needed for server chat ${serverChat.id} (not found locally).`);
                         if (!activitySet) { setSyncActivity('pulling'); activitySet = true; }
                         currentStats.pulled++;
                         promisesToAwait.push((async () => {
@@ -559,10 +506,9 @@ export default function AIAssistant() {
                                         space: currentSpace
                                     } as SavedChat);
                                 } else {
-                                    console.warn(`[Sync] Content for pulled chat ${serverChat.id} was null.`);
                                     currentStats.errors++;
                                 }
-                            } catch (e) { console.error(`[Sync] Error pulling chat ${serverChat.id}:`, e); currentStats.errors++; throw e; }
+                            } catch (e) { currentStats.errors++; throw e; }
                         })());
                     } else {
                         const localHash = localChat.state_hash || await computeChatStateHash(localChat.title, localChat.messages);
@@ -571,10 +517,8 @@ export default function AIAssistant() {
 
                         if (serverChat.state_hash !== localHash && serverUpdatedAt > localUpdatedAt) {
                             if (currentPendingPushIds.has(serverChat.id)) {
-                                console.log(`[Sync] Skipping PULL (overwrite case) for chat ${serverChat.id} as a local push is pending.`);
                                 continue;
                             }
-                            console.log(`[Sync] Action: PULL needed for chat ${serverChat.id} (server newer & hash mismatch).`);
                             if (!activitySet) { setSyncActivity('pulling'); activitySet = true; }
                             currentStats.pulled++;
                             promisesToAwait.push((async () => {
@@ -589,19 +533,17 @@ export default function AIAssistant() {
                                             updatedAt: serverChat.updatedAt.toISOString(),
                                             space: currentSpace
                                         } as SavedChat);
-                                    } else { console.warn(`[Sync] Content for pulled chat ${serverChat.id} was null (overwrite case).`); currentStats.errors++; }
-                                } catch (e) { console.error(`[Sync] Error pulling chat ${serverChat.id} (overwrite case):`, e); currentStats.errors++; throw e; }
+                                    } else { currentStats.errors++; }
+                                } catch (e) { currentStats.errors++; throw e; }
                             })());
                         }
                     }
                 }
 
-                console.log("[Sync] Pass 2: Checking local chats against server...");
                 for (const localChat of localChats) {
                     const serverChat = serverMap.get(localChat.id);
                     if (!serverChat) {
                         if (currentPendingPushIds.has(localChat.id)) {
-                            console.log(`[Sync] Action: Skipping DELETE LOCAL for chat ${localChat.id} as a push operation is pending.`);
                             continue;
                         }
 
@@ -611,24 +553,16 @@ export default function AIAssistant() {
                         const RECENT_THRESHOLD_MS = 30000;
 
                         if (ageInMs < RECENT_THRESHOLD_MS) {
-                            console.log(
-                                `[Sync] Action: Skipping DELETE LOCAL for recently created chat ${localChat.id} (age: ${Math.round(ageInMs / 1000)}s). Assuming server create is pending.`
-                            );
                             continue;
                         } else {
-                            console.log(
-                                `[Sync] Action: DELETE LOCAL needed for chat ${localChat.id} (not found on server, age: ${Math.round(ageInMs / 1000)}s > threshold).`
-                            );
                             chatsToDeleteLocally.push(localChat.id);
                         }
                     } else {
                         if (chatState.generatingChats.has(localChat.id)) {
-                            console.log(`[Sync] Skipping push check for active generating chat ${localChat.id}`);
                             continue;
                         }
 
                         if (currentPendingPushIds.has(localChat.id)) {
-                            console.log(`[Sync] Skipping PUSH check for chat ${localChat.id} as a local push is already pending.`);
                             continue;
                         }
 
@@ -639,67 +573,55 @@ export default function AIAssistant() {
                         const serverUpdatedAt = serverChat.updatedAt.getTime();
 
                         if (serverChat.state_hash !== localHash && localUpdatedAt > serverUpdatedAt) {
-                            console.log(`[Sync] Action: PUSH UPDATE needed for chat ${localChat.id} (local newer & hash mismatch).`);
                             chatsToPush.push(localChat);
                         }
                     }
                 }
 
                 if (promisesToAwait.length > 0 || chatsToPush.length > 0) {
-                    console.log(`[Sync] Executing ${promisesToAwait.length} pulls and ${chatsToPush.length} pushes...`);
 
                     chatsToPush.forEach(localChat => {
                         if (currentPendingPushIds.has(localChat.id)) {
-                            console.log(`[Sync] Skipping PUSH execution for ${localChat.id} from sync cycle as a local push is pending.`);
                             return;
                         }
 
                         if (!activitySet) { setSyncActivity('saving'); activitySet = true; }
                         currentStats.pushedUpdates++;
                         promisesToAwait.push(updateDbChat(localChat).catch(e => {
-                            console.error(`[Sync] Error pushing update for ${localChat.id} from sync cycle`, e);
                             currentStats.errors++;
                             throw e;
                         }));
                     });
 
                     const results = await Promise.allSettled(promisesToAwait);
-                    console.log("[Sync] Network operations settled.");
 
                     if (results.some(result => result.status === 'rejected')) {
                         results.forEach(result => {
                             if (result.status === 'rejected') {
-                                console.error("[Sync] Operation failed:", result.reason);
                             }
                         });
                         throw new Error("One or more sync operations failed.");
                     }
                 } else {
-                    console.log("[Sync] No network operations needed for this attempt.");
                 }
 
-                console.log(`[Sync] Applying local updates: ${chatsToUpdateLocally.length} updates, ${chatsToDeleteLocally.length} deletions.`);
                 chatsToUpdateLocally.forEach(chat => {
                     if (currentPendingPushIds.has(chat.id)) {
-                        console.warn(`[Sync] Suppressing local update for chat ${chat.id} due to pending push operation.`);
                         return;
                     }
                     chatList.replaceChat(chat.id, chat);
                 });
                 chatsToDeleteLocally.forEach(id => {
                     if (currentPendingPushIds.has(id)) {
-                        console.warn(`[Sync] Suppressing local delete for chat ${id} due to pending push operation.`);
                         return;
                     }
                     try {
                         chatList.deleteChatLocally(id);
                     } catch (e) {
-                        console.error(`[Sync] Error deleting chat locally ${id} after sync:`, e);
                         currentStats.errors++;
                     }
                 });
 
-                console.log(`[Sync Success] Attempt ${retryCount + 1} successful. Final Stats:`, currentStats);
                 setLastSyncTime(Date.now());
                 setLastSyncStats(currentStats);
                 setSyncError(null);
@@ -707,10 +629,9 @@ export default function AIAssistant() {
                 setIsOffline(false);
 
             } catch (error) {
-                console.error(`[Sync Error] Attempt ${retryCount + 1} failed:`, error);
                 const message = error instanceof Error ? error.message : "An unknown error occurred during sync";
 
-                const isNetworkError = error instanceof TypeError && message.includes('Failed to fetch');
+                const isNetworkError = error instanceof TypeError && (message.includes('fetch') || message.includes('network'));
 
                 if (isNetworkError) {
                     setSyncActivity('error');
@@ -726,18 +647,15 @@ export default function AIAssistant() {
                     setSyncActivity('error');
                     if (retryCount < maxRetries) {
                         const delay = initialDelay * Math.pow(2, retryCount);
-                        console.log(`[Sync Retry] Will retry in ${delay / 1000}s...`);
                         await new Promise(resolve => setTimeout(resolve, delay));
                         await attemptSync(retryCount + 1);
                         return;
                     } else {
-                        console.error("[Sync Failed] Max retries reached. Sync failed permanently for this cycle.");
                         toast.error(`Chat sync failed: ${message.substring(0, 100)}`);
                         setLastSyncStats(null);
                     }
                 }
             } finally {
-                console.log("[Sync] Sync process finished (or aborted). Setting isSyncing = false");
                 setIsSyncing(false);
             }
         };
@@ -745,10 +663,10 @@ export default function AIAssistant() {
         try {
             await attemptSync(0);
         } finally {
-            console.log("[Sync] Sync process finished (or aborted). Setting isSyncing = false");
+            setIsSyncing(false);
         }
 
-    }, [isAuthenticated, currentSpace, chatList, isSyncing, chatState.generatingChats, isOffline]);
+    }, [isAuthenticated, currentSpace, chatList, chatState.generatingChats, isOffline]);
 
     const prevDeps = useRef({ isAuthenticated, currentSpace });
     const syncChatsRef = useRef(syncChats);
@@ -763,50 +681,39 @@ export default function AIAssistant() {
             .map(([key]) => key);
 
         if (changedDeps.length > 0) {
-            console.log(`[Sync Setup] useEffect triggered by changes in: ${changedDeps.join(', ')}`, { isAuthenticated, currentSpace });
         } else {
-            console.log(`[Sync Setup] useEffect triggered without apparent dependency change (might be syncChats identity).`, { isAuthenticated, currentSpace });
         }
         prevDeps.current = { isAuthenticated, currentSpace };
 
         if (isOffline) {
-            console.log("[Sync Setup] Paused: Currently offline.");
             if (syncIntervalRef.current) {
                 clearInterval(syncIntervalRef.current);
                 syncIntervalRef.current = null;
-                console.log("[Sync Setup] Cleared existing sync interval due to offline status.");
             }
             return;
         }
 
         if (isAuthenticated && currentSpace) {
-            console.log("[Sync Setup] Conditions met (authenticated and space exists). Setting up sync interval and listener.");
-            console.log("[Sync] Triggering initial sync via ref.");
             syncChatsRef.current();
 
             if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
             syncIntervalRef.current = setInterval(() => {
-                console.log("[Sync Interval] Firing sync via ref...");
                 syncChatsRef.current();
             }, 60 * 1000);
 
             const handleVisibilityChange = () => {
                 if (document.visibilityState === 'visible') {
-                    console.log("[Sync Visibility] Triggering sync on focus via ref.");
                     syncChatsRef.current();
                 }
             };
             document.addEventListener('visibilitychange', handleVisibilityChange);
 
             return () => {
-                console.log("[Sync Setup] Cleanup: Clearing interval and removing listener.");
                 if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
                 document.removeEventListener('visibilitychange', handleVisibilityChange);
             };
         } else {
-            console.log("[Sync Setup] Conditions not met (not authenticated or no space). Skipping setup.");
             if (syncIntervalRef.current) {
-                console.log("[Sync Setup] Cleanup: Conditions no longer met, clearing interval.");
                 clearInterval(syncIntervalRef.current);
                 syncIntervalRef.current = null;
             }
@@ -822,37 +729,7 @@ export default function AIAssistant() {
     const [loadingChat, setLoadingChat] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const handleFetchChatContent = async (selectedChatId: string) => {
-        if (!selectedChatId) return;
-
-        console.log(`[AIAssistant:fetchChatContent] Fetching content for chat ID: ${selectedChatId}`);
-        setLoadingChat(true);
-        setError(null);
-        try {
-            const content = await fetchChatContent(selectedChatId);
-            if (content) {
-                console.log(`[AIAssistant:fetchChatContent] Successfully fetched content for ${selectedChatId}`, content);
-                const mappedMessages: ChatMessage[] = content.messages.map((msg: any) => ({
-                    role: msg.role,
-                    content: msg.content,
-                    sources: msg.sources,
-                    error: undefined,
-                }));
-                chatState.setChatMessages(mappedMessages);
-            } else {
-                console.warn(`[AIAssistant:fetchChatContent] No content found for chat ${selectedChatId}.`);
-                setError("No content found for the selected chat.");
-            }
-        } catch (e) {
-            console.error(`[AIAssistant:fetchChatContent] Error fetching content for chat ${selectedChatId}:`, e);
-            setError("An error occurred while fetching the chat content.");
-        } finally {
-            setLoadingChat(false);
-        }
-    };
-
     const handleRationaleSelectedForDistill = (rationale: ChatRationale) => {
-        console.log(`[AIAssistant] Rationale selected for distillation:`, rationale);
         chatState.startDistillChat(rationale.id, rationale.title, rationale);
         setShowRationaleSelectionDialog(false);
     };

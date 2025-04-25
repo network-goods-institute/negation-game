@@ -1,9 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
-import {
-  generateDistillRationaleChatBotResponse,
-  EndorsedPoint,
-} from "@/actions/generateDistillRationaleChatBotResponse";
+import { generateDistillRationaleChatBotResponse } from "@/actions/generateDistillRationaleChatBotResponse";
 import { generateSuggestionChatBotResponse } from "@/actions/generateSuggestionChatBotResponse";
 import { PointInSpace } from "@/actions/fetchAllSpacePoints";
 import { generateChatName } from "@/actions/generateChatName";
@@ -47,8 +44,6 @@ export function useChatState({
   allPointsInSpace,
   ownedPointIds,
   endorsedPointIds,
-  userRationales,
-  availableRationales,
   storedMessages,
   savedChats,
   updateChat,
@@ -120,14 +115,7 @@ export function useChatState({
       const rationaleIdForUpdate = chatToUpdate?.distillRationaleId ?? null;
       const needsTitle = !chatToUpdate || chatToUpdate.title === "New Chat";
 
-      console.log(
-        `[generateAndSetTitle] Called for chat ${chatId}. Needs title: ${needsTitle}. Rationale ID: ${rationaleIdForUpdate}`
-      );
-
       if (!needsTitle) {
-        console.log(
-          `[generateAndSetTitle] Chat ${chatId} already has title '${chatToUpdate?.title}'. Calling updateChat without title change.`
-        );
         updateChat(chatId, finalMessages, undefined, rationaleIdForUpdate);
         return;
       }
@@ -140,42 +128,22 @@ export function useChatState({
         let title = "";
         const reader = titleStream.getReader();
         try {
-          console.log(
-            `[generateAndSetTitle] Reading title stream for chat ${chatId}...`
-          );
           while (true) {
             const { done, value } = await reader.read();
             if (done) {
-              console.log("[generateAndSetTitle] Title stream finished.");
               break;
             }
             if (typeof value === "string") {
               title += value;
-            } else if (value !== null && value !== undefined) {
-              console.warn(
-                "[generateAndSetTitle] Received unexpected chunk type:",
-                value
-              );
             }
           }
         } catch (titleStreamError) {
-          console.error(
-            "[generateAndSetTitle] Error reading title stream:",
-            titleStreamError instanceof Error
-              ? titleStreamError.message
-              : String(titleStreamError),
-            titleStreamError
-          );
         } finally {
           reader.releaseLock();
-          console.log("[generateAndSetTitle] Title reader lock released.");
         }
         title = title.trim();
 
         if (title) {
-          console.log(
-            `[generateAndSetTitle] Generated title for ${chatId}: '${title}'. Calling updateChat.`
-          );
           updateChat(chatId, finalMessages, title, rationaleIdForUpdate);
         } else {
           const assistantMsgContent =
@@ -184,9 +152,6 @@ export function useChatState({
           const fallbackTitle =
             assistantMsgContent.split("\n")[0].slice(0, 47) +
             (assistantMsgContent.length > 47 ? "..." : "");
-          console.log(
-            `[generateAndSetTitle] Title generation failed or empty for ${chatId}. Using fallback: '${fallbackTitle}'. Calling updateChat.`
-          );
           updateChat(
             chatId,
             finalMessages,
@@ -195,18 +160,11 @@ export function useChatState({
           );
         }
       } catch (titleError) {
-        console.error(
-          `[generateAndSetTitle] Error during title generation for ${chatId}:`,
-          titleError
-        );
         const assistantMsgContent =
           finalMessages.find((m) => m.role === "assistant")?.content || "Chat";
         const fallbackTitle =
           assistantMsgContent.split("\n")[0].slice(0, 47) +
           (assistantMsgContent.length > 47 ? "..." : "");
-        console.log(
-          `[generateAndSetTitle] Error caught for ${chatId}. Using fallback: '${fallbackTitle}'. Calling updateChat.`
-        );
         updateChat(
           chatId,
           finalMessages,
@@ -233,9 +191,6 @@ export function useChatState({
       selectedRationaleId?: string | null
     ) => {
       if (generatingChats.has(chatIdToUse)) {
-        console.warn(
-          `[handleResponse ${flowType}] Already generating for chat ${chatIdToUse}, skipping call.`
-        );
         return;
       }
 
@@ -244,9 +199,6 @@ export function useChatState({
       setFetchingContextChats((prev) => new Set(prev).add(chatIdToUse));
       setStreamingContents((prev) => new Map(prev).set(chatIdToUse, ""));
 
-      console.log(
-        `[handleResponse ${flowType}] START for chat ${chatIdToUse}: isGenerating=true, isFetchingContext=true. Selected Rationale ID: ${selectedRationaleId ?? "N/A"}`
-      );
       let fullContent = "";
       let sources: ChatMessage["sources"] | undefined = undefined;
       let responseStream:
@@ -264,9 +216,6 @@ export function useChatState({
         }));
 
         if (flowType === "generate") {
-          console.log(
-            `[handleResponse generate] Calling generateSuggestionChatBotResponse for chat ${chatIdToUse}`
-          );
           responseStream = await generateSuggestionChatBotResponse(
             mappedMessages,
             settings,
@@ -276,9 +225,6 @@ export function useChatState({
             settings.includeDiscourseMessages ? storedMessages : []
           );
         } else if (flowType === "distill") {
-          console.log(
-            `[handleResponse distill] Calling generateDistillRationaleChatBotResponse for chat ${chatIdToUse} with selected rationale ID: ${selectedRationaleId}`
-          );
           responseStream = await generateDistillRationaleChatBotResponse(
             mappedMessages,
             settings,
@@ -286,12 +232,6 @@ export function useChatState({
             selectedRationaleId
           );
         } else {
-          console.log(
-            `[handleResponse ${flowType}] Calling default generateChatBotResponse for chat ${chatIdToUse}`
-          );
-          console.warn(
-            `[handleResponse] Unexpected flowType: ${flowType}. Falling back to generate.`
-          );
           responseStream = await generateSuggestionChatBotResponse(
             mappedMessages,
             settings,
@@ -307,22 +247,11 @@ export function useChatState({
             "Failed to get response stream from the selected action"
           );
 
-        console.log(
-          `[handleResponse ${flowType}] Received response object for chat ${chatIdToUse}.`
-        );
-        console.log("[handleResponse] Starting stream processing loop...");
-
         const reader = responseStream.getReader();
         let firstChunkReceived = false;
         try {
-          console.log(
-            `[handleResponse ${flowType} Stream ${chatIdToUse}] Entering getReader() loop.`
-          );
           while (true) {
             const { done, value } = await reader.read();
-            console.log(
-              `[handleResponse ${flowType} Stream ${chatIdToUse}] read() returned: done=${done}, value type=${typeof value}`
-            );
 
             if (!firstChunkReceived && !done) {
               setFetchingContextChats((prev) => {
@@ -332,81 +261,33 @@ export function useChatState({
                 return newSet;
               });
               firstChunkReceived = true;
-              console.log(
-                `[handleResponse ${flowType} Stream ${chatIdToUse}] First chunk received, isFetchingContext=false`
-              );
             }
 
             if (done) {
-              console.log(
-                `[handleResponse ${flowType} Stream ${chatIdToUse}] Stream finished (done=true).`
-              );
               break;
             }
 
             if (typeof value === "string" && value.length > 0) {
-              console.log(
-                `[handleResponse ${flowType} Stream ${chatIdToUse}] Processing valid string chunk (length ${value.length}).`
-              );
               fullContent += value;
               setStreamingContents((prev) =>
                 new Map(prev).set(chatIdToUse, fullContent)
               );
-              console.log(
-                `[handleResponse ${flowType} Stream ${chatIdToUse}] Updated streamingContent.`
-              );
-            } else if (value !== null && value !== undefined && value !== "") {
-              console.warn(
-                `[handleResponse ${flowType} Stream ${chatIdToUse}] Received unexpected chunk type or empty string:`,
-                value
-              );
             }
-            console.log(
-              `[handleResponse ${flowType} Stream ${chatIdToUse}] End of loop iteration.`
-            );
           }
-          console.log(
-            `[handleResponse ${flowType} Stream ${chatIdToUse}] Successfully finished getReader() loop.`
-          );
         } catch (streamError) {
-          console.error(
-            `[handleResponse ${flowType} Stream ${chatIdToUse}] Error processing stream chunk with getReader():`,
-            streamError instanceof Error
-              ? streamError.message
-              : String(streamError),
-            streamError,
-            {
-              currentFullContent: fullContent,
-              firstChunkReceived: firstChunkReceived,
-            }
-          );
           toast.error(`Error reading AI response stream (${flowType}).`);
           fullContent += "\n\n[Error processing stream]";
         } finally {
           reader.releaseLock();
-          console.log(
-            `[handleResponse ${flowType} Stream ${chatIdToUse}] Reader lock released.`
-          );
         }
-
-        console.log(
-          `[handleResponse ${flowType}] Stream processing loop finished for chat ${chatIdToUse}.`
-        );
 
         fullContent = fullContent
           .replace(/\r\n/g, "\n")
           .replace(/\r/g, "\n")
           .trim();
-        console.log(
-          `[handleResponse ${flowType} ${chatIdToUse}] Final fullContent after trim/replace:`,
-          JSON.stringify(fullContent)
-        );
         sources = extractSourcesFromMarkdown(fullContent);
 
         if (fullContent === "") {
-          console.log(
-            "[handleResponse] Empty content detected - likely moderation."
-          );
           fullContent = `## Sorry, I couldn't process that request
 
 I wasn't able to generate a response based on the provided content. This might be due to:
@@ -429,38 +310,14 @@ Please try:
         };
         const finalMessages = [...messagesForApi, assistantMessage];
 
-        console.log(
-          `[handleResponse ${flowType}] Saving results for chat ${chatIdToUse}... (Skipping existence check)`
-        );
-
         if (activeGeneratingChatRef.current === chatIdToUse) {
           setChatMessages(finalMessages);
-          console.log(
-            `[handleResponse ${flowType}] Updated local chatMessages state for ${chatIdToUse}`
-          );
-        } else {
-          console.log(
-            `[handleResponse ${flowType}] Chat ${chatIdToUse} is no longer the active generating chat. State not updated directly.`
-          );
         }
 
         if (chatIdToUse) {
-          generateAndSetTitle(chatIdToUse, finalMessages).catch((error) => {
-            console.error(
-              `[handleResponse ${flowType}] Error during background title/save for chat ${chatIdToUse}:`,
-              error
-            );
-          });
-        } else {
-          console.warn(
-            `[handleResponse ${flowType}] No chatIdToUse available for title generation.`
-          );
+          generateAndSetTitle(chatIdToUse, finalMessages).catch((error) => {});
         }
       } catch (error) {
-        console.error(
-          `[handleResponse ${flowType}] Error generating response (outer catch): `,
-          error
-        );
         toast.error(
           error instanceof Error
             ? error.message
@@ -508,9 +365,6 @@ Please try:
           newMap.delete(chatIdToUse);
           return newMap;
         });
-        console.log(
-          `[handleResponse ${flowType}] FINALLY block reached for chat ${chatIdToUse}. Cleared generation state.`
-        );
       }
     },
     [
@@ -533,7 +387,6 @@ Please try:
         await navigator.clipboard.writeText(contentToCopy);
         toast.success("Message copied!");
       } catch (err) {
-        console.error("Failed to copy message:", err);
         toast.error("Failed to copy message.");
       }
     },
@@ -588,15 +441,8 @@ Please try:
         !trimmedNewContent ||
         chatMessages[index].content === trimmedNewContent
       ) {
-        console.warn(
-          "[handleSaveEdit] Invalid state for saving edit. Cannot edit non-user messages, index out of bounds, content empty or unchanged."
-        );
         return;
       }
-
-      console.log(
-        `[handleSaveEdit] Saving edit for index: ${index} in chat ${currentChatId}`
-      );
 
       const editedMessage: ChatMessage = {
         ...chatMessages[index],
@@ -615,9 +461,6 @@ Please try:
       if (currentChatDataForEdit?.distillRationaleId) {
         flowForEdit = "distill";
         rationaleIdForEdit = currentChatDataForEdit.distillRationaleId;
-        console.log(
-          `[handleSaveEdit] Determined flow 'distill' from saved chat data.`
-        );
       } else {
         const originalFirstMessage = chatMessages[0];
         if (
@@ -631,18 +474,7 @@ Please try:
           if (match && match[1]) {
             flowForEdit = "distill";
             rationaleIdForEdit = match[1];
-            console.warn(
-              `[handleSaveEdit] Determined flow 'distill' via fallback parsing of original first message.`
-            );
-          } else {
-            console.log(
-              `[handleSaveEdit] Determined flow 'default' (first message looked like distill but ID missing?).`
-            );
           }
-        } else {
-          console.log(
-            `[handleSaveEdit] Determined flow 'default' (no ID in saved state and first message wasn't distill prompt).`
-          );
         }
       }
 
@@ -683,13 +515,6 @@ Please try:
         chatIdToUse = newId;
         isNewChat = true;
         setChatMessages([]);
-        console.log(
-          `[startChatWithOption] Created new chat ${chatIdToUse} for option ${option.id}`
-        );
-      } else {
-        console.log(
-          `[startChatWithOption] Using existing chat ${chatIdToUse} for option ${option.id}`
-        );
       }
 
       let initialUserMessage: string;
@@ -701,10 +526,6 @@ Please try:
           initialUserMessage = option.prompt;
           break;
         default:
-          console.warn(
-            "Unknown chat option ID in startChatWithOption:",
-            option.id
-          );
           initialUserMessage = "Let's chat.";
           break;
       }

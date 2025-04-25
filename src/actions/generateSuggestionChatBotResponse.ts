@@ -63,8 +63,7 @@ function buildContextString(
   allPointsInSpace: PointInSpace[],
   ownedPointIds: Set<number>,
   endorsedPointIds: Set<number>,
-  discourseMessages: DiscourseMessage[],
-  viewerId: string | null
+  discourseMessages: DiscourseMessage[]
 ): string {
   let context = "";
 
@@ -113,24 +112,18 @@ export const generateSuggestionChatBotResponse = async (
       throw new Error("No chat messages found for response generation");
     }
 
-    console.log("[generateSuggestionChatBotResponse] Starting generation...");
     const viewerId = await getUserId();
 
     const relevantDiscourseMessages = settings.includeDiscourseMessages
       ? discourseMessages.slice(-5)
       : [];
 
-    console.log(
-      `[generateSuggestionChatBotResponse] Context - PointsInSpace: ${allPointsInSpace.length}, Owned: ${ownedPointIds.size}, Endorsed: ${endorsedPointIds.size}, Discourse: ${relevantDiscourseMessages.length}`
-    );
-
     const systemPrompt = buildGenerateSystemPrompt();
     const contextString = buildContextString(
       allPointsInSpace,
       ownedPointIds,
       endorsedPointIds,
-      relevantDiscourseMessages,
-      viewerId
+      relevantDiscourseMessages
     );
     const chatHistoryString = chatMessages
       .map((m) => `${m.role.toUpperCase()}:\n${m.content}`)
@@ -138,21 +131,15 @@ export const generateSuggestionChatBotResponse = async (
 
     const finalPrompt = `${systemPrompt}\n\n---\nCONTEXT FOR THIS RESPONSE:\n${contextString}\n---\n\nCHAT HISTORY:\n${chatHistoryString}\n\nA:`;
 
-    console.log("[generateSuggestionChatBotResponse] Calling AI model...");
-
     const aiResult = await withRetry(async () => {
       try {
         const response = await streamText({
-          model: google("gemini-1.5-flash"),
+          model: google("gemini-2.0-flash"),
           prompt: finalPrompt,
         });
         if (!response) throw new Error("Failed to get response from AI model");
         return response;
       } catch (error) {
-        console.error(
-          "[generateSuggestionChatBotResponse][withRetry] AI call error:",
-          error
-        );
         if (error instanceof Error) {
           if (error.message.includes("rate limit")) {
             throw new Error("AI service is currently busy. Please try again.");
@@ -168,16 +155,10 @@ export const generateSuggestionChatBotResponse = async (
 
     const elementStream = aiResult.textStream;
     if (!elementStream) {
-      console.error(
-        "[generateSuggestionChatBotResponse] Failed to get textStream from AI model result."
-      );
       throw new Error("Failed to initialize response stream");
     }
-
-    console.log("[generateSuggestionChatBotResponse] Returning elementStream.");
     return elementStream;
   } catch (error) {
-    console.error("Error in generateSuggestionChatBotResponse:", error);
     if (error instanceof Error) {
       if (
         error.message.includes("AI service") ||
