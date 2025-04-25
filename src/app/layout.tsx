@@ -22,7 +22,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Negation Game",
-  description: "Learning through dissent",
+  description: "A protocol layer for reasoned disagreement: powered by economic incentives, governed by epistemic values, and designed for minds willing to change.",
 };
 
 export default function RootLayout({
