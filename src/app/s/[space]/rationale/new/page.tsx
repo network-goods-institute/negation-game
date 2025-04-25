@@ -21,7 +21,7 @@ import {
 import { NegateDialog } from "@/components/NegateDialog";
 import { PointCard } from "@/components/PointCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
+import { AuthenticatedActionButton } from "@/components/AuthenticatedActionButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,7 +68,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useFavorHistory } from "@/queries/useFavorHistory";
-import { getBackButtonHandler } from "@/utils/backButtonUtils";
+import { getBackButtonHandler } from "@/lib/backButtonUtils";
 import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 
 function PointCardWrapper({
@@ -687,8 +687,6 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
           hideShareButton={true}
         />
       </Dynamic>
-
-      <NegateDialog />
 
       <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
         <AlertDialogContent>

@@ -1,5 +1,5 @@
-import AIAssistant from "@/components/chatbot/AIAssistant";
+import ChatPageClient from './ChatPageClient';
 
 export default function ChatPage() {
-    return <AIAssistant />;
+    return <ChatPageClient />;
 } 

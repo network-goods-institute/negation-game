@@ -1,8 +1,6 @@
 "use client";
 
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
-import { MakePointDialog } from "@/components/MakePointDialog";
-import { NegateDialog } from "@/components/NegateDialog";
 import { PointCard } from "@/components/PointCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -14,7 +12,6 @@ import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContain
 import { useFeed } from "@/queries/useFeed";
 import { useSpace } from "@/queries/useSpace";
 import { usePrivy } from "@privy-io/react-auth";
-import { useToggle } from "@uidotdev/usehooks";
 import { useSetAtom, useAtom } from "jotai";
 import { PlusIcon, TrophyIcon, SearchIcon, BrainCircuitIcon, ShareIcon } from "lucide-react";
 import Link from "next/link";
@@ -35,6 +32,7 @@ import { usePrefetchPoint } from "@/queries/usePointData";
 import React from "react";
 import { ViewpointCardWrapper } from "@/components/ViewpointCardWrapper";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
+import { makePointSuggestionAtom } from "@/atoms/makePointSuggestionAtom";
 
 interface PageProps {
     params: { space: string };
@@ -64,7 +62,7 @@ type Tab = "all" | "points" | "rationales" | "search";
 const MemoizedPointCard = memo(PointCard);
 const MemoizedViewpointCardWrapper = memo(ViewpointCardWrapper);
 
-const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, pinnedPoint, handleCardClick, loadingCardId }: {
+const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, pinnedPoint, handleCardClick, loadingCardId, onPrefetchPoint }: {
     item: FeedItem;
     basePath: string;
     space: string;
@@ -74,48 +72,45 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
     pinnedPoint: any;
     handleCardClick: (id: string) => void;
     loadingCardId: string | null;
+    onPrefetchPoint: (id: number) => void;
 }) => {
     const pointId = item.type === 'point' ? item.data.pointId : null;
-    const prefetchPoint = usePrefetchPoint();
     const queryClient = useQueryClient();
     const [hasStartedLoading, setHasStartedLoading] = useState(false);
     const favorHistoryKey = useMemo(() => pointId ? [pointId, "favor-history", "1W"] : null, [pointId]);
 
-    // Debounce hover to prevent excessive requests on quick mouse movements
     const handleHover = useCallback(() => {
-        if (!pointId || !favorHistoryKey || hasStartedLoading) return;
-
+        if (!pointId || hasStartedLoading) return;
         setHasStartedLoading(true);
+        onPrefetchPoint(pointId);
 
-        const existingData = queryClient.getQueryData(favorHistoryKey);
-        if (existingData) {
-            return;
+        if (favorHistoryKey) {
+            const existingData = queryClient.getQueryData(favorHistoryKey);
+            if (existingData) {
+                return;
+            }
+            import("@/actions/fetchFavorHistory")
+                .then(({ fetchFavorHistory }) => {
+                    return fetchFavorHistory({ pointId, scale: "1W" });
+                })
+                .then(data => {
+                    if (data && favorHistoryKey) {
+                        queryClient.setQueryData(favorHistoryKey, data);
+                    }
+                })
+                .catch(error => {
+                    if (process.env.NODE_ENV === "development") {
+                        console.warn(`[FeedItem] Failed to fetch favor history for ${pointId}:`, error);
+                    }
+                });
         }
-
-        prefetchPoint(pointId);
-
-        import("@/actions/fetchFavorHistory")
-            .then(({ fetchFavorHistory }) => {
-                return fetchFavorHistory({ pointId, scale: "1W" });
-            })
-            .then(data => {
-                if (data) {
-                    queryClient.setQueryData(favorHistoryKey, data);
-                }
-            })
-            .catch(error => {
-                if (process.env.NODE_ENV === "development") {
-                    console.warn(`[FeedItem] Failed to fetch favor history for ${pointId}:`, error);
-                }
-            });
-    }, [pointId, favorHistoryKey, hasStartedLoading, prefetchPoint, queryClient]);
+    }, [pointId, hasStartedLoading, onPrefetchPoint, queryClient, favorHistoryKey]);
 
     if (item.type === 'point') {
         const point = item.data;
         const isProposalToPin = point.content?.startsWith('/pin ');
         const isPinnedPoint = pinnedPoint && pinnedPoint.pointId === point.pointId;
 
-        // Extract target point ID if this is a pin command
         let targetPointId;
         if (isProposalToPin) {
             const parts = point.content.split(' ');
@@ -131,7 +126,6 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
             }
         }
 
-        // Determine the pinStatus based on conditions
         let pinStatus;
         if (isProposalToPin) {
             pinStatus = targetPointId
@@ -143,7 +137,6 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
             pinStatus = "Proposal to pin";
         }
 
-        // Only use command point IDs for actual pin commands, not for targets
         const pinnedCommandPointId = isProposalToPin
             ? undefined
             : point.pinCommands?.[0]?.id;
@@ -153,10 +146,9 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                 draggable={false}
                 onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                     preventDefaultIfContainsSelection(e);
-                    // Don't navigate if text is selected or if it's an action button
                     const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
                     if (!isActionButton && window.getSelection()?.isCollapsed !== false) {
-                        prefetchPoint(point.pointId);
+                        onPrefetchPoint(point.pointId);
                         handleCardClick(`point-${point.pointId}`);
                     }
                 }}
@@ -241,23 +233,20 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
 });
 FeedItem.displayName = 'FeedItem';
 
-const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, login, user, pinnedPoint, loadingCardId, handleCardClick }: any) => {
-    const prefetchPoint = usePrefetchPoint();
-    const [hasStartedLoading, setHasStartedLoading] = useState(false);
+const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, login, user, pinnedPoint, loadingCardId, handleCardClick, onPrefetchPoint }: any) => {
     const queryClient = useQueryClient();
+    const [hasStartedLoading, setHasStartedLoading] = useState(false);
     const favorHistoryKey = useMemo(() => [point.pointId, "favor-history", "1W"], [point.pointId]);
 
     const handlePrefetch = useCallback(() => {
         if (!point.pointId || hasStartedLoading) return;
-
         setHasStartedLoading(true);
+        onPrefetchPoint(point.pointId);
 
         const existingData = queryClient.getQueryData(favorHistoryKey);
         if (existingData) {
             return;
         }
-
-        prefetchPoint(point.pointId);
 
         import("@/actions/fetchFavorHistory")
             .then(({ fetchFavorHistory }) => {
@@ -276,7 +265,7 @@ const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, log
                     console.warn(`[PriorityPointItem] Failed to fetch favor history for ${point.pointId}:`, error);
                 }
             });
-    }, [point.pointId, prefetchPoint, hasStartedLoading, queryClient, favorHistoryKey]);
+    }, [point.pointId, onPrefetchPoint, hasStartedLoading, queryClient, favorHistoryKey]);
 
     let pinStatus;
     if (point.pinCommands?.length > 1) {
@@ -285,7 +274,6 @@ const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, log
         pinStatus = "Proposal to pin";
     }
 
-    // Only use command point IDs for actual pin commands
     const pinnedCommandPointId = point.pinCommands?.[0]?.id;
 
     return (
@@ -295,7 +283,6 @@ const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, log
                 draggable={false}
                 onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                     preventDefaultIfContainsSelection(e);
-                    // Don't navigate if text is selected or if it's an action button
                     const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
                     if (!isActionButton && window.getSelection()?.isCollapsed !== false) {
                         handleCardClick(`point-${point.pointId}`);
@@ -341,7 +328,7 @@ const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, log
 });
 PriorityPointItem.displayName = 'PriorityPointItem';
 
-const PriorityPointsSection = memo(({ filteredPriorityPoints, basePath, space, setNegatedPointId, login, user, selectedTab, pinnedPoint, loadingCardId, handleCardClick }: any) => {
+const PriorityPointsSection = memo(({ filteredPriorityPoints, basePath, space, setNegatedPointId, login, user, selectedTab, pinnedPoint, loadingCardId, handleCardClick, onPrefetchPoint }: any) => {
     if (!filteredPriorityPoints || filteredPriorityPoints.length === 0) return null;
 
     return (
@@ -358,6 +345,7 @@ const PriorityPointsSection = memo(({ filteredPriorityPoints, basePath, space, s
                     pinnedPoint={pinnedPoint}
                     loadingCardId={loadingCardId}
                     handleCardClick={handleCardClick}
+                    onPrefetchPoint={onPrefetchPoint}
                 />
             ))}
         </div>
@@ -365,7 +353,7 @@ const PriorityPointsSection = memo(({ filteredPriorityPoints, basePath, space, s
 });
 PriorityPointsSection.displayName = 'PriorityPointsSection';
 
-const AllTabContent = memo(({ points, viewpoints, isLoading, viewpointsLoading, combinedFeed, basePath, space, setNegatedPointId, login, user, pinnedPoint, loginOrMakePoint, handleNewViewpoint, handleCardClick, loadingCardId }: {
+const AllTabContent = memo(({ points, viewpoints, isLoading, viewpointsLoading, combinedFeed, basePath, space, setNegatedPointId, login, user, pinnedPoint, loginOrMakePoint, handleNewViewpoint, handleCardClick, loadingCardId, onPrefetchPoint }: {
     points: any[] | undefined;
     viewpoints: any[] | undefined;
     isLoading: boolean;
@@ -381,6 +369,7 @@ const AllTabContent = memo(({ points, viewpoints, isLoading, viewpointsLoading, 
     handleNewViewpoint: () => void;
     handleCardClick: (id: string) => void;
     loadingCardId: string | null;
+    onPrefetchPoint: (id: number) => void;
 }) => {
     if (!points || !viewpoints || isLoading || viewpointsLoading) {
         return <div className="flex-1 flex items-center justify-center min-h-[calc(100vh-200px)]">
@@ -421,6 +410,7 @@ const AllTabContent = memo(({ points, viewpoints, isLoading, viewpointsLoading, 
                     pinnedPoint={pinnedPoint}
                     handleCardClick={handleCardClick}
                     loadingCardId={loadingCardId}
+                    onPrefetchPoint={onPrefetchPoint}
                 />
             ))}
         </>
@@ -428,7 +418,7 @@ const AllTabContent = memo(({ points, viewpoints, isLoading, viewpointsLoading, 
 });
 AllTabContent.displayName = 'AllTabContent';
 
-const PointsTabContent = memo(({ points, isLoading, combinedFeed, basePath, space, setNegatedPointId, login, user, pinnedPoint, loginOrMakePoint, handleCardClick, loadingCardId }: {
+const PointsTabContent = memo(({ points, isLoading, combinedFeed, basePath, space, setNegatedPointId, login, user, pinnedPoint, loginOrMakePoint, handleCardClick, loadingCardId, onPrefetchPoint }: {
     points: any[] | undefined;
     isLoading: boolean;
     combinedFeed: FeedItem[];
@@ -441,8 +431,8 @@ const PointsTabContent = memo(({ points, isLoading, combinedFeed, basePath, spac
     loginOrMakePoint: () => void;
     handleCardClick: (id: string) => void;
     loadingCardId: string | null;
+    onPrefetchPoint: (id: number) => void;
 }) => {
-    // Memo to avoid unnecessary recalculations of pointItems
     const pointItems = useMemo(() => {
         return combinedFeed.filter((item: FeedItem) => item.type === 'point');
     }, [combinedFeed]);
@@ -479,6 +469,7 @@ const PointsTabContent = memo(({ points, isLoading, combinedFeed, basePath, spac
                     pinnedPoint={pinnedPoint}
                     handleCardClick={handleCardClick}
                     loadingCardId={loadingCardId}
+                    onPrefetchPoint={onPrefetchPoint}
                 />
             ))}
         </>
@@ -610,7 +601,7 @@ PinnedPointWithHistory.displayName = 'PinnedPointWithHistory';
 
 export function SpacePageClient({ params, searchParams: pageSearchParams }: PageProps) {
     const { user: privyUser, login } = usePrivy();
-    const [makePointOpen, onMakePointOpenChange] = useToggle(false);
+    const setMakePointSuggestion = useSetAtom(makePointSuggestionAtom);
     const basePath = useBasePath();
     const space = useSpace(params.space);
     const [leaderboardOpen, setLeaderboardOpen] = useState(false);
@@ -636,12 +627,13 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
     const { data: viewpoints, isLoading: viewpointsLoading } = useViewpoints(space.data?.id || "global");
 
     const [selectedTab, setSelectedTab] = useState<Tab | null>(null);
+    const [isAiAssistantLoading, setIsAiAssistantLoading] = useState(false);
 
 
     useEffect(() => {
         if (selectedTab === null && initialTabFromAtom) {
             setSelectedTab(initialTabFromAtom);
-            setInitialTabAtom(null); // Reset after use
+            setInitialTabAtom(null);
         } else if (selectedTab === null && !initialTabFromAtom) {
             setSelectedTab("rationales");
         }
@@ -656,30 +648,26 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
 
     useEffect(() => {
         setLoadingCardId(null);
+        setIsAiAssistantLoading(false);
         return () => {
             setLoadingCardId(null);
+            setIsAiAssistantLoading(false);
         };
     }, [pathname]);
 
-    // Prevent feed from reloading when navigating back to it
     useEffect(() => {
-        // Only prevent refetching if we're not actively using the feed
-        // This allows mutations like endorsements to trigger refetches
         if (privyUser?.id && isNavigating) {
             queryClient.setQueryData(["feed", privyUser?.id], (oldData: any) => oldData);
         }
     }, [queryClient, privyUser?.id, isNavigating]);
 
-    // Only load feed data when "all" tab is selected
     const { data: points, isLoading } = useFeed();
 
-    // We'll always load priority points now, but avoid triggering stale-time refreshes too often
     const {
         data: priorityPoints,
         isLoading: priorityPointsLoading
     } = usePriorityPoints();
 
-    // Only load pinned point for non-global spaces
     const shouldLoadPinnedPoint = space.data?.id !== "global";
 
     const { data: pinnedPoint, isLoading: pinnedPointLoading } = usePinnedPoint(
@@ -716,37 +704,31 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
 
     const loginOrMakePoint = useCallback(() => {
         if (privyUser !== null) {
-            onMakePointOpenChange(true);
+            setMakePointSuggestion({ text: "", context: "space" });
         } else {
             login();
         }
-    }, [privyUser, login, onMakePointOpenChange]);
+    }, [privyUser, login, setMakePointSuggestion]);
 
-    // Filter priority points to remove duplicates with pinnedPoint - with memoization
     const filteredPriorityPoints = useMemo(() => {
         if (!priorityPoints || priorityPointsLoading) return [];
 
-        // First remove any duplicate points within priority points itself
         const uniquePriorityPoints = Array.from(
             new Map(priorityPoints.map(point => [point.pointId, point])).values()
         );
 
-        // Then filter out the pinned point if it exists
         return uniquePriorityPoints.filter(point => {
             return !pinnedPoint || point.pointId !== pinnedPoint.pointId;
         });
     }, [priorityPoints, pinnedPoint, priorityPointsLoading]);
 
-    // Add all pin command target points to the exclusion list
     const pinnedAndPriorityPoints = useMemo(() => {
         const pointIds = new Set<number>();
 
-        // Add priority points IDs
         if (filteredPriorityPoints?.length) {
             filteredPriorityPoints.forEach(point => pointIds.add(point.pointId));
         }
 
-        // Add pinned point ID - this is the only one we should filter out
         if (pinnedPoint?.pointId) {
             pointIds.add(pinnedPoint.pointId);
         }
@@ -755,7 +737,6 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
         return pointIds;
     }, [filteredPriorityPoints, pinnedPoint]);
 
-    // Optimize the combinedFeed logic to be more efficient
     const combinedFeed = useMemo(() => {
         if (!points) {
             return [];
@@ -765,9 +746,7 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
         const includePoints = selectedTab !== "rationales";
         const includeRationales = selectedTab === "all" || selectedTab === "rationales";
 
-        // Add points when needed
         if (includePoints && Array.isArray(points)) {
-            // Add all points to the feed, except those in pinnedAndPriorityPoints
             points
                 .filter((point: any) => !pinnedAndPriorityPoints.has(point.pointId))
                 .forEach((point: any) => {
@@ -781,7 +760,6 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
                 });
         }
 
-        // Add rationales when needed
         if (includeRationales && viewpoints) {
             viewpoints.forEach(viewpoint => {
                 allItems.push({
@@ -797,7 +775,6 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
         return allItems.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     }, [points, viewpoints, pinnedAndPriorityPoints, selectedTab]);
 
-    // Handle search input change
     const handleSearchChange = (value: string) => {
         handleSearch(value);
         if (value.trim().length > 0 && selectedTab !== "search") {
@@ -805,10 +782,16 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
         }
     };
 
-    // Handler to navigate to the pinned point
     const handlePinnedPointClick = (e: React.MouseEvent, encodedId: string) => {
         preventDefaultIfContainsSelection(e);
         router.push(`${basePath}/${encodedId}`);
+    }
+
+    const prefetchPoint = usePrefetchPoint();
+
+    const handleAiAssistantClick = () => {
+        setIsAiAssistantLoading(true);
+        router.push(`${basePath}/chat`);
     };
 
     if (selectedTab === null) {
@@ -841,13 +824,22 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
                             <h1 className="text-lg sm:text-xl font-semibold">s/{space.data.id}</h1>
                         </div>
                         <Button
-                            asChild
+                            asChild={false}
+                            onClick={handleAiAssistantClick}
+                            disabled={isAiAssistantLoading}
                             className="h-12 w-auto px-6"
                         >
-                            <Link href={`${basePath}/chat`}>
-                                <BrainCircuitIcon className="size-6" />
-                                <span className="ml-sm">AI Assistant</span>
-                            </Link>
+                            {isAiAssistantLoading ? (
+                                <>
+                                    <Loader className="size-6 mr-sm" />
+                                    <span>Loading...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <BrainCircuitIcon className="size-6" />
+                                    <span className="ml-sm">AI Assistant</span>
+                                </>
+                            )}
                         </Button>
                     </div>
                 )}
@@ -901,14 +893,23 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
                         </button>
                         {space?.data?.id === DEFAULT_SPACE && (
                             <Button
-                                asChild
+                                asChild={false}
+                                onClick={handleAiAssistantClick}
+                                disabled={isAiAssistantLoading}
                                 className="ml-auto py-1.5 sm:py-2 px-2 sm:px-4 text-xs sm:text-sm flex items-center gap-1"
                                 variant="ghost"
                             >
-                                <Link href={`${basePath}/chat`}>
-                                    <BrainCircuitIcon className="size-3.5 sm:size-4" />
-                                    <span className="hidden sm:inline">AI Assistant</span>
-                                </Link>
+                                {isAiAssistantLoading ? (
+                                    <>
+                                        <Loader className="size-3.5 sm:size-4 mr-1" />
+                                        <span className="hidden sm:inline">Loading...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <BrainCircuitIcon className="size-3.5 sm:size-4" />
+                                        <span className="hidden sm:inline">AI Assistant</span>
+                                    </>
+                                )}
                             </Button>
                         )}
                     </div>
@@ -924,14 +925,12 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
                     )}
                 </div>
 
-                {/* Loading State */}
                 {selectedTab === null && (
                     <div className="flex items-center justify-center flex-1 min-h-[50vh]">
                         <Loader className="h-6 w-6" />
                     </div>
                 )}
 
-                {/* Pinned Point - with transition */}
                 {selectedTab !== "search" && selectedTab !== "rationales" &&
                     pinnedPoint && !pinnedPointLoading && isInSpecificSpace && (
                         <div className="border-b transition-opacity duration-200 ease-in-out">
@@ -946,6 +945,7 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
                                 }}
                                 href={`${basePath}/${encodeId(pinnedPoint.pointId)}`}
                                 className="flex cursor-pointer hover:bg-accent"
+                                onMouseEnter={() => prefetchPoint(pinnedPoint.pointId)}
                             >
                                 <PinnedPointWithHistory
                                     pinnedPoint={pinnedPoint}
@@ -956,7 +956,6 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
                         </div>
                     )}
 
-                {/* Priority Points - with transition */}
                 {selectedTab !== "search" && selectedTab !== "rationales" &&
                     (priorityPointsLoading ? (
                         <div className="border-b py-4 px-6 min-h-[120px] flex items-center justify-center">
@@ -984,6 +983,7 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
                                 pinnedPoint={pinnedPoint}
                                 loadingCardId={loadingCardId}
                                 handleCardClick={handleCardClick}
+                                onPrefetchPoint={prefetchPoint}
                             />
                         </div>
                     ) : null)}
@@ -1014,6 +1014,7 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
                         handleNewViewpoint={handleNewViewpoint}
                         handleCardClick={handleCardClick}
                         loadingCardId={loadingCardId}
+                        onPrefetchPoint={prefetchPoint}
                     />
                 ) : selectedTab === "points" ? (
                     <PointsTabContent
@@ -1029,6 +1030,7 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
                         loginOrMakePoint={loginOrMakePoint}
                         handleCardClick={handleCardClick}
                         loadingCardId={loadingCardId}
+                        onPrefetchPoint={prefetchPoint}
                     />
                 ) : (
                     <RationalesTabContent
@@ -1046,7 +1048,6 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
                 <Button
                     className="aspect-square rounded-full h-[58px] w-[58px] sm:h-10 sm:w-[160px] order-3"
                     onClick={loginOrMakePoint}
-                    disabled={makePointOpen}
                 >
                     <PlusIcon className="size-7 sm:size-5" />
                     <span className="hidden sm:block ml-sm">Make a Point</span>
@@ -1080,11 +1081,6 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
                 </Button>
             </div>
 
-            <NegateDialog />
-            <MakePointDialog
-                open={makePointOpen}
-                onOpenChange={onMakePointOpenChange}
-            />
             <LeaderboardDialog
                 open={leaderboardOpen}
                 onOpenChange={setLeaderboardOpen}

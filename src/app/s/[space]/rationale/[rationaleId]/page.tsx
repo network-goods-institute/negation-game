@@ -13,7 +13,7 @@ import {
 import { NegateDialog } from "@/components/NegateDialog";
 import { PointCard } from "@/components/PointCard";
 import { Button } from "@/components/ui/button";
-import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
+import { AuthenticatedActionButton } from "@/components/AuthenticatedActionButton";
 import { Separator } from "@/components/ui/separator";
 import { Dynamic } from "@/components/utils/Dynamic";
 import { useBasePath } from "@/hooks/useBasePath";
@@ -41,8 +41,8 @@ import { ReactFlowInstance } from "@xyflow/react";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
 import { ViewpointStatsBar } from "@/components/ViewpointStatsBar";
 import { use } from "react";
-import { handleBackNavigation } from "@/utils/backButtonUtils";
-import { copyViewpointAndNavigate } from "@/utils/copyViewpoint";
+import { handleBackNavigation } from "@/lib/backButtonUtils";
+import { copyViewpointAndNavigate } from "@/lib/copyViewpoint";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { ShareRationaleDialog } from "@/components/graph/ShareRationalePointsDialog";
@@ -850,7 +850,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                         originalGraphData={originalGraph}
                     />
                 </Dynamic>
-
+              
                 <NegateDialog />
 
                 <AlertDialog open={isDiscardDialogOpen} onOpenChange={setIsDiscardDialogOpen}>
@@ -887,6 +887,31 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                     sharedBy={sharedByUsername}
                 />
             </main>
+
+            <AlertDialog open={isDiscardDialogOpen} onOpenChange={setIsDiscardDialogOpen}>
+                <AlertDialogContent className="sm:max-w-[425px]">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>You have unsaved changes</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Do you want to save your changes or discard them?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel
+                            onClick={() => setIsDiscardDialogOpen(false)}
+                            className="bg-primary text-primary-foreground hover:bg-primary/90"
+                        >
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDiscard}
+                            className="bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                        >
+                            Discard changes
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </EditModeProvider>
     );
 }

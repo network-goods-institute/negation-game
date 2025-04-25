@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 import { Analytics } from "@vercel/analytics/react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { GlobalDialogs } from "@/components/GlobalDialogs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DevOnly } from "@/components/utils/DevOnly";
 import { ToggleableReactQueryDevTools } from "@/components/utils/ToggleableReactQueryDevTools";
@@ -54,6 +55,7 @@ export default function RootLayout({
                   {children}
 
                   <Toaster />
+                  <GlobalDialogs />
                   <Analytics />
                 </TooltipProvider>
                 <DevOnly>

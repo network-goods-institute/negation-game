@@ -3,7 +3,7 @@ import {
   getBackButtonHandler,
   isSameDomain,
   getSpaceFromUrl,
-} from "@/utils/backButtonUtils";
+} from "@/lib/backButtonUtils";
 
 describe("backButtonUtils", () => {
   describe("isSameDomain", () => {
