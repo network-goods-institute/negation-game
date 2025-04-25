@@ -168,8 +168,8 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
 
   const handleExitPreview = useCallback(() => {
     console.log("[NegateDialog] handleExitPreview called - resetting preview state");
-    resetFormOnly(); // Resets form and createdCounterpointId
-  }, [resetFormOnly]);
+    handleClose();
+  }, [handleClose]);
 
   useEffect(() => {
     if (negationSuggestion) {

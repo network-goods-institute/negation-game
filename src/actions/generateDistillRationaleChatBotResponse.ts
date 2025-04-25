@@ -201,8 +201,10 @@ export const generateDistillRationaleChatBotResponse = async (
           } else {
             textPart = "[Unknown Node Type]";
           }
+          const sanitizedTextPart =
+            node.type !== "point" ? sanitizeText(textPart) : textPart;
 
-          return `- Node ${node.id}${idPart}: ${sanitizeText(textPart).substring(0, 150)}...`;
+          return `- Node ${node.id}${idPart}: ${sanitizedTextPart}`;
         };
 
         nodesString =
@@ -213,7 +215,7 @@ export const generateDistillRationaleChatBotResponse = async (
             ?.map((e: AppEdge) => `- Edge: ${e.source} -> ${e.target}`)
             ?.join("\n") || "No edges found.";
 
-        contextRationaleSection = `Selected Rationale for Distillation:\n- Rationale Title: "${sanitizeText(rationaleTitle)}" (ID:${selectedRationaleId})\n- Description: ${sanitizeText(rationaleDescription).substring(0, 500)}...\n- ${creatorEndorsementsString}\n- Graph Structure:\n    Nodes:\n${nodesString}\n    Edges:\n${edgesString}\n(Source: Rationale "${sanitizeText(rationaleTitle)}" ID:${selectedRationaleId})`;
+        contextRationaleSection = `Selected Rationale for Distillation:\n- Rationale Title: \"${sanitizeText(rationaleTitle)}\" (ID:${selectedRationaleId})\n- Description: ${sanitizeText(rationaleDescription)}\n- ${creatorEndorsementsString}\n- Graph Structure:\n    Nodes:\n${nodesString}\n    Edges:\n${edgesString}\n(Source: Rationale \"${sanitizeText(rationaleTitle)}\" ID:${selectedRationaleId})`;
       } else {
         console.log(
           `[generateDistillRationaleChatBotResponse] No point nodes found in rationale graph.`
@@ -222,7 +224,7 @@ export const generateDistillRationaleChatBotResponse = async (
           "No points found in this rationale to check for creator endorsements.";
       }
 
-      contextRationaleSection = `Selected Rationale for Distillation:\n- Rationale Title: "${sanitizeText(rationaleTitle)}" (ID:${selectedRationaleId})\n- Description: ${sanitizeText(rationaleDescription).substring(0, 500)}...\n- ${creatorEndorsementsString}\n(Source: Rationale "${sanitizeText(rationaleTitle)}" ID:${selectedRationaleId})`;
+      contextRationaleSection = `Selected Rationale for Distillation:\n- Rationale Title: \"${sanitizeText(rationaleTitle)}\" (ID:${selectedRationaleId})\n- Description: ${sanitizeText(rationaleDescription)}\n- ${creatorEndorsementsString}\n(Source: Rationale \"${sanitizeText(rationaleTitle)}\" ID:${selectedRationaleId})`;
     } else {
       const queryGenContext = settings.includeDiscourseMessages
         ? allDiscourseMessages
@@ -297,9 +299,14 @@ export const generateDistillRationaleChatBotResponse = async (
       let distillSpecificRules = "";
 
       if (selectedRationaleId && fetchedRationaleData) {
-        mainGoalInstruction = `Your goal is to help the user distill their selected rationale (ID: ${selectedRationaleId}) into a well-structured **first-person essay**. Write **as if you are the author** articulating the arguments and structure contained within the rationale. Focus *exclusively* on presenting the content and arguments from the rationale details provided below (Title, Description, Creator Endorsements, **Graph Structure**). **Do NOT suggest new points or negations.** **Do NOT analyze or critique the rationale itself**; simply present its arguments coherently from the first-person perspective using the provided graph structure to understand the flow.`;
+        mainGoalInstruction = `Your primary goal is to distill the selected rationale (ID: ${selectedRationaleId}) into a **first-person essay that reflects the author's perspective *as indicated by their specific endorsements* within this rationale.** Write **as if you are the author**, synthesizing the arguments from the points they endorsed (listed in Creator Endorsements) and the overall rationale structure (Title, Description, Graph). Focus *exclusively* on presenting the content and arguments derived from the rationale details provided below. **Analyze the Creator Endorsements list (point IDs and cred amounts) to understand the author's main focus and conviction levels.** The essay should explain *why* the author endorses certain points, incorporating the **cred amount** as a measure of conviction where appropriate.`;
         suggestionRule = `**IMPORTANT:** Do NOT suggest new points or negations using \`[Suggest Point]>\` or \`[Suggest Negation For:ID]>\` tags in this distillation task.`;
-        distillSpecificRules = `**IMPORTANT (Distill Flow):** Do NOT use \`[Point:ID]\` or \`[Rationale:ID]\` tags in your essay response. Weave the arguments from the provided points (mentioned in the Description, Endorsements, or Graph Nodes) into the narrative naturally without using bracket tags.`;
+        distillSpecificRules = `**IMPORTANT (Distill Flow):**
+*   **Do NOT use \`[Point:ID]\` or \`[Rationale:ID]\` bracket tags in your essay response.**
+*   **Refer to points by synthesizing their FULL content.** You are provided with the complete text for each point node in the 'Graph Structure' section below. Use this full text to accurately represent the arguments.
+*   **Explicitly mention the key points the author endorsed** based on the 'Creator Endorsements' list. Focus your analysis and explanation on the **full arguments** presented in these specific points.
+*   **Incorporate the 'cred' amount** associated with endorsements naturally into the text to signify the level of agreement or importance (e.g., "I strongly agree with the argument that '[full point text summary]', endorsing it with [X] cred because...", or "My [X] cred endorsement for the point stating '[full point text summary]' highlights...").
+*   Use the provided graph structure (Nodes/Edges) to understand the relationships between the endorsed points and structure the essay logically.`;
 
         contextSectionBuild = `${contextRationaleSection}\n\n${relevantDiscourseMessagesForPrompt.length > 0 ? `Relevant Recent Discourse Posts:\n${relevantDiscourseMessagesForPrompt.map((m) => `- Post ID:${m.id} - ${m.raw || m.content} (Source: Discourse Post ID:${m.id})`).join("\n\n")}` : "No relevant Discourse posts provided."}`;
       } else {
@@ -316,7 +323,7 @@ export const generateDistillRationaleChatBotResponse = async (
                   const sanitizedTitle = sanitizeText(r.title) || "[Untitled]";
                   const sanitizedContent =
                     sanitizeText(r.content || "") || "[No content]";
-                  return `- Rationale "${sanitizedTitle}" (ID:${r.id}) - ${sanitizedContent.substring(0, 150)}... (Source: Search Result Rationale ID:${r.id})`;
+                  return `- Rationale \"${sanitizedTitle}\" (ID:${r.id}) - ${sanitizedContent} (Source: Search Result Rationale ID:${r.id})`;
                 })
                 .join("\n")}`
             : "No specific rationales found via search for the current discussion turn.";
@@ -382,7 +389,7 @@ WRITING STYLE:
 *   Objective tone. Active voice preferred.
 *   Concise, varied sentences. Specific examples.
 *   Effective transitions. Clear takeaways.
-*   **DISTILL FLOW:** Write in the **first person** (I, my, we). Present the rationale's arguments directly and constructively. Avoid meta-commentary or analysis *of* the rationale.
+*   **DISTILL FLOW:** Write in the **first person** (I, my, we). Present the rationale's arguments constructively, **emphasizing the points the author endorsed and their stated conviction (cred amount).** Avoid meta-commentary or analysis *of* the rationale itself; focus on articulating the author's endorsed view *within* it.
 
 ---
 CONTEXT FOR THIS RESPONSE (Use this information and cite sources using the \`(Source: ...)\` format ONLY for external context like Discourse Posts):
@@ -394,10 +401,10 @@ CHAT HISTORY:
 ${chatMessages.map((m) => m.role.toUpperCase() + ":\n" + m.content + "\n").join("\n")}
 
 Remember:
-${selectedRationaleId ? "5. You are distilling. Use source tags only for external context. **Do not use bracket tags like [Point:ID] in your response.**" : "1. Focus on helping..."}
+${selectedRationaleId ? "5. You are distilling. Use source tags only for external context. **Do not use bracket tags like [Point:ID] in your response.** Focus on the author's endorsed points and cred." : "1. Focus on helping..."}
 
 INSTRUCTIONS:
-${selectedRationaleId && fetchedRationaleData ? "*   Follow the **first-person** perspective...\n*   **DO NOT suggest new points or negations...**\n*   **DO NOT use bracket tags like [Point:ID] or [Rationale:ID] in your essay.**\n*   **Consider the entire chat history to understand the user's follow-up requests, but continue writing the essay based *only* on the provided rationale context.**" : "*   Suggest new points or negations..."}
+${selectedRationaleId && fetchedRationaleData ? "*   Follow the **first-person** perspective...\n*   **Synthesize the 'Creator Endorsements' (points and cred) into the essay's core argument.**\n*   **DO NOT suggest new points or negations...**\n*   **DO NOT use bracket tags like [Point:ID] or [Rationale:ID] in your essay.**\n*   **Consider the entire chat history to understand the user's follow-up requests, but write the essay based *only* on the provided rationale context and endorsements.**" : "*   Suggest new points or negations..."}
 
 A:`;
 
