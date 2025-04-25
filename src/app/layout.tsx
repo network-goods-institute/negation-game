@@ -6,7 +6,6 @@ import { cn } from "@/lib/cn";
 import { Analytics } from "@vercel/analytics/react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { GitHubButton } from "@/components/icons/GitHubButton";
 import { GlobalDialogs } from "@/components/GlobalDialogs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DevOnly } from "@/components/utils/DevOnly";

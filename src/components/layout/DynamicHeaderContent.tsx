@@ -3,7 +3,6 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import Image from 'next/image';
 import { fetchSpace } from '@/actions/fetchSpace';
 
 export function DynamicHeaderContent() {
@@ -38,7 +37,8 @@ export function DynamicHeaderContent() {
                 {showPlaceholder ? (
                     <span className="text-[10px] font-bold text-muted-foreground">{initial}</span>
                 ) : (
-                    <Image
+                    //eslint-disable-next-line @next/next/no-img-element
+                    <img
                         src={spaceData.icon!}
                         alt={`s/${spaceId} icon`}
                         className="w-full h-full object-cover"
