@@ -55,13 +55,14 @@ export default function RootLayout({
 
                   {children}
 
-                <Toaster />
-                <GlobalDialogs />
-                <Analytics />
-              </TooltipProvider>
-              <DevOnly>
-                <ToggleableReactQueryDevTools />
-              </DevOnly>
+                  <Toaster />
+                  <GlobalDialogs />
+                  <Analytics />
+                </TooltipProvider>
+                <DevOnly>
+                  <ToggleableReactQueryDevTools />
+                </DevOnly>
+              </OnboardingProvider>
             </QueryClientProvider>
           </ThemedPrivyProvider>
         </ThemeProvider>

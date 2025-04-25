@@ -16,7 +16,7 @@ import {
     DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button';
-import { MemoizedMarkdown } from '@/components/ui/MemoizedMarkdown';
+import { MemoizedMarkdown } from '@/components/MemoizedMarkdown';
 import { InfoIcon } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'onboardingDismissed';
@@ -142,7 +142,7 @@ The result is a discussion platform where the quality of your reasoning and your
                     <DialogTitle>Negation Game - Writeup</DialogTitle>
                 </DialogHeader>
                 <div className="overflow-y-auto flex-grow pr-6 mb-4">
-                    <MemoizedMarkdown content={content} id="onboarding-content" />
+                    <MemoizedMarkdown content={content} id="onboarding-content" space="global" discourseUrl="lol" storedMessages={[]} />
                 </div>
                 <DialogFooter className="mt-auto flex-shrink-0 flex-col sm:flex-row sm:justify-between items-center gap-2 pt-4 border-t">
                     <div className="flex flex-col-reverse sm:flex-row items-center gap-2 w-full sm:w-auto">

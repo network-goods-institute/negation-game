@@ -2,7 +2,7 @@
 
 import { ConnectButton } from "@/components/ConnectButton";
 import { ModeToggle } from "@/components/ui/ModeToggle";
-import { GitHubButton } from "@/components/ui/GitHubButton";
+import { GitHubButton } from "../icons/GitHubButton";
 import { Dynamic } from "@/components/utils/Dynamic";
 import { Button } from "@/components/ui/button";
 import { InfoIcon, MoreHorizontal, Github } from "lucide-react";
