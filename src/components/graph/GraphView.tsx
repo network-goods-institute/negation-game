@@ -27,7 +27,7 @@ import { XIcon, SaveIcon, Undo2Icon, Share2Icon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useCallback, useMemo, useEffect, useState, useRef, useLayoutEffect } from "react";
 import { useAtom } from "jotai";
-import { collapsedPointIdsAtom, ViewpointGraph } from "@/atoms/viewpointAtoms";
+import { collapsedPointIdsAtom, ViewpointGraph, selectedPointIdsAtom } from "@/atoms/viewpointAtoms";
 import React from "react";
 import { updateViewpointGraph } from "@/actions/updateViewpointGraph";
 import { updateViewpointDetails } from "@/actions/updateViewpointDetails";
@@ -96,6 +96,10 @@ export interface GraphViewProps
   onModifiedChange?: (isModified: boolean) => void;
   canvasEnabled?: boolean;
   hideShareButton?: boolean;
+  isSharing?: boolean;
+  toggleSharingMode?: () => void;
+  handleGenerateAndCopyShareLink?: () => void;
+  originalGraphData?: ViewpointGraph;
 }
 
 export const GraphView = ({
@@ -116,6 +120,10 @@ export const GraphView = ({
   onModifiedChange,
   canvasEnabled,
   hideShareButton,
+  isSharing,
+  toggleSharingMode,
+  handleGenerateAndCopyShareLink,
+  originalGraphData,
   ...props
 }: GraphViewProps) => {
   const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
@@ -332,11 +340,16 @@ export const GraphView = ({
   // Memoize nodeTypes and edgeTypes
   const nodeTypes = useMemo(
     () => ({
-      point: (props: any) => <PointNode {...props} />,
+      point: (pointProps: any) => (
+        <PointNode
+          {...pointProps}
+          isSharing={isSharing}
+        />
+      ),
       statement: StatementNode,
       addPoint: AddPointNode,
     }),
-    []
+    [isSharing]
   );
 
   const edgeTypes = useMemo(() => ({ negation: NegationEdge }), []);
@@ -595,15 +608,11 @@ export const GraphView = ({
 
       setIsModified(false);
 
-      if (props.defaultNodes && props.defaultEdges) {
-        setNodes(props.defaultNodes);
-        setEdges(props.defaultEdges);
+      if (originalGraphData) {
+        setNodes(originalGraphData.nodes);
+        setEdges(originalGraphData.edges);
         if (setLocalGraph) {
-          const originalGraph = {
-            nodes: props.defaultNodes,
-            edges: props.defaultEdges,
-          };
-          setLocalGraph(originalGraph);
+          setLocalGraph(originalGraphData);
         }
 
         setCollapsedPointIds(new Set());
@@ -617,7 +626,11 @@ export const GraphView = ({
     } finally {
       setIsDiscarding(false);
     }
-  }, [onResetContent, props.defaultNodes, props.defaultEdges, setNodes, setEdges, setLocalGraph, setCollapsedPointIds, flowInstance, setIsModified]);
+  }, [
+    onResetContent,
+    originalGraphData,
+    setNodes, setEdges, setLocalGraph, setCollapsedPointIds, flowInstance, setIsModified
+  ]);
 
   // Add a special effect to fix nodes that might not have loaded properly in a copy operation
   useLayoutEffect(() => {
@@ -661,13 +674,6 @@ export const GraphView = ({
     }
   }, [searchParams]);
 
-  const openShareDialogInShareMode = () => {
-    setSharedPoints([]);
-    setSharedByUsername(undefined);
-    setShareDialogMode('share');
-    setIsShareDialogOpen(true);
-  };
-
   return (
     <>
       <ReactFlow
@@ -692,150 +698,122 @@ export const GraphView = ({
           variant={BackgroundVariant.Dots}
         />
 
-        {/* Position MiniMap with margin using Panel and inner div */}
-        <Panel position="bottom-right" className="m-2">
-          {/* Responsive bottom offset */}
-          <div className="relative bottom-[10px] md:bottom-[20px]">
-            <MiniMap nodeStrokeWidth={3} zoomable pannable />
+        {/* Share controls and MiniMap in bottom-right */}
+        <Panel position="bottom-right" className="mr-4 mb-4">
+          <div className="flex flex-col gap-2">
+            {/* Share controls */}
+            {!hideShareButton && (
+              <div className="flex flex-col gap-2 mb-48 mr-6 bg-background/95 p-3 rounded-md shadow-md border border-border">
+                {isSharing ? (
+                  <ShareControls
+                    handleGenerateAndCopyShareLink={handleGenerateAndCopyShareLink}
+                    toggleSharingMode={toggleSharingMode}
+                  />
+                ) : (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="secondary"
+                        onClick={toggleSharingMode}
+                        disabled={isSavingProp || isSaving_local || isDiscarding}
+                        className="bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-lg px-4 py-2 flex items-center justify-center gap-2 w-[160px] text-sm"
+                      >
+                        <Share2Icon className="size-4" />
+                        <span className="text-sm font-medium">Share Points</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Select points to share</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            )}
+            {/* MiniMap */}
+            <div className="relative bottom-8 mt-4">
+              <MiniMap nodeStrokeWidth={3} zoomable pannable />
+            </div>
           </div>
         </Panel>
 
         {/* Position Controls with margin using Panel and inner div */}
         <Panel position="bottom-left" className="m-2">
           {/* Responsive bottom offset */}
-          <div className="relative bottom-[10px] md:bottom-[20px]">
+          <div className="relative bottom-[10px] md:bottom-[20px] mb-4">
             <Controls />
           </div>
         </Panel>
 
-        {onClose && (
-          <Panel position="top-right">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              className={cn("m-2 bg-background/80", closeButtonClassName)}
-            >
-              <XIcon />
-            </Button>
-          </Panel>
-        )}
-        {(isModified || isContentModified) && !isNew && (
-          <Panel position="top-right" className="m-2">
-            {/* Inner div for positioning and layering - Responsive top */}
-            <div className="relative top-[50px] md:top-[15px] z-50 flex flex-col gap-2">
-              {/* Save Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <AuthenticatedActionButton
-                    variant="outline"
-                    onClick={handleSave}
-                    disabled={isSavingProp || isSaving_local}
-                    className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 w-[140px]"
-                    id="graph-save-button"
-                  >
-                    {isSavingProp || isSaving_local ? (
-                      <Loader className="size-4 animate-spin" />
-                    ) : (
-                      <span className="text-xs">
-                        {canModify
-                          ? isNew
-                            ? "Publish Rationale"
-                            : "Publish Changes"
-                          : "Copy to Save"}
-                      </span>
-                    )}
-                  </AuthenticatedActionButton>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Save changes</p>
-                </TooltipContent>
-              </Tooltip>
-              {/* Discard Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsDiscardDialogOpen(true)}
-                    disabled={isSavingProp || isSaving_local || isDiscarding}
-                    className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 w-[140px]"
-                  >
-                    {isDiscarding ? <Loader className="size-4 animate-spin" /> : <Undo2Icon className="size-4" />}
-                    <span className="text-xs">Discard</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Discard changes</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          </Panel>
-        )}
+        {/* Save/Discard panel in top-right */}
+        <Panel position="top-right" className="m-2">
+          <div className="flex flex-col items-end gap-2 mt-16 sm:mt-0">
+            {onClose && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+                className={cn("bg-background/80", closeButtonClassName)}
+              >
+                <XIcon />
+              </Button>
+            )}
 
-        {/* Always visible Share Button Panel (unless hidden by prop) */}
-        {!hideShareButton && (
-          <Panel position="top-right" className="m-2">
-            {/* Position below the potential save/discard buttons */}
-            <div className={cn(
-              "relative z-40 flex flex-col gap-2",
-              // If Save/Discard are shown, position Share below them (approx 85px height + 8px gap)
-              // Otherwise, use the default top offset
-              (isModified || isContentModified) ? "top-[calc(50px+85px+8px)] md:top-[calc(15px+85px+8px)]" : "top-[50px] md:top-[15px]"
-            )}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    onClick={openShareDialogInShareMode}
-                    disabled={isSavingProp || isSaving_local || isDiscarding}
-                    className="bg-background/80 shadow-md px-3 py-1.5 flex items-center justify-center gap-2 w-[140px]"
-                  >
-                    <Share2Icon className="size-4" />
-                    <span className="text-xs">Share Points</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Share selected points from this rationale</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          </Panel>
-        )}
+            {(isModified || isContentModified) && !isNew && (
+              <div className="flex flex-col gap-2 bg-background/95 p-3 rounded-md shadow-md border border-border">
+                {/* Save Button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <AuthenticatedActionButton
+                      variant="default"
+                      onClick={handleSave}
+                      disabled={isSavingProp || isSaving_local}
+                      className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg px-4 py-2 flex items-center justify-center w-[160px]"
+                      id="graph-save-button"
+                    >
+                      {isSavingProp || isSaving_local ? (
+                        <Loader className="size-4 animate-spin" />
+                      ) : (
+                        <div className="flex items-center">
+                          <SaveIcon className="size-4 mr-2" />
+                          <span className="text-sm font-medium">
+                            {canModify
+                              ? isNew
+                                ? "Publish Rationale"
+                                : "Publish Changes"
+                              : "Copy to Save"}
+                          </span>
+                        </div>
+                      )}
+                    </AuthenticatedActionButton>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Save changes</p>
+                  </TooltipContent>
+                </Tooltip>
+                {/* Discard Button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="secondary"
+                      onClick={() => setIsDiscardDialogOpen(true)}
+                      disabled={isSavingProp || isSaving_local || isDiscarding}
+                      className="bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-lg px-4 py-2 flex items-center justify-center gap-2 w-[160px]"
+                    >
+                      {isDiscarding ? <Loader className="size-4 animate-spin" /> : <Undo2Icon className="size-4" />}
+                      <span className="text-sm font-medium">Discard</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Discard changes</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            )}
+          </div>
+        </Panel>
 
         <GlobalExpandPointDialog />
       </ReactFlow>
-
-      {!canvasEnabled && (isModified || isContentModified) && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 p-3 bg-background border-t z-30 flex justify-center gap-4">
-          <Button
-            variant="outline"
-            onClick={() => setIsDiscardDialogOpen(true)}
-            disabled={isSavingProp || isSaving_local || isDiscarding}
-            className="flex-1 shadow-md"
-          >
-            {isDiscarding ? <Loader className="size-4 animate-spin mr-2" /> : <Undo2Icon className="size-4 mr-2" />}
-            Discard
-          </Button>
-          <AuthenticatedActionButton
-            onClick={handleSave}
-            disabled={isSavingProp || isSaving_local}
-            className="flex-1 shadow-md flex items-center justify-center min-w-[140px]"
-          >
-            {isSavingProp || isSaving_local ? (
-              <Loader className="size-4 animate-spin" />
-            ) : (
-              <>
-                <SaveIcon className="size-4 mr-2" />
-                {canModify
-                  ? isNew
-                    ? "Publish Rationale"
-                    : "Publish Changes"
-                  : "Copy Rationale"}
-              </>
-            )}
-          </AuthenticatedActionButton>
-        </div>
-      )}
 
       <AlertDialog open={isDiscardDialogOpen} onOpenChange={setIsDiscardDialogOpen}>
         <AlertDialogContent className={cn("sm:max-w-[425px]", unsavedChangesModalClassName)}>
@@ -869,12 +847,58 @@ export const GraphView = ({
         onOpenChange={setIsShareDialogOpen}
         rationaleId={rationaleId}
         spaceId={spaceId}
-        isViewMode={shareDialogMode === 'view'}
         initialPoints={shareDialogMode === 'view' ? sharedPoints : undefined}
         sharedBy={shareDialogMode === 'view' ? sharedByUsername : undefined}
       />
 
       <MergeNodesDialog />
+    </>
+  );
+};
+
+const ShareControls = ({ handleGenerateAndCopyShareLink, toggleSharingMode }: {
+  handleGenerateAndCopyShareLink?: () => void;
+  toggleSharingMode?: () => void;
+}) => {
+  const [selectedIds] = useAtom(selectedPointIdsAtom);
+  const numberOfSelectedPoints = selectedIds.size;
+
+  return (
+    <>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="default"
+            onClick={handleGenerateAndCopyShareLink}
+            disabled={numberOfSelectedPoints === 0}
+            className="shadow-lg px-4 py-2 flex items-center justify-center gap-2 w-[160px] text-sm"
+          >
+            <Share2Icon className="size-4" />
+            <span>Generate Link</span>
+            {numberOfSelectedPoints > 0 && (
+              <span className="ml-1 font-bold">({numberOfSelectedPoints})</span>
+            )}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Copy share link for selected points</p>
+        </TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="secondary"
+            onClick={toggleSharingMode}
+            className="bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-lg px-4 py-2 flex items-center justify-center gap-2 w-[160px] text-sm"
+          >
+            <XIcon className="size-4" />
+            <span>Cancel Sharing</span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Exit sharing mode</p>
+        </TooltipContent>
+      </Tooltip>
     </>
   );
 };

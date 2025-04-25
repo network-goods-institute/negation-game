@@ -22,6 +22,7 @@ export const initUserAction = async ({
     const query = db
       .insert(usersTable)
       .values({ username, id: userId })
+      .onConflictDoNothing()
       .returning();
     console.warn("[initUserAction] SQL query:", query.toSQL());
 

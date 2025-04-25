@@ -46,11 +46,13 @@ export type PointNode = Node<PointNodeData, "point">;
 
 export interface PointNodeProps extends NodeProps {
   data: PointNodeData;
+  isSharing?: boolean;
 }
 
 export const PointNode = ({
   data: { pointId, parentId, expandOnInit, isExpanding: dataIsExpanding },
   id,
+  isSharing,
 }: PointNodeProps) => {
 
   const [hoveredPoint, setHoveredPoint] = useAtom(hoveredPointIdAtom);
@@ -966,6 +968,7 @@ export const PointNode = ({
               inGraphNode={true}
               graphNodeLevel={level}
               disablePopover={true}
+              isSharing={isSharing}
             ></PointCard>
           </>
         ) : (
