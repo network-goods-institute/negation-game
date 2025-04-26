@@ -200,13 +200,16 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                                     }}
                                     className="relative flex flex-col gap-2 p-4 w-full bg-background cursor-pointer border border-dashed rounded-md transition-colors shadow-sm hover:border-blue-500 hover:ring-1 hover:ring-blue-500"
                                 >
-                                    <div className="flex justify-between items-start">
-                                        <span className="flex-grow text-md">
-                                            {suggestion}
-                                        </span>
-                                        <Badge className="bg-blue-500/15 text-blue-500 border-blue-500 hover:bg-blue-500/20 whitespace-nowrap ml-2">
+                                    {/* Container for text and badge, stacks vertically on mobile */}
+                                    <div className="flex flex-col items-end sm:flex-row sm:justify-between sm:items-start">
+                                        {/* Badge moved above text on mobile */}
+                                        <Badge className="bg-blue-500/15 text-blue-500 border-blue-500 hover:bg-blue-500/20 whitespace-nowrap mb-2 sm:mb-0 order-first sm:order-last">
                                             <SparklesIcon className="size-3 mr-1" /> AI Suggestion
                                         </Badge>
+                                        {/* Text takes full width on mobile */}
+                                        <span className="w-full text-md">
+                                            {suggestion}
+                                        </span>
                                     </div>
                                 </div>
                             ))}

@@ -6,7 +6,6 @@ import { makeNegationSuggestionAtom } from "@/atoms/makeNegationSuggestionAtom";
 import { CredInput } from "@/components/CredInput";
 import { PointEditor } from "@/components/PointEditor";
 import { PointStats } from "@/components/PointStats";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -203,7 +202,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     setGuidanceNotes(
       <>
         <SquarePenIcon className="size-3 align-[-1.5px] inline-block" />{" "}
-        {counterpointContent}{" "} {/* Show the original content */} 
+        {counterpointContent}{" "} {/* Show the original content */}
         <Button
           variant={"link"}
           className="text-xs size-fit inline-block p-0 font-normal underline underline-offset-1 ml-1"
@@ -507,26 +506,19 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
               )}
             </div>
 
-            {isSubmitting ? (
-              <div className="items-end mt-md flex flex-col w-full xs:flex-row justify-end gap-2">
-                <Button disabled className="min-w-28 w-full xs:w-fit">
-                  {selectedCounterpointCandidate?.isCounterpoint
-                    ? "Endorsing..."
-                    : selectedCounterpointCandidate
-                      ? "Negating..."
-                      : "Submitting..."
-                  }
-                </Button>
-              </div>
-            ) : selectedCounterpointCandidate ? (
+            {selectedCounterpointCandidate ? (
               <div className="items-end mt-md flex flex-col w-full xs:flex-row justify-end gap-2">
                 <Button
                   className="min-w-28 w-full xs:w-fit"
-                  rightLoading={false}
-                  disabled={!canSubmit}
+                  rightLoading={isSubmitting}
+                  disabled={!canSubmit || isSubmitting}
                   onClick={handleSubmit}
                 >
-                  {selectedCounterpointCandidate.isCounterpoint
+                  {isSubmitting
+                    ? selectedCounterpointCandidate.isCounterpoint
+                      ? "Endorsing..."
+                      : "Negating..."
+                    : selectedCounterpointCandidate.isCounterpoint
                       ? "Endorse"
                       : "Endorse Negation"}
                 </Button>
@@ -535,16 +527,16 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
               <div className="items-end mt-md flex flex-col w-full xs:flex-row justify-end gap-2">
                 <Button
                   className="min-w-28 w-full xs:w-fit"
-                  rightLoading={false}
-                  disabled={!canSubmit}
+                  rightLoading={isSubmitting}
+                  disabled={!canSubmit || isSubmitting}
                   onClick={handleSubmit}
                 >
-                  Submit
+                  {isSubmitting ? "Submitting..." : "Submit"}
                 </Button>
                 <Button
                   variant="outline"
                   className="min-w-28 w-full xs:w-fit"
-                  disabled={isReviewingCounterpoint || !canReview}
+                  disabled={isReviewingCounterpoint || !canReview || isSubmitting}
                   rightLoading={postReviewAction === 'regenerate' && isReviewingCounterpoint}
                   onClick={() => {
                     if (postReviewAction === 'regenerate') {
@@ -566,9 +558,9 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                 <Tooltip delayDuration={0}>
                   <TooltipTrigger asChild>
                     <Button
-                      disabled={!canReview || isReviewingCounterpoint}
+                      disabled={!canReview || isReviewingCounterpoint || isSubmitting}
                       className="min-w-28 w-full xs:w-fit"
-                      rightLoading={isReviewingCounterpoint}
+                      rightLoading={isSubmitting || isReviewingCounterpoint}
                       onClick={(e) => {
                         if (e.altKey) {
                           setIsSubmitting(true);
@@ -578,7 +570,11 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                         reviewCounterpoint();
                       }}
                     >
-                      {isReviewingCounterpoint ? "Reviewing..." : "Review & Negate"}
+                      {isSubmitting
+                        ? "Submitting..."
+                        : isReviewingCounterpoint
+                          ? "Reviewing..."
+                          : "Review & Negate"}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="text-xs">
