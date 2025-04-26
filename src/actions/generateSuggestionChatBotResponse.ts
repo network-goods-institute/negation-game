@@ -1,0 +1,174 @@
+"use server";
+
+import { google } from "@ai-sdk/google";
+import { streamText, type Message } from "ai";
+import { withRetry } from "@/lib/withRetry";
+import { getUserId } from "@/actions/getUserId";
+
+import type { ChatSettings, DiscourseMessage } from "@/types/chat";
+import type { PointInSpace } from "./fetchAllSpacePoints";
+
+const sanitizeText = (text: string): string => {
+  if (!text) return "";
+  return text
+    .replace(/fuck/gi, "f***")
+    .replace(/shit/gi, "s***")
+    .replace(/ass\b/gi, "a**")
+    .replace(/bitch/gi, "b****")
+    .replace(/cunt/gi, "c***")
+    .replace(/dick/gi, "d***")
+    .replace(/twat/gi, "t***")
+    .replace(/kill/gi, "k***")
+    .replace(/murder/gi, "m*****")
+    .replace(/\b(test+|aaa+|ddd+|www+|lorem|ipsum)\b/gi, "[placeholder]");
+};
+
+function buildGenerateSystemPrompt(): string {
+  return `You are an AI assistant specialized in brainstorming for the Negation Game platform. Your sole focus is to help users generate NEW points and suggest relevant NEGATIONS for their EXISTING points based on their context (owned points, endorsed points, and recent discussions).
+
+RULES & CAPABILITIES:
+1.  **Focus:** Strictly brainstorming new, distinct points and suggesting specific negations for points provided in the CONTEXT. DO NOT write summaries, essays, or lengthy explanations unless directly asked to elaborate on a *specific suggestion*.
+2.  **Suggesting New Points:** Use \`[Suggest Point]>\` on **its own line**, followed by the suggested point text (max 160 chars) on the next line(s).
+    *   Example:
+        [Suggest Point]>
+        Consider the long-term maintenance aspect.
+3.  **Suggesting Negations:** Use \`[Suggest Negation For:ID]>\` on a **new line immediately after referencing Point ID** (must be an EXISTING Point ID from CONTEXT). Follow with negation text (max 160 chars). Target ONLY points (numeric IDs). Do NOT suggest negations for Discourse Posts. Do NOT invent Point IDs.
+    *   Example (after referencing Point 123):
+        ...your point about initial cost [Point:123].
+        - [Suggest Negation For:123]> This overlooks the potential for vendor lock-in.
+4.  **Referencing (Inline):** Use \`[Point:ID]\` or \`[Discourse Post:ID]\` for direct inline mentions when you explicitly name the point or post.
+    *   Example: \"Regarding [Point:123], we should...\" or \"As mentioned in [Discourse Post:456]...\"
+5.  **Source Attribution:** Use parentheses \`(Source: Type ID:ID)\` *after* presenting information derived from a specific source in the context, but *only if you haven't just used the inline reference for the same ID*. This clarifies where the summarized information came from.
+    *   Format (Points): \`(Source: Point ID:ID)\`
+    *   Format (Discourse): \`(Source: Discourse Post ID:ID)\`
+    *   Example: \"The discussion seems to focus on budget constraints (Source: Discourse Post ID:789).\" 
+    *   **Crucial:** DO NOT use \`(Source:...)\` if you just used \`[Point:ID]\` or \`[Discourse Post:ID]\` for the *exact same ID* in the same sentence or clause. Avoid redundancy.
+6.  **Interaction:** Ask clarifying questions. Encourage elaboration. Be concise.
+7.  **Formatting:** Standard Markdown (GFM). Double newlines between paragraphs. Use lists for suggestions.
+
+MARKDOWN FORMATTING:
+*   Standard Markdown (GFM).
+*   **Double newlines** between paragraphs.
+*   Use lists (\`-\` or \`*\`) for multiple suggestions.
+
+YOUR TASK:
+*   Analyze the user's message, chat history, and the provided context (points in space, ownership/endorsement status, discourse posts).
+*   Generate relevant suggestions for NEW points (\`[Suggest Point]>\`).
+*   Generate relevant suggestions for NEGATIONS of EXISTING points (\`[Suggest Negation For:ID]>\`).
+*   Engage in a focused brainstorming dialogue.
+*   Strictly adhere to the specified tag formats and rules for referencing, attribution, and suggestions.`;
+}
+
+function buildContextString(
+  allPointsInSpace: PointInSpace[],
+  ownedPointIds: Set<number>,
+  endorsedPointIds: Set<number>,
+  discourseMessages: DiscourseMessage[]
+): string {
+  let context = "";
+
+  if (allPointsInSpace.length > 0) {
+    context += "All Points in this Space:\n";
+    allPointsInSpace.forEach((p) => {
+      const content = sanitizeText(p.content || "[Content unavailable]");
+      let ownershipLabel = "";
+      if (ownedPointIds.has(p.id)) {
+        ownershipLabel = " (You created this)";
+      } else if (endorsedPointIds.has(p.id)) {
+        ownershipLabel = " (You endorsed this)";
+      }
+      context += `- [Point:${p.id}] ${content.substring(0, 100)}...${ownershipLabel}\n`;
+    });
+    context += "\n";
+  } else {
+    context += "There are no points in this space yet.\n\n";
+  }
+
+  if (discourseMessages.length > 0) {
+    context += "Relevant Recent Discourse Posts:\n";
+    discourseMessages.forEach((m) => {
+      context += `- [Discourse Post:${m.id}] ${sanitizeText(m.raw || m.content).substring(0, 150)}...\n`;
+    });
+    context += "\n";
+  } else {
+    context += "No recent Discourse posts provided or enabled.\n";
+  }
+
+  return context.trim();
+}
+
+export const generateSuggestionChatBotResponse = async (
+  messages: Message[],
+  settings: ChatSettings,
+  allPointsInSpace: PointInSpace[] = [],
+  ownedPointIds: Set<number> = new Set(),
+  endorsedPointIds: Set<number> = new Set(),
+  discourseMessages: DiscourseMessage[] = []
+) => {
+  try {
+    const chatMessages = messages.filter((m) => m.role !== "system");
+
+    if (chatMessages.length === 0) {
+      throw new Error("No chat messages found for response generation");
+    }
+
+    const viewerId = await getUserId();
+
+    const relevantDiscourseMessages = settings.includeDiscourseMessages
+      ? discourseMessages.slice(-5)
+      : [];
+
+    const systemPrompt = buildGenerateSystemPrompt();
+    const contextString = buildContextString(
+      allPointsInSpace,
+      ownedPointIds,
+      endorsedPointIds,
+      relevantDiscourseMessages
+    );
+    const chatHistoryString = chatMessages
+      .map((m) => `${m.role.toUpperCase()}:\n${m.content}`)
+      .join("\n\n");
+
+    const finalPrompt = `${systemPrompt}\n\n---\nCONTEXT FOR THIS RESPONSE:\n${contextString}\n---\n\nCHAT HISTORY:\n${chatHistoryString}\n\nA:`;
+
+    const aiResult = await withRetry(async () => {
+      try {
+        const response = await streamText({
+          model: google("gemini-2.0-flash"),
+          prompt: finalPrompt,
+        });
+        if (!response) throw new Error("Failed to get response from AI model");
+        return response;
+      } catch (error) {
+        if (error instanceof Error) {
+          if (error.message.includes("rate limit")) {
+            throw new Error("AI service is currently busy. Please try again.");
+          } else if (error.message.includes("context length")) {
+            throw new Error(
+              "Conversation context is too long. Please try shortening your message or starting a new chat."
+            );
+          }
+        }
+        throw error;
+      }
+    });
+
+    const elementStream = aiResult.textStream;
+    if (!elementStream) {
+      throw new Error("Failed to initialize response stream");
+    }
+    return elementStream;
+  } catch (error) {
+    if (error instanceof Error) {
+      if (
+        error.message.includes("AI service") ||
+        error.message.includes("context is too long")
+      ) {
+        throw error;
+      }
+    }
+    throw new Error(
+      "Failed to generate suggestion response. Please try again."
+    );
+  }
+};

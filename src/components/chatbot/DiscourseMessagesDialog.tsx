@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { DiscourseMessage } from "./AIAssistant";
+import type { DiscourseMessage } from "@/types/chat";
 
 interface DiscourseMessagesDialogProps {
     isOpen: boolean;

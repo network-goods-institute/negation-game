@@ -19,15 +19,8 @@ export const pointFetcher = create({
 
 export type PointData = Awaited<ReturnType<typeof fetchPoints>>[number];
 
-type PointQueryKey = readonly [number | undefined, "point", string | undefined];
-
-export const pointQueryKey = ({
-  pointId,
-  userId,
-}: {
-  pointId?: number;
-  userId?: string;
-}): PointQueryKey => [pointId, "point", userId];
+export const pointQueryKey = (params?: { pointId?: number; userId?: string }) =>
+  ["point", params?.pointId, { userId: params?.userId }] as const;
 
 export const usePointData = (pointId?: number) => {
   const { user } = usePrivy();
@@ -42,6 +35,7 @@ export const usePointData = (pointId?: number) => {
     refetchOnReconnect: true,
     networkMode: "offlineFirst",
     retry: 3,
+    enabled: !!pointId,
   });
 };
 

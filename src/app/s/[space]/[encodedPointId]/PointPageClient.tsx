@@ -87,7 +87,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { getBackButtonHandler } from "@/utils/backButtonUtils";
+import { getBackButtonHandler } from "@/lib/backButtonUtils";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 
 type Point = {
@@ -1082,8 +1082,6 @@ export function PointPageClient({
                     />
                 </ReactFlowProvider>
             )}
-
-            <NegateDialog />
 
             <SelectNegationDialog
                 open={selectNegationDialogOpen}

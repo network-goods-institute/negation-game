@@ -37,6 +37,7 @@ export function DynamicHeaderContent() {
                 {showPlaceholder ? (
                     <span className="text-[10px] font-bold text-muted-foreground">{initial}</span>
                 ) : (
+                    //eslint-disable-next-line @next/next/no-img-element
                     <img
                         src={spaceData.icon!}
                         alt={`s/${spaceId} icon`}

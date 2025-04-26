@@ -39,6 +39,7 @@
     "@radix-ui/react-portal": "^1.1.4",
     "@radix-ui/react-progress": "^1.1.2",
     "@radix-ui/react-scroll-area": "^1.2.3",
+    "@radix-ui/react-select": "^2.2.2",
     "@radix-ui/react-separator": "^1.1.0",
     "@radix-ui/react-slider": "^1.2.2",
     "@radix-ui/react-slot": "^1.1.0",
@@ -84,7 +85,7 @@
     "remeda": "^2.16.0",
     "sonner": "^1.4.41",
     "sqids": "^0.3.0",
-    "tailwind-merge": "^2.4.0",
+    "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.0",
     "viem": "^2.21.36",
@@ -129,5 +130,6 @@
     "type-fest": "^4.26.1",
     "typescript": "^5.3.3",
     "worker-loader": "^3.0.8"
-  }
+  },
+  "packageManager": "pnpm@9.15.4+sha512.b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0"
 }

@@ -3,11 +3,11 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeftIcon } from 'lucide-react';
-import { isSameDomain, getBackButtonHandler } from '@/utils/backButtonUtils';
+import { isSameDomain, getBackButtonHandler } from '@/lib/backButtonUtils';
 import { useRouter } from 'next/navigation';
 
 // Mock backButtonUtils including both functions
-jest.mock('@/utils/backButtonUtils', () => {
+jest.mock('@/lib/backButtonUtils', () => {
     // Create a mock for isSameDomain that can be reused
     const isSameDomainMock = jest.fn();
 

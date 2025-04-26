@@ -33,7 +33,7 @@ import { updateViewpointGraph } from "@/actions/updateViewpointGraph";
 import { updateViewpointDetails } from "@/actions/updateViewpointDetails";
 import { useParams, useSearchParams } from "next/navigation";
 import { useViewpoint } from "@/queries/useViewpoint";
-import { AuthenticatedActionButton } from "@/components/ui/AuthenticatedActionButton";
+import { AuthenticatedActionButton } from "@/components/AuthenticatedActionButton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,7 +44,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { copyViewpointAndNavigate } from "@/utils/copyViewpoint";
+import { copyViewpointAndNavigate } from "@/lib/copyViewpoint";
 import { cn } from "@/lib/cn";
 import { MergeNodesDialog } from "@/components/graph/MergeNodesDialog";
 import { ShareRationaleDialog } from "@/components/graph/ShareRationalePointsDialog";

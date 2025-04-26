@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import type { ProfilePoint } from "@/actions/fetchProfilePoints";
 import React from "react";
 import { useUserEndorsedPoints } from "@/queries/useUserEndorsedPoints";
-import { getBackButtonHandler } from "@/utils/backButtonUtils";
+import { getBackButtonHandler } from "@/lib/backButtonUtils";
 import { ViewpointCardWrapper } from "@/components/ViewpointCardWrapper";
 import { usePathname } from "next/navigation";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
@@ -616,8 +616,6 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                     currentDiscourseConsentGiven={userData?.discourseConsentGiven}
                 />
             )}
-
-            <NegateDialog />
         </main>
     );
 } 

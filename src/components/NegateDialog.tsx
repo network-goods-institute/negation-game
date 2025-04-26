@@ -2,10 +2,10 @@ import { reviewProposedCounterpointAction } from "@/actions/reviewProposedCounte
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { negationContentAtom } from "@/atoms/negationContentAtom";
 import { recentlyCreatedNegationIdAtom } from "@/atoms/recentlyCreatedNegationIdAtom";
+import { makeNegationSuggestionAtom } from "@/atoms/makeNegationSuggestionAtom";
 import { CredInput } from "@/components/CredInput";
 import { PointEditor } from "@/components/PointEditor";
 import { PointStats } from "@/components/PointStats";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,9 +15,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  GOOD_ENOUGH_POINT_RATING,
   POINT_MAX_LENGTH,
   POINT_MIN_LENGTH,
+  GOOD_ENOUGH_POINT_RATING,
 } from "@/constants/config";
 import { useCredInput } from "@/hooks/useCredInput";
 import { useSubmitHotkey } from "@/hooks/useSubmitHotkey";
@@ -35,6 +35,8 @@ import {
   CircleXIcon,
   DiscIcon,
   TrashIcon,
+  SquarePenIcon,
+  AlertTriangleIcon,
 } from "lucide-react";
 import { FC, ReactNode, useCallback, useEffect, useState } from "react";
 import {
@@ -44,18 +46,30 @@ import {
 } from "@/components/ui/tooltip";
 import CounterpointReview, { CounterpointCandidate } from "@/components/CounterpointReview";
 import { toast } from "sonner";
+import { encodeId } from '@/lib/encodeId';
+import { CreatedNegationView } from './chatbot/CreatedNegationView';
 
 export interface NegateDialogProps
   extends Omit<DialogProps, "open" | "onOpenChange"> { }
 
 export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
+  const [negationSuggestion, setNegationSuggestion] = useAtom(makeNegationSuggestionAtom);
+
+  const initialNegatedPointId = negationSuggestion?.targetId;
   const [negatedPointId, setNegatedPointId] = useAtom(negatedPointIdAtom);
-  const { data: negatedPoint } = usePointData(negatedPointId);
+
+  const currentNegatedPointId = initialNegatedPointId ?? negatedPointId;
+
+  const { data: negatedPoint, isLoading: isLoadingNegatedPoint } = usePointData(currentNegatedPointId);
+
   const [counterpointContent, setCounterpointContent] = useAtom(
-    negationContentAtom(negatedPoint?.pointId)
+    negationContentAtom(currentNegatedPointId)
   );
+
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [lastReviewedContent, setLastReviewedContent] = useState<string>("");
+  const [hasContentBeenReviewed, setHasContentBeenReviewed] = useState(false);
+  const [postReviewAction, setPostReviewAction] = useState<'reopen' | 'regenerate' | null>(null);
 
   const {
     credInput: cred,
@@ -63,7 +77,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     notEnoughCred,
     resetCredInput: resetCred,
   } = useCredInput({
-    resetWhen: !negatedPointId,
+    resetWhen: !currentNegatedPointId,
   });
   const { mutateAsync: addCounterpoint, isPending: isAddingCounterpoint } =
     useAddCounterpoint();
@@ -84,6 +98,8 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   const queryClient = useQueryClient();
 
   const [recentlyCreatedNegation, setRecentlyCreatedNegation] = useAtom(recentlyCreatedNegationIdAtom);
+
+  const [createdCounterpointId, setCreatedCounterpointId] = useState<number | null>(null);
 
   const {
     data: reviewResults,
@@ -109,8 +125,8 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
 
       setGuidanceNotes(undefined);
       setLastReviewedContent(content);
+      setHasContentBeenReviewed(true);
 
-      // Cache for rephrasings
       reviewResults.suggestions.forEach((selectedSuggestion) =>
         queryClient.setQueryData<typeof reviewResults>(
           ["counterpoint-review", pointId, selectedSuggestion] as const,
@@ -129,7 +145,6 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     },
   });
 
-  // Simple check if content has been reviewed
   const needsReview = counterpointContent !== lastReviewedContent;
 
   const canReview =
@@ -138,138 +153,182 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   const canSubmit = selectedCounterpointCandidate?.isCounterpoint
     ? true
     : charactersLeft >= 0 && counterpointContent.length >= POINT_MIN_LENGTH;
-
-  // Only reset necessary state
-  const resetForm = useCallback(() => {
+  const resetFormOnly = useCallback(() => {
     selectCounterpointCandidate(undefined);
     setGuidanceNotes(undefined);
     resetCred();
     setCounterpointContent("");
     setLastReviewedContent("");
+    setCreatedCounterpointId(null);
+    setHasContentBeenReviewed(false);
+    setPostReviewAction(null);
   }, [resetCred, setCounterpointContent]);
 
-  useEffect(() => {
-    if (!negatedPointId) resetForm();
-  }, [negatedPointId, resetForm]);
+  const handleClose = useCallback(() => {
+    resetFormOnly();
+    setNegationSuggestion(null);
+    setNegatedPointId(undefined);
+    setCreatedCounterpointId(null);
+    setHasContentBeenReviewed(false);
+    setPostReviewAction(null);
+  }, [resetFormOnly, setNegationSuggestion, setNegatedPointId]);
 
-  // Debug effect to track negatedPointId changes
+  const handleExitPreview = useCallback(() => {
+    handleClose();
+  }, [handleClose]);
+
   useEffect(() => {
-    console.log("negatedPointId changed:", negatedPointId);
-  }, [negatedPointId]);
+    if (negationSuggestion) {
+      setCounterpointContent(negationSuggestion.text);
+      selectCounterpointCandidate(undefined);
+      setGuidanceNotes(undefined);
+      setLastReviewedContent("");
+    }
+  }, [negationSuggestion, setCounterpointContent]);
+
+  useEffect(() => {
+    if (!currentNegatedPointId) {
+      handleClose();
+    }
+  }, [currentNegatedPointId, handleClose]);
+
+  useEffect(() => {
+    if (needsReview) {
+      setHasContentBeenReviewed(false);
+    }
+  }, [needsReview]);
+
+  const handleSuggestionSelected = useCallback((suggestion: string) => {
+    setGuidanceNotes(
+      <>
+        <SquarePenIcon className="size-3 align-[-1.5px] inline-block" />{" "}
+        {counterpointContent}{" "} {/* Show the original content */}
+        <Button
+          variant={"link"}
+          className="text-xs size-fit inline-block p-0 font-normal underline underline-offset-1 ml-1"
+          onClick={(e) => {
+            e.stopPropagation();
+            setCounterpointContent(counterpointContent);
+            setLastReviewedContent("");
+            setHasContentBeenReviewed(false);
+            setGuidanceNotes(undefined);
+          }}
+        >
+          restore
+        </Button>
+      </>
+    );
+    setCounterpointContent(suggestion);
+    setLastReviewedContent(suggestion);
+    setHasContentBeenReviewed(true);
+    setReviewDialogOpen(false);
+    setPostReviewAction('regenerate');
+  }, [counterpointContent, setCounterpointContent, setLastReviewedContent, setHasContentBeenReviewed, setGuidanceNotes]);
+
+  const handleSelectOwnText = useCallback(() => {
+    setGuidanceNotes(
+      reviewResults && reviewResults.rating < GOOD_ENOUGH_POINT_RATING ? (
+        <>
+          <AlertTriangleIcon className="size-3 align-[-1.5px] inline-block" />{" "}
+          {reviewResults.feedback}
+          <Button
+            variant={"link"}
+            className="text-xs size-fit inline-block p-0 font-normal underline underline-offset-1 ml-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              setGuidanceNotes(undefined);
+            }}
+          >
+            dismiss
+          </Button>
+        </>
+      ) : undefined
+    );
+    selectCounterpointCandidate(undefined);
+    setHasContentBeenReviewed(true); // Mark as reviewed
+    setPostReviewAction('reopen'); // <-- Set action type for keeping own text
+    setReviewDialogOpen(false); // Close review dialog
+  }, [reviewResults, setGuidanceNotes]);
 
   const handleSubmit = useCallback(() => {
-    if (!canSubmit || isSubmitting) return;
+    if (!canSubmit || isSubmitting || !negatedPoint) return;
 
     setIsSubmitting(true);
-    (selectedCounterpointCandidate === undefined
-      ? addCounterpoint({
+    let mutationPromise: Promise<number | void>;
+    let isCreatingNew = selectedCounterpointCandidate === undefined;
+    let finalCounterpointId: number | undefined;
+
+    if (isCreatingNew) {
+      mutationPromise = addCounterpoint({
         content: counterpointContent,
         cred,
-        negatedPointId: negatedPoint!.pointId,
-      })
-      : selectedCounterpointCandidate.isCounterpoint
-        ? endorse({
-          pointId: selectedCounterpointCandidate.id,
+        negatedPointId: negatedPoint.pointId,
+      }).then(newPointId => {
+        finalCounterpointId = newPointId;
+        return newPointId;
+      });
+    } else {
+      const candidate = selectedCounterpointCandidate;
+      if (!candidate) {
+        toast.error("Cannot proceed: No counterpoint candidate selected.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      finalCounterpointId = candidate.id;
+
+      if (candidate.isCounterpoint) {
+        mutationPromise = endorse({
+          pointId: candidate.id,
           cred,
-        })
-        : negate({
-          negatedPointId: negatedPoint!.pointId,
-          counterpointId: selectedCounterpointCandidate.id,
+        }).then(() => finalCounterpointId);
+      } else {
+        mutationPromise = negate({
+          negatedPointId: negatedPoint.pointId,
+          counterpointId: candidate.id,
           cred,
-        })
-    )
-      .then((result) => {
-        // Show success toast
-        if (selectedCounterpointCandidate === undefined) {
-          toast.success(
-            "Negation created successfully. It may take a moment to appear.",
-            { duration: 5000 }
-          );
+        }).then(() => finalCounterpointId);
+      }
+    }
 
-          setRecentlyCreatedNegation({
-            negationId: result, // The result of addCounterpoint is the new point ID
-            parentPointId: negatedPoint!.pointId,
-            timestamp: Date.now()
-          });
-
-          if (negatedPoint?.pointId) {
-            queryClient.invalidateQueries({
-              queryKey: [negatedPoint.pointId, "negations"],
-              exact: true,
-            });
-
-            queryClient.invalidateQueries({
-              queryKey: ["point", negatedPoint.pointId],
-              type: "all",
-            });
-          }
-
-          // Dispatch custom event for negation creation
-          const event = new CustomEvent('negation:created', {
-            detail: { pointId: negatedPoint?.pointId }
-          });
-          window.dispatchEvent(event);
-        } else if (selectedCounterpointCandidate.isCounterpoint) {
-          toast.success("Point endorsed successfully");
-
-          if (negatedPoint?.pointId) {
-            // Invalidate the parent point's negations cache
-            queryClient.invalidateQueries({
-              queryKey: [negatedPoint.pointId, "negations"],
-              exact: true,
-            });
-
-            // Invalidate the point data cache to update negation count
-            queryClient.invalidateQueries({
-              queryKey: ["point", negatedPoint.pointId],
-              type: "all",
-            });
-          }
-
-          // Dispatch custom event for negation creation
-          const event = new CustomEvent('negation:created', {
-            detail: { pointId: negatedPoint?.pointId }
-          });
-          window.dispatchEvent(event);
-        } else {
-          toast.success(
-            "Endorsed an existing negation successfully. If in a graph context, it may take a moment to appear.",
-            { duration: 5000 }
-          );
-
-          setRecentlyCreatedNegation({
-            negationId: selectedCounterpointCandidate.id,
-            parentPointId: negatedPoint!.pointId,
-            timestamp: Date.now()
-          });
-
-          if (negatedPoint?.pointId) {
-            // Invalidate the parent point's negations cache
-            queryClient.invalidateQueries({
-              queryKey: [negatedPoint.pointId, "negations"],
-              exact: true,
-            });
-
-            // Invalidate the point data cache to update negation count
-            queryClient.invalidateQueries({
-              queryKey: ["point", negatedPoint.pointId],
-              type: "all",
-            });
-          }
-
-          // Dispatch custom event for negation creation
-          const event = new CustomEvent('negation:created', {
-            detail: { pointId: negatedPoint?.pointId }
-          });
-          window.dispatchEvent(event);
+    mutationPromise
+      .then(() => {
+        if (finalCounterpointId === undefined) {
+          throw new Error("Could not determine relevant counterpoint ID after operation.");
         }
 
+        if (isCreatingNew) {
+          toast.success("Negation created successfully.");
+        } else if (selectedCounterpointCandidate?.isCounterpoint) {
+          toast.success("Point endorsed successfully");
+        } else {
+          toast.success("Existing negation endorsed successfully.");
+        }
+
+        setRecentlyCreatedNegation({
+          negationId: finalCounterpointId,
+          parentPointId: negatedPoint.pointId,
+          timestamp: Date.now()
+        });
+
+        if (negatedPoint?.pointId) {
+          queryClient.invalidateQueries({ queryKey: [negatedPoint.pointId, "negations"], exact: true });
+          queryClient.invalidateQueries({ queryKey: ["point", negatedPoint.pointId], type: "all" });
+        }
         queryClient.invalidateQueries({ queryKey: ["feed"] });
-        resetForm();
-        setNegatedPointId(undefined);
+
+        const event = new CustomEvent('negation:created', { detail: { pointId: negatedPoint?.pointId } });
+        window.dispatchEvent(event);
+
+        if (negationSuggestion?.context === 'chat') {
+          setCreatedCounterpointId(finalCounterpointId);
+        } else {
+          handleClose();
+        }
       })
       .catch(error => {
-        toast.error("Failed to create negation: " + (error.message || "Unknown error"));
+        toast.error("Operation failed: " + (error.message || "Unknown error"));
+        handleClose();
       })
       .finally(() => {
         setIsSubmitting(false);
@@ -282,16 +341,16 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     cred,
     negatedPoint,
     queryClient,
-    resetForm,
-    setNegatedPointId,
+    handleClose,
     addCounterpoint,
     endorse,
     negate,
     setRecentlyCreatedNegation,
+    negationSuggestion?.context
   ]);
 
   const handleSubmitOrReview = useCallback(() => {
-    if (!negatedPointId) return;
+    if (!currentNegatedPointId) return;
 
     // If content hasn't been reviewed yet and we can review, trigger review
     if (needsReview && canReview && !isReviewingCounterpoint) {
@@ -304,7 +363,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
       handleSubmit();
     }
   }, [
-    negatedPointId,
+    currentNegatedPointId,
     needsReview,
     canReview,
     isReviewingCounterpoint,
@@ -315,7 +374,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     handleSubmit,
   ]);
 
-  useSubmitHotkey(handleSubmitOrReview, !!negatedPointId);
+  useSubmitHotkey(handleSubmitOrReview, !!currentNegatedPointId);
 
   const [platformKey, setPlatformKey] = useState('Alt');
 
@@ -323,186 +382,210 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     setPlatformKey(navigator?.platform?.includes('Mac') ? '⌥' : 'Alt');
   }, []);
 
+  const isOpen = negationSuggestion !== null || negatedPointId !== undefined;
+
+
   return (
-    <>
-      <Dialog
-        {...props}
-        open={negatedPointId !== undefined}
-        onOpenChange={(open) => {
-          if (open === false) {
-            setNegatedPointId(undefined);
-          }
-        }}
-      >
-        <DialogContent className="@container sm:top-xl flex flex-col overflow-hidden sm:translate-y-0 h-full rounded-none sm:rounded-md sm:h-fit gap-0 bg-background p-4 sm:p-8 shadow-sm w-full max-w-xl max-h-[90vh]">
-          <div className="w-full flex items-center justify-between mb-xl">
-            <DialogTitle>
-              {selectedCounterpointCandidate?.isCounterpoint
-                ? "Endorse Existing Negation"
-                : selectedCounterpointCandidate
-                  ? "Endorse Existing Negation"
-                  : "Create New Negation"}
-            </DialogTitle>
-            <DialogDescription hidden>
-              {selectedCounterpointCandidate?.isCounterpoint
-                ? "Add your cred behind this existing negation"
-                : selectedCounterpointCandidate
+    <Dialog
+      {...props}
+      open={isOpen}
+      onOpenChange={(open) => !open && handleClose()} // Full close handler
+    >
+      <DialogContent className="@container sm:top-xl flex flex-col overflow-hidden sm:translate-y-0 h-full rounded-none sm:rounded-md sm:h-fit gap-0 bg-background p-4 sm:p-8 shadow-sm w-full max-w-xl max-h-[90vh]">
+        {createdCounterpointId !== null ? (
+          <CreatedNegationView
+            originalPointId={currentNegatedPointId!}
+            counterpointId={createdCounterpointId}
+            onExitPreview={handleExitPreview}
+          />
+        ) : (
+          <>
+            <div className="w-full flex items-center justify-between mb-xl">
+              <DialogTitle>
+                {selectedCounterpointCandidate === undefined
+                  ? `Negating Point ${currentNegatedPointId ? encodeId(currentNegatedPointId) : "..."}`
+                  : `Endorsing ${selectedCounterpointCandidate.isCounterpoint ? "Counterpoint" : "Negation"} ${encodeId(selectedCounterpointCandidate.id)}`}
+              </DialogTitle>
+              <DialogDescription hidden>
+                {selectedCounterpointCandidate?.isCounterpoint
                   ? "Add your cred behind this existing negation"
                   : "Add a new negation to the Point"}
-            </DialogDescription>
-            <DialogClose className="text-primary">
-              <ArrowLeftIcon />
-            </DialogClose>
-          </div>
-
-          <div className="flex w-full gap-md">
-            <div className="flex flex-col items-center">
-              <DiscIcon className="shrink-0 size-6 stroke-1 text-muted-foreground " />
-              <div
-                className={cn(
-                  "w-px -my-px flex-grow border-l border-muted-foreground",
-                  (!selectedCounterpointCandidate ||
-                    !selectedCounterpointCandidate.isCounterpoint) &&
-                  "border-dashed border-primary/70"
-                )}
-              />
+              </DialogDescription>
+              <DialogClose className="text-primary">
+                <ArrowLeftIcon />
+              </DialogClose>
             </div>
-            <div className="@container/point flex-grow flex flex-col mb-md pt-1">
-              <p className="tracking-tight text-md @sm/point:text-lg mb-lg -mt-2">
-                {negatedPoint?.content}
-              </p>
-            </div>
-          </div>
 
-          <div className="flex w-full gap-md mb-lg">
-            <div className="flex flex-col items-center">
-              <CircleXIcon
-                className={cn(
-                  "shrink-0 size-6 stroke-1 text-muted-foreground",
-                  !selectedCounterpointCandidate &&
-                  "circle-dashed-2 text-primary"
+            <div className="flex w-full gap-md">
+              <div className="flex flex-col items-center">
+                <DiscIcon className="shrink-0 size-6 stroke-1 text-muted-foreground " />
+                <div
+                  className={cn(
+                    "w-px -my-px flex-grow border-l border-muted-foreground",
+                    (!selectedCounterpointCandidate ||
+                      !selectedCounterpointCandidate.isCounterpoint) &&
+                    "border-dashed border-primary/70"
+                  )}
+                />
+              </div>
+              <div className="@container/point flex-grow flex flex-col mb-md pt-1">
+                {isLoadingNegatedPoint ? (
+                  <div className="animate-pulse">
+                    <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+                    <div className="h-4 bg-muted rounded w-1/2"></div>
+                  </div>
+                ) : (
+                  <p className="tracking-tight text-md @sm/point:text-lg mb-lg -mt-2">
+                    {negatedPoint?.content}
+                  </p>
                 )}
-              />
-              {cred > 0 && (
-                <span className="relative text-primary text-xs">
-                  <span className="absolute -left-2">+</span>
-                  {cred}
-                </span>
+              </div>
+            </div>
+
+            <div className="flex w-full gap-md mb-lg">
+              <div className="flex flex-col items-center">
+                <CircleXIcon
+                  className={cn(
+                    "shrink-0 size-6 stroke-1 text-muted-foreground",
+                    !selectedCounterpointCandidate &&
+                    "circle-dashed-2 text-primary"
+                  )}
+                />
+                {cred > 0 && (
+                  <span className="relative text-primary text-xs">
+                    <span className="absolute -left-2">+</span>
+                    {cred}
+                  </span>
+                )}
+              </div>
+
+              {selectedCounterpointCandidate ? (
+                <div className="flex flex-col items-start w-full">
+                  <div className="relative flex flex-col p-4 gap-2 w-full border rounded-md mb-2">
+                    <Button
+                      className="absolute -right-2 -bottom-4 text-muted-foreground border rounded-full p-2 size-fit"
+                      variant={"outline"}
+                      size={"icon"}
+                      onClick={() => selectCounterpointCandidate(undefined)}
+                    >
+                      <TrashIcon className="size-5" />
+                    </Button>
+                    <span className="flex-grow text-sm">
+                      {selectedCounterpointCandidate.content}
+                    </span>
+                    <PointStats
+                      favor={selectedCounterpointCandidate.favor}
+                      amountNegations={
+                        selectedCounterpointCandidate.amountNegations
+                      }
+                      amountSupporters={
+                        selectedCounterpointCandidate.amountSupporters
+                      }
+                      cred={selectedCounterpointCandidate.cred}
+                    />
+                  </div>
+
+                  <CredInput
+                    credInput={cred}
+                    setCredInput={setCred}
+                    notEnoughCred={notEnoughCred}
+                    allowZero={!selectedCounterpointCandidate?.isCounterpoint}
+                  />
+                </div>
+              ) : (
+                <PointEditor
+                  className="w-full -mt-1"
+                  content={counterpointContent}
+                  setContent={setCounterpointContent}
+                  cred={cred}
+                  setCred={setCred}
+                  placeholder="Make your counterpoint"
+                  guidanceNotes={guidanceNotes}
+                  textareaClassName="-ml-2 -mt-2"
+                />
               )}
             </div>
 
             {selectedCounterpointCandidate ? (
-              <div className="flex flex-col items-start w-full">
-                <div className="relative flex flex-col p-4 gap-2 w-full border rounded-md mb-2">
-                  <Button
-                    className="absolute -right-2 -bottom-4 text-muted-foreground border rounded-full p-2 size-fit"
-                    variant={"outline"}
-                    size={"icon"}
-                    onClick={() => selectCounterpointCandidate(undefined)}
-                  >
-                    <TrashIcon className="size-5" />
-                  </Button>
-                  <span className="flex-grow text-sm">
-                    {selectedCounterpointCandidate.content}
-                  </span>
-                  <PointStats
-                    favor={selectedCounterpointCandidate.favor}
-                    amountNegations={
-                      selectedCounterpointCandidate.amountNegations
-                    }
-                    amountSupporters={
-                      selectedCounterpointCandidate.amountSupporters
-                    }
-                    cred={selectedCounterpointCandidate.cred}
-                  />
-                </div>
-
-                <CredInput
-                  credInput={cred}
-                  setCredInput={setCred}
-                  notEnoughCred={notEnoughCred}
-                  allowZero={!selectedCounterpointCandidate?.isCounterpoint}
-                />
+              <div className="items-end mt-md flex flex-col w-full xs:flex-row justify-end gap-2">
+                <Button
+                  className="min-w-28 w-full xs:w-fit"
+                  rightLoading={isSubmitting}
+                  disabled={!canSubmit || isSubmitting}
+                  onClick={handleSubmit}
+                >
+                  {isSubmitting
+                    ? selectedCounterpointCandidate.isCounterpoint
+                      ? "Endorsing..."
+                      : "Negating..."
+                    : selectedCounterpointCandidate.isCounterpoint
+                      ? "Endorse"
+                      : "Endorse Negation"}
+                </Button>
               </div>
-            ) : (
-              <PointEditor
-                className="w-full -mt-1"
-                content={counterpointContent}
-                setContent={setCounterpointContent}
-                cred={cred}
-                setCred={setCred}
-                placeholder="Make your counterpoint"
-                guidanceNotes={guidanceNotes}
-                textareaClassName="-ml-2 -mt-2"
-              />
-            )}
-          </div>
-
-          {!needsReview ? (
-            <div className="items-end mt-md flex flex-col w-full xs:flex-row justify-end gap-2">
-              <Button
-                className="min-w-28 w-full xs:w-fit"
-                rightLoading={isSubmitting}
-                disabled={!canSubmit || isSubmitting}
-                onClick={handleSubmit}
-              >
-                {selectedCounterpointCandidate?.isCounterpoint
-                  ? isSubmitting
-                    ? "Endorsing"
-                    : "Endorse"
-                  : selectedCounterpointCandidate
-                    ? isSubmitting
-                      ? "Endorsing"
-                      : "Endorse"
-                    : isSubmitting
-                      ? "Negating"
-                      : "Negate"}
-              </Button>
-
-              {reviewResults && (
+            ) : hasContentBeenReviewed ? (
+              <div className="items-end mt-md flex flex-col w-full xs:flex-row justify-end gap-2">
+                <Button
+                  className="min-w-28 w-full xs:w-fit"
+                  rightLoading={isSubmitting}
+                  disabled={!canSubmit || isSubmitting}
+                  onClick={handleSubmit}
+                >
+                  {isSubmitting ? "Submitting..." : "Submit"}
+                </Button>
                 <Button
                   variant="outline"
                   className="min-w-28 w-full xs:w-fit"
+                  disabled={isReviewingCounterpoint || !canReview || isSubmitting}
+                  rightLoading={postReviewAction === 'regenerate' && isReviewingCounterpoint}
                   onClick={() => {
-                    setReviewDialogOpen(true);
+                    if (postReviewAction === 'regenerate') {
+                      reviewCounterpoint();
+                    } else {
+                      setReviewDialogOpen(true);
+                    }
                   }}
                 >
-                  Review suggestions{" "}
-                  <Badge className="ml-2 px-1.5 bg-muted text-muted-foreground border border-muted">
-                    {reviewResults.existingSimilarCounterpoints.length +
-                      reviewResults.suggestions.length}
-                  </Badge>
+                  {postReviewAction === 'regenerate'
+                    ? isReviewingCounterpoint
+                      ? "Reviewing..."
+                      : "Review Again"
+                    : "Review suggestions"}
                 </Button>
-              )}
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 mt-md self-end">
-              <Tooltip delayDuration={0}>
-                <TooltipTrigger asChild>
-                  <Button
-                    disabled={!canReview || isReviewingCounterpoint || isSubmitting}
-                    className="min-w-28 w-full xs:w-fit"
-                    rightLoading={isReviewingCounterpoint || isSubmitting}
-                    onClick={(e) => {
-                      if (e.altKey) {
-                        setLastReviewedContent(counterpointContent);
-                        handleSubmit();
-                        return;
-                      }
-                      reviewCounterpoint();
-                    }}
-                  >
-                    {isSubmitting ? "Endorsing..." : isReviewingCounterpoint ? "Reviewing..." : "Review & Negate"}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="text-xs">
-                  Hold {platformKey} and click to skip review
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 mt-md self-end">
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <Button
+                      disabled={!canReview || isReviewingCounterpoint || isSubmitting}
+                      className="min-w-28 w-full xs:w-fit"
+                      rightLoading={isSubmitting || isReviewingCounterpoint}
+                      onClick={(e) => {
+                        if (e.altKey) {
+                          setIsSubmitting(true);
+                          handleSubmit();
+                          return;
+                        }
+                        reviewCounterpoint();
+                      }}
+                    >
+                      {isSubmitting
+                        ? "Submitting..."
+                        : isReviewingCounterpoint
+                          ? "Reviewing..."
+                          : "Review & Negate"}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs">
+                    Hold {platformKey} and click to skip review
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            )}
+          </>
+        )}
+      </DialogContent>
 
       {reviewResults && (
         <Dialog
@@ -523,10 +606,12 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
               selectCounterpointCandidate={selectCounterpointCandidate}
               setGuidanceNotes={setGuidanceNotes}
               onClose={() => setReviewDialogOpen(false)}
+              onSelectSuggestion={handleSuggestionSelected}
+              onSelectOwnText={handleSelectOwnText}
             />
           </DialogContent>
         </Dialog>
       )}
-    </>
+    </Dialog>
   );
 };

@@ -2,7 +2,7 @@
 
 import { getSpace } from "@/actions/getSpace";
 import { db } from "@/services/db";
-import { sql, eq, inArray, and, desc } from "drizzle-orm";
+import { sql, SQL, eq, inArray, and, desc, or } from "drizzle-orm";
 import { addFavor } from "@/db/utils/addFavor";
 import {
   pointsTable,
@@ -11,6 +11,8 @@ import {
   pointsWithDetailsView,
 } from "@/db/schema";
 import { getUserId } from "./getUserId";
+
+const RESULT_LIMIT = 20;
 
 type PointResultBeforeFavor = {
   pointId: number;
@@ -36,9 +38,7 @@ export type SearchResult = {
   createdAt: Date;
   author: string;
   relevance: number;
-  // Point-specific fields
   pointData?: PointResultBeforeFavor & { favor: number };
-  // Viewpoint-specific fields
   description?: string;
   space?: string | null;
   statistics?: {
@@ -49,47 +49,53 @@ export type SearchResult = {
   };
 };
 
-export const searchContent = async (query: string): Promise<SearchResult[]> => {
-  if (!query || query.trim().length < 2) {
+export const searchContent = async (
+  keywords: string[]
+): Promise<SearchResult[]> => {
+  const validKeywords = keywords.filter((k) => k && k.trim().length >= 2);
+  if (validKeywords.length === 0) {
     return [];
   }
-
   const space = await getSpace();
   const viewerId = await getUserId();
-  const searchTerm = `%${query.trim().toLowerCase()}%`;
 
+  const searchTerms = validKeywords.map((k) => `%${k.trim().toLowerCase()}%`);
+
+  const pointOrConditions: SQL[] = searchTerms.map(
+    (term) => or(sql`p.content ILIKE ${term}`, sql`u.username ILIKE ${term}`)!
+  );
+  const combinedPointCondition = or(...pointOrConditions);
+
+  const viewpointOrConditions: SQL[] = searchTerms.map(
+    (term) =>
+      or(
+        sql`v.title ILIKE ${term}`,
+        sql`v.content ILIKE ${term}`,
+        sql`u.username ILIKE ${term}`
+      )!
+  );
+  const combinedViewpointCondition = or(...viewpointOrConditions);
   const pointResultsBeforeFavor = await db
     .execute<
       Omit<PointResultBeforeFavor, "createdAt" | "relevance"> & {
         createdAt: string | Date;
-        relevance: number | string;
       }
     >(
-      sql`
-    SELECT
-      p.id as "pointId",
-      p.content as "content",
-      p.created_at as "createdAt",
-      p.created_by as "createdBy",
-      p.space as "space",
-      p.amount_negations as "amountNegations",
-      p.amount_supporters as "amountSupporters",
-      p.cred as "cred",
-      p.negations_cred as "negationsCred",
-      p.negation_ids as "negationIds",
-      u.username as "username",
-      COALESCE((
-        SELECT SUM(e.cred)
-        FROM ${endorsementsTable} e
-        WHERE e.point_id = p.id AND e.user_id = ${viewerId}
-      ), 0) as "viewerCred",
-      1 as "relevance"
-    FROM ${pointsWithDetailsView} p
-    INNER JOIN users u ON u.id = p.created_by
-    WHERE p.space = ${space}
-    AND (p.content ILIKE ${searchTerm} OR u.username ILIKE ${searchTerm})
-    LIMIT 50
-  `
+      sql`SELECT
+              p.id as "pointId", p.content as "content", p.created_at as "createdAt",
+              p.created_by as "createdBy", p.space as "space", p.amount_negations as "amountNegations",
+              p.amount_supporters as "amountSupporters", p.cred as "cred", p.negations_cred as "negationsCred",
+              p.negation_ids as "negationIds", u.username as "username",
+              COALESCE((
+                SELECT SUM(e.cred) FROM ${endorsementsTable} e
+                WHERE e.point_id = p.id AND e.user_id = ${viewerId}
+              ), 0) as "viewerCred"
+            FROM ${pointsWithDetailsView} p
+            INNER JOIN users u ON u.id = p.created_by
+            WHERE p.space = ${space}
+            AND (${combinedPointCondition})
+            ORDER BY p.created_at DESC
+            LIMIT 50`
     )
     .then((result) => {
       const points: PointResultBeforeFavor[] = result.map((row) => ({
@@ -107,52 +113,88 @@ export const searchContent = async (query: string): Promise<SearchResult[]> => {
           : [],
         username: row.username,
         viewerCred: Number(row.viewerCred ?? 0),
-        relevance: Number(row.relevance ?? 1),
+        relevance: 1,
       }));
       return points;
     });
 
   const pointResults = await addFavor(pointResultsBeforeFavor);
 
-  const viewpointResults = await db.execute(sql`
-    SELECT 
-      v.id as "id",
-      v.title as "title",
-      v.content as "description",
-      v.created_by as "createdBy",
-      v.created_at as "createdAt",
-      v.space as "space",
-      v.graph as "graph",
-      u.username as "username",
-      vi.views as "views",
-      vi.copies as "copies",
-      1 as "relevance"
+  const viewpointResultsKeyword = await db.execute(sql`
+    SELECT
+      v.id as "id", v.title as "title", v.content as "description",
+      v.created_by as "createdBy", v.created_at as "createdAt", v.space as "space",
+      v.graph as "graph", u.username as "username",
+      vi.views as "views", vi.copies as "copies"
     FROM viewpoints v
     INNER JOIN users u ON u.id = v.created_by
     LEFT JOIN viewpoint_interactions vi ON vi.viewpoint_id = v.id
     WHERE v.space = ${space}
-    AND (v.title ILIKE ${searchTerm} OR v.content ILIKE ${searchTerm} OR u.username ILIKE ${searchTerm})
+    AND (${combinedViewpointCondition})
+    ORDER BY v.created_at DESC
     LIMIT 50
   `);
 
-  const pointSearchResults: SearchResult[] = pointResults.map((point) => ({
-    type: "point",
-    id: point.pointId,
-    content: point.content,
-    createdAt:
-      point.createdAt instanceof Date
-        ? point.createdAt
-        : new Date(point.createdAt),
-    author: point.username,
-    relevance: 1,
-    pointData: point,
-  }));
+  let viewpointResultsPointInclusion: any[] = [];
+  const foundPointIds = pointResults.map((p) => p.pointId);
 
-  const viewpointSearchResults: SearchResult[] = await Promise.all(
-    viewpointResults.map(async (viewpoint: any) => {
+  if (foundPointIds.length > 0) {
+    viewpointResultsPointInclusion = await db.execute(sql`
+      SELECT
+        v.id as "id", v.title as "title", v.content as "description",
+        v.created_by as "createdBy", v.created_at as "createdAt", v.space as "space",
+        v.graph as "graph", u.username as "username",
+        vi.views as "views", vi.copies as "copies"
+      FROM viewpoints v
+      INNER JOIN users u ON u.id = v.created_by
+      LEFT JOIN viewpoint_interactions vi ON vi.viewpoint_id = v.id
+      WHERE v.space = ${space}
+      AND EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements(v.graph->'nodes') AS node
+        WHERE node->>'type' = 'point'
+        AND (node->'data'->>'pointId')::int IN ${sql`${foundPointIds}`}
+      )
+      ORDER BY v.created_at DESC
+      LIMIT 50 -- Apply limit here too, although merging might reduce final count
+    `);
+  }
+
+  const combinedViewpointResultsMap = new Map<string, any>();
+  viewpointResultsKeyword.forEach((vp: any) =>
+    combinedViewpointResultsMap.set(vp.id, vp)
+  );
+  viewpointResultsPointInclusion.forEach((vp: any) =>
+    combinedViewpointResultsMap.set(vp.id, vp)
+  );
+  const combinedViewpointResults = Array.from(
+    combinedViewpointResultsMap.values()
+  );
+
+  const uniqueResultsMap = new Map<string, SearchResult>();
+
+  pointResults.forEach((point) => {
+    const key = `point-${point.pointId}`;
+    if (!uniqueResultsMap.has(key)) {
+      uniqueResultsMap.set(key, {
+        type: "point",
+        id: point.pointId,
+        content: point.content,
+        createdAt: point.createdAt,
+        author: point.username,
+        relevance: 1,
+        pointData: point,
+      });
+    }
+  });
+
+  await Promise.all(
+    combinedViewpointResults.map(async (viewpoint: any) => {
+      const key = `rationale-${viewpoint.id}`;
+      if (uniqueResultsMap.has(key)) return;
+
       let totalCred = 0;
       let averageFavor = 0;
-
       try {
         const pointIds: number[] = [];
         if (viewpoint.graph && viewpoint.graph.nodes) {
@@ -187,7 +229,6 @@ export const searchContent = async (query: string): Promise<SearchResult[]> => {
           );
 
           const endorsedPointIds = endorsements.map((e) => e.pointId);
-
           if (endorsedPointIds.length > 0) {
             const favorValues = await db
               .select({
@@ -206,7 +247,6 @@ export const searchContent = async (query: string): Promise<SearchResult[]> => {
               }
             });
 
-            // Calculate average favor from latest values of endorsed points only
             const pointsWithFavor = Array.from(
               latestFavorByPoint.values()
             ).filter((favor) => favor > 0);
@@ -220,74 +260,37 @@ export const searchContent = async (query: string): Promise<SearchResult[]> => {
                 : 0;
           }
         }
-      } catch (e) {
-        console.error("Error calculating viewpoint statistics:", e);
-      }
+      } catch (e) {}
 
-      return {
+      uniqueResultsMap.set(key, {
         type: "rationale",
         id: viewpoint.id,
         title: viewpoint.title,
         content: viewpoint.description,
         description: viewpoint.description,
-        createdAt:
-          viewpoint.createdAt instanceof Date
-            ? viewpoint.createdAt
-            : new Date(viewpoint.createdAt),
+        createdAt: new Date(viewpoint.createdAt),
         author: viewpoint.username,
         space: viewpoint.space,
-        relevance: 1,
+        relevance: 1, // placeholder
         statistics: {
           views: viewpoint.views || 0,
           copies: viewpoint.copies || 0,
           totalCred,
           averageFavor,
         },
-      };
+      });
     })
   );
 
-  const combinedResults = [...pointSearchResults, ...viewpointSearchResults];
+  const finalResults = Array.from(uniqueResultsMap.values());
 
-  // Simple ranking:
-  // Increase relevance if query appears in title/content directly
-  const results = combinedResults.map((result) => {
-    let relevanceScore = result.relevance;
-    const lowerCaseQuery = query.toLowerCase();
-
-    // Check for exact matches in content
-    if (result.content.toLowerCase().includes(lowerCaseQuery)) {
-      relevanceScore += 2;
-    }
-
-    // Check for exact matches in title (for viewpoints)
-    if (result.title && result.title.toLowerCase().includes(lowerCaseQuery)) {
-      relevanceScore += 3;
-    }
-
-    // Check for exact author matches
-    if (result.author.toLowerCase().includes(lowerCaseQuery)) {
-      relevanceScore += 1;
-    }
-
-    return {
-      ...result,
-      relevance: relevanceScore,
-    };
-  });
-
-  // Sort by relevance (high to low) and then by creation date (newest first)
-  return results.sort((a, b) => {
-    if (a.relevance !== b.relevance) {
-      return b.relevance - a.relevance;
-    }
-
-    // Ensure we're working with Date objects
+  finalResults.sort((a, b) => {
     const dateA =
       a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
     const dateB =
       b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
-
     return dateB.getTime() - dateA.getTime();
   });
+
+  return finalResults.slice(0, RESULT_LIMIT);
 };
