@@ -51,6 +51,8 @@ interface CounterpointReviewProps {
     selectCounterpointCandidate: (candidate: CounterpointCandidate | undefined) => void;
     setGuidanceNotes: (notes: ReactNode | undefined) => void;
     onClose: () => void;
+    onSelectSuggestion: (suggestion: string) => void;
+    onSelectOwnText: () => void;
 }
 
 export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
@@ -60,6 +62,8 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
     selectCounterpointCandidate,
     setGuidanceNotes,
     onClose,
+    onSelectSuggestion,
+    onSelectOwnText,
 }) => {
     return (
         <div className="flex flex-col w-full h-full max-h-[80vh] overflow-hidden relative">
@@ -192,35 +196,20 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                                     key={`rephrasing-${i}`}
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        setGuidanceNotes(
-                                            <>
-                                                <SquarePenIcon className="size-3 align-[-1.5px] inline-block" />{" "}
-                                                {counterpointContent}{" "}
-                                                <Button
-                                                    variant={"link"}
-                                                    className="text-xs size-fit inline-block p-0 font-normal underline underline-offset-1 ml-1"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setCounterpointContent(counterpointContent);
-                                                        setGuidanceNotes(undefined);
-                                                    }}
-                                                >
-                                                    restore
-                                                </Button>
-                                            </>
-                                        );
-                                        setCounterpointContent(suggestion);
-                                        onClose();
+                                        onSelectSuggestion(suggestion);
                                     }}
                                     className="relative flex flex-col gap-2 p-4 w-full bg-background cursor-pointer border border-dashed rounded-md transition-colors shadow-sm hover:border-blue-500 hover:ring-1 hover:ring-blue-500"
                                 >
-                                    <div className="flex justify-between items-start">
-                                        <span className="flex-grow text-md">
-                                            {suggestion}
-                                        </span>
-                                        <Badge className="bg-blue-500/15 text-blue-500 border-blue-500 hover:bg-blue-500/20 whitespace-nowrap ml-2">
+                                    {/* Container for text and badge, stacks vertically on mobile */}
+                                    <div className="flex flex-col items-end sm:flex-row sm:justify-between sm:items-start">
+                                        {/* Badge moved above text on mobile */}
+                                        <Badge className="bg-blue-500/15 text-blue-500 border-blue-500 hover:bg-blue-500/20 whitespace-nowrap mb-2 sm:mb-0 order-first sm:order-last">
                                             <SparklesIcon className="size-3 mr-1" /> AI Suggestion
                                         </Badge>
+                                        {/* Text takes full width on mobile */}
+                                        <span className="w-full text-md">
+                                            {suggestion}
+                                        </span>
                                     </div>
                                 </div>
                             ))}
@@ -248,6 +237,7 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                     <div
                         onClick={(e) => {
                             e.stopPropagation();
+                            onSelectOwnText();
                             setGuidanceNotes(
                                 reviewResults.rating < GOOD_ENOUGH_POINT_RATING ? (
                                     <>

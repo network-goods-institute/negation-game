@@ -6,7 +6,6 @@ import { makeNegationSuggestionAtom } from "@/atoms/makeNegationSuggestionAtom";
 import { CredInput } from "@/components/CredInput";
 import { PointEditor } from "@/components/PointEditor";
 import { PointStats } from "@/components/PointStats";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,6 +17,7 @@ import {
 import {
   POINT_MAX_LENGTH,
   POINT_MIN_LENGTH,
+  GOOD_ENOUGH_POINT_RATING,
 } from "@/constants/config";
 import { useCredInput } from "@/hooks/useCredInput";
 import { useSubmitHotkey } from "@/hooks/useSubmitHotkey";
@@ -35,6 +35,8 @@ import {
   CircleXIcon,
   DiscIcon,
   TrashIcon,
+  SquarePenIcon,
+  AlertTriangleIcon,
 } from "lucide-react";
 import { FC, ReactNode, useCallback, useEffect, useState } from "react";
 import {
@@ -66,6 +68,8 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
 
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [lastReviewedContent, setLastReviewedContent] = useState<string>("");
+  const [hasContentBeenReviewed, setHasContentBeenReviewed] = useState(false);
+  const [postReviewAction, setPostReviewAction] = useState<'reopen' | 'regenerate' | null>(null);
 
   const {
     credInput: cred,
@@ -121,6 +125,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
 
       setGuidanceNotes(undefined);
       setLastReviewedContent(content);
+      setHasContentBeenReviewed(true);
 
       reviewResults.suggestions.forEach((selectedSuggestion) =>
         queryClient.setQueryData<typeof reviewResults>(
@@ -155,12 +160,17 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     setCounterpointContent("");
     setLastReviewedContent("");
     setCreatedCounterpointId(null);
+    setHasContentBeenReviewed(false);
+    setPostReviewAction(null);
   }, [resetCred, setCounterpointContent]);
 
   const handleClose = useCallback(() => {
     resetFormOnly();
     setNegationSuggestion(null);
     setNegatedPointId(undefined);
+    setCreatedCounterpointId(null);
+    setHasContentBeenReviewed(false);
+    setPostReviewAction(null);
   }, [resetFormOnly, setNegationSuggestion, setNegatedPointId]);
 
   const handleExitPreview = useCallback(() => {
@@ -181,6 +191,64 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
       handleClose();
     }
   }, [currentNegatedPointId, handleClose]);
+
+  useEffect(() => {
+    if (needsReview) {
+      setHasContentBeenReviewed(false);
+    }
+  }, [needsReview]);
+
+  const handleSuggestionSelected = useCallback((suggestion: string) => {
+    setGuidanceNotes(
+      <>
+        <SquarePenIcon className="size-3 align-[-1.5px] inline-block" />{" "}
+        {counterpointContent}{" "} {/* Show the original content */}
+        <Button
+          variant={"link"}
+          className="text-xs size-fit inline-block p-0 font-normal underline underline-offset-1 ml-1"
+          onClick={(e) => {
+            e.stopPropagation();
+            setCounterpointContent(counterpointContent);
+            setLastReviewedContent("");
+            setHasContentBeenReviewed(false);
+            setGuidanceNotes(undefined);
+          }}
+        >
+          restore
+        </Button>
+      </>
+    );
+    setCounterpointContent(suggestion);
+    setLastReviewedContent(suggestion);
+    setHasContentBeenReviewed(true);
+    setReviewDialogOpen(false);
+    setPostReviewAction('regenerate');
+  }, [counterpointContent, setCounterpointContent, setLastReviewedContent, setHasContentBeenReviewed, setGuidanceNotes]);
+
+  const handleSelectOwnText = useCallback(() => {
+    setGuidanceNotes(
+      reviewResults && reviewResults.rating < GOOD_ENOUGH_POINT_RATING ? (
+        <>
+          <AlertTriangleIcon className="size-3 align-[-1.5px] inline-block" />{" "}
+          {reviewResults.feedback}
+          <Button
+            variant={"link"}
+            className="text-xs size-fit inline-block p-0 font-normal underline underline-offset-1 ml-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              setGuidanceNotes(undefined);
+            }}
+          >
+            dismiss
+          </Button>
+        </>
+      ) : undefined
+    );
+    selectCounterpointCandidate(undefined);
+    setHasContentBeenReviewed(true); // Mark as reviewed
+    setPostReviewAction('reopen'); // <-- Set action type for keeping own text
+    setReviewDialogOpen(false); // Close review dialog
+  }, [reviewResults, setGuidanceNotes]);
 
   const handleSubmit = useCallback(() => {
     if (!canSubmit || isSubmitting || !negatedPoint) return;
@@ -438,7 +506,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
               )}
             </div>
 
-            {!needsReview ? (
+            {selectedCounterpointCandidate ? (
               <div className="items-end mt-md flex flex-col w-full xs:flex-row justify-end gap-2">
                 <Button
                   className="min-w-28 w-full xs:w-fit"
@@ -446,30 +514,44 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                   disabled={!canSubmit || isSubmitting}
                   onClick={handleSubmit}
                 >
-                  {selectedCounterpointCandidate?.isCounterpoint
-                    ? isSubmitting
-                      ? "Endorsing"
-                      : "Endorse"
-                    : isSubmitting
-                      ? "Negating"
-                      : "Negate"}
+                  {isSubmitting
+                    ? selectedCounterpointCandidate.isCounterpoint
+                      ? "Endorsing..."
+                      : "Negating..."
+                    : selectedCounterpointCandidate.isCounterpoint
+                      ? "Endorse"
+                      : "Endorse Negation"}
                 </Button>
-
-                {reviewResults && (
-                  <Button
-                    variant="outline"
-                    className="min-w-28 w-full xs:w-fit"
-                    onClick={() => {
+              </div>
+            ) : hasContentBeenReviewed ? (
+              <div className="items-end mt-md flex flex-col w-full xs:flex-row justify-end gap-2">
+                <Button
+                  className="min-w-28 w-full xs:w-fit"
+                  rightLoading={isSubmitting}
+                  disabled={!canSubmit || isSubmitting}
+                  onClick={handleSubmit}
+                >
+                  {isSubmitting ? "Submitting..." : "Submit"}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="min-w-28 w-full xs:w-fit"
+                  disabled={isReviewingCounterpoint || !canReview || isSubmitting}
+                  rightLoading={postReviewAction === 'regenerate' && isReviewingCounterpoint}
+                  onClick={() => {
+                    if (postReviewAction === 'regenerate') {
+                      reviewCounterpoint();
+                    } else {
                       setReviewDialogOpen(true);
-                    }}
-                  >
-                    Review suggestions{" "}
-                    <Badge className="ml-2 px-1.5 bg-muted text-muted-foreground border border-muted">
-                      {reviewResults.existingSimilarCounterpoints.length +
-                        reviewResults.suggestions.length}
-                    </Badge>
-                  </Button>
-                )}
+                    }
+                  }}
+                >
+                  {postReviewAction === 'regenerate'
+                    ? isReviewingCounterpoint
+                      ? "Reviewing..."
+                      : "Review Again"
+                    : "Review suggestions"}
+                </Button>
               </div>
             ) : (
               <div className="flex items-center gap-2 mt-md self-end">
@@ -478,17 +560,21 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                     <Button
                       disabled={!canReview || isReviewingCounterpoint || isSubmitting}
                       className="min-w-28 w-full xs:w-fit"
-                      rightLoading={isReviewingCounterpoint || isSubmitting}
+                      rightLoading={isSubmitting || isReviewingCounterpoint}
                       onClick={(e) => {
                         if (e.altKey) {
-                          setLastReviewedContent(counterpointContent);
+                          setIsSubmitting(true);
                           handleSubmit();
                           return;
                         }
                         reviewCounterpoint();
                       }}
                     >
-                      {isSubmitting ? "Endorsing..." : isReviewingCounterpoint ? "Reviewing..." : "Review & Negate"}
+                      {isSubmitting
+                        ? "Submitting..."
+                        : isReviewingCounterpoint
+                          ? "Reviewing..."
+                          : "Review & Negate"}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="text-xs">
@@ -520,6 +606,8 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
               selectCounterpointCandidate={selectCounterpointCandidate}
               setGuidanceNotes={setGuidanceNotes}
               onClose={() => setReviewDialogOpen(false)}
+              onSelectSuggestion={handleSuggestionSelected}
+              onSelectOwnText={handleSelectOwnText}
             />
           </DialogContent>
         </Dialog>
