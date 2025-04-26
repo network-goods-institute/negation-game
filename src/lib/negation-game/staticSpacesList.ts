@@ -10,7 +10,7 @@
  * For subdomain redirects to function properly, all valid spaces 
  * must be listed here.
  * 
- * Last updated: 2025-03-15T03:43:08.378Z
+ * Last updated: 2025-04-26T11:45:52.883Z
  */
 export const VALID_SPACE_IDS = new Set([
   "global",
