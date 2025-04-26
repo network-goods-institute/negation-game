@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { decodeId } from "@/lib/decodeId";
+import { decodeId } from "@/lib/negation-game/decodeId";
 import { DEFAULT_SPACE } from "@/constants/config";
 
 export const runtime = "edge";

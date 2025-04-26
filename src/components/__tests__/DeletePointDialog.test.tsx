@@ -22,7 +22,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { DeletePointDialog } from '@/components/DeletePointDialog';
 import { useDeletePoint } from '@/mutations/useDeletePoint';
-import { isWithinDeletionTimelock } from '@/lib/deleteTimelock';
+import { isWithinDeletionTimelock } from '@/lib/negation-game/deleteTimelock';
 import { useRouter, usePathname } from 'next/navigation';
 
 // Enable fake timers
@@ -30,7 +30,7 @@ jest.useFakeTimers();
 
 // Mock all the dependencies
 jest.mock('@/mutations/useDeletePoint');
-jest.mock('@/lib/deleteTimelock');
+jest.mock('@/lib/negation-game/deleteTimelock');
 jest.mock('next/navigation', () => ({
     useRouter: jest.fn(),
     usePathname: jest.fn(),

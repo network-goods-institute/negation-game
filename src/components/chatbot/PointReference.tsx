@@ -3,7 +3,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import * as TooltipPrimitive from "@radix-ui/react-tooltip"
 import { FileText, MessageSquareQuote } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import { encodeId } from '@/lib/encodeId';
+import { encodeId } from '@/lib/negation-game/encodeId';
 import { useQuery } from '@tanstack/react-query';
 import { fetchPoint } from '@/actions/fetchPoint';
 

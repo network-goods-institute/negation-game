@@ -4,7 +4,7 @@ import React from 'react';
 import { usePointData } from '@/queries/usePointData';
 import { PointCard } from '@/components/PointCard';
 import { Loader } from '@/components/ui/loader';
-import { encodeId } from '@/lib/encodeId';
+import { encodeId } from '@/lib/negation-game/encodeId';
 import { DEFAULT_SPACE } from '@/constants/config';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';

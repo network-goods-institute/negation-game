@@ -6,7 +6,7 @@ import { GitHubButton } from "../icons/GitHubButton";
 import { Dynamic } from "@/components/utils/Dynamic";
 import { Button } from "@/components/ui/button";
 import { InfoIcon, MoreHorizontal, Github } from "lucide-react";
-import { useOnboarding } from "@/contexts/OnboardingContext";
+import { useOnboarding } from "@/components/contexts/OnboardingContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
     DropdownMenu,

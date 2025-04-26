@@ -41,8 +41,8 @@ import { ReactFlowInstance } from "@xyflow/react";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
 import { ViewpointStatsBar } from "@/components/ViewpointStatsBar";
 import { use } from "react";
-import { handleBackNavigation } from "@/lib/backButtonUtils";
-import { copyViewpointAndNavigate } from "@/lib/copyViewpoint";
+import { handleBackNavigation } from "@/lib/negation-game/backButtonUtils";
+import { copyViewpointAndNavigate } from "@/lib/negation-game/copyViewpoint";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { ShareRationaleDialog } from "@/components/graph/ShareRationalePointsDialog";
@@ -850,7 +850,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                         originalGraphData={originalGraph}
                     />
                 </Dynamic>
-              
+
                 <NegateDialog />
 
                 <AlertDialog open={isDiscardDialogOpen} onOpenChange={setIsDiscardDialogOpen}>

@@ -1,7 +1,7 @@
 import { db } from "@/services/db";
 import { pointsTable, spacesTable } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
-import { decodeId } from "@/lib/decodeId";
+import { decodeId } from "@/lib/negation-game/decodeId";
 
 export enum CommandType {
   PIN = "pin",

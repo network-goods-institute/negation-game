@@ -7,7 +7,7 @@ import {
   createDbChat,
   markChatAsDeleted,
 } from "@/actions/chatSyncActions";
-import { computeChatStateHash } from "@/lib/chatUtils";
+import { computeChatStateHash } from "@/lib/negation-game/chatUtils";
 
 const PUSH_DEBOUNCE_MS = 2500;
 

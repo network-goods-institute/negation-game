@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, ExternalLinkIcon } from 'lucide-react';
 import { PointCard } from '../PointCard';
 import Link from 'next/link';
-import { getPointUrl } from '@/lib/getPointUrl';
+import { getPointUrl } from '@/lib/negation-game/getPointUrl';
 import { useSpace } from '@/queries/useSpace';
 import { useSetAtom } from 'jotai';
 import { negatedPointIdAtom } from '@/atoms/negatedPointIdAtom';

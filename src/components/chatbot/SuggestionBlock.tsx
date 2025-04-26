@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { PenSquare, GitBranchPlus, Loader2 } from 'lucide-react';
-import { encodeId } from '@/lib/encodeId';
+import { encodeId } from '@/lib/negation-game/encodeId';
 import { useSetAtom } from 'jotai';
 import { makePointSuggestionAtom } from '@/atoms/makePointSuggestionAtom';
 import { makeNegationSuggestionAtom } from '@/atoms/makeNegationSuggestionAtom';

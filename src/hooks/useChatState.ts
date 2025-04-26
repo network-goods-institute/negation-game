@@ -4,7 +4,7 @@ import { generateDistillRationaleChatBotResponse } from "@/actions/generateDisti
 import { generateSuggestionChatBotResponse } from "@/actions/generateSuggestionChatBotResponse";
 import { PointInSpace } from "@/actions/fetchAllSpacePoints";
 import { generateChatName } from "@/actions/generateChatName";
-import { extractSourcesFromMarkdown } from "@/lib/chatUtils";
+import { extractSourcesFromMarkdown } from "@/lib/negation-game/chatUtils";
 import {
   ChatMessage,
   SavedChat,

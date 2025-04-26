@@ -12,7 +12,7 @@ import { DevOnly } from "@/components/utils/DevOnly";
 import { ToggleableReactQueryDevTools } from "@/components/utils/ToggleableReactQueryDevTools";
 import "@xyflow/react/dist/style.css";
 import "./globals.css";
-import { OnboardingProvider } from "@/contexts/OnboardingContext";
+import { OnboardingProvider } from "@/components/contexts/OnboardingContext";
 import { HeaderActions } from "@/components/layout/HeaderActions";
 import {
   DynamicHeaderContent

@@ -1,5 +1,5 @@
 import { act } from '@testing-library/react';
-import { renderHookWithProviders } from '@/__tests__/utils/hook-test-utils';
+import { renderHookWithProviders } from '@/lib/tests/hook-test-utils';
 import { useAuthErrorHandling } from '@/hooks/useAuthErrorHandling';
 import { handleAuthError } from '@/lib/auth/handleAuthError';
 import { usePrivy } from '@privy-io/react-auth';

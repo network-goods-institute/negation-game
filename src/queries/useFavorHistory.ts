@@ -1,5 +1,5 @@
 import { fetchFavorHistory } from "@/actions/fetchFavorHistory";
-import { TimelineScale } from "@/lib/timelineScale";
+import { TimelineScale } from "@/lib/negation-game/timelineScale";
 import {
   keepPreviousData,
   useQuery,

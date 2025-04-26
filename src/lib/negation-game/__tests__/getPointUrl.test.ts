@@ -1,8 +1,8 @@
-import { getPointUrl } from "./getPointUrl";
-import { encodeId } from "./encodeId";
+import { getPointUrl } from "../getPointUrl";
+import { encodeId } from "@/lib/negation-game/encodeId";
 
 // Mock the encodeId function
-jest.mock("./encodeId", () => ({
+jest.mock("@/lib/negation-game/encodeId", () => ({
   encodeId: jest.fn((id) => `encoded-${id}`),
 }));
 
@@ -100,7 +100,7 @@ describe("getPointUrl", () => {
 
     it("should handle empty string space by using it", () => {
       const url = getPointUrl(123, "");
-      expect(url).toBe("/s//encoded-123");
+      expect(url).toBe("/s/global/encoded-123");
       expect(mockEncodeId).toHaveBeenCalledWith(123);
     });
 
