@@ -15,7 +15,8 @@ export const fetchViewpoints = async (space: string) => {
   const viewpoints = await db
     .select({
       ...getColumns(viewpointsTable),
-      author: usersTable.username,
+      authorId: usersTable.id,
+      authorUsername: usersTable.username,
       views: viewpointInteractionsTable.views,
       copies: viewpointInteractionsTable.copies,
     })

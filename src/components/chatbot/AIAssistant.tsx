@@ -340,7 +340,9 @@ export default function AIAssistant() {
                             id: String(r.id || nanoid()),
                             title: String(r.title || 'Untitled Rationale'),
                             description: String(r.description || ''),
-                            author: String(r.author || 'Unknown Author'),
+                            author: String(r.authorUsername || 'Unknown Author'),
+                            authorId: String(r.authorId || 'unknown'),
+                            authorUsername: String(r.authorUsername || 'unknown'),
                             createdAt: String(r.createdAt || new Date().toISOString()),
                             graph: {
                                 nodes: (graphData.nodes || []).map((n: any) => ({ id: String(n.id || nanoid()), type: ["point", "statement", "addPoint"].includes(n.type) ? n.type as "point" | "statement" | "addPoint" : "statement", data: { content: n.data?.content ? String(n.data.content) : undefined, statement: n.data?.statement ? String(n.data.statement) : undefined, pointId: n.data?.pointId != null ? Number(n.data.pointId) : undefined } })),
@@ -843,6 +845,7 @@ export default function AIAssistant() {
                 onOpenChange={setShowRationaleSelectionDialog}
                 rationales={availableRationales}
                 onRationaleSelected={handleRationaleSelectedForDistill}
+                currentUserId={privyUser?.id}
             />
 
             {isNonGlobalSpace && (

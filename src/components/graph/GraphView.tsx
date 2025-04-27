@@ -771,13 +771,16 @@ export const GraphView = ({
                       id="graph-save-button"
                     >
                       {isSavingProp || isSaving_local ? (
-                        <Loader className="size-4 animate-spin" />
+                        <div className="flex items-center">
+                          <Loader className="size-4 animate-spin text-white mr-2" />
+                          <span className="text-white">Saving...</span>
+                        </div>
                       ) : (
                         <div className="flex items-center">
                           <SaveIcon className="size-4 mr-2" />
                           <span className={cn(
                             "font-medium",
-                            canModify ? "text-sm" : "text-xs" // Shrink text for non-owners
+                            canModify ? "text-sm" : "text-xs"
                           )}>
                             {canModify
                               ? isNew

@@ -384,6 +384,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
 
   const isOpen = negationSuggestion !== null || negatedPointId !== undefined;
 
+  const [isProcessing, setIsProcessing] = useState(false);
 
   return (
     <Dialog
@@ -560,7 +561,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                 <Tooltip delayDuration={0}>
                   <TooltipTrigger asChild>
                     <Button
-                      disabled={!canReview || isReviewingCounterpoint || isSubmitting}
+                      disabled={!canReview || isReviewingCounterpoint || isSubmitting || isProcessing}
                       className="min-w-28 w-full xs:w-fit"
                       rightLoading={isSubmitting || isReviewingCounterpoint}
                       onClick={(e) => {
@@ -569,7 +570,8 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                           handleSubmit();
                           return;
                         }
-                        reviewCounterpoint();
+                        setIsProcessing(true);
+                        reviewCounterpoint().finally(() => setIsProcessing(false));
                       }}
                     >
                       {isSubmitting

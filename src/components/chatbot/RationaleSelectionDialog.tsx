@@ -11,21 +11,21 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatRationale } from "@/types/chat";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { SearchIcon, XIcon } from "lucide-react";
+import { SearchIcon, XIcon, UserIcon } from "lucide-react";
 
 type SortOption = "recent" | "views" | "cred" | "copies";
-type FilterOption = "all" | "popular" | "detailed";
+type FilterOption = "my" | "all";
 
 interface RationaleSelectionDialogProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     rationales: ChatRationale[];
     onRationaleSelected: (rationale: ChatRationale) => void;
+    currentUserId: string | null | undefined;
 }
 
 export function RationaleSelectionDialog({
@@ -33,46 +33,27 @@ export function RationaleSelectionDialog({
     onOpenChange,
     rationales,
     onRationaleSelected,
+    currentUserId,
 }: RationaleSelectionDialogProps) {
     const [searchTerm, setSearchTerm] = useState("");
     const [sortBy, setSortBy] = useState<SortOption>("recent");
-    const [filterBy, setFilterBy] = useState<FilterOption>("all");
+    const [filterBy, setFilterBy] = useState<FilterOption>("my");
 
     const filteredAndSortedRationales = useMemo(() => {
         let filtered = [...rationales];
+
+        if (filterBy === 'my' && currentUserId) {
+            filtered = filtered.filter(r => r.authorId === currentUserId);
+        }
+
         if (searchTerm.trim()) {
             const searchLower = searchTerm.toLowerCase();
             filtered = filtered.filter(
                 (r) =>
                     r.title.toLowerCase().includes(searchLower) ||
-                    (r.description || '').toLowerCase().includes(searchLower)
+                    (r.description || '').toLowerCase().includes(searchLower) ||
+                    (r.authorUsername || '').toLowerCase().includes(searchLower)
             );
-        }
-        switch (filterBy) {
-            case "popular":
-                const avgViews = rationales.reduce((sum, r) => sum + (r.statistics?.views || 0), 0) / (rationales.length || 1);
-                const avgCred = rationales.reduce((sum, r) => sum + (r.statistics?.totalCred || 0), 0) / (rationales.length || 1);
-                const avgCopies = rationales.reduce((sum, r) => sum + (r.statistics?.copies || 0), 0) / (rationales.length || 1);
-
-                filtered = filtered.filter((r) => {
-                    const views = r.statistics?.views || 0;
-                    const cred = r.statistics?.totalCred || 0;
-                    const copies = r.statistics?.copies || 0;
-
-                    return views > avgViews || cred > avgCred || copies > avgCopies;
-                });
-                break;
-            case "detailed":
-                const avgDescLength = rationales.reduce((sum, r) => sum + (r.description?.length || 0), 0) / (rationales.length || 1);
-                const avgGraphComplexity = rationales.reduce((sum, r) => sum + ((r.graph?.nodes.length || 0) + (r.graph?.edges.length || 0)), 0) / (rationales.length || 1);
-
-                filtered = filtered.filter((r) => {
-                    const descLength = r.description?.length || 0;
-                    const graphComplexity = (r.graph?.nodes.length || 0) + (r.graph?.edges.length || 0);
-
-                    return descLength > avgDescLength || graphComplexity > avgGraphComplexity;
-                });
-                break;
         }
 
         switch (sortBy) {
@@ -97,15 +78,22 @@ export function RationaleSelectionDialog({
         }
 
         return filtered;
-    }, [rationales, searchTerm, sortBy, filterBy]);
+    }, [rationales, searchTerm, sortBy, filterBy, currentUserId]);
 
     const handleSelect = (rationale: ChatRationale) => {
         onRationaleSelected(rationale);
         setSearchTerm("");
+        setFilterBy("my");
         onOpenChange(false);
     };
 
     const clearSearch = () => setSearchTerm("");
+
+    useState(() => {
+        if (!currentUserId) {
+            setFilterBy("all");
+        }
+    });
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -123,7 +111,7 @@ export function RationaleSelectionDialog({
                             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                             <Input
                                 type="search"
-                                placeholder="Search rationales by title or description..."
+                                placeholder="Search rationales by title, description, or user..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="pl-10 pr-10 w-full"
@@ -151,10 +139,9 @@ export function RationaleSelectionDialog({
                                 </SelectContent>
                             </Select>
                             <Tabs value={filterBy} onValueChange={(value: string) => setFilterBy(value as FilterOption)}>
-                                <TabsList className="grid grid-cols-3 text-sm h-auto">
+                                <TabsList className="grid grid-cols-2 text-sm h-auto">
+                                    <TabsTrigger value="my" className="px-3 py-1.5" disabled={!currentUserId}>My</TabsTrigger>
                                     <TabsTrigger value="all" className="px-3 py-1.5">All</TabsTrigger>
-                                    <TabsTrigger value="popular" className="px-3 py-1.5">Popular</TabsTrigger>
-                                    <TabsTrigger value="detailed" className="px-3 py-1.5">Detailed</TabsTrigger>
                                 </TabsList>
                             </Tabs>
                         </div>
@@ -200,6 +187,12 @@ export function RationaleSelectionDialog({
                                                     )}
                                                 </div>
                                             </div>
+                                            {rationale.authorUsername && (
+                                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                                                    <UserIcon className="h-3 w-3" />
+                                                    <span>{rationale.authorUsername}</span>
+                                                </div>
+                                            )}
                                             {rationale.description && (
                                                 <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
                                                     {rationale.description}
@@ -225,12 +218,16 @@ export function RationaleSelectionDialog({
                             <p className="text-base font-medium">
                                 {rationales.length === 0
                                     ? "No rationales created yet"
-                                    : "No rationales match your criteria"}
+                                    : filterBy === 'my' && currentUserId
+                                        ? "You haven't created any rationales yet"
+                                        : "No rationales match your criteria"}
                             </p>
                             <p className="text-sm mt-1">
                                 {rationales.length === 0
                                     ? "Create a rationale to get started."
-                                    : "Try adjusting your search or filters."}
+                                    : filterBy === 'my' && currentUserId
+                                        ? "Create one or switch to the 'All' tab."
+                                        : "Try adjusting your search or filters."}
                             </p>
                         </div>
                     )}
