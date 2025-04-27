@@ -16,9 +16,10 @@ import { OnboardingProvider } from "@/components/contexts/OnboardingContext";
 import { HeaderActions } from "@/components/layout/HeaderActions";
 import {
   DynamicHeaderContent
-
 } from "@/components/layout/DynamicHeaderContent";
-const inter = Inter({ subsets: ["latin"] });
+import { KnowledgeBaseProvider } from "@/components/contexts/KnowledgeBaseContext";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   title: "Negation Game",
@@ -32,7 +33,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className="h-full">
-      <body className={cn(inter.className, "h-full flex flex-col")}>
+      <body className={cn("font-sans", inter.variable, "h-full flex flex-col")}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -42,25 +43,27 @@ export default function RootLayout({
           <ThemedPrivyProvider>
             <QueryClientProvider>
               <OnboardingProvider>
-                <TooltipProvider>
-                  <header className="sticky top-0 z-20 border-b py-sm flex justify-between container-padding items-center w-full bg-background h-[var(--header-height)]">
-                    <div className="flex items-center min-w-0" id="header-container">
-                      <div className="flex items-center min-w-0 overflow-hidden" id="dynamic-header-content">
-                        <DynamicHeaderContent />
+                <KnowledgeBaseProvider>
+                  <TooltipProvider>
+                    <header className="sticky top-0 z-20 border-b py-sm flex justify-between container-padding items-center w-full bg-background h-[var(--header-height)]">
+                      <div className="flex items-center min-w-0" id="header-container">
+                        <div className="flex items-center min-w-0 overflow-hidden" id="dynamic-header-content">
+                          <DynamicHeaderContent />
+                        </div>
                       </div>
-                    </div>
-                    <HeaderActions />
-                  </header>
+                      <HeaderActions />
+                    </header>
 
-                  {children}
+                    {children}
 
-                  <Toaster />
-                  <GlobalDialogs />
-                  <Analytics />
-                </TooltipProvider>
-                <DevOnly>
-                  <ToggleableReactQueryDevTools />
-                </DevOnly>
+                    <Toaster />
+                    <GlobalDialogs />
+                    <Analytics />
+                  </TooltipProvider>
+                  <DevOnly>
+                    <ToggleableReactQueryDevTools />
+                  </DevOnly>
+                </KnowledgeBaseProvider>
               </OnboardingProvider>
             </QueryClientProvider>
           </ThemedPrivyProvider>

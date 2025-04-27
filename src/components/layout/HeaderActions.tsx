@@ -5,18 +5,21 @@ import { ModeToggle } from "@/components/ui/ModeToggle";
 import { GitHubButton } from "../icons/GitHubButton";
 import { Dynamic } from "@/components/utils/Dynamic";
 import { Button } from "@/components/ui/button";
-import { InfoIcon, MoreHorizontal, Github } from "lucide-react";
+import { InfoIcon, MoreHorizontal, Github, FileText, Library } from "lucide-react";
 import { useOnboarding } from "@/components/contexts/OnboardingContext";
+import { useKnowledgeBase } from "@/components/contexts/KnowledgeBaseContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
+    DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 
 export const HeaderActions = () => {
-    const { openDialog } = useOnboarding();
+    const { openDialog: openOnboardingDialog } = useOnboarding();
+    const { openDialog: openKbDialog } = useKnowledgeBase();
 
     return (
         <div className="flex gap-1 sm:gap-sm flex-shrink-0 items-center">
@@ -26,17 +29,38 @@ export const HeaderActions = () => {
             <ConnectButton />
 
             <div className="hidden sm:flex items-center gap-1 sm:gap-sm">
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={openDialog}>
-                            <InfoIcon className="h-4 w-4" />
-                            <span className="sr-only">Show Info</span>
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Show Info / Help</p>
-                    </TooltipContent>
-                </Tooltip>
+                <DropdownMenu>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                    <InfoIcon className="h-4 w-4" />
+                                    <span className="sr-only">Help & Information</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Help & Information</p>
+                        </TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={openOnboardingDialog}>
+                            <FileText className="mr-2 h-4 w-4" />
+                            <span>Full Writeup</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={openKbDialog}>
+                            <Library className="mr-2 h-4 w-4" />
+                            <span>Knowledge Base</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                            <a href="https://github.com/network-goods-institute/negation-game" target="_blank" rel="noopener noreferrer">
+                                <Github className="mr-2 h-4 w-4" />
+                                <span>GitHub</span>
+                            </a>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
                 <Dynamic>
                     <GitHubButton />
                 </Dynamic>
@@ -51,10 +75,15 @@ export const HeaderActions = () => {
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={openDialog}>
-                            <InfoIcon className="mr-2 h-4 w-4" />
-                            <span>Info / Help</span>
+                        <DropdownMenuItem onClick={openOnboardingDialog}>
+                            <FileText className="mr-2 h-4 w-4" />
+                            <span>Full Writeup</span>
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={openKbDialog}>
+                            <Library className="mr-2 h-4 w-4" />
+                            <span>Knowledge Base</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem asChild>
                             <a href="https://github.com/network-goods-institute/negation-game" target="_blank" rel="noopener noreferrer">
                                 <Github className="mr-2 h-4 w-4" />
