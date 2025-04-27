@@ -780,14 +780,14 @@ export const GraphView = ({
                               ? isNew
                                 ? "Publish Rationale"
                                 : "Publish Changes"
-                              : "Copy to Save"}
+                              : "Save as New Rationale"}
                           </span>
                         </div>
                       )}
                     </AuthenticatedActionButton>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Save changes</p>
+                    <p>{canModify ? 'Save changes' : 'You don&apos;t own this rationale. Save your changes as a new rationale.'}</p>
                   </TooltipContent>
                 </Tooltip>
                 {/* Discard Button */}
