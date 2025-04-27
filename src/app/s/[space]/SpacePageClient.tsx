@@ -33,6 +33,7 @@ import React from "react";
 import { ViewpointCardWrapper } from "@/components/ViewpointCardWrapper";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 import { makePointSuggestionAtom } from "@/atoms/makePointSuggestionAtom";
+import { PointFilterSelector } from "@/components/PointFilterSelector";
 
 interface PageProps {
     params: { space: string };
@@ -477,17 +478,41 @@ const PointsTabContent = memo(({ points, isLoading, combinedFeed, basePath, spac
 });
 PointsTabContent.displayName = 'PointsTabContent';
 
-const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, space, handleNewViewpoint, handleCardClick, loadingCardId }: any) => {
-    useEffect(() => {
-        if (viewpoints && viewpoints.length > 0) {
-            const sample = viewpoints[0];
-            if (sample.graph && sample.graph.nodes) {
-                sample.graph.nodes
-                    .filter((node: any) => node.type === 'point')
-                    .map((node: any) => node.data?.pointId)
+const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, space, handleNewViewpoint, handleCardClick, loadingCardId, points }: any) => {
+    const [selectedPointIds, setSelectedPointIds] = useState<number[]>([]);
+    const [matchType, setMatchType] = useState<"any" | "all">("any");
+
+    const filteredViewpoints = useMemo(() => {
+        if (!selectedPointIds.length) return viewpoints;
+        return viewpoints?.filter((viewpoint: any) => {
+            if (!viewpoint.graph?.nodes) return false;
+            const pointNodes = viewpoint.graph.nodes
+                .filter((node: any) => node.type === 'point')
+                .map((node: any) => Number(node.data?.pointId));
+
+            if (matchType === "all") {
+                return selectedPointIds.every(id => pointNodes.includes(id));
+            } else {
+                return selectedPointIds.some(id => pointNodes.includes(id));
             }
-        }
-    }, [viewpoints]);
+        });
+    }, [viewpoints, selectedPointIds, matchType]);
+
+    const handlePointSelect = useCallback((pointId: number) => {
+        setSelectedPointIds(prev => [...prev, pointId]);
+    }, []);
+
+    const handlePointDeselect = useCallback((pointId: number) => {
+        setSelectedPointIds(prev => prev.filter(id => id !== pointId));
+    }, []);
+
+    const handleClearAll = useCallback(() => {
+        setSelectedPointIds([]);
+    }, []);
+
+    const handleMatchTypeChange = useCallback((type: "any" | "all") => {
+        setMatchType(type);
+    }, []);
 
     if (viewpoints === undefined || viewpointsLoading) {
         return <div className="flex-1 flex items-center justify-center min-h-[calc(100vh-200px)]">
@@ -495,41 +520,53 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
         </div>;
     }
 
-    if (viewpoints.length === 0) {
-        return (
-            <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
-                <span className="text-muted-foreground">Nothing here yet</span>
-                <Button variant="outline" onClick={handleNewViewpoint}>
-                    <ViewpointIcon className="mr-2.5 size-4" />
-                    Create a Rationale
-                </Button>
-            </div>
-        );
-    }
-
     return (
         <div className="flex flex-col">
-            {viewpoints.map((viewpoint: any) => {
-                return (
-                    <ViewpointCardWrapper
-                        key={`rationales-tab-${viewpoint.id}`}
-                        id={viewpoint.id}
-                        title={viewpoint.title}
-                        description={viewpoint.description}
-                        author={viewpoint.author}
-                        createdAt={new Date(viewpoint.createdAt)}
-                        space={space || "global"}
-                        statistics={{
-                            views: viewpoint.statistics?.views || 0,
-                            copies: viewpoint.statistics?.copies || 0,
-                            totalCred: viewpoint.statistics?.totalCred || 0,
-                            averageFavor: viewpoint.statistics?.averageFavor || 0
-                        }}
-                        loadingCardId={loadingCardId}
-                        handleCardClick={handleCardClick}
-                    />
-                );
-            })}
+            <PointFilterSelector
+                points={points || []}
+                selectedPointIds={selectedPointIds}
+                onPointSelect={handlePointSelect}
+                onPointDeselect={handlePointDeselect}
+                onClearAll={handleClearAll}
+                matchType={matchType}
+                onMatchTypeChange={handleMatchTypeChange}
+            />
+
+            {filteredViewpoints.length === 0 ? (
+                <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
+                    <span className="text-muted-foreground">
+                        {selectedPointIds.length > 0
+                            ? `No rationales found containing ${matchType === "all" ? "all" : "any of"} the selected points`
+                            : "Nothing here yet"}
+                    </span>
+                    <Button variant="outline" onClick={handleNewViewpoint}>
+                        <ViewpointIcon className="mr-2.5 size-4" />
+                        Create a Rationale
+                    </Button>
+                </div>
+            ) : (
+                filteredViewpoints.map((viewpoint: any) => {
+                    return (
+                        <ViewpointCardWrapper
+                            key={`rationales-tab-${viewpoint.id}`}
+                            id={viewpoint.id}
+                            title={viewpoint.title}
+                            description={viewpoint.description}
+                            author={viewpoint.author}
+                            createdAt={new Date(viewpoint.createdAt)}
+                            space={space || "global"}
+                            statistics={{
+                                views: viewpoint.statistics?.views || 0,
+                                copies: viewpoint.statistics?.copies || 0,
+                                totalCred: viewpoint.statistics?.totalCred || 0,
+                                averageFavor: viewpoint.statistics?.averageFavor || 0
+                            }}
+                            loadingCardId={loadingCardId}
+                            handleCardClick={handleCardClick}
+                        />
+                    );
+                })
+            )}
         </div>
     );
 });
@@ -1041,6 +1078,7 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
                         handleNewViewpoint={handleNewViewpoint}
                         handleCardClick={handleCardClick}
                         loadingCardId={loadingCardId}
+                        points={points}
                     />
                 )}
             </div>
