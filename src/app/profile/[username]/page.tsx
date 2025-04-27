@@ -28,7 +28,6 @@ import { Progress } from "@/components/ui/progress";
 
 type ProfileTab = "profile" | "endorsements" | "dashboard";
 
-const NegateDialog = dynamic(() => import("@/components/NegateDialog").then(mod => mod.NegateDialog), { ssr: false });
 const ProfileEditDialog = dynamic(
     () => import("@/components/ProfileEditDialog").then(mod => mod.ProfileEditDialog),
     {
@@ -439,7 +438,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                                 space={point.space ?? undefined}
                                                                 isLoading={loadingCardId === `point-${point.pointId}`}
                                                                 onNegate={(e) => {
-                                                                    e.preventDefault();
+
                                                                     if (privyUser) {
                                                                         setNegatedPointId(point.pointId);
                                                                     } else {

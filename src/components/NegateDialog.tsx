@@ -25,7 +25,7 @@ import { cn } from "@/lib/cn";
 import { useAddCounterpoint } from "@/mutations/useAddCounterpoint";
 import { useEndorse } from "@/mutations/useEndorse";
 import { useNegate } from "@/mutations/useNegate";
-import { usePointData } from "@/queries/usePointData";
+import { usePointDataById } from "@/queries/usePointDataById";
 import { DialogProps } from "@radix-ui/react-dialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { produce } from "immer";
@@ -60,7 +60,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
 
   const currentNegatedPointId = initialNegatedPointId ?? negatedPointId;
 
-  const { data: negatedPoint, isLoading: isLoadingNegatedPoint } = usePointData(currentNegatedPointId);
+  const { data: negatedPoint, isLoading: isLoadingNegatedPoint } = usePointDataById(currentNegatedPointId);
 
   const [counterpointContent, setCounterpointContent] = useAtom(
     negationContentAtom(currentNegatedPointId)
@@ -389,7 +389,9 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     <Dialog
       {...props}
       open={isOpen}
-      onOpenChange={(open) => !open && handleClose()} // Full close handler
+      onOpenChange={(open) => {
+        if (!open) handleClose(); // Full close handler
+      }}
     >
       <DialogContent className="@container sm:top-xl flex flex-col overflow-hidden sm:translate-y-0 h-full rounded-none sm:rounded-md sm:h-fit gap-0 bg-background p-4 sm:p-8 shadow-sm w-full max-w-xl max-h-[90vh]">
         {createdCounterpointId !== null ? (
