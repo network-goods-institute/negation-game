@@ -775,7 +775,10 @@ export const GraphView = ({
                       ) : (
                         <div className="flex items-center">
                           <SaveIcon className="size-4 mr-2" />
-                          <span className="text-sm font-medium">
+                          <span className={cn(
+                            "font-medium",
+                            canModify ? "text-sm" : "text-xs" // Shrink text for non-owners
+                          )}>
                             {canModify
                               ? isNew
                                 ? "Publish Rationale"
