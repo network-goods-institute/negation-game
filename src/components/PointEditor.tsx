@@ -68,7 +68,7 @@ export const PointEditor: FC<PointEditorProps> = ({
       <Separator className="w-full" />
       <p className="text-muted-foreground/70 text-xs -mt-1">{guidanceNotes}</p>
 
-      <div className="flex w-full items-center justify-between gap-sm">
+      <div className="flex w-full flex-col items-stretch gap-sm">
         <CredInput
           credInput={cred}
           setCredInput={setCred}
@@ -78,7 +78,7 @@ export const PointEditor: FC<PointEditorProps> = ({
           extraCompact={extraCompact}
         />
 
-        <div className="flex gap-sm items-center">
+        <div className="flex gap-sm items-center self-end">
           <span
             className={cn(
               charactersLeft >= 0 ? "text-muted-foreground" : "text-destructive",
@@ -150,7 +150,7 @@ export const PointEditor: FC<PointEditorProps> = ({
         </div>
       </div>
       {notEnoughCred && (
-        <span className="ml-md text-destructive text-sm h-fit">
+        <span className="ml-md text-destructive text-sm h-fit -mt-1">
           not enough cred
         </span>
       )}
