@@ -7,7 +7,7 @@ import { FileText, MessageSquareQuote, ExternalLink } from 'lucide-react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
-import { encodeId } from '@/lib/encodeId';
+import { encodeId } from '@/lib/negation-game/encodeId';
 import { useQuery } from '@tanstack/react-query';
 import { fetchPoint } from '@/actions/fetchPoint';
 

@@ -18,7 +18,7 @@ import { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { DialogClose } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { getPointUrl } from "@/lib/getPointUrl";
+import { getPointUrl } from "@/lib/negation-game/getPointUrl";
 
 export interface CounterpointCandidate {
     id: number;

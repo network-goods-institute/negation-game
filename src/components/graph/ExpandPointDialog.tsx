@@ -14,7 +14,7 @@ import { usePointData } from "@/queries/usePointData";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { nanoid } from "nanoid";
 import { useReactFlow } from "@xyflow/react";
-import { getPointUrl } from "@/lib/getPointUrl";
+import { getPointUrl } from "@/lib/negation-game/getPointUrl";
 import { Portal } from "@radix-ui/react-portal";
 import { atom, useAtom } from "jotai";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";

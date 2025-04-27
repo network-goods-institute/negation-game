@@ -7,7 +7,7 @@ import { useSetAtom } from "jotai";
 import { usePrivy } from "@privy-io/react-auth";
 import { PointCard } from "@/components/PointCard";
 import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
-import { getPointUrl } from "@/lib/getPointUrl";
+import { getPointUrl } from "@/lib/negation-game/getPointUrl";
 import { ViewpointCardWrapper } from "./ViewpointCardWrapper";
 
 interface SearchResultsListProps {

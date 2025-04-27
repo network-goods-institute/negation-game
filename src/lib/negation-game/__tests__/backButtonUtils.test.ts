@@ -3,7 +3,7 @@ import {
   getBackButtonHandler,
   isSameDomain,
   getSpaceFromUrl,
-} from "@/lib/backButtonUtils";
+} from "@/lib/negation-game/backButtonUtils";
 
 describe("backButtonUtils", () => {
   describe("isSameDomain", () => {

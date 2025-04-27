@@ -1,4 +1,4 @@
-import { TimelineScale } from "@/lib/timelineScale";
+import { TimelineScale } from "@/lib/negation-game/timelineScale";
 
 export const POINT_MIN_LENGTH = 10;
 

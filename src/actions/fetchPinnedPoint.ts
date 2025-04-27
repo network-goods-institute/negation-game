@@ -6,7 +6,7 @@ import { spacesTable } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { addFavor } from "@/db/utils/addFavor";
 import { FeedPoint } from "@/actions/fetchFeed";
-import { decodeId } from "@/lib/decodeId";
+import { decodeId } from "@/lib/negation-game/decodeId";
 
 export interface FetchPinnedPointParams {
   spaceId: string;

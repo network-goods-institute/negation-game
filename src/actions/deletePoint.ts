@@ -3,7 +3,7 @@
 import { getUserId } from "@/actions/getUserId";
 import { db } from "@/services/db";
 import { pointsTable } from "@/db/tables/pointsTable";
-import { isWithinDeletionTimelock } from "@/lib/deleteTimelock";
+import { isWithinDeletionTimelock } from "@/lib/negation-game/deleteTimelock";
 import { endorsementsTable } from "@/db/tables/endorsementsTable";
 import { doubtsTable } from "@/db/tables/doubtsTable";
 import { usersTable } from "@/db/schema";

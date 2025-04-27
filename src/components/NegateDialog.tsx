@@ -46,7 +46,7 @@ import {
 } from "@/components/ui/tooltip";
 import CounterpointReview, { CounterpointCandidate } from "@/components/CounterpointReview";
 import { toast } from "sonner";
-import { encodeId } from '@/lib/encodeId';
+import { encodeId } from '@/lib/negation-game/encodeId';
 import { CreatedNegationView } from './chatbot/CreatedNegationView';
 
 export interface NegateDialogProps

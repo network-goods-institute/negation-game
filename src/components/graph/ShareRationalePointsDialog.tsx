@@ -13,7 +13,7 @@ import { useSetAtom } from "jotai";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { Skeleton } from "../ui/skeleton";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { getPointUrl } from "@/lib/getPointUrl";
+import { getPointUrl } from "@/lib/negation-game/getPointUrl";
 import { useQuery } from "@tanstack/react-query";
 import { pointFetcher } from "@/queries/usePointData";
 

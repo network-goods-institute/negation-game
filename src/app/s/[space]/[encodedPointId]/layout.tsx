@@ -3,7 +3,7 @@ import { db } from "@/services/db";
 import { pointsWithDetailsView, usersTable } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { DEFAULT_SPACE } from "@/constants/config";
-import { decodeId } from "@/lib/decodeId";
+import { decodeId } from "@/lib/negation-game/decodeId";
 import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
 

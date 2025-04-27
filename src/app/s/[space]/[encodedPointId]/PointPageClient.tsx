@@ -35,10 +35,10 @@ import { useBasePath } from "@/hooks/useBasePath";
 import { useCredInput } from "@/hooks/useCredInput";
 import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 import { cn } from "@/lib/cn";
-import { decodeId } from "@/lib/decodeId";
-import { encodeId } from "@/lib/encodeId";
+import { decodeId } from "@/lib/negation-game/decodeId";
+import { encodeId } from "@/lib/negation-game/encodeId";
 import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
-import { TimelineScale, timelineScales } from "@/lib/timelineScale";
+import { TimelineScale, timelineScales } from "@/lib/negation-game/timelineScale";
 import { useEndorse } from "@/mutations/useEndorse";
 import { useCounterpointSuggestions } from "@/queries/useCounterpointSuggestions";
 import { useFavorHistory } from "@/queries/useFavorHistory";
@@ -79,15 +79,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { usePrefetchRestakeData } from "@/hooks/usePrefetchRestakeData";
 import { visitedPointsAtom } from "@/atoms/visitedPointsAtom";
 import { DeletePointDialog } from "@/components/DeletePointDialog";
-import { isWithinDeletionTimelock } from "@/lib/deleteTimelock";
-import { getPointUrl } from "@/lib/getPointUrl";
+import { isWithinDeletionTimelock } from "@/lib/negation-game/deleteTimelock";
+import { getPointUrl } from "@/lib/negation-game/getPointUrl";
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { getBackButtonHandler } from "@/lib/backButtonUtils";
+import { getBackButtonHandler } from "@/lib/negation-game/backButtonUtils";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 
 type Point = {

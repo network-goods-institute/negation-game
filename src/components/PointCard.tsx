@@ -63,7 +63,7 @@ import Link from "next/link";
 import { ExternalLinkIcon } from "lucide-react";
 import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
 import { useQueryClient } from "@tanstack/react-query";
-import { getPointUrl } from "@/lib/getPointUrl";
+import { getPointUrl } from "@/lib/negation-game/getPointUrl";
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
 import { selectedPointIdsAtom } from "@/atoms/viewpointAtoms";
 

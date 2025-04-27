@@ -15,7 +15,7 @@ import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
 import { Timestamp } from "@/types/Timestamp";
 import { desc, eq, sql, and, ne } from "drizzle-orm";
-import { decodeId } from "@/lib/decodeId";
+import { decodeId } from "@/lib/negation-game/decodeId";
 import { deduplicatePoints } from "@/db/utils/deduplicatePoints";
 
 export type FeedPoint = {

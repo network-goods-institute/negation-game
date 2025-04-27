@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useDeletePoint } from "@/mutations/useDeletePoint";
-import { isWithinDeletionTimelock } from "@/lib/deleteTimelock";
+import { isWithinDeletionTimelock } from "@/lib/negation-game/deleteTimelock";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,

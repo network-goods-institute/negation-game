@@ -1,4 +1,4 @@
-import { encodeId } from "@/lib/encodeId";
+import { encodeId } from "@/lib/negation-game/encodeId";
 
 /**
  * Creates a URL for a point based on the point ID and space

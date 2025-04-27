@@ -2,7 +2,10 @@
 
 import { pointFavorHistoryView } from "@/db/schema";
 import { Point } from "@/db/tables/pointsTable";
-import { timelineScale, TimelineScale } from "@/lib/timelineScale";
+import {
+  timelineScale,
+  TimelineScale,
+} from "@/lib/negation-game/timelineScale";
 import { db } from "@/services/db";
 import { and, desc, sql, eq } from "drizzle-orm";
 import { last } from "remeda";

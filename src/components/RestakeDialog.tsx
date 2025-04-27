@@ -20,7 +20,7 @@ import {
 } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { DEFAULT_TIMESCALE } from "@/constants/config";
-import { TimelineScale } from "@/lib/timelineScale";
+import { TimelineScale } from "@/lib/negation-game/timelineScale";
 import { Loader } from "./ui/loader";
 import { cn } from "@/lib/cn";
 import { endorse } from "@/actions/endorse";
@@ -34,7 +34,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { timelineScales } from "@/lib/timelineScale";
+import { timelineScales } from "@/lib/negation-game/timelineScale";
 import { PointStats } from "@/components/PointStats";
 import { format } from "date-fns";
 import { Separator } from "@/components/ui/separator";

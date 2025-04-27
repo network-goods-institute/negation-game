@@ -25,13 +25,13 @@ import { ChatSettingsDialog } from "@/components/chatbot/ChatSettingsDialog";
 import { RationaleSelectionDialog } from "@/components/chatbot/RationaleSelectionDialog";
 import { useSetAtom } from 'jotai';
 import { initialSpaceTabAtom } from '@/atoms/navigationAtom';
-import { handleBackNavigation } from '@/lib/backButtonUtils';
+import { handleBackNavigation } from '@/lib/negation-game/backButtonUtils';
 import { ChatRationale, ChatSettings, SavedChat, ChatMessage } from '@/types/chat';
 import { useDiscourseIntegration } from "@/hooks/useDiscourseIntegration";
 import { useChatListManagement } from "@/hooks/useChatListManagement";
 import { useChatState } from "@/hooks/useChatState";
 import { ChatSidebar } from './ChatSidebar';
-import { computeChatStateHash } from "@/lib/chatUtils";
+import { computeChatStateHash } from "@/lib/negation-game/chatUtils";
 import {
     fetchUserChatMetadata,
     fetchChatContent,

@@ -44,7 +44,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { copyViewpointAndNavigate } from "@/lib/copyViewpoint";
+import { copyViewpointAndNavigate } from "@/lib/negation-game/copyViewpoint";
 import { cn } from "@/lib/cn";
 import { MergeNodesDialog } from "@/components/graph/MergeNodesDialog";
 import { ShareRationaleDialog } from "@/components/graph/ShareRationalePointsDialog";

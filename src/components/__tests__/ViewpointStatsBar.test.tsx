@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor } from "@/__tests__/utils/test-utils";
+import { render, screen, waitFor } from "@/lib/tests/test-utils";
 import { ViewpointStatsBar } from "../ViewpointStatsBar";
 
 // Mock fetchPoints and useQuery
