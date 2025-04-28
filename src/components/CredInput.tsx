@@ -20,6 +20,9 @@ export interface CredInputProps
   hideLabels?: boolean;
   allowZero?: boolean;
   extraCompact?: boolean;
+  endorsementAmount?: number;
+  isSelling?: boolean;
+  setIsSelling?: (value: boolean) => void;
 }
 
 const DEFAULT_CRED_OPTIONS = [0, 1, 5, 10];
@@ -32,6 +35,9 @@ export const CredInput: FC<CredInputProps> = ({
   hideLabels = false,
   allowZero = false,
   extraCompact = false,
+  endorsementAmount = 0,
+  isSelling = false,
+  setIsSelling,
   ...props
 }) => {
   const [customMode, setCustomMode] = useToggle(false);
@@ -57,6 +63,8 @@ export const CredInput: FC<CredInputProps> = ({
     setInputValue("");
   };
 
+  const hasEndorsement = endorsementAmount > 0;
+
   return (
     <div className={cn("w-full", extraCompact && "max-w-[160px]")}>
       {!hideLabels && (
@@ -65,7 +73,7 @@ export const CredInput: FC<CredInputProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <span className="text-xs text-muted-foreground">
-                  {cred > 0 ? `Spending ${cred} cred` : "Endorsement amount:"}
+                  {cred > 0 ? `${isSelling ? 'Selling' : 'Spending'} ${cred} cred` : `${isSelling ? 'Sell' : 'Endorsement'} amount:`}
                 </span>
 
                 <TooltipProvider>
@@ -74,7 +82,7 @@ export const CredInput: FC<CredInputProps> = ({
                       <InfoIcon className="ml-1 mr-3 size-3 text-muted-foreground/70 cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent side="top" className="max-w-60">
-                      Endorsing means you support this point. The more cred you spend, the stronger your endorsement.
+                      {isSelling ? 'Selling reduces your endorsement and returns cred to you.' : 'Endorsing means you support this point. The more cred you spend, the stronger your endorsement.'}
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -82,7 +90,7 @@ export const CredInput: FC<CredInputProps> = ({
 
               {user && (
                 <span className="text-[9px] font-medium text-muted-foreground">
-                  {user.cred} available
+                  {isSelling ? endorsementAmount : user.cred} available
                 </span>
               )}
             </div>
@@ -91,7 +99,7 @@ export const CredInput: FC<CredInputProps> = ({
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center">
               <span className="text-sm text-muted-foreground">
-                {cred > 0 ? `Spending ${cred} cred` : "Endorsement amount:"}
+                {cred > 0 ? `${isSelling ? 'Selling' : 'Spending'} ${cred} cred` : `${isSelling ? 'Sell' : 'Endorsement'} amount:`}
               </span>
               <TooltipProvider>
                 <Tooltip delayDuration={0}>
@@ -99,77 +107,80 @@ export const CredInput: FC<CredInputProps> = ({
                     <InfoIcon className="ml-1 mr-3 size-3 text-muted-foreground/70 cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-60">
-                    Endorsing means you support this point. The more cred you spend, the stronger your endorsement.
+                    {isSelling ? 'Selling reduces your endorsement and returns cred to you.' : 'Endorsing means you support this point. The more cred you spend, the stronger your endorsement.'}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>
             {user && (
               <span className="text-xs font-medium text-muted-foreground">
-                {user.cred} available
+                {isSelling ? endorsementAmount : user.cred} available
               </span>
             )}
           </div>
         )
       )}
 
-      <div className="flex w-full gap-1.5">
+      <div className="flex w-full gap-1.5 flex-col">
         {!customMode ? (
           <>
-            <ToggleGroup
-              type="single"
-              value={cred.toString()}
-              onValueChange={(value) => {
-                if (value) setCred(Number(value));
-              }}
-              className={cn("flex-1 flex gap-1", extraCompact && "gap-0.5")}
-              {...props}
-            >
-              {DEFAULT_CRED_OPTIONS.map((value) => (
-                <ToggleGroupItem
-                  key={`${value}-cred`}
-                  value={value.toString()}
-                  disabled={value === 0 && !allowZero}
-                  className={cn(
-                    "flex-1 h-9 px-1 font-medium text-sm flex items-center justify-center rounded-md",
-                    extraCompact && "h-7 px-0.5 text-xs",
-                    "data-[state=on]:bg-accent/80 data-[state=on]:text-accent-foreground data-[state=on]:border-muted/60 border-muted-foreground/20",
-                    "hover:bg-muted/50 hover:text-foreground",
-                    value === 0 && !allowZero && "text-muted-foreground/50 pointer-events-none",
-                    notEnoughCred && value === cred && "data-[state=on]:text-destructive data-[state=on]:bg-destructive/10 data-[state=on]:border-destructive/30"
-                  )}
-                >
-                  <span>{value}</span>
-                  <span
+            <div className="flex w-full gap-1.5">
+              <ToggleGroup
+                type="single"
+                value={cred.toString()}
+                onValueChange={(value) => {
+                  if (value) setCred(Number(value));
+                }}
+                className={cn("flex-1 flex gap-1", extraCompact && "gap-0.5")}
+                {...props}
+              >
+                {DEFAULT_CRED_OPTIONS.map((value) => (
+                  <ToggleGroupItem
+                    key={`${value}-cred`}
+                    value={value.toString()}
+                    disabled={value === 0 && !allowZero || (isSelling && value > endorsementAmount)}
                     className={cn(
-                      "ml-0.5 text-xs opacity-70",
-                      extraCompact && "text-[10px] ml-0",
-                      !compact && !extraCompact && "inline",
-                      compact && "sr-only",
-                      extraCompact && "sr-only"
+                      "flex-1 h-9 px-1 font-medium text-sm flex items-center justify-center rounded-md",
+                      extraCompact && "h-7 px-0.5 text-xs",
+                      "data-[state=on]:bg-accent/80 data-[state=on]:text-accent-foreground data-[state=on]:border-muted/60 border-muted-foreground/20",
+                      "hover:bg-muted/50 hover:text-foreground",
+                      value === 0 && !allowZero && "text-muted-foreground/50 pointer-events-none",
+                      notEnoughCred && value === cred && "data-[state=on]:text-destructive data-[state=on]:bg-destructive/10 data-[state=on]:border-destructive/30",
+                      isSelling && value > endorsementAmount && "text-muted-foreground/50 pointer-events-none"
                     )}
                   >
-                    cred
-                  </span>
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
+                    <span>{value}</span>
+                    <span
+                      className={cn(
+                        "ml-0.5 text-xs opacity-70",
+                        extraCompact && "text-[10px] ml-0",
+                        !compact && !extraCompact && "inline",
+                        compact && "sr-only",
+                        extraCompact && "sr-only"
+                      )}
+                    >
+                      cred
+                    </span>
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
 
-            <Button
-              variant="outline"
-              size="sm"
-              className={cn(
-                "h-9 px-2 text-sm border-muted-foreground/20 text-muted-foreground hover:border-muted/60 hover:text-foreground",
-                extraCompact && "h-7 px-1 text-xs"
-              )}
-              onClick={() => {
-                setCustomMode(true);
-                setInputValue(cred > 0 ? cred.toString() : "");
-              }}
-            >
-              <PencilIcon className={cn("size-3 mr-1", extraCompact && "size-2.5 mr-0.5")} />
-              {!extraCompact ? "Custom" : ""}
-            </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "h-9 px-2 text-sm border-muted-foreground/20 text-muted-foreground hover:border-muted/60 hover:text-foreground",
+                  extraCompact && "h-7 px-1 text-xs"
+                )}
+                onClick={() => {
+                  setCustomMode(true);
+                  setInputValue(cred > 0 ? cred.toString() : "");
+                }}
+              >
+                <PencilIcon className={cn("size-3 mr-1", extraCompact && "size-2.5 mr-0.5")} />
+                {!extraCompact ? "Custom" : ""}
+              </Button>
+            </div>
           </>
         ) : (
           <div className="flex-1 flex h-9 border rounded-md overflow-hidden">
@@ -180,7 +191,8 @@ export const CredInput: FC<CredInputProps> = ({
                 onChange={(e) => handleInputChange(e.target.value)}
                 className={cn(
                   "border-none shadow-none h-full w-full pl-0 focus-visible:ring-0 focus-visible:ring-offset-0",
-                  notEnoughCred && "text-destructive",
+                  notEnoughCred && !isSelling && "text-destructive",
+                  isSelling && Number(inputValue) > endorsementAmount && "text-destructive",
                   "placeholder:text-muted-foreground/50",
                   extraCompact && "text-xs"
                 )}
@@ -191,7 +203,7 @@ export const CredInput: FC<CredInputProps> = ({
               <span className={cn(
                 "text-sm",
                 extraCompact && "text-xs",
-                notEnoughCred ? "text-destructive" : "text-muted-foreground"
+                (notEnoughCred && !isSelling) || (isSelling && Number(inputValue) > endorsementAmount) ? "text-destructive" : "text-muted-foreground"
               )}>
                 cred
               </span>
@@ -207,6 +219,29 @@ export const CredInput: FC<CredInputProps> = ({
             >
               <XIcon className={cn("size-3.5", extraCompact && "size-3")} />
             </Button>
+          </div>
+        )}
+        {hasEndorsement && setIsSelling && (
+          <div className="flex justify-center mt-2">
+            <ToggleGroup
+              type="single"
+              value={isSelling ? 'sell' : 'buy'}
+              onValueChange={(value) => setIsSelling(value === 'sell')}
+              className="inline-flex rounded-md"
+            >
+              <ToggleGroupItem
+                value="buy"
+                className="data-[state=on]:bg-accent/80 data-[state=on]:text-accent-foreground"
+              >
+                Buy
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="sell"
+                className="data-[state=on]:bg-accent/80 data-[state=on]:text-accent-foreground"
+              >
+                Sell
+              </ToggleGroupItem>
+            </ToggleGroup>
           </div>
         )}
       </div>

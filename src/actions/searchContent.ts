@@ -209,7 +209,7 @@ export const searchContent = async (
           const endorsements = await db
             .select({
               pointId: pointsTable.id,
-              cred: endorsementsTable.cred,
+              cred: sql`SUM(${endorsementsTable.cred})`,
             })
             .from(pointsTable)
             .innerJoin(
@@ -221,7 +221,8 @@ export const searchContent = async (
                 inArray(pointsTable.id, pointIds),
                 eq(endorsementsTable.userId, viewpoint.createdBy)
               )
-            );
+            )
+            .groupBy(pointsTable.id);
 
           totalCred = endorsements.reduce(
             (sum, row) => sum + Number(row.cred),

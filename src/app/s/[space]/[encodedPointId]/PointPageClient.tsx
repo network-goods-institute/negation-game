@@ -89,6 +89,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getBackButtonHandler } from "@/lib/negation-game/backButtonUtils";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
+import { useSellEndorsement } from '@/mutations/useSellEndorsement';
 
 type Point = {
     id: number;
@@ -289,7 +290,8 @@ export function PointPageClient({
     const prefetchRestakeData = usePrefetchRestakeData();
     const { markPointAsRead } = useVisitedPoints();
     const pathname = usePathname();
-    const { mutate: endorse } = useEndorse();
+    const { mutate: endorse, isPending: isEndorsing } = useEndorse();
+    const { mutate: sellEndorsement, isPending: isSellingEndorsement } = useSellEndorsement();
     const [_, setVisitedPoints] = useAtom(visitedPointsAtom);
     const [recentlyNegated, setRecentlyNegated] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -299,6 +301,7 @@ export function PointPageClient({
     const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
     const setInitialTab = useSetAtom(initialSpaceTabAtom);
     const backButtonHandler = getBackButtonHandler(router, setInitialTab);
+    const [isSelling, setIsSelling] = useState(false);
 
     // Load additional data after point data is loaded
     useEffect(() => {
@@ -443,14 +446,20 @@ export function PointPageClient({
     const isGlobalSpace = spaceData.data?.id === 'global' || spaceData.data?.id === 'global/';
     const endorsedByViewer = point?.viewerCred !== undefined && point.viewerCred > 0;
 
-    const loginOrMakePoint = useCallback(() => {
-        if (user !== null && point?.pointId) {
-            endorse({ pointId: point.pointId, cred });
-            toggleEndorsePopoverOpen(false);
-        } else {
+    const handleEndorseOrSell = useCallback(() => {
+        if (!point?.pointId) return;
+        if (privyUser === null) {
             login();
+            return;
         }
-    }, [user, login, toggleEndorsePopoverOpen, point?.pointId, endorse, cred]);
+
+        if (isSelling) {
+            sellEndorsement({ pointId: point.pointId, amountToSell: cred });
+        } else {
+            endorse({ pointId: point.pointId, cred });
+        }
+        toggleEndorsePopoverOpen(false);
+    }, [isSelling, point?.pointId, cred, privyUser, login, sellEndorsement, endorse, toggleEndorsePopoverOpen]);
 
     const handleEndorse = useCallback(() => {
         if (privyUser === null) {
@@ -681,19 +690,32 @@ export function PointPageClient({
                                                 credInput={cred}
                                                 setCredInput={setCred}
                                                 notEnoughCred={notEnoughCred}
+                                                endorsementAmount={point.viewerCred || 0}
+                                                isSelling={isSelling}
+                                                setIsSelling={setIsSelling}
                                             />
                                             <Button
-                                                disabled={cred === 0 || notEnoughCred}
-                                                onClick={() => {
-                                                    loginOrMakePoint();
-                                                }}
+                                                disabled={cred === 0 || (!isSelling && notEnoughCred) || (isSelling && cred > (point.viewerCred || 0)) || isEndorsing || isSellingEndorsement}
+                                                onClick={handleEndorseOrSell}
                                             >
-                                                Endorse
+                                                {isEndorsing || isSellingEndorsement ? (
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                                                        <span>{isSelling ? 'Selling...' : 'Endorsing...'}</span>
+                                                    </div>
+                                                ) : (
+                                                    <span>{isSelling ? 'Sell' : 'Endorse'}</span>
+                                                )}
                                             </Button>
                                         </div>
-                                        {notEnoughCred && (
+                                        {(notEnoughCred && !isSelling) && (
                                             <span className="mt-2 text-destructive text-sm">
                                                 not enough cred
+                                            </span>
+                                        )}
+                                        {(isSelling && cred > (point.viewerCred || 0)) && (
+                                            <span className="mt-2 text-destructive text-sm">
+                                                Cannot sell more than endorsed amount
                                             </span>
                                         )}
                                     </PopoverContent>

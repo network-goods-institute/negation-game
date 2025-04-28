@@ -66,6 +66,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { getPointUrl } from "@/lib/negation-game/getPointUrl";
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
 import { selectedPointIdsAtom } from "@/atoms/viewpointAtoms";
+import { useSellEndorsement } from '@/mutations/useSellEndorsement';
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -168,6 +169,7 @@ export const PointCard = ({
   ...props
 }: PointCardProps) => {
   const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
+  const { mutateAsync: sellEndorsement, isPending: isSelling } = useSellEndorsement();
   const { data: originalPoster } = useUser(originalPosterId);
   const { data: opCred } = useUserEndorsement(originalPosterId, pointId);
   const [isOPTooltipOpen, toggleOPTooltip] = useToggle();
@@ -177,6 +179,7 @@ export const PointCard = ({
   const { credInput, setCredInput, notEnoughCred } = useCredInput({
     resetWhen: !endorsePopoverOpen,
   });
+  const [isSellingMode, setIsSellingMode] = useState(false);
   const prefetchRestakeData = usePrefetchRestakeData();
   const { isVisited, markPointAsRead } = useVisitedPoints();
   const [visitedPoints] = useAtom(visitedPointsAtom);
@@ -347,6 +350,20 @@ export const PointCard = ({
     e.stopPropagation();
     markPointAsRead(pointId);
   }, [markPointAsRead, pointId]);
+
+  const handleEndorseOrSell = () => {
+    if (isSellingMode) {
+      sellEndorsement({ pointId, amountToSell: credInput }).then(() => {
+        toggleEndorsePopoverOpen(false);
+        window.dispatchEvent(new CustomEvent('endorse-event', { detail: { pointId } }));
+      });
+    } else {
+      endorse({ pointId, cred: credInput }).then(() => {
+        toggleEndorsePopoverOpen(false);
+        window.dispatchEvent(new CustomEvent('endorse-event', { detail: { pointId } }));
+      });
+    }
+  };
 
   const renderCardContent = () => (
     <div
@@ -546,30 +563,32 @@ export const PointCard = ({
                     credInput={credInput}
                     setCredInput={setCredInput}
                     notEnoughCred={notEnoughCred}
+                    endorsementAmount={viewerContext?.viewerCred || 0}
+                    isSelling={isSellingMode}
+                    setIsSelling={setIsSellingMode}
                   />
                   <Button
                     className="w-full"
-                    disabled={credInput === 0 || notEnoughCred || isEndorsing}
-                    onClick={() => {
-                      endorse({ pointId, cred: credInput }).then(() => {
-                        toggleEndorsePopoverOpen(false);
-                        // Dispatch an event to notify listeners about the endorsement
-                        window.dispatchEvent(new CustomEvent("endorse-event", { detail: { pointId } }));
-                      });
-                    }}
+                    disabled={credInput === 0 || (!isSellingMode && notEnoughCred) || isEndorsing || isSelling}
+                    onClick={handleEndorseOrSell}
                   >
-                    {isEndorsing ? (
+                    {isEndorsing || isSelling ? (
                       <div className="flex items-center justify-center gap-2">
                         <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
-                        <span>Endorsing...</span>
+                        <span>{isSellingMode ? 'Selling...' : 'Endorsing...'}</span>
                       </div>
                     ) : (
-                      "Endorse"
+                      <span>{isSellingMode ? 'Sell' : 'Endorse'}</span>
                     )}
                   </Button>
-                  {notEnoughCred && (
+                  {notEnoughCred && !isSellingMode && (
                     <span className="text-destructive text-sm">
                       Not enough cred
+                    </span>
+                  )}
+                  {isSellingMode && credInput > (viewerContext?.viewerCred || 0) && (
+                    <span className="text-destructive text-sm">
+                      Cannot sell more than endorsed amount
                     </span>
                   )}
                 </div>

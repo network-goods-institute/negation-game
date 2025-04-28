@@ -4,7 +4,7 @@ import {
   pointsTable,
 } from "@/db/schema";
 import { db } from "@/services/db";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 interface ViewpointInput {
   graph: any;
@@ -36,7 +36,7 @@ export const calculateViewpointStats = async (
   let averageFavor = 0;
 
   if (pointIds.length > 0) {
-    const endorsements = await db
+    const endorsementsRaw = await db
       .select({
         pointId: pointsTable.id,
         cred: endorsementsTable.cred,
@@ -52,6 +52,19 @@ export const calculateViewpointStats = async (
           eq(endorsementsTable.userId, viewpoint.createdBy)
         )
       );
+
+    const endorsements = endorsementsRaw.reduce(
+      (acc, row) => {
+        const existing = acc.find((e) => e.pointId === row.pointId);
+        if (existing) {
+          existing.cred += row.cred;
+        } else {
+          acc.push({ pointId: row.pointId, cred: row.cred });
+        }
+        return acc;
+      },
+      [] as { pointId: number; cred: number }[]
+    );
 
     totalCred = endorsements.reduce((sum, row) => sum + Number(row.cred), 0);
 

@@ -22,7 +22,9 @@ export const endorse = async ({
     throw new Error("Must be authenticated to add a point");
   }
 
-  if (cred <= 0) throw new Error("Cred must be positive");
+  if (cred <= 0) {
+    throw new Error("Cred must be positive");
+  }
 
   const space = await getSpace();
 
@@ -34,11 +36,11 @@ export const endorse = async ({
       })
       .where(eq(usersTable.id, userId));
 
-    return await tx
+    const insertResult = await tx
       .insert(endorsementsTable)
       .values({ cred, userId, pointId, space })
-      .returning({ id: endorsementsTable.id })
-      .then(([{ id }]) => id);
+      .returning({ id: endorsementsTable.id });
+    return insertResult[0].id;
   });
 
   return endorsementId;
