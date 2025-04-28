@@ -547,6 +547,8 @@ export const GraphView = ({
   }, [handleSave, setIsSaving_local]);
 
   const handlePaneClick = useCallback(() => {
+    window.getSelection()?.removeAllRanges();
+
     const addPointNodes = nodes.filter(node => node.type === 'addPoint');
 
     if (addPointNodes.length > 0) {

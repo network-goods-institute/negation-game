@@ -877,7 +877,9 @@ export const PointNode = ({
           "border-muted-foreground/60 dark:border-muted-foreground/40",
           endorsedByOp && "border-yellow-500 dark:border-yellow-500",
           hoveredPoint === pointId && "border-primary dark:border-primary",
-          (!hasAnimationPlayed && (isExpanding || dataIsExpanding)) && "animate-node-expand"
+          (!hasAnimationPlayed && (isExpanding || dataIsExpanding)) && "animate-node-expand",
+          // Prevent text selection within the node
+          "select-none"
         )}
         onMouseOver={() => setHoveredPoint(pointId)}
         onMouseLeave={() => setHoveredPoint(undefined)}
