@@ -34,6 +34,10 @@ import { collapsedPointIdsAtom, collapsedNodePositionsAtom, CollapsedNodePositio
 import { useViewpoint } from "@/queries/useViewpoint";
 import { recentlyCreatedNegationIdAtom } from "@/atoms/recentlyCreatedNegationIdAtom";
 import { DuplicatePointNode, mergeNodesDialogAtom } from "@/atoms/mergeNodesAtom";
+import { undoCollapseStackAtom, UndoCollapseState } from "@/atoms/viewpointAtoms";
+import { Edge } from "@xyflow/react";
+import { AppNode } from "./AppNode"; // Import AppNode
+import { debounce } from "lodash";
 
 export type PointNodeData = {
   pointId: number;
@@ -68,6 +72,7 @@ export const PointNode = ({
 
   const updateNodeInternals = useUpdateNodeInternals();
   const setNegatedPointId = useSetAtom(negatedPointIdAtom);
+  const setUndoStack = useSetAtom(undoCollapseStackAtom);
   const {
     addNodes,
     addEdges,
@@ -117,6 +122,14 @@ export const PointNode = ({
   const expandNegations = useCallback(() => {
     const allNodes = getNodes();
     const pointNodes = allNodes.filter((n): n is PointNode => n.type === "point");
+
+    setUndoStack(prevStack => prevStack.filter(state => {
+      return !state.nodesToRestore.some(node =>
+        node.type === 'point' &&
+        node.data.pointId === pointId &&
+        node.data.parentId === parentId
+      );
+    }));
 
     // Map of pointId -> nodeIds that contain this pointId
     const pointIdMap = new Map<number, string[]>();
@@ -291,6 +304,8 @@ export const PointNode = ({
       return newSet;
     });
 
+    setUndoStack(prevStack => prevStack.filter(state => state.topLevelNodeId !== id));
+
   }, [
     pointData,
     incomingConnections,
@@ -304,7 +319,8 @@ export const PointNode = ({
     getNodes,
     collapsedNodePositions,
     setCollapsedNodePositions,
-    getEdges
+    getEdges,
+    setUndoStack
   ]);
 
   const expandedNegationIds = useMemo(() => {
@@ -394,6 +410,63 @@ export const PointNode = ({
     hasInitializedCollapsedState.current = true;
   }, [isViewpointContext, pointData, originalViewpoint, setCollapsedPointIds, pointId, expandedNegationIds]);
 
+  const getDescendantState = useCallback((startNodeId: string): {
+    nodes: AppNode[],
+    edges: Edge[],
+    expandedNodeIds: string[]
+  } => {
+    const nodesToRemove: AppNode[] = [];
+    const edgesToRemove: Edge[] = [];
+    const expandedNodeIds: string[] = [];
+    const queue: string[] = [startNodeId];
+    const visited = new Set<string>();
+
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      if (visited.has(currentId)) continue;
+      visited.add(currentId);
+
+      const node = getNode(currentId) as AppNode;
+      if (node) {
+        nodesToRemove.push(node);
+
+
+        const outgoingEdges = getEdges().filter(edge => edge.source === currentId);
+
+        const parentId = 'parentId' in node.data ? node.data.parentId : undefined;
+        const incomingEdges = parentId ? getEdges().filter(edge =>
+          edge.target === currentId &&
+          (edge.source === parentId ||
+            getNode(edge.source)?.data?.pointId === parentId)
+        ) : [];
+
+
+        if (incomingEdges.length > 0) {
+          expandedNodeIds.push(currentId);
+        }
+
+        outgoingEdges.forEach(edge => {
+          if (!visited.has(edge.target)) {
+            queue.push(edge.target);
+          }
+        });
+
+        if (currentId !== startNodeId) {
+          const incomingEdge = getEdges().find(edge => edge.target === currentId);
+          if (incomingEdge && !edgesToRemove.some(e => e.id === incomingEdge.id)) {
+            edgesToRemove.push(incomingEdge);
+          }
+        }
+      }
+    }
+    const topLevelIncomingEdge = getEdges().find(edge => edge.source === startNodeId);
+    if (topLevelIncomingEdge && !edgesToRemove.some(e => e.id === topLevelIncomingEdge.id)) {
+      edgesToRemove.push(topLevelIncomingEdge);
+    }
+
+    return { nodes: nodesToRemove, edges: edgesToRemove, expandedNodeIds };
+  }, [getNode, getEdges]);
+
   const collapseSelfAndNegations = useCallback(async () => {
     // Helper function to get connections without using hooks
     const getNodeConnectionsForId = (nodeId: string) => {
@@ -439,6 +512,19 @@ export const PointNode = ({
         nodesToCollapse.forEach((id) => newSet.add(id));
         return newSet;
       });
+
+
+      const { nodes: allNodesToRemove, edges: allEdgesToRemove, expandedNodeIds } = getDescendantState(id);
+
+      if (allNodesToRemove.length > 0) {
+        const undoState: UndoCollapseState = {
+          topLevelNodeId: id,
+          nodesToRestore: allNodesToRemove,
+          edgesToRestore: allEdgesToRemove,
+          expandedNodeIds
+        };
+        setUndoStack(prev => [...prev, undoState]);
+      }
 
       // Disable rule for deletion in React Flow context
       // eslint-disable-next-line drizzle/enforce-delete-with-where
@@ -499,6 +585,8 @@ export const PointNode = ({
     getEdges,
     setCollapsedNodePositions,
     parentId,
+    getDescendantState,
+    setUndoStack
   ]);
 
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
@@ -526,9 +614,22 @@ export const PointNode = ({
     );
   }, [originalViewpoint, pointId, parentId]);
 
+  const collapseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isCollapsingRef = useRef(false);
+
   const handleCollapseClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (isCollapsingRef.current) {
+      return;
+    }
+
+    if (collapseTimeoutRef.current) {
+      clearTimeout(collapseTimeoutRef.current);
+    }
+
+    isCollapsingRef.current = true;
 
     // Show confirmation dialog in two cases:
     // 1. New viewpoint page: all direct children of statement node
@@ -542,7 +643,11 @@ export const PointNode = ({
       setIsConfirmDialogOpen(true);
     } else if (parentId) {
       // For all other cases, collapse without confirmation
-      collapseSelfAndNegations();
+      collapseSelfAndNegations().finally(() => {
+        collapseTimeoutRef.current = setTimeout(() => {
+          isCollapsingRef.current = false;
+        }, 300);
+      });
     }
   }, [parentId, collapseSelfAndNegations, isNewViewpointPage, isViewpointContext, originalViewpoint, wasInOriginalGraph]);
 
@@ -570,6 +675,14 @@ export const PointNode = ({
   // Helper function to expand only a specific negation
   const expandSpecificNegation = useCallback((negationIdToExpand: number) => {
     if (!pointData || !negationIdToExpand) return;
+
+    setUndoStack(prevStack => prevStack.filter(state => {
+      return !state.nodesToRestore.some(node =>
+        node.type === 'point' &&
+        node.data.pointId === pointId &&
+        node.data.parentId === parentId
+      );
+    }));
 
     // Check if this negation ID is in the point's negations
     if (!pointData.negationIds.includes(negationIdToExpand)) return;
@@ -628,6 +741,8 @@ export const PointNode = ({
       timestamp: 0
     });
 
+    setUndoStack(prevStack => prevStack.filter(state => state.topLevelNodeId !== id));
+
   }, [
     pointData,
     expandedNegationIds,
@@ -639,7 +754,8 @@ export const PointNode = ({
     setCollapsedNodePositions,
     pointId,
     parentId,
-    setRecentlyCreatedNegation
+    setRecentlyCreatedNegation,
+    setUndoStack
   ]);
 
   useEffect(() => {
@@ -705,16 +821,6 @@ export const PointNode = ({
     );
   }, [id, pointId, parentId, addNodes, addEdges, setCollapsedPointIds, setCollapsedNodePositions, getNode]);
 
-  const expandablePoints = useMemo(() => {
-    if (!pointData) return [];
-    return pointData.negationIds
-      .filter(id => id !== pointId) // Don't include self-negations
-      .map(id => ({
-        pointId: id,
-        parentId: pointId
-      }));
-  }, [pointData, pointId]);
-
   const [hasDuplicates, setHasDuplicates] = useState(false);
   const setMergeDialogState = useSetAtom(mergeNodesDialogAtom);
   const mergeCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -756,7 +862,7 @@ export const PointNode = ({
     const hasNewDuplicates = !!duplicates && duplicates.length > 1;
     setHasDuplicates(hasNewDuplicates);
 
-    const checkForOverlappingNodes = () => {
+    const checkForOverlappingNodes = debounce(() => {
       const currentDuplicates = findDuplicateNodes();
       const hasCurrentDuplicates = !!currentDuplicates && currentDuplicates.length > 1;
 
@@ -781,9 +887,8 @@ export const PointNode = ({
               duplicateNodes: currentDuplicates,
               onClose: () => {
                 stableStateRef.current.lastDialogCloseTime = Date.now();
-
                 setTimeout(() => {
-                  startMergeCheckInterval();
+                  checkForOverlappingNodes();
                 }, 2000);
               }
             };
@@ -796,7 +901,6 @@ export const PointNode = ({
           return state;
         });
       } else {
-        // If no duplicates, close the dialog if it's open for this pointId
         setMergeDialogState(state => {
           if (state.isOpen && state.pointId === pointId) {
             return {
@@ -807,32 +911,22 @@ export const PointNode = ({
           return state;
         });
       }
-    };
+    }, 100); // Debounce merge checks by 100ms
 
-    // Start periodic checks for duplicates
-    const startMergeCheckInterval = () => {
-      if (mergeCheckIntervalRef.current) {
-        clearInterval(mergeCheckIntervalRef.current);
-      }
-
-      // Always run a check immediately
+    // Only add node drag listener once
+    const onNodeDragEnd = () => {
       checkForOverlappingNodes();
-
-      // Then set up the interval - use a moderate interval to balance responsiveness and performance
-      mergeCheckIntervalRef.current = setInterval(checkForOverlappingNodes, 2000);
     };
 
-    // Start the checking interval
-    startMergeCheckInterval();
+    document.addEventListener('mouseup', onNodeDragEnd);
+    document.addEventListener('touchend', onNodeDragEnd);
 
-    // Clean up when unmounting
     return () => {
-      if (mergeCheckIntervalRef.current) {
-        clearInterval(mergeCheckIntervalRef.current);
-        mergeCheckIntervalRef.current = null;
-      }
+      document.removeEventListener('mouseup', onNodeDragEnd);
+      document.removeEventListener('touchend', onNodeDragEnd);
+      checkForOverlappingNodes.cancel();
     };
-  }, [findDuplicateNodes, setMergeDialogState, pointId, id, getNode]);
+  }, [findDuplicateNodes, setMergeDialogState, pointId]);
 
   const level = useMemo(() => {
     let currentLevel = 0;
@@ -855,6 +949,14 @@ export const PointNode = ({
 
     return currentLevel;
   }, [id, getNode, getEdges]);
+
+  useEffect(() => {
+    return () => {
+      if (collapseTimeoutRef.current) {
+        clearTimeout(collapseTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <>
@@ -916,7 +1018,17 @@ export const PointNode = ({
                 // Show dialog for 3+ points
                 setExpandDialogState({
                   isOpen: true,
-                  points: expandablePoints,
+                  points: pointData.negationIds
+                    .filter(nid => nid !== pointId && !expandedNegationIds.includes(nid))
+                    .map(nid => ({
+                      pointId: nid,
+                      parentId: pointId,
+                      searchTerm: "",
+                      dialogPosition: { x: 0, y: 0 },
+                      isVisited: false,
+                      onMarkAsRead: () => { },
+                      onZoomToNode: () => { }
+                    })),
                   parentNodeId: id,
                   onClose: () => {
                     // Do any cleanup needed after dialog closes

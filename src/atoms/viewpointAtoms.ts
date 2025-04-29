@@ -4,7 +4,7 @@ import { AppEdge } from "@/components/graph/AppEdge";
 import { AppNode } from "@/components/graph/AppNode";
 import { PLACEHOLDER_STATEMENT } from "@/constants/config";
 import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
-import { ReactFlowJsonObject } from "@xyflow/react";
+import { ReactFlowJsonObject, Edge } from "@xyflow/react";
 import { atom } from "jotai";
 import { atomWithStorage, createJSONStorage } from "jotai/utils";
 
@@ -109,6 +109,15 @@ export interface CollapsedNodePosition {
 export const collapsedNodePositionsAtom = atom<CollapsedNodePosition[]>([]);
 
 export const selectedPointIdsAtom = atom<Set<number>>(new Set<number>());
+
+// Atom to store undo information for node collapses
+export interface UndoCollapseState {
+  topLevelNodeId: string; // ID of the node the user actually clicked to collapse
+  nodesToRestore: AppNode[]; // All nodes removed (including descendants)
+  edgesToRestore: Edge[]; // All edges removed
+  expandedNodeIds: string[]; // Add array of node IDs that had expanded children
+}
+export const undoCollapseStackAtom = atom<UndoCollapseState[]>([]);
 
 export const clearViewpointState = (isPublishing = true) => {
   // If we have access to the window, handle the justPublished flag

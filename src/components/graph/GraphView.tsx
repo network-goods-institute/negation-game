@@ -22,12 +22,13 @@ import {
   ReactFlowProps,
   useEdgesState,
   useNodesState,
+  useReactFlow,
 } from "@xyflow/react";
 import { XIcon, SaveIcon, Undo2Icon, Share2Icon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useCallback, useMemo, useEffect, useState, useRef, useLayoutEffect } from "react";
 import { useAtom } from "jotai";
-import { collapsedPointIdsAtom, ViewpointGraph, selectedPointIdsAtom } from "@/atoms/viewpointAtoms";
+import { collapsedPointIdsAtom, ViewpointGraph, selectedPointIdsAtom, undoCollapseStackAtom, collapsedNodePositionsAtom, UndoCollapseState } from "@/atoms/viewpointAtoms";
 import React from "react";
 import { updateViewpointGraph } from "@/actions/updateViewpointGraph";
 import { updateViewpointDetails } from "@/actions/updateViewpointDetails";
@@ -53,6 +54,7 @@ import { Loader } from "@/components/ui/loader";
 import { SaveConfirmDialog } from "@/components/graph/SaveConfirmDialog";
 import { shouldConfirmRationaleUpdate } from "@/actions/shouldConfirmRationaleUpdate";
 import { toast } from "sonner";
+import type { PointNodeData } from "@/components/graph/PointNode";
 
 function debounce<T extends (...args: any[]) => any>(
   func: T,
@@ -141,6 +143,9 @@ export const GraphView = ({
     props.defaultEdges || []
   );
   const { theme } = useTheme();
+  const { addNodes: reactFlowAddNodes, addEdges: reactFlowAddEdges } = useReactFlow();
+  const [undoStack, setUndoStack] = useAtom(undoCollapseStackAtom);
+  const [collapsedPositions, setCollapsedPositions] = useAtom(collapsedNodePositionsAtom);
 
   // Track if the graph has been modified since loading or last save
   const [isModified, setIsModified] = useState(false);
@@ -245,47 +250,42 @@ export const GraphView = ({
 
   const onNodesChange = useCallback(
     (changes: NodeChange<AppNode>[]) => {
-      // Check if any change is a meaningful modification that should trigger the save button
-      const hasSubstantiveChanges = changes.some((change) => {
-        // Adding/removing nodes is always a substantive change
-        if (change.type === 'add' || change.type === 'remove') {
-          return true;
+      const isDragging = changes.some(change => change.type === 'position' && change.dragging);
+
+      if (!isDragging) {
+        const hasSubstantiveChanges = changes.some((change) => {
+          if (change.type === 'add' || change.type === 'remove') {
+            return true;
+          }
+
+          if (change.type === 'position' && !change.dragging) {
+            return true;
+          }
+
+          if ((change as any).data && (change as any).type !== 'select') {
+            return true;
+          }
+
+          if ((change as any).item?.data?._lastModified || (change as any).data?._lastModified) {
+            return true;
+          }
+
+          return false;
+        });
+
+        if (hasSubstantiveChanges && !isNew) {
+          setIsModified(true);
         }
 
-        // Position changes are substantive only if they're significant
-        // This helps avoid showing the save button during minor adjustments or panning
-        if (change.type === 'position' && change.position) {
-          // For drag events, we only consider it substantive if it's not from panning
-          // We can detect user-initiated drags by checking if there's any dragging going on
-          return change.dragging === true;
+        // Only update graph state after dragging is complete
+        if (flowInstance && setLocalGraph) {
+          const { viewport, ...graph } = flowInstance.toObject();
+          debouncedSetLocalGraph(graph);
         }
-
-        // Data changes to node content are substantive
-        if ((change as any).data && (change as any).type !== 'select') {
-          return true;
-        }
-
-        // Check for _lastModified timestamp in the data
-        // Some changes might have updated data indicating node expansion
-        if ((change as any).item?.data?._lastModified || (change as any).data?._lastModified) {
-          return true;
-        }
-
-        // Selection changes aren't substantive
-        return false;
-      });
-
-      if (hasSubstantiveChanges && !isNew) {
-        setIsModified(true);
       }
 
       onNodesChangeDefault(changes);
       onNodesChangeProp?.(changes);
-
-      if (flowInstance && setLocalGraph) {
-        const { viewport, ...graph } = flowInstance.toObject();
-        debouncedSetLocalGraph(graph);
-      }
     },
     [
       onNodesChangeDefault,
@@ -783,6 +783,66 @@ export const GraphView = ({
       }
     };
   }, []);
+
+  useEffect(() => {
+    let isProcessingUndo = false;
+    let undoTimeoutRef: NodeJS.Timeout | null = null;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'z') {
+        if (isProcessingUndo || undoStack.length === 0) {
+          return;
+        }
+
+        event.preventDefault();
+
+        isProcessingUndo = true;
+
+        if (undoTimeoutRef) {
+          clearTimeout(undoTimeoutRef);
+        }
+
+        setUndoStack(prev => {
+          const newStack = [...prev];
+          const lastState = newStack.pop()!;
+
+          reactFlowAddNodes(lastState.nodesToRestore);
+          reactFlowAddEdges(lastState.edgesToRestore);
+
+          const restoredPointIds = lastState.nodesToRestore
+            .filter(node => node.type === 'point')
+            .map(node => (node.data as PointNodeData).pointId);
+
+          setCollapsedPointIds(prev => {
+            const newSet = new Set(prev);
+            restoredPointIds.forEach(id => {
+              // eslint-disable-next-line drizzle/enforce-delete-with-where
+              newSet.delete(id);
+            });
+            return newSet;
+          });
+
+          setCollapsedPositions(prev =>
+            prev.filter(pos => !restoredPointIds.includes(pos.pointId))
+          );
+
+          undoTimeoutRef = setTimeout(() => {
+            isProcessingUndo = false;
+          }, 300);
+
+          return newStack;
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (undoTimeoutRef) {
+        clearTimeout(undoTimeoutRef);
+      }
+    };
+  }, [undoStack, setUndoStack, reactFlowAddNodes, reactFlowAddEdges, setCollapsedPointIds, setCollapsedPositions]);
 
   return (
     <>
