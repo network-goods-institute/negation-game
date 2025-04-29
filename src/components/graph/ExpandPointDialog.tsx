@@ -31,6 +31,7 @@ export interface ExpandablePoint {
     dialogPosition: { x: number; y: number };
     isVisited: boolean;
     onMarkAsRead: (pointId: number) => void;
+    onZoomToNode: (pointId: number) => void;
 }
 
 interface ExpandablePointNodeProps {
@@ -45,6 +46,7 @@ interface ExpandablePointNodeProps {
     dialogPosition: { x: number; y: number };
     isVisited: boolean;
     onMarkAsRead: (pointId: number) => void;
+    onZoomToNode: (pointId: number) => void;
 }
 
 const ExpandablePointNode: React.FC<ExpandablePointNodeProps> = ({
@@ -58,6 +60,7 @@ const ExpandablePointNode: React.FC<ExpandablePointNodeProps> = ({
     isMobile = false,
     isVisited,
     onMarkAsRead,
+    onZoomToNode,
 }) => {
     const { data: pointData, isLoading } = usePointData(point.pointId);
     const [isVisible, setIsVisible] = useState(true);
@@ -114,8 +117,9 @@ const ExpandablePointNode: React.FC<ExpandablePointNodeProps> = ({
                 "cursor-pointer hover:bg-yellow-500/5 active:bg-yellow-500/10"
             )}
             onClick={() => {
-                // Toggle selection when card is clicked
-                if (!isExpanded) {
+                if (isExpanded) {
+                    onZoomToNode(point.pointId);
+                } else {
                     onSelect(point);
                 }
             }}
@@ -175,7 +179,6 @@ const ExpandablePointNode: React.FC<ExpandablePointNodeProps> = ({
                                 )}
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    // Use the direct add function if provided
                                     if (onDirectAdd) {
                                         onDirectAdd(point);
                                     }
@@ -789,6 +792,20 @@ export const GlobalExpandPointDialog: React.FC = () => {
         }).length;
     }, [filteredPoints, getNodes, searchTerm]);
 
+    const handleZoomToNode = useCallback((pointId: number) => {
+        const nodes = reactFlow.getNodes();
+        const targetNode = nodes.find(node => node.type === 'point' && node.data?.pointId === pointId);
+
+        if (targetNode) {
+            reactFlow.fitView({
+                nodes: [{ id: targetNode.id }],
+                duration: 600, // Smooth zoom duration
+                padding: 0.3, // Padding around the node
+                maxZoom: 1.2 // Don't zoom in too extremely
+            });
+        }
+    }, [reactFlow]);
+
     if (!dialogState.isOpen) return null;
 
     return (
@@ -919,6 +936,7 @@ export const GlobalExpandPointDialog: React.FC = () => {
                                     dialogPosition={position}
                                     isVisited={visitedPoints.has(point.pointId)}
                                     onMarkAsRead={markPointAsRead}
+                                    onZoomToNode={handleZoomToNode}
                                 />
                             );
                         })
