@@ -5,7 +5,8 @@ import {
     XIcon,
     SearchIcon,
     PlusIcon,
-    MinusIcon
+    MinusIcon,
+    CircleIcon
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Input } from "@/components/ui/input";
@@ -18,10 +19,18 @@ import { getPointUrl } from "@/lib/negation-game/getPointUrl";
 import { Portal } from "@radix-ui/react-portal";
 import { atom, useAtom } from "jotai";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
+import { useVisitedPoints } from "@/hooks/useVisitedPoints";
+import { usePrivy } from "@privy-io/react-auth";
+import { visitedPointsAtom } from '@/atoms/visitedPointsAtom';
 
 export interface ExpandablePoint {
     pointId: number;
     parentId?: string | number;
+    searchTerm: string;
+    isMobile?: boolean;
+    dialogPosition: { x: number; y: number };
+    isVisited: boolean;
+    onMarkAsRead: (pointId: number) => void;
 }
 
 interface ExpandablePointNodeProps {
@@ -34,6 +43,8 @@ interface ExpandablePointNodeProps {
     searchTerm: string;
     isMobile?: boolean;
     dialogPosition: { x: number; y: number };
+    isVisited: boolean;
+    onMarkAsRead: (pointId: number) => void;
 }
 
 const ExpandablePointNode: React.FC<ExpandablePointNodeProps> = ({
@@ -45,11 +56,14 @@ const ExpandablePointNode: React.FC<ExpandablePointNodeProps> = ({
     onDirectAdd,
     searchTerm,
     isMobile = false,
+    isVisited,
+    onMarkAsRead,
 }) => {
     const { data: pointData, isLoading } = usePointData(point.pointId);
     const [isVisible, setIsVisible] = useState(true);
     const [isActive, setIsActive] = useState(false);
     const [hoveredPointId, setHoveredPointId] = useAtom(hoveredPointIdAtom);
+    const { user: privyUser } = usePrivy();
 
     useEffect(() => {
         if (!searchTerm.trim() || !pointData) {
@@ -196,6 +210,33 @@ const ExpandablePointNode: React.FC<ExpandablePointNodeProps> = ({
                     </div>
                 </div>
             </div>
+            {!isVisited && privyUser && (
+                <div className="absolute top-0.5 right-1 group flex items-center gap-2">
+                    <span className={cn(
+                        "text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity",
+                        isMobile ? "text-[8px]" : "text-xs"
+                    )}>
+                        Tap to mark seen
+                    </span>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onMarkAsRead(point.pointId);
+                        }}
+                        className={cn(
+                            "relative rounded-full flex items-center justify-center",
+                            isMobile ? "size-2" : "size-3"
+                        )}
+                        aria-label="Mark as seen"
+                    >
+                        <div className={cn(
+                            "absolute inset-0 bg-endorsed/20 rounded-full scale-0 group-hover:scale-150 transition-transform",
+                            isMobile ? "-m-1" : "-m-1.5"
+                        )} />
+                        <CircleIcon className="size-full fill-endorsed text-endorsed relative" />
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
@@ -300,6 +341,8 @@ export const GlobalExpandPointDialog: React.FC = () => {
     const reactFlow = useReactFlow();
     const { getNode, addNodes, addEdges, getNodes, getEdges, deleteElements, getViewport } = reactFlow;
     const [manuallyRemovedPoints, setManuallyRemovedPoints] = useState<Set<number>>(new Set());
+    const { markPointAsRead } = useVisitedPoints();
+    const [visitedPoints] = useAtom(visitedPointsAtom);
 
     const [isMobile, setIsMobile] = useState(false);
 
@@ -874,6 +917,8 @@ export const GlobalExpandPointDialog: React.FC = () => {
                                     searchTerm={searchTerm}
                                     isMobile={isMobile}
                                     dialogPosition={position}
+                                    isVisited={visitedPoints.has(point.pointId)}
+                                    onMarkAsRead={markPointAsRead}
                                 />
                             );
                         })
