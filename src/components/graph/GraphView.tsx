@@ -52,6 +52,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Loader } from "@/components/ui/loader";
 import { SaveConfirmDialog } from "@/components/graph/SaveConfirmDialog";
 import { shouldConfirmRationaleUpdate } from "@/actions/shouldConfirmRationaleUpdate";
+import { toast } from "sonner";
 
 function debounce<T extends (...args: any[]) => any>(
   func: T,
@@ -151,6 +152,8 @@ export const GraphView = ({
     daysSinceUpdate: number;
   }>({ viewCountSinceLastUpdate: 0, lastUpdated: null, daysSinceUpdate: 0 });
   const [saveAction, setSaveAction] = useState<"existing" | "new" | null>(null);
+  const [hasShownNotOwnerWarning, setHasShownNotOwnerWarning] = useState(false);
+  const toastIdRef = useRef<string | number | null>(null);
 
   useEffect(() => {
     onModifiedChange?.(isModified);
@@ -738,6 +741,46 @@ export const GraphView = ({
     return () => {
       window._saveExistingRationale = undefined;
       window._saveAsNewRationale = undefined;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isModified && !canModify && !hasShownNotOwnerWarning) {
+      toastIdRef.current = toast.warning(
+        "Not saving, just playing. To keep your changes:",
+        {
+          position: "bottom-center",
+          duration: Infinity, // Keep it visible until dismissed or action taken
+          action: {
+            label: "Make a Copy",
+            onClick: async () => {
+              const currentGraphState = { nodes, edges };
+              const success = await handleCopy(currentGraphState);
+              if (success) {
+                if (toastIdRef.current) toast.dismiss(toastIdRef.current);
+                setHasShownNotOwnerWarning(false);
+              }
+            },
+          },
+          onDismiss: () => {
+            setHasShownNotOwnerWarning(false);
+            toastIdRef.current = null;
+          }
+        }
+      );
+      setHasShownNotOwnerWarning(true);
+    } else if (!isModified && hasShownNotOwnerWarning) {
+      if (toastIdRef.current) toast.dismiss(toastIdRef.current);
+      setHasShownNotOwnerWarning(false);
+      toastIdRef.current = null;
+    }
+  }, [isModified, canModify, hasShownNotOwnerWarning, handleCopy, nodes, edges]);
+
+  useEffect(() => {
+    return () => {
+      if (toastIdRef.current) {
+        toast.dismiss(toastIdRef.current);
+      }
     };
   }, []);
 
