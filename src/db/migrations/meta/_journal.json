@@ -309,6 +309,20 @@
       "when": 1745057354587,
       "tag": "0043_harsh_frightful_four",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1745892275848,
+      "tag": "0044_unusual_avengers",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1745894731865,
+      "tag": "0045_square_wallop",
+      "breakpoints": true
     }
   ]
 }

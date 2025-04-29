@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { AppNode } from "@/components/graph/AppNode";
 import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { pick } from "remeda";
+import { viewpointInteractionsTable } from "@/db/tables/viewpointInteractionsTable";
 
 export interface UpdateViewpointGraphArgs {
   id: string;
@@ -33,25 +34,49 @@ export const updateViewpointGraph = async ({
   }
 
   // Check if user is the owner of this viewpoint
-  const viewpoint = await db
+  const viewpointOwnerCheck = await db
     .select({ createdBy: viewpointsTable.createdBy })
     .from(viewpointsTable)
     .where(eq(viewpointsTable.id, id))
     .then((rows) => rows[0]);
 
-  if (!viewpoint || viewpoint.createdBy !== userId) {
+  if (!viewpointOwnerCheck || viewpointOwnerCheck.createdBy !== userId) {
     throw new Error("Only the owner can update this rationale");
   }
 
   const cleanedGraph = cleanupForPublishing(graph);
 
   try {
+    const currentInteractions = await db
+      .select({ views: viewpointInteractionsTable.views })
+      .from(viewpointInteractionsTable)
+      .where(eq(viewpointInteractionsTable.viewpointId, id))
+      .limit(1);
+
+    const currentViewCount = currentInteractions[0]?.views || 0;
+
     await db
       .update(viewpointsTable)
       .set({
         graph: cleanedGraph,
+        lastUpdatedAt: new Date(),
+        viewsAtLastUpdate: currentViewCount,
       })
       .where(eq(viewpointsTable.id, id));
+
+    await db
+      .update(viewpointInteractionsTable)
+      .set({
+        lastUpdated: new Date(),
+      })
+      .where(eq(viewpointInteractionsTable.viewpointId, id))
+      .catch((interactionError) => {
+        console.error(
+          "Error updating viewpoint interactions:",
+          interactionError
+        );
+      });
+
     return id;
   } catch (error) {
     throw error;

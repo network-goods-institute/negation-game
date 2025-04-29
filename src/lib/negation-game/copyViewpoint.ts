@@ -1,5 +1,6 @@
 import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { AppNode } from "@/components/graph/AppNode";
+import { StatementNodeData } from "@/components/graph/StatementNode";
 import { Edge } from "@xyflow/react";
 
 /**
@@ -121,57 +122,64 @@ export const prepareGraphForCopy = (
     edgeCount: graphToCopy.edges.length,
   });
 
-  // Make a deep clone of the graph with nodes and edges
-  const clonedGraph: ViewpointGraph = {
-    nodes: JSON.parse(JSON.stringify(graphToCopy.nodes)),
-    edges: JSON.parse(JSON.stringify(graphToCopy.edges)),
+  // Work directly on the passed graph object or a shallow clone
+  // Make a shallow clone to avoid modifying the original object outside this function, if necessary
+  const workingGraph: ViewpointGraph = {
+    nodes: [...graphToCopy.nodes], // Shallow clone nodes array
+    edges: [...graphToCopy.edges], // Shallow clone edges array
   };
 
-  console.log("Cloned graph:", {
-    nodeCount: clonedGraph.nodes.length,
-    edgeCount: clonedGraph.edges.length,
+  console.log("Working graph (shallow clone):", {
+    nodeCount: workingGraph.nodes.length,
+    edgeCount: workingGraph.edges.length,
   });
 
   // Make sure we have at least one statement node
-  let hasStatementNode = false;
-  const statementNodeIndex = clonedGraph.nodes.findIndex(
+  const statementNodeIndex = workingGraph.nodes.findIndex(
     (n) => n.type === "statement"
   );
 
   if (statementNodeIndex >= 0) {
     console.log("Found existing statement node at index:", statementNodeIndex);
-    hasStatementNode = true;
+    const existingNode = workingGraph.nodes[statementNodeIndex];
 
-    // Ensure statement node has the proper ID and data
-    const existingNode = clonedGraph.nodes[statementNodeIndex];
-    clonedGraph.nodes[statementNodeIndex] = {
+    // Safely access statement property only if it's a statement node
+    const currentStatement =
+      existingNode.type === "statement" && existingNode.data.statement
+        ? existingNode.data.statement
+        : "";
+
+    workingGraph.nodes[statementNodeIndex] = {
       ...existingNode,
       id: "statement",
       type: "statement",
       data: {
-        statement: title || "",
-      },
+        ...existingNode.data,
+        // Use type assertion for statement data
+        statement: title || currentStatement || "",
+      } as StatementNodeData,
     } as AppNode;
   } else {
     console.log("No statement node found, adding one");
     // Add a statement node if none exists
-    clonedGraph.nodes.push({
+    workingGraph.nodes.push({
       id: "statement",
       type: "statement",
-      position: { x: 0, y: 0 },
+      position: { x: 0, y: 0 }, // Default position
       data: {
         statement: title || "",
       },
     } as AppNode);
   }
 
-  // Double-check final graph before copying
+  // Double-check final graph before returning
   console.log("Final prepared graph:", {
-    nodeCount: clonedGraph.nodes.length,
-    edgeCount: clonedGraph.edges.length,
+    nodeCount: workingGraph.nodes.length,
+    edgeCount: workingGraph.edges.length,
   });
 
-  return clonedGraph;
+  // Return the modified shallow clone
+  return workingGraph;
 };
 
 /**

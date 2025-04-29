@@ -50,6 +50,8 @@ import { MergeNodesDialog } from "@/components/graph/MergeNodesDialog";
 import { ShareRationaleDialog } from "@/components/graph/ShareRationalePointsDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Loader } from "@/components/ui/loader";
+import { SaveConfirmDialog } from "@/components/graph/SaveConfirmDialog";
+import { shouldConfirmRationaleUpdate } from "@/actions/shouldConfirmRationaleUpdate";
 
 function debounce<T extends (...args: any[]) => any>(
   func: T,
@@ -142,6 +144,13 @@ export const GraphView = ({
   // Track if the graph has been modified since loading or last save
   const [isModified, setIsModified] = useState(false);
   const [isSaving_local, setIsSaving_local] = useState(false);
+  const [isSaveConfirmDialogOpen, setSaveConfirmDialogOpen] = useState(false);
+  const [saveConfirmData, setSaveConfirmData] = useState<{
+    viewCountSinceLastUpdate: number;
+    lastUpdated: Date | null;
+    daysSinceUpdate: number;
+  }>({ viewCountSinceLastUpdate: 0, lastUpdated: null, daysSinceUpdate: 0 });
+  const [saveAction, setSaveAction] = useState<"existing" | "new" | null>(null);
 
   useEffect(() => {
     onModifiedChange?.(isModified);
@@ -408,6 +417,43 @@ export const GraphView = ({
     }
   }, [statement]);
 
+  const doSaveExisting = useCallback(
+    async (filteredGraph: ViewpointGraph) => {
+      try {
+        await Promise.all([
+          updateViewpointGraph({
+            id: rationaleId!,
+            graph: filteredGraph,
+          }),
+          updateViewpointDetails({
+            id: rationaleId!,
+            title: statement || "",
+            description: "",
+          })
+        ]);
+
+        localStorage.setItem("justPublished", "true");
+
+        if (setLocalGraph) {
+          setLocalGraph(filteredGraph);
+        }
+
+        if (onSaveChanges) {
+          const saveResult = await onSaveChanges(filteredGraph);
+          if (saveResult === false) {
+            return false;
+          }
+        }
+
+        return true;
+      } catch (error) {
+        console.error("[GraphView] Error in doSaveExisting:", error);
+        return false;
+      }
+    },
+    [rationaleId, statement, setLocalGraph, onSaveChanges]
+  );
+
   const handleSave = useCallback(
     async () => {
       setIsSaving_local(true);
@@ -449,42 +495,51 @@ export const GraphView = ({
         let saveSuccess = true;
 
         if (canModify && rationaleId) {
-          // For owners, update both the graph and details in DB
-          await Promise.all([
-            updateViewpointGraph({
-              id: rationaleId,
-              graph: filteredGraph,
-            }),
-            updateViewpointDetails({
-              id: rationaleId,
-              title: statement || "",
-              description: "",
-            })
-          ]);
+          if (!isNew) {
+            try {
+              const shouldConfirm = await shouldConfirmRationaleUpdate(rationaleId);
 
-          // Set the justPublished flag when we successfully save changes
-          // This prevents draft detection on next visit to the new rationale page
-          localStorage.setItem("justPublished", "true");
+              if (shouldConfirm.shouldConfirm) {
+                setSaveConfirmData({
+                  viewCountSinceLastUpdate: shouldConfirm.viewCountSinceLastUpdate,
+                  lastUpdated: shouldConfirm.lastUpdated,
+                  daysSinceUpdate: shouldConfirm.daysSinceUpdate
+                });
+                setSaveConfirmDialogOpen(true);
 
-          // Always update the local graph state to the current filtered state
-          if (setLocalGraph) {
-            setLocalGraph(filteredGraph);
-          }
+                const tempLocalGraph = filteredGraph;
 
-          setNodes(updatedNodes);
+                window._saveExistingRationale = async () => {
+                  setSaveAction("existing");
+                  const result = await doSaveExisting(tempLocalGraph);
+                  if (result) {
+                    setIsModified(false);
+                    setSaveConfirmDialogOpen(false);
+                  }
+                  setSaveAction(null);
+                  return result;
+                };
 
-          // Call onSaveChanges for any additional updates
-          try {
-            if (onSaveChanges) {
-              const saveResult = await onSaveChanges(filteredGraph);
-              if (saveResult === false) {
-                saveSuccess = false;
+                window._saveAsNewRationale = async () => {
+                  setSaveAction("new");
+                  const result = await handleCopy(tempLocalGraph);
+                  if (result) {
+                    setSaveConfirmDialogOpen(false);
+                  }
+                  setSaveAction(null);
+                  return result;
+                };
+
+                setIsSaving_local(false);
+                return true;
               }
+            } catch (confirmError) {
+              console.error("[GraphView] Error checking for confirmation:", confirmError);
             }
-          } catch (saveError) {
-            saveSuccess = false;
-            console.error("[GraphView] Error in onSaveChanges:", saveError);
           }
+
+          // Normal flow without confirmation
+          saveSuccess = await doSaveExisting(filteredGraph);
         } else {
           // For non-owners or when copying, use the copyViewpointAndNavigate function
           const copyResult = await handleCopy(filteredGraph);
@@ -516,7 +571,7 @@ export const GraphView = ({
 
         throw error;
       } finally {
-        if (canModify) {
+        if (!window._saveExistingRationale && !window._saveAsNewRationale) {
           await new Promise(resolve => setTimeout(resolve, 300));
           setIsSaving_local(false);
         }
@@ -525,14 +580,14 @@ export const GraphView = ({
     [
       nodes,
       edges,
-      onSaveChanges,
       setLocalGraph,
       rationaleId,
       setIsModified,
       canModify,
       statement,
       handleCopy,
-      setNodes
+      isNew,
+      doSaveExisting
     ]
   );
 
@@ -675,6 +730,16 @@ export const GraphView = ({
       setShareDialogMode('share');
     }
   }, [searchParams]);
+  useEffect(() => {
+    // Type augmentation for Window
+    window._saveExistingRationale = undefined;
+    window._saveAsNewRationale = undefined;
+
+    return () => {
+      window._saveExistingRationale = undefined;
+      window._saveAsNewRationale = undefined;
+    };
+  }, []);
 
   return (
     <>
@@ -849,6 +914,31 @@ export const GraphView = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <SaveConfirmDialog
+        open={isSaveConfirmDialogOpen}
+        onOpenChange={setSaveConfirmDialogOpen}
+        onSaveExisting={() => {
+          if (window._saveExistingRationale) {
+            return window._saveExistingRationale();
+          }
+          return Promise.resolve(false);
+        }}
+        onSaveAsNew={() => {
+          if (window._saveAsNewRationale) {
+            return window._saveAsNewRationale();
+          }
+          return Promise.resolve(false);
+        }}
+        onCancel={() => {
+          setSaveConfirmDialogOpen(false);
+          setIsSaving_local(false);
+        }}
+        viewCountSinceLastUpdate={saveConfirmData.viewCountSinceLastUpdate}
+        lastUpdated={saveConfirmData.lastUpdated || undefined}
+        isProcessing={saveAction !== null}
+        saveAction={saveAction}
+      />
 
       <ShareRationaleDialog
         open={isShareDialogOpen}

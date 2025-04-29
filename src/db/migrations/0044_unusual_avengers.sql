@@ -1,0 +1,1 @@
+ALTER TABLE "viewpoints" ADD COLUMN "last_updated_at" timestamp DEFAULT now() NOT NULL;
