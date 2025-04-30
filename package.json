@@ -67,6 +67,7 @@
     "eslint-plugin-drizzle": "^0.2.3",
     "immer": "^10.1.1",
     "jotai": "^2.10.1",
+    "lodash": "^4.17.21",
     "lucide-react": "^0.452.0",
     "marked": "^15.0.7",
     "memoize": "^10.0.0",

@@ -824,6 +824,8 @@ export const PointNode = ({
   const [hasDuplicates, setHasDuplicates] = useState(false);
   const setMergeDialogState = useSetAtom(mergeNodesDialogAtom);
   const mergeCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isDraggingRef = useRef(false);
+  const listenersActiveRef = useRef(false);
 
   const stableStateRef = useRef({
     hasOverlap: false,
@@ -857,12 +859,39 @@ export const PointNode = ({
     return duplicateNodeData;
   }, [getNodes, getEdges, pointId, getNode]);
 
-  useEffect(() => {
-    const duplicates = findDuplicateNodes();
-    const hasNewDuplicates = !!duplicates && duplicates.length > 1;
-    setHasDuplicates(hasNewDuplicates);
+  const checkIfDuplicatesExistForPointId = useCallback(() => {
+    const allNodes = getNodes();
+    let count = 0;
+    for (const node of allNodes) {
+      if (node.type === 'point' && node.data?.pointId === pointId) {
+        count++;
+        if (count > 1) return true;
+      }
+    }
+    return false;
+  }, [getNodes, pointId]);
 
-    const checkForOverlappingNodes = debounce(() => {
+  useEffect(() => {
+    const hasInitialDuplicates = checkIfDuplicatesExistForPointId();
+
+    const runOverlapCheck = () => {
+      if (isDraggingRef.current) return;
+      checkForOverlappingNodes();
+    };
+
+    const startInterval = () => {
+      if (mergeCheckIntervalRef.current) clearInterval(mergeCheckIntervalRef.current);
+      mergeCheckIntervalRef.current = setInterval(runOverlapCheck, 1500);
+    };
+
+    const stopInterval = () => {
+      if (mergeCheckIntervalRef.current) {
+        clearInterval(mergeCheckIntervalRef.current);
+        mergeCheckIntervalRef.current = null;
+      }
+    };
+
+    const checkForOverlappingNodes = () => {
       const currentDuplicates = findDuplicateNodes();
       const hasCurrentDuplicates = !!currentDuplicates && currentDuplicates.length > 1;
 
@@ -886,13 +915,12 @@ export const PointNode = ({
               pointId: pointId,
               duplicateNodes: currentDuplicates,
               onClose: () => {
+
                 stableStateRef.current.lastDialogCloseTime = Date.now();
-                setTimeout(() => {
-                  checkForOverlappingNodes();
-                }, 2000);
               }
             };
           } else if (state.pointId === pointId) {
+            // If dialog is already open for this point, update nodes
             return {
               ...state,
               duplicateNodes: currentDuplicates
@@ -911,22 +939,55 @@ export const PointNode = ({
           return state;
         });
       }
-    }, 100); // Debounce merge checks by 100ms
-
-    // Only add node drag listener once
-    const onNodeDragEnd = () => {
-      checkForOverlappingNodes();
     };
 
-    document.addEventListener('mouseup', onNodeDragEnd);
-    document.addEventListener('touchend', onNodeDragEnd);
+    const onDragStart = () => {
+      isDraggingRef.current = true;
+      stopInterval();
+    };
+
+    const onDragEnd = () => {
+      if (!isDraggingRef.current) return;
+      isDraggingRef.current = false;
+      checkForOverlappingNodes();
+      startInterval();
+    };
+
+    const setupListenersAndInterval = () => {
+      if (listenersActiveRef.current) return;
+      document.addEventListener('mousedown', onDragStart);
+      document.addEventListener('touchstart', onDragStart);
+      document.addEventListener('mouseup', onDragEnd);
+      document.addEventListener('touchend', onDragEnd);
+      checkForOverlappingNodes();
+      startInterval();
+      listenersActiveRef.current = true;
+    };
+
+    const teardownListenersAndInterval = () => {
+      if (!listenersActiveRef.current) return;
+      stopInterval();
+      document.removeEventListener('mousedown', onDragStart);
+      document.removeEventListener('touchstart', onDragStart);
+      document.removeEventListener('mouseup', onDragEnd);
+      document.removeEventListener('touchend', onDragEnd);
+      listenersActiveRef.current = false;
+    };
+    if (hasInitialDuplicates) {
+      setupListenersAndInterval();
+    } else {
+      setMergeDialogState(state => {
+        if (state.isOpen && state.pointId === pointId) {
+          return { ...state, isOpen: false };
+        }
+        return state;
+      });
+    }
 
     return () => {
-      document.removeEventListener('mouseup', onNodeDragEnd);
-      document.removeEventListener('touchend', onNodeDragEnd);
-      checkForOverlappingNodes.cancel();
+      teardownListenersAndInterval();
     };
-  }, [findDuplicateNodes, setMergeDialogState, pointId]);
+  }, [findDuplicateNodes, setMergeDialogState, pointId, id, getNodes, checkIfDuplicatesExistForPointId]); // Added getNodes and helper dependency
 
   const level = useMemo(() => {
     let currentLevel = 0;
