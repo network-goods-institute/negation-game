@@ -320,7 +320,7 @@ WRITING STYLE:
 *   Objective tone. Active voice preferred.
 *   Concise, varied sentences. Specific examples.
 *   Effective transitions. Clear takeaways.
-*   **DISTILL FLOW:** Write in the **first person** (I, my, we). Present the rationale's arguments directly and constructively, focusing on the points the *creator endorsed* and their reasoning. Avoid meta-commentary or analysis *of* the rationale.
+*   Match the language of the input chat history and context.
 
 ---
 CONTEXT FOR THIS RESPONSE (Use this information and cite sources using the \`(Source: ...)\` format ONLY for external context like Discourse Posts):

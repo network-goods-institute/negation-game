@@ -56,6 +56,7 @@ ${latestMessages.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join("\n")}
 
 ${discourseSummary ? `DISCOURSE CONTEXT:\n${discourseSummary}\n` : ""}
 Based *only* on the provided history and context, identify the 20-30 most important and distinct **single keywords** (nouns, key terms, acronyms, potential point/rationale identifiers) that should be used to find relevant content. Prioritize terms specific to the discussion.
+Match the language of the input conversation.
 
 Output *only* a JSON object matching the required schema containing a list of these keywords. Do not add any explanation or commentary. List only single words or short acronyms.`;
 

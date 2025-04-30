@@ -67,6 +67,7 @@ Also offer 3 rephrasings of the COUNTERPOINT that would make it better according
 - The rephrasings should contain between ${POINT_MIN_LENGTH} and ${POINT_MAX_LENGTH} characters.
 
 Focus on being clear, concise, and easy to understand, as if you're explaining something to a friend in today's world in an accessible way.
+Match the input language, do not translate to English.
 
 `;
 

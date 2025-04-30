@@ -18,7 +18,7 @@ export const addKeywords = async ({
         model: google("gemini-2.0-flash"),
         output: "array",
         schema: z.string().describe("Keyword present in the content"),
-        prompt: `Extract only the most relevant keywords from the following statement: ${content}`,
+        prompt: `Extract only the most relevant keywords from the following statement. Respond in the same language as the statement: ${content}`,
       });
     })
   ).object;

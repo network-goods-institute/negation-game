@@ -27,6 +27,7 @@ Rules:
 - No quotes or formatting
 - Just the title text
 - Be descriptive and clear
+- Match the language of the input messages
 
 TITLE:`;
 

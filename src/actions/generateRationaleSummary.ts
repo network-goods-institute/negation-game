@@ -77,6 +77,7 @@ The summary should:
 - Avoid editorializing or judging the merits of the argument
 - Note where the rationale is a copy of another user's work
 - Conclude with "This is a copy of an existing rationale."
+- Match the language of the input title, description, and points.
 
 Write the summary in clear, straightforward language that would be appropriate for a general audience.`;
 

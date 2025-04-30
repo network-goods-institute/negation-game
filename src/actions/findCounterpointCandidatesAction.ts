@@ -142,6 +142,7 @@ ${counterpointContent}
 Identify the IDs of statements that are similar in meaning, express the same idea or similar as the COUNTERPOINT CANDIDATE.
 
 return no results if no statements meet the criteria.
+Match the input language, do not translate to English.
     `;
 
   const {

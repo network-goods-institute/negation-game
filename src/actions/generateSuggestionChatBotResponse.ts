@@ -58,7 +58,8 @@ YOUR TASK:
 *   Generate relevant suggestions for **truly NEW points (\`[Suggest Point]>\`) that the user might want to make** to support their stance.
 *   Generate relevant suggestions for **NEGATIONS of EXISTING points (\`[Suggest Negation For:ID]>\`) that the user might raise** based on their context.
 *   Engage in a focused brainstorming dialogue aimed at helping the user articulate and refine **their own arguments.**
-*   Strictly adhere to the specified tag formats and rules for referencing, attribution, and suggestions.`;
+*   Strictly adhere to the specified tag formats and rules for referencing, attribution, and suggestions.
+*   Match the language of the user's messages. Do not translate to English.`;
 }
 
 function buildContextString(
