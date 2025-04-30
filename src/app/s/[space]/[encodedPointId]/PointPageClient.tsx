@@ -90,6 +90,7 @@ import {
 import { getBackButtonHandler } from "@/lib/negation-game/backButtonUtils";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 import { useSellEndorsement } from '@/mutations/useSellEndorsement';
+import { AuthenticatedActionButton } from "@/components/AuthenticatedActionButton";
 
 type Point = {
     id: number;
@@ -662,7 +663,7 @@ export function PointPageClient({
                                         </span>
                                     )}
                                     <PopoverTrigger asChild>
-                                        <Button
+                                        <AuthenticatedActionButton
                                             className={cn(
                                                 "p-2 rounded-full size-fit gap-sm hover:bg-endorsed/30",
                                                 endorsedByViewer && "text-endorsed",
@@ -681,7 +682,7 @@ export function PointPageClient({
                                             <span className="hidden @md/point:inline">
                                                 {point.viewerCred ? "Endorsed" : "Endorse"}
                                             </span>
-                                        </Button>
+                                        </AuthenticatedActionButton>
                                     </PopoverTrigger>
 
                                     <PopoverContent className="flex flex-col items-start w-[calc(100vw-2rem)] sm:w-[420px] p-4">
@@ -720,7 +721,7 @@ export function PointPageClient({
                                         )}
                                     </PopoverContent>
                                 </Popover>
-                                <Button
+                                <AuthenticatedActionButton
                                     variant="ghost"
                                     className={cn(
                                         "p-2  rounded-full size-fit hover:bg-primary/30",
@@ -738,7 +739,7 @@ export function PointPageClient({
                                         showSuccess={recentlyNegated}
                                     />
                                     <span className="hidden @md/point:inline">Negate</span>
-                                </Button>
+                                </AuthenticatedActionButton>
                                 {isPointOwner && (
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
