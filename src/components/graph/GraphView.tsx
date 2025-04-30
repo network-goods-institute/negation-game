@@ -762,6 +762,10 @@ export const GraphView = ({
               }
             },
           },
+          actionButtonStyle: {
+            backgroundColor: 'hsl(var(--primary))',
+            color: 'hsl(var(--primary-foreground))',
+          },
           onDismiss: () => {
             setHasShownNotOwnerWarning(false);
             toastIdRef.current = null;
