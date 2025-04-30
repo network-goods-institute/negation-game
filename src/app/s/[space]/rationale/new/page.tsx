@@ -18,7 +18,6 @@ import {
   OriginalPosterProvider,
   useOriginalPoster,
 } from "@/components/graph/OriginalPosterContext";
-import { NegateDialog } from "@/components/NegateDialog";
 import { PointCard } from "@/components/PointCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AuthenticatedActionButton } from "@/components/AuthenticatedActionButton";
@@ -68,7 +67,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useFavorHistory } from "@/queries/useFavorHistory";
-import { getBackButtonHandler } from "@/lib/negation-game/backButtonUtils";
 import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 
 function PointCardWrapper({
@@ -409,13 +407,10 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       clearViewpointState(false);
 
       // Navigate back to the correct page based on space
-      if (currentSpace && currentSpace !== "null" && currentSpace !== "undefined") {
-        push(`/s/${currentSpace}`);
-      } else {
-        push("/");
-      }
+      const targetPath = basePath && basePath.startsWith('/s/') ? basePath : '/';
+      push(targetPath);
     });
-  }, [setReasoning, setStatement, setGraph, reactFlow, setCollapsedPointIds, push, currentSpace]);
+  }, [setReasoning, setStatement, setGraph, reactFlow, setCollapsedPointIds, push, currentSpace, basePath]);
 
   const openConfirmDialog = useCallback(() => {
     setIsConfirmDialogOpen(true);
@@ -457,7 +452,10 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
     });
   }, [setReasoning, setStatement, setGraph, reactFlow, setCollapsedPointIds, currentSpace]);
 
-  const handleBackClick = getBackButtonHandler(router, setInitialTab);
+  const handleBackClick = useCallback(() => {
+    const targetPath = basePath && basePath.startsWith('/s/') ? basePath : '/';
+    push(targetPath);
+  }, [push, basePath]);
 
   return (
     <main className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">

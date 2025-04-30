@@ -41,9 +41,7 @@ import { ReactFlowInstance } from "@xyflow/react";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
 import { ViewpointStatsBar } from "@/components/ViewpointStatsBar";
 import { use } from "react";
-import { handleBackNavigation } from "@/lib/negation-game/backButtonUtils";
 import { copyViewpointAndNavigate } from "@/lib/negation-game/copyViewpoint";
-import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { ShareRationaleDialog } from "@/components/graph/ShareRationalePointsDialog";
 import { toast } from "sonner";
@@ -124,8 +122,6 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     const [isDescriptionEditing, setIsDescriptionEditing] = useState(false);
 
     const updateDetailsMutation = useUpdateViewpointDetails();
-
-    const setInitialTab = useSetAtom(initialSpaceTabAtom);
 
     const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
     const [isGraphModified, setIsGraphModified] = useState(false);
@@ -521,15 +517,16 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
             return;
         }
 
-        // Otherwise proceed with normal back navigation
-        handleBackNavigation(router, setInitialTab);
-    }, [router, setInitialTab, isGraphModified, isContentModified]);
+        const targetPath = basePath && basePath.startsWith('/s/') ? basePath : '/';
+        router.push(targetPath);
+    }, [router, basePath, isGraphModified, isContentModified]);
 
     const handleDiscard = useCallback(() => {
         resetContentModifications();
         setIsDiscardDialogOpen(false);
-        handleBackNavigation(router, setInitialTab);
-    }, [resetContentModifications, router, setInitialTab]);
+        const targetPath = basePath && basePath.startsWith('/s/') ? basePath : '/';
+        router.push(targetPath);
+    }, [resetContentModifications, router, basePath]);
 
     if (!viewpoint)
         return (
