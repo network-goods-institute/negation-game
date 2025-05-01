@@ -3,7 +3,7 @@ import { getUserId } from "@/actions/getUserId";
 import { usersTable } from "@/db/schema";
 import { endorsementsTable } from "@/db/tables/endorsementsTable";
 import { db } from "@/services/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and, gt } from "drizzle-orm";
 
 export const sellEndorsement = async ({
   pointId,
@@ -33,48 +33,38 @@ export const sellEndorsement = async ({
       .select()
       .from(endorsementsTable)
       .where(
-        eq(endorsementsTable.userId, userId) &&
-          eq(endorsementsTable.pointId, pointId)
+        and(
+          eq(endorsementsTable.userId, userId),
+          eq(endorsementsTable.pointId, pointId),
+          gt(endorsementsTable.cred, 0)
+        )
       )
       .orderBy(endorsementsTable.createdAt);
 
     if (!currentEndorsements.length) {
-      throw new Error("Endorsement not found");
+      throw new Error("No active endorsements found");
     }
 
     const totalCred = currentEndorsements.reduce(
       (sum, endorsement) => sum + endorsement.cred,
       0
     );
+
     if (amountToSell > totalCred) {
-      throw new Error("Cannot sell more than the endorsed amount");
-    }
-
-    const totalEndorsed = currentEndorsements.reduce(
-      (sum, e) => sum + e.cred,
-      0
-    );
-
-    if (amountToSell > totalEndorsed) {
       throw new Error(
-        `Cannot sell more endorsements than possessed. Attempted to sell: ${amountToSell}, Total endorsed: ${totalEndorsed}`
+        `Cannot sell more than the endorsed amount. Available: ${totalCred}, Attempted to sell: ${amountToSell}`
       );
     }
 
-    const userUpdateResult = await tx
+    await tx
       .update(usersTable)
       .set({
         cred: sql`${usersTable.cred} + ${amountToSell}`,
       })
       .where(eq(usersTable.id, userId));
 
-    const updatedUserData = await tx
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.id, userId))
-      .limit(1);
-
     let remainingToSell = amountToSell;
+
     for (const endorsement of currentEndorsements) {
       if (remainingToSell <= 0) break;
 
@@ -87,23 +77,27 @@ export const sellEndorsement = async ({
         currentEndorsementCred - amountToDeductFromThis;
 
       if (newEndorsementCred > 0) {
-        const updateResult = await tx
+        await tx
           .update(endorsementsTable)
           .set({ cred: newEndorsementCred })
           .where(eq(endorsementsTable.id, endorsement.id));
       } else {
-        const deleteResult = await tx
+        await tx
           .delete(endorsementsTable)
           .where(eq(endorsementsTable.id, endorsement.id));
       }
 
       remainingToSell -= amountToDeductFromThis;
     }
-  });
 
-  const finalUserData = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.id, userId))
-    .limit(1);
+    await tx
+      .delete(endorsementsTable)
+      .where(
+        and(
+          eq(endorsementsTable.userId, userId),
+          eq(endorsementsTable.pointId, pointId),
+          eq(endorsementsTable.cred, 0)
+        )
+      );
+  });
 };

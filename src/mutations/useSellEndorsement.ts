@@ -16,8 +16,24 @@ export const useSellEndorsement = () => {
 
   return useAuthenticatedMutation({
     mutationFn: sellEndorsement,
+    onMutate: async ({ pointId }) => {
+      await queryClient.cancelQueries({
+        queryKey: userEndorsementsQueryKey({ pointId, userId: user?.id }),
+      });
+    },
     onSuccess: (_, { pointId }) => {
       toast.success("Endorsement sold successfully");
+
+      queryClient.setQueryData(
+        userEndorsementsQueryKey({ pointId, userId: user?.id }),
+        (old: any) => null
+      );
+
+      queryClient.invalidateQueries({
+        queryKey: userEndorsementsQueryKey({ pointId, userId: user?.id }),
+        exact: true,
+        refetchType: "active",
+      });
 
       // Invalidate the endorsed point
       invalidateRelatedPoints(pointId);
@@ -31,6 +47,7 @@ export const useSellEndorsement = () => {
       // Update user's cred balance
       queryClient.invalidateQueries({
         queryKey: userQueryKey(user?.id),
+        refetchType: "all",
       });
 
       // Force invalidate feed queries with refetchType: 'all' to bypass staleTime
@@ -44,12 +61,6 @@ export const useSellEndorsement = () => {
         queryKey: ["feed"],
         exact: false,
         refetchType: "all",
-      });
-
-      // Invalidate the user's endorsement data for this point
-      queryClient.invalidateQueries({
-        queryKey: userEndorsementsQueryKey({ pointId, userId: user?.id }),
-        exact: false,
       });
 
       // Invalidate pinned point query with exact space ID match

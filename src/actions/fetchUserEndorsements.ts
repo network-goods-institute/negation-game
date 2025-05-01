@@ -3,7 +3,7 @@
 import { getSpace } from "@/actions/getSpace";
 import { endorsementsTable } from "@/db/schema";
 import { db } from "@/services/db";
-import { and, eq, inArray, sum } from "drizzle-orm";
+import { and, eq, inArray, sum, gt } from "drizzle-orm";
 
 export interface FetchPointsOptions {
   originalPosterId?: string;
@@ -25,7 +25,8 @@ export const fetchUserEndorsements = async (
       and(
         inArray(endorsementsTable.pointId, pointIds),
         eq(endorsementsTable.space, space),
-        eq(endorsementsTable.userId, userId)
+        eq(endorsementsTable.userId, userId),
+        gt(endorsementsTable.cred, 0)
       )
     )
     .groupBy(endorsementsTable.pointId);

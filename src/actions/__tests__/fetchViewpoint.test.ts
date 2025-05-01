@@ -69,9 +69,6 @@ import {
   viewpointsTable,
   usersTable,
   viewpointInteractionsTable,
-  pointsTable,
-  endorsementsTable,
-  pointFavorHistoryView,
 } from "@/db/schema";
 import { getColumns } from "@/db/utils/getColumns";
 import { trackViewpointView } from "../trackViewpointView";
@@ -89,6 +86,7 @@ describe("fetchViewpoint", () => {
       id: "DISABLED",
       title: "",
       author: "",
+      copiedFromId: null,
       description: "",
       originalPointIds: [],
       graph: { nodes: [], edges: [] },
