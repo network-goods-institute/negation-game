@@ -792,19 +792,27 @@ export const GlobalExpandPointDialog: React.FC = () => {
         }).length;
     }, [filteredPoints, getNodes, searchTerm]);
 
+    const [lastZoomedIndices, setLastZoomedIndices] = useState<Record<number, number>>({});
+
     const handleZoomToNode = useCallback((pointId: number) => {
         const nodes = reactFlow.getNodes();
-        const targetNode = nodes.find(node => node.type === 'point' && node.data?.pointId === pointId);
+        const matchingNodes = nodes.filter(node => node.type === 'point' && node.data?.pointId === pointId);
 
-        if (targetNode) {
-            reactFlow.fitView({
-                nodes: [{ id: targetNode.id }],
-                duration: 600, // Smooth zoom duration
-                padding: 0.3, // Padding around the node
-                maxZoom: 1.2 // Don't zoom in too extremely
-            });
-        }
-    }, [reactFlow]);
+        if (matchingNodes.length === 0) return;
+
+        const lastIndex = lastZoomedIndices[pointId] ?? -1;
+        const nextIndex = (lastIndex + 1) % matchingNodes.length;
+        setLastZoomedIndices(prev => ({ ...prev, [pointId]: nextIndex }));
+
+        const targetNode = matchingNodes[nextIndex];
+
+        reactFlow.fitView({
+            nodes: [{ id: targetNode.id }],
+            duration: 600,
+            padding: 0.3,
+            maxZoom: 1.2
+        });
+    }, [reactFlow, lastZoomedIndices]);
 
     if (!dialogState.isOpen) return null;
 
