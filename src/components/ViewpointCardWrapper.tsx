@@ -7,6 +7,7 @@ interface ViewpointCardWrapperProps {
     id: string;
     title: string;
     description: string;
+    authorId: string;
     author: string;
     createdAt: Date;
     space: string;
@@ -25,6 +26,7 @@ export function ViewpointCardWrapper({
     id,
     title,
     description,
+    authorId,
     author,
     createdAt,
     space,
@@ -59,6 +61,7 @@ export function ViewpointCardWrapper({
                 title={title}
                 description={description}
                 author={author}
+                authorId={authorId}
                 createdAt={createdAt}
                 space={space}
                 statistics={statistics}

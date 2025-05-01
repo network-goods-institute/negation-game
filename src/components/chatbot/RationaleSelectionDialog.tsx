@@ -16,6 +16,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { SearchIcon, XIcon, UserIcon } from "lucide-react";
+import { UsernameDisplay } from "../UsernameDisplay";
 
 type SortOption = "recent" | "views" | "cred" | "copies";
 type FilterOption = "my" | "all";
@@ -190,7 +191,11 @@ export function RationaleSelectionDialog({
                                             {rationale.authorUsername && (
                                                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
                                                     <UserIcon className="h-3 w-3" />
-                                                    <span>{rationale.authorUsername}</span>
+                                                    <UsernameDisplay
+                                                        username={rationale.authorUsername}
+                                                        userId={rationale.authorId}
+                                                        className="text-xs"
+                                                    />
                                                 </div>
                                             )}
                                             {rationale.description && (

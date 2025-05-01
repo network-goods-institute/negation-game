@@ -18,6 +18,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UsernameDisplay } from "./UsernameDisplay";
 
 type SortOption = "points" | "cred" | "rationales" | "reputation";
 
@@ -173,7 +174,7 @@ export const LeaderboardDialog = ({
                                 </div>
                                 <div>
                                     <div className="font-medium flex items-center gap-1">
-                                        {currentUserData.username}
+                                        <UsernameDisplay username={currentUserData.username} userId={currentUserData.id} className="text-sm truncate" />
                                         <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
                                             You
                                         </span>
@@ -249,22 +250,23 @@ export const LeaderboardDialog = ({
                                                 <th className="text-left py-2 px-2 text-xs font-medium w-[30%]">User</th>
                                                 <th className="text-right py-2 px-2 text-xs font-medium w-[15%]">Points</th>
                                                 <th className="text-right py-2 px-2 text-xs font-medium w-[15%]">Rationales</th>
-                                                <th className="text-right py-2 px-2 text-xs font-medium w-[20%]">
-                                                    <TooltipProvider delayDuration={300}>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <div className="flex items-center justify-end gap-1 cursor-help">
-                                                                    <span>Reputation</span>
-                                                                    <InfoIcon className="size-3 text-muted-foreground" />
-                                                                </div>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent side="top" className="max-w-[200px] text-xs">
-                                                                Epistemic reputation indicates how likely a user is to
-                                                                admit when they&apos;re wrong by slashing their restakes
-                                                                when faced with convincing counterarguments. A reputation of 100% means that the user has always slashed their restakes. 50% is the default if a user has not interacted epistemically.
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    </TooltipProvider>
+                                                <th className="text-right py-2 px-2 text-xs font-medium w-[15%]">
+                                                    <span className="flex items-center justify-end gap-1">
+                                                        Reputation
+                                                        <TooltipProvider delayDuration={100}>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <InfoIcon className="size-3 text-muted-foreground cursor-help" />
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side="top" className="max-w-xs">
+                                                                    <p className="text-xs">
+                                                                        How likely the user is to admit they are wrong when challenged,
+                                                                        based on their history of self-slashing vs unresolved doubts.
+                                                                    </p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    </span>
                                                 </th>
                                                 <th className="text-right py-2 px-3 text-xs font-medium w-[15%]">Cred</th>
                                             </tr>
@@ -301,7 +303,7 @@ export const LeaderboardDialog = ({
                                                                     </Tooltip>
                                                                 </TooltipProvider>
                                                             )}
-                                                            <span className="truncate">{user.username}</span>
+                                                            <UsernameDisplay username={user.username} userId={user.id} className="text-sm truncate" />
                                                             {user.id === currentUserData?.id && (
                                                                 <span className="text-xs text-primary px-1.5 py-0.5 rounded-full bg-primary/10 whitespace-nowrap">
                                                                     You
@@ -321,37 +323,22 @@ export const LeaderboardDialog = ({
                             </TabsContent>
 
                             <TabsContent value="cards" className="mt-0 space-y-2 overflow-x-auto">
-                                {sortedUsers.map((user, index) => (
-                                    <div
-                                        key={user.id}
-                                        className={cn(
-                                            "p-3 rounded-lg border",
-                                            user.id === currentUserData?.id ? "bg-primary/5 border-primary/20" : "bg-card"
-                                        )}
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <div className="flex items-center justify-center min-w-7 h-7 rounded-full bg-muted text-sm font-medium">
+                                <div className="grid grid-cols-1 gap-2">
+                                    {sortedUsers.map((user, index) => (
+                                        <div key={user.id} className="p-3 rounded-lg border flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex items-center justify-center min-w-[20px] h-5 rounded-full bg-muted text-xs font-medium">
                                                     {index + 1}
                                                 </div>
-                                                <div>
-                                                    <div className="font-medium flex items-center gap-1.5 text-sm">
-                                                        {user.username}
-                                                        {user.id === currentUserData?.id && (
-                                                            <span className="text-xs text-primary px-1.5 py-0.5 rounded-full bg-primary/10 whitespace-nowrap">
-                                                                You
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-2">
-                                                        <span>{user.viewpoints} rationales</span>
-                                                        <span>{user.points} points</span>
-                                                        <span>{Math.round(user.reputation)}% reputation</span>
-                                                    </div>
-                                                </div>
+                                                <UsernameDisplay username={user.username} userId={user.id} className="font-medium" />
+                                                {user.id === currentUserData?.id && (
+                                                    <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary whitespace-nowrap">
+                                                        You
+                                                    </span>
+                                                )}
                                             </div>
-                                            <div className="flex flex-col items-end">
-                                                <div className="text-sm font-medium">{user.cred} cred</div>
+                                            <div className="text-right">
+                                                <div className="text-sm font-semibold">{user.cred}</div>
                                                 {user.delegationUrl && (
                                                     <TooltipProvider delayDuration={300}>
                                                         <Tooltip>
@@ -374,8 +361,8 @@ export const LeaderboardDialog = ({
                                                 )}
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </TabsContent>
                         </Tabs>
                     )}

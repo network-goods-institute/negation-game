@@ -213,6 +213,7 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
             <MemoizedViewpointCardWrapper
                 key={`rationale-${item.id}`}
                 id={viewpoint.id}
+                authorId={viewpoint.authorId}
                 title={viewpoint.title}
                 description={viewpoint.description}
                 author={viewpoint.authorUsername}
@@ -547,9 +548,10 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
             ) : (
                 filteredViewpoints.map((viewpoint: any) => {
                     return (
-                        <ViewpointCardWrapper
+                        <MemoizedViewpointCardWrapper
                             key={`rationales-tab-${viewpoint.id}`}
                             id={viewpoint.id}
+                            authorId={viewpoint.authorId}
                             title={viewpoint.title}
                             description={viewpoint.description}
                             author={viewpoint.authorUsername}

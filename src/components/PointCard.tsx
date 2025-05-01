@@ -67,6 +67,7 @@ import { getPointUrl } from "@/lib/negation-game/getPointUrl";
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
 import { selectedPointIdsAtom } from "@/atoms/viewpointAtoms";
 import { useSellEndorsement } from '@/mutations/useSellEndorsement';
+import { UsernameDisplay } from "./UsernameDisplay";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -711,7 +712,11 @@ export const PointCard = ({
               <p>
                 Endorsed by{" "}
                 <strong className="text-yellow-500">
-                  {originalPoster ? originalPoster.username : "poster"}{" "}
+                  <UsernameDisplay
+                    username={originalPoster?.username || "poster"}
+                    userId={originalPoster?.id}
+                    className="text-sm"
+                  />
                 </strong>{" "}
                 with {opCred} cred
               </p>

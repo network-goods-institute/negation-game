@@ -8,9 +8,10 @@ import {
 } from "@/components/ui/popover";
 import { DialogProps } from "@radix-ui/react-dialog";
 import type { RestakerReputationResponse } from "@/queries/useRestakerReputation";
+import { UsernameDisplay } from "@/components/UsernameDisplay";
 
 interface ReputationAnalysisDialogProps extends DialogProps {
-  restakers: RestakerReputationResponse["restakers"];
+  restakers: (RestakerReputationResponse["restakers"][number] & { userId: string })[];
   aggregateReputation: number;
 }
 
@@ -52,11 +53,11 @@ export const ReputationAnalysisDialog = ({
             <div className="space-y-3">
               {restakers.map((restaker) => (
                 <div
-                  key={restaker.hashedUserId}
+                  key={restaker.userId}
                   className="flex justify-between items-center"
                 >
                   <div className="flex items-center gap-2">
-                    <span>{restaker.username}</span>
+                    <UsernameDisplay username={restaker.username || 'Unknown'} userId={restaker.userId} className="text-sm" />
                     <span className="text-xs text-muted-foreground">
                       ({restaker.hashedUserId})
                     </span>

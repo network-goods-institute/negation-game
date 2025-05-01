@@ -12,6 +12,7 @@ import { Portal } from "@radix-ui/react-portal";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
 import { useRouter } from "next/navigation";
 import { ViewpointStatsBar } from "./ViewpointStatsBar";
+import { UsernameDisplay } from "./UsernameDisplay";
 
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
     loading: () => <div className="animate-pulse h-32 bg-muted/30 rounded-md" />,
@@ -51,6 +52,7 @@ export interface ViewpointCardProps extends React.HTMLAttributes<HTMLDivElement>
     title: string;
     description: string;
     author: string;
+    authorId: string;
     createdAt: Date;
     className?: string;
     space: string;
@@ -62,6 +64,14 @@ export interface ViewpointCardProps extends React.HTMLAttributes<HTMLDivElement>
         averageFavor?: number;
     };
     isLoading?: boolean;
+    bio?: string;
+    delegationUrl?: string | null;
+    rationalesCount?: number;
+    createdAtDate?: Date;
+    avatarUrl?: string | null;
+    isUsernameLoading?: boolean;
+    isUsernameError?: boolean;
+    onClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
 }
 
 export const ViewpointCard: React.FC<ViewpointCardProps> = ({
@@ -69,12 +79,20 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
     title,
     description,
     author,
+    authorId,
     createdAt,
     className,
     space,
     linkable = true,
     statistics,
     isLoading = false,
+    bio = "Placeholder Bio",
+    delegationUrl = null,
+    rationalesCount = 0,
+    createdAtDate = new Date(),
+    avatarUrl = null,
+    isUsernameLoading = false,
+    isUsernameError = false,
     onClick,
     ...props
 }) => {
@@ -217,7 +235,13 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                             </div>
 
                             <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
-                                <span>By <span className="font-bold text-yellow-500">{author}</span></span>
+                                <span className="flex items-center gap-1">By
+                                    <UsernameDisplay
+                                        username={author}
+                                        userId={authorId}
+                                        className="font-bold text-yellow-500 text-xs"
+                                    />
+                                </span>
                                 <div className="flex items-center gap-2">
                                     <ViewpointStatsBar
                                         views={statistics?.views || 0}
@@ -250,8 +274,13 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                             <h3 className="text-lg font-semibold -mt-0.5">{title}</h3>
                         </div>
 
-                        <div className="text-sm text-muted-foreground mb-1">
-                            By <span className="font-bold text-yellow-500">{author}</span>
+                        <div className="text-sm text-muted-foreground mb-1 flex items-center gap-1">
+                            By
+                            <UsernameDisplay
+                                username={author}
+                                userId={authorId}
+                                className="font-bold text-yellow-500 text-sm"
+                            />
                         </div>
 
                         <ViewpointStatsBar

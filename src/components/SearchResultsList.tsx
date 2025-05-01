@@ -119,6 +119,7 @@ export function SearchResultsList({ results, isLoading, query, hasSearched = fal
                         <ViewpointCardWrapper
                             key={`rationale-${result.id}`}
                             id={result.id.toString()}
+                            authorId={result.authorId || ""}
                             title={result.title}
                             description={result.description || ""}
                             author={result.author}

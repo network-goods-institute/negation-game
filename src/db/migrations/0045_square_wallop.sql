@@ -1,1 +1,1 @@
-ALTER TABLE "viewpoints" ADD COLUMN "views_at_last_update" integer DEFAULT 0 NOT NULL;
+ALTER TABLE "viewpoints" ADD COLUMN IF NOT EXISTS "views_at_last_update" integer DEFAULT 0 NOT NULL;

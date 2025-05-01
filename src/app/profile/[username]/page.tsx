@@ -389,6 +389,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                             title={viewpoint.title}
                                                             description={viewpoint.description}
                                                             author={viewpoint.author}
+                                                            authorId={viewpoint.createdBy}
                                                             createdAt={new Date(viewpoint.createdAt)}
                                                             className="flex-grow"
                                                             space={viewpoint.space ?? "global"}
@@ -536,6 +537,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                             title={viewpoint.title}
                                                             description={viewpoint.description}
                                                             author={viewpoint.author}
+                                                            authorId={viewpoint.createdBy}
                                                             createdAt={new Date(viewpoint.createdAt)}
                                                             space={viewpoint.space ?? "global"}
                                                             className="flex-grow"

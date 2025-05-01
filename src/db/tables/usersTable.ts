@@ -12,6 +12,7 @@ import {
   varchar,
   text,
   boolean,
+  timestamp,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 
@@ -28,6 +29,7 @@ export const usersTable = pgTable(
     discourseConsentGiven: boolean("discourse_consent_given")
       .notNull()
       .default(false),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({
     noNegativeCred: check("noNegativeCred", sql`${table.cred} >= 0`),

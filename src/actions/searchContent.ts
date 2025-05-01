@@ -37,6 +37,7 @@ export type SearchResult = {
   title?: string;
   createdAt: Date;
   author: string;
+  authorId?: string;
   relevance: number;
   pointData?: PointResultBeforeFavor & { favor: number };
   description?: string;
@@ -123,7 +124,7 @@ export const searchContent = async (
   const viewpointResultsKeyword = await db.execute(sql`
     SELECT
       v.id as "id", v.title as "title", v.content as "description",
-      v.created_by as "createdBy", v.created_at as "createdAt", v.space as "space",
+      v.created_by as "createdBy", v.created_at as "createdAt", v.space as "space", v.created_by as "authorId",
       v.graph as "graph", u.username as "username",
       vi.views as "views", vi.copies as "copies"
     FROM viewpoints v
@@ -142,7 +143,7 @@ export const searchContent = async (
     viewpointResultsPointInclusion = await db.execute(sql`
       SELECT
         v.id as "id", v.title as "title", v.content as "description",
-        v.created_by as "createdBy", v.created_at as "createdAt", v.space as "space",
+        v.created_by as "createdBy", v.created_at as "createdAt", v.space as "space", v.created_by as "authorId",
         v.graph as "graph", u.username as "username",
         vi.views as "views", vi.copies as "copies"
       FROM viewpoints v
@@ -182,6 +183,7 @@ export const searchContent = async (
         content: point.content,
         createdAt: point.createdAt,
         author: point.username,
+        authorId: point.createdBy,
         relevance: 1,
         pointData: point,
       });
@@ -271,7 +273,7 @@ export const searchContent = async (
         description: viewpoint.description,
         createdAt: new Date(viewpoint.createdAt),
         author: viewpoint.username,
-        space: viewpoint.space,
+        authorId: viewpoint.authorId,
         relevance: 1, // placeholder
         statistics: {
           views: viewpoint.views || 0,

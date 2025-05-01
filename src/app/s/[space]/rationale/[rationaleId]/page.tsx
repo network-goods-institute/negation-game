@@ -46,6 +46,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { ShareRationaleDialog } from "@/components/graph/ShareRationalePointsDialog";
 import { toast } from "sonner";
 import { selectedPointIdsAtom } from "@/atoms/viewpointAtoms";
+import { UsernameDisplay } from "@/components/UsernameDisplay";
 
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
     loading: () => <div className="animate-pulse h-32 bg-muted/30 rounded-md" />,
@@ -723,18 +724,24 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
                             {/* Author and Stats */}
                             <div className="flex flex-col gap-2">
-                                <span className="text-muted-foreground text-sm">
-                                    by{" "}
-                                    <span className="font-bold text-sm text-yellow-500">
-                                        {author}
-                                    </span>
-                                </span>
-                                {viewpoint.statistics && (
+                                {latestViewpoint ? (
+                                    <div className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+                                        <span>By</span>
+                                        <UsernameDisplay
+                                            username={latestViewpoint.author ?? 'Unknown'}
+                                            userId={latestViewpoint.createdBy}
+                                            className="font-medium text-foreground text-sm"
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="mt-1 h-5 w-24 bg-muted animate-pulse rounded" />
+                                )}
+                                {latestViewpoint?.statistics && (
                                     <ViewpointStatsBar
-                                        views={viewpoint.statistics.views}
-                                        copies={viewpoint.statistics.copies}
-                                        totalCred={viewpoint.statistics.totalCred}
-                                        averageFavor={viewpoint.statistics.averageFavor}
+                                        views={latestViewpoint.statistics.views}
+                                        copies={latestViewpoint.statistics.copies}
+                                        totalCred={latestViewpoint.statistics.totalCred}
+                                        averageFavor={latestViewpoint.statistics.averageFavor}
                                     />
                                 )}
                             </div>

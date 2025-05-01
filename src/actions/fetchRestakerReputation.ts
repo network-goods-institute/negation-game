@@ -12,6 +12,7 @@ import { sqids } from "@/services/sqids";
 
 export type RestakerReputation = {
   username: string | null;
+  userId: string;
   hashedUserId: string;
   amount: number;
   reputation: number;
@@ -102,6 +103,7 @@ export const fetchRestakerReputation = async (
 
   const restakersWithHashedIds = restakers.map((r) => ({
     username: r.username,
+    userId: r.userId,
     hashedUserId: sqids.encode([
       r.userId.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0),
     ]),
