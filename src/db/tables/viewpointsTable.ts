@@ -26,6 +26,10 @@ export const viewpointsTable = pgTable("viewpoints", {
       onDelete: "cascade",
     })
     .default(DEFAULT_SPACE),
+  copiedFromId: varchar("copied_from_id").references(
+    (): any => viewpointsTable.id,
+    { onDelete: "set null" }
+  ),
 });
 
 export type InsertViewpoint = Omit<

@@ -137,3 +137,5 @@ export const clearViewpointState = (isPublishing = true) => {
     // This ensures a single source of truth through the atoms
   }
 };
+
+export const copiedFromIdAtom = atom<string | undefined>(undefined);

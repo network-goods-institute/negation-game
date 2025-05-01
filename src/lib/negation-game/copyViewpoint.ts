@@ -197,43 +197,26 @@ export const copyViewpointToStorage = (
   sourceId?: string
 ): boolean => {
   try {
-    // First prepare the graph with statement node and proper structure
     const preparedGraph = prepareGraphForCopy(graphToCopy, title);
 
-    // Then regenerate IDs to ensure uniqueness
     const regeneratedGraph = regenerateGraphIds(preparedGraph);
 
-    // Get the current space
     const space = getSpaceFromUrl();
 
-    // Use the provided description instead of generating a template
-    const copyData = {
-      graph: regeneratedGraph,
-      title: title,
-      description: description,
-      sourceId: sourceId,
-      isCopyOperation: true,
-      copyTimestamp: Date.now(),
-    };
-
-    // Get the storage key
     const storageKey = getCopyStorageKey(space);
 
-    // Store data in session storage
-    sessionStorage.setItem(storageKey, JSON.stringify(copyData));
+    const viewpointDataToStore = {
+      title: title || "",
+      description: description || "",
+      graph: regeneratedGraph,
+      copiedFromId: sourceId,
+      isCopyOperation: true,
+      timestamp: Date.now(),
+    };
 
-    console.log(
-      "[Copy] Stored copy data in session storage:",
-      regeneratedGraph.nodes.length,
-      "nodes,",
-      regeneratedGraph.edges.length,
-      "edges,",
-      "key:",
-      storageKey
-    );
+    sessionStorage.setItem(storageKey, JSON.stringify(viewpointDataToStore));
     return true;
   } catch (error) {
-    console.error("[Copy] Error copying viewpoint:", error);
     return false;
   }
 };

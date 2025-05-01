@@ -30,6 +30,7 @@ export const fetchViewpoint = async (id: string) => {
         totalCred: 0,
         averageFavor: 0,
       },
+      copiedFromId: null,
     };
   }
 

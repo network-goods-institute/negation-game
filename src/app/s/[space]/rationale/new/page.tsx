@@ -7,6 +7,7 @@ import {
   viewpointStatementAtom,
   collapsedPointIdsAtom,
   clearViewpointState,
+  copiedFromIdAtom,
 } from "@/atoms/viewpointAtoms";
 import { useEffect, useMemo, useState, useCallback, useTransition, useRef } from "react";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
@@ -42,7 +43,7 @@ import {
   ReactFlowProvider,
   useReactFlow,
 } from "@xyflow/react";
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom, useSetAtom, useAtomValue } from "jotai";
 import { NetworkIcon, ArrowLeftIcon } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -122,8 +123,8 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
   const { push } = router;
   const basePath = useBasePath();
   const pathname = usePathname();
-  const { markPointAsRead } = useVisitedPoints();
   const [isCopiedFromSessionStorage, setIsCopiedFromSessionStorage] = useState(false);
+  const setCopiedFromId = useSetAtom(copiedFromIdAtom);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [isInitialLoadDialogOpen, setIsInitialLoadDialogOpen] = useState(false);
@@ -148,7 +149,6 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
   const [_, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
 
   useEffect(() => {
-
     // If we've already loaded copy data, skip this effect
     if (hasLoadedCopyData.current) {
       console.log("Already loaded copy data, skipping effect");
@@ -169,6 +169,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       setReasoning("");
       setGraph(initialViewpointGraph);
       setCollapsedPointIds(new Set());
+      setCopiedFromId(undefined);
 
       // Reset ReactFlow nodes and edges directly if available
       if (reactFlow) {
@@ -196,6 +197,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
           setIsCopyOperation(true);
           setIsCopiedFromSessionStorage(true);
           setHasCheckedInitialLoad(true);
+          setCopiedFromId(parsedData.copiedFromId);
 
           // Load the copied data using ONLY atom setters (single source of truth)
           if (parsedData.graph) {
@@ -260,7 +262,6 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       }
     }
 
-
     setHasCheckedInitialLoad(true);
 
     // Cleanup function to reset state when component unmounts
@@ -268,7 +269,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       hasLoadedCopyData.current = false;
       setHasCheckedInitialLoad(false);
 
-      // Only clear these if we're actually leaving the page, not just from effects re-running
+      // Only clear copy operation flags if we're actually leaving the page
       if (document.visibilityState === 'hidden' || !document.body.contains(document.activeElement)) {
         setIsCopyOperation(false);
         setIsCopiedFromSessionStorage(false);
@@ -287,7 +288,8 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
     updateNodeData,
     statement,
     reasoning,
-    graph
+    graph,
+    setCopiedFromId,
   ]);
 
   // Use a dedicated effect to ensure the copy state gets properly reset when leaving the page
@@ -366,6 +368,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
     );
   }, [graph, statement]);
   const [hoveredPointId, setHoveredPointId] = useAtom(hoveredPointIdAtom);
+  const copiedFromIdValue = useAtomValue(copiedFromIdAtom);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -377,13 +380,14 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const clearGraph = useCallback(() => {
+  const clearGraphAndState = useCallback(() => {
     startTransition(() => {
       // Set all atoms back to their defaults
       setReasoning("");
       setStatement("");
       setGraph(initialViewpointGraph);
       setCollapsedPointIds(new Set());
+      setCopiedFromId(undefined);
 
       // Also reset ReactFlow directly if available
       if (reactFlow) {
@@ -410,7 +414,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       const targetPath = basePath && basePath.startsWith('/s/') ? basePath : '/';
       push(targetPath);
     });
-  }, [setReasoning, setStatement, setGraph, reactFlow, setCollapsedPointIds, push, currentSpace, basePath]);
+  }, [setReasoning, setStatement, setGraph, reactFlow, setCollapsedPointIds, setCopiedFromId, push, currentSpace, basePath]);
 
   const openConfirmDialog = useCallback(() => {
     setIsConfirmDialogOpen(true);
@@ -425,6 +429,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
         setStatement("");
         setGraph(initialViewpointGraph);
         setCollapsedPointIds(new Set());
+        setCopiedFromId(undefined);
 
         // Also reset ReactFlow directly if available
         if (reactFlow) {
@@ -450,12 +455,48 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
         setIsDiscardingWithoutNav(false);
       }
     });
-  }, [setReasoning, setStatement, setGraph, reactFlow, setCollapsedPointIds, currentSpace]);
+  }, [setReasoning, setStatement, setGraph, reactFlow, setCollapsedPointIds, setCopiedFromId, currentSpace]);
 
   const handleBackClick = useCallback(() => {
     const targetPath = basePath && basePath.startsWith('/s/') ? basePath : '/';
     push(targetPath);
   }, [push, basePath]);
+
+  const handlePublish = useCallback(async () => {
+    const currentCopiedFromId = copiedFromIdValue;
+    try {
+      const rationaleId = await publishViewpoint({
+        title: statement,
+        description: reasoning,
+        graph,
+        copiedFromId: currentCopiedFromId,
+      });
+
+      clearViewpointState(true);
+      setStatement("");
+      setReasoning("");
+      setGraph(initialViewpointGraph);
+      setCollapsedPointIds(new Set());
+      setCopiedFromId(undefined);
+
+      if (reactFlow) {
+        reactFlow.setNodes(initialViewpointGraph.nodes);
+        reactFlow.setEdges(initialViewpointGraph.edges);
+      }
+
+      push(`${basePath}/rationale/${rationaleId}`);
+    } catch (error: any) {
+      console.error("Failed to publish rationale:", error);
+      alert(
+        "Failed to publish rationale. See console for details."
+      );
+    }
+  }, [
+    statement, reasoning, graph, publishViewpoint, clearViewpointState,
+    setStatement, setReasoning, setGraph, setCollapsedPointIds,
+    setCopiedFromId,
+    reactFlow, push, basePath, copiedFromIdValue
+  ]);
 
   return (
     <main className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
@@ -523,35 +564,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
                 className="rounded-full w-24"
                 disabled={!canPublish || isPublishing}
                 rightLoading={isPublishing}
-                onClick={async () => {
-                  try {
-                    const id = await publishViewpoint({
-                      title: statement,
-                      description: reasoning,
-                      graph,
-                    });
-
-                    clearViewpointState(true);
-                    setStatement("");
-                    setReasoning("");
-                    setGraph(initialViewpointGraph);
-                    setCollapsedPointIds(new Set());
-
-                    if (reactFlow) {
-                      reactFlow.setNodes(initialViewpointGraph.nodes);
-                      reactFlow.setEdges(initialViewpointGraph.edges);
-                    }
-
-                    push(`${basePath}/rationale/${id}`);
-                    return true;
-                  } catch (error: any) {
-                    console.error("Failed to publish rationale:", error);
-                    alert(
-                      "Failed to publish rationale. See console for details."
-                    );
-                    return false;
-                  }
-                }}
+                onClick={handlePublish}
               >
                 Publish
               </AuthenticatedActionButton>
@@ -696,7 +709,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={clearGraph} disabled={isPending}>
+            <AlertDialogAction onClick={clearGraphAndState} disabled={isPending}>
               {isPending ? "Abandoning..." : "Yes, abandon it"}
             </AlertDialogAction>
           </AlertDialogFooter>

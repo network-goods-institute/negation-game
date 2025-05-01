@@ -10,14 +10,19 @@ import { nanoid } from "nanoid";
 import { pick } from "remeda";
 
 export interface PublishViewpointArgs
-  extends Omit<InsertViewpoint, "id" | "space" | "createdBy" | "graph"> {
+  extends Omit<
+    InsertViewpoint,
+    "id" | "space" | "createdBy" | "graph" | "copiedFromId"
+  > {
   graph: ViewpointGraph;
+  copiedFromId?: string;
 }
 
 export const publishViewpoint = async ({
   description,
   graph,
   title,
+  copiedFromId,
 }: PublishViewpointArgs) => {
   const userId = await getUserId();
   const space = await getSpace();
@@ -28,14 +33,16 @@ export const publishViewpoint = async ({
 
   const id = nanoid();
 
-  await db.insert(viewpointsTable).values({
+  const valuesToInsert = {
     id,
     createdBy: userId,
     description,
     graph: cleanupForPublishing(graph),
     title,
     space,
-  });
+    copiedFromId,
+  };
+  await db.insert(viewpointsTable).values(valuesToInsert);
 
   return id;
 };

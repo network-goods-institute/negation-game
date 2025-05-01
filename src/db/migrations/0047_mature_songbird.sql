@@ -1,0 +1,2 @@
+ALTER TABLE "viewpoints" ADD COLUMN "copied_from_id" varchar;--> statement-breakpoint
+ALTER TABLE "viewpoints" ADD CONSTRAINT "viewpoints_copied_from_id_viewpoints_id_fk" FOREIGN KEY ("copied_from_id") REFERENCES "public"."viewpoints"("id") ON DELETE set null ON UPDATE no action;

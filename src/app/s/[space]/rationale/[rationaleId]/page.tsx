@@ -47,6 +47,7 @@ import { ShareRationaleDialog } from "@/components/graph/ShareRationalePointsDia
 import { toast } from "sonner";
 import { selectedPointIdsAtom } from "@/atoms/viewpointAtoms";
 import { UsernameDisplay } from "@/components/UsernameDisplay";
+import Link from "next/link";
 
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
     loading: () => <div className="animate-pulse h-32 bg-muted/30 rounded-md" />,
@@ -103,6 +104,22 @@ function PointCardWrapper({
             favorHistory={favorHistory}
             isSharing={isSharing}
         />
+    );
+}
+
+function CopiedFromLink({ sourceId }: { sourceId: string }) {
+    const { data: sourceViewpoint, isLoading } = useViewpoint(sourceId);
+    const basePath = useBasePath();
+
+    if (isLoading) return <div className="h-4 w-32 bg-muted animate-pulse rounded" />;
+    if (!sourceViewpoint) return null;
+
+    const linkPath = `${basePath}/rationale/${sourceId}`;
+
+    return (
+        <Link href={linkPath} className="text-xs text-muted-foreground hover:text-primary transition-colors">
+            Copied from: <span className="font-medium">{sourceViewpoint.title || 'Untitled Rationale'}</span>
+        </Link>
     );
 }
 
@@ -719,6 +736,11 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                                     <h2 className="font-semibold pr-16">
                                         {editableTitle}{isContentModified && '*'}
                                     </h2>
+                                    {latestViewpoint?.copiedFromId && (
+                                        <div className="mt-1">
+                                            <CopiedFromLink sourceId={latestViewpoint.copiedFromId} />
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
