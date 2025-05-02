@@ -21,9 +21,14 @@ import {
     Menu,
     RefreshCw,
     WifiOff,
+    LinkIcon,
+    EyeIcon,
+    EyeOffIcon,
+    NetworkIcon,
 } from "lucide-react";
 import { useDiscourseIntegration } from "@/hooks/useDiscourseIntegration";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
 
 interface SyncStats {
     pulled: number;
@@ -51,6 +56,14 @@ interface ChatHeaderProps {
     isPulling: boolean;
     isSaving: boolean;
     isOffline: boolean;
+    mode: 'chat' | 'create_rationale';
+    showGraph: boolean;
+    setShowGraph: (show: boolean) => void;
+    linkUrl: string;
+    setLinkUrl: (url: string) => void;
+    onCloseRationaleCreator: () => void;
+    canvasEnabled: boolean;
+    setCanvasEnabled: (enabled: boolean) => void;
 }
 
 export function ChatHeader({
@@ -72,11 +85,29 @@ export function ChatHeader({
     isPulling,
     isSaving,
     isOffline,
+    mode,
+    showGraph,
+    setShowGraph,
+    linkUrl,
+    setLinkUrl,
+    onCloseRationaleCreator,
+    canvasEnabled,
+    setCanvasEnabled,
 }: ChatHeaderProps) {
     return (
         <div className="fixed top-[var(--header-height)] h-16 border-b bg-background/95 backdrop-blur-sm flex items-center justify-between px-4 md:px-6 z-20 left-0 md:left-72 right-0">
             <div className="flex items-center gap-2 md:gap-3">
-                {isMobile ? (
+                {mode === 'create_rationale' ? (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={onCloseRationaleCreator}
+                        className="text-primary hover:bg-primary/10 rounded-full h-9 w-9"
+                        title="Back to Chat Options"
+                    >
+                        <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                ) : isMobile ? (
                     <Button
                         variant="ghost"
                         size="icon"
@@ -98,25 +129,27 @@ export function ChatHeader({
                 )}
                 <div className="flex items-center gap-2">
                     <h2 className="text-base md:text-lg font-semibold">
-                        AI Assistant
+                        {mode === 'create_rationale' ? 'Create Rationale' : 'AI Assistant'}
                     </h2>
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger>
-                                <span className="inline-flex items-center rounded-md bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive ring-1 ring-inset ring-destructive/20">
-                                    Beta
-                                </span>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom">
-                                <p className="max-w-xs">
-                                    This is a Beta version. Features and
-                                    performance may change significantly.
-                                </p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
+                    {mode !== 'create_rationale' && (
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger>
+                                    <span className="inline-flex items-center rounded-md bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive ring-1 ring-inset ring-destructive/20">
+                                        Beta
+                                    </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom">
+                                    <p className="max-w-xs">
+                                        This is a Beta version. Features and
+                                        performance may change significantly.
+                                    </p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    )}
                 </div>
-                {isGenerating && (
+                {mode === 'chat' && isGenerating && (
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title="Assistant is generating a response for this chat...">
                         <Loader2 className="h-3 w-3 animate-spin" />
                         <span>Generating...</span>
@@ -124,6 +157,38 @@ export function ChatHeader({
                 )}
             </div>
             <div className="flex items-center gap-2 md:gap-3">
+                {mode === 'create_rationale' && (
+                    <>
+                        <div className="hidden md:flex items-center gap-2 bg-muted p-1.5 rounded-md border">
+                            <LinkIcon className="h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="url"
+                                placeholder="Paste link to source material (optional)"
+                                value={linkUrl}
+                                onChange={(e) => setLinkUrl(e.target.value)}
+                                className="h-7 text-xs border-none focus-visible:ring-0 bg-transparent flex-1 w-60 lg:w-80"
+                            />
+                        </div>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setShowGraph(!showGraph)}
+                            title={showGraph ? "Hide Graph Pane" : "Show Graph Pane"}
+                            className="hidden md:inline-flex text-muted-foreground hover:text-foreground"
+                        >
+                            {showGraph ? <EyeOffIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                        </Button>
+                        <Button
+                            variant={canvasEnabled ? "default" : "outline"}
+                            size="icon"
+                            onClick={() => setCanvasEnabled(!canvasEnabled)}
+                            title={canvasEnabled ? "Show Chat" : "Show Graph"}
+                            className="md:hidden rounded-full p-1 size-7 text-muted-foreground hover:text-foreground"
+                        >
+                            <NetworkIcon className="h-4 w-4" />
+                        </Button>
+                    </>
+                )}
                 {isOffline && (
                     <TooltipProvider>
                         <Tooltip>

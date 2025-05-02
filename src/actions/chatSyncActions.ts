@@ -5,6 +5,7 @@ import { chatsTable } from "@/db/tables/chatsTable";
 import { getUserId } from "./getUserId";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
+import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 
 const ChatMetadataSchema = z.object({
   id: z.string(),
@@ -28,8 +29,26 @@ const ChatContentSchema = z.object({
   ),
   createdAt: z.date(),
   updatedAt: z.date(),
+  graph: z.custom<ViewpointGraph>().optional().nullable(),
 });
 export type ChatContent = z.infer<typeof ChatContentSchema>;
+
+const ClientChatCreateSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  messages: z.array(z.any()),
+  state_hash: z.string(),
+  spaceId: z.string(),
+  graph: z.custom<ViewpointGraph>().optional().nullable(),
+});
+
+const ClientChatUpdateSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  messages: z.array(z.any()),
+  state_hash: z.string(),
+  graph: z.custom<ViewpointGraph>().optional().nullable(),
+});
 
 /**
  * Fetches metadata (id, state_hash, updatedAt) for all chats belonging to the current user.
@@ -93,6 +112,7 @@ export async function fetchChatContent(
         messages: chatsTable.messages,
         createdAt: chatsTable.createdAt,
         updatedAt: chatsTable.updatedAt,
+        graph: chatsTable.graph,
       })
       .from(chatsTable)
       .where(and(eq(chatsTable.id, chatId), eq(chatsTable.userId, userId)))
@@ -108,25 +128,24 @@ export async function fetchChatContent(
         typeof result[0].messages === "string"
           ? JSON.parse(result[0].messages)
           : result[0].messages,
+      graph: result[0].graph,
     };
 
     const validatedContent = ChatContentSchema.safeParse(chatData);
     if (!validatedContent.success) {
+      console.error(
+        "Validation Error (fetchChatContent):",
+        validatedContent.error.errors
+      );
       throw new Error("Failed to validate chat content from database.");
     }
 
     return validatedContent.data;
   } catch (error) {
+    console.error("DB Error (fetchChatContent):", error);
     throw new Error("Failed to fetch chat content.");
   }
 }
-const ClientChatDataSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  messages: z.array(z.any()),
-  state_hash: z.string(),
-  spaceId: z.string(),
-});
 
 /**
  * Creates a new chat record in the database.
@@ -143,24 +162,34 @@ export async function createDbChat(
     return { success: false, id: null, error };
   }
 
-  const validation = ClientChatDataSchema.safeParse(chatData);
+  const validation = ClientChatCreateSchema.safeParse(chatData);
   if (!validation.success) {
     const error = `Invalid chat data: ${validation.error.message}`;
+    console.error("Validation Error (createDbChat):", validation.error.errors);
     return { success: false, id: null, error };
   }
-  const { id, title, messages, state_hash, spaceId } = validation.data;
+  const {
+    id: createId,
+    title: createTitle,
+    messages: createMessages,
+    state_hash: createStateHash,
+    spaceId: createSpaceId,
+    graph: createGraph,
+  } = validation.data;
 
   try {
     await db.insert(chatsTable).values({
-      id: id,
+      id: createId,
       userId: userId,
-      spaceId: spaceId,
-      title: title,
-      messages: messages,
-      state_hash: state_hash,
+      spaceId: createSpaceId,
+      title: createTitle,
+      messages: createMessages,
+      state_hash: createStateHash,
+      graph: createGraph,
     });
-    return { success: true, id: id };
+    return { success: true, id: createId };
   } catch (error) {
+    console.error("DB Error (createDbChat):", error);
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
     return { success: false, id: null, error: errorMessage };
@@ -180,28 +209,34 @@ export async function updateDbChat(
     return { success: false, error: "User not authenticated." };
   }
 
-  const validation = ClientChatDataSchema.pick({
-    id: true,
-    title: true,
-    messages: true,
-    state_hash: true,
-  }).safeParse(chatData);
-  if (!validation.success) {
-    const error = `Invalid chat data: ${validation.error.message}`;
+  const updateValidation = ClientChatUpdateSchema.safeParse(chatData);
+  if (!updateValidation.success) {
+    const error = `Invalid chat data: ${updateValidation.error.message}`;
+    console.error(
+      "Validation Error (updateDbChat):",
+      updateValidation.error.errors
+    );
     return { success: false, error };
   }
-  const { id, title, messages, state_hash } = validation.data;
+  const {
+    id: updateId,
+    title: updateTitle,
+    messages: updateMessages,
+    state_hash: updateStateHash,
+    graph: updateGraph,
+  } = updateValidation.data;
 
   try {
     const result = await db
       .update(chatsTable)
       .set({
-        title: title,
-        messages: messages,
-        state_hash: state_hash,
+        title: updateTitle,
+        messages: updateMessages,
+        state_hash: updateStateHash,
         updatedAt: new Date(),
+        graph: updateGraph,
       })
-      .where(and(eq(chatsTable.id, id), eq(chatsTable.userId, userId)))
+      .where(and(eq(chatsTable.id, updateId), eq(chatsTable.userId, userId)))
       .returning({ updatedId: chatsTable.id });
 
     if (result.length === 0) {
@@ -210,6 +245,7 @@ export async function updateDbChat(
 
     return { success: true };
   } catch (error) {
+    console.error("DB Error (updateDbChat):", error);
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
     return { success: false, error: errorMessage };

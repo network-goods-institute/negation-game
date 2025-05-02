@@ -1,3 +1,5 @@
+import { ViewpointGraph } from "@/atoms/viewpointAtoms";
+
 export interface DiscourseMessage {
   id: number;
   content: string;
@@ -6,6 +8,8 @@ export interface DiscourseMessage {
   topic_id?: number;
   topic_title?: string;
   space: string;
+  distillRationaleId?: string | null;
+  graph?: ViewpointGraph;
 }
 
 export interface ChatMessage {
@@ -24,6 +28,7 @@ export interface SavedChat {
   space: string;
   state_hash: string;
   distillRationaleId?: string | null;
+  graph?: ViewpointGraph;
 }
 
 export interface ChatRationale {
@@ -74,3 +79,5 @@ export type DiscourseConnectionStatus =
   | "unavailable_logged_out";
 
 export type InitialOption = "distill" | "build" | null;
+
+export type { ViewpointGraph };

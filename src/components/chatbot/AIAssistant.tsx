@@ -43,11 +43,13 @@ import { ChatHeader } from "./ChatHeader";
 import { ChatMessageArea } from "./ChatMessageArea";
 import { ChatInputForm } from "./ChatInputForm";
 import { fetchAllSpacePoints, PointInSpace } from "@/actions/fetchAllSpacePoints";
+import { RationaleCreator } from "./RationaleCreator";
+import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 
 type OwnedPoint = ProfilePoint;
 
 export type InitialOptionObject = {
-    id: 'distill' | 'build' | 'generate';
+    id: 'distill' | 'build' | 'generate' | 'create_rationale';
     title: string;
     prompt: string;
     description: string;
@@ -395,7 +397,7 @@ export default function AIAssistant() {
             setShowMobileMenu(false);
         }
     };
-    const handleStartChatOption = (option: InitialOptionObject) => {
+    const handleStartChatOption = async (option: InitialOptionObject) => {
         if (option.disabled || option.comingSoon) return;
 
         if (option.id === 'distill') {
@@ -408,6 +410,31 @@ export default function AIAssistant() {
                 return;
             }
             setShowRationaleSelectionDialog(true);
+            setShowMobileMenu(false);
+        } else if (option.id === 'create_rationale') {
+            console.log("[AIAssistant] Handling 'create_rationale' option.");
+            if (!isAuthenticated) {
+                toast.info("Login required to create rationales.");
+                return;
+            }
+            let chatIdToUse = chatList.currentChatId;
+            console.log(`[AIAssistant] Current chat ID before create: ${chatIdToUse}`);
+            if (!chatIdToUse || chatState.chatMessages.length > 0) {
+                console.log('[AIAssistant] No current chat or chat has messages, creating new one for rationale...');
+                const newId = await chatList.createNewChat({ nodes: [], edges: [] });
+                console.log(`[AIAssistant] Called createNewChat, result ID: ${newId}`);
+                if (!newId) {
+                    toast.error("Failed to create a new chat session for rationale creation.");
+                    return;
+                }
+                chatIdToUse = newId;
+                chatState.setChatMessages([]);
+            }
+            console.log(`[AIAssistant] Chat ID to use for rationale: ${chatIdToUse}`);
+            setRationaleGraph({ nodes: [], edges: [] });
+            setLinkUrl('');
+            console.log('[AIAssistant] Setting mode to create_rationale');
+            setMode('create_rationale');
             setShowMobileMenu(false);
         } else {
             chatState.startChatWithOption(option);
@@ -728,13 +755,57 @@ export default function AIAssistant() {
         setShowEditDialog(true);
     };
 
-    const [loadingChat, setLoadingChat] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
     const handleRationaleSelectedForDistill = (rationale: ChatRationale) => {
         chatState.startDistillChat(rationale.id, rationale.title, rationale);
         setShowRationaleSelectionDialog(false);
     };
+    const [mode, setMode] = useState<'chat' | 'create_rationale'>('chat');
+    const [showGraph, setShowGraph] = useState(true);
+    const [linkUrl, setLinkUrl] = useState('');
+    const [canvasEnabled, setCanvasEnabled] = useState(false);
+    const [rationaleGraph, setRationaleGraph] = useState<ViewpointGraph>({ nodes: [], edges: [] });
+
+    useEffect(() => {
+        const currentChatIdForEffect = chatList.currentChatId;
+        console.log(`[AIAssistant] Chat Switch useEffect running. Current Chat ID: ${currentChatIdForEffect}`);
+        const currentChat = chatList.savedChats.find(c => c.id === currentChatIdForEffect);
+        console.log(`[AIAssistant] Found chat object:`, currentChat ? { id: currentChat.id, title: currentChat.title, graphExists: !!currentChat.graph } : 'None');
+
+        if (currentChat) {
+            // Simpler check: Mode is 'create_rationale' if graph property exists and is an object
+            const isRationaleChat = currentChat.graph &&
+                typeof currentChat.graph === 'object';
+            // Removed check for nodes/edges length: (currentChat.graph.nodes?.length > 0 || currentChat.graph.edges?.length > 0);
+
+            console.log(`[AIAssistant] Is rationale chat (based on graph object existence)? ${isRationaleChat}. Graph details:`, currentChat.graph);
+
+            if (isRationaleChat) {
+                console.log('[AIAssistant] Setting mode to create_rationale based on loaded chat.');
+                setMode('create_rationale');
+                setRationaleGraph(currentChat.graph || { nodes: [], edges: [] });
+            } else {
+                console.log('[AIAssistant] Setting mode to chat based on loaded chat.');
+                setMode('chat');
+                setRationaleGraph({ nodes: [], edges: [] });
+            }
+        } else {
+            console.log('[AIAssistant] No current chat found, setting mode to chat.');
+            setMode('chat');
+            setRationaleGraph({ nodes: [], edges: [] });
+        }
+    }, [chatList.currentChatId, chatList.savedChats]);
+
+    const handleRationaleGraphChange = useCallback((newGraph: ViewpointGraph) => {
+        console.log(`[AIAssistant] handleRationaleGraphChange called. Graph has ${newGraph.nodes?.length || 0} nodes, ${newGraph.edges?.length || 0} edges.`);
+        setRationaleGraph(newGraph);
+        if (chatList.currentChatId && mode === 'create_rationale') {
+            const currentChat = chatList.savedChats.find(c => c.id === chatList.currentChatId);
+            const messages = currentChat?.messages || [];
+            const title = currentChat?.title;
+            const distillId = currentChat?.distillRationaleId;
+            chatList.updateChat(chatList.currentChatId, messages, title, distillId, newGraph);
+        }
+    }, [chatList, mode]);
 
     const initialChatOptions: InitialOptionObject[] = [
         {
@@ -750,14 +821,18 @@ export default function AIAssistant() {
             description: "Get suggestions for new points or negations based on your context.",
         },
         {
-            id: 'build',
-            title: "Build from Posts",
-            prompt: "I'd like to build a new rationale from my forum posts and our discussion. Please help me organize my thoughts based on my forum posts and my points.",
-            description: "Create rationales from your forum posts.",
-            disabled: true,
-            comingSoon: true,
+            id: 'create_rationale',
+            title: "Create Rationale",
+            prompt: "Let's start building a new rationale. What topic are you focusing on?",
+            description: "Use AI to help structure and generate a new rationale.",
+            disabled: false,
+            comingSoon: false,
         },
     ];
+
+    const handleCloseRationaleCreator = () => {
+        setMode('chat');
+    };
 
     return (
         <div className="flex h-[calc(100vh-var(--header-height))] bg-background">
@@ -798,46 +873,72 @@ export default function AIAssistant() {
                     syncError={syncError}
                     discourse={discourse}
                     isNonGlobalSpace={isNonGlobalSpace}
+                    isGenerating={chatState.generatingChats.has(chatList.currentChatId || "")}
                     onShowMobileMenu={() => setShowMobileMenu(true)}
                     onBack={() => handleBackNavigation(router, setInitialTab)}
                     onTriggerSync={syncChatsRef.current}
                     isPulling={syncActivity === 'pulling'}
                     isSaving={syncActivity === 'saving'}
-                    isGenerating={chatState.generatingChats.has(chatList.currentChatId || "")}
                     isOffline={isOffline}
+                    mode={mode}
+                    showGraph={showGraph}
+                    setShowGraph={setShowGraph}
+                    linkUrl={linkUrl}
+                    setLinkUrl={setLinkUrl}
+                    onCloseRationaleCreator={handleCloseRationaleCreator}
+                    canvasEnabled={canvasEnabled}
+                    setCanvasEnabled={setCanvasEnabled}
                 />
 
-                <ChatMessageArea
-                    isInitializing={isInitializing}
-                    isFetchingRationales={isFetchingRationales}
-                    chatState={chatState}
-                    isGeneratingCurrent={chatState.generatingChats.has(chatList.currentChatId || "")}
-                    isFetchingCurrentContext={chatState.fetchingContextChats.has(chatList.currentChatId || "")}
-                    currentStreamingContent={chatState.streamingContents.get(chatList.currentChatId || "") || ""}
-                    chatList={chatList}
-                    discourse={discourse}
-                    isAuthenticated={isAuthenticated}
-                    userRationales={userRationales}
-                    availableRationales={availableRationales}
-                    currentSpace={currentSpace}
-                    isMobile={isMobile}
-                    initialOptions={initialChatOptions}
-                    onStartChatOption={handleStartChatOption}
-                    onTriggerEdit={handleTriggerEdit}
-                />
-
-                <ChatInputForm
-                    message={chatState.message}
-                    setMessage={chatState.setMessage}
-                    isGenerating={chatState.generatingChats.has(chatList.currentChatId || "")}
-                    isAuthenticated={isAuthenticated}
-                    isInitializing={isInitializing}
-                    isMobile={isMobile}
-                    currentSpace={currentSpace}
-                    onSubmit={handleFormSubmit}
-                    onKeyDown={handleKeyDown}
-                    onShowSettings={() => setShowSettingsDialog(true)}
-                />
+                {mode === 'chat' ? (
+                    <>
+                        <ChatMessageArea
+                            isInitializing={isInitializing}
+                            isFetchingRationales={isFetchingRationales}
+                            chatState={chatState}
+                            isGeneratingCurrent={chatState.generatingChats.has(chatList.currentChatId || "")}
+                            isFetchingCurrentContext={chatState.fetchingContextChats.has(chatList.currentChatId || "")}
+                            currentStreamingContent={chatState.streamingContents.get(chatList.currentChatId || "") || ""}
+                            chatList={chatList}
+                            discourse={discourse}
+                            isAuthenticated={isAuthenticated}
+                            userRationales={userRationales}
+                            availableRationales={availableRationales}
+                            currentSpace={currentSpace}
+                            isMobile={isMobile}
+                            initialOptions={initialChatOptions}
+                            onStartChatOption={handleStartChatOption}
+                            onTriggerEdit={handleTriggerEdit}
+                        />
+                        <ChatInputForm
+                            message={chatState.message}
+                            setMessage={chatState.setMessage}
+                            isGenerating={chatState.generatingChats.has(chatList.currentChatId || "")}
+                            isAuthenticated={isAuthenticated}
+                            isInitializing={isInitializing}
+                            isMobile={isMobile}
+                            currentSpace={currentSpace}
+                            onSubmit={handleFormSubmit}
+                            onKeyDown={handleKeyDown}
+                            onShowSettings={() => setShowSettingsDialog(true)}
+                        />
+                    </>
+                ) : (
+                    <RationaleCreator
+                        onClose={handleCloseRationaleCreator}
+                        chatState={chatState}
+                        chatList={chatList}
+                        discourse={discourse}
+                        isAuthenticated={isAuthenticated}
+                        isInitializing={isInitializing}
+                        currentSpace={currentSpace}
+                        isMobile={isMobile}
+                        showGraph={showGraph}
+                        initialGraph={rationaleGraph}
+                        onGraphChange={handleRationaleGraphChange}
+                        canvasEnabled={canvasEnabled}
+                    />
+                )}
             </div>
 
             <RationaleSelectionDialog
