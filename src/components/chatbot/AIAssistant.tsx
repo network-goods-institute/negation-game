@@ -45,6 +45,7 @@ import { ChatInputForm } from "./ChatInputForm";
 import { fetchAllSpacePoints, PointInSpace } from "@/actions/fetchAllSpacePoints";
 import { RationaleCreator } from "./RationaleCreator";
 import { ViewpointGraph } from "@/atoms/viewpointAtoms";
+import { StatementNode } from "@/components/graph/StatementNode";
 
 type OwnedPoint = ProfilePoint;
 
@@ -417,21 +418,60 @@ export default function AIAssistant() {
                 toast.info("Login required to create rationales.");
                 return;
             }
+
+            const initialStatementNode: StatementNode = {
+                id: 'statement',
+                type: 'statement',
+                data: { statement: 'What is the main topic or question for this rationale?' },
+                position: { x: 250, y: 50 },
+            };
+            const initialGraph: ViewpointGraph = {
+                nodes: [initialStatementNode],
+                edges: [],
+            };
+
             let chatIdToUse = chatList.currentChatId;
             console.log(`[AIAssistant] Current chat ID before create: ${chatIdToUse}`);
-            if (!chatIdToUse || chatState.chatMessages.length > 0) {
-                console.log('[AIAssistant] No current chat or chat has messages, creating new one for rationale...');
-                const newId = await chatList.createNewChat({ nodes: [], edges: [] });
+            const currentChat = chatList.savedChats.find(c => c.id === chatIdToUse);
+            const needsNewChat = !chatIdToUse || (currentChat && (currentChat.messages.length > 0 || (currentChat.graph && (currentChat.graph.nodes.length > 0 || currentChat.graph.edges.length > 0))));
+
+            if (needsNewChat) {
+                console.log('[AIAssistant] No current chat or chat has messages/graph, creating new one for rationale...');
+                const newId = await chatList.createNewChat(initialGraph);
                 console.log(`[AIAssistant] Called createNewChat, result ID: ${newId}`);
                 if (!newId) {
                     toast.error("Failed to create a new chat session for rationale creation.");
                     return;
                 }
                 chatIdToUse = newId;
-                chatState.setChatMessages([]);
+            } else {
+                // If using existing chat, ensure its graph is set to the initial state
+                // Note: This might overwrite existing work if the user switches back without saving. Consider implications.
+                // For now, let's update the existing chat's graph to the initial state.
+                if (chatIdToUse && currentChat) {
+                    console.log('[AIAssistant] Using existing empty chat, ensuring initial graph state.');
+                    chatList.updateChat(chatIdToUse, currentChat.messages, currentChat.title, currentChat.distillRationaleId, initialGraph);
+                }
             }
+
             console.log(`[AIAssistant] Chat ID to use for rationale: ${chatIdToUse}`);
-            setRationaleGraph({ nodes: [], edges: [] });
+
+            const initialBotMessage: ChatMessage = {
+                role: 'assistant',
+                content: "Hey! Let's build a rationale. What topic are you thinking about? Please let me know, also if you paste a discourse link in the top right I'll be able to read it. Additionally, I'll be able to see any changes you make to the graph."
+            };
+
+            const messagesToUpdate = needsNewChat ? [initialBotMessage] : (currentChat?.messages || []).concat(initialBotMessage);
+            const titleToUpdate = needsNewChat ? "New Rationale Chat" : (currentChat?.title || "Rationale Chat");
+            if (chatIdToUse) {
+                chatList.updateChat(chatIdToUse, messagesToUpdate, titleToUpdate, null, initialGraph);
+            } else {
+                console.error("[AIAssistant] Critical error: chatIdToUse is null/undefined before updateChat in create_rationale flow.");
+                toast.error("An internal error occurred while preparing the rationale chat.");
+            }
+
+            // Set component state *after* updating the persistent state
+            setRationaleGraph(initialGraph);
             setLinkUrl('');
             console.log('[AIAssistant] Setting mode to create_rationale');
             setMode('create_rationale');

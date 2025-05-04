@@ -1,11 +1,13 @@
-import React, { useEffect, useMemo, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { ChatInputForm } from './ChatInputForm';
 import { ChatMessageArea } from './ChatMessageArea';
 import { useChatState } from '@/hooks/useChatState';
 import { useChatListManagement } from '@/hooks/useChatListManagement';
 import { useDiscourseIntegration } from '@/hooks/useDiscourseIntegration';
-import { InitialOptionObject } from './AIAssistant';
 import { NegationEdge } from '../graph/NegationEdge';
+import { PreviewStatementNode, PreviewStatementNodeData } from './PreviewStatementNode';
+import { PreviewPointNode, PreviewPointNodeData } from './PreviewPointNode';
+import { PreviewAddPointNode, PreviewAddPointNodeData } from './PreviewAddPointNode';
 import {
     ReactFlow,
     useNodesState,
@@ -14,156 +16,220 @@ import {
     Controls,
     Background,
     ReactFlowProvider,
+    Panel,
+    BackgroundVariant,
+    OnNodesChange,
+    OnEdgesChange,
+    NodeTypes,
+    EdgeTypes,
+    useReactFlow,
     Node,
     Edge,
-    BackgroundVariant,
-    Handle,
-    Position,
-    Panel,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useTheme } from "next-themes";
-import { ViewpointGraph } from "@/atoms/viewpointAtoms";
-import { debounce } from 'lodash';
 import { cn } from '@/lib/cn';
+import { Button } from '../ui/button';
+import { nanoid } from 'nanoid';
+import { Save, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
+import * as ContextMenu from '@radix-ui/react-context-menu';
+import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
+import { ViewpointGraph } from '@/atoms/viewpointAtoms';
 
-const TopicNode = ({ data }: { data: { label: string } }) => (
-    <div className="relative bg-background border-2 rounded-lg p-4 min-h-28 w-64 border-muted-foreground/60 dark:border-muted-foreground/40">
-        <Handle
-            type="target"
-            position={Position.Top}
-            id="topic-top-target"
-            className="!w-2 !h-2 !bg-primary opacity-50"
-        />
-        <div className="text-sm font-medium">{data.label}</div>
-        <Handle
-            type="source"
-            position={Position.Bottom}
-            id="topic-bottom-source"
-            className="!w-2 !h-2 !bg-primary opacity-50"
-        />
-    </div>
-);
+type PreviewAppNode =
+    | Node<PreviewStatementNodeData, 'statement'>
+    | Node<PreviewPointNodeData, 'point'>
+    | Node<PreviewAddPointNodeData, 'addPoint'>;
+type PreviewAppEdge = Edge;
 
-const PointLikeNode = ({ data }: { data: { label: string; type: 'ai' | 'user' } }) => (
-    <div className={`relative bg-background border-2 min-h-28 w-64 ${data.type === 'ai' ? 'rounded-none' : 'rounded-lg border-l-4'
-        } border-muted-foreground/60 dark:border-muted-foreground/40`}>
-        <Handle
-            type="target"
-            position={Position.Top}
-            id="point-top-target"
-            className="!w-2 !h-2 !bg-primary opacity-50"
-        />
-        <div className="p-4">
-            <div className="text-sm">{data.label}</div>
-        </div>
-        <Handle
-            type="source"
-            position={Position.Bottom}
-            id="point-bottom-source"
-            className="!w-2 !h-2 !bg-primary opacity-50"
-        />
-    </div>
-);
-
-const nodeTypes = {
-    topic: TopicNode,
-    point: PointLikeNode,
+const nodeTypes: NodeTypes = {
+    statement: PreviewStatementNode,
+    point: PreviewPointNode,
+    addPoint: PreviewAddPointNode,
 };
 
-const edgeTypes = {
+const edgeTypes: EdgeTypes = {
     negation: NegationEdge,
 };
 
-const initialNodes: Node[] = [
-    {
-        id: 'topic',
-        type: 'topic',
-        data: { label: 'Rationale Topic Placeholder' },
-        position: { x: 250, y: 0 },
-    },
-    {
-        id: 'ai-suggestion',
-        type: 'point',
-        data: { label: 'AI Suggestion Placeholder', type: 'ai' },
-        position: { x: 100, y: 200 },
-    },
-    {
-        id: 'user-point',
-        type: 'point',
-        data: { label: 'User Point 1 from Chat', type: 'user' },
-        position: { x: 400, y: 200 },
-    },
-];
-
-const initialEdges: Edge[] = [
-    {
-        id: 'e-topic-ai',
-        source: 'topic',
-        target: 'ai-suggestion',
-        type: 'negation',
-        sourceHandle: 'topic-bottom-source',
-        targetHandle: 'point-top-target',
-    },
-    {
-        id: 'e-topic-user',
-        source: 'topic',
-        target: 'user-point',
-        type: 'negation',
-        sourceHandle: 'topic-bottom-source',
-        targetHandle: 'point-top-target',
-    },
-];
-
-const RationaleVisualFeed = () => {
-    const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-    const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+const RationaleVisualFeed = ({ nodes, edges, onNodesChange, onEdgesChange, onSaveGraph, onDiscard, graphModified, isSaving }: {
+    nodes: PreviewAppNode[];
+    edges: PreviewAppEdge[];
+    onNodesChange: OnNodesChange<PreviewAppNode>;
+    onEdgesChange: OnEdgesChange<PreviewAppEdge>;
+    onSaveGraph: () => void;
+    onDiscard: () => void;
+    graphModified: boolean;
+    isSaving: boolean;
+}) => {
     const { theme } = useTheme();
+    const [targetNodeId, setTargetNodeId] = useState<string | null>(null);
+    const reactFlowInstance = useReactFlow<PreviewAppNode, PreviewAppEdge>(); // Specify types for useReactFlow
+
+    const handleAddNegationPoint = (content: string, targetId: string) => {
+        if (!targetId) return;
+        const targetNode = reactFlowInstance.getNode(targetId) as PreviewAppNode | undefined;
+        if (!targetNode) return;
+
+        const uniqueId = `previewpoint-${nanoid()}`;
+
+        reactFlowInstance.addNodes({
+            id: uniqueId,
+            type: 'point', // Use 'point' which maps to PreviewPointNode
+            data: {
+                content, // Only content needed
+            },
+            position: {
+                x: targetNode.position.x,
+                y: targetNode.position.y + 150,
+            },
+        });
+
+        reactFlowInstance.addEdges({
+            id: `edge-${nanoid()}`,
+            source: targetId,
+            sourceHandle: `${targetId}-add-handle`,
+            target: uniqueId,
+            targetHandle: `${uniqueId}-target`,
+            type: 'negation',
+        });
+    };
+
+    const handleAddNegationClick = (nodeId: string) => {
+        setTargetNodeId(nodeId);
+    };
+
+    const handleAddAddPointNode = (targetId: string) => {
+        const targetNode = reactFlowInstance.getNode(targetId) as PreviewAppNode | undefined;
+        if (!targetNode) return;
+
+        const uniqueId = `previewaddpoint-${nanoid()}`;
+        reactFlowInstance.addNodes({
+            id: uniqueId,
+            type: 'addPoint',
+            data: {
+                parentId: targetId, // Only parentId needed for PreviewAddPointNode
+            },
+            position: {
+                x: targetNode.position.x,
+                y: targetNode.position.y + 150,
+            },
+        });
+
+        reactFlowInstance.addEdges({
+            id: `edge-${nanoid()}`,
+            source: targetId,
+            sourceHandle: `${targetId}-add-handle`,
+            target: uniqueId,
+            targetHandle: `${uniqueId}-target`,
+            type: 'negation',
+        });
+    };
 
     return (
         <div className="h-full w-full">
-            <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                nodeTypes={nodeTypes}
-                edgeTypes={edgeTypes}
-                fitView
-                panOnDrag={true}
-                zoomOnScroll={true}
-                zoomOnPinch={true}
-                zoomOnDoubleClick={true}
-                nodesDraggable={true}
-                nodesConnectable={false}
-                elementsSelectable={true}
-                proOptions={{ hideAttribution: true }}
-                minZoom={0.2}
-                colorMode={theme as any}
-            >
-                <Background
-                    bgColor="hsl(var(--background))"
-                    color="hsl(var(--muted))"
-                    variant={BackgroundVariant.Dots}
-                />
-
-                <Panel position="bottom-left" className="m-2">
-                    <div className="relative bottom-[120px] mb-4">
-                        <Controls />
-                    </div>
-                </Panel>
-
-                <Panel position="bottom-right" className="mr-4 mb-4">
-                    <div className="relative bottom-[120px]">
-                        <MiniMap
-                            nodeStrokeWidth={3}
-                            zoomable
-                            pannable
-                            className="[&>svg]:w-[120px] [&>svg]:h-[90px] sm:[&>svg]:w-[200px] sm:[&>svg]:h-[150px]"
+            <ContextMenu.Root>
+                <ContextMenu.Trigger>
+                    <ReactFlow<PreviewAppNode, PreviewAppEdge>
+                        nodes={nodes}
+                        edges={edges}
+                        onNodesChange={onNodesChange}
+                        onEdgesChange={onEdgesChange}
+                        nodeTypes={nodeTypes}
+                        edgeTypes={edgeTypes}
+                        fitView
+                        panOnDrag={true}
+                        zoomOnScroll={true}
+                        zoomOnPinch={true}
+                        zoomOnDoubleClick={true}
+                        nodesDraggable={true}
+                        nodesConnectable={true} // Enable connections for preview
+                        elementsSelectable={true}
+                        proOptions={{ hideAttribution: true }}
+                        minZoom={0.2}
+                        colorMode={theme as any}
+                        onNodeContextMenu={(event, node) => {
+                            if (node.type === 'statement' || node.type === 'point') { // Allow context menu on statement and point
+                                event.preventDefault();
+                                setTargetNodeId(node.id);
+                            }
+                        }}
+                    >
+                        <Background
+                            bgColor="hsl(var(--background))"
+                            color="hsl(var(--muted))"
+                            variant={BackgroundVariant.Dots}
                         />
-                    </div>
-                </Panel>
-            </ReactFlow>
+
+                        {graphModified && (
+                            <Panel position="top-right" className="m-2 mt-20 flex space-x-2">
+                                <Button
+                                    onClick={onSaveGraph}
+                                    disabled={!graphModified || isSaving}
+                                    size="sm"
+                                    className={cn(
+                                        "shadow-lg",
+                                        (!graphModified || isSaving) && "opacity-50"
+                                    )}
+                                >
+                                    {isSaving ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}
+                                    Save Graph
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={onDiscard}
+                                    disabled={!graphModified || isSaving}
+                                    size="sm"
+                                    className={cn(
+                                        "shadow-lg",
+                                        (!graphModified || isSaving) && "opacity-50"
+                                    )}
+                                >
+                                    Discard
+                                </Button>
+                            </Panel>
+                        )}
+
+                        <Panel position="bottom-left" className="m-2">
+                            <div className="relative bottom-[120px] mb-4">
+                                <Controls />
+                            </div>
+                        </Panel>
+
+                        <Panel position="bottom-right" className="mr-4 mb-4">
+                            <div className="relative bottom-[120px]">
+                                <MiniMap
+                                    nodeStrokeWidth={3}
+                                    zoomable
+                                    pannable
+                                    className="[&>svg]:w-[120px] [&>svg]:h-[90px] sm:[&>svg]:w-[200px] sm:[&>svg]:h-[150px]"
+                                />
+                            </div>
+                        </Panel>
+                    </ReactFlow>
+                </ContextMenu.Trigger>
+                <ContextMenu.Content className="bg-popover border rounded-md shadow-md p-1 z-50 min-w-[150px]">
+                    {targetNodeId && (
+                        <>
+                            {/* Use Radix Context Menu Item */}
+                            <ContextMenu.Item
+                                className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent focus:bg-accent hover:text-accent-foreground focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                                onSelect={() => handleAddNegationClick(targetNodeId)}
+                            >
+                                Add Negation
+                            </ContextMenu.Item>
+                            <ContextMenu.Item
+                                className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent focus:bg-accent hover:text-accent-foreground focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                                onSelect={() => handleAddAddPointNode(targetNodeId)}
+                            >
+                                Add Preview Point Node
+                            </ContextMenu.Item>
+                        </>
+                    )}
+                </ContextMenu.Content>
+            </ContextMenu.Root>
         </div>
     );
 };
@@ -197,47 +263,49 @@ export const RationaleCreator: React.FC<RationaleCreatorProps> = ({
     onGraphChange,
     canvasEnabled,
 }) => {
-    const [nodes, setNodes, onNodesChange] = useNodesState(initialGraph.nodes || []);
-    const [edges, setEdges, onEdgesChange] = useEdgesState(initialGraph.edges || []);
-
-    const handleGraphChange = useCallback(() => {
-        const currentGraph: ViewpointGraph = { nodes, edges };
-        onGraphChange(currentGraph);
-    }, [nodes, edges, onGraphChange]);
-
-    const debouncedHandleGraphChange = useMemo(
-        () => debounce(handleGraphChange, 500),
-        [handleGraphChange]
-    );
+    const [persistedGraph, setPersistedGraph] = useState<ViewpointGraph>(initialGraph);
+    const [nodes, setNodes, onNodesChangeReactFlow] = useNodesState<PreviewAppNode>(initialGraph.nodes as unknown as PreviewAppNode[]);
+    const [edges, setEdges, onEdgesChangeReactFlow] = useEdgesState<PreviewAppEdge>(initialGraph.edges as unknown as PreviewAppEdge[]);
+    const [graphModified, setGraphModified] = useState(false);
+    const { pendingPushIds, currentChatId, savedChats } = chatList;
+    const isSavingGraph = !!currentChatId && pendingPushIds.has(currentChatId);
 
     useEffect(() => {
-        debouncedHandleGraphChange();
-        return () => debouncedHandleGraphChange.cancel();
-    }, [nodes, edges, debouncedHandleGraphChange]);
-
-    useEffect(() => {
-        setNodes(initialGraph.nodes || []);
-        setEdges(initialGraph.edges || []);
+        setPersistedGraph(initialGraph);
+        setNodes(initialGraph.nodes as unknown as PreviewAppNode[]);
+        setEdges(initialGraph.edges as unknown as PreviewAppEdge[]);
+        setGraphModified(false);
     }, [initialGraph, setNodes, setEdges]);
 
-    // chatMessages and inputMessage are now managed by chatState hook
-    // const [chatMessages, setChatMessages] = useState<any[]>([]);
-    // const [inputMessage, setInputMessage] = useState('');
-    // isGenerating is also managed by chatState
-    // const [isGenerating, setIsGenerating] = useState(false);
+    // When nodes change, mark the graph as modified
+    const handleNodesChange: OnNodesChange<PreviewAppNode> = useCallback((changes) => {
+        onNodesChangeReactFlow(changes);
+        setGraphModified(true);
+    }, [onNodesChangeReactFlow]);
 
-    // TODO: Add logic specific to Rationale Creation (e.g., updating Visual Feed)
+    // When edges change, mark the graph as modified
+    const handleEdgesChange: OnEdgesChange<PreviewAppEdge> = useCallback((changes) => {
+        onEdgesChangeReactFlow(changes);
+        setGraphModified(true);
+    }, [onEdgesChangeReactFlow]);
 
-    // Example effect to potentially reset chat state or send initial message on mount
-    useEffect(() => {
-        // Placeholder: Maybe send an initial greeting or prompt?
-        // chatState.startChatWithOption({ id: 'create', title: '...', prompt: '...' });
-        console.log("RationaleCreator mounted");
-        // Ensure we are using a dedicated chat session for creation if needed
-        // Or clear the current chat if appropriate
-        // chatState.setChatMessages([]); // Example reset
-    }, []);
+    // Save: update persisted and push
+    const saveGraph = useCallback(() => {
+        const currentGraph: ViewpointGraph = { nodes: nodes as any, edges: edges as any };
+        // Persist to parent and update baseline
+        setPersistedGraph(currentGraph);
+        onGraphChange(currentGraph);
+        setGraphModified(false);
+    }, [nodes, edges, onGraphChange]);
 
+    // Discard: revert edits to persisted
+    const discardGraph = useCallback(() => {
+        setNodes(persistedGraph.nodes as unknown as PreviewAppNode[]);
+        setEdges(persistedGraph.edges as unknown as PreviewAppEdge[]);
+        setGraphModified(false);
+    }, [persistedGraph, setNodes, setEdges]);
+
+    // Handle form submission
     const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (chatState.generatingChats.has(chatList.currentChatId || '')) return;
@@ -253,12 +321,7 @@ export const RationaleCreator: React.FC<RationaleCreatorProps> = ({
         }
     };
 
-    // These are needed by ChatMessageArea but might not be directly used in this specific flow
-    const handleStartChatOption = (option: InitialOptionObject) => {
-        // Decide if this action should be possible/different within RationaleCreator
-        console.log("Start chat option clicked in RationaleCreator:", option);
-        // Maybe delegate back to AIAssistant or handle differently?
-    };
+    // Handle message edit
     const handleTriggerEdit = (index: number, content: string) => {
         // Implement if editing needed within this flow
     };
@@ -269,12 +332,10 @@ export const RationaleCreator: React.FC<RationaleCreatorProps> = ({
             <div
                 className={cn(
                     "flex flex-col overflow-hidden transition-all duration-300 ease-in-out h-full",
-                    // Mobile Logic
-                    isMobile && !canvasEnabled && "w-full", // Show full width chat when canvas off on mobile
-                    isMobile && canvasEnabled && "w-0 opacity-0 pointer-events-none", // Hide chat when canvas on on mobile
-                    // Desktop Logic
-                    !isMobile && !showGraph && "w-full", // Show full width chat when graph pane off on desktop
-                    !isMobile && showGraph && "w-1/3 border-r" // Show split chat when graph pane on on desktop
+                    isMobile && canvasEnabled && "w-0 opacity-0 pointer-events-none",
+                    isMobile && !canvasEnabled && "w-full",
+                    !isMobile && !showGraph && "w-full",
+                    !isMobile && showGraph && "w-1/3 border-r"
                 )}
             >
                 <ChatMessageArea
@@ -306,6 +367,7 @@ export const RationaleCreator: React.FC<RationaleCreatorProps> = ({
                     onSubmit={handleFormSubmit}
                     onKeyDown={handleKeyDown}
                     onShowSettings={() => { /* Maybe disable settings here? */ }}
+                    hideSettings={true}
                 />
             </div>
 
@@ -313,17 +375,24 @@ export const RationaleCreator: React.FC<RationaleCreatorProps> = ({
             <div
                 className={cn(
                     "flex-1 overflow-hidden h-full transition-all duration-300 ease-in-out",
-                    // Mobile Logic
-                    isMobile && canvasEnabled && "w-full", // Show full width graph when canvas on on mobile
-                    isMobile && !canvasEnabled && "w-0 opacity-0 pointer-events-none", // Hide graph when canvas off on mobile
-                    // Desktop Logic
-                    !isMobile && showGraph && "opacity-100", // Show graph when graph pane on on desktop
-                    !isMobile && !showGraph && "opacity-0 w-0 pointer-events-none" // Hide graph when graph pane off on desktop
+                    isMobile && canvasEnabled && "w-full",
+                    isMobile && !canvasEnabled && "w-0 opacity-0 pointer-events-none",
+                    !isMobile && showGraph && "opacity-100",
+                    !isMobile && !showGraph && "opacity-0 w-0 pointer-events-none"
                 )}
             >
                 {((isMobile && canvasEnabled) || (!isMobile && showGraph)) && (
                     <ReactFlowProvider>
-                        <RationaleVisualFeed />
+                        <RationaleVisualFeed
+                            nodes={nodes}
+                            edges={edges}
+                            onNodesChange={handleNodesChange}
+                            onEdgesChange={handleEdgesChange}
+                            onSaveGraph={saveGraph}
+                            onDiscard={discardGraph}
+                            graphModified={graphModified}
+                            isSaving={isSavingGraph}
+                        />
                     </ReactFlowProvider>
                 )}
             </div>

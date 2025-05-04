@@ -16,6 +16,7 @@ interface ChatInputFormProps {
     onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
     onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
     onShowSettings: () => void;
+    hideSettings?: boolean;
 }
 
 export function ChatInputForm({
@@ -29,6 +30,7 @@ export function ChatInputForm({
     onSubmit,
     onKeyDown,
     onShowSettings,
+    hideSettings = false,
 }: ChatInputFormProps) {
     return (
         <div
@@ -85,16 +87,18 @@ export function ChatInputForm({
                         </svg>
                     )}
                 </AuthenticatedActionButton>
-                <AuthenticatedActionButton
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={onShowSettings}
-                    className="rounded-lg h-9 w-9 md:h-10 md:w-10 text-muted-foreground hover:text-foreground"
-                    title="Chat Settings"
-                >
-                    <SlidersHorizontal className="h-4 w-4" />
-                </AuthenticatedActionButton>
+                {!hideSettings && (
+                    <AuthenticatedActionButton
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={onShowSettings}
+                        className="rounded-lg h-9 w-9 md:h-10 md:w-10 text-muted-foreground hover:text-foreground"
+                        title="Chat Settings"
+                    >
+                        <SlidersHorizontal className="h-4 w-4" />
+                    </AuthenticatedActionButton>
+                )}
             </form>
         </div>
     );
