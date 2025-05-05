@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect, useCallback, useState } from 'react';
 import { ChatInputForm } from './ChatInputForm';
 import { ChatMessageArea } from './ChatMessageArea';
@@ -10,12 +12,12 @@ import { PreviewPointNode, PreviewPointNodeData } from './PreviewPointNode';
 import { PreviewAddPointNode, PreviewAddPointNodeData } from './PreviewAddPointNode';
 import {
     ReactFlow,
+    ReactFlowProvider,
     useNodesState,
     useEdgesState,
     MiniMap,
     Controls,
     Background,
-    ReactFlowProvider,
     Panel,
     BackgroundVariant,
     OnNodesChange,
@@ -31,12 +33,19 @@ import { useTheme } from "next-themes";
 import { cn } from '@/lib/cn';
 import { Button } from '../ui/button';
 import { nanoid } from 'nanoid';
-import { Save, Loader2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
+import { Save, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import * as ContextMenu from '@radix-ui/react-context-menu';
-import { Label } from '../ui/label';
-import { Textarea } from '../ui/textarea';
+
 import { ViewpointGraph } from '@/atoms/viewpointAtoms';
+import { usePrivy } from '@privy-io/react-auth';
+import { useUser } from '@/queries/useUser';
+import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
+import { AuthenticatedActionButton } from '../AuthenticatedActionButton';
+import { fetchPointsByExactContent } from '@/actions/fetchPointsByExactContent';
+import { DuplicatePointSelectionDialog, ConflictingPoint, ResolvedMappings } from './DuplicatePointSelectionDialog';
+import { createRationaleFromPreview } from '@/actions/createRationaleFromPreview';
+import { POINT_MIN_LENGTH, POINT_MAX_LENGTH } from '@/constants/config';
 
 type PreviewAppNode =
     | Node<PreviewStatementNodeData, 'statement'>
@@ -54,7 +63,7 @@ const edgeTypes: EdgeTypes = {
     negation: NegationEdge,
 };
 
-const RationaleVisualFeed = ({ nodes, edges, onNodesChange, onEdgesChange, onSaveGraph, onDiscard, graphModified, isSaving }: {
+const RationaleVisualFeed = ({ nodes, edges, onNodesChange, onEdgesChange, onSaveGraph, onDiscard, graphModified, isSaving, onCreateRationaleClick }: {
     nodes: PreviewAppNode[];
     edges: PreviewAppEdge[];
     onNodesChange: OnNodesChange<PreviewAppNode>;
@@ -63,39 +72,11 @@ const RationaleVisualFeed = ({ nodes, edges, onNodesChange, onEdgesChange, onSav
     onDiscard: () => void;
     graphModified: boolean;
     isSaving: boolean;
+    onCreateRationaleClick: () => void;
 }) => {
     const { theme } = useTheme();
     const [targetNodeId, setTargetNodeId] = useState<string | null>(null);
-    const reactFlowInstance = useReactFlow<PreviewAppNode, PreviewAppEdge>(); // Specify types for useReactFlow
-
-    const handleAddNegationPoint = (content: string, targetId: string) => {
-        if (!targetId) return;
-        const targetNode = reactFlowInstance.getNode(targetId) as PreviewAppNode | undefined;
-        if (!targetNode) return;
-
-        const uniqueId = `previewpoint-${nanoid()}`;
-
-        reactFlowInstance.addNodes({
-            id: uniqueId,
-            type: 'point', // Use 'point' which maps to PreviewPointNode
-            data: {
-                content, // Only content needed
-            },
-            position: {
-                x: targetNode.position.x,
-                y: targetNode.position.y + 150,
-            },
-        });
-
-        reactFlowInstance.addEdges({
-            id: `edge-${nanoid()}`,
-            source: targetId,
-            sourceHandle: `${targetId}-add-handle`,
-            target: uniqueId,
-            targetHandle: `${uniqueId}-target`,
-            type: 'negation',
-        });
-    };
+    const reactFlowInstance = useReactFlow<PreviewAppNode, PreviewAppEdge>();
 
     const handleAddNegationClick = (nodeId: string) => {
         setTargetNodeId(nodeId);
@@ -145,13 +126,13 @@ const RationaleVisualFeed = ({ nodes, edges, onNodesChange, onEdgesChange, onSav
                         zoomOnPinch={true}
                         zoomOnDoubleClick={true}
                         nodesDraggable={true}
-                        nodesConnectable={true} // Enable connections for preview
+                        nodesConnectable={true}
                         elementsSelectable={true}
                         proOptions={{ hideAttribution: true }}
                         minZoom={0.2}
                         colorMode={theme as any}
                         onNodeContextMenu={(event, node) => {
-                            if (node.type === 'statement' || node.type === 'point') { // Allow context menu on statement and point
+                            if (node.type === 'statement' || node.type === 'point') {
                                 event.preventDefault();
                                 setTargetNodeId(node.id);
                             }
@@ -163,8 +144,8 @@ const RationaleVisualFeed = ({ nodes, edges, onNodesChange, onEdgesChange, onSav
                             variant={BackgroundVariant.Dots}
                         />
 
-                        {graphModified && (
-                            <Panel position="top-right" className="m-2 mt-20 flex space-x-2">
+                        <Panel position="top-right" className="m-2 mt-20 flex flex-col space-y-2 items-end">
+                            <div className="flex flex-col space-y-2">
                                 <Button
                                     onClick={onSaveGraph}
                                     disabled={!graphModified || isSaving}
@@ -189,8 +170,17 @@ const RationaleVisualFeed = ({ nodes, edges, onNodesChange, onEdgesChange, onSav
                                 >
                                     Discard
                                 </Button>
-                            </Panel>
-                        )}
+                            </div>
+                            <AuthenticatedActionButton
+                                onClick={onCreateRationaleClick}
+                                disabled={isSaving}
+                                size="sm"
+                                className="shadow-lg w-[160px]"
+                            >
+                                {isSaving ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                                Create Rationale
+                            </AuthenticatedActionButton>
+                        </Panel>
 
                         <Panel position="bottom-left" className="m-2">
                             <div className="relative bottom-[120px] mb-4">
@@ -249,7 +239,15 @@ interface RationaleCreatorProps {
     canvasEnabled: boolean;
 }
 
-export const RationaleCreator: React.FC<RationaleCreatorProps> = ({
+export const RationaleCreator: React.FC<RationaleCreatorProps> = (props) => {
+    return (
+        <ReactFlowProvider>
+            <RationaleCreatorInner {...props} />
+        </ReactFlowProvider>
+    );
+};
+
+const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     onClose,
     chatState,
     chatList,
@@ -269,6 +267,14 @@ export const RationaleCreator: React.FC<RationaleCreatorProps> = ({
     const [graphModified, setGraphModified] = useState(false);
     const { pendingPushIds, currentChatId, savedChats } = chatList;
     const isSavingGraph = !!currentChatId && pendingPushIds.has(currentChatId);
+    const { user: privyUser } = usePrivy();
+    const { data: userData } = useUser(privyUser?.id);
+    const router = useRouter();
+    const reactFlowInstance = useReactFlow<PreviewAppNode, PreviewAppEdge>();
+    const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
+    const [conflictingPoints, setConflictingPoints] = useState<ConflictingPoint[]>([]);
+    const [resolvedMappings, setResolvedMappings] = useState<ResolvedMappings>(new Map());
+    const [isCreating, setIsCreating] = useState(false);
 
     useEffect(() => {
         setPersistedGraph(initialGraph);
@@ -324,6 +330,132 @@ export const RationaleCreator: React.FC<RationaleCreatorProps> = ({
     // Handle message edit
     const handleTriggerEdit = (index: number, content: string) => {
         // Implement if editing needed within this flow
+    };
+
+    const handleCreateRationale = useCallback(async (useResolvedMappings = false) => {
+        if (!isAuthenticated || !currentSpace || !privyUser || !userData || !reactFlowInstance) {
+            toast.error("Cannot create rationale: Missing user data or context.");
+            return;
+        }
+
+        const currentNodes = reactFlowInstance.getNodes();
+        const currentEdges = reactFlowInstance.getEdges();
+        console.log('handleCreateRationale called. Nodes:', currentNodes, 'Edges:', currentEdges);
+        console.log('Persisted graph (baseline):', persistedGraph);
+        console.log('Current state var nodes:', nodes);
+        console.log('Current state var edges:', edges);
+
+        setIsCreating(true);
+
+        // --- 0. Point Length Check ---
+        const pointNodes = currentNodes.filter(node => node.type === 'point') as Node<PreviewPointNodeData>[];
+        for (const node of pointNodes) {
+            const contentLength = node.data.content.length;
+            if (contentLength < POINT_MIN_LENGTH || contentLength > POINT_MAX_LENGTH) {
+                toast.error(
+                    `Point content length invalid (must be ${POINT_MIN_LENGTH}-${POINT_MAX_LENGTH} chars): "${node.data.content.length > 50 ? node.data.content.substring(0, 47) + '...' : node.data.content
+                    }"`
+                );
+                setIsCreating(false);
+                return;
+            }
+        }
+
+        // --- 1. Cred Check ---
+        let totalRequiredCred = 0;
+        pointNodes.forEach(node => {
+            totalRequiredCred += node.data.viewerCred || 0;
+        });
+
+        const userCred = userData.cred ?? 0;
+        if (totalRequiredCred > userCred) {
+            toast.error(`Insufficient cred to create rationale. Required: ${totalRequiredCred}, Available: ${userCred}`);
+            setIsCreating(false);
+            return;
+        }
+
+        // --- 2. Duplicate Point Check ---
+        let mappingsForAction = resolvedMappings;
+        if (!useResolvedMappings) {
+            const uniqueContentStrings = Array.from(new Set(pointNodes.map(node => node.data.content).filter(Boolean)));
+
+            let existingPoints: { id: number; content: string }[] = [];
+            if (uniqueContentStrings.length > 0) {
+                try {
+                    existingPoints = await fetchPointsByExactContent(uniqueContentStrings, currentSpace);
+                } catch (error) {
+                    toast.error("Failed to check for existing points. Please try again.");
+                    console.error("[handleCreateRationale] Error fetching existing points:", error);
+                    setIsCreating(false);
+                    return;
+                }
+            }
+
+            const contentToExistingPointsMap = new Map<string, { id: number; content: string }[]>();
+            existingPoints.forEach(p => {
+                const points = contentToExistingPointsMap.get(p.content) || [];
+                points.push(p);
+                contentToExistingPointsMap.set(p.content, points);
+            });
+
+            const conflicts: ConflictingPoint[] = pointNodes
+                .map(node => ({
+                    previewNodeId: node.id,
+                    content: node.data.content,
+                    existingPoints: contentToExistingPointsMap.get(node.data.content) || []
+                }))
+                .filter(conflict => conflict.existingPoints.length > 0);
+
+            if (conflicts.length > 0) {
+                setConflictingPoints(conflicts);
+                setIsDuplicateDialogOpen(true);
+                setIsCreating(false);
+                return;
+            }
+            mappingsForAction = new Map<string, number | null>();
+        }
+
+        console.log("Pre-checks passed. Required Cred:", totalRequiredCred);
+        console.log("Resolved Mappings:", mappingsForAction);
+        toast.info("Creating rationale...");
+
+        // --- 3. Extract Title/Description ---
+        const statementNode = currentNodes.find(n => n.type === 'statement') as Node<PreviewStatementNodeData> | undefined;
+        const rationaleTitle = statementNode?.data?.statement || "Untitled Rationale";
+        const rationaleDescription = ""; // TODO: Add way to input description?
+
+        // --- 4. Call Server Action ---
+        try {
+            const result = await createRationaleFromPreview({
+                userId: privyUser.id,
+                spaceId: currentSpace,
+                title: rationaleTitle,
+                description: rationaleDescription,
+                nodes: currentNodes,
+                edges: reactFlowInstance.getEdges(),
+                resolvedMappings: mappingsForAction,
+            });
+
+            // --- 5. Handle Result ---
+            if (result.success && result.rationaleId) {
+                toast.success("Rationale created successfully!");
+                router.push(`/s/${currentSpace}/rationale/${result.rationaleId}`);
+            } else {
+                toast.error(`Failed to create rationale: ${result.error || 'Unknown error'}`);
+            }
+        } catch (error: any) {
+            toast.error(`An error occurred: ${error.message || 'Please try again'}`);
+            console.error("[handleCreateRationale] Action call failed:", error);
+        } finally {
+            setIsCreating(false);
+        }
+
+    }, [isAuthenticated, currentSpace, privyUser, userData, reactFlowInstance, router, resolvedMappings, chatList]);
+
+    const handleResolveDuplicates = (mappings: ResolvedMappings) => {
+        setResolvedMappings(mappings);
+        setIsDuplicateDialogOpen(false);
+        handleCreateRationale(true);
     };
 
     return (
@@ -382,20 +514,26 @@ export const RationaleCreator: React.FC<RationaleCreatorProps> = ({
                 )}
             >
                 {((isMobile && canvasEnabled) || (!isMobile && showGraph)) && (
-                    <ReactFlowProvider>
-                        <RationaleVisualFeed
-                            nodes={nodes}
-                            edges={edges}
-                            onNodesChange={handleNodesChange}
-                            onEdgesChange={handleEdgesChange}
-                            onSaveGraph={saveGraph}
-                            onDiscard={discardGraph}
-                            graphModified={graphModified}
-                            isSaving={isSavingGraph}
-                        />
-                    </ReactFlowProvider>
+                    <RationaleVisualFeed
+                        nodes={nodes}
+                        edges={edges}
+                        onNodesChange={handleNodesChange}
+                        onEdgesChange={handleEdgesChange}
+                        onSaveGraph={saveGraph}
+                        onDiscard={discardGraph}
+                        graphModified={graphModified}
+                        isSaving={isSavingGraph || isCreating}
+                        onCreateRationaleClick={handleCreateRationale}
+                    />
                 )}
             </div>
+
+            <DuplicatePointSelectionDialog
+                isOpen={isDuplicateDialogOpen}
+                onOpenChange={setIsDuplicateDialogOpen}
+                conflicts={conflictingPoints}
+                onResolve={handleResolveDuplicates}
+            />
         </div>
     );
 }; 
