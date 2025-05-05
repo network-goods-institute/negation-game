@@ -6,8 +6,11 @@ import {
   Position,
   useReactFlow,
 } from "@xyflow/react";
-import { ArrowDownIcon } from "lucide-react";
+import { ArrowDownIcon, PencilIcon, SaveIcon } from "lucide-react";
 import { nanoid } from 'nanoid';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 /**
  * Simplified StatementNode for RationaleCreator Preview
@@ -31,7 +34,9 @@ export const PreviewStatementNode = ({
   positionAbsoluteX,
   positionAbsoluteY,
 }: PreviewStatementNodeProps) => {
-  const { addNodes, addEdges } = useReactFlow();
+  const { addNodes, addEdges, updateNodeData } = useReactFlow();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedStatement, setEditedStatement] = useState(statement);
 
   const handleAddClick = () => {
     const newNodeId = `previewaddpoint-${nanoid()}`;
@@ -56,12 +61,36 @@ export const PreviewStatementNode = ({
     });
   };
 
+  const handleEditToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isEditing) {
+      // Save changes
+      updateNodeData(id, { statement: editedStatement });
+    }
+    setIsEditing(!isEditing);
+  };
+
   return (
     <div
       className={cn(
-        "relative bg-accent rounded-md border-2 min-h-18 w-96 flex items-center p-4 justify-center flex-grow"
+        "relative bg-accent rounded-md border-2 min-h-18 w-96 flex items-center p-4 justify-center flex-grow",
+        "select-none"
       )}
     >
+      {/* Edit/Save Toggle Button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute top-1.5 right-1.5 h-7 w-7 rounded-full hover:bg-accent/80"
+        onClick={handleEditToggle}
+      >
+        {isEditing ? (
+          <SaveIcon className="h-4 w-4" />
+        ) : (
+          <PencilIcon className="h-4 w-4" />
+        )}
+      </Button>
+
       {/* Incoming Connection Handle (Hidden Dot) */}
       <Handle
         type="target"
@@ -71,7 +100,20 @@ export const PreviewStatementNode = ({
         isConnectable={true}
       />
 
-      <p className="text-accent-foreground font-bold">{statement}</p>
+      {/* Content */}
+      <div className="text-accent-foreground font-bold">
+        {isEditing ? (
+          <Textarea
+            value={editedStatement}
+            onChange={(e) => setEditedStatement(e.target.value)}
+            className="min-h-[80px] resize-none bg-transparent border-none focus-visible:ring-0 text-center"
+            autoFocus
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          statement
+        )}
+      </div>
 
       <Handle
         type="source"

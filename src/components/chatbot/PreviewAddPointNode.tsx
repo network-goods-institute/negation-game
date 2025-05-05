@@ -7,8 +7,21 @@ import { cn } from "@/lib/cn";
 import { Handle, Node, NodeProps, Position, useReactFlow } from "@xyflow/react";
 import { XIcon } from "lucide-react";
 import { nanoid } from "nanoid";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { PointEditor } from "@/components/PointEditor";
+import { useCredInput } from "@/hooks/useCredInput";
+import { fetchPoint } from "@/actions/fetchPoint";
+import { fetchUserEndorsements } from "@/actions/fetchUserEndorsements";
+import { usePrivy } from "@privy-io/react-auth";
+import {
+  fetchSimilarPoints,
+  SimilarPointsResult,
+} from "@/actions/fetchSimilarPoints";
+import { useDebounce } from "@uidotdev/usehooks";
+import { useQuery } from "@tanstack/react-query";
+import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
+import { Loader } from "@/components/ui/loader";
+import { PointStats } from "@/components/PointStats";
 
 /**
  * Simplified AddPointNode for RationaleCreator Preview
@@ -34,8 +47,21 @@ export const PreviewAddPointNode = ({
 }: PreviewAddPointNodeProps) => {
   const { deleteElements, addEdges, addNodes, getNode } = useReactFlow();
   const [content, setContent] = useState("");
+  const { credInput, setCredInput, notEnoughCred } = useCredInput();
+  const { user: privyUser } = usePrivy();
+  const debouncedContent = useDebounce(content, 1000);
+
+  const { data: similarPoints, isLoading } = useQuery({
+    queryKey: ["preview-similar", debouncedContent],
+    queryFn: async () => {
+      if (debouncedContent.length < POINT_MIN_LENGTH) return [] as SimilarPointsResult[];
+      return await fetchSimilarPoints({ query: debouncedContent });
+    },
+    enabled: debouncedContent.length >= POINT_MIN_LENGTH,
+  });
 
   const handleContentChange = (newContent: string) => {
+    setContent(newContent);
   };
 
   const isParentStatement = getNode(parentId)?.type === "statement";
@@ -43,26 +69,46 @@ export const PreviewAddPointNode = ({
 
   const canAddPoint = content.length >= POINT_MIN_LENGTH;
 
-  const handleAdd = () => {
-    const uniqueId = `previewpoint-${nanoid()}`;
+  const handleAdd = async () => {
+    let nodeContent = content;
+    let nodeCred = credInput;
+    const numericId = Number(content.trim());
+    if (!isNaN(numericId)) {
+      // Content is a point ID: fetch point and user endorsement
+      try {
+        const existing = await fetchPoint(numericId);
+        if (existing?.content) {
+          nodeContent = existing.content;
+        }
+        if (privyUser?.id) {
+          const endorsements = await fetchUserEndorsements(privyUser.id, [numericId]);
+          nodeCred = endorsements?.[0]?.cred ?? 0;
+        }
+      } catch {
+        // fallback to entered values
+      }
+    }
 
+    const uniqueId = `previewpoint-${nanoid()}`;
     addNodes({
       id: uniqueId,
       type: "point",
-      data: { content },
+      data: {
+        content: nodeContent,
+        viewerCred: nodeCred > 0 ? nodeCred : undefined,
+      },
       position: {
         x: positionAbsoluteX,
         y: positionAbsoluteY,
       },
     });
 
-    // Correct edge direction: Parent Node (source) -> New Node (target)
     addEdges({
       id: `edge-${nanoid()}`,
-      source: parentId, // Source is the parent node
-      sourceHandle: `${parentId}-add-handle`, // originate from parent's arrow handle
-      target: uniqueId, // Target is the new point node
-      targetHandle: `${uniqueId}-target`, // connect to new node's top handle
+      source: parentId,
+      sourceHandle: `${parentId}-add-handle`,
+      target: uniqueId,
+      targetHandle: `${uniqueId}-target`,
       type: "negation",
     });
 
@@ -100,21 +146,93 @@ export const PreviewAddPointNode = ({
         className="w-full h-fit"
         content={content}
         setContent={handleContentChange}
-        cred={0}
-        setCred={() => { }}
+        cred={credInput}
+        setCred={setCredInput}
         guidanceNotes={<></>}
         compact={true}
         extraCompact={isParentStatement}
         parentNodeType={isParentStatement ? "statement" : undefined}
+        allowZero={false}
       />
+
       <div className="flex justify-between gap-2">
-        <AuthenticatedActionButton
-          className="rounded-md"
-          onClick={handleAdd}
-          disabled={!canAddPoint}
-        >
-          {buttonText}
-        </AuthenticatedActionButton>
+        <div className="flex gap-2">
+          <AuthenticatedActionButton
+            className="rounded-md"
+            onClick={handleAdd}
+            disabled={!canAddPoint || (credInput > 0 && notEnoughCred)}
+          >
+            {buttonText}
+          </AuthenticatedActionButton>
+        </div>
+        {isLoading && <Loader className="m-2" />}
+        {similarPoints && similarPoints.length > 0 && (
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button size={"icon"}>{similarPoints.length}</Button>
+            </DialogTrigger>
+            <DialogContent className="w-96 p-2  bg-muted rounded-md overflow-clip">
+              <DialogTitle className="text-center mt-2">
+                Similar Points
+              </DialogTitle>
+              <DialogDescription className="hidden">
+                Similar points to the one you are adding
+              </DialogDescription>
+              <DialogClose asChild>
+                <Button
+                  size={"icon"}
+                  className="absolute top-2 right-2"
+                  variant={"ghost"}
+                >
+                  <XIcon className="size-5" />
+                </Button>
+              </DialogClose>
+              <div className="overflow-y-auto max-h-96 shadow-inner rounded-md">
+                <div className="flex flex-col gap-2 z-10">
+                  {similarPoints.map((point: SimilarPointsResult, index: number) => (
+                    <div
+                      key={`similar-point-${point.pointId}-${index}`}
+                      className="flex flex-col gap-2 p-4  hover:border-muted-foreground  w-full bg-background cursor-pointer border rounded-md"
+                      onClick={() => {
+                        const uniqueId = `${nanoid()}-${Date.now()}`;
+                        addNodes({
+                          id: uniqueId,
+                          type: "point",
+                          data: {
+                            pointId: point.pointId,
+                            content: point.content,
+                            hasContent: true,
+                          },
+                          position: {
+                            x: positionAbsoluteX,
+                            y: positionAbsoluteY,
+                          },
+                        });
+                        addEdges({
+                          id: `edge-${nanoid()}`,
+                          source: parentId,
+                          sourceHandle: `${parentId}-add-handle`,
+                          target: uniqueId,
+                          targetHandle: `${uniqueId}-target`,
+                          type: "negation",
+                        });
+                        deleteElements({ nodes: [{ id }] });
+                      }}
+                    >
+                      <span className="flex-grow text-sm">{point.content}</span>
+                      <PointStats
+                        favor={point.favor}
+                        amountNegations={point.amountNegations}
+                        amountSupporters={point.amountSupporters}
+                        cred={point.cred}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </div>
   );
