@@ -22,9 +22,12 @@ import {
     RefreshCw,
     WifiOff,
     LinkIcon,
+    FileText,
     EyeIcon,
     EyeOffIcon,
     NetworkIcon,
+    ChevronDown,
+    ChevronUp,
 } from "lucide-react";
 import { useDiscourseIntegration } from "@/hooks/useDiscourseIntegration";
 import { toast } from "sonner";
@@ -61,7 +64,16 @@ interface ChatHeaderProps {
     setShowGraph: (show: boolean) => void;
     linkUrl: string;
     setLinkUrl: (url: string) => void;
-    onCloseRationaleCreator: () => void;
+    /** Rationale description text */
+    description?: string;
+    /** Called when rationale description changes */
+    onDescriptionChange?: (desc: string) => void;
+    /** Whether the description editor panel is visible */
+    showDescEditor?: boolean;
+    /** Toggle description editor panel */
+    onToggleDescriptionEditor?: () => void;
+    /** Back button handler when in rationale mode */
+    onCloseRationaleCreator?: () => void;
     canvasEnabled: boolean;
     setCanvasEnabled: (enabled: boolean) => void;
 }
@@ -90,7 +102,11 @@ export function ChatHeader({
     setShowGraph,
     linkUrl,
     setLinkUrl,
-    onCloseRationaleCreator,
+    description = '',
+    onDescriptionChange = () => { },
+    showDescEditor = false,
+    onToggleDescriptionEditor = () => { },
+    onCloseRationaleCreator = () => { },
     canvasEnabled,
     setCanvasEnabled,
 }: ChatHeaderProps) {
@@ -169,6 +185,25 @@ export function ChatHeader({
                                 className="h-7 text-xs border-none focus-visible:ring-0 bg-transparent flex-1 w-60 lg:w-80"
                             />
                         </div>
+                        <div className="hidden md:flex items-center gap-2 bg-muted p-1.5 rounded-md border">
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="text"
+                                placeholder="Add description (optional)"
+                                value={description}
+                                onChange={(e) => onDescriptionChange(e.target.value)}
+                                className="h-7 text-xs border-none focus-visible:ring-0 bg-transparent flex-1 w-60 lg:w-80"
+                            />
+                        </div>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={onToggleDescriptionEditor}
+                            title={showDescEditor ? "Hide description" : "Add description"}
+                            className="hidden md:inline-flex text-muted-foreground hover:text-foreground"
+                        >
+                            {showDescEditor ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                        </Button>
                         <Button
                             variant="ghost"
                             size="icon"
@@ -178,6 +213,17 @@ export function ChatHeader({
                         >
                             {showGraph ? <EyeOffIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
                         </Button>
+                        {/* Mobile: toggle description editor */}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={onToggleDescriptionEditor}
+                            title={showDescEditor ? "Hide details" : "Show details"}
+                            className="md:hidden rounded-full p-1 size-7 text-muted-foreground hover:text-foreground"
+                        >
+                            {showDescEditor ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                        </Button>
+                        {/* Mobile: toggle chat/graph */}
                         <Button
                             variant={canvasEnabled ? "default" : "outline"}
                             size="icon"

@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 export type PreviewStatementNodeData = {
   statement: string;
+  linkUrl?: string;
 };
 
 export type PreviewStatementNode = Node<PreviewStatementNodeData, "statement">;

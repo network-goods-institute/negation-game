@@ -6,17 +6,19 @@ import { makePoint } from "@/actions/makePoint";
 import { endorse } from "@/actions/endorse";
 import { nanoid } from "nanoid";
 import { ViewpointGraph } from "@/atoms/viewpointAtoms";
-import { Node, Edge } from "@xyflow/react";
+import { Node as ReactFlowNode, Edge as ReactFlowEdge } from "@xyflow/react";
 import { PreviewPointNodeData } from "@/components/chatbot/PreviewPointNode";
 import { PreviewStatementNodeData } from "@/components/chatbot/PreviewStatementNode";
+import { AppNode } from "@/components/graph/AppNode";
+import { AppEdge } from "@/components/graph/AppEdge";
 
 interface CreateRationaleParams {
   userId: string;
   spaceId: string;
   title: string;
   description: string;
-  nodes: Node[];
-  edges: Edge[];
+  nodes: ReactFlowNode[];
+  edges: ReactFlowEdge[];
   resolvedMappings: Map<string, number | null>;
 }
 
@@ -48,41 +50,25 @@ export async function createRationaleFromPreview({
 
   try {
     console.log(
-      "[createRationaleFromPreview] Starting node and nodes processing"
+      "[createRationaleFromPreview] Starting node and point creation processing"
     );
     for (const node of previewNodes) {
       if (node.type === "statement") {
         const data = node.data as PreviewStatementNodeData;
         statementNodeContent = {
           title: data.statement || title,
-          description: description,
+          description,
         };
-        finalPointIdMap.set(node.id, 0);
       } else if (node.type === "point") {
         const data = node.data as PreviewPointNodeData;
-        const previewNodeId = node.id;
-        const existingPointId = resolvedMappings.get(previewNodeId);
-
+        const existingPointId = resolvedMappings.get(node.id);
         let finalPointId: number;
-
-        if (existingPointId === null) {
-          const newPoint = await makePoint({
-            content: data.content,
-            cred: 0,
-          });
-          finalPointId = newPoint;
-        } else if (existingPointId !== undefined) {
-          finalPointId = existingPointId;
+        if (existingPointId != null) {
+          finalPointId = existingPointId as number;
         } else {
-          const newPoint = await makePoint({
-            content: data.content,
-            cred: 0,
-          });
-          finalPointId = newPoint;
+          finalPointId = await makePoint({ content: data.content, cred: 0 });
         }
-
-        finalPointIdMap.set(previewNodeId, finalPointId);
-
+        finalPointIdMap.set(node.id, finalPointId);
         if (data.viewerCred && data.viewerCred > 0) {
           endorsementsToMake.push({
             pointId: finalPointId,
@@ -99,91 +85,84 @@ export async function createRationaleFromPreview({
       });
     }
 
-    const finalNodes: any[] = [];
-    const finalEdges: any[] = [];
+    const finalNodes: ReactFlowNode[] = [];
+    const finalEdges: ReactFlowEdge[] = [];
 
     console.log(
       "[createRationaleFromPreview] finalPointIdMap:",
       Array.from(finalPointIdMap.entries())
     );
 
-    const pointParentMap = new Map<string, string>();
-    previewEdges.forEach((edge) => {
-      if (edge.type === "negation") {
-        const targetNode = previewNodes.find((n) => n.id === edge.target);
-        const sourceNode = previewNodes.find((n) => n.id === edge.source);
-        if (targetNode?.type === "statement" && sourceNode?.type === "point") {
-          pointParentMap.set(sourceNode.id, "statement");
-        }
-      }
-    });
-
+    // First create all nodes and build an ID mapping
+    const previewToFinalIdMap = new Map<string, string>();
     previewNodes.forEach((node) => {
       if (node.type === "statement") {
         finalNodes.push({
           id: "statement",
           type: "statement",
-          position: node.position,
+          position: node.position || { x: 0, y: 0 },
           data: { statement: statementNodeContent.title },
         });
+        previewToFinalIdMap.set(node.id, "statement");
       } else if (node.type === "point") {
         const finalId = finalPointIdMap.get(node.id);
         if (finalId !== undefined) {
+          const nodeId = nanoid();
+          // Determine parent preview ID then map to final ID
+          const parentEdge = previewEdges.find((e) => e.target === node.id);
+          const parentPreviewId = parentEdge?.source || "statement";
+          const parentFinalId = previewToFinalIdMap.get(parentPreviewId)!;
+
           finalNodes.push({
-            id: `point-${finalId}`,
+            id: nodeId,
             type: "point",
-            position: node.position,
+            position: node.position || { x: 0, y: 0 },
             data: {
+              content: (node.data as PreviewPointNodeData).content,
               pointId: finalId,
-              parentId: pointParentMap.get(node.id) || undefined,
+              parentId: parentFinalId,
+              hasContent: true,
             },
           });
+          previewToFinalIdMap.set(node.id, nodeId);
         }
       }
     });
 
+    // Create edges: always connect child -> parent, type based on preview source
     previewEdges.forEach((edge) => {
-      const sourceFinalId = finalPointIdMap.get(edge.source);
-      const targetFinalId = finalPointIdMap.get(edge.target);
-      const sourceNode = previewNodes.find((n) => n.id === edge.source);
-      const targetNode = previewNodes.find((n) => n.id === edge.target);
-
-      let finalSourceId: string | undefined;
-      let finalTargetId: string | undefined;
-
-      if (sourceNode?.type === "statement") finalSourceId = "statement";
-      else if (sourceFinalId !== undefined)
-        finalSourceId = `point-${sourceFinalId}`;
-
-      if (targetNode?.type === "statement") finalTargetId = "statement";
-      else if (targetFinalId !== undefined)
-        finalTargetId = `point-${targetFinalId}`;
-
-      if (finalSourceId && finalTargetId) {
-        if (edge.type === "negation") {
-          finalEdges.push({
-            id: edge.id,
-            source: finalTargetId,
-            target: finalSourceId,
-            type: "negation",
-          });
-        } else {
-          finalEdges.push({
-            id: edge.id,
-            source: finalSourceId,
-            target: finalTargetId,
-            type: edge.type,
-          });
-        }
-      }
+      // Map preview source/target to final IDs
+      const parentFinalId = previewToFinalIdMap.get(edge.source);
+      const childFinalId = previewToFinalIdMap.get(edge.target);
+      if (!parentFinalId || !childFinalId) return;
+      const edgeType = edge.source === "statement" ? "negation" : "statement";
+      finalEdges.push({
+        id: `edge-${nanoid()}`,
+        type: edgeType,
+        // child -> parent orientation
+        source: childFinalId,
+        target: parentFinalId,
+      } as ReactFlowEdge);
     });
 
-    console.log("[createRationaleFromPreview] finalNodes:", finalNodes);
-    console.log("[createRationaleFromPreview] finalEdges:", finalEdges);
-    const finalGraph: ViewpointGraph = { nodes: finalNodes, edges: finalEdges };
+    const finalGraph: ViewpointGraph = {
+      nodes: finalNodes as AppNode[],
+      edges: finalEdges as AppEdge[],
+      description: statementNodeContent.description,
+    };
+    const statementNodeFromPreview = previewNodes.find(
+      (n) => n.type === "statement"
+    );
+    const currentLinkUrl = (
+      statementNodeFromPreview?.data as PreviewStatementNodeData | undefined
+    )?.linkUrl;
+    if (currentLinkUrl) {
+      finalGraph.linkUrl = currentLinkUrl;
+    }
+
     console.log(
       "[createRationaleFromPreview] finalGraph before DB insert:",
-      finalGraph
+      JSON.stringify(finalGraph, null, 2)
     );
 
     const newViewpointId = `vp_${nanoid()}`;

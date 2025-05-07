@@ -237,6 +237,10 @@ interface RationaleCreatorProps {
     initialGraph: ViewpointGraph;
     onGraphChange: (newGraph: ViewpointGraph) => void;
     canvasEnabled: boolean;
+    description: string;
+    onDescriptionChange: (desc: string) => void;
+    linkUrl?: string;
+    onLinkUrlChange?: (url: string) => void;
 }
 
 export const RationaleCreator: React.FC<RationaleCreatorProps> = (props) => {
@@ -260,6 +264,10 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     initialGraph,
     onGraphChange,
     canvasEnabled,
+    description,
+    onDescriptionChange,
+    linkUrl,
+    onLinkUrlChange,
 }) => {
     const [persistedGraph, setPersistedGraph] = useState<ViewpointGraph>(initialGraph);
     const [nodes, setNodes, onNodesChangeReactFlow] = useNodesState<PreviewAppNode>(initialGraph.nodes as unknown as PreviewAppNode[]);
@@ -421,8 +429,8 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
 
         // --- 3. Extract Title/Description ---
         const statementNode = currentNodes.find(n => n.type === 'statement') as Node<PreviewStatementNodeData> | undefined;
-        const rationaleTitle = statementNode?.data?.statement || "Untitled Rationale";
-        const rationaleDescription = ""; // TODO: Add way to input description?
+        const rationaleTitle = statementNode?.data?.statement || 'Untitled Rationale';
+        const rationaleDescription = description || '';
 
         // --- 4. Call Server Action ---
         try {
@@ -450,13 +458,21 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
             setIsCreating(false);
         }
 
-    }, [isAuthenticated, currentSpace, privyUser, userData, reactFlowInstance, router, resolvedMappings, chatList]);
+    }, [isAuthenticated, currentSpace, privyUser, userData, reactFlowInstance, router, resolvedMappings, description, edges, nodes, persistedGraph]);
 
     const handleResolveDuplicates = (mappings: ResolvedMappings) => {
         setResolvedMappings(mappings);
         setIsDuplicateDialogOpen(false);
         handleCreateRationale(true);
     };
+
+    useEffect(() => {
+        const initDesc = initialGraph.description || '';
+        const initLink = (initialGraph as any).linkUrl || '';
+        if ((description !== initDesc || linkUrl !== initLink) && !graphModified) {
+            setGraphModified(true);
+        }
+    }, [description, linkUrl, initialGraph, graphModified]);
 
     return (
         <div className="flex flex-1 overflow-hidden h-full">

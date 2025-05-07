@@ -46,6 +46,7 @@ import { fetchAllSpacePoints, PointInSpace } from "@/actions/fetchAllSpacePoints
 import { RationaleCreator } from "./RationaleCreator";
 import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { StatementNode } from "@/components/graph/StatementNode";
+import { LinkIcon, FileText, X } from "lucide-react";
 
 type OwnedPoint = ProfilePoint;
 
@@ -428,6 +429,8 @@ export default function AIAssistant() {
             const initialGraph: ViewpointGraph = {
                 nodes: [initialStatementNode],
                 edges: [],
+                description: rationaleDescription,
+                linkUrl: linkUrl,
             };
 
             let chatIdToUse = chatList.currentChatId;
@@ -473,6 +476,7 @@ export default function AIAssistant() {
             // Set component state *after* updating the persistent state
             setRationaleGraph(initialGraph);
             setLinkUrl('');
+            setRationaleDescription('');
             console.log('[AIAssistant] Setting mode to create_rationale');
             setMode('create_rationale');
             setShowMobileMenu(false);
@@ -803,49 +807,48 @@ export default function AIAssistant() {
     const [showGraph, setShowGraph] = useState(true);
     const [linkUrl, setLinkUrl] = useState('');
     const [canvasEnabled, setCanvasEnabled] = useState(false);
-    const [rationaleGraph, setRationaleGraph] = useState<ViewpointGraph>({ nodes: [], edges: [] });
+    const [rationaleGraph, setRationaleGraph] = useState<ViewpointGraph>({ nodes: [], edges: [], description: '' });
+    const [rationaleDescription, setRationaleDescription] = useState<string>('');
+    const [showDescEditor, setShowDescEditor] = useState<boolean>(false);
 
     useEffect(() => {
         const currentChatIdForEffect = chatList.currentChatId;
-        console.log(`[AIAssistant] Chat Switch useEffect running. Current Chat ID: ${currentChatIdForEffect}`);
         const currentChat = chatList.savedChats.find(c => c.id === currentChatIdForEffect);
-        console.log(`[AIAssistant] Found chat object:`, currentChat ? { id: currentChat.id, title: currentChat.title, graphExists: !!currentChat.graph } : 'None');
 
         if (currentChat) {
-            // Simpler check: Mode is 'create_rationale' if graph property exists and is an object
-            const isRationaleChat = currentChat.graph &&
-                typeof currentChat.graph === 'object';
-            // Removed check for nodes/edges length: (currentChat.graph.nodes?.length > 0 || currentChat.graph.edges?.length > 0);
-
-            console.log(`[AIAssistant] Is rationale chat (based on graph object existence)? ${isRationaleChat}. Graph details:`, currentChat.graph);
+            const isRationaleChat = currentChat.graph && typeof currentChat.graph === 'object';
 
             if (isRationaleChat) {
-                console.log('[AIAssistant] Setting mode to create_rationale based on loaded chat.');
                 setMode('create_rationale');
-                setRationaleGraph(currentChat.graph || { nodes: [], edges: [] });
+                const graph = currentChat.graph as ViewpointGraph;
+                setRationaleGraph(graph || { nodes: [], edges: [], description: '', linkUrl: '' });
+                setRationaleDescription(graph?.description || '');
+                setLinkUrl(graph?.linkUrl || '');
             } else {
-                console.log('[AIAssistant] Setting mode to chat based on loaded chat.');
                 setMode('chat');
-                setRationaleGraph({ nodes: [], edges: [] });
+                setRationaleGraph({ nodes: [], edges: [], description: '', linkUrl: '' });
+                setRationaleDescription('');
+                setLinkUrl('');
             }
         } else {
-            console.log('[AIAssistant] No current chat found, setting mode to chat.');
             setMode('chat');
-            setRationaleGraph({ nodes: [], edges: [] });
+            setRationaleGraph({ nodes: [], edges: [], description: '', linkUrl: '' });
+            setRationaleDescription('');
+            setLinkUrl('');
         }
     }, [chatList.currentChatId, chatList.savedChats]);
 
-    const handleRationaleGraphChange = useCallback((newGraph: ViewpointGraph) => {
-        console.log(`[AIAssistant] handleRationaleGraphChange called. Graph has ${newGraph.nodes?.length || 0} nodes, ${newGraph.edges?.length || 0} edges.`);
-        setRationaleGraph(newGraph);
+    const handleRationaleGraphChange = useCallback((partialGraph: ViewpointGraph) => {
+        const fullGraph: ViewpointGraph = { ...partialGraph, description: rationaleDescription, linkUrl };
+        setRationaleGraph(fullGraph);
         if (chatList.currentChatId && mode === 'create_rationale') {
-            const currentChat = chatList.savedChats.find(c => c.id === chatList.currentChatId);
-            const messages = currentChat?.messages || [];
-            const title = currentChat?.title;
-            const distillId = currentChat?.distillRationaleId;
-            chatList.updateChat(chatList.currentChatId, messages, title, distillId, newGraph);
+            const curr = chatList.savedChats.find(c => c.id === chatList.currentChatId);
+            const msgs = curr?.messages || [];
+            const title = curr?.title;
+            const distillId = curr?.distillRationaleId;
+            chatList.updateChat(chatList.currentChatId, msgs, title, distillId, fullGraph);
         }
-    }, [chatList, mode]);
+    }, [chatList, mode, rationaleDescription, linkUrl]);
 
     const initialChatOptions: InitialOptionObject[] = [
         {
@@ -923,11 +926,15 @@ export default function AIAssistant() {
                     mode={mode}
                     showGraph={showGraph}
                     setShowGraph={setShowGraph}
-                    linkUrl={linkUrl}
-                    setLinkUrl={setLinkUrl}
+                    description={rationaleDescription}
+                    onDescriptionChange={setRationaleDescription}
+                    showDescEditor={showDescEditor}
+                    onToggleDescriptionEditor={() => setShowDescEditor((f) => !f)}
                     onCloseRationaleCreator={handleCloseRationaleCreator}
                     canvasEnabled={canvasEnabled}
                     setCanvasEnabled={setCanvasEnabled}
+                    linkUrl={linkUrl}
+                    setLinkUrl={setLinkUrl}
                 />
 
                 {mode === 'chat' ? (
@@ -977,9 +984,46 @@ export default function AIAssistant() {
                         initialGraph={rationaleGraph}
                         onGraphChange={handleRationaleGraphChange}
                         canvasEnabled={canvasEnabled}
+                        description={rationaleDescription}
+                        onDescriptionChange={setRationaleDescription}
+                        linkUrl={linkUrl}
+                        onLinkUrlChange={setLinkUrl}
                     />
                 )}
             </div>
+
+            {mode === 'create_rationale' && showDescEditor && (
+                <div className="absolute top-16 left-0 right-0 z-20 bg-background border-b p-4 space-y-4">
+                    {/* Close panel */}
+                    <div className="absolute top-[-16px] right-2">
+                        <Button variant="ghost" size="icon" onClick={() => setShowDescEditor(false)} className="text-muted-foreground hover:text-foreground">
+                            <X className="h-5 w-5" />
+                        </Button>
+                    </div>
+                    {/* Mobile panel: URL input */}
+                    <div className="flex items-center gap-2">
+                        <LinkIcon className="h-5 w-5 text-muted-foreground" />
+                        <Input
+                            type="url"
+                            placeholder="Paste link to source material (optional)"
+                            value={linkUrl}
+                            onChange={(e) => setLinkUrl(e.target.value)}
+                            className="flex-1 h-9 text-sm"
+                        />
+                    </div>
+                    {/* Mobile panel: description textarea */}
+                    <div className="flex items-start gap-2">
+                        <FileText className="h-5 w-5 mt-1 text-muted-foreground" />
+                        <AutosizeTextarea
+                            value={rationaleDescription}
+                            onChange={(e) => setRationaleDescription(e.target.value)}
+                            placeholder="Enter rationale description..."
+                            className="flex-1 rounded-md border shadow-sm px-3 py-2 text-sm"
+                            minHeight={80}
+                        />
+                    </div>
+                </div>
+            )}
 
             <RationaleSelectionDialog
                 isOpen={showRationaleSelectionDialog}

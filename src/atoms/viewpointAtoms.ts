@@ -64,7 +64,12 @@ export const viewpointReasoningAtom = atomWithStorage<string>(
 export type ViewpointGraph = Pick<
   ReactFlowJsonObject<AppNode, AppEdge>,
   "nodes" | "edges"
->;
+> & {
+  /** Optional free-form description attached to the graph */
+  description?: string;
+  /** Optional linked URL for source material */
+  linkUrl?: string;
+};
 
 export const initialViewpointGraph: ViewpointGraph = {
   nodes: [
@@ -76,6 +81,8 @@ export const initialViewpointGraph: ViewpointGraph = {
     },
   ],
   edges: [],
+  description: "",
+  linkUrl: "",
 };
 
 export const viewpointGraphAtom = atom(
