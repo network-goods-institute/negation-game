@@ -569,7 +569,7 @@ export default function AIAssistant() {
                             try {
                                 const content = await fetchChatContent(serverChat.id);
                                 if (content) {
-                                    const stateHash = await computeChatStateHash(content.title, content.messages);
+                                    const stateHash = await computeChatStateHash(content.title, content.messages, content.graph);
                                     chatsToUpdateLocally.push({
                                         ...content,
                                         id: serverChat.id,
@@ -584,7 +584,7 @@ export default function AIAssistant() {
                             } catch (e) { currentStats.errors++; throw e; }
                         })());
                     } else {
-                        const localHash = localChat.state_hash || await computeChatStateHash(localChat.title, localChat.messages);
+                        const localHash = localChat.state_hash || await computeChatStateHash(localChat.title, localChat.messages, localChat.graph);
                         const localUpdatedAt = new Date(localChat.updatedAt).getTime();
                         const serverUpdatedAt = serverChat.updatedAt.getTime();
 
@@ -641,7 +641,7 @@ export default function AIAssistant() {
 
                         const localHash =
                             localChat.state_hash ||
-                            (await computeChatStateHash(localChat.title, localChat.messages));
+                            (await computeChatStateHash(localChat.title, localChat.messages, localChat.graph));
                         const localUpdatedAt = new Date(localChat.updatedAt).getTime();
                         const serverUpdatedAt = serverChat.updatedAt.getTime();
 
@@ -838,7 +838,7 @@ export default function AIAssistant() {
         }
     }, [chatList.currentChatId, chatList.savedChats]);
 
-    const handleRationaleGraphChange = useCallback((partialGraph: ViewpointGraph) => {
+    const handleRationaleGraphChange = useCallback((partialGraph: ViewpointGraph, immediateSave = false) => {
         const fullGraph: ViewpointGraph = { ...partialGraph, description: rationaleDescription, linkUrl };
         setRationaleGraph(fullGraph);
         if (chatList.currentChatId && mode === 'create_rationale') {
@@ -846,7 +846,7 @@ export default function AIAssistant() {
             const msgs = curr?.messages || [];
             const title = curr?.title;
             const distillId = curr?.distillRationaleId;
-            chatList.updateChat(chatList.currentChatId, msgs, title, distillId, fullGraph);
+            chatList.updateChat(chatList.currentChatId, msgs, title, distillId, fullGraph, immediateSave);
         }
     }, [chatList, mode, rationaleDescription, linkUrl]);
 

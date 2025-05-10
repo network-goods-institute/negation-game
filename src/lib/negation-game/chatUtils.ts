@@ -10,20 +10,22 @@ function bufferToHex(buffer: ArrayBuffer): string {
 }
 
 /**
- * Computes a SHA-256 hash for the given chat state (title and messages).
+ * Computes a SHA-256 hash for the given chat state (title, messages, and graph).
  * Ensures consistent stringification before hashing.
  * @param title The chat title.
  * @param messages The array of chat messages.
+ * @param graph Optional graph data for rationale chats.
  * @returns A promise that resolves to the SHA-256 hash as a hex string.
  */
 export async function computeChatStateHash(
   title: string,
-  messages: ChatMessage[]
+  messages: ChatMessage[],
+  graph?: ViewpointGraph | null
 ): Promise<string> {
   // Create a stable string representation.
   // We stringify the whole messages array directly.
   // Assuming message order is the primary factor for state change.
-  const dataToHash = JSON.stringify({ title, messages });
+  const dataToHash = JSON.stringify({ title, messages, graph });
 
   // Encode the string as UTF-8
   const encoder = new TextEncoder();
@@ -39,6 +41,7 @@ export async function computeChatStateHash(
 }
 
 import { ChatMessage } from "@/types/chat";
+import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 
 const pointRefRegex = /\[Point:(\d+)(?:\s+"[^"\\n]+?")?\]/g;
 const multiPointRefRegex = /\[Point:\d+(?:,\s*Point:\d+)*\]/g;

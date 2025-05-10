@@ -315,6 +315,7 @@ export function useChatState({
             if (!firstChunkReceived && !done) {
               setFetchingContextChats((prev) => {
                 const newSet = new Set(prev);
+                // eslint-disable-next-line drizzle/enforce-delete-with-where
                 newSet.delete(chatIdToUse);
                 return newSet;
               });
@@ -406,16 +407,19 @@ export function useChatState({
         }
         setGeneratingChats((prev) => {
           const newSet = new Set(prev);
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
           newSet.delete(chatIdToUse);
           return newSet;
         });
         setFetchingContextChats((prev) => {
           const newSet = new Set(prev);
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
           newSet.delete(chatIdToUse);
           return newSet;
         });
         setStreamingContents((prev) => {
           const newMap = new Map(prev);
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
           newMap.delete(chatIdToUse);
           return newMap;
         });

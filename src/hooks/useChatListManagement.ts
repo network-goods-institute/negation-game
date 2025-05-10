@@ -67,7 +67,8 @@ export function useChatListManagement({
       try {
         const currentHash = await computeChatStateHash(
           chatData.title,
-          chatData.messages
+          chatData.messages,
+          chatData.graph
         );
         const chatToSend: SavedChat & { state_hash: string } = {
           ...chatData,
@@ -152,11 +153,22 @@ export function useChatListManagement({
   }, [executePush]);
 
   const queuePushUpdate = useCallback(
-    (chatData: SavedChat) => {
-      pendingChatUpdatesRef.current.set(chatData.id, chatData);
-      debouncedPush();
+    (chatData: SavedChat, immediate = false) => {
+      if (immediate) {
+        // Clear any pending debounced push for this chat
+        if (pushDebounceTimeoutRef.current) {
+          clearTimeout(pushDebounceTimeoutRef.current);
+        }
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        pendingChatUpdatesRef.current.delete(chatData.id);
+        // Execute push immediately
+        executePush(chatData);
+      } else {
+        pendingChatUpdatesRef.current.set(chatData.id, chatData);
+        debouncedPush();
+      }
     },
-    [debouncedPush]
+    [debouncedPush, executePush]
   );
 
   useEffect(() => {
@@ -246,7 +258,8 @@ export function useChatListManagement({
       messages: ChatMessage[],
       title?: string,
       distillRationaleId?: string | null,
-      graph?: ViewpointGraph | null | undefined
+      graph?: ViewpointGraph | null | undefined,
+      immediate = false
     ) => {
       if (!currentSpace) {
         return null;
@@ -306,7 +319,7 @@ export function useChatListManagement({
           JSON.stringify(updatedChats)
         );
 
-        queuePushUpdate(finalUpdatedChat);
+        queuePushUpdate(finalUpdatedChat, immediate);
 
         updatedChatDataForPush = finalUpdatedChat;
 
@@ -367,8 +380,9 @@ export function useChatListManagement({
       (async () => {
         try {
           const actualHash = await computeChatStateHash(
-            newChat.title,
-            newChat.messages
+            "New Chat",
+            [],
+            initialGraph
           );
           const payloadToServer = {
             ...newChat,

@@ -151,7 +151,7 @@ const RationaleVisualFeed = ({ nodes, edges, onNodesChange, onEdgesChange, onSav
                                     disabled={!graphModified || isSaving}
                                     size="sm"
                                     className={cn(
-                                        "shadow-lg",
+                                        "shadow-lg w-[160px]",
                                         (!graphModified || isSaving) && "opacity-50"
                                     )}
                                 >
@@ -164,7 +164,7 @@ const RationaleVisualFeed = ({ nodes, edges, onNodesChange, onEdgesChange, onSav
                                     disabled={!graphModified || isSaving}
                                     size="sm"
                                     className={cn(
-                                        "shadow-lg",
+                                        "shadow-lg w-[160px]",
                                         (!graphModified || isSaving) && "opacity-50"
                                     )}
                                 >
@@ -235,7 +235,7 @@ interface RationaleCreatorProps {
     isMobile: boolean;
     showGraph: boolean;
     graphData: ViewpointGraph;
-    onGraphChange: (newGraph: ViewpointGraph) => void;
+    onGraphChange: (newGraph: ViewpointGraph, immediateSave: boolean) => void;
     canvasEnabled: boolean;
     description: string;
     onDescriptionChange: (desc: string) => void;
@@ -290,7 +290,8 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
                 setEdges(graphData.edges as unknown as PreviewAppEdge[]);
             }
         }
-    }, [graphData, setNodes, setEdges]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [graphData, setNodes, setEdges]); // nodes/edges intentionally omitted to avoid sync loop
 
     // When nodes change, mark the graph as modified
     const handleNodesChange: OnNodesChange<PreviewAppNode> = useCallback((changes) => {
@@ -309,7 +310,7 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
         const currentGraph: ViewpointGraph = { nodes: nodes as any, edges: edges as any };
         // Persist to parent and update baseline
         setPersistedGraph(currentGraph);
-        onGraphChange(currentGraph);
+        onGraphChange(currentGraph, true); // Pass true for immediate save
         setGraphModified(false);
     }, [nodes, edges, onGraphChange]);
 
@@ -324,6 +325,17 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (chatState.generatingChats.has(chatList.currentChatId || '')) return;
+
+        if (graphModified) {
+            toast.error("Please save your graph changes before sending a message.", {
+                action: {
+                    label: "Save Changes",
+                    onClick: saveGraph,
+                },
+            });
+            return;
+        }
+
         chatState.handleSubmit(e);
     };
 
@@ -331,6 +343,16 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             if (chatState.message.trim() && !chatState.generatingChats.has(chatList.currentChatId || '')) {
+                if (graphModified) {
+                    toast.error("Please save your graph changes before sending a message.", {
+                        action: {
+                            label: "Save Changes",
+                            onClick: saveGraph,
+                        },
+                    });
+                    return;
+                }
+
                 chatState.handleSubmit();
             }
         }
