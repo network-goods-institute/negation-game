@@ -981,7 +981,7 @@ export default function AIAssistant() {
                         currentSpace={currentSpace}
                         isMobile={isMobile}
                         showGraph={showGraph}
-                        initialGraph={rationaleGraph}
+                        graphData={chatList.savedChats.find(c => c.id === chatList.currentChatId)?.graph || { nodes: [], edges: [], description: '', linkUrl: '' }}
                         onGraphChange={handleRationaleGraphChange}
                         canvasEnabled={canvasEnabled}
                         description={rationaleDescription}
@@ -1005,10 +1005,10 @@ export default function AIAssistant() {
                         <LinkIcon className="h-5 w-5 text-muted-foreground" />
                         <Input
                             type="url"
-                            placeholder="Paste link to source material (optional)"
+                            placeholder="Paste Scroll or Discourse Link (optional)"
                             value={linkUrl}
                             onChange={(e) => setLinkUrl(e.target.value)}
-                            className="flex-1 h-9 text-sm"
+                            className="text-sm w-full"
                         />
                     </div>
                     {/* Mobile panel: description textarea */}

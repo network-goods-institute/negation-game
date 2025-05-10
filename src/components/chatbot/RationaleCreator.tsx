@@ -33,7 +33,7 @@ import { useTheme } from "next-themes";
 import { cn } from '@/lib/cn';
 import { Button } from '../ui/button';
 import { nanoid } from 'nanoid';
-import { Save, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Save, Loader2, CheckCircle } from 'lucide-react';
 import * as ContextMenu from '@radix-ui/react-context-menu';
 
 import { ViewpointGraph } from '@/atoms/viewpointAtoms';
@@ -234,7 +234,7 @@ interface RationaleCreatorProps {
     currentSpace: string | null;
     isMobile: boolean;
     showGraph: boolean;
-    initialGraph: ViewpointGraph;
+    graphData: ViewpointGraph;
     onGraphChange: (newGraph: ViewpointGraph) => void;
     canvasEnabled: boolean;
     description: string;
@@ -261,17 +261,15 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     currentSpace,
     isMobile,
     showGraph,
-    initialGraph,
+    graphData,
     onGraphChange,
     canvasEnabled,
     description,
-    onDescriptionChange,
     linkUrl,
-    onLinkUrlChange,
 }) => {
-    const [persistedGraph, setPersistedGraph] = useState<ViewpointGraph>(initialGraph);
-    const [nodes, setNodes, onNodesChangeReactFlow] = useNodesState<PreviewAppNode>(initialGraph.nodes as unknown as PreviewAppNode[]);
-    const [edges, setEdges, onEdgesChangeReactFlow] = useEdgesState<PreviewAppEdge>(initialGraph.edges as unknown as PreviewAppEdge[]);
+    const [persistedGraph, setPersistedGraph] = useState<ViewpointGraph>(graphData);
+    const [nodes, setNodes, onNodesChangeReactFlow] = useNodesState<PreviewAppNode>(graphData.nodes as unknown as PreviewAppNode[]);
+    const [edges, setEdges, onEdgesChangeReactFlow] = useEdgesState<PreviewAppEdge>(graphData.edges as unknown as PreviewAppEdge[]);
     const [graphModified, setGraphModified] = useState(false);
     const { pendingPushIds, currentChatId, savedChats } = chatList;
     const isSavingGraph = !!currentChatId && pendingPushIds.has(currentChatId);
@@ -285,11 +283,14 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     const [isCreating, setIsCreating] = useState(false);
 
     useEffect(() => {
-        setPersistedGraph(initialGraph);
-        setNodes(initialGraph.nodes as unknown as PreviewAppNode[]);
-        setEdges(initialGraph.edges as unknown as PreviewAppEdge[]);
-        setGraphModified(false);
-    }, [initialGraph, setNodes, setEdges]);
+        if (graphData) {
+            const currentInternalGraph = { nodes: nodes as any, edges: edges as any };
+            if (JSON.stringify(graphData) !== JSON.stringify(currentInternalGraph)) {
+                setNodes(graphData.nodes as unknown as PreviewAppNode[]);
+                setEdges(graphData.edges as unknown as PreviewAppEdge[]);
+            }
+        }
+    }, [graphData, setNodes, setEdges]);
 
     // When nodes change, mark the graph as modified
     const handleNodesChange: OnNodesChange<PreviewAppNode> = useCallback((changes) => {
@@ -467,12 +468,12 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     };
 
     useEffect(() => {
-        const initDesc = initialGraph.description || '';
-        const initLink = (initialGraph as any).linkUrl || '';
+        const initDesc = graphData.description || '';
+        const initLink = (graphData as any).linkUrl || '';
         if ((description !== initDesc || linkUrl !== initLink) && !graphModified) {
             setGraphModified(true);
         }
-    }, [description, linkUrl, initialGraph, graphModified]);
+    }, [description, linkUrl, graphData, graphModified]);
 
     return (
         <div className="flex flex-1 overflow-hidden h-full">

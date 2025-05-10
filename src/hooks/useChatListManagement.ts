@@ -246,11 +246,8 @@ export function useChatListManagement({
       messages: ChatMessage[],
       title?: string,
       distillRationaleId?: string | null,
-      graph?: ViewpointGraph
+      graph?: ViewpointGraph | null | undefined
     ) => {
-      console.log(
-        `[ChatList] updateChat called for ${chatId}. Title: ${title}, DistillID: ${distillRationaleId}, Graph: ${graph ? "Exists" : "Undefined"}`
-      );
       if (!currentSpace) {
         return null;
       }
@@ -286,14 +283,7 @@ export function useChatListManagement({
         }
 
         if (graph !== undefined) {
-          updatedFields.graph = graph;
-        } else {
-          // Ensure graph is not added if not provided (important for non-rationale chats)
-          // If the current chat already had a graph, we might want to preserve it
-          // or explicitly set it to undefined based on desired behavior.
-          // For now, let's assume we only update if graph is passed.
-          // If currentChat has a graph and graph param is undefined, it remains.
-          // To explicitly remove it, we'd need: updatedFields.graph = undefined;
+          updatedFields.graph = graph === null ? undefined : graph;
         }
 
         const placeholderHash = `sync_update_${Date.now()}`;

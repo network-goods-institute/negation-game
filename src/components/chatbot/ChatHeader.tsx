@@ -179,7 +179,7 @@ export function ChatHeader({
                             <LinkIcon className="h-4 w-4 text-muted-foreground" />
                             <Input
                                 type="url"
-                                placeholder="Paste link to source material (optional)"
+                                placeholder="Paste Scroll or Discourse Link (optional)"
                                 value={linkUrl}
                                 onChange={(e) => setLinkUrl(e.target.value)}
                                 className="h-7 text-xs border-none focus-visible:ring-0 bg-transparent flex-1 w-60 lg:w-80"
