@@ -180,6 +180,7 @@ export default function AIAssistant() {
         userRationales,
         availableRationales,
         storedMessages: discourse.storedMessages,
+        discourseUrl: discourse.discourseUrl,
         savedChats: chatList.savedChats,
         updateChat: chatList.updateChat,
         createNewChat: chatList.createNewChat,

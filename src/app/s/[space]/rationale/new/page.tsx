@@ -492,7 +492,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       );
     }
   }, [
-    statement, reasoning, graph, publishViewpoint, clearViewpointState,
+    statement, reasoning, graph, publishViewpoint,
     setStatement, setReasoning, setGraph, setCollapsedPointIds,
     setCopiedFromId,
     reactFlow, push, basePath, copiedFromIdValue

@@ -5,6 +5,7 @@ import { generateSuggestionChatBotResponse } from "@/actions/generateSuggestionC
 import { PointInSpace } from "@/actions/fetchAllSpacePoints";
 import { generateChatName } from "@/actions/generateChatName";
 import { extractSourcesFromMarkdown } from "@/lib/negation-game/chatUtils";
+import { getChatMessageAsText } from "@/lib/negation-game/getChatMessageAsText";
 import {
   ChatMessage,
   SavedChat,
@@ -26,6 +27,7 @@ interface UseChatStateProps {
   userRationales: ChatRationale[];
   availableRationales: ChatRationale[];
   storedMessages: DiscourseMessage[];
+  discourseUrl: string;
   savedChats: SavedChat[];
   updateChat: (
     chatId: string,
@@ -45,6 +47,7 @@ export function useChatState({
   ownedPointIds,
   endorsedPointIds,
   storedMessages,
+  discourseUrl,
   savedChats,
   updateChat,
   createNewChat,
@@ -380,25 +383,48 @@ Please try:
   );
 
   const handleCopy = useCallback(
-    async (index: number) => {
-      if (index < 0 || index >= chatMessages.length) return;
-      const contentToCopy = chatMessages[index].content;
+    async (messageIndex: number) => {
+      if (
+        !currentChatId ||
+        !savedChats.find((c) => c.id === currentChatId) ||
+        !savedChats.find((c) => c.id === currentChatId)?.messages[messageIndex]
+      ) {
+        toast.error("Could not find message to copy.");
+        return;
+      }
+
+      const chat = savedChats.find((c) => c.id === currentChatId);
+      if (!chat) {
+        toast.error("Chat not found.");
+        return;
+      }
+      const messageToCopy = chat.messages[messageIndex];
+
       try {
-        await navigator.clipboard.writeText(contentToCopy);
-        toast.success("Message copied!");
-      } catch (err) {
-        toast.error("Failed to copy message.");
+        const textualRepresentation = await getChatMessageAsText(
+          messageToCopy.content,
+          currentSpace,
+          discourseUrl,
+          storedMessages
+        );
+        await navigator.clipboard.writeText(textualRepresentation);
+        toast.success("Message copied with full details!");
+      } catch (error) {
+        console.error("Failed to copy message with rich text:", error);
+        await navigator.clipboard.writeText(messageToCopy.content);
+        toast.error("Failed to process tags, raw content copied.");
       }
     },
-    [chatMessages]
+    [currentChatId, savedChats, currentSpace, discourseUrl, storedMessages]
   );
 
   const handleRetry = useCallback(
-    async (index: number) => {
+    async (messageIndex: number) => {
+      if (!currentChatId || !isAuthenticated) return;
       if (
-        index <= 0 ||
-        index >= chatMessages.length ||
-        chatMessages[index].role !== "assistant" ||
+        messageIndex <= 0 ||
+        messageIndex >= chatMessages.length ||
+        chatMessages[messageIndex].role !== "assistant" ||
         generatingChats.has(currentChatId || "")
       ) {
         return;
@@ -410,7 +436,7 @@ Please try:
         return;
       }
 
-      const historyForRetry = chatMessages.slice(0, index);
+      const historyForRetry = chatMessages.slice(0, messageIndex);
       setChatMessages(historyForRetry);
 
       const currentChatData = savedChats.find((c) => c.id === chatIdToUse);
@@ -426,29 +452,39 @@ Please try:
         rationaleIdForRetry
       );
     },
-    [chatMessages, generatingChats, currentChatId, handleResponse, savedChats]
+    [
+      chatMessages,
+      generatingChats,
+      currentChatId,
+      handleResponse,
+      savedChats,
+      isAuthenticated,
+    ]
   );
 
   const handleSaveEdit = useCallback(
-    async (index: number, newContent: string) => {
-      const trimmedNewContent = newContent.trim();
+    async (messageIndex: number, newContent: string) => {
+      if (!currentChatId || !isAuthenticated) return;
       if (
         !currentChatId ||
-        index === null ||
-        index < 0 ||
-        index >= chatMessages.length ||
-        chatMessages[index].role !== "user" ||
-        !trimmedNewContent ||
-        chatMessages[index].content === trimmedNewContent
+        messageIndex === null ||
+        messageIndex < 0 ||
+        messageIndex >= chatMessages.length ||
+        chatMessages[messageIndex].role !== "user" ||
+        !newContent ||
+        chatMessages[messageIndex].content === newContent
       ) {
         return;
       }
 
       const editedMessage: ChatMessage = {
-        ...chatMessages[index],
-        content: trimmedNewContent,
+        ...chatMessages[messageIndex],
+        content: newContent,
       };
-      const historyForEdit = [...chatMessages.slice(0, index), editedMessage];
+      const historyForEdit = [
+        ...chatMessages.slice(0, messageIndex),
+        editedMessage,
+      ];
 
       setChatMessages(historyForEdit);
 
@@ -487,7 +523,14 @@ Please try:
 
       toast.success("Message updated & regenerating response...");
     },
-    [currentChatId, chatMessages, handleResponse, savedChats, setChatMessages]
+    [
+      currentChatId,
+      chatMessages,
+      handleResponse,
+      savedChats,
+      setChatMessages,
+      isAuthenticated,
+    ]
   );
 
   const startChatWithOption = useCallback(
@@ -513,7 +556,6 @@ Please try:
           return;
         }
         chatIdToUse = newId;
-        isNewChat = true;
         setChatMessages([]);
       }
 
