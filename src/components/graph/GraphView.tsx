@@ -364,7 +364,7 @@ export const GraphView = ({
     [isSharing]
   );
 
-  const edgeTypes = useMemo(() => ({ negation: NegationEdge }), []);
+  const edgeTypes = useMemo(() => ({ negation: NegationEdge, statement: NegationEdge }), []);
 
   const { defaultNodes, defaultEdges, onInit, ...otherProps } = props;
   // With edit mode always on, we'll simplify this, can probably be refactored out completely eventually  
