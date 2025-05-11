@@ -46,6 +46,7 @@ import { fetchPointsByExactContent } from '@/actions/fetchPointsByExactContent';
 import { DuplicatePointSelectionDialog, ConflictingPoint, ResolvedMappings } from './DuplicatePointSelectionDialog';
 import { createRationaleFromPreview } from '@/actions/createRationaleFromPreview';
 import { POINT_MIN_LENGTH, POINT_MAX_LENGTH } from '@/constants/config';
+import { EditMessageDialog } from './EditMessageDialog';
 
 type PreviewAppNode =
     | Node<PreviewStatementNodeData, 'statement'>
@@ -267,6 +268,10 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     description,
     linkUrl,
 }) => {
+    // State for editing messages
+    const [showEditDialog, setShowEditDialog] = useState(false);
+    const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(null);
+    const [editingMessageContent, setEditingMessageContent] = useState<string>("");
     const [persistedGraph, setPersistedGraph] = useState<ViewpointGraph>(graphData);
     const [nodes, setNodes, onNodesChangeReactFlow] = useNodesState<PreviewAppNode>(graphData.nodes as unknown as PreviewAppNode[]);
     const [edges, setEdges, onEdgesChangeReactFlow] = useEdgesState<PreviewAppEdge>(graphData.edges as unknown as PreviewAppEdge[]);
@@ -469,9 +474,10 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
         }
     };
 
-    // Handle message edit
     const handleTriggerEdit = (index: number, content: string) => {
-        // Implement if editing needed within this flow
+        setEditingMessageIndex(index);
+        setEditingMessageContent(content);
+        setShowEditDialog(true);
     };
 
     const handleCreateRationale = useCallback(async (useResolvedMappings = false) => {
@@ -682,6 +688,23 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
                 onOpenChange={setIsDuplicateDialogOpen}
                 conflicts={conflictingPoints}
                 onResolve={handleResolveDuplicates}
+            />
+            {/* Edit Message Dialog */}
+            <EditMessageDialog
+                open={showEditDialog}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setShowEditDialog(false);
+                        setEditingMessageIndex(null);
+                        setEditingMessageContent("");
+                    }
+                }}
+                initialContent={editingMessageContent}
+                onSave={(newContent) => {
+                    if (editingMessageIndex !== null) {
+                        chatState.handleSaveEdit(editingMessageIndex, newContent);
+                    }
+                }}
             />
         </div>
     );

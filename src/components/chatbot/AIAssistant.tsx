@@ -16,7 +16,7 @@ import { AuthenticatedActionButton } from "@/components/AuthenticatedActionButto
 import { fetchUserEndorsedPoints } from "@/actions/fetchUserEndorsedPoints";
 import { fetchProfilePoints, ProfilePoint } from "@/actions/fetchProfilePoints";
 import { getSpace } from "@/actions/getSpace";
-import { AutosizeTextarea } from "../ui/autosize-textarea";
+import { AutosizeTextarea } from "@/components/ui/autosize-textarea";
 import { fetchViewpoints } from "@/actions/fetchViewpoints";
 import { DiscourseConnectDialog } from "@/components/chatbot/DiscourseConnectDialog";
 import { DiscourseMessagesDialog } from "@/components/chatbot/DiscourseMessagesDialog";
@@ -47,6 +47,7 @@ import { RationaleCreator } from "./RationaleCreator";
 import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { StatementNode } from "@/components/graph/StatementNode";
 import { LinkIcon, FileText, X } from "lucide-react";
+import { EditMessageDialog } from './EditMessageDialog';
 
 type OwnedPoint = ProfilePoint;
 
@@ -1124,44 +1125,22 @@ export default function AIAssistant() {
                 </AlertDialogContent>
             </AlertDialog>
 
-            <Dialog open={showEditDialog} onOpenChange={(open) => {
-                if (!open) {
-                    setShowEditDialog(false);
-                    setEditingMessageIndex(null);
-                    setEditingMessageContent("");
-                }
-            }}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader><DialogTitle>Edit Message</DialogTitle></DialogHeader>
-                    <div className="py-4">
-                        <AutosizeTextarea
-                            value={editingMessageContent}
-                            onChange={(e) => setEditingMessageContent(e.target.value)}
-                            placeholder="Edit your message..."
-                            className="w-full min-h-[100px] rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                            minHeight={100}
-                            maxHeight={300}
-                            autoFocus
-                        />
-                    </div>
-                    <div className="flex items-center justify-end space-x-2 pt-2">
-                        <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
-                        <AuthenticatedActionButton
-                            onClick={() => {
-                                if (editingMessageIndex !== null) {
-                                    chatState.handleSaveEdit(editingMessageIndex, editingMessageContent);
-                                    setShowEditDialog(false);
-                                    setEditingMessageIndex(null);
-                                    setEditingMessageContent("");
-                                }
-                            }}
-                            disabled={!editingMessageContent.trim()}
-                        >
-                            Save Changes
-                        </AuthenticatedActionButton>
-                    </div>
-                </DialogContent>
-            </Dialog>
+            <EditMessageDialog
+                open={showEditDialog}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setShowEditDialog(false);
+                        setEditingMessageIndex(null);
+                        setEditingMessageContent("");
+                    }
+                }}
+                initialContent={editingMessageContent}
+                onSave={(newContent) => {
+                    if (editingMessageIndex !== null) {
+                        chatState.handleSaveEdit(editingMessageIndex, newContent);
+                    }
+                }}
+            />
         </div>
     );
 } 
