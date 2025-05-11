@@ -207,7 +207,10 @@ export default function AIAssistant() {
             await chatList.updateChat(
                 newChatId,
                 sharedContent.messages,
-                `Imported: ${sharedContent.title}`.substring(0, 100)
+                `Imported: ${sharedContent.title}`.substring(0, 100),
+                null,
+                sharedContent.graph,
+                true
             );
             toast.success("Chat imported successfully!", { id: toastId });
             importSuccess = true;
