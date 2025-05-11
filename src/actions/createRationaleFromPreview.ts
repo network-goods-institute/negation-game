@@ -69,10 +69,10 @@ export async function createRationaleFromPreview({
           finalPointId = await makePoint({ content: data.content, cred: 0 });
         }
         finalPointIdMap.set(node.id, finalPointId);
-        if (data.viewerCred && data.viewerCred > 0) {
+        if (data.cred && data.cred > 0) {
           endorsementsToMake.push({
             pointId: finalPointId,
-            cred: data.viewerCred,
+            cred: data.cred,
           });
         }
       }
@@ -135,7 +135,7 @@ export async function createRationaleFromPreview({
       const parentFinalId = previewToFinalIdMap.get(edge.source);
       const childFinalId = previewToFinalIdMap.get(edge.target);
       if (!parentFinalId || !childFinalId) return;
-      const edgeType = edge.source === "statement" ? "negation" : "statement";
+      const edgeType = edge.source === "statement" ? "statement" : "negation";
       finalEdges.push({
         id: `edge-${nanoid()}`,
         type: edgeType,

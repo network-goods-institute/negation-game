@@ -27,7 +27,7 @@ import { PreviewPointEditor } from "./PreviewPointEditor";
 
 export type PreviewPointNodeData = {
   content: string;
-  viewerCred?: number;
+  cred?: number;
 };
 
 export type PreviewPointNode = Node<PreviewPointNodeData, "point">;
@@ -39,7 +39,7 @@ export interface PreviewPointNodeProps extends Omit<NodeProps, "data"> {
 }
 
 export const PreviewPointNode = ({
-  data: { content, viewerCred },
+  data: { content, cred },
   id,
   positionAbsoluteX,
   positionAbsoluteY,
@@ -53,6 +53,8 @@ export const PreviewPointNode = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(content);
   const [isSelling, setIsSelling] = useState(false);
+
+  const hasPositiveCred = cred !== undefined && cred > 0;
 
   const handleDelete = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -98,17 +100,18 @@ export const PreviewPointNode = ({
   }, [addNodes, addEdges, id, positionAbsoluteX, positionAbsoluteY]);
 
   const handleEndorse = () => {
-    const currentViewerCred = viewerCred || 0;
-    let newViewerCred: number;
+    const currentCred = cred || 0;
+    let newCred: number;
 
     if (isSelling) {
-      newViewerCred = Math.max(0, currentViewerCred - credInput);
+      newCred = Math.max(0, currentCred - credInput);
     } else {
-      newViewerCred = currentViewerCred + credInput;
+      newCred = currentCred + credInput;
     }
 
-    updateNodeData(id, { viewerCred: newViewerCred });
-    console.log(`Simulated ${isSelling ? 'sell' : 'endorse'} with cred: ${credInput}, New viewerCred: ${newViewerCred}`);
+    if (newCred !== currentCred) {
+      updateNodeData(id, { cred: newCred });
+    }
     toggleEndorsePopoverOpen(false);
     setIsSelling(false);
     setCredInput(0);
@@ -135,8 +138,9 @@ export const PreviewPointNode = ({
         className={cn(
           "relative bg-background border-2 rounded-lg p-4 min-h-28 w-64",
           "border-muted-foreground/60 dark:border-muted-foreground/40",
-          viewerCred && viewerCred > 0 && "border-yellow-500 dark:border-yellow-500",
-          "select-none"
+          hasPositiveCred && "border-yellow-500 dark:border-yellow-500",
+          "select-none",
+          "pb-10"
         )}
       >
         {/* Incoming Connection Handle (Hidden Dot) */}
@@ -218,15 +222,15 @@ export const PreviewPointNode = ({
                 }}
                 className={cn(
                   "p-1 rounded-full size-fit gap-sm hover:bg-endorsed/30",
-                  viewerCred && viewerCred > 0 && "text-endorsed"
+                  hasPositiveCred && "text-endorsed"
                 )}
                 variant="ghost"
               >
                 <EndorseIcon
-                  className={cn(viewerCred && viewerCred > 0 && "fill-current")}
+                  className={cn(hasPositiveCred && "fill-current")}
                 />
-                {viewerCred && viewerCred > 0 && (
-                  <span className="translate-y-[-1px] ml-1">{viewerCred} cred</span>
+                {hasPositiveCred && (
+                  <span className="translate-y-[-1px] ml-1">{cred} cred</span>
                 )}
               </Button>
             </PopoverTrigger>
@@ -239,7 +243,7 @@ export const PreviewPointNode = ({
                   credInput={credInput}
                   setCredInput={setCredInput}
                   notEnoughCred={notEnoughCred}
-                  endorsementAmount={viewerCred || 0}
+                  endorsementAmount={cred || 0}
                   isSelling={isSelling}
                   setIsSelling={setIsSelling}
                 />
@@ -248,7 +252,7 @@ export const PreviewPointNode = ({
                   disabled={
                     credInput === 0 ||
                     (!isSelling && notEnoughCred) ||
-                    (isSelling && credInput > (viewerCred || 0))
+                    (isSelling && credInput > (cred || 0))
                   }
                   onClick={handleEndorse}
                 >
@@ -259,7 +263,7 @@ export const PreviewPointNode = ({
                     Not enough cred
                   </span>
                 )}
-                {isSelling && credInput > (viewerCred || 0) && (
+                {isSelling && credInput > (cred || 0) && (
                   <span className="text-destructive text-sm">
                     Cannot sell more than endorsed
                   </span>
@@ -281,12 +285,12 @@ export const PreviewPointNode = ({
           <ArrowDownIcon className="size-4" />
         </Handle>
 
-        {/* Badge based on local viewerCred */}
-        {viewerCred && viewerCred > 0 && (
+        {/* Badge based on local cred */}
+        {hasPositiveCred && (
           <Badge
             className="absolute hover:bg-yellow-600 bottom-1.5 right-1.5 text-yellow-500 text-xs font-medium bg-yellow-500/80 text-background dark:font-bold leading-none px-1 py-0.5 rounded-[6px] align-middle"
           >
-            {viewerCred} cred
+            {cred} cred
           </Badge>
         )}
       </div>

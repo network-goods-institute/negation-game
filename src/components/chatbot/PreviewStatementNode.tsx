@@ -60,7 +60,7 @@ export const PreviewStatementNode = ({
       sourceHandle: `${id}-add-handle`,
       target: newNodeId,
       targetHandle: `${newNodeId}-target`,
-      type: 'negation'
+      type: 'statement'
     });
   };
 
@@ -76,7 +76,7 @@ export const PreviewStatementNode = ({
   return (
     <div
       className={cn(
-        "relative bg-accent rounded-md border-2 min-h-18 w-96 flex items-center p-4 justify-center flex-grow",
+        "relative bg-accent/20 rounded-md border-2 min-h-18 w-96 flex items-center p-4 justify-center flex-grow",
         "select-none"
       )}
     >
@@ -104,12 +104,13 @@ export const PreviewStatementNode = ({
       />
 
       {/* Content */}
-      <div className="text-accent-foreground font-bold">
+      <div className="text-accent-foreground font-medium text-center">
         {isEditing ? (
           <Textarea
             value={editedStatement}
             onChange={(e) => setEditedStatement(e.target.value)}
             className="min-h-[80px] resize-none bg-transparent border-none focus-visible:ring-0 text-center"
+            placeholder="Enter the topic or question this rationale explores..."
             autoFocus
             onClick={(e) => e.stopPropagation()}
           />

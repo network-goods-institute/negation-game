@@ -57,10 +57,10 @@ export const pointNegationsQueryKey = ({
 export const usePointNegations = (pointId: number | undefined | null) => {
   const { user } = usePrivy();
 
-  // Always call useQuery (never conditionally return before it)
-  // WARNING: Do not add pointId to queryKey dependencies. It will break the query and is not needed.
-  // eslint-disable-next-line @tanstack/query/exhaustive-deps
   return useQuery({
+    // Always call useQuery (never conditionally return before it)
+    // WARNING: Do not add pointId to queryKey dependencies. It will break the query and is not needed.
+    // eslint-disable-next-line @tanstack/query/exhaustive-deps
     queryKey:
       pointId !== undefined && pointId !== null && pointId >= 0
         ? pointNegationsQueryKey({ pointId, userId: user?.id })

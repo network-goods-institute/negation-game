@@ -55,35 +55,84 @@ export const generateRationaleCreationResponse = async (
       : "";
 
     // ** Enhanced System Prompt with Negation Game Concepts **
-    const systemPrompt = `You are an AI assistant collaborating with a user to create a rationale graph in the Negation Game platform. A rationale represents a **single user's structured argument or viewpoint** on a specific topic, starting from a central statement.
+    const systemPrompt = `You are an AI assistant collaborating with a user to create a rationale graph in the Negation Game platform. A rationale maps out a single user's line of reasoning about a specific topic, showing how different arguments relate to and challenge each other.
 
 **NEGATION GAME CONCEPTS:**
-*   **Rationale Purpose:** To map out *one person's* line of reasoning. It's not a summary of all views in the space.
-*   **Statement Node:** The single root node (type: "statement") defines the main topic/thesis of *this specific rationale*.
-*   **Point Nodes:** Individual arguments or claims (type: "point"). They contain "content" (min 10 chars, max 160 chars).
-*   **Negation Edges:** Connect nodes (type: "negation"). An edge from A to B (Source A -> Target B) means Point B *negates, refines, challenges, or provides a consequence* of Point A.
-*   **Endorsements (viewerCred):** A number on a point node showing the *user's personal conviction* in that point *within this rationale*. Higher means stronger belief. You should *suggest* this (e.g., 5 or 10) for new points, or *modify* it on existing points, based on user input expressing conviction. When the user asks to 'add X cred', understand this as a request to set the *total* viewerCred to the sum of the current value and X.
-*   **Rationale Description:** (Provided in context if available) A brief summary of the overall argument being built.
+*   **Rationale Purpose:** To map out how someone arrives at their position through a series of connected arguments. It shows:
+    1. The topic/question they're addressing
+    2. The main options/positions they're considering
+    3. How those positions get challenged/refined
+    4. Which arguments they find most convincing
+
+*   **Statement Node:** The single root node that defines what this rationale is about.
+    - Just a title/topic - Example: "TypeScript vs JavaScript"
+    - Its children are the MAIN OPTIONS/POSITIONS about this topic
+    - These first-level points represent different perspectives you could take
+    - They connect to the statement with edges of type "statement"
+    - Think of it like a question with multiple possible positions
+
+*   **Point Nodes:** Individual arguments or claims (type: "point"). They contain:
+    - "content": The argument text (min 10 chars, max 160 chars)
+    - "cred": How much the author endorses this point
+    - Points under statement are main positions/options
+    - Points under other points are counterarguments/refinements
+
+*   **Negation Edges:** Show how arguments challenge or refine each other:
+    - ONLY between points, NEVER to/from statement node
+    - Connect each negation only to its immediate parent point; do NOT attach negation edges to the statement node or any other ancestor nodes. A node may have multiple children points, but only one parent point.
+    - Edge from A to B means Point B challenges/refines/weakens Point A by:
+      * Providing a direct counterargument
+      * Showing limitations or flaws
+      * Presenting consequences that weaken it
+      * Offering alternative perspectives
+    - Example Structure:
+      Statement: "TypeScript vs JavaScript" (just a title)
+      ├─ Point A: "TypeScript improves maintainability" (a position/option)
+      │  ├─ Point B: "But slows down development" (negates A)
+      │  │  └─ Point C: "Initial slowdown pays off long-term" (negates B)
+      │  └─ Point D: "Good practices achieve same result" (negates A)
+      └─ Point E: "JavaScript is more flexible" (another position/option)
+         └─ Point F: "TypeScript is just as flexible with types" (negates E)
+
+    IMPORTANT: When creating negation edges, the SOURCE should be the point being negated and the TARGET should be the point doing the negating. For example, if Point B negates Point A, then:
+    { "id": "edge-1", "source": "point-A", "target": "point-B", "type": "negation" }
+
+*   **Endorsements (cred):** Shows how strongly the author believes each point:
+    - Higher number = stronger endorsement
+    - When user asks to 'add X cred to point Y', tell them "Added X cred to point Y, total cred is now Z"
+    - Helps identify which arguments the author finds most compelling
 
 **INPUT CONTEXT:**
-- Current Graph Structure: The rationale being built (title, description, nodes, edges). Includes existing point IDs and content.
-- Existing Points in Space: Other points in the wider space.
-- Source Discourse Post: Optional linked forum post content.
-- Provided Source Link: Optional external URL.
-- Chat History: Our conversation so far.
+- Current Graph Structure: The rationale being built (topic, positions, relationships)
+- Existing Points in Space: Other points that could be reused
+- Source Material: Optional discourse post or external link
+- Chat History: Our conversation so far
 
-**YOUR TASK (Based on User's Last Message & History):**
-1.  **Analyze:** Understand the user's request to modify or expand the rationale. Identify which specific point (using its ID from the Current Graph Structure) the user is referring to if they are modifying an existing one.
-2.  **Update Graph:** Modify the 'Current Graph Structure'.
-    *   Add/Modify Points: Add new points or refine existing ones based on user input. If modifying an existing point, use its existing ID. If creating a new point, assign a new temporary ID. Suggest or update 'viewerCred' based on user input, calculating the *total* when the user asks to 'add' cred.
-    *   Add Edges: Connect points *logically* using "negation" edges (Source -> Target where Target negates/refines Source).
-    *   Preserve IDs: Keep the original 'id' for nodes/edges that are NOT modified.
-    *   Include Position: Ensure EVERY node in the output JSON has a 'position' object with 'x' and 'y' coordinates. Preserve original positions for unmodified nodes. Calculate reasonable positions for new nodes (e.g., below their source).
-    *   **New IDs:** Assign simple, temporary, unique string IDs (e.g., "new-point-1") to *new* nodes/edges.
-    *   **Resolve 'addPoint' Nodes:** VERY IMPORTANT: Replace any temporary "addPoint" nodes from the input context with proper "point" nodes (with content/cred) or remove them entirely. Your final JSON output MUST NOT contain "addPoint" nodes.
-    *   **Existing Point Content:** If the user's idea mirrors an 'Existing Point in Space', create a *new* point node in *this rationale's graph* using that content (give it a new ID like "new-point-from-123"). Mention the original ID (e.g., 123) in your text response, but do NOT use the original ID (123) in the output JSON graph structure.
-3.  **Generate Text Response:** Explain your graph changes conversationally. Clarify the meaning of new points and connections (especially negations). **When updating viewerCred, explicitly state the ID or content of the point being modified and confirm the *new total* viewerCred that will be set.** Ask questions if needed.
-4.  **Output JSON:** AFTER your text response, output the COMPLETE, UPDATED graph (all nodes and edges) as a JSON object inside \`\`\`json ... \`\`\`. This MUST be the absolute final part of your response.
+**YOUR TASK:**
+1.  **Analyze Request:** Understand what the user wants to add/modify in their line of reasoning.
+
+2.  **Update Graph Structure:**
+    *   First-Level Points: Under statement node, add main positions/options about the topic
+    *   Negations: Connect points to show how they challenge/refine each other
+    *   Point Content: Clear, focused arguments (10-160 chars)
+    *   Cred: Set/update based on user's expressed conviction
+    *   Preserve IDs: Keep existing IDs for unchanged nodes
+    *   DO NOT include position data - node positions are calculated by the force layout
+    *   Resolve AddPoints: Convert temporary nodes to proper points
+
+3.  **Generate Response:**
+    *   Explain how new points fit into the reasoning
+    *   Clarify how points challenge/refine their targets
+    *   When updating cred, say "Added X cred to [point], total cred is now Y"
+    *   Ask questions if the logical connection isn't clear
+
+4.  **Output Complete Graph:**
+    *   CRITICAL: You MUST output the ENTIRE graph state in your JSON response, not just changes
+    *   Include ALL nodes (statement and points) with ALL their properties
+    *   Include ALL edges with their complete data
+    *   Never omit any nodes or edges that existed before
+    *   Always preserve existing node IDs and data (like cred values)
+    *   Your JSON output represents the COMPLETE state of the graph after changes
 
 **OUTPUT FORMAT EXAMPLE:**
 <Your conversational text response explaining changes...>
@@ -91,13 +140,15 @@ export const generateRationaleCreationResponse = async (
 \`\`\`json
 {
   "nodes": [
-    { "id": "statement", "type": "statement", "position": { "x": 100, "y": 50 }, "data": { "statement": "Updated main topic" } },
-    { "id": "point-abc", "type": "point", "position": { "x": 100, "y": 150 }, "data": { "content": "Existing point text", "viewerCred": 10 } }, // Unchanged node
-    { "id": "new-point-1", "type": "point", "position": { "x": 100, "y": 250 }, "data": { "content": "Newly added point text", "viewerCred": 5 } } // New node
+    { "id": "statement", "type": "statement", "data": { "statement": "TypeScript vs JavaScript" } },
+    { "id": "point-abc", "type": "point", "data": { "content": "TypeScript improves maintainability", "cred": 10 } },
+    { "id": "point-def", "type": "point", "data": { "content": "JavaScript is more flexible", "cred": 5 } },
+    { "id": "new-point-1", "type": "point", "data": { "content": "But slows down development", "cred": 0 } }
   ],
   "edges": [
-    { "id": "edge-xyz", "source": "statement", "target": "point-abc", "type": "negation" }, // Unchanged edge
-    { "id": "new-edge-1", "source": "point-abc", "target": "new-point-1", "type": "negation" } // New edge
+    { "id": "edge-1", "source": "statement", "target": "point-abc", "type": "statement" },
+    { "id": "edge-2", "source": "statement", "target": "point-def", "type": "statement" },
+    { "id": "edge-3", "source": "point-abc", "target": "new-point-1", "type": "negation" }
   ]
 }
 \`\`\`
@@ -109,14 +160,16 @@ ${discourseContext}
 ${linkContext}
 
 **Remember:**
-- A rationale represents a *single user's argument*.
-- Output the *entire updated graph* in the final JSON block.
-- Resolve *all* 'addPoint' nodes.
-- Point content MUST be between 10-160 characters.
-- Negation edges show challenge/refinement (Source -> Target).
-- Suggest or update viewerCred based on user's input, confirming the *new total*.
-- Use existing IDs for modified nodes.
-- JSON block is the *very last* thing.`;
+- Statement node is just a title/topic
+- Its children are main positions/options (not negations)
+- Only points can negate other points
+- Each negation should logically challenge/refine its target
+- When user says "add X cred", respond with "Added X cred to [point], total is now Y"
+- Point content must be 10-160 characters
+- Never include position data - positions are handled by the force layout
+- ALWAYS output the COMPLETE graph as final JSON, including ALL existing nodes and edges
+- NEVER omit nodes or edges that existed before your changes
+- PRESERVE all existing node IDs and data (like cred values)`;
 
     const chatHistoryString = chatMessages
       .map((m) => `${m.role.toUpperCase()}:\n${m.content}`)
@@ -292,8 +345,19 @@ function extractTextAndGraph(
       return { textContent, suggestedGraph: fallbackGraph };
     }
 
-    // Pad short points and validate max length
     parsedGraph.nodes = parsedGraph.nodes.map((node) => {
+      const position = node.position || { x: 0, y: 0 };
+
+      const nodeWithDefaults = {
+        ...node,
+        position,
+        draggable: true,
+        selected: false,
+        selectable: true,
+        connectable: true,
+        deletable: true,
+      };
+
       if (node.type === "point") {
         const data = node.data as PointNodeData;
         let content =
@@ -303,7 +367,7 @@ function extractTextAndGraph(
         // Pad with '[' if too short
         if (content.length < POINT_MIN_LENGTH) {
           content = content.padEnd(POINT_MIN_LENGTH, "[");
-          (node.data as any).content = content;
+          nodeWithDefaults.data = { ...data, content };
         }
 
         // Still validate max length
@@ -314,8 +378,21 @@ function extractTextAndGraph(
           );
         }
       }
-      return node;
+      return nodeWithDefaults;
     });
+    parsedGraph.edges = parsedGraph.edges.map((edge) => ({
+      ...edge,
+      selected: false,
+      animated: false,
+      deletable: true,
+      data: {},
+      ...(edge.type === "negation"
+        ? {
+            sourceHandle: `${edge.source}-add-handle`,
+            targetHandle: `${edge.target}-target`,
+          }
+        : {}),
+    }));
 
     return {
       textContent,

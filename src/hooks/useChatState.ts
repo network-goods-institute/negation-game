@@ -39,7 +39,8 @@ interface UseChatStateProps {
     messages: ChatMessage[],
     title?: string,
     distillRationaleId?: string | null,
-    graph?: ViewpointGraph | null
+    graph?: ViewpointGraph | null,
+    immediate?: boolean
   ) => void;
   createNewChat: (initialGraph?: ViewpointGraph) => Promise<string | null>;
 }
@@ -146,7 +147,8 @@ export function useChatState({
           finalMessages,
           undefined,
           rationaleIdForUpdate,
-          graphForUpdate
+          graphForUpdate,
+          true
         );
         return;
       }
@@ -180,7 +182,8 @@ export function useChatState({
             finalMessages,
             title,
             rationaleIdForUpdate,
-            graphForUpdate
+            graphForUpdate,
+            true
           );
         } else {
           const assistantMsgContent =
@@ -194,7 +197,8 @@ export function useChatState({
             finalMessages,
             fallbackTitle || "Chat",
             rationaleIdForUpdate,
-            graphForUpdate
+            graphForUpdate,
+            true
           );
         }
       } catch (titleError) {
@@ -208,7 +212,8 @@ export function useChatState({
           finalMessages,
           fallbackTitle || "Chat",
           rationaleIdForUpdate,
-          graphForUpdate
+          graphForUpdate,
+          true
         );
       } finally {
         setGeneratingTitles((prev) => {

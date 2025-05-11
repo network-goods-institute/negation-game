@@ -283,15 +283,126 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     const [isCreating, setIsCreating] = useState(false);
 
     useEffect(() => {
-        if (graphData) {
-            const currentInternalGraph = { nodes: nodes as any, edges: edges as any };
-            if (JSON.stringify(graphData) !== JSON.stringify(currentInternalGraph)) {
-                setNodes(graphData.nodes as unknown as PreviewAppNode[]);
-                setEdges(graphData.edges as unknown as PreviewAppEdge[]);
+        if (!graphData) return;
+
+        const currentNodesMap = new Map(nodes.map(node => [node.id, node]));
+
+
+        const incomingNodesMap = new Map(graphData.nodes.map(node => [node.id, node]));
+
+        const nodesToProcess = graphData.nodes.map(incomingNode => {
+            const existingNode = currentNodesMap.get(incomingNode.id);
+            if (existingNode) {
+                // If it's a point node, explicitly merge cred
+                if (existingNode.type === 'point') {
+                    const incomingPoint = incomingNode as PreviewPointNode;
+                    const existingPoint = existingNode as PreviewPointNode;
+                    const dataCopy: PreviewPointNodeData = { ...incomingPoint.data };
+                    const existingCred = existingPoint.data.cred;
+                    if (dataCopy.cred === undefined && existingCred !== undefined) {
+                        dataCopy.cred = existingCred;
+                    }
+                    return {
+                        ...incomingPoint,
+                        position: existingPoint.position,
+                        data: dataCopy,
+                    };
+                }
+                // For statement or addPoint, just preserve incoming data with existing position
+                const baseNode = incomingNode as PreviewAppNode;
+                return { ...baseNode, position: existingNode.position };
             }
+            // New node: no existing position, return as-is
+            return incomingNode as PreviewAppNode;
+        });
+
+        const newNodesByParent = new Map<string, PreviewAppNode[]>();
+        const nodesWithoutParent: PreviewAppNode[] = [];
+
+        nodesToProcess.forEach(node => {
+            if (!currentNodesMap.has(node.id)) { // This is a new node
+                // Find the edge in incoming graphData where this node is the target
+                const edgeToThisNode = graphData.edges.find(edge => edge.target === node.id);
+
+                if (edgeToThisNode) {
+                    const parentId = edgeToThisNode.source;
+                    if (!newNodesByParent.has(parentId)) {
+                        newNodesByParent.set(parentId, []);
+                    }
+                    newNodesByParent.get(parentId)!.push(node);
+                } else {
+                    nodesWithoutParent.push(node); // Should ideally not happen for connected nodes in AI output
+                }
+            }
+        });
+
+        const positionedNewNodes: PreviewAppNode[] = [];
+        const verticalSpacing = 150;
+        const estimatedNodeWidth = 300;
+        const horizontalGap = 50;
+        const totalSiblingWidth = estimatedNodeWidth + horizontalGap;
+
+        newNodesByParent.forEach((siblingNodes, parentId) => {
+            const parentNode = currentNodesMap.get(parentId);
+            if (!parentNode) {
+                // If parent is not found in currentNodesMap, give new nodes a default position
+                // This case might happen if the parent itself is also a new node, which isn't ideal
+                // but providing a default prevents errors.
+                siblingNodes.forEach(node => positionedNewNodes.push({ ...node, position: { x: 0, y: 0 } }));
+                return;
+            }
+
+            const parentPosition = parentNode.position;
+            const numSiblings = siblingNodes.length;
+
+            const totalRequiredHorizontalSpace = (numSiblings * estimatedNodeWidth) + ((numSiblings - 1) * horizontalGap);
+
+            const startX = parentPosition.x - (totalRequiredHorizontalSpace / 2) + (estimatedNodeWidth / 2);
+
+            siblingNodes.forEach((node, index) => {
+                const offsetX = index * totalSiblingWidth;
+                positionedNewNodes.push({
+                    ...node,
+                    position: {
+                        x: startX + offsetX,
+                        y: parentPosition.y + verticalSpacing,
+                    },
+                });
+            });
+        });
+        nodesWithoutParent.forEach(node => positionedNewNodes.push({ ...node, position: { x: 0, y: 0 } }));
+
+        const finalNodes = nodesToProcess
+            .filter(node => currentNodesMap.has(node.id))
+            .concat(positionedNewNodes);
+
+        // Filter out nodes that are no longer in graphData (shouldn't happen with current AI logic, but could)
+        const finalFilteredNodes = finalNodes.filter(node => incomingNodesMap.has(node.id));
+
+        // Check if nodes or edges have actually changed before updating state
+        const areNodesEqual = JSON.stringify(finalFilteredNodes) === JSON.stringify(nodes);
+        const areEdgesEqual = JSON.stringify(graphData.edges) === JSON.stringify(edges);
+
+        if (!areNodesEqual) {
+            setNodes(finalFilteredNodes);
         }
+
+        if (!areEdgesEqual) {
+            setEdges(graphData.edges as unknown as PreviewAppEdge[]);
+        }
+
+        if ((!areNodesEqual || !areEdgesEqual) && reactFlowInstance) {
+            requestAnimationFrame(() => {
+                reactFlowInstance.fitView({
+                    duration: 500,
+                    padding: 0.1,
+                });
+            });
+        }
+
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [graphData, setNodes, setEdges]); // nodes/edges intentionally omitted to avoid sync loop
+        // passing in nodes or edges will break things
+    }, [graphData, reactFlowInstance, setNodes, setEdges]);
 
     // When nodes change, mark the graph as modified
     const handleNodesChange: OnNodesChange<PreviewAppNode> = useCallback((changes) => {
@@ -395,7 +506,7 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
         // --- 1. Cred Check ---
         let totalRequiredCred = 0;
         pointNodes.forEach(node => {
-            totalRequiredCred += node.data.viewerCred || 0;
+            totalRequiredCred += node.data.cred || 0;
         });
 
         const userCred = userData.cred ?? 0;
@@ -561,12 +672,11 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
                         onSaveGraph={saveGraph}
                         onDiscard={discardGraph}
                         graphModified={graphModified}
-                        isSaving={isSavingGraph || isCreating}
+                        isSaving={isSavingGraph}
                         onCreateRationaleClick={handleCreateRationale}
                     />
                 )}
             </div>
-
             <DuplicatePointSelectionDialog
                 isOpen={isDuplicateDialogOpen}
                 onOpenChange={setIsDuplicateDialogOpen}
