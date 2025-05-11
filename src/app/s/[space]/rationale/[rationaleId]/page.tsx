@@ -133,6 +133,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     const [isMobile, setIsMobile] = useState(false);
     const [isCopying, setIsCopying] = useState(false);
     const [isCopyingUrl, setIsCopyingUrl] = useState(false);
+    const [isPageCopyConfirmOpen, setIsPageCopyConfirmOpen] = useState(false);
 
     const [editableTitle, setEditableTitle] = useState("");
     const [editableDescription, setEditableDescription] = useState("");
@@ -633,7 +634,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                                 variant="default"
                                 size="sm"
                                 className="rounded-full flex items-center gap-1 px-2 py-1 h-7 text-xs"
-                                onClick={handleCopy}
+                                onClick={() => setIsPageCopyConfirmOpen(true)}
                                 disabled={isCopying}
                             >
                                 {isCopying ? (
@@ -676,7 +677,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                                 <AuthenticatedActionButton
                                     variant="default"
                                     className="rounded-full flex items-center gap-2 px-4"
-                                    onClick={handleCopy}
+                                    onClick={() => setIsPageCopyConfirmOpen(true)}
                                     disabled={isCopying}
                                 >
                                     {isCopying ? (
@@ -912,6 +913,25 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                     initialPoints={viewSharedPoints}
                     sharedBy={sharedByUsername}
                 />
+
+                <AlertDialog open={isPageCopyConfirmOpen} onOpenChange={setIsPageCopyConfirmOpen}>
+                    <AlertDialogContent className="sm:max-w-[425px]">
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Confirm Copy</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Are you sure you want to make a copy of this rationale?
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setIsPageCopyConfirmOpen(false)}>
+                                Cancel
+                            </AlertDialogCancel>
+                            <AlertDialogAction onClick={() => { setIsPageCopyConfirmOpen(false); handleCopy(); }}>
+                                Yes, make a copy
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </main>
 
             <AlertDialog open={isDiscardDialogOpen} onOpenChange={setIsDiscardDialogOpen}>
