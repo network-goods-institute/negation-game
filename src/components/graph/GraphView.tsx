@@ -951,10 +951,10 @@ export const GraphView = ({
                         </div>
                       ) : (
                         <div className="flex items-center">
-                          <SaveIcon className="size-4 mr-2" />
+                          <SaveIcon className="size-3.5 mr-1.5" />
                           <span className={cn(
-                            "font-medium",
-                            canModify ? "text-sm" : "text-xs"
+                            "font-medium text-xs",
+                            !canModify && "text-[11px] leading-none"
                           )}>
                             {canModify
                               ? isNew
