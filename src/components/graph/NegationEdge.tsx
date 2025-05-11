@@ -1,8 +1,10 @@
 import { BezierEdge, Edge, EdgeProps } from "@xyflow/react";
 
-export interface NegationEdgeProps extends EdgeProps<NegationEdge> { }
+// Define the underlying edge type for negations
+export type NegationEdgeType = Edge<any, "negation">;
 
-export type NegationEdge = Edge<{}, "negation">;
+// Props for the NegationEdge component
+export interface NegationEdgeProps extends EdgeProps<NegationEdgeType> { }
 
 export const NegationEdge = ({ ...props }: NegationEdgeProps) => {
   return (
@@ -20,6 +22,6 @@ export const NegationEdge = ({ ...props }: NegationEdgeProps) => {
         fontSize: 36,
         fontWeight: 600,
       }}
-    ></BezierEdge>
+    />
   );
 };

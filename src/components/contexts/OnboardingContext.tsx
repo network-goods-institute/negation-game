@@ -18,6 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { MemoizedMarkdown } from '@/components/MemoizedMarkdown';
 import { InfoIcon } from 'lucide-react';
+import { useKnowledgeBase } from '@/components/contexts/KnowledgeBaseContext';
 
 const LOCAL_STORAGE_KEY = 'onboardingDismissed';
 const LAST_SHOWN_KEY = 'onboardingLastShown';
@@ -47,6 +48,7 @@ const OnboardingDialog = ({ isOpen, onClose, onDismissPermanently }: {
     onClose: () => void;
     onDismissPermanently: () => void;
 }) => {
+    const { openDialog } = useKnowledgeBase();
     const content = `
 # Introduction to the Negation Game
 
@@ -157,6 +159,9 @@ The result is a discussion platform where the quality of your reasoning and your
                             (You can always reopen this from the <InfoIcon className="inline h-3 w-3 mr-0.5" /> button in the header)
                         </p>
                     </div>
+                    <Button variant="outline" onClick={() => { onClose(); openDialog(); }} className="w-full sm:w-auto">
+                        Knowledge Base
+                    </Button>
                     <Button onClick={onClose} className="w-full sm:w-auto">
                         Close
                     </Button>

@@ -12,12 +12,12 @@ import { DevOnly } from "@/components/utils/DevOnly";
 import { ToggleableReactQueryDevTools } from "@/components/utils/ToggleableReactQueryDevTools";
 import "@xyflow/react/dist/style.css";
 import "./globals.css";
+import { KnowledgeBaseProvider } from "@/components/contexts/KnowledgeBaseContext";
 import { OnboardingProvider } from "@/components/contexts/OnboardingContext";
 import { HeaderActions } from "@/components/layout/HeaderActions";
 import {
   DynamicHeaderContent
 } from "@/components/layout/DynamicHeaderContent";
-import { KnowledgeBaseProvider } from "@/components/contexts/KnowledgeBaseContext";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -42,8 +42,8 @@ export default function RootLayout({
         >
           <ThemedPrivyProvider>
             <QueryClientProvider>
-              <OnboardingProvider>
-                <KnowledgeBaseProvider>
+              <KnowledgeBaseProvider>
+                <OnboardingProvider>
                   <TooltipProvider>
                     <header className="sticky top-0 z-20 border-b py-sm flex justify-between container-padding items-center w-full bg-background h-[var(--header-height)]">
                       <div className="flex items-center min-w-0" id="header-container">
@@ -63,8 +63,8 @@ export default function RootLayout({
                   <DevOnly>
                     <ToggleableReactQueryDevTools />
                   </DevOnly>
-                </KnowledgeBaseProvider>
-              </OnboardingProvider>
+                </OnboardingProvider>
+              </KnowledgeBaseProvider>
             </QueryClientProvider>
           </ThemedPrivyProvider>
         </ThemeProvider>
