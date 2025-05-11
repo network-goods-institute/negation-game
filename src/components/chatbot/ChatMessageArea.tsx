@@ -162,7 +162,7 @@ export function ChatMessageArea({
                                             </div>
                                         ) : (
                                             <>
-                                                <div className="text-sm md:text-lg font-semibold">{option.title}</div>
+                                                <div className="text-sm md:text-lg font-semibold break-words whitespace-normal">{option.title}</div>
                                                 <p className="text-xs text-muted-foreground text-balance">
                                                     {description}
                                                 </p>

@@ -740,7 +740,7 @@ export default function AIAssistant() {
     const initialChatOptions: InitialOptionObject[] = [
         {
             id: 'distill',
-            title: "Distill Rationale",
+            title: "Write an Essay from your Rationale",
             prompt: "",
             description: "Select one of your rationales to generate an essay.",
         },
