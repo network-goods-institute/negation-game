@@ -58,6 +58,7 @@ export type InitialOptionObject = {
     description: string;
     disabled?: boolean;
     comingSoon?: boolean;
+    isEarlyAccess?: boolean;
 };
 
 function useIsMobile() {
@@ -878,6 +879,7 @@ export default function AIAssistant() {
             description: "Use AI to help structure and generate a new rationale.",
             disabled: false,
             comingSoon: false,
+            isEarlyAccess: true,
         },
     ];
 
