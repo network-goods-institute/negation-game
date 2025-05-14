@@ -5,7 +5,7 @@ import { streamText, type Message } from "ai";
 import { withRetry } from "@/lib/withRetry";
 import { getUserId } from "@/actions/getUserId";
 
-import type { ChatSettings, DiscourseMessage } from "@/types/chat";
+import type { ChatMessage, ChatSettings, DiscourseMessage } from "@/types/chat";
 import type { PointInSpace } from "./fetchAllSpacePoints";
 
 const sanitizeText = (text: string): string => {
@@ -101,7 +101,7 @@ function buildContextString(
 }
 
 export const generateSuggestionChatBotResponse = async (
-  messages: Message[],
+  messages: ChatMessage[],
   settings: ChatSettings,
   allPointsInSpace: PointInSpace[] = [],
   ownedPointIds: Set<number> = new Set(),

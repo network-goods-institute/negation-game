@@ -337,6 +337,13 @@
       "when": 1746074304723,
       "tag": "0047_mature_songbird",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1746154938423,
+      "tag": "0048_fixed_wolf_cub",
+      "breakpoints": true
     }
   ]
 }

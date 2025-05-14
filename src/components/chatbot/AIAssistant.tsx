@@ -16,7 +16,7 @@ import { AuthenticatedActionButton } from "@/components/AuthenticatedActionButto
 import { fetchUserEndorsedPoints } from "@/actions/fetchUserEndorsedPoints";
 import { fetchProfilePoints, ProfilePoint } from "@/actions/fetchProfilePoints";
 import { getSpace } from "@/actions/getSpace";
-import { AutosizeTextarea } from "../ui/autosize-textarea";
+import { AutosizeTextarea } from "@/components/ui/autosize-textarea";
 import { fetchViewpoints } from "@/actions/fetchViewpoints";
 import { DiscourseConnectDialog } from "@/components/chatbot/DiscourseConnectDialog";
 import { DiscourseMessagesDialog } from "@/components/chatbot/DiscourseMessagesDialog";
@@ -43,16 +43,22 @@ import { ChatHeader } from "./ChatHeader";
 import { ChatMessageArea } from "./ChatMessageArea";
 import { ChatInputForm } from "./ChatInputForm";
 import { fetchAllSpacePoints, PointInSpace } from "@/actions/fetchAllSpacePoints";
+import { RationaleCreator } from "./RationaleCreator";
+import { ViewpointGraph } from "@/atoms/viewpointAtoms";
+import { StatementNode } from "@/components/graph/StatementNode";
+import { LinkIcon, FileText, X } from "lucide-react";
+import { EditMessageDialog } from './EditMessageDialog';
 
 type OwnedPoint = ProfilePoint;
 
 export type InitialOptionObject = {
-    id: 'distill' | 'build' | 'generate';
+    id: 'distill' | 'build' | 'generate' | 'create_rationale';
     title: string;
     prompt: string;
     description: string;
     disabled?: boolean;
     comingSoon?: boolean;
+    isEarlyAccess?: boolean;
 };
 
 function useIsMobile() {
@@ -204,7 +210,10 @@ export default function AIAssistant() {
             await chatList.updateChat(
                 newChatId,
                 sharedContent.messages,
-                `Imported: ${sharedContent.title}`.substring(0, 100)
+                `Imported: ${sharedContent.title}`.substring(0, 100),
+                null,
+                sharedContent.graph,
+                true
             );
             toast.success("Chat imported successfully!", { id: toastId });
             importSuccess = true;
@@ -396,7 +405,7 @@ export default function AIAssistant() {
             setShowMobileMenu(false);
         }
     };
-    const handleStartChatOption = (option: InitialOptionObject) => {
+    const handleStartChatOption = async (option: InitialOptionObject) => {
         if (option.disabled || option.comingSoon) return;
 
         if (option.id === 'distill') {
@@ -410,15 +419,87 @@ export default function AIAssistant() {
             }
             setShowRationaleSelectionDialog(true);
             setShowMobileMenu(false);
+        } else if (option.id === 'create_rationale') {
+            console.log("[AIAssistant] Handling 'create_rationale' option.");
+            if (!isAuthenticated) {
+                toast.info("Login required to create rationales.");
+                return;
+            }
+
+            const initialStatementNode: StatementNode = {
+                id: 'statement',
+                type: 'statement',
+                data: { statement: 'What is the main topic or question for this rationale?' },
+                position: { x: 250, y: 50 },
+            };
+            const initialGraph: ViewpointGraph = {
+                nodes: [initialStatementNode],
+                edges: [],
+                description: rationaleDescription,
+                linkUrl: linkUrl,
+            };
+
+            let chatIdToUse = chatList.currentChatId;
+            console.log(`[AIAssistant] Current chat ID before create: ${chatIdToUse}`);
+            const currentChat = chatList.savedChats.find(c => c.id === chatIdToUse);
+            const needsNewChat = !chatIdToUse || (currentChat && (currentChat.messages.length > 0 || (currentChat.graph && (currentChat.graph.nodes.length > 0 || currentChat.graph.edges.length > 0))));
+
+            if (needsNewChat) {
+                console.log('[AIAssistant] No current chat or chat has messages/graph, creating new one for rationale...');
+                const newId = await chatList.createNewChat(initialGraph);
+                console.log(`[AIAssistant] Called createNewChat, result ID: ${newId}`);
+                if (!newId) {
+                    toast.error("Failed to create a new chat session for rationale creation.");
+                    return;
+                }
+                chatIdToUse = newId;
+            } else {
+                // If using existing chat, ensure its graph is set to the initial state
+                // Note: This might overwrite existing work if the user switches back without saving.
+                // For now, let's update the existing chat's graph to the initial state.
+                if (chatIdToUse && currentChat) {
+                    console.log('[AIAssistant] Using existing empty chat, ensuring initial graph state.');
+                    chatList.updateChat(chatIdToUse, currentChat.messages, currentChat.title, currentChat.distillRationaleId, initialGraph);
+                }
+            }
+
+            console.log(`[AIAssistant] Chat ID to use for rationale: ${chatIdToUse}`);
+
+            const initialBotMessage: ChatMessage = {
+                role: 'assistant',
+                content: "Hey! Let's build a rationale. What topic are you thinking about? Please let me know, also if you paste a discourse link in the top right I'll be able to read it. Additionally, I'll be able to see any changes you make to the graph."
+            };
+
+            const messagesToUpdate = needsNewChat ? [initialBotMessage] : (currentChat?.messages || []).concat(initialBotMessage);
+            const titleToUpdate = needsNewChat ? "New Rationale Chat" : (currentChat?.title || "Rationale Chat");
+            if (chatIdToUse) {
+                chatList.updateChat(chatIdToUse, messagesToUpdate, titleToUpdate, null, initialGraph);
+            } else {
+                console.error("[AIAssistant] Critical error: chatIdToUse is null/undefined before updateChat in create_rationale flow.");
+                toast.error("An internal error occurred while preparing the rationale chat.");
+            }
+
+            // Set component state *after* updating the persistent state
+            setRationaleGraph(initialGraph);
+            setLinkUrl('');
+            setRationaleDescription('');
+            console.log('[AIAssistant] Setting mode to create_rationale');
+            setMode('create_rationale');
+            setShowMobileMenu(false);
         } else {
             chatState.startChatWithOption(option);
             setShowMobileMenu(false);
         }
     };
-    const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const handleFormSubmit = (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
         if (chatState.generatingChats.has(chatList.currentChatId || "")) return;
-        chatState.handleSubmit(e);
+        // If triggered by button click, call without event; otherwise, pass the form event
+        if ((e as React.MouseEvent<HTMLButtonElement>).type === 'click') {
+            chatState.handleSubmit();
+        } else {
+            chatState.handleSubmit(e as React.FormEvent<HTMLFormElement>);
+        }
     };
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === "Enter" && !e.shiftKey) {
@@ -499,7 +580,7 @@ export default function AIAssistant() {
                             try {
                                 const content = await fetchChatContent(serverChat.id);
                                 if (content) {
-                                    const stateHash = await computeChatStateHash(content.title, content.messages);
+                                    const stateHash = await computeChatStateHash(content.title, content.messages, content.graph);
                                     chatsToUpdateLocally.push({
                                         ...content,
                                         id: serverChat.id,
@@ -514,7 +595,7 @@ export default function AIAssistant() {
                             } catch (e) { currentStats.errors++; throw e; }
                         })());
                     } else {
-                        const localHash = localChat.state_hash || await computeChatStateHash(localChat.title, localChat.messages);
+                        const localHash = localChat.state_hash || await computeChatStateHash(localChat.title, localChat.messages, localChat.graph);
                         const localUpdatedAt = new Date(localChat.updatedAt).getTime();
                         const serverUpdatedAt = serverChat.updatedAt.getTime();
 
@@ -571,7 +652,7 @@ export default function AIAssistant() {
 
                         const localHash =
                             localChat.state_hash ||
-                            (await computeChatStateHash(localChat.title, localChat.messages));
+                            (await computeChatStateHash(localChat.title, localChat.messages, localChat.graph));
                         const localUpdatedAt = new Date(localChat.updatedAt).getTime();
                         const serverUpdatedAt = serverChat.updatedAt.getTime();
 
@@ -729,13 +810,59 @@ export default function AIAssistant() {
         setShowEditDialog(true);
     };
 
-    const [loadingChat, setLoadingChat] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
     const handleRationaleSelectedForDistill = (rationale: ChatRationale) => {
         chatState.startDistillChat(rationale.id, rationale.title, rationale);
         setShowRationaleSelectionDialog(false);
     };
+    const [mode, setMode] = useState<'chat' | 'create_rationale'>('chat');
+    const [showGraph, setShowGraph] = useState(true);
+    const [linkUrl, setLinkUrl] = useState('');
+    const [canvasEnabled, setCanvasEnabled] = useState(false);
+    const [rationaleGraph, setRationaleGraph] = useState<ViewpointGraph>({ nodes: [], edges: [], description: '' });
+    const [rationaleDescription, setRationaleDescription] = useState<string>('');
+    const [showDescEditor, setShowDescEditor] = useState<boolean>(false);
+
+    useEffect(() => {
+        const currentChatIdForEffect = chatList.currentChatId;
+        const currentChat = chatList.savedChats.find(c => c.id === currentChatIdForEffect);
+
+        if (currentChat) {
+            const isRationaleChat = currentChat.graph && typeof currentChat.graph === 'object';
+
+            if (isRationaleChat) {
+                setMode('create_rationale');
+                const graph = currentChat.graph as ViewpointGraph;
+                setRationaleGraph(graph || { nodes: [], edges: [], description: '', linkUrl: '' });
+                setRationaleDescription(graph?.description || '');
+                setLinkUrl(graph?.linkUrl || '');
+            } else {
+                setMode('chat');
+                setRationaleGraph({ nodes: [], edges: [], description: '', linkUrl: '' });
+                setRationaleDescription('');
+                setLinkUrl('');
+            }
+        } else {
+            setMode('chat');
+            setRationaleGraph({ nodes: [], edges: [], description: '', linkUrl: '' });
+            setRationaleDescription('');
+            setLinkUrl('');
+        }
+        // every time you saved or updated the chat it would clear the description and linkUrl
+        // if you passed in chatList.savedChats, so don't do that
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chatList.currentChatId]);
+
+    const handleRationaleGraphChange = useCallback((partialGraph: ViewpointGraph, immediateSave = false) => {
+        const fullGraph: ViewpointGraph = { ...partialGraph, description: rationaleDescription, linkUrl };
+        setRationaleGraph(fullGraph);
+        if (chatList.currentChatId && mode === 'create_rationale') {
+            const curr = chatList.savedChats.find(c => c.id === chatList.currentChatId);
+            const msgs = curr?.messages || [];
+            const title = curr?.title;
+            const distillId = curr?.distillRationaleId;
+            chatList.updateChat(chatList.currentChatId, msgs, title, distillId, fullGraph, immediateSave);
+        }
+    }, [chatList, mode, rationaleDescription, linkUrl]);
 
     const initialChatOptions: InitialOptionObject[] = [
         {
@@ -751,14 +878,19 @@ export default function AIAssistant() {
             description: "Get suggestions for new points or negations based on your context.",
         },
         {
-            id: 'build',
-            title: "Build from Posts",
-            prompt: "I'd like to build a new rationale from my forum posts and our discussion. Please help me organize my thoughts based on my forum posts and my points.",
-            description: "Create rationales from your forum posts.",
-            disabled: true,
-            comingSoon: true,
+            id: 'create_rationale',
+            title: "Create Rationale",
+            prompt: "Let's start building a new rationale. What topic are you focusing on?",
+            description: "Use AI to help structure and generate a new rationale.",
+            disabled: false,
+            comingSoon: false,
+            isEarlyAccess: true,
         },
     ];
+
+    const handleCloseRationaleCreator = () => {
+        setMode('chat');
+    };
 
     return (
         <div className="flex h-[calc(100vh-var(--header-height))] bg-background">
@@ -799,47 +931,114 @@ export default function AIAssistant() {
                     syncError={syncError}
                     discourse={discourse}
                     isNonGlobalSpace={isNonGlobalSpace}
+                    isGenerating={chatState.generatingChats.has(chatList.currentChatId || "")}
                     onShowMobileMenu={() => setShowMobileMenu(true)}
                     onBack={() => handleBackNavigation(router, setInitialTab)}
                     onTriggerSync={syncChatsRef.current}
                     isPulling={syncActivity === 'pulling'}
                     isSaving={syncActivity === 'saving'}
-                    isGenerating={chatState.generatingChats.has(chatList.currentChatId || "")}
                     isOffline={isOffline}
+                    mode={mode}
+                    showGraph={showGraph}
+                    setShowGraph={setShowGraph}
+                    description={rationaleDescription}
+                    onDescriptionChange={setRationaleDescription}
+                    showDescEditor={showDescEditor}
+                    onToggleDescriptionEditor={() => setShowDescEditor((f) => !f)}
+                    onCloseRationaleCreator={handleCloseRationaleCreator}
+                    canvasEnabled={canvasEnabled}
+                    setCanvasEnabled={setCanvasEnabled}
+                    linkUrl={linkUrl}
+                    setLinkUrl={setLinkUrl}
                 />
 
-                <ChatMessageArea
-                    isInitializing={isInitializing}
-                    isFetchingRationales={isFetchingRationales}
-                    chatState={chatState}
-                    isGeneratingCurrent={chatState.generatingChats.has(chatList.currentChatId || "")}
-                    isFetchingCurrentContext={chatState.fetchingContextChats.has(chatList.currentChatId || "")}
-                    currentStreamingContent={chatState.streamingContents.get(chatList.currentChatId || "") || ""}
-                    chatList={chatList}
-                    discourse={discourse}
-                    isAuthenticated={isAuthenticated}
-                    userRationales={userRationales}
-                    availableRationales={availableRationales}
-                    currentSpace={currentSpace}
-                    isMobile={isMobile}
-                    initialOptions={initialChatOptions}
-                    onStartChatOption={handleStartChatOption}
-                    onTriggerEdit={handleTriggerEdit}
-                />
-
-                <ChatInputForm
-                    message={chatState.message}
-                    setMessage={chatState.setMessage}
-                    isGenerating={chatState.generatingChats.has(chatList.currentChatId || "")}
-                    isAuthenticated={isAuthenticated}
-                    isInitializing={isInitializing}
-                    isMobile={isMobile}
-                    currentSpace={currentSpace}
-                    onSubmit={handleFormSubmit}
-                    onKeyDown={handleKeyDown}
-                    onShowSettings={() => setShowSettingsDialog(true)}
-                />
+                {mode === 'chat' ? (
+                    <>
+                        <ChatMessageArea
+                            isInitializing={isInitializing}
+                            isFetchingRationales={isFetchingRationales}
+                            chatState={chatState}
+                            isGeneratingCurrent={chatState.generatingChats.has(chatList.currentChatId || "")}
+                            isFetchingCurrentContext={chatState.fetchingContextChats.has(chatList.currentChatId || "")}
+                            currentStreamingContent={chatState.streamingContents.get(chatList.currentChatId || "") || ""}
+                            chatList={chatList}
+                            discourse={discourse}
+                            isAuthenticated={isAuthenticated}
+                            userRationales={userRationales}
+                            availableRationales={availableRationales}
+                            currentSpace={currentSpace}
+                            isMobile={isMobile}
+                            initialOptions={initialChatOptions}
+                            onStartChatOption={handleStartChatOption}
+                            onTriggerEdit={handleTriggerEdit}
+                        />
+                        <ChatInputForm
+                            message={chatState.message}
+                            setMessage={chatState.setMessage}
+                            isGenerating={chatState.generatingChats.has(chatList.currentChatId || "")}
+                            isAuthenticated={isAuthenticated}
+                            isInitializing={isInitializing}
+                            isMobile={isMobile}
+                            currentSpace={currentSpace}
+                            onSubmit={handleFormSubmit}
+                            onKeyDown={handleKeyDown}
+                            onShowSettings={() => setShowSettingsDialog(true)}
+                        />
+                    </>
+                ) : (
+                    <RationaleCreator
+                        onClose={handleCloseRationaleCreator}
+                        chatState={chatState}
+                        chatList={chatList}
+                        discourse={discourse}
+                        isAuthenticated={isAuthenticated}
+                        isInitializing={isInitializing}
+                        currentSpace={currentSpace}
+                        isMobile={isMobile}
+                        showGraph={showGraph}
+                        graphData={chatList.savedChats.find(c => c.id === chatList.currentChatId)?.graph || { nodes: [], edges: [], description: '', linkUrl: '' }}
+                        onGraphChange={handleRationaleGraphChange}
+                        canvasEnabled={canvasEnabled}
+                        description={rationaleDescription}
+                        onDescriptionChange={setRationaleDescription}
+                        linkUrl={linkUrl}
+                        onLinkUrlChange={setLinkUrl}
+                    />
+                )}
             </div>
+
+            {mode === 'create_rationale' && showDescEditor && (
+                <div className="absolute top-16 left-0 right-0 z-20 bg-background border-b p-4 space-y-4">
+                    {/* Close panel */}
+                    <div className="absolute top-[-16px] right-2">
+                        <Button variant="ghost" size="icon" onClick={() => setShowDescEditor(false)} className="text-muted-foreground hover:text-foreground">
+                            <X className="h-5 w-5" />
+                        </Button>
+                    </div>
+                    {/* Mobile panel: URL input */}
+                    <div className="flex items-center gap-2">
+                        <LinkIcon className="h-5 w-5 text-muted-foreground" />
+                        <Input
+                            type="url"
+                            placeholder="Paste Scroll or Discourse Link (optional)"
+                            value={linkUrl}
+                            onChange={(e) => setLinkUrl(e.target.value)}
+                            className="text-sm w-full"
+                        />
+                    </div>
+                    {/* Mobile panel: description textarea */}
+                    <div className="flex items-start gap-2">
+                        <FileText className="h-5 w-5 mt-1 text-muted-foreground" />
+                        <AutosizeTextarea
+                            value={rationaleDescription}
+                            onChange={(e) => setRationaleDescription(e.target.value)}
+                            placeholder="Enter rationale description..."
+                            className="flex-1 rounded-md border shadow-sm px-3 py-2 text-sm"
+                            minHeight={80}
+                        />
+                    </div>
+                </div>
+            )}
 
             <RationaleSelectionDialog
                 isOpen={showRationaleSelectionDialog}
@@ -937,44 +1136,22 @@ export default function AIAssistant() {
                 </AlertDialogContent>
             </AlertDialog>
 
-            <Dialog open={showEditDialog} onOpenChange={(open) => {
-                if (!open) {
-                    setShowEditDialog(false);
-                    setEditingMessageIndex(null);
-                    setEditingMessageContent("");
-                }
-            }}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader><DialogTitle>Edit Message</DialogTitle></DialogHeader>
-                    <div className="py-4">
-                        <AutosizeTextarea
-                            value={editingMessageContent}
-                            onChange={(e) => setEditingMessageContent(e.target.value)}
-                            placeholder="Edit your message..."
-                            className="w-full min-h-[100px] rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                            minHeight={100}
-                            maxHeight={300}
-                            autoFocus
-                        />
-                    </div>
-                    <div className="flex items-center justify-end space-x-2 pt-2">
-                        <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
-                        <AuthenticatedActionButton
-                            onClick={() => {
-                                if (editingMessageIndex !== null) {
-                                    chatState.handleSaveEdit(editingMessageIndex, editingMessageContent);
-                                    setShowEditDialog(false);
-                                    setEditingMessageIndex(null);
-                                    setEditingMessageContent("");
-                                }
-                            }}
-                            disabled={!editingMessageContent.trim()}
-                        >
-                            Save Changes
-                        </AuthenticatedActionButton>
-                    </div>
-                </DialogContent>
-            </Dialog>
+            <EditMessageDialog
+                open={showEditDialog}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setShowEditDialog(false);
+                        setEditingMessageIndex(null);
+                        setEditingMessageContent("");
+                    }
+                }}
+                initialContent={editingMessageContent}
+                onSave={(newContent) => {
+                    if (editingMessageIndex !== null) {
+                        chatState.handleSaveEdit(editingMessageIndex, newContent);
+                    }
+                }}
+            />
         </div>
     );
 } 

@@ -2,9 +2,9 @@
 
 import { db } from "@/services/db";
 import { chatsTable } from "@/db/tables/chatsTable";
-import { getUserId } from "./getUserId";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
+import type { ViewpointGraph } from "@/types/chat";
 
 const SharedChatContentSchema = z.object({
   title: z.string(),
@@ -19,6 +19,7 @@ const SharedChatContentSchema = z.object({
         .optional(),
     })
   ),
+  graph: z.custom<ViewpointGraph>().optional(),
 });
 export type SharedChatContent = z.infer<typeof SharedChatContentSchema>;
 
@@ -41,6 +42,7 @@ export async function fetchSharedChatContent(
       .select({
         title: chatsTable.title,
         messages: chatsTable.messages,
+        graph: chatsTable.graph,
       })
       .from(chatsTable)
       .where(and(eq(chatsTable.id, chatId), eq(chatsTable.is_deleted, false)))
@@ -50,12 +52,14 @@ export async function fetchSharedChatContent(
       return null;
     }
 
+    const raw = result[0];
     const chatData = {
-      ...result[0],
+      title: raw.title,
       messages:
-        typeof result[0].messages === "string"
-          ? JSON.parse(result[0].messages)
-          : result[0].messages,
+        typeof raw.messages === "string"
+          ? JSON.parse(raw.messages)
+          : raw.messages,
+      graph: raw.graph ?? undefined,
     };
 
     const validatedContent = SharedChatContentSchema.safeParse(chatData);

@@ -13,6 +13,10 @@ export const chatsTable = pgTable("chats", {
   title: text("title").notNull(),
   messages: jsonb("messages").notNull().default("[]"),
   state_hash: text("state_hash"),
+  graph: jsonb("graph").$type<{
+    nodes: any[];
+    edges: any[];
+  }>(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { nanoid } from "nanoid";
 import { toast } from "sonner";
 import { SavedChat, ChatMessage } from "@/types/chat";
+import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import {
   updateDbChat,
   createDbChat,
@@ -66,9 +67,19 @@ export function useChatListManagement({
       try {
         const currentHash = await computeChatStateHash(
           chatData.title,
-          chatData.messages
+          chatData.messages,
+          chatData.graph
         );
-        const chatToSend = { ...chatData, state_hash: currentHash };
+        const chatToSend: SavedChat & { state_hash: string } = {
+          ...chatData,
+          graph:
+            chatData.graph &&
+            (chatData.graph.nodes?.length > 0 ||
+              chatData.graph.edges?.length > 0)
+              ? chatData.graph
+              : undefined,
+          state_hash: currentHash,
+        };
 
         let result = await updateDbChat(chatToSend);
         success = result.success;
@@ -142,11 +153,22 @@ export function useChatListManagement({
   }, [executePush]);
 
   const queuePushUpdate = useCallback(
-    (chatData: SavedChat) => {
-      pendingChatUpdatesRef.current.set(chatData.id, chatData);
-      debouncedPush();
+    (chatData: SavedChat, immediate = false) => {
+      if (immediate) {
+        // Clear any pending debounced push for this chat
+        if (pushDebounceTimeoutRef.current) {
+          clearTimeout(pushDebounceTimeoutRef.current);
+        }
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        pendingChatUpdatesRef.current.delete(chatData.id);
+        // Execute push immediately
+        executePush(chatData);
+      } else {
+        pendingChatUpdatesRef.current.set(chatData.id, chatData);
+        debouncedPush();
+      }
     },
-    [debouncedPush]
+    [debouncedPush, executePush]
   );
 
   useEffect(() => {
@@ -189,6 +211,8 @@ export function useChatListManagement({
             updatedAt: chat.updatedAt || new Date().toISOString(),
             space: chat.space || currentSpace,
             state_hash: chat.state_hash || "",
+            distillRationaleId: chat.distillRationaleId,
+            graph: chat.graph,
           }));
         }
         chats.sort(
@@ -233,7 +257,9 @@ export function useChatListManagement({
       chatId: string,
       messages: ChatMessage[],
       title?: string,
-      distillRationaleId?: string | null
+      distillRationaleId?: string | null,
+      graph?: ViewpointGraph | null | undefined,
+      immediate = false
     ) => {
       if (!currentSpace) {
         return null;
@@ -269,6 +295,10 @@ export function useChatListManagement({
           updatedFields.distillRationaleId = distillRationaleId;
         }
 
+        if (graph !== undefined) {
+          updatedFields.graph = graph === null ? undefined : graph;
+        }
+
         const placeholderHash = `sync_update_${Date.now()}`;
         updatedFields.state_hash = placeholderHash;
 
@@ -289,7 +319,7 @@ export function useChatListManagement({
           JSON.stringify(updatedChats)
         );
 
-        queuePushUpdate(finalUpdatedChat);
+        queuePushUpdate(finalUpdatedChat, immediate);
 
         updatedChatDataForPush = finalUpdatedChat;
 
@@ -301,94 +331,112 @@ export function useChatListManagement({
     [currentSpace, queuePushUpdate]
   );
 
-  const createNewChat = useCallback(async () => {
-    if (!currentSpace || !isAuthenticated) {
-      return null;
-    }
-
-    const newChatId = nanoid();
-    const now = new Date().toISOString();
-    const newChatHash = `sync_create_${Date.now()}`;
-
-    const newChat: SavedChat = {
-      id: newChatId,
-      title: "New Chat",
-      messages: [],
-      createdAt: now,
-      updatedAt: now,
-      space: currentSpace,
-      distillRationaleId: null,
-      state_hash: newChatHash,
-    };
-
-    setSavedChats((prev) => {
-      const updated = [newChat, ...prev];
-      localStorage.setItem(
-        `saved_chats_${currentSpace}`,
-        JSON.stringify(updated)
+  const createNewChat = useCallback(
+    async (initialGraph?: ViewpointGraph) => {
+      console.log(
+        "[ChatList] createNewChat called. initialGraph:",
+        initialGraph ? "Exists" : "Undefined"
       );
-      return updated;
-    });
-
-    setCurrentChatId(newChatId);
-
-    setPendingPushIds((prev) => new Set(prev).add(newChatId));
-
-    (async () => {
-      try {
-        const actualHash = await computeChatStateHash(
-          newChat.title,
-          newChat.messages
+      if (!currentSpace || !isAuthenticated) {
+        console.log(
+          "[ChatList] createNewChat aborted: No space or not authenticated."
         );
-        const payloadToServer = {
-          ...newChat,
-          state_hash: actualHash,
-          spaceId: currentSpace,
-        };
-
-        const result = await createDbChat(payloadToServer);
-
-        if (!result.success) {
-          toast.error(
-            `Sync Error: Failed to save new chat "${newChat.title}" to server.`
-          );
-          onBackgroundCreateError?.(
-            newChatId,
-            result.error || "Failed to save new chat to server."
-          );
-        } else {
-          onBackgroundCreateSuccess?.(newChatId);
-        }
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown network error";
-        toast.error(
-          `Sync Error: Could not contact server to save new chat "${newChat.title}".`
-        );
-        onBackgroundCreateError?.(newChatId, errorMessage);
-      } finally {
-        setPendingPushIds((prev) => {
-          const next = new Set(prev);
-          // eslint-disable-next-line drizzle/enforce-delete-with-where
-          next.delete(newChatId);
-          return next;
-        });
+        return null;
       }
-    })();
 
-    return newChatId;
-  }, [
-    currentSpace,
-    isAuthenticated,
-    onBackgroundCreateSuccess,
-    onBackgroundCreateError,
-  ]);
+      const newChatId = nanoid();
+      const now = new Date().toISOString();
+      const newChatHash = `sync_create_${Date.now()}`;
+
+      const newChat: SavedChat = {
+        id: newChatId,
+        title: "New Chat",
+        messages: [],
+        createdAt: now,
+        updatedAt: now,
+        space: currentSpace,
+        distillRationaleId: null,
+        state_hash: newChatHash,
+        graph: initialGraph || undefined,
+      };
+      console.log(
+        `[ChatList] Creating new chat ${newChatId}. Graph set to:`,
+        newChat.graph ? "Exists" : "Undefined"
+      );
+
+      setSavedChats((prev) => {
+        const updated = [newChat, ...prev];
+        localStorage.setItem(
+          `saved_chats_${currentSpace}`,
+          JSON.stringify(updated)
+        );
+        return updated;
+      });
+
+      setCurrentChatId(newChatId);
+
+      setPendingPushIds((prev) => new Set(prev).add(newChatId));
+
+      (async () => {
+        try {
+          const actualHash = await computeChatStateHash(
+            "New Chat",
+            [],
+            initialGraph
+          );
+          const payloadToServer = {
+            ...newChat,
+            state_hash: actualHash,
+            spaceId: currentSpace,
+          };
+
+          const result = await createDbChat(payloadToServer);
+
+          if (!result.success) {
+            toast.error(
+              `Sync Error: Failed to save new chat "${newChat.title}" to server.`
+            );
+            onBackgroundCreateError?.(
+              newChatId,
+              result.error || "Failed to save new chat to server."
+            );
+          } else {
+            onBackgroundCreateSuccess?.(newChatId);
+          }
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : "Unknown network error";
+          toast.error(
+            `Sync Error: Could not contact server to save new chat "${newChat.title}".`
+          );
+          onBackgroundCreateError?.(newChatId, errorMessage);
+        } finally {
+          setPendingPushIds((prev) => {
+            const next = new Set(prev);
+            // eslint-disable-next-line drizzle/enforce-delete-with-where
+            next.delete(newChatId);
+            return next;
+          });
+        }
+      })();
+
+      return newChatId;
+    },
+    [
+      currentSpace,
+      isAuthenticated,
+      onBackgroundCreateSuccess,
+      onBackgroundCreateError,
+    ]
+  );
 
   const deleteChat = useCallback(
     async (chatId: string) => {
       if (!currentSpace || !isAuthenticated) return;
 
-      const chatToDeleteLocally = savedChats.find((c) => c.id === chatId);
+      const chatToDeleteLocally = savedChatsRef.current.find(
+        (c) => c.id === chatId
+      );
       if (!chatToDeleteLocally) return;
 
       const shortTitle =
@@ -396,11 +444,15 @@ export function useChatListManagement({
         (chatToDeleteLocally.title.length > 20 ? "..." : "");
 
       let nextChatId: string | null = null;
-      const updatedChats = savedChats.filter((chat) => chat.id !== chatId);
+      const updatedChats = savedChatsRef.current.filter(
+        (chat) => chat.id !== chatId
+      );
 
       if (chatId === currentChatId) {
         if (updatedChats.length > 0) {
-          const deletedIndex = savedChats.findIndex((c) => c.id === chatId);
+          const deletedIndex = savedChatsRef.current.findIndex(
+            (c) => c.id === chatId
+          );
           const nextIndex = deletedIndex > 0 ? deletedIndex - 1 : 0;
           nextChatId = updatedChats[nextIndex]?.id ?? null;
         } else {
@@ -460,7 +512,7 @@ export function useChatListManagement({
     [
       currentSpace,
       currentChatId,
-      savedChats,
+      savedChatsRef,
       isAuthenticated,
       onBackgroundDeleteSuccess,
       onBackgroundDeleteError,
@@ -473,12 +525,12 @@ export function useChatListManagement({
         setCurrentChatId(null);
         return;
       }
-      const chat = savedChats.find((c) => c.id === chatId);
+      const chat = savedChatsRef.current.find((c) => c.id === chatId);
       if (chat) {
         setCurrentChatId(chatId);
       }
     },
-    [savedChats]
+    [savedChatsRef]
   );
 
   const renameChat = useCallback(
@@ -613,7 +665,11 @@ export function useChatListManagement({
         const updatedChats = prev.map((chat) => {
           if (chat.id === chatId) {
             chatExists = true;
-            return { ...serverChatData, space: currentSpace };
+            return {
+              ...serverChatData,
+              space: currentSpace,
+              graph: serverChatData.graph,
+            };
           }
           return chat;
         });
@@ -622,6 +678,7 @@ export function useChatListManagement({
           const newChatFromServer: SavedChat = {
             ...serverChatData,
             space: currentSpace,
+            graph: serverChatData.graph,
           };
           updatedChats.unshift(newChatFromServer);
         }

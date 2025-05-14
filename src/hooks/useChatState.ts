@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import { generateDistillRationaleChatBotResponse } from "@/actions/generateDistillRationaleChatBotResponse";
 import { generateSuggestionChatBotResponse } from "@/actions/generateSuggestionChatBotResponse";
+import { generateRationaleCreationResponse } from "@/actions/generateRationaleCreationResponse";
 import { PointInSpace } from "@/actions/fetchAllSpacePoints";
 import { generateChatName } from "@/actions/generateChatName";
 import { extractSourcesFromMarkdown } from "@/lib/negation-game/chatUtils";
@@ -12,9 +13,15 @@ import {
   ChatRationale,
   DiscourseMessage,
   ChatSettings,
+  ViewpointGraph,
 } from "@/types/chat";
 
-type FlowType = "distill" | "build" | "generate" | "default";
+type FlowType =
+  | "distill"
+  | "build"
+  | "generate"
+  | "default"
+  | "create_rationale";
 
 interface UseChatStateProps {
   currentChatId: string | null;
@@ -33,9 +40,11 @@ interface UseChatStateProps {
     chatId: string,
     messages: ChatMessage[],
     title?: string,
-    distillRationaleId?: string | null
+    distillRationaleId?: string | null,
+    graph?: ViewpointGraph | null,
+    immediate?: boolean
   ) => void;
-  createNewChat: () => Promise<string | null>;
+  createNewChat: (initialGraph?: ViewpointGraph) => Promise<string | null>;
 }
 
 export function useChatState({
@@ -46,6 +55,8 @@ export function useChatState({
   allPointsInSpace,
   ownedPointIds,
   endorsedPointIds,
+  userRationales,
+  availableRationales,
   storedMessages,
   discourseUrl,
   savedChats,
@@ -69,6 +80,7 @@ export function useChatState({
   const chatEndRef = useRef<HTMLDivElement>(null);
   const prevChatIdRef = useRef<string | null>(null);
   const activeGeneratingChatRef = useRef<string | null>(null);
+  const currentGraphRef = useRef<ViewpointGraph | undefined | null>(undefined);
 
   useEffect(() => {
     const chats = savedChats;
@@ -77,6 +89,7 @@ export function useChatState({
     if (currentChatId) {
       const currentChat = chats.find((c) => c.id === currentChatId);
       const newMessages = currentChat?.messages || [];
+      const newGraph = currentChat?.graph;
 
       setChatMessages((prevMessages) => {
         const areMessagesDifferent =
@@ -87,9 +100,17 @@ export function useChatState({
           return prevMessages;
         }
       });
+
+      if (
+        didChatIdChange ||
+        JSON.stringify(newGraph) !== JSON.stringify(currentGraphRef.current)
+      ) {
+        currentGraphRef.current = newGraph;
+      }
     } else {
       if (didChatIdChange) {
         setChatMessages([]);
+        currentGraphRef.current = undefined;
       }
     }
 
@@ -113,13 +134,25 @@ export function useChatState({
   }, [chatMessages, streamingContents, currentChatId]);
 
   const generateAndSetTitle = useCallback(
-    async (chatId: string, finalMessages: ChatMessage[]) => {
+    async (
+      chatId: string,
+      finalMessages: ChatMessage[],
+      graph?: ViewpointGraph | null
+    ) => {
       const chatToUpdate = savedChats.find((c) => c.id === chatId);
       const rationaleIdForUpdate = chatToUpdate?.distillRationaleId ?? null;
+      const graphForUpdate = graph !== undefined ? graph : chatToUpdate?.graph;
       const needsTitle = !chatToUpdate || chatToUpdate.title === "New Chat";
 
       if (!needsTitle) {
-        updateChat(chatId, finalMessages, undefined, rationaleIdForUpdate);
+        updateChat(
+          chatId,
+          finalMessages,
+          undefined,
+          rationaleIdForUpdate,
+          graphForUpdate,
+          true
+        );
         return;
       }
 
@@ -147,7 +180,14 @@ export function useChatState({
         title = title.trim();
 
         if (title) {
-          updateChat(chatId, finalMessages, title, rationaleIdForUpdate);
+          updateChat(
+            chatId,
+            finalMessages,
+            title,
+            rationaleIdForUpdate,
+            graphForUpdate,
+            true
+          );
         } else {
           const assistantMsgContent =
             finalMessages.find((m) => m.role === "assistant")?.content ||
@@ -159,7 +199,9 @@ export function useChatState({
             chatId,
             finalMessages,
             fallbackTitle || "Chat",
-            rationaleIdForUpdate
+            rationaleIdForUpdate,
+            graphForUpdate,
+            true
           );
         }
       } catch (titleError) {
@@ -172,7 +214,9 @@ export function useChatState({
           chatId,
           finalMessages,
           fallbackTitle || "Chat",
-          rationaleIdForUpdate
+          rationaleIdForUpdate,
+          graphForUpdate,
+          true
         );
       } finally {
         setGeneratingTitles((prev) => {
@@ -191,7 +235,9 @@ export function useChatState({
       messagesForApi: ChatMessage[],
       chatIdToUse: string,
       flowType: FlowType,
-      selectedRationaleId?: string | null
+      selectedRationaleId?: string | null,
+      rationaleDescription?: string,
+      linkUrl?: string
     ) => {
       if (generatingChats.has(chatIdToUse)) {
         return;
@@ -207,6 +253,7 @@ export function useChatState({
       let responseStream:
         | ReadableStream<string | Uint8Array | object>
         | undefined;
+      let suggestedGraph: ViewpointGraph | undefined | null = undefined;
 
       try {
         const mappedMessages: {
@@ -220,7 +267,7 @@ export function useChatState({
 
         if (flowType === "generate") {
           responseStream = await generateSuggestionChatBotResponse(
-            mappedMessages,
+            messagesForApi,
             settings,
             allPointsInSpace,
             ownedPointIds,
@@ -229,14 +276,30 @@ export function useChatState({
           );
         } else if (flowType === "distill") {
           responseStream = await generateDistillRationaleChatBotResponse(
-            mappedMessages,
+            messagesForApi,
             settings,
             settings.includeDiscourseMessages ? storedMessages : [],
             selectedRationaleId
           );
+        } else if (flowType === "create_rationale") {
+          const currentChat = savedChats.find((c) => c.id === chatIdToUse);
+          const currentGraph = currentGraphRef.current ||
+            currentChat?.graph || { nodes: [], edges: [] };
+          const context = {
+            currentGraph: currentGraph,
+            allPointsInSpace: allPointsInSpace,
+            linkUrl: linkUrl,
+            rationaleDescription: rationaleDescription,
+          };
+          const result = await generateRationaleCreationResponse(
+            messagesForApi,
+            context
+          );
+          responseStream = result.textStream;
+          suggestedGraph = result.suggestedGraph;
         } else {
           responseStream = await generateSuggestionChatBotResponse(
-            mappedMessages,
+            messagesForApi,
             settings,
             allPointsInSpace,
             ownedPointIds,
@@ -252,6 +315,7 @@ export function useChatState({
 
         const reader = responseStream.getReader();
         let firstChunkReceived = false;
+        let streamTextContent = "";
         try {
           while (true) {
             const { done, value } = await reader.read();
@@ -271,39 +335,27 @@ export function useChatState({
             }
 
             if (typeof value === "string" && value.length > 0) {
-              fullContent += value;
+              streamTextContent += value;
               setStreamingContents((prev) =>
-                new Map(prev).set(chatIdToUse, fullContent)
+                new Map(prev).set(chatIdToUse, streamTextContent)
               );
             }
           }
         } catch (streamError) {
           toast.error(`Error reading AI response stream (${flowType}).`);
-          fullContent += "\n\n[Error processing stream]";
+          streamTextContent += "\n\n[Error processing stream]";
         } finally {
           reader.releaseLock();
         }
 
-        fullContent = fullContent
-          .replace(/\r\n/g, "\n")
-          .replace(/\r/g, "\n")
-          .trim();
+        fullContent = streamTextContent.trim();
         sources = extractSourcesFromMarkdown(fullContent);
 
         if (fullContent === "") {
-          fullContent = `## Sorry, I couldn't process that request
-
-I wasn't able to generate a response based on the provided content. This might be due to:
-
-1. Content policy restrictions in your rationales or points
-2. Test data or placeholder content that needs to be replaced
-3. Formatting issues in the source content
-
-Please try:
-- Using rationales with more substantial content
-- Removing any test data, placeholders, or potentially inappropriate content
-- Rephrasing your request with clearer instructions`;
-          sources = undefined;
+          if (flowType !== "create_rationale" || !suggestedGraph) {
+            fullContent = "[AI response was empty]";
+            toast.warning("AI returned an empty text response.");
+          }
         }
 
         const assistantMessage: ChatMessage = {
@@ -318,7 +370,14 @@ Please try:
         }
 
         if (chatIdToUse) {
-          generateAndSetTitle(chatIdToUse, finalMessages).catch((error) => {});
+          const graphToSave =
+            flowType === "create_rationale" ? suggestedGraph : undefined;
+          if (graphToSave) {
+            currentGraphRef.current = graphToSave;
+          }
+          generateAndSetTitle(chatIdToUse, finalMessages, graphToSave).catch(
+            (error) => {}
+          );
         }
       } catch (error) {
         toast.error(
@@ -339,11 +398,15 @@ Please try:
         }
 
         if (chatIdToUse) {
+          const currentChat = savedChats.find((c) => c.id === chatIdToUse);
           updateChat(
             chatIdToUse,
             messagesWithError,
             undefined,
-            flowType === "distill" ? selectedRationaleId : null
+            flowType === "distill"
+              ? selectedRationaleId
+              : (currentChat?.distillRationaleId ?? null),
+            currentChat?.graph
           );
         }
       } finally {
@@ -371,6 +434,7 @@ Please try:
       }
     },
     [
+      generatingChats,
       settings,
       allPointsInSpace,
       ownedPointIds,
@@ -378,7 +442,7 @@ Please try:
       storedMessages,
       generateAndSetTitle,
       updateChat,
-      generatingChats,
+      savedChats,
     ]
   );
 
@@ -409,7 +473,6 @@ Please try:
         textarea.select();
         document.execCommand("copy");
         document.body.removeChild(textarea);
-        toast.success("Message copied to clipboard.");
       } catch (err) {
         console.error("Fallback copy failed:", err);
         toast.error("Copy failed.");
@@ -455,9 +518,12 @@ Please try:
 
       const currentChatData = savedChats.find((c) => c.id === chatIdToUse);
       const rationaleIdForRetry = currentChatData?.distillRationaleId ?? null;
+      const graphForRetry = currentChatData?.graph;
       const flowForRetry: FlowType = rationaleIdForRetry
         ? "distill"
-        : "default";
+        : graphForRetry
+          ? "create_rationale"
+          : "default";
 
       await handleResponse(
         historyForRetry,
@@ -505,27 +571,15 @@ Please try:
       const currentChatDataForEdit = savedChats.find(
         (c) => c.id === currentChatId
       );
-      let flowForEdit: FlowType = "default";
       let rationaleIdForEdit: string | null = null;
+      const graphForEdit = currentChatDataForEdit?.graph;
+      let flowForEdit: FlowType = "default";
 
       if (currentChatDataForEdit?.distillRationaleId) {
         flowForEdit = "distill";
         rationaleIdForEdit = currentChatDataForEdit.distillRationaleId;
-      } else {
-        const originalFirstMessage = chatMessages[0];
-        if (
-          originalFirstMessage?.role === "user" &&
-          originalFirstMessage.content.includes(
-            "Please help me distill my rationale"
-          )
-        ) {
-          const regex = new RegExp("\\(ID: ([^)]+)\\)");
-          const match = originalFirstMessage.content.match(regex);
-          if (match && match[1]) {
-            flowForEdit = "distill";
-            rationaleIdForEdit = match[1];
-          }
-        }
+      } else if (graphForEdit) {
+        flowForEdit = "create_rationale";
       }
 
       await handleResponse(
@@ -549,7 +603,7 @@ Please try:
 
   const startChatWithOption = useCallback(
     async (option: {
-      id: "distill" | "build" | "generate";
+      id: "distill" | "build" | "generate" | "create_rationale";
       title: string;
       prompt: string;
     }) => {
@@ -557,14 +611,15 @@ Please try:
         !option ||
         !currentSpace ||
         !isAuthenticated ||
-        option.id === "distill"
+        option.id === "distill" ||
+        option.id === "create_rationale"
       )
         return;
       let chatIdToUse = currentChatId;
       let isNewChat = false;
 
       if (!chatIdToUse) {
-        const newId = await createNewChat();
+        const newId = await createNewChat(undefined);
         if (!newId) {
           toast.error("Failed to create new chat.");
           return;
@@ -591,7 +646,7 @@ Please try:
       ];
 
       setChatMessages(initialMessages);
-      updateChat(chatIdToUse, initialMessages, undefined, null);
+      updateChat(chatIdToUse, initialMessages, undefined, null, undefined);
 
       let systemMessages: ChatMessage[] = [];
       if (
@@ -631,16 +686,13 @@ Please try:
 
       let chatIdToUse = currentChatId;
 
-      if (!chatIdToUse || chatMessages.length > 0) {
-        const newId = await createNewChat();
-        if (!newId) {
-          toast.error("Failed to create new chat for distillation.");
-          return;
-        }
-        chatIdToUse = newId;
-        // Wait for the next tick to ensure chat is created in local state
-        await new Promise((resolve) => setTimeout(resolve, 0));
+      const newId = await createNewChat(undefined);
+      if (!newId) {
+        toast.error("Failed to create new chat for distillation.");
+        return;
       }
+      chatIdToUse = newId;
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       const initialUserMessage = `Please help me distill my rationale titled "${selectedRationaleTitle}" (ID: ${selectedRationaleId}) into a well-structured essay. The rationale has ${rationale.graph.nodes.length} points and ${rationale.graph.edges.length} connections. Focus on organizing these points into a coherent argument. Here's the description: "${rationale.description}". Please incorporate relevant context about my endorsed points related to this topic. Do not suggest new points or negations.`;
 
@@ -649,7 +701,13 @@ Please try:
       ];
 
       setChatMessages(initialMessages);
-      updateChat(chatIdToUse, initialMessages, undefined, selectedRationaleId);
+      updateChat(
+        chatIdToUse,
+        initialMessages,
+        undefined,
+        selectedRationaleId,
+        null
+      );
 
       await handleResponse(
         initialMessages,
@@ -665,7 +723,6 @@ Please try:
       createNewChat,
       updateChat,
       currentChatId,
-      chatMessages,
     ]
   );
 
@@ -694,30 +751,28 @@ Please try:
 
       let chatIdToUse = currentChatId;
       let messagesForHistory = [...chatMessages, newMessage];
-
-      const currentChatData = savedChats.find((c) => c.id === chatIdToUse);
-
-      let flowToUse: FlowType = "generate";
+      let currentChatData = savedChats.find((c) => c.id === chatIdToUse);
+      let currentGraph = currentGraphRef.current;
       let rationaleIdToUse: string | null = null;
+      let flowToUse: FlowType = "default";
+      let descriptionToUse: string | undefined = undefined;
+      let linkUrlToUse: string | undefined = undefined;
 
       if (currentChatData?.distillRationaleId) {
         flowToUse = "distill";
         rationaleIdToUse = currentChatData.distillRationaleId;
-      } else if (chatMessages.length > 0) {
-        const firstMessage = chatMessages[0];
-        if (
-          firstMessage?.content?.includes("Please help me distill my rationale")
-        ) {
-          const match = firstMessage.content.match(/\(ID: ([^)]+)\)/);
-          if (match && match[1]) {
-            flowToUse = "distill";
-            rationaleIdToUse = match[1];
-          }
-        }
+      } else if (currentGraph) {
+        flowToUse = "create_rationale";
+        descriptionToUse = (currentGraph as any)?.description;
+        linkUrlToUse = (currentGraph as any)?.linkUrl;
+      } else {
+        flowToUse = "generate";
       }
 
       if (!chatIdToUse) {
-        const newId = await createNewChat();
+        flowToUse = "generate";
+        currentGraph = undefined;
+        const newId = await createNewChat(undefined);
         if (!newId) {
           toast.error("Failed to create new chat.");
           setMessage(userMessageContent);
@@ -729,13 +784,21 @@ Please try:
       }
 
       setChatMessages(messagesForHistory);
-      updateChat(chatIdToUse, messagesForHistory, undefined, rationaleIdToUse);
+      updateChat(
+        chatIdToUse,
+        messagesForHistory,
+        undefined,
+        rationaleIdToUse,
+        currentGraph
+      );
 
       await handleResponse(
         messagesForHistory,
         chatIdToUse,
         flowToUse,
-        rationaleIdToUse
+        rationaleIdToUse,
+        descriptionToUse,
+        linkUrlToUse
       );
     },
     [
@@ -768,5 +831,6 @@ Please try:
     handleCopy,
     handleRetry,
     handleSaveEdit,
+    currentGraphRef,
   };
 }
