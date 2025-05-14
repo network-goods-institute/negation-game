@@ -13,6 +13,7 @@ import { useChatState } from "@/hooks/useChatState";
 import { useChatListManagement } from "@/hooks/useChatListManagement";
 import { useDiscourseIntegration } from "@/hooks/useDiscourseIntegration";
 import { useDebounce } from "@/hooks/useDebounce";
+import { toast } from 'sonner';
 
 const ChatLoadingState = () => {
     return (
@@ -95,6 +96,30 @@ export function ChatMessageArea({
         }
     };
 
+    const handleRawCopy = async (index: number) => {
+        const messageId = `${chatList.currentChatId || 'nochat'}-${index}`;
+        setCopyingMessageId(messageId);
+        try {
+            const raw = chatState.chatMessages[index].content;
+            const textarea = document.createElement('textarea');
+            textarea.value = raw;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            setCopyingMessageId(null);
+            setCopySuccessMessageId(messageId);
+            setTimeout(() => setCopySuccessMessageId(null), 1000);
+            toast.success('Raw text copied to clipboard!');
+        } catch (err) {
+            console.error('Raw copy failed:', err);
+            setCopyingMessageId(null);
+            toast.error('Failed to copy raw text.');
+        }
+    };
+
     return (
         <div className="flex-1 overflow-y-auto bg-muted/20 min-h-0 pt-16 pb-24 md:pb-28">
             {isInitializing ? (
@@ -137,7 +162,7 @@ export function ChatMessageArea({
                                             </div>
                                         ) : (
                                             <>
-                                                <div className="text-sm md:text-lg font-semibold">{option.title}</div>
+                                                <div className="text-sm md:text-lg font-semibold break-words whitespace-normal">{option.title}</div>
                                                 <p className="text-xs text-muted-foreground text-balance">
                                                     {description}
                                                 </p>
@@ -187,8 +212,14 @@ export function ChatMessageArea({
                                             variant="ghost"
                                             size="icon"
                                             className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                            title="Copy"
-                                            onClick={() => handleCopy(i)}
+                                            title="Copy (Ctrl+Click for raw)"
+                                            onClick={(e) => {
+                                                if (e.ctrlKey || e.metaKey) {
+                                                    handleRawCopy(i);
+                                                } else {
+                                                    handleCopy(i);
+                                                }
+                                            }}
                                             disabled={isGeneratingCurrent || copyingMessageId === messageId}
                                         >
                                             {copyingMessageId === messageId ? (

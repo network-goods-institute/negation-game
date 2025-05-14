@@ -465,6 +465,22 @@ export function useChatState({
       const messageToCopy = chat.messages[messageIndex];
 
       try {
+        const textarea = document.createElement("textarea");
+        textarea.value = messageToCopy.content;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+        toast.success("Message copied to clipboard.");
+      } catch (err) {
+        console.error("Fallback copy failed:", err);
+        toast.error("Copy failed.");
+        return;
+      }
+
+      try {
         const textualRepresentation = await getChatMessageAsText(
           messageToCopy.content,
           currentSpace,
@@ -474,9 +490,7 @@ export function useChatState({
         await navigator.clipboard.writeText(textualRepresentation);
         toast.success("Message copied with full details!");
       } catch (error) {
-        console.error("Failed to copy message with rich text:", error);
-        await navigator.clipboard.writeText(messageToCopy.content);
-        toast.error("Failed to process tags, raw content copied.");
+        console.error("Rich copy failed:", error);
       }
     },
     [currentChatId, savedChats, currentSpace, discourseUrl, storedMessages]

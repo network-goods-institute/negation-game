@@ -28,7 +28,7 @@ import { XIcon, SaveIcon, Undo2Icon, Share2Icon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useCallback, useMemo, useEffect, useState, useRef, useLayoutEffect } from "react";
 import { useAtom } from "jotai";
-import { collapsedPointIdsAtom, ViewpointGraph, selectedPointIdsAtom, undoCollapseStackAtom, collapsedNodePositionsAtom, UndoCollapseState } from "@/atoms/viewpointAtoms";
+import { collapsedPointIdsAtom, ViewpointGraph, selectedPointIdsAtom, undoCollapseStackAtom, collapsedNodePositionsAtom } from "@/atoms/viewpointAtoms";
 import React from "react";
 import { updateViewpointGraph } from "@/actions/updateViewpointGraph";
 import { updateViewpointDetails } from "@/actions/updateViewpointDetails";
@@ -55,6 +55,16 @@ import { SaveConfirmDialog } from "@/components/graph/SaveConfirmDialog";
 import { shouldConfirmRationaleUpdate } from "@/actions/shouldConfirmRationaleUpdate";
 import { toast } from "sonner";
 import type { PointNodeData } from "@/components/graph/PointNode";
+import {
+  AlertDialog as CopyConfirmDialog,
+  AlertDialogContent as CopyConfirmContent,
+  AlertDialogHeader as CopyConfirmHeader,
+  AlertDialogTitle as CopyConfirmTitle,
+  AlertDialogDescription as CopyConfirmDescription,
+  AlertDialogFooter as CopyConfirmFooter,
+  AlertDialogCancel as CopyConfirmCancel,
+  AlertDialogAction as CopyConfirmAction,
+} from "@/components/ui/alert-dialog";
 
 function debounce<T extends (...args: any[]) => any>(
   func: T,
@@ -159,6 +169,9 @@ export const GraphView = ({
   const [saveAction, setSaveAction] = useState<"existing" | "new" | null>(null);
   const [hasShownNotOwnerWarning, setHasShownNotOwnerWarning] = useState(false);
   const toastIdRef = useRef<string | number | null>(null);
+
+  const [isCopyConfirmOpen, setIsCopyConfirmOpen] = useState(false);
+  const [isSaveAsNewConfirmOpen, setIsSaveAsNewConfirmOpen] = useState(false);
 
   useEffect(() => {
     onModifiedChange?.(isModified);
@@ -364,7 +377,7 @@ export const GraphView = ({
     [isSharing]
   );
 
-  const edgeTypes = useMemo(() => ({ negation: NegationEdge }), []);
+  const edgeTypes = useMemo(() => ({ negation: NegationEdge, statement: NegationEdge }), []);
 
   const { defaultNodes, defaultEdges, onInit, ...otherProps } = props;
   // With edit mode always on, we'll simplify this, can probably be refactored out completely eventually  
@@ -593,17 +606,6 @@ export const GraphView = ({
       doSaveExisting
     ]
   );
-
-  const handleButtonClick = useCallback(async () => {
-    setIsSaving_local(true);
-
-    try {
-      await handleSave();
-    } catch (error) {
-      setIsSaving_local(false); // Reset in case of error
-    }
-  }, [handleSave, setIsSaving_local]);
-
   const handlePaneClick = useCallback(() => {
     window.getSelection()?.removeAllRanges();
 
@@ -746,21 +748,15 @@ export const GraphView = ({
 
   useEffect(() => {
     if (isModified && !canModify && !hasShownNotOwnerWarning) {
+      // Show warning toast with copy action opening confirmation dialog
       toastIdRef.current = toast.warning(
         "Not saving, just playing. To keep your changes:",
         {
           position: "bottom-center",
-          duration: Infinity, // Keep it visible until dismissed or action taken
+          duration: Infinity,
           action: {
             label: "Make a Copy",
-            onClick: async () => {
-              const currentGraphState = { nodes, edges };
-              const success = await handleCopy(currentGraphState);
-              if (success) {
-                if (toastIdRef.current) toast.dismiss(toastIdRef.current);
-                setHasShownNotOwnerWarning(false);
-              }
-            },
+            onClick: () => setIsCopyConfirmOpen(true),
           },
           actionButtonStyle: {
             backgroundColor: 'hsl(var(--primary))',
@@ -939,7 +935,8 @@ export const GraphView = ({
                   <TooltipTrigger asChild>
                     <AuthenticatedActionButton
                       variant="default"
-                      onClick={handleSave}
+                      // If user owns the rationale, save normally, otherwise confirm copy
+                      onClick={canModify ? handleSave : () => setIsSaveAsNewConfirmOpen(true)}
                       disabled={isSavingProp || isSaving_local}
                       className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg px-4 py-2 flex items-center justify-center w-[160px]"
                       id="graph-save-button"
@@ -951,10 +948,10 @@ export const GraphView = ({
                         </div>
                       ) : (
                         <div className="flex items-center">
-                          <SaveIcon className="size-4 mr-2" />
+                          <SaveIcon className="size-3.5 mr-1.5" />
                           <span className={cn(
-                            "font-medium",
-                            canModify ? "text-sm" : "text-xs"
+                            "font-medium text-xs",
+                            !canModify && "text-[11px] leading-none"
                           )}>
                             {canModify
                               ? isNew
@@ -967,7 +964,7 @@ export const GraphView = ({
                     </AuthenticatedActionButton>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>{canModify ? 'Save changes' : 'You don&apos;t own this rationale. Save your changes as a new rationale.'}</p>
+                    <p>{canModify ? 'Save changes' : 'You don\'t own this rationale. Save your changes as a new rationale.'}</p>
                   </TooltipContent>
                 </Tooltip>
                 {/* Discard Button */}
@@ -995,6 +992,7 @@ export const GraphView = ({
         <GlobalExpandPointDialog />
       </ReactFlow>
 
+      {/* Unsaved changes discard dialog */}
       <AlertDialog open={isDiscardDialogOpen} onOpenChange={setIsDiscardDialogOpen}>
         <AlertDialogContent className={cn("sm:max-w-[425px]", unsavedChangesModalClassName)}>
           <AlertDialogHeader>
@@ -1017,6 +1015,56 @@ export const GraphView = ({
               className="bg-secondary text-secondary-foreground hover:bg-secondary/80"
             >
               {isDiscarding ? "Discarding..." : "Discard changes"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirmation dialog for copying rationale */}
+      <CopyConfirmDialog open={isCopyConfirmOpen} onOpenChange={setIsCopyConfirmOpen}>
+        <CopyConfirmContent>
+          <CopyConfirmHeader>
+            <CopyConfirmTitle>Confirm Copy</CopyConfirmTitle>
+            <CopyConfirmDescription>
+              Are you sure you want to make a copy of this rationale?
+            </CopyConfirmDescription>
+          </CopyConfirmHeader>
+          <CopyConfirmFooter>
+            <CopyConfirmCancel onClick={() => setIsCopyConfirmOpen(false)}>
+              Cancel
+            </CopyConfirmCancel>
+            <CopyConfirmAction onClick={async () => {
+              const success = await handleCopy({ nodes, edges });
+              if (success && toastIdRef.current) {
+                toast.dismiss(toastIdRef.current);
+                setHasShownNotOwnerWarning(false);
+              }
+              setIsCopyConfirmOpen(false);
+            }}>
+              Yes, make a copy
+            </CopyConfirmAction>
+          </CopyConfirmFooter>
+        </CopyConfirmContent>
+      </CopyConfirmDialog>
+
+      {/* Confirmation dialog for Save as New Rationale when non-owner clicks save */}
+      <AlertDialog open={isSaveAsNewConfirmOpen} onOpenChange={setIsSaveAsNewConfirmOpen}>
+        <AlertDialogContent className="sm:max-w-[425px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Save as New Rationale</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to save your changes as a new rationale? This will create a copy.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIsSaveAsNewConfirmOpen(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={async () => {
+              const success = await handleCopy({ nodes, edges });
+              setIsSaveAsNewConfirmOpen(false);
+            }}>
+              Yes, save as new
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

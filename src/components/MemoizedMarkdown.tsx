@@ -80,8 +80,8 @@ const combinedInlineRegex = new RegExp(
     'g'
 );
 
-const blockSuggestPointRegex = /^\s*\[Suggest Point\]>\s*([\s\S]*)/;
-const blockSuggestNegationRegex = /^\s*\[Suggest Negation For:(\d+)\]>\s*([\s\S]*)/;
+const blockSuggestPointRegex = /\[Suggest Point\]>\s*([\s\S]*)/;
+const blockSuggestNegationRegex = /\[Suggest Negation For:(\d+)\]>\s*([\s\S]*)/;
 
 type AnyDiscourseMessage = { id: number | string; raw?: string; content?: string;[key: string]: any };
 
@@ -238,98 +238,64 @@ export const MemoizedMarkdown = memo(
                     if (nodes?.props?.children) return getRawText(nodes.props.children);
                     return '';
                 };
-
-                let potentialMatchText = '';
-                if (Array.isArray(children) && children.length > 0 && typeof children[0] === 'string') {
-                    potentialMatchText = children[0];
-                } else if (typeof children === 'string') {
-                    potentialMatchText = children;
-                }
-
-                const pointMatch = blockSuggestPointRegex.exec(potentialMatchText);
-                const negationMatch = blockSuggestNegationRegex.exec(potentialMatchText);
-
-                if (pointMatch) {
-                    const fullText = getRawText(children).replace(blockSuggestPointRegex, '$1').trim();
-                    return <SuggestionBlock type="point" text={fullText} space={space} />;
-                }
-
-                if (negationMatch) {
-                    const fullText = getRawText(children).replace(blockSuggestNegationRegex, '$2').trim();
-                    const targetPointId = parseInt(negationMatch[1], 10);
-                    return <SuggestionBlock type="negation" targetId={targetPointId} text={fullText} space={space} />;
-                }
-
-
                 const rawText = getRawText(children);
+                // Block Suggestion: Point
+                const pointMatch = blockSuggestPointRegex.exec(rawText);
+                if (pointMatch) {
+                    const suggestionText = rawText.replace(blockSuggestPointRegex, '$1').trim();
+                    return <SuggestionBlock type="point" text={suggestionText} space={space} />;
+                }
+                // Block Suggestion: Negation
+                const negationMatch = blockSuggestNegationRegex.exec(rawText);
+                if (negationMatch) {
+                    const suggestionText = rawText.replace(blockSuggestNegationRegex, '$2').trim();
+                    const targetPointId = parseInt(negationMatch[1], 10);
+                    return <SuggestionBlock type="negation" targetId={targetPointId} text={suggestionText} space={space} />;
+                }
+                // Inline tags and other content
                 const processedChildren = renderTextWithInlineTags(rawText, space, discourseUrl, storedMessages);
                 return <p {...props}>{processedChildren}</p>;
             },
             li: ({ node, children, ...props }: StandardComponentProps) => {
+                // Extract raw text from AST node or React children
                 let rawText = '';
-                const firstChild = node?.children?.[0];
-
-                if (firstChild?.type === 'text') {
-                    rawText = firstChild.value || '';
-                } else if (firstChild?.type === 'element' && firstChild.tagName === 'p') {
-                    const paragraphNode = firstChild.children?.[0];
-                    if (paragraphNode?.type === 'text') {
-                        rawText = paragraphNode.value || '';
-                    }
+                if (node?.children?.[0]?.type === 'paragraph') {
+                    rawText = (node.children[0].children || []).map((n: any) => n.value || '').join('');
                 } else {
-                    // Attempt to reconstruct text if it's fragmented (e.g., contains inline formatting)
-                    rawText = React.Children.toArray(children).map(child => {
-                        if (typeof child === 'string') return child;
-                        // Recursively get text from child elements if needed
-                        const getRawText = (nodes: any): string => {
-                            if (typeof nodes === 'string') return nodes;
-                            if (Array.isArray(nodes)) return nodes.map(getRawText).join('');
-                            if (nodes?.props?.children) return getRawText(nodes.props.children);
-                            return '';
-                        };
-                        return getRawText(child);
-                    }).join('');
+                    const getRawTextFromChildren = (nodes: any): string => {
+                        if (typeof nodes === 'string') return nodes;
+                        if (Array.isArray(nodes)) return nodes.map(getRawTextFromChildren).join('');
+                        if (nodes?.props?.children) return getRawTextFromChildren(nodes.props.children);
+                        return '';
+                    };
+                    rawText = getRawTextFromChildren(children);
                 }
                 const trimmedText = rawText.trim();
-
-                // Check for Block Suggest Point within the list item
-                const pointMatch = trimmedText.match(blockSuggestPointRegex);
+                // Block Suggestion: Point
+                const pointMatch = blockSuggestPointRegex.exec(trimmedText);
                 if (pointMatch) {
-                    const suggestionText = pointMatch[1].trim();
-                    if (suggestionText) {
-                        return (
-                            <SuggestionBlock
-                                key={`suggest-point-block-li-${id}-${Math.random()}`}
-                                type="point"
-                                text={suggestionText}
-                                space={space}
-                            />
-                        );
-                    }
+                    const suggestionText = trimmedText.replace(blockSuggestPointRegex, '$1').trim();
+                    return (
+                        <li {...props}>
+                            <SuggestionBlock type="point" text={suggestionText} space={space} />
+                        </li>
+                    );
                 }
-
-                // Check for Block Suggest Negation within the list item
-                const negationMatch = trimmedText.match(blockSuggestNegationRegex);
+                // Block Suggestion: Negation
+                const negationMatch = blockSuggestNegationRegex.exec(trimmedText);
                 if (negationMatch) {
-                    const targetId = negationMatch[1] ? parseInt(negationMatch[1], 10) : undefined;
-                    const suggestionText = negationMatch[2].trim();
-                    if (suggestionText && targetId !== undefined) {
-                        return (
-                            <SuggestionBlock
-                                key={`suggest-neg-block-li-${targetId}-${id}-${Math.random()}`}
-                                type="negation"
-                                targetId={targetId}
-                                text={suggestionText}
-                                space={space}
-                            />
-                        );
-                    }
+                    const suggestionText = trimmedText.replace(blockSuggestNegationRegex, '$2').trim();
+                    const targetId = parseInt(negationMatch[1], 10);
+                    return (
+                        <li {...props}>
+                            <SuggestionBlock type="negation" targetId={targetId} text={suggestionText} space={space} />
+                        </li>
+                    );
                 }
-
-                // Default rendering if no suggestion block is detected
-                return <li {...props}>{children}</li>;
+                // Inline tags in list items
+                const processedChildren = renderTextWithInlineTags(rawText, space, discourseUrl, storedMessages);
+                return <li {...props}>{processedChildren}</li>;
             },
-            // Keep existing code renderer
             code: ({ node, inline, className, children, ...props }: StandardComponentProps) => {
                 if (!children) return null;
                 const match = /language-(\w+)/.exec(className || '');

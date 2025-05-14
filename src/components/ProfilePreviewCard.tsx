@@ -7,7 +7,11 @@ import { formatDistanceToNow } from 'date-fns';
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import React from "react";
 
-const originalMemberCutoffDate = new Date(Date.UTC(2025, 4, 3));
+// invalid join date
+// basically this is when i added the created_at column to the database
+// i grabbed as many as i could from the privy db but not all of them joined through privy
+// so this is the date i added the created_at column
+const exactJoinDate = new Date("2025-05-01T02:36:13.081085Z");
 
 interface ProfilePreviewCardProps {
     username: string;
@@ -26,10 +30,12 @@ export function ProfilePreviewCard({
 }: ProfilePreviewCardProps) {
 
     let memberStatus: string;
-    if (!createdAt || createdAt < originalMemberCutoffDate) {
-        memberStatus = "Original Member";
+    if (createdAt && createdAt.getTime() === exactJoinDate.getTime()) {
+        memberStatus = "Exact Join Date Unavailable";
+    } else if (createdAt) {
+        memberStatus = `Member since ${formatDistanceToNow(createdAt, { addSuffix: true })}`;
     } else {
-        memberStatus = `Member ${formatDistanceToNow(createdAt, { addSuffix: true })}`;
+        memberStatus = "";
     }
 
     return (

@@ -9,7 +9,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { DialogProps } from "@radix-ui/react-dialog";
 import { FC } from "react";
 
-export interface OnboardingDialogProps extends DialogProps {}
+export interface OnboardingDialogProps extends DialogProps { }
 
 export const OnboardingDialog: FC<OnboardingDialogProps> = ({ ...props }) => {
   const { logout } = usePrivy();
@@ -20,7 +20,7 @@ export const OnboardingDialog: FC<OnboardingDialogProps> = ({ ...props }) => {
         <DialogTitle className="self-center mb-2xl">{`Let's get you started`}</DialogTitle>
         <DialogDescription
           hidden
-        >{`Let's set up your acount`}</DialogDescription>
+        >{`Let's set up your account`}</DialogDescription>
         <OnboardingForm onCancel={logout} />
       </DialogContent>
     </Dialog>

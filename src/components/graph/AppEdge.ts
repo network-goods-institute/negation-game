@@ -1,4 +1,4 @@
-import { NegationEdge } from "@/components/graph/NegationEdge";
-import { Edge } from "@xyflow/react";
+import type { NegationEdgeType } from "@/components/graph/NegationEdge";
+import type { Edge as XYFlowEdge } from "@xyflow/react";
 
-export type AppEdge = NegationEdge | Edge;
+export type AppEdge = NegationEdgeType | XYFlowEdge;

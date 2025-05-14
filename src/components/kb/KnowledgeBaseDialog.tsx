@@ -13,6 +13,7 @@ import { GettingStartedGuide } from '@/components/kb/GettingStartedGuide';
 import { WhatIsRestaking } from '@/components/kb/WhatIsRestaking';
 import { WhatIsSlashing } from '@/components/kb/WhatIsSlashing';
 import { WhatIsDoubting } from '@/components/kb/WhatIsDoubting';
+import { WhatAreEdges } from '@/components/kb/WhatAreEdges';
 import { cn } from '@/lib/cn';
 
 type KbTopic =
@@ -26,6 +27,7 @@ type KbTopic =
     | 'slashing'
     | 'doubting'
     | 'gettingStarted'
+    | 'edges'
     | null;
 
 interface KnowledgeBaseDialogProps {
@@ -56,6 +58,8 @@ export const KnowledgeBaseDialog = ({ isOpen, onClose }: KnowledgeBaseDialogProp
                 return <WhatIsSlashing />;
             case 'doubting':
                 return <WhatIsDoubting />;
+            case 'edges':
+                return <WhatAreEdges />;
             case 'gettingStarted':
                 return <GettingStartedGuide />;
             default:
@@ -74,7 +78,7 @@ export const KnowledgeBaseDialog = ({ isOpen, onClose }: KnowledgeBaseDialogProp
                 "justify-start w-full text-left px-3 whitespace-normal h-auto",
                 selectedTopic === topic ? "bg-accent text-accent-foreground" : ""
             )}
-            onClick={() => setSelectedTopic(selectedTopic === topic ? null : topic)}
+            onClick={() => setSelectedTopic(topic)}
         >
             {label}
         </Button>
@@ -100,6 +104,7 @@ export const KnowledgeBaseDialog = ({ isOpen, onClose }: KnowledgeBaseDialogProp
                             <TopicButton topic="restaking" label="What is Restaking?" />
                             <TopicButton topic="slashing" label="What is Slashing?" />
                             <TopicButton topic="doubting" label="What is Doubting?" />
+                            <TopicButton topic="edges" label="Understanding Edges" />
                         </div>
                     </nav>
 

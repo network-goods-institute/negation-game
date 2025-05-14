@@ -4,13 +4,15 @@ import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "@
 import { useQuery } from "@tanstack/react-query";
 import { useFeed } from "@/queries/useFeed";
 import { useAllUsers } from "@/queries/useAllUsers";
-import { TrophyIcon, ArrowLeftIcon, HeartIcon, InfoIcon, ChevronDownIcon, Loader2Icon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { TrophyIcon, ArrowLeftIcon, HeartIcon, InfoIcon, ChevronDownIcon, Loader2Icon, EyeIcon } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
 import { useUser } from "@/queries/useUser";
 import { fetchSpaceViewpoints } from "@/actions/fetchSpaceViewpoints";
 import { fetchUsersReputation } from "@/actions/fetchUsersReputation";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/cn";
+import { useAtomValue } from "jotai";
+import { visitedPointsAtom } from "@/atoms/visitedPointsAtom";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -22,6 +24,23 @@ import { UsernameDisplay } from "./UsernameDisplay";
 
 type SortOption = "points" | "cred" | "rationales" | "reputation";
 
+function useIsMobile() {
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const checkIsMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+
+        checkIsMobile();
+        window.addEventListener('resize', checkIsMobile);
+
+        return () => window.removeEventListener('resize', checkIsMobile);
+    }, []);
+
+    return isMobile;
+}
+
 export const LeaderboardDialog = ({
     open,
     onOpenChange,
@@ -31,6 +50,7 @@ export const LeaderboardDialog = ({
     onOpenChange: (open: boolean) => void;
     space: string;
 }) => {
+    const isMobile = useIsMobile();
     const { data: feed } = useFeed();
     const { data: allUsers } = useAllUsers();
     const { data: spaceViewpoints } = useQuery({
@@ -40,7 +60,11 @@ export const LeaderboardDialog = ({
     const { data: user } = useUser();
     const [sortBy, setSortBy] = useState<SortOption>("rationales");
     const [sortDescending, setSortDescending] = useState(true);
-    const [viewMode, setViewMode] = useState<"table" | "cards">("cards");
+    const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+
+    useEffect(() => {
+        setViewMode(isMobile ? "cards" : "table");
+    }, [isMobile]);
 
     const leaderboardData = useMemo(() => {
         if (!feed || !allUsers || !spaceViewpoints) return [];
@@ -322,23 +346,36 @@ export const LeaderboardDialog = ({
                                 </div>
                             </TabsContent>
 
-                            <TabsContent value="cards" className="mt-0 space-y-2 overflow-x-auto">
+                            <TabsContent value="cards" className="mt-0 space-y-2 overflow-x-auto pb-16">
                                 <div className="grid grid-cols-1 gap-2">
                                     {sortedUsers.map((user, index) => (
-                                        <div key={user.id} className="p-3 rounded-lg border flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex items-center justify-center min-w-[20px] h-5 rounded-full bg-muted text-xs font-medium">
+                                        <div
+                                            key={user.id}
+                                            className={cn(
+                                                "p-3 rounded-lg border flex items-center justify-between",
+                                                user.id === currentUserData?.id && "bg-primary/5 border-primary/20"
+                                            )}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex items-center justify-center min-w-[24px] h-6 rounded-full bg-muted text-xs font-medium">
                                                     {index + 1}
                                                 </div>
-                                                <UsernameDisplay username={user.username} userId={user.id} className="font-medium" />
-                                                {user.id === currentUserData?.id && (
-                                                    <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary whitespace-nowrap">
-                                                        You
-                                                    </span>
-                                                )}
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <UsernameDisplay username={user.username} userId={user.id} className="font-medium" />
+                                                        {user.id === currentUserData?.id && (
+                                                            <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary whitespace-nowrap">
+                                                                You
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground mt-0.5">
+                                                        {user.viewpoints} rationales · {user.points} points · {Math.round(user.reputation)}% reputation
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="text-right">
-                                                <div className="text-sm font-semibold">{user.cred}</div>
+                                            <div className="text-right flex items-center gap-3">
+                                                <div className="text-sm font-medium">{user.cred} cred</div>
                                                 {user.delegationUrl && (
                                                     <TooltipProvider delayDuration={300}>
                                                         <Tooltip>
@@ -347,7 +384,7 @@ export const LeaderboardDialog = ({
                                                                     href={user.delegationUrl}
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
-                                                                    className="mt-1 inline-flex justify-center items-center w-6 h-6 bg-purple-500 rounded-full"
+                                                                    className="inline-flex justify-center items-center w-6 h-6 bg-purple-500 rounded-full"
                                                                     onClick={(e) => e.stopPropagation()}
                                                                 >
                                                                     <HeartIcon className="size-3.5 text-white" />
@@ -366,6 +403,16 @@ export const LeaderboardDialog = ({
                             </TabsContent>
                         </Tabs>
                     )}
+                </div>
+
+                {/* Footer with Points Count */}
+                <div className="absolute bottom-0 left-0 right-0 border-t bg-background/80 backdrop-blur-sm">
+                    <div className="px-6 py-3 flex items-center justify-end">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <EyeIcon className="size-3.5" />
+                            <span>{Array.from(useAtomValue(visitedPointsAtom)).length} points viewed</span>
+                        </div>
+                    </div>
                 </div>
             </DialogContent>
         </Dialog>
