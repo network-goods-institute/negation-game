@@ -405,8 +405,8 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
             });
         }
 
-        // eslint-disable-next-line react-hooks/exhaustive-deps
         // passing in nodes or edges will break things
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [graphData, reactFlowInstance, setNodes, setEdges]);
 
     // When nodes change, mark the graph as modified

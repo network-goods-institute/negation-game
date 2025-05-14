@@ -473,7 +473,6 @@ export function useChatState({
         textarea.select();
         document.execCommand("copy");
         document.body.removeChild(textarea);
-        toast.success("Message copied to clipboard.");
       } catch (err) {
         console.error("Fallback copy failed:", err);
         toast.error("Copy failed.");

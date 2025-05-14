@@ -841,7 +841,10 @@ export default function AIAssistant() {
             setRationaleDescription('');
             setLinkUrl('');
         }
-    }, [chatList.currentChatId, chatList.savedChats]);
+        // every time you saved or updated the chat it would clear the description and linkUrl
+        // if you passed in chatList.savedChats, so don't do that
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chatList.currentChatId]);
 
     const handleRationaleGraphChange = useCallback((partialGraph: ViewpointGraph, immediateSave = false) => {
         const fullGraph: ViewpointGraph = { ...partialGraph, description: rationaleDescription, linkUrl };

@@ -7,6 +7,7 @@ import { makePointSuggestionAtom } from '@/atoms/makePointSuggestionAtom';
 import { makeNegationSuggestionAtom } from '@/atoms/makeNegationSuggestionAtom';
 import { DEFAULT_SPACE } from '@/constants/config';
 import { usePointData } from '@/queries/usePointData';
+import { PointReference } from './PointReference';
 
 interface SuggestionBlockProps {
     type: 'point' | 'negation';
@@ -35,6 +36,23 @@ const TargetPointDisplay: React.FC<{ pointId: number }> = ({ pointId }) => {
     );
 };
 
+const renderTextWithReferences = (text: string, spaceInput: string | null | undefined) => {
+    const space = spaceInput ?? null;
+    const parts = text.split(/(\[Point:\d+\]|\[Rationale:[a-zA-Z0-9_-]+\])/g);
+    return parts.map((part, index) => {
+        const pointMatch = part.match(/\[Point:(\d+)\]/);
+        const rationaleMatch = part.match(/\[Rationale:([a-zA-Z0-9_-]+)\]/);
+
+        if (pointMatch) {
+            return <PointReference key={index} id={parseInt(pointMatch[1])} space={space} />;
+        } else if (rationaleMatch) {
+            return <PointReference key={index} id={rationaleMatch[1]} space={space} />;
+        } else {
+            return <React.Fragment key={index}>{part}</React.Fragment>;
+        }
+    });
+};
+
 export const SuggestionBlock: React.FC<SuggestionBlockProps> = ({ type, targetId, text, space }) => {
     const Icon = type === 'point' ? GitBranchPlus : PenSquare;
     const setMakePointSuggestion = useSetAtom(makePointSuggestionAtom);
@@ -54,10 +72,12 @@ export const SuggestionBlock: React.FC<SuggestionBlockProps> = ({ type, targetId
     const isNegationSuggestion = type === 'negation' && targetId !== undefined;
 
     const handleClick = () => {
+        const textForAction = text;
+
         if (type === 'point') {
-            setMakePointSuggestion({ text, context: 'chat', spaceId: space ?? DEFAULT_SPACE });
+            setMakePointSuggestion({ text: textForAction, context: 'chat', spaceId: space ?? DEFAULT_SPACE });
         } else if (isNegationSuggestion) {
-            setMakeNegationSuggestion({ targetId, text, context: 'chat', spaceId: space ?? DEFAULT_SPACE });
+            setMakeNegationSuggestion({ targetId, text: textForAction, context: 'chat', spaceId: space ?? DEFAULT_SPACE });
         }
     };
 
@@ -74,7 +94,7 @@ export const SuggestionBlock: React.FC<SuggestionBlockProps> = ({ type, targetId
                 <TargetPointDisplay pointId={targetId} />
             )}
             <p className="mb-3 text-sm whitespace-pre-wrap break-words">
-                {text}
+                {renderTextWithReferences(text, space)}
             </p>
             <div>
                 <Button
