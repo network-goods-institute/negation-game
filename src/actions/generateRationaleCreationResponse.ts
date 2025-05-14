@@ -11,6 +11,7 @@ import { PointNodeData } from "@/components/graph/PointNode";
 import { StatementNodeData } from "@/components/graph/StatementNode";
 import { AddPointNodeData } from "@/components/graph/AddPointNode";
 import { POINT_MIN_LENGTH, POINT_MAX_LENGTH } from "@/constants/config";
+import { parse } from "node-html-parser";
 
 interface RationaleCreationResponse {
   textStream: ReadableStream<string>;
@@ -25,7 +26,47 @@ interface RationaleCreationContext {
   rationaleDescription?: string;
 }
 
-type NodeData = StatementNodeData | PointNodeData | AddPointNodeData;
+async function fetchLinkContent(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, {
+      headers: { "User-Agent": "NegationGameBot/1.0" },
+    });
+    if (!response.ok) {
+      console.warn(
+        `Failed to fetch link content from ${url}. Status: ${response.status}`
+      );
+      return null;
+    }
+    const contentType = response.headers.get("content-type");
+    if (
+      contentType &&
+      (contentType.includes("text/html") || contentType.includes("text/plain"))
+    ) {
+      const htmlContent = await response.text();
+      if (contentType.includes("text/html")) {
+        const root = parse(htmlContent);
+        const mainContent = root.querySelector(
+          'article, main, [role="main"], .main-content, #main-content, .post-content, #content'
+        );
+        let extractedText =
+          (mainContent || root).textContent || (mainContent || root).innerText;
+        extractedText = extractedText
+          .replace(/\n\s*\n/g, "\n")
+          .replace(/\s\s+/g, " ")
+          .trim();
+        return extractedText.substring(0, 20000);
+      } else {
+        return htmlContent.substring(0, 20000);
+      }
+    } else {
+      console.warn(`Unsupported content type for ${url}: ${contentType}`);
+      return null;
+    }
+  } catch (error) {
+    console.error(`Error fetching link content from ${url}:`, error);
+    return null;
+  }
+}
 
 export const generateRationaleCreationResponse = async (
   messages: ChatMessage[],
@@ -50,9 +91,17 @@ export const generateRationaleCreationResponse = async (
     const discourseContext = context.discoursePost
       ? buildDiscourseContext(context.discoursePost)
       : "";
-    const linkContext = context.linkUrl
-      ? `\nProvided Source Link: ${context.linkUrl}`
-      : "";
+
+    let linkContext = "";
+    if (context.linkUrl) {
+      const actualUrl = context.linkUrl;
+      const fetchedContent = await fetchLinkContent(actualUrl);
+      if (fetchedContent) {
+        linkContext = `\nFetched Content from Provided Link (${actualUrl}):\n${fetchedContent.substring(0, 5000)}...\n(Full content used in context but truncated for display here)`;
+      } else {
+        linkContext = `\nProvided Source Link: ${actualUrl} (Content could not be fetched, was not text-based, or was empty).`;
+      }
+    }
 
     // ** Enhanced System Prompt with Negation Game Concepts **
     const systemPrompt = `You are an AI assistant collaborating with a user to create a rationale graph in the Negation Game platform. A rationale maps out a single user's line of reasoning about a specific topic, showing how different arguments relate to and challenge each other.
@@ -311,7 +360,7 @@ function buildGraphContext(
 function buildPointsContext(points: PointInSpace[]): string {
   if (points.length === 0) return "\nExisting Points in Space: (None)\n";
   return `\nExisting Points in Space:\n${points
-    .map((p) => `- ID: ${p.id}, Content: "${p.content}"`) // Simplified
+    .map((p) => `- ID: ${p.id}, Content: "${p.content}"`)
     .join("\n")}\n`;
 }
 
