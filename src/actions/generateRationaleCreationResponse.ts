@@ -103,7 +103,6 @@ export const generateRationaleCreationResponse = async (
       }
     }
 
-    // ** Enhanced System Prompt with Negation Game Concepts **
     const systemPrompt = `You are an AI assistant collaborating with a user to create a rationale graph in the Negation Game platform. Your primary role is to help the user think critically and deeply about their reasoning. Guide them by asking probing questions, suggesting connections, and helping them explore different facets of their argument *before* directly modifying the graph, unless explicitly told to make a specific change. A rationale maps out a single user\'s line of reasoning about a specific topic, showing how different arguments relate to and challenge each other.
 
 **NEGATION GAME CONCEPTS:**
@@ -342,7 +341,6 @@ function buildGraphContext(
     nodes.forEach((node) => {
       context += `    - id: ${node.id}, type: ${node.type}, position: { x: ${Math.round(node.position.x)}, y: ${Math.round(node.position.y)} }`;
       if (node.type === "statement") {
-        // Title already included
       } else if (node.type === "point") {
         const data = node.data as PointNodeData;
         const content =

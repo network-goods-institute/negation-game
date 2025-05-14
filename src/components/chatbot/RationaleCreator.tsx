@@ -204,7 +204,6 @@ const RationaleVisualFeed = ({ nodes, edges, onNodesChange, onEdgesChange, onSav
                 <ContextMenu.Content className="bg-popover border rounded-md shadow-md p-1 z-50 min-w-[150px]">
                     {targetNodeId && (
                         <>
-                            {/* Use Radix Context Menu Item */}
                             <ContextMenu.Item
                                 className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent focus:bg-accent hover:text-accent-foreground focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                                 onSelect={() => handleAddNegationClick(targetNodeId)}
@@ -268,7 +267,6 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     description,
     linkUrl,
 }) => {
-    // State for editing messages
     const [showEditDialog, setShowEditDialog] = useState(false);
     const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(null);
     const [editingMessageContent, setEditingMessageContent] = useState<string>("");
@@ -489,19 +487,16 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
         //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [graphData, reactFlowInstance, setNodes, setEdges]);
 
-    // When nodes change, mark the graph as modified
     const handleNodesChange: OnNodesChange<PreviewAppNode> = useCallback((changes) => {
         onNodesChangeReactFlow(changes);
         setGraphModified(true);
     }, [onNodesChangeReactFlow]);
 
-    // When edges change, mark the graph as modified
     const handleEdgesChange: OnEdgesChange<PreviewAppEdge> = useCallback((changes) => {
         onEdgesChangeReactFlow(changes);
         setGraphModified(true);
     }, [onEdgesChangeReactFlow]);
 
-    // Save: update persisted and push
     const saveGraph = useCallback(() => {
         const currentGraph: ViewpointGraph = { nodes: nodes as any, edges: edges as any };
         // Persist to parent and update baseline
@@ -511,14 +506,12 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
         setGraphModified(false);
     }, [nodes, edges, onGraphChange, chatState]);
 
-    // Discard: revert edits to persisted
     const discardGraph = useCallback(() => {
         setNodes(persistedGraph.nodes as unknown as PreviewAppNode[]);
         setEdges(persistedGraph.edges as unknown as PreviewAppEdge[]);
         setGraphModified(false);
     }, [persistedGraph, setNodes, setEdges]);
 
-    // Handle form submission
     const handleFormSubmit = (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
         if (chatState.generatingChats.has(chatList.currentChatId || '')) return;

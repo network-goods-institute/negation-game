@@ -455,7 +455,7 @@ export default function AIAssistant() {
                 chatIdToUse = newId;
             } else {
                 // If using existing chat, ensure its graph is set to the initial state
-                // Note: This might overwrite existing work if the user switches back without saving. Consider implications.
+                // Note: This might overwrite existing work if the user switches back without saving.
                 // For now, let's update the existing chat's graph to the initial state.
                 if (chatIdToUse && currentChat) {
                     console.log('[AIAssistant] Using existing empty chat, ensuring initial graph state.');
