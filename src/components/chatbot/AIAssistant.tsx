@@ -491,10 +491,15 @@ export default function AIAssistant() {
             setShowMobileMenu(false);
         }
     };
-    const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const handleFormSubmit = (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
         if (chatState.generatingChats.has(chatList.currentChatId || "")) return;
-        chatState.handleSubmit(e);
+        // If triggered by button click, call without event; otherwise, pass the form event
+        if ((e as React.MouseEvent<HTMLButtonElement>).type === 'click') {
+            chatState.handleSubmit();
+        } else {
+            chatState.handleSubmit(e as React.FormEvent<HTMLFormElement>);
+        }
     };
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === "Enter" && !e.shiftKey) {

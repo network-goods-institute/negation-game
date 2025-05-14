@@ -291,122 +291,202 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
         if (!graphData) return;
 
         const currentNodesMap = new Map(nodes.map(node => [node.id, node]));
-
-
         const incomingNodesMap = new Map(graphData.nodes.map(node => [node.id, node]));
 
-        const nodesToProcess = graphData.nodes.map(incomingNode => {
-            const existingNode = currentNodesMap.get(incomingNode.id);
+        const verticalSpacing = 150;
+        const estimatedNodeWidth = 280;
+        const estimatedNodeHeight = 140;
+        const horizontalGap = 40;
+        const siblingGroupWidth = estimatedNodeWidth + horizontalGap;
+        let orphanCascadeY = 50;
+        const orphanCascadeX = -200;
+        const collisionPadding = 15;
+        const maxCollisionIterations = 8;
+
+        const processedNodes: PreviewAppNode[] = graphData.nodes.map(incomingNode => {
+            const existingNode = currentNodesMap.get(incomingNode.id) as PreviewAppNode | undefined;
             if (existingNode) {
-                // If it's a point node, explicitly merge cred
-                if (existingNode.type === 'point') {
-                    const incomingPoint = incomingNode as PreviewPointNode;
-                    const existingPoint = existingNode as PreviewPointNode;
-                    const dataCopy: PreviewPointNodeData = { ...incomingPoint.data };
-                    const existingCred = existingPoint.data.cred;
-                    if (dataCopy.cred === undefined && existingCred !== undefined) {
-                        dataCopy.cred = existingCred;
-                    }
-                    return {
-                        ...incomingPoint,
-                        position: existingPoint.position,
-                        data: dataCopy,
+                let finalNodeData: PreviewStatementNodeData | PreviewPointNodeData | PreviewAddPointNodeData = { ...(existingNode.data as any) };
+
+                if (existingNode.type === 'point' && incomingNode.type === 'point') {
+                    const incomingAsPreviewPointData = incomingNode.data as unknown as PreviewPointNodeData;
+                    finalNodeData = {
+                        content: incomingAsPreviewPointData.content,
+                        cred: incomingAsPreviewPointData.cred !== undefined ? incomingAsPreviewPointData.cred : (existingNode.data as PreviewPointNodeData).cred,
                     };
+                } else if (existingNode.type === 'statement' && incomingNode.type === 'statement') {
+                    finalNodeData = { ...(incomingNode.data as unknown as PreviewStatementNodeData) };
+                } else if (existingNode.type === 'addPoint' && incomingNode.type === 'addPoint') {
+                    finalNodeData = { ...(incomingNode.data as unknown as PreviewAddPointNodeData) };
+                } else if (existingNode.type !== incomingNode.type) {
+                    if (incomingNode.type === 'point') finalNodeData = incomingNode.data as unknown as PreviewPointNodeData;
+                    else if (incomingNode.type === 'statement') finalNodeData = incomingNode.data as unknown as PreviewStatementNodeData;
+                    else if (incomingNode.type === 'addPoint') finalNodeData = incomingNode.data as unknown as PreviewAddPointNodeData;
+                } else {
+                    finalNodeData = { ...(incomingNode.data as any) };
                 }
-                // For statement or addPoint, just preserve incoming data with existing position
-                const baseNode = incomingNode as PreviewAppNode;
-                return { ...baseNode, position: existingNode.position };
+
+                return {
+                    ...existingNode,
+                    id: incomingNode.id,
+                    type: incomingNode.type,
+                    data: finalNodeData,
+                    position: existingNode.position,
+                } as PreviewAppNode;
+            } else {
+                let newNodeData: PreviewStatementNodeData | PreviewPointNodeData | PreviewAddPointNodeData;
+                if (incomingNode.type === 'point') newNodeData = incomingNode.data as unknown as PreviewPointNodeData;
+                else if (incomingNode.type === 'statement') newNodeData = incomingNode.data as unknown as PreviewStatementNodeData;
+                else if (incomingNode.type === 'addPoint') newNodeData = incomingNode.data as unknown as PreviewAddPointNodeData;
+                else newNodeData = { content: 'Unknown Type', cred: 0 } as PreviewPointNodeData;
+
+                return {
+                    id: incomingNode.id,
+                    type: incomingNode.type as 'point' | 'statement' | 'addPoint',
+                    data: newNodeData,
+                    position: { x: NaN, y: NaN },
+                } as PreviewAppNode;
             }
-            // New node: no existing position, return as-is
-            return incomingNode as PreviewAppNode;
         });
 
-        const newNodesByParent = new Map<string, PreviewAppNode[]>();
-        const nodesWithoutParent: PreviewAppNode[] = [];
+        let nodesToLayout = processedNodes.filter(n => isNaN(n.position.x));
+        const finalPositions = new Map<string, { x: number; y: number }>(
+            processedNodes.filter(n => !isNaN(n.position.x)).map(n => [n.id, n.position])
+        );
 
-        nodesToProcess.forEach(node => {
-            if (!currentNodesMap.has(node.id)) { // This is a new node
-                // Find the edge in incoming graphData where this node is the target
+        let layoutIterations = 0;
+        const MAX_HIERARCHICAL_ITERATIONS = nodesToLayout.length + 5;
+
+        while (nodesToLayout.length > 0 && layoutIterations < MAX_HIERARCHICAL_ITERATIONS) {
+            let positionedThisIteration = 0;
+            const nextNodesToLayout = [];
+
+            for (const node of nodesToLayout) {
                 const edgeToThisNode = graphData.edges.find(edge => edge.target === node.id);
 
-                if (edgeToThisNode) {
-                    const parentId = edgeToThisNode.source;
-                    if (!newNodesByParent.has(parentId)) {
-                        newNodesByParent.set(parentId, []);
-                    }
-                    newNodesByParent.get(parentId)!.push(node);
+                if (!edgeToThisNode || !incomingNodesMap.has(edgeToThisNode.source)) {
+                    finalPositions.set(node.id, { x: orphanCascadeX, y: orphanCascadeY });
+                    orphanCascadeY += verticalSpacing * 0.75;
+                    positionedThisIteration++;
                 } else {
-                    nodesWithoutParent.push(node); // Should ideally not happen for connected nodes in AI output
+                    const parentId = edgeToThisNode.source;
+                    if (finalPositions.has(parentId)) {
+                        const parentPosition = finalPositions.get(parentId)!;
+
+                        const siblingNodesInLayoutPass = nodesToLayout.filter(sibling => {
+                            const edgeToSibling = graphData.edges.find(e => e.target === sibling.id);
+                            return edgeToSibling && edgeToSibling.source === parentId;
+                        });
+
+                        const numSiblings = siblingNodesInLayoutPass.length;
+                        const totalWidth = (numSiblings * estimatedNodeWidth) + Math.max(0, numSiblings - 1) * horizontalGap;
+                        const startX = parentPosition.x - totalWidth / 2 + estimatedNodeWidth / 2;
+
+                        siblingNodesInLayoutPass.forEach((sibling, index) => {
+                            const posX = startX + index * siblingGroupWidth;
+                            const posY = parentPosition.y + verticalSpacing;
+                            finalPositions.set(sibling.id, { x: posX, y: posY });
+                            positionedThisIteration++;
+                        });
+                    } else {
+                        nextNodesToLayout.push(node);
+                    }
                 }
             }
-        });
-
-        const positionedNewNodes: PreviewAppNode[] = [];
-        const verticalSpacing = 150;
-        const estimatedNodeWidth = 300;
-        const horizontalGap = 50;
-        const totalSiblingWidth = estimatedNodeWidth + horizontalGap;
-
-        newNodesByParent.forEach((siblingNodes, parentId) => {
-            const parentNode = currentNodesMap.get(parentId);
-            if (!parentNode) {
-                // If parent is not found in currentNodesMap, give new nodes a default position
-                // This case might happen if the parent itself is also a new node, which isn't ideal
-                // but providing a default prevents errors.
-                siblingNodes.forEach(node => positionedNewNodes.push({ ...node, position: { x: 0, y: 0 } }));
-                return;
+            nodesToLayout = nextNodesToLayout.filter(n => !finalPositions.has(n.id));
+            layoutIterations++;
+            if (positionedThisIteration === 0 && nodesToLayout.length > 0) {
+                nodesToLayout.forEach(n => {
+                    if (!finalPositions.has(n.id)) {
+                        finalPositions.set(n.id, { x: orphanCascadeX, y: orphanCascadeY });
+                        orphanCascadeY += verticalSpacing * 0.75;
+                    }
+                });
+                break;
             }
+        }
 
-            const parentPosition = parentNode.position;
-            const numSiblings = siblingNodes.length;
+        let layoutAppliedNodes: PreviewAppNode[] = processedNodes.map(node => ({
+            ...node,
+            position: finalPositions.get(node.id) || node.position,
+        })).filter(node => incomingNodesMap.has(node.id));
 
-            const totalRequiredHorizontalSpace = (numSiblings * estimatedNodeWidth) + ((numSiblings - 1) * horizontalGap);
+        // --- Collision Avoidance Pass ---
+        for (let iter = 0; iter < maxCollisionIterations; iter++) {
+            let collisionsFoundThisIteration = false;
+            for (let i = 0; i < layoutAppliedNodes.length; i++) {
+                for (let j = i + 1; j < layoutAppliedNodes.length; j++) {
+                    const nodeA = layoutAppliedNodes[i];
+                    const nodeB = layoutAppliedNodes[j];
 
-            const startX = parentPosition.x - (totalRequiredHorizontalSpace / 2) + (estimatedNodeWidth / 2);
+                    const effectiveWidthA = (nodeA.width || estimatedNodeWidth) + collisionPadding;
+                    const effectiveHeightA = (nodeA.height || estimatedNodeHeight) + collisionPadding;
+                    const effectiveWidthB = (nodeB.width || estimatedNodeWidth) + collisionPadding;
+                    const effectiveHeightB = (nodeB.height || estimatedNodeHeight) + collisionPadding;
 
-            siblingNodes.forEach((node, index) => {
-                const offsetX = index * totalSiblingWidth;
-                positionedNewNodes.push({
-                    ...node,
-                    position: {
-                        x: startX + offsetX,
-                        y: parentPosition.y + verticalSpacing,
-                    },
-                });
-            });
-        });
-        nodesWithoutParent.forEach(node => positionedNewNodes.push({ ...node, position: { x: 0, y: 0 } }));
+                    const centerAx = nodeA.position.x + effectiveWidthA / 2;
+                    const centerAy = nodeA.position.y + effectiveHeightA / 2;
+                    const centerBx = nodeB.position.x + effectiveWidthB / 2;
+                    const centerBy = nodeB.position.y + effectiveHeightB / 2;
 
-        const finalNodes = nodesToProcess
-            .filter(node => currentNodesMap.has(node.id))
-            .concat(positionedNewNodes);
+                    const dx = centerAx - centerBx;
+                    const dy = centerAy - centerBy;
 
-        // Filter out nodes that are no longer in graphData (shouldn't happen with current AI logic, but could)
-        const finalFilteredNodes = finalNodes.filter(node => incomingNodesMap.has(node.id));
+                    const minDistanceX = (effectiveWidthA / 2) + (effectiveWidthB / 2);
+                    const minDistanceY = (effectiveHeightA / 2) + (effectiveHeightB / 2);
 
-        // Check if nodes or edges have actually changed before updating state
-        const areNodesEqual = JSON.stringify(finalFilteredNodes) === JSON.stringify(nodes);
-        const areEdgesEqual = JSON.stringify(graphData.edges) === JSON.stringify(edges);
+                    const overlapX = minDistanceX - Math.abs(dx);
+                    const overlapY = minDistanceY - Math.abs(dy);
 
+                    if (overlapX > 0 && overlapY > 0) {
+                        collisionsFoundThisIteration = true;
+                        const pushFactor = 0.3; // Reduced pushFactor for gentler adjustment
+
+                        if (overlapX < overlapY) { // Push less overlapping axis first or more, depending on strategy
+                            const push = (dx < 0 ? -overlapX : overlapX) * pushFactor;
+                            nodeA.position = { ...nodeA.position, x: nodeA.position.x + push / 2 };
+                            nodeB.position = { ...nodeB.position, x: nodeB.position.x - push / 2 };
+                        } else {
+                            const push = (dy < 0 ? -overlapY : overlapY) * pushFactor;
+                            nodeA.position = { ...nodeA.position, y: nodeA.position.y + push / 2 };
+                            nodeB.position = { ...nodeB.position, y: nodeB.position.y - push / 2 };
+                        }
+                    }
+                }
+            }
+            if (!collisionsFoundThisIteration) break;
+        }
+
+        // --- Final Check & Update React Flow State ---
+        const stringifyNodeForCompare = (n: PreviewAppNode) => JSON.stringify({ id: n.id, x: n.position.x, y: n.position.y, data: n.data, type: n.type });
+        const stringifyEdgeForCompare = (e: PreviewAppEdge) => JSON.stringify({ id: e.id, source: e.source, target: e.target, type: e.type });
+
+        const currentNodesComparable = nodes.map(stringifyNodeForCompare).sort().join(',');
+        const finalNodesComparable = layoutAppliedNodes.map(stringifyNodeForCompare).sort().join(',');
+        const areNodesEqual = currentNodesComparable === finalNodesComparable;
+
+        const currentEdgesComparable = edges.map(stringifyEdgeForCompare).sort().join(',');
+        const finalEdgesComparable = graphData.edges.map(stringifyEdgeForCompare).sort().join(',');
+        const areEdgesEqual = currentEdgesComparable === finalEdgesComparable;
+
+        let nodesActuallyChanged = false;
         if (!areNodesEqual) {
-            setNodes(finalFilteredNodes);
+            setNodes(layoutAppliedNodes);
+            nodesActuallyChanged = true;
         }
 
+        let edgesActuallyChanged = false;
         if (!areEdgesEqual) {
-            setEdges(graphData.edges as unknown as PreviewAppEdge[]);
+            setEdges(graphData.edges as PreviewAppEdge[]);
+            edgesActuallyChanged = true;
         }
 
-        if ((!areNodesEqual || !areEdgesEqual) && reactFlowInstance) {
+        if ((nodesActuallyChanged || edgesActuallyChanged) && reactFlowInstance) {
             requestAnimationFrame(() => {
-                reactFlowInstance.fitView({
-                    duration: 500,
-                    padding: 0.1,
-                });
+                reactFlowInstance.fitView({ duration: 600, padding: 0.15 });
             });
         }
-
-        // passing in nodes or edges will break things
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [graphData, reactFlowInstance, setNodes, setEdges]);
 
     // When nodes change, mark the graph as modified
@@ -427,8 +507,9 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
         // Persist to parent and update baseline
         setPersistedGraph(currentGraph);
         onGraphChange(currentGraph, true); // Pass true for immediate save
+        chatState.currentGraphRef.current = currentGraph;
         setGraphModified(false);
-    }, [nodes, edges, onGraphChange]);
+    }, [nodes, edges, onGraphChange, chatState]);
 
     // Discard: revert edits to persisted
     const discardGraph = useCallback(() => {
@@ -438,21 +519,26 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     }, [persistedGraph, setNodes, setEdges]);
 
     // Handle form submission
-    const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const handleFormSubmit = (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
         if (chatState.generatingChats.has(chatList.currentChatId || '')) return;
 
         if (graphModified) {
-            toast.error("Please save your graph changes before sending a message.", {
+            toast.error("Graph has unsaved changes. Save manually, or use Ctrl+Enter / Ctrl+Click on send to auto-save and send.", {
                 action: {
                     label: "Save Changes",
                     onClick: saveGraph,
                 },
+                duration: 5000,
             });
             return;
         }
 
-        chatState.handleSubmit(e);
+        if (e.type === 'submit' || (e.nativeEvent && (e.nativeEvent as SubmitEvent).type === 'submit')) {
+            chatState.handleSubmit(e as React.FormEvent<HTMLFormElement>);
+        } else {
+            chatState.handleSubmit();
+        }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -460,15 +546,20 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
             e.preventDefault();
             if (chatState.message.trim() && !chatState.generatingChats.has(chatList.currentChatId || '')) {
                 if (graphModified) {
-                    toast.error("Please save your graph changes before sending a message.", {
-                        action: {
-                            label: "Save Changes",
-                            onClick: saveGraph,
-                        },
-                    });
+                    if (e.ctrlKey || e.metaKey) {
+                        saveGraph();
+                        chatState.handleSubmit();
+                    } else {
+                        toast.error("Graph has unsaved changes. Save manually, or use Ctrl+Enter / Ctrl+Click on send to auto-save and send.", {
+                            action: {
+                                label: "Save Changes",
+                                onClick: saveGraph,
+                            },
+                            duration: 5000,
+                        });
+                    }
                     return;
                 }
-
                 chatState.handleSubmit();
             }
         }
@@ -656,6 +747,8 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
                     onKeyDown={handleKeyDown}
                     onShowSettings={() => { /* Maybe disable settings here? */ }}
                     hideSettings={true}
+                    graphModified={graphModified}
+                    saveGraph={saveGraph}
                 />
             </div>
 

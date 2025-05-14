@@ -13,10 +13,12 @@ interface ChatInputFormProps {
     isInitializing: boolean;
     isMobile: boolean;
     currentSpace: string | null;
-    onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+    onSubmit: (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => void;
     onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
     onShowSettings: () => void;
     hideSettings?: boolean;
+    graphModified?: boolean;
+    saveGraph?: () => void;
 }
 
 export function ChatInputForm({
@@ -31,6 +33,8 @@ export function ChatInputForm({
     onKeyDown,
     onShowSettings,
     hideSettings = false,
+    graphModified = false,
+    saveGraph,
 }: ChatInputFormProps) {
     return (
         <div
@@ -72,6 +76,13 @@ export function ChatInputForm({
                         !isAuthenticated ||
                         isInitializing
                     }
+                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                        if ((e.ctrlKey || e.metaKey) && graphModified && saveGraph) {
+                            e.preventDefault();
+                            saveGraph();
+                            onSubmit(e);
+                        }
+                    }}
                     rightLoading={isGenerating}
                     className="rounded-lg h-9 px-3 md:h-10 md:px-4"
                     title={"Send Message (Ctrl+Enter)"}
