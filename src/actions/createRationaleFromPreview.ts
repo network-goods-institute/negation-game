@@ -2,6 +2,7 @@
 
 import { db } from "@/services/db";
 import { viewpointsTable } from "@/db/tables/viewpointsTable";
+import { negationsTable } from "@/db/schema";
 import { makePoint } from "@/actions/makePoint";
 import { endorse } from "@/actions/endorse";
 import { nanoid } from "nanoid";
@@ -164,6 +165,22 @@ export async function createRationaleFromPreview({
       "[createRationaleFromPreview] finalGraph before DB insert:",
       JSON.stringify(finalGraph, null, 2)
     );
+
+    for (const edge of previewEdges) {
+      if (edge.source === "statement") continue;
+      const sourcePoint = finalPointIdMap.get(edge.source);
+      const targetPoint = finalPointIdMap.get(edge.target);
+      if (sourcePoint != null && targetPoint != null) {
+        const olderPointId = Math.min(sourcePoint, targetPoint);
+        const newerPointId = Math.max(sourcePoint, targetPoint);
+        await db.insert(negationsTable).values({
+          olderPointId,
+          newerPointId,
+          createdBy: userId,
+          space: spaceId,
+        });
+      }
+    }
 
     const newViewpointId = `vp_${nanoid()}`;
     await db.insert(viewpointsTable).values({
