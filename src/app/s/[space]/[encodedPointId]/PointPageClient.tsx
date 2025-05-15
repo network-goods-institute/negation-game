@@ -10,7 +10,6 @@ import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { negationContentAtom } from "@/atoms/negationContentAtom";
 import { CredInput } from "@/components/CredInput";
-import { NegateDialog } from "@/components/NegateDialog";
 import { PointCard } from "@/components/PointCard";
 import { PointStats } from "@/components/PointStats";
 import { RestakeDialog } from "@/components/RestakeDialog";
@@ -58,7 +57,9 @@ import {
     NetworkIcon,
     Repeat2Icon,
     SparklesIcon,
-    MoreVertical
+    MoreVertical,
+    ClipboardCopyIcon,
+    CheckIcon
 } from "lucide-react";
 import { nanoid } from "nanoid";
 import { notFound, useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -91,6 +92,7 @@ import { getBackButtonHandler } from "@/lib/negation-game/backButtonUtils";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 import { useSellEndorsement } from '@/mutations/useSellEndorsement';
 import { AuthenticatedActionButton } from "@/components/AuthenticatedActionButton";
+import { toast } from "sonner";
 
 type Point = {
     id: number;
@@ -558,6 +560,27 @@ export function PointPageClient({
         setLoadingCardId(id);
     }, []);
 
+    const handleCopyMarkdownLink = useCallback(async () => {
+        if (!point || !point.content || typeof point.pointId !== 'number') return;
+
+        const currentSpaceId = spaceData.data?.id && spaceData.data.id !== DEFAULT_SPACE
+            ? spaceData.data.id
+            : DEFAULT_SPACE;
+
+        const pointUrlPath = getPointUrl(point.pointId, currentSpaceId);
+        const fullUrl = `${window.location.origin}${pointUrlPath}`;
+        const escapedContent = point.content.replace(/([\[\\]\\(\\)])/g, '\\$1');
+        const markdownLink = `[${escapedContent}](${fullUrl})`;
+
+        try {
+            await navigator.clipboard.writeText(markdownLink);
+            toast.success("Markdown link copied to clipboard!");
+        } catch (err) {
+            console.error("Failed to copy markdown link: ", err);
+            toast.error("Failed to copy link.");
+        }
+    }, [point, spaceData.data]);
+
     if (!isLoadingPoint && point === null && !isRedirecting) {
         notFound();
     }
@@ -740,26 +763,38 @@ export function PointPageClient({
                                     />
                                     <span className="hidden @md/point:inline">Negate</span>
                                 </AuthenticatedActionButton>
-                                {isPointOwner && (
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                className="p-2 rounded-full size-fit hover:bg-muted/30"
-                                                data-action-button="true"
-                                                title="More options"
-                                            >
-                                                <MoreVertical className="size-6 stroke-1" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            className="p-2 rounded-full size-fit hover:bg-muted/30"
+                                            data-action-button="true"
+                                            title="More options"
+                                        >
+                                            <MoreVertical className="size-6 stroke-1" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem
+                                            onClick={handleCopyMarkdownLink}
+                                            disabled={!point?.content}
+                                            className="cursor-pointer"
+                                        >
+                                            <ClipboardCopyIcon className="mr-2 size-4" />
+                                            <span>Copy Markdown Link</span>
+                                        </DropdownMenuItem>
+
+                                        {isPointOwner && (
                                             <DropdownMenuItem
                                                 onClick={() => setDeleteDialogOpen(true)}
                                                 disabled={!canDeletePoint}
-                                                className={!canDeletePoint ? "opacity-50 cursor-not-allowed" : "text-destructive"}
+                                                className={cn(
+                                                    "cursor-pointer",
+                                                    !canDeletePoint ? "opacity-50 cursor-not-allowed" : "text-destructive focus:text-destructive focus:bg-destructive/10"
+                                                )}
                                                 title={!canDeletePoint ? "Points can only be deleted within 8 hours of creation" : "Delete this point"}
                                             >
-                                                <TrashIcon disabled={!canDeletePoint} />
+                                                <TrashIcon disabled={!canDeletePoint} className="mr-2 size-4" />
                                                 <div className="flex flex-col">
                                                     <span>Delete point</span>
                                                     {!canDeletePoint && (
@@ -767,9 +802,9 @@ export function PointPageClient({
                                                     )}
                                                 </div>
                                             </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                )}
+                                        )}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
                         </div>
 
