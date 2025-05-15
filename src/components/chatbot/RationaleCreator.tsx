@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback, useState, useMemo } from 'react';
 import { ChatInputForm } from './ChatInputForm';
 import { ChatMessageArea } from './ChatMessageArea';
 import { useChatState } from '@/hooks/useChatState';
@@ -64,13 +64,27 @@ const edgeTypes: EdgeTypes = {
     negation: NegationEdge,
 };
 
-const RationaleVisualFeed = ({ nodes, edges, onNodesChange, onEdgesChange, onSaveGraph, onDiscard, graphModified, isSaving, onCreateRationaleClick }: {
+const RationaleVisualFeed = ({
+    nodes,
+    edges,
+    onNodesChange,
+    onEdgesChange,
+    onSaveGraph,
+    onDiscard,
+    onUndo,
+    showUndo,
+    graphModified,
+    isSaving,
+    onCreateRationaleClick
+}: {
     nodes: PreviewAppNode[];
     edges: PreviewAppEdge[];
     onNodesChange: OnNodesChange<PreviewAppNode>;
     onEdgesChange: OnEdgesChange<PreviewAppEdge>;
     onSaveGraph: () => void;
     onDiscard: () => void;
+    onUndo: () => void;
+    showUndo: boolean;
     graphModified: boolean;
     isSaving: boolean;
     onCreateRationaleClick: () => void;
@@ -159,18 +173,30 @@ const RationaleVisualFeed = ({ nodes, edges, onNodesChange, onEdgesChange, onSav
                                     {isSaving ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}
                                     Save Graph
                                 </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={onDiscard}
-                                    disabled={!graphModified || isSaving}
-                                    size="sm"
-                                    className={cn(
-                                        "shadow-lg w-[160px]",
-                                        (!graphModified || isSaving) && "opacity-50"
-                                    )}
-                                >
-                                    Discard
-                                </Button>
+                                {showUndo ? (
+                                    <Button
+                                        variant="outline"
+                                        onClick={onUndo}
+                                        disabled={isSaving}
+                                        size="sm"
+                                        className="shadow-lg w-[160px]"
+                                    >
+                                        Undo Suggestion
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        variant="outline"
+                                        onClick={onDiscard}
+                                        disabled={!graphModified || isSaving}
+                                        size="sm"
+                                        className={cn(
+                                            "shadow-lg w-[160px]",
+                                            (!graphModified || isSaving) && "opacity-50"
+                                        )}
+                                    >
+                                        Discard
+                                    </Button>
+                                )}
                             </div>
                             <AuthenticatedActionButton
                                 onClick={onCreateRationaleClick}
@@ -284,6 +310,11 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     const [conflictingPoints, setConflictingPoints] = useState<ConflictingPoint[]>([]);
     const [resolvedMappings, setResolvedMappings] = useState<ResolvedMappings>(new Map());
     const [isCreating, setIsCreating] = useState(false);
+
+    const suggestedGraphApplied = useMemo(() => {
+        return JSON.stringify(persistedGraph.nodes) !== JSON.stringify(graphData.nodes) ||
+            JSON.stringify(persistedGraph.edges) !== JSON.stringify(graphData.edges);
+    }, [persistedGraph, graphData]);
 
     useEffect(() => {
         if (!graphData) return;
@@ -510,7 +541,9 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
         setNodes(persistedGraph.nodes as unknown as PreviewAppNode[]);
         setEdges(persistedGraph.edges as unknown as PreviewAppEdge[]);
         setGraphModified(false);
-    }, [persistedGraph, setNodes, setEdges]);
+        onGraphChange(persistedGraph, true);
+        chatState.currentGraphRef.current = persistedGraph;
+    }, [persistedGraph, setNodes, setEdges, onGraphChange, chatState]);
 
     const handleFormSubmit = (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
@@ -763,6 +796,8 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
                         onEdgesChange={handleEdgesChange}
                         onSaveGraph={saveGraph}
                         onDiscard={discardGraph}
+                        onUndo={discardGraph}
+                        showUndo={suggestedGraphApplied}
                         graphModified={graphModified}
                         isSaving={isSavingGraph}
                         onCreateRationaleClick={handleCreateRationale}
