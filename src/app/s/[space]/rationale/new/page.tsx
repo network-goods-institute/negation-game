@@ -621,11 +621,11 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
                     );
                     return (
                       <div
-                        key={`${point.pointId}-card-wrapper-${index}`}
+                        key={`point-card-${point.pointId}-${index}`}
+                        id={`point-card-${point.pointId}`}
                         className="relative"
                       >
                         <PointCardWrapper
-                          key={`${point.pointId}-card-${index}`}
                           point={point}
                           className={cn(
                             "border-b",
@@ -646,6 +646,15 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       <Dynamic>
         <GraphView
           key={`graph-${graphRevision}`}
+          onNodeClick={(event, node) => {
+            if (event.ctrlKey || event.metaKey) {
+              const pointId = (node.data as any)?.pointId;
+              if (pointId != null) {
+                const el = document.getElementById(`point-card-${pointId}`);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            }
+          }}
           isNew={true}
           onInit={(instance) => {
             // Set reactFlow as ready after initialization

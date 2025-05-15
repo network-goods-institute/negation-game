@@ -821,18 +821,23 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                             </span>
                             <Dynamic>
                                 {points.map((point, index) => (
-                                    <PointCardWrapper
-                                        key={`${point.pointId}-card-${index}`}
-                                        point={point}
-                                        className={cn(
-                                            "border-b",
-                                            hoveredPointId === point.pointId &&
-                                            "shadow-[inset_0_0_0_2px_hsl(var(--primary))]",
-                                            editMode && "pr-10",
-                                            isSharing && selectedPointIds.has(point.pointId) && "bg-primary/10"
-                                        )}
-                                        isSharing={isSharing}
-                                    />
+                                    <div
+                                        key={`point-card-${point.pointId}-${index}`}
+                                        id={`point-card-${point.pointId}`}
+                                        className="relative"
+                                    >
+                                        <PointCardWrapper
+                                            point={point}
+                                            className={cn(
+                                                "border-b",
+                                                hoveredPointId === point.pointId &&
+                                                "shadow-[inset_0_0_0_2px_hsl(var(--primary))]",
+                                                editMode && "pr-10",
+                                                isSharing && selectedPointIds.has(point.pointId) && "bg-primary/10"
+                                            )}
+                                            isSharing={isSharing}
+                                        />
+                                    </div>
                                 ))}
                             </Dynamic>
                         </div>
@@ -844,6 +849,15 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                 <Dynamic>
                     <GraphView
                         key="graph-edit"
+                        onNodeClick={(event, node) => {
+                            if (event.ctrlKey || event.metaKey) {
+                                const pointId = (node.data as any)?.pointId;
+                                if (pointId != null) {
+                                    const el = document.getElementById(`point-card-${pointId}`);
+                                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }
+                            }
+                        }}
                         canModify={isOwner}
                         onInit={(instance) => {
                             setEditFlowInstance(instance);
