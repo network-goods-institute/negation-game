@@ -69,7 +69,7 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
         <div className="flex flex-col w-full h-full max-h-[80vh] overflow-hidden relative">
             <div className="absolute top-4 right-4 z-10">
                 <DialogClose asChild>
-                    <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full h-8 w-8 p-0">
+                    <Button variant="ghost" size="icon" onClick={(e) => { console.log('CounterpointReview: close dialog clicked'); onClose(); }} className="rounded-full h-8 w-8 p-0">
                         <XIcon className="h-4 w-4" />
                         <span className="sr-only">Close</span>
                     </Button>
@@ -97,6 +97,7 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                                     key={counterpointCandidate.id}
                                     className="flex flex-col gap-3 p-4 w-full bg-background cursor-pointer border rounded-md transition-colors shadow-sm hover:border-primary hover:ring-1 hover:ring-primary relative"
                                     onClick={(e) => {
+                                        console.log('CounterpointReview: existing counterpoint selected', counterpointCandidate);
                                         e.stopPropagation();
                                         if ((e.target as HTMLElement).closest('.external-link-btn')) {
                                             return;
@@ -195,6 +196,7 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                                 <div
                                     key={`rephrasing-${i}`}
                                     onClick={(e) => {
+                                        console.log('CounterpointReview: AI suggestion clicked', suggestion);
                                         e.stopPropagation();
                                         onSelectSuggestion(suggestion);
                                     }}
@@ -236,6 +238,7 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
 
                     <div
                         onClick={(e) => {
+                            console.log('CounterpointReview: keep own text selected', { content: counterpointContent, rating: reviewResults.rating });
                             e.stopPropagation();
                             onSelectOwnText();
                             setGuidanceNotes(

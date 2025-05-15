@@ -1,7 +1,5 @@
 import React from 'react';
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Keyboard } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface KeybindsDialogProps {
     open?: boolean;
@@ -20,11 +18,6 @@ export const KeybindsDialog: React.FC<KeybindsDialogProps> = ({ open, onOpenChan
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" title="Keybinds">
-                    <Keyboard className="h-4 w-4 text-muted-foreground" />
-                </Button>
-            </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Keyboard Shortcuts</DialogTitle>

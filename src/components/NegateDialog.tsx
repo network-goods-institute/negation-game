@@ -350,16 +350,30 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   ]);
 
   const handleSubmitOrReview = useCallback(() => {
-    if (!currentNegatedPointId) return;
+    console.log('NegateDialog: handleSubmitOrReview called', {
+      currentNegatedPointId,
+      needsReview,
+      canReview,
+      isReviewingCounterpoint,
+      canSubmit,
+      isSubmitting,
+      reviewDialogOpen
+    });
+    if (!currentNegatedPointId) {
+      console.log('NegateDialog: No currentNegatedPointId, returning');
+      return;
+    }
 
     // If content hasn't been reviewed yet and we can review, trigger review
     if (needsReview && canReview && !isReviewingCounterpoint) {
+      console.log('NegateDialog: review conditions met, calling reviewCounterpoint');
       reviewCounterpoint();
       return;
     }
 
     // Only submit if content has been reviewed and dialog is closed
     if (!needsReview && canSubmit && !isSubmitting && !reviewDialogOpen) {
+      console.log('NegateDialog: submit conditions met, calling handleSubmit');
       handleSubmit();
     }
   }, [
@@ -374,7 +388,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     handleSubmit,
   ]);
 
-  useSubmitHotkey(handleSubmitOrReview, !!currentNegatedPointId);
+  useSubmitHotkey(handleSubmitOrReview, !!currentNegatedPointId && !reviewDialogOpen);
 
   const [platformKey, setPlatformKey] = useState('Alt');
 
@@ -565,11 +579,24 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                       className="min-w-28 w-full xs:w-fit"
                       rightLoading={isSubmitting || isReviewingCounterpoint}
                       onClick={(e) => {
+                        if (isProcessing || isReviewingCounterpoint || isSubmitting) {
+                          console.log('NegateDialog: click ignored—already processing');
+                          return;
+                        }
+                        console.log('NegateDialog: Review & Negate button clicked', {
+                          altKey: e.altKey,
+                          canReview,
+                          isReviewingCounterpoint,
+                          isSubmitting,
+                          isProcessing
+                        });
                         if (e.altKey) {
+                          console.log('NegateDialog: Alt key pressed, skipping review, calling handleSubmit');
                           setIsSubmitting(true);
                           handleSubmit();
                           return;
                         }
+                        console.log('NegateDialog: Calling reviewCounterpoint via button click');
                         setIsProcessing(true);
                         reviewCounterpoint().finally(() => setIsProcessing(false));
                       }}
