@@ -76,6 +76,8 @@ interface ChatHeaderProps {
     onCloseRationaleCreator?: () => void;
     canvasEnabled: boolean;
     setCanvasEnabled: (enabled: boolean) => void;
+    hasGraph: boolean;
+    onOpenRationaleCreator: () => void;
 }
 
 export function ChatHeader({
@@ -109,6 +111,8 @@ export function ChatHeader({
     onCloseRationaleCreator = () => { },
     canvasEnabled,
     setCanvasEnabled,
+    hasGraph,
+    onOpenRationaleCreator,
 }: ChatHeaderProps) {
     return (
         <div className="fixed top-[var(--header-height)] h-16 border-b bg-background/95 backdrop-blur-sm flex items-center justify-between px-4 md:px-6 z-20 left-0 md:left-72 right-0">
@@ -234,6 +238,24 @@ export function ChatHeader({
                             <NetworkIcon className="h-4 w-4" />
                         </Button>
                     </>
+                )}
+                {mode === 'chat' && hasGraph && (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={onOpenRationaleCreator}
+                                    className="text-muted-foreground hover:text-foreground"
+                                    title="Edit Rationale Graph"
+                                >
+                                    <NetworkIcon className="h-5 w-5" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">Edit Rationale Graph</TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                 )}
                 {isOffline && (
                     <TooltipProvider>

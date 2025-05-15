@@ -946,6 +946,8 @@ export default function AIAssistant() {
                     showDescEditor={showDescEditor}
                     onToggleDescriptionEditor={() => setShowDescEditor((f) => !f)}
                     onCloseRationaleCreator={handleCloseRationaleCreator}
+                    hasGraph={Boolean(chatList.savedChats.find(c => c.id === chatList.currentChatId)?.graph)}
+                    onOpenRationaleCreator={() => setMode('create_rationale')}
                     canvasEnabled={canvasEnabled}
                     setCanvasEnabled={setCanvasEnabled}
                     linkUrl={linkUrl}
@@ -1008,14 +1010,12 @@ export default function AIAssistant() {
             </div>
 
             {mode === 'create_rationale' && showDescEditor && (
-                <div className="absolute top-16 left-0 right-0 z-20 bg-background border-b p-4 space-y-4">
-                    {/* Close panel */}
-                    <div className="absolute top-[-16px] right-2">
-                        <Button variant="ghost" size="icon" onClick={() => setShowDescEditor(false)} className="text-muted-foreground hover:text-foreground">
+                <div className="absolute top-14 left-0 right-0 z-20 bg-background border-b p-4 space-y-4">
+                    <div className="absolute top-[-6px] right-2">
+                        <Button variant="ghost" size="icon" onClick={() => setShowDescEditor(false)} className="text-muted-foreground hover:text-foreground hover:bg-transparent">
                             <X className="h-5 w-5" />
                         </Button>
                     </div>
-                    {/* Mobile panel: URL input */}
                     <div className="flex items-center gap-2">
                         <LinkIcon className="h-5 w-5 text-muted-foreground" />
                         <Input
@@ -1026,7 +1026,6 @@ export default function AIAssistant() {
                             className="text-sm w-full"
                         />
                     </div>
-                    {/* Mobile panel: description textarea */}
                     <div className="flex items-start gap-2">
                         <FileText className="h-5 w-5 mt-1 text-muted-foreground" />
                         <AutosizeTextarea

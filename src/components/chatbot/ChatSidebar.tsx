@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageSquare, Plus, Trash2, X, Pencil, Share2, ExternalLink } from "lucide-react";
+import { MessageSquare, Plus, Trash2, X, Pencil, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import {
     Tooltip,
@@ -63,6 +63,24 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
     onTriggerDelete,
     onCloseMobileMenu,
 }) => {
+    const [collapsed, setCollapsed] = useState(false);
+    // Disable collapse on mobile
+    useEffect(() => {
+        if (isMobile && collapsed) {
+            setCollapsed(false);
+        }
+    }, [isMobile, collapsed]);
+
+    if (collapsed && !isMobile) {
+        return (
+            <div className="fixed top-[var(--header-height)] left-0 h-16 w-12 bg-background border-r z-50 flex items-center justify-center">
+                <Button variant="ghost" size="icon" onClick={() => setCollapsed(false)} className="rounded-full h-8 w-8">
+                    <ChevronRight className="h-4 w-4" />
+                </Button>
+            </div>
+        );
+    }
+
     const handleShareChat = (chatId: string) => {
         if (!currentSpace) {
             toast.error("Cannot share chat: Space context is missing.");
@@ -110,6 +128,11 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                         <span className="text-base md:text-lg">Chats</span>
                     </h2>
                     <div className="flex items-center gap-1">
+                        {!isMobile && (
+                            <Button variant="ghost" size="icon" onClick={() => setCollapsed(true)} className="hidden md:inline-flex rounded-full h-8 w-8 text-muted-foreground hover:bg-accent">
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                        )}
                         <TooltipProvider delayDuration={200}>
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -148,7 +171,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                                     <ContextMenu.Trigger className="w-full" disabled={!isAuthenticated}>
                                         <div
                                             className={`relative group px-3 py-2.5 md:px-4 md:py-3 rounded-lg cursor-pointer flex items-center transition-colors duration-150 ${chat.id === currentChatId ? 'bg-accent shadow-sm' : 'hover:bg-accent/50'}`}
-                                            onClick={() => onSwitchChat(chat.id)}
+                                            onClick={() => { onSwitchChat(chat.id); if (isMobile) onCloseMobileMenu(); }}
                                         >
                                             <div className="flex-1 min-w-0 mr-2">
                                                 <TooltipProvider delayDuration={300}>
