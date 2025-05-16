@@ -1080,7 +1080,7 @@ export const PointNode = ({
                 setExpandDialogState({
                   isOpen: true,
                   points: pointData.negationIds
-                    .filter(nid => nid !== pointId && !expandedNegationIds.includes(nid))
+                    .filter(nid => nid !== pointId)
                     .map(nid => ({
                       pointId: nid,
                       parentId: pointId,

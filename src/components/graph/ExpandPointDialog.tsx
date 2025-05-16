@@ -365,8 +365,15 @@ export const GlobalExpandPointDialog: React.FC = () => {
 
     const [forceUpdateCounter, setForceUpdateCounter] = useState(0);
 
-    const needsRefresh = useRef(false);
+    const nodesRaw = getNodes();
+    const edgesRaw = getEdges();
+    useEffect(() => {
+        if (dialogState.isOpen) {
+            setForceUpdateCounter(c => c + 1);
+        }
+    }, [nodesRaw.length, edgesRaw.length, dialogState.isOpen]);
 
+    const needsRefresh = useRef(false);
     const queueRefresh = useCallback(() => {
         needsRefresh.current = true;
     }, []);
@@ -393,14 +400,14 @@ export const GlobalExpandPointDialog: React.FC = () => {
         return grandparentNode?.data?.pointId || null;
     }, [dialogState.isOpen, dialogState.parentNodeId, parentPointId, getNode, getNodes]);
 
+    // Determine which points are currently expanded (connected) to the parent
     const expandedPointIds = useMemo(() => {
         needsRefresh.current = false;
 
         if (!dialogState.isOpen) return new Set<number>();
 
-        const nodes = getNodes();
         const connectedToParent = new Set<number>();
-
+        const nodes = getNodes();
         const edges = getEdges();
         const parentNode = getNode(dialogState.parentNodeId);
 
@@ -419,8 +426,7 @@ export const GlobalExpandPointDialog: React.FC = () => {
     }, [
         dialogState.isOpen,
         dialogState.parentNodeId,
-        getNodes,
-        getEdges,
+        forceUpdateCounter,
         getNode
     ]);
 
