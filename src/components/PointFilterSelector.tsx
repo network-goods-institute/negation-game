@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChevronDownIcon, SearchIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
+import { Label } from "@/components/ui/label";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 
 interface Point {
     pointId: number;
@@ -26,6 +29,10 @@ interface PointFilterSelectorProps {
     onClearAll?: () => void;
     onMatchTypeChange?: (type: "any" | "all") => void;
     matchType?: "any" | "all";
+    topics?: { id: number; name: string }[];
+    topicFilter?: string;
+    onTopicFilterChange?: (topic: string) => void;
+    onCreateTopic?: (name: string) => void;
 }
 
 export function PointFilterSelector({
@@ -36,8 +43,36 @@ export function PointFilterSelector({
     onClearAll,
     onMatchTypeChange,
     matchType = "any",
+    topics,
+    topicFilter = "",
+    onTopicFilterChange,
+    onCreateTopic,
 }: PointFilterSelectorProps) {
     const [searchTerm, setSearchTerm] = useState("");
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [newTopicNameState, setNewTopicNameState] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (dialogOpen) {
+            setTimeout(() => inputRef.current?.focus(), 50);
+        } else {
+            setNewTopicNameState("");
+        }
+    }, [dialogOpen]);
+
+    const handleDialogAddTopic = async () => {
+        if (!newTopicNameState.trim()) return;
+        setIsSubmitting(true);
+        try {
+            onCreateTopic?.(newTopicNameState.trim());
+            setDialogOpen(false);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     const [isExpanded, setIsExpanded] = useState(false);
 
     const filteredPoints = useMemo(() => {
@@ -52,6 +87,9 @@ export function PointFilterSelector({
         points.filter(p => selectedPointIds.includes(p.pointId)),
         [points, selectedPointIds]
     );
+
+    // For the topic dropdown, use '__all__' to represent no filter
+    const selectTopicValue = topicFilter || "__all__";
 
     return (
         <div className="border-b">
@@ -80,6 +118,64 @@ export function PointFilterSelector({
             {isExpanded && (
                 <div className="p-4 border-t">
                     <div className="flex flex-col gap-3">
+                        {topics && onTopicFilterChange && (
+                            <div className="flex flex-col gap-1">
+                                <Label htmlFor="topic-filter" className="text-sm font-medium">Filter by Topic</Label>
+                                <Select
+                                    value={selectTopicValue}
+                                    onValueChange={(value) => {
+                                        if (value === '__new__') {
+                                            setDialogOpen(true);
+                                        } else if (value === '__all__') {
+                                            onTopicFilterChange('');
+                                        } else {
+                                            onTopicFilterChange(value);
+                                        }
+                                    }}
+                                >
+                                    <SelectTrigger id="topic-filter" className="w-full">
+                                        <SelectValue placeholder="All Topics" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {topics
+                                            .filter(t => t.name && t.name.trim() !== "")
+                                            .map((t) => (
+                                                <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
+                                            ))}
+                                        <SelectItem value="__all__">All Topics</SelectItem>
+                                        <SelectItem value="__new__">+ Create Topic</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Add Topic</DialogTitle>
+                                        </DialogHeader>
+                                        <Input
+                                            ref={inputRef}
+                                            value={newTopicNameState}
+                                            onChange={e => setNewTopicNameState(e.target.value)}
+                                            placeholder="Enter topic name"
+                                            onKeyDown={e => {
+                                                if (e.key === "Enter" && newTopicNameState.trim()) {
+                                                    handleDialogAddTopic();
+                                                }
+                                            }}
+                                            disabled={isSubmitting}
+                                            autoFocus
+                                        />
+                                        <DialogFooter>
+                                            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={isSubmitting}>
+                                                Cancel
+                                            </Button>
+                                            <Button onClick={handleDialogAddTopic} disabled={!newTopicNameState.trim() || isSubmitting}>
+                                                Add
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
+                        )}
                         {selectedPoints.length > 0 && (
                             <div className="flex flex-col gap-2">
                                 <div className="flex items-center justify-between">

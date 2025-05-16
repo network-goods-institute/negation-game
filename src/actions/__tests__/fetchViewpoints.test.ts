@@ -5,6 +5,7 @@ jest.mock("@/db/schema", () => ({
     space: "space",
     createdAt: "created_at",
     graph: "graph",
+    topicId: "topic_id",
   },
   usersTable: {
     id: "id",
@@ -28,6 +29,10 @@ jest.mock("@/db/schema", () => ({
     favor: "favor",
     eventTime: "event_time",
   },
+  topicsTable: {
+    id: "id",
+    name: "name",
+  },
 }));
 
 jest.mock("@/db/utils/getColumns", () => ({
@@ -39,6 +44,7 @@ jest.mock("@/db/utils/getColumns", () => ({
     createdBy: "created_by_col",
     createdAt: "created_at_col",
     space: "space_col",
+    topicId: "topic_id_col",
   }),
 }));
 
@@ -64,6 +70,7 @@ import {
   pointsTable,
   endorsementsTable,
   pointFavorHistoryView,
+  topicsTable,
 } from "@/db/schema";
 import { getColumns } from "@/db/utils/getColumns";
 import { eq, desc, and, inArray } from "drizzle-orm";
@@ -71,8 +78,11 @@ import { calculateViewpointStats } from "../utils/calculateViewpointStats";
 
 const mockOrderBy = jest.fn();
 const mockWhere = jest.fn(() => ({ orderBy: mockOrderBy }));
-const mockLeftJoin = jest.fn(() => ({ where: mockWhere }));
-const mockInnerJoin = jest.fn(() => ({ leftJoin: mockLeftJoin }));
+const mockLeftJoinTopics = jest.fn(() => ({ where: mockWhere }));
+const mockLeftJoinInteractions = jest.fn(() => ({
+  leftJoin: mockLeftJoinTopics,
+}));
+const mockInnerJoin = jest.fn(() => ({ leftJoin: mockLeftJoinInteractions }));
 const mockFrom = jest.fn(() => ({ innerJoin: mockInnerJoin }));
 const mockSelect = jest.fn(() => ({ from: mockFrom }));
 
@@ -100,6 +110,8 @@ describe("fetchViewpoints", () => {
         authorUsername: "User One",
         views: 10,
         copies: 1,
+        topic: "Topic Alpha",
+        topicId: 1,
       },
       {
         id: "vp-2",
@@ -116,6 +128,8 @@ describe("fetchViewpoints", () => {
         authorUsername: "User Two",
         views: 20,
         copies: 2,
+        topic: "Topic Beta",
+        topicId: 2,
       },
     ];
 
@@ -136,15 +150,20 @@ describe("fetchViewpoints", () => {
       authorUsername: usersTable.username,
       views: viewpointInteractionsTable.views,
       copies: viewpointInteractionsTable.copies,
+      topic: topicsTable.name,
     });
     expect(mockFrom).toHaveBeenCalledWith(viewpointsTable);
     expect(mockInnerJoin).toHaveBeenCalledWith(
       usersTable,
       eq(usersTable.id, viewpointsTable.createdBy)
     );
-    expect(mockLeftJoin).toHaveBeenCalledWith(
+    expect(mockLeftJoinInteractions).toHaveBeenCalledWith(
       viewpointInteractionsTable,
       eq(viewpointInteractionsTable.viewpointId, viewpointsTable.id)
+    );
+    expect(mockLeftJoinTopics).toHaveBeenCalledWith(
+      topicsTable,
+      eq(viewpointsTable.topicId, topicsTable.id)
     );
     expect(mockWhere).toHaveBeenCalledWith(
       eq(viewpointsTable.space, spaceName)
@@ -198,6 +217,8 @@ describe("fetchViewpoints", () => {
         authorUsername: "User Three",
         views: null,
         copies: undefined,
+        topic: "Topic Gamma",
+        topicId: 3,
       },
     ];
 
@@ -209,11 +230,22 @@ describe("fetchViewpoints", () => {
     const spaceName = "test-space-empty";
     const result = await fetchViewpoints(spaceName);
 
-    expect(mockSelect).toHaveBeenCalledWith(expect.any(Object));
+    expect(mockSelect).toHaveBeenCalledWith({
+      ...(getColumns(viewpointsTable) as object),
+      authorId: usersTable.id,
+      authorUsername: usersTable.username,
+      views: viewpointInteractionsTable.views,
+      copies: viewpointInteractionsTable.copies,
+      topic: topicsTable.name,
+    });
     expect(mockFrom).toHaveBeenCalledWith(viewpointsTable);
     expect(mockInnerJoin).toHaveBeenCalledWith(usersTable, expect.any(String));
-    expect(mockLeftJoin).toHaveBeenCalledWith(
+    expect(mockLeftJoinInteractions).toHaveBeenCalledWith(
       viewpointInteractionsTable,
+      expect.any(String)
+    );
+    expect(mockLeftJoinTopics).toHaveBeenCalledWith(
+      topicsTable,
       expect.any(String)
     );
     expect(mockWhere).toHaveBeenCalledWith(
@@ -241,14 +273,19 @@ describe("fetchViewpoints", () => {
 
   it("should return an empty array if no viewpoints are found", async () => {
     mockOrderBy.mockResolvedValue([]);
+    (calculateViewpointStats as jest.Mock).mockResolvedValue({
+      totalCred: 0,
+      averageFavor: 0,
+    });
 
-    const spaceName = "nonexistent-space";
+    const spaceName = "empty-space";
     const result = await fetchViewpoints(spaceName);
 
     expect(mockSelect).toHaveBeenCalled();
     expect(mockFrom).toHaveBeenCalledWith(viewpointsTable);
     expect(mockInnerJoin).toHaveBeenCalled();
-    expect(mockLeftJoin).toHaveBeenCalled();
+    expect(mockLeftJoinInteractions).toHaveBeenCalled();
+    expect(mockLeftJoinTopics).toHaveBeenCalled();
     expect(mockWhere).toHaveBeenCalledWith(
       eq(viewpointsTable.space, spaceName)
     );

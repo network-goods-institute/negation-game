@@ -16,12 +16,14 @@ export interface PublishViewpointArgs
   > {
   graph: ViewpointGraph;
   copiedFromId?: string;
+  topicId?: number | null;
 }
 
 export const publishViewpoint = async ({
   description,
   graph,
   title,
+  topicId,
   copiedFromId,
 }: PublishViewpointArgs) => {
   const userId = await getUserId();
@@ -37,6 +39,7 @@ export const publishViewpoint = async ({
     id,
     createdBy: userId,
     description,
+    topicId: topicId ?? null,
     graph: cleanupForPublishing(graph),
     title,
     space,

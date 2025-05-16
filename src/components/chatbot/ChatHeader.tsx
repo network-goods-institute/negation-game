@@ -32,6 +32,7 @@ import {
 import { useDiscourseIntegration } from "@/hooks/useDiscourseIntegration";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import TopicSelector from "@/components/TopicSelector";
 
 interface SyncStats {
     pulled: number;
@@ -78,6 +79,8 @@ interface ChatHeaderProps {
     setCanvasEnabled: (enabled: boolean) => void;
     hasGraph: boolean;
     onOpenRationaleCreator: () => void;
+    topic: string;
+    onTopicChange: (topic: string) => void;
 }
 
 export function ChatHeader({
@@ -113,6 +116,8 @@ export function ChatHeader({
     setCanvasEnabled,
     hasGraph,
     onOpenRationaleCreator,
+    topic,
+    onTopicChange,
 }: ChatHeaderProps) {
     return (
         <div className="fixed top-[var(--header-height)] h-16 border-b bg-background/95 backdrop-blur-sm flex items-center justify-between px-4 md:px-6 z-20 left-0 md:left-72 right-0">
@@ -179,6 +184,14 @@ export function ChatHeader({
             <div className="flex items-center gap-2 md:gap-3">
                 {mode === 'create_rationale' && (
                     <>
+                        <TopicSelector
+                            currentSpace={currentSpace || ""}
+                            value={topic}
+                            onChange={onTopicChange}
+                            showLabel={false}
+                            wrapperClassName="hidden md:flex flex-col gap-1 mr-4"
+                            triggerClassName="h-7 text-xs border-none focus-visible:ring-0 bg-transparent flex-1 w-48"
+                        />
                         <div className="hidden md:flex items-center gap-2 bg-muted p-1.5 rounded-md border">
                             <LinkIcon className="h-4 w-4 text-muted-foreground" />
                             <Input

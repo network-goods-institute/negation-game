@@ -8,6 +8,7 @@ import {
   collapsedPointIdsAtom,
   clearViewpointState,
   copiedFromIdAtom,
+  viewpointTopicAtom,
 } from "@/atoms/viewpointAtoms";
 import { useEffect, useMemo, useState, useCallback, useTransition, useRef } from "react";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
@@ -68,7 +69,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useFavorHistory } from "@/queries/useFavorHistory";
-import { useVisitedPoints } from "@/hooks/useVisitedPoints";
+import TopicSelector from "@/components/TopicSelector";
+import { useTopics } from "@/queries/useTopics";
 
 function PointCardWrapper({
   point,
@@ -146,7 +148,10 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
   const points = useGraphPoints();
   const [statement, setStatement] = useAtom(viewpointStatementAtom);
   const [reasoning, setReasoning] = useAtom(viewpointReasoningAtom);
-  const [_, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
+  const [topic, setTopic] = useAtom(viewpointTopicAtom);
+  const setCollapsedPointIds = useSetAtom(collapsedPointIdsAtom);
+
+  const { data: topicsData } = useTopics(space?.data?.id || DEFAULT_SPACE);
 
   useEffect(() => {
     // If we've already loaded copy data, skip this effect
@@ -167,6 +172,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       // Reset all state to ensure a clean slate using atoms
       setStatement("");
       setReasoning("");
+      setTopic("");
       setGraph(initialViewpointGraph);
       setCollapsedPointIds(new Set());
       setCopiedFromId(undefined);
@@ -215,6 +221,10 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
 
           if (parsedData.description) {
             setReasoning(parsedData.description);
+          }
+
+          if (parsedData.topic) {
+            setTopic(parsedData.topic);
           }
 
           // Increment revision to force GraphView remount, as copying is a bit flaky
@@ -284,10 +294,12 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
     setGraph,
     setStatement,
     setReasoning,
+    setTopic,
     setGraphRevision,
     updateNodeData,
     statement,
     reasoning,
+    topic,
     graph,
     setCopiedFromId,
   ]);
@@ -385,6 +397,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       // Set all atoms back to their defaults
       setReasoning("");
       setStatement("");
+      setTopic("");
       setGraph(initialViewpointGraph);
       setCollapsedPointIds(new Set());
       setCopiedFromId(undefined);
@@ -414,7 +427,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       const targetPath = basePath && basePath.startsWith('/s/') ? basePath : '/';
       push(targetPath);
     });
-  }, [setReasoning, setStatement, setGraph, reactFlow, setCollapsedPointIds, setCopiedFromId, push, currentSpace, basePath]);
+  }, [setReasoning, setStatement, setTopic, setGraph, reactFlow, setCollapsedPointIds, setCopiedFromId, push, currentSpace, basePath]);
 
   const openConfirmDialog = useCallback(() => {
     setIsConfirmDialogOpen(true);
@@ -427,6 +440,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
         // Set all atoms back to their defaults
         setReasoning("");
         setStatement("");
+        setTopic("");
         setGraph(initialViewpointGraph);
         setCollapsedPointIds(new Set());
         setCopiedFromId(undefined);
@@ -455,7 +469,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
         setIsDiscardingWithoutNav(false);
       }
     });
-  }, [setReasoning, setStatement, setGraph, reactFlow, setCollapsedPointIds, setCopiedFromId, currentSpace]);
+  }, [setReasoning, setStatement, setTopic, setGraph, reactFlow, setCollapsedPointIds, setCopiedFromId, currentSpace]);
 
   const handleBackClick = useCallback(() => {
     const targetPath = basePath && basePath.startsWith('/s/') ? basePath : '/';
@@ -464,17 +478,23 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
 
   const handlePublish = useCallback(async () => {
     const currentCopiedFromId = copiedFromIdValue;
+    let topicId: number | null = null;
+    if (topic && topicsData) {
+      const found = topicsData.find((t: any) => t.name === topic);
+      if (found) topicId = found.id;
+    }
     try {
       const rationaleId = await publishViewpoint({
         title: statement,
         description: reasoning,
         graph,
+        topicId,
         copiedFromId: currentCopiedFromId,
       });
-
       clearViewpointState(true);
       setStatement("");
       setReasoning("");
+      setTopic("");
       setGraph(initialViewpointGraph);
       setCollapsedPointIds(new Set());
       setCopiedFromId(undefined);
@@ -493,8 +513,10 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
     }
   }, [
     statement, reasoning, graph, publishViewpoint,
-    setStatement, setReasoning, setGraph, setCollapsedPointIds,
+    setStatement, setReasoning, setGraph, setTopic, setCollapsedPointIds,
     setCopiedFromId,
+    topic,
+    topicsData,
     reactFlow, push, basePath, copiedFromIdValue
   ]);
 
@@ -607,6 +629,14 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
                   </ReactMarkdown>
                 </div>
               </div>
+
+              <TopicSelector
+                currentSpace={currentSpace || DEFAULT_SPACE}
+                value={topic}
+                onChange={setTopic}
+                wrapperClassName="pt-2"
+                showLabel={false}
+              />
             </div>
 
             {points.length > 0 && (
@@ -678,10 +708,12 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
                 title: statement,
                 description: reasoning,
                 graph,
+                topicId: topic ? Number(topic) : null,
               });
               clearViewpointState(true);
               setStatement("");
               setReasoning("");
+              setTopic("");
               setGraph(initialViewpointGraph);
               setCollapsedPointIds(new Set());
 

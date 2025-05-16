@@ -47,6 +47,7 @@ import { DuplicatePointSelectionDialog, ConflictingPoint, ResolvedMappings } fro
 import { createRationaleFromPreview } from '@/actions/createRationaleFromPreview';
 import { POINT_MIN_LENGTH, POINT_MAX_LENGTH } from '@/constants/config';
 import { EditMessageDialog } from './EditMessageDialog';
+import TopicSelector from "@/components/TopicSelector";
 
 type PreviewAppNode =
     | Node<PreviewStatementNodeData, 'statement'>
@@ -297,6 +298,7 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(null);
     const [editingMessageContent, setEditingMessageContent] = useState<string>("");
     const [persistedGraph, setPersistedGraph] = useState<ViewpointGraph>(graphData);
+    const [topic, setTopic] = useState<string>(graphData.topic || '');
     const [nodes, setNodes, onNodesChangeReactFlow] = useNodesState<PreviewAppNode>(graphData.nodes as unknown as PreviewAppNode[]);
     const [edges, setEdges, onEdgesChangeReactFlow] = useEdgesState<PreviewAppEdge>(graphData.edges as unknown as PreviewAppEdge[]);
     const [graphModified, setGraphModified] = useState(false);
@@ -319,6 +321,7 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     useEffect(() => {
         if (!graphData) return;
 
+        setTopic(graphData.topic || '');
         const currentNodesMap = new Map(nodes.map(node => [node.id, node]));
         const incomingNodesMap = new Map(graphData.nodes.map(node => [node.id, node]));
 
@@ -696,6 +699,7 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
                 spaceId: currentSpace,
                 title: rationaleTitle,
                 description: rationaleDescription,
+                topicId: Number(topic) as number,
                 nodes: currentNodes,
                 edges: reactFlowInstance.getEdges(),
                 resolvedMappings: mappingsForAction,
@@ -715,7 +719,7 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
             setIsCreating(false);
         }
 
-    }, [isAuthenticated, currentSpace, privyUser, userData, reactFlowInstance, router, resolvedMappings, description, edges, nodes, persistedGraph]);
+    }, [isAuthenticated, currentSpace, privyUser, userData, reactFlowInstance, router, resolvedMappings, description, edges, nodes, persistedGraph, topic]);
 
     const handleResolveDuplicates = (mappings: ResolvedMappings) => {
         setResolvedMappings(mappings);
@@ -743,6 +747,16 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
                     !isMobile && showGraph && "w-1/3 border-r"
                 )}
             >
+                <div className="px-4 py-2">
+                    <TopicSelector
+                        currentSpace={currentSpace || ""}
+                        value={topic}
+                        onChange={setTopic}
+                        wrapperClassName=""
+                        triggerClassName="w-full"
+                        showLabel={false}
+                    />
+                </div>
                 <ChatMessageArea
                     isInitializing={isInitializing}
                     isFetchingRationales={false}

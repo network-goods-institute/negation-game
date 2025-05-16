@@ -34,6 +34,8 @@ import { ViewpointCardWrapper } from "@/components/ViewpointCardWrapper";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 import { makePointSuggestionAtom } from "@/atoms/makePointSuggestionAtom";
 import { PointFilterSelector } from "@/components/PointFilterSelector";
+import { useTopics } from "@/queries/useTopics";
+import { createTopic } from "@/actions/createTopic";
 
 interface PageProps {
     params: { space: string };
@@ -227,6 +229,7 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                 }}
                 loadingCardId={loadingCardId}
                 handleCardClick={handleCardClick}
+                topic={viewpoint.topic}
             />
         );
     }
@@ -482,6 +485,8 @@ PointsTabContent.displayName = 'PointsTabContent';
 const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, space, handleNewViewpoint, handleCardClick, loadingCardId, points }: any) => {
     const [selectedPointIds, setSelectedPointIds] = useState<number[]>([]);
     const [matchType, setMatchType] = useState<"any" | "all">("any");
+    const [topicFilter, setTopicFilter] = useState<string>("");
+    const { data: topics, refetch: refetchTopics } = useTopics(space ?? DEFAULT_SPACE);
 
     const filteredViewpoints = useMemo(() => {
         if (!selectedPointIds.length) return viewpoints;
@@ -498,6 +503,12 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
             }
         });
     }, [viewpoints, selectedPointIds, matchType]);
+
+    const finalFilteredViewpoints = useMemo(() => {
+        if (!topicFilter.trim()) return filteredViewpoints;
+        const f = topicFilter.trim().toLowerCase();
+        return filteredViewpoints.filter((vp: any) => vp.topic?.toLowerCase().includes(f));
+    }, [filteredViewpoints, topicFilter]);
 
     const handlePointSelect = useCallback((pointId: number) => {
         setSelectedPointIds(prev => [...prev, pointId]);
@@ -531,9 +542,16 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
                 onClearAll={handleClearAll}
                 matchType={matchType}
                 onMatchTypeChange={handleMatchTypeChange}
+                topics={topics}
+                topicFilter={topicFilter}
+                onTopicFilterChange={setTopicFilter}
+                onCreateTopic={async (name) => {
+                    await createTopic(name, space ?? DEFAULT_SPACE);
+                    refetchTopics();
+                }}
             />
 
-            {filteredViewpoints.length === 0 ? (
+            {finalFilteredViewpoints.length === 0 ? (
                 <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
                     <span className="text-muted-foreground">
                         {selectedPointIds.length > 0
@@ -546,7 +564,7 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
                     </Button>
                 </div>
             ) : (
-                filteredViewpoints.map((viewpoint: any) => {
+                finalFilteredViewpoints.map((viewpoint: any) => {
                     return (
                         <MemoizedViewpointCardWrapper
                             key={`rationales-tab-${viewpoint.id}`}
@@ -565,6 +583,7 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
                             }}
                             loadingCardId={loadingCardId}
                             handleCardClick={handleCardClick}
+                            topic={viewpoint.topic}
                         />
                     );
                 })

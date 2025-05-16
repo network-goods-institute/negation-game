@@ -48,6 +48,9 @@ import { toast } from "sonner";
 import { selectedPointIdsAtom } from "@/atoms/viewpointAtoms";
 import { UsernameDisplay } from "@/components/UsernameDisplay";
 import Link from "next/link";
+import TopicSelector from "@/components/TopicSelector";
+import { useTopics } from "@/queries/useTopics";
+import { DEFAULT_SPACE } from "@/constants/config";
 
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
     loading: () => <div className="animate-pulse h-32 bg-muted/30 rounded-md" />,
@@ -137,8 +140,10 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
     const [editableTitle, setEditableTitle] = useState("");
     const [editableDescription, setEditableDescription] = useState("");
+    const [editableTopic, setEditableTopic] = useState<string>("");
     const [isTitleEditing, setIsTitleEditing] = useState(false);
     const [isDescriptionEditing, setIsDescriptionEditing] = useState(false);
+    const [isTopicEditing, setIsTopicEditing] = useState(false);
 
     const updateDetailsMutation = useUpdateViewpointDetails();
 
@@ -173,6 +178,13 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
     const reactFlow = useReactFlow<AppNode>();
     const { data: viewpoint } = useViewpoint(viewpointId);
+    // Always invoke useTopics at the top-level to comply with Hooks rules
+    const spaceId = space?.data?.id ?? DEFAULT_SPACE;
+    const { data: topicsData } = useTopics(spaceId);
+    // Compute numeric topicId early for callbacks
+    const topicsList = (topicsData ?? []) as { id: number; name: string }[];
+    const selectedTopicObj = topicsList.find((t) => t.name === editableTopic);
+    const editableTopicId = selectedTopicObj?.id;
 
     const setGraph = useSetAtom(viewpointGraphAtom);
 
@@ -202,6 +214,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
         if (viewpoint) {
             setEditableTitle(viewpoint.title);
             setEditableDescription(viewpoint.description);
+            setEditableTopic(viewpoint.topic ?? "");
         }
     }, [viewpoint]);
 
@@ -209,14 +222,17 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
     const originalTitleRef = useRef<string>("");
     const originalDescriptionRef = useRef<string>("");
+    const originalTopicRef = useRef<string>("");
 
     useEffect(() => {
         if (viewpoint) {
             originalTitleRef.current = viewpoint.title;
             originalDescriptionRef.current = viewpoint.description;
+            originalTopicRef.current = viewpoint.topic ?? "";
             console.log("Stored original values from DB:", {
                 title: originalTitleRef.current,
-                description: originalDescriptionRef.current
+                description: originalDescriptionRef.current,
+                topic: originalTopicRef.current
             });
         }
     }, [viewpoint?.id, viewpoint]); // Only update when viewpoint ID changes
@@ -224,24 +240,28 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     const handleEditingBlur = useCallback(() => {
         const titleChanged = originalTitleRef.current !== editableTitle;
         const descriptionChanged = originalDescriptionRef.current !== editableDescription;
-
+        const topicChanged = originalTopicRef.current !== editableTopic;
         console.log("[RationalePage] Content changed on blur:", {
             titleChanged,
             descriptionChanged,
+            topicChanged,
             originalTitle: originalTitleRef.current,
             newTitle: editableTitle,
             originalDescription: originalDescriptionRef.current,
             newDescription: editableDescription,
+            originalTopic: originalTopicRef.current,
+            newTopic: editableTopic
         });
 
-        if (titleChanged || descriptionChanged) {
+        if (titleChanged || descriptionChanged || topicChanged) {
             setIsContentModified(true);
         }
 
         // Exit edit mode
         setIsTitleEditing(false);
         setIsDescriptionEditing(false);
-    }, [editableTitle, editableDescription, setIsContentModified]);
+        setIsTopicEditing(false);
+    }, [editableTitle, editableDescription, editableTopic, setIsContentModified]);
 
     const onSaveChanges = useCallback(async (filteredGraph: ViewpointGraph) => {
         if (!filteredGraph) {
@@ -265,6 +285,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                     const viewpointData = {
                         title: editableTitle,
                         description: editableDescription,
+                        topic: editableTopic,
                         graph: currentGraph,
                         sourceSpace: currentSpace,
                     };
@@ -287,6 +308,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                     id: viewpoint.id,
                     title: editableTitle,
                     description: editableDescription,
+                    topicId: editableTopicId,
                 });
 
                 // Update local query cache with new details
@@ -294,14 +316,17 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                     ...viewpoint,
                     title: editableTitle,
                     description: editableDescription,
+                    topic: editableTopic,
                 });
 
                 originalTitleRef.current = editableTitle;
                 originalDescriptionRef.current = editableDescription;
+                originalTopicRef.current = editableTopic;
 
                 // Exit any edit modes
                 setIsTitleEditing(false);
                 setIsDescriptionEditing(false);
+                setIsTopicEditing(false);
             }
 
             if (filteredGraph && viewpoint) {
@@ -310,6 +335,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                     ...viewpoint,
                     title: editableTitle,
                     description: editableDescription,
+                    topic: editableTopic,
                     graph: filteredGraph,
                 });
 
@@ -346,6 +372,8 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
         space?.data?.id,
         editableTitle,
         editableDescription,
+        editableTopic,
+        editableTopicId,
         updateDetailsMutation,
         setIsContentModified
     ]);
@@ -506,6 +534,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
         if (viewpoint) {
             setEditableTitle(originalTitleRef.current);
             setEditableDescription(originalDescriptionRef.current);
+            setEditableTopic(originalTopicRef.current);
 
             setIsContentModified(false);
 
@@ -514,6 +543,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                 // Force updated values for display using refs
                 title: originalTitleRef.current,
                 description: originalDescriptionRef.current,
+                topic: originalTopicRef.current,
                 // Remove any pending changes flag
                 _pendingChanges: false,
                 // Include a timestamp to ensure React detects the change
@@ -554,7 +584,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
             </div>
         );
 
-    // Use the most up-to-date data from query cache with proper type checking
+    // Use the most up-to-date data from query cache
     const latestViewpoint = queryClient.getQueryData<typeof viewpoint>(["viewpoint", viewpoint.id]) || viewpoint;
     const { title, description, graph, author } = latestViewpoint;
 
@@ -812,6 +842,19 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                                     </div>
                                 </div>
                             )}
+
+                            {/* Topic display/edit for existing rationale */}
+                            <TopicSelector
+                                currentSpace={space?.data?.id || ''}
+                                value={editableTopic}
+                                onChange={(value) => {
+                                    setEditableTopic(value);
+                                    setIsContentModified(true);
+                                    setIsTopicEditing(false);
+                                }}
+                                wrapperClassName="pt-2 pb-2"
+                                showLabel={false}
+                            />
                         </div>
 
                         {/* Points List */}
