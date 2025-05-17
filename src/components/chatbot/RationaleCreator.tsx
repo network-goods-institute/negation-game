@@ -529,13 +529,18 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     }, [onEdgesChangeReactFlow]);
 
     const saveGraph = useCallback(() => {
-        const currentGraph: ViewpointGraph = { nodes: nodes as any, edges: edges as any };
+        const currentGraph: ViewpointGraph = {
+            nodes: nodes as any,
+            edges: edges as any,
+            description: description,
+            linkUrl: linkUrl,
+        };
         // Persist to parent and update baseline
         setPersistedGraph(currentGraph);
         onGraphChange(currentGraph, true); // Pass true for immediate save
         chatState.currentGraphRef.current = currentGraph;
         setGraphModified(false);
-    }, [nodes, edges, onGraphChange, chatState]);
+    }, [nodes, edges, onGraphChange, chatState, description, linkUrl]);
 
     const discardGraph = useCallback(() => {
         setNodes(persistedGraph.nodes as unknown as PreviewAppNode[]);

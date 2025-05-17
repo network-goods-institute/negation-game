@@ -423,12 +423,13 @@ export const GlobalExpandPointDialog: React.FC = () => {
         }
 
         return connectedToParent;
-    }, [
-        dialogState.isOpen,
-        dialogState.parentNodeId,
-        forceUpdateCounter,
-        getNode
-    ]);
+    }, // eslint-disable-next-line react-hooks/exhaustive-deps
+        [
+            dialogState.isOpen,
+            dialogState.parentNodeId,
+            forceUpdateCounter,
+            getNode
+        ]);
 
     const [localExpandedPointIds, setLocalExpandedPointIds] = useState<Set<number>>(new Set());
 

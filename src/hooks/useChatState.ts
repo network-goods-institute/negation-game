@@ -574,19 +574,25 @@ export function useChatState({
       let rationaleIdForEdit: string | null = null;
       const graphForEdit = currentChatDataForEdit?.graph;
       let flowForEdit: FlowType = "default";
+      let descriptionForEdit: string | undefined = undefined;
+      let linkUrlForEdit: string | undefined = undefined;
 
       if (currentChatDataForEdit?.distillRationaleId) {
         flowForEdit = "distill";
         rationaleIdForEdit = currentChatDataForEdit.distillRationaleId;
       } else if (graphForEdit) {
         flowForEdit = "create_rationale";
+        descriptionForEdit = graphForEdit.description;
+        linkUrlForEdit = graphForEdit.linkUrl;
       }
 
       await handleResponse(
         historyForEdit,
         currentChatId || "",
         flowForEdit,
-        rationaleIdForEdit
+        rationaleIdForEdit,
+        descriptionForEdit,
+        linkUrlForEdit
       );
 
       toast.success("Message updated & regenerating response...");
