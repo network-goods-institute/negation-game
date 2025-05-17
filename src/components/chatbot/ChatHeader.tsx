@@ -120,7 +120,7 @@ export function ChatHeader({
     onTopicChange,
 }: ChatHeaderProps) {
     return (
-        <div className="fixed top-[var(--header-height)] h-16 border-b bg-background/95 backdrop-blur-sm flex items-center justify-between px-4 md:px-6 z-20 left-0 md:left-72 right-0">
+        <div className="fixed top-[var(--header-height)] h-16 border-b bg-background/95 backdrop-blur-sm flex items-center justify-between px-4 md:px-6 z-20 left-0 md:left-[var(--sidebar-width)] right-0">
             <div className="flex items-center gap-2 md:gap-3">
                 {mode === 'create_rationale' ? (
                     <Button

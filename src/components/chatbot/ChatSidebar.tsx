@@ -71,6 +71,15 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
         }
     }, [isMobile, collapsed]);
 
+    useEffect(() => {
+        if (isMobile) {
+            document.documentElement.style.setProperty('--sidebar-width', '0px');
+        } else {
+            const width = collapsed ? '3rem' : '18rem';
+            document.documentElement.style.setProperty('--sidebar-width', width);
+        }
+    }, [collapsed, isMobile]);
+
     if (collapsed && !isMobile) {
         return (
             <div className="fixed top-[var(--header-height)] left-0 h-16 w-12 bg-background border-r z-50 flex items-center justify-center">

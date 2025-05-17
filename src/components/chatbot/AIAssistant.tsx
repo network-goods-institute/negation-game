@@ -858,7 +858,12 @@ export default function AIAssistant() {
     }, [chatList.currentChatId]);
 
     const handleRationaleGraphChange = useCallback((partialGraph: ViewpointGraph, immediateSave = false) => {
-        const fullGraph: ViewpointGraph = { ...partialGraph, description: rationaleDescription, linkUrl };
+        const fullGraph: ViewpointGraph = {
+            ...partialGraph,
+            description: rationaleDescription,
+            linkUrl: linkUrl,
+            topic: rationaleTopic,
+        };
         setRationaleGraph(fullGraph);
         if (chatList.currentChatId && mode === 'create_rationale') {
             const curr = chatList.savedChats.find(c => c.id === chatList.currentChatId);
@@ -867,7 +872,15 @@ export default function AIAssistant() {
             const distillId = curr?.distillRationaleId;
             chatList.updateChat(chatList.currentChatId, msgs, title, distillId, fullGraph, immediateSave);
         }
-    }, [chatList, mode, rationaleDescription, linkUrl]);
+    }, [chatList, mode, rationaleDescription, linkUrl, rationaleTopic]);
+
+    // Persist topic changes immediately
+    useEffect(() => {
+        if (mode === 'create_rationale') {
+            handleRationaleGraphChange({ nodes: rationaleGraph.nodes, edges: rationaleGraph.edges }, true);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [rationaleTopic, handleRationaleGraphChange]);
 
     const initialChatOptions: InitialOptionObject[] = [
         {
@@ -923,7 +936,7 @@ export default function AIAssistant() {
                 onCloseMobileMenu={() => setShowMobileMenu(false)}
             />
 
-            <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+            <div className="flex-1 flex flex-col h-full overflow-hidden relative transition-all duration-300 ease-in-out">
                 <ChatHeader
                     isMobile={isMobile}
                     isAuthenticated={isAuthenticated}

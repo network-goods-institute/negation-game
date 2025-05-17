@@ -48,6 +48,8 @@ import { createRationaleFromPreview } from '@/actions/createRationaleFromPreview
 import { POINT_MIN_LENGTH, POINT_MAX_LENGTH } from '@/constants/config';
 import { EditMessageDialog } from './EditMessageDialog';
 import TopicSelector from "@/components/TopicSelector";
+import { useTopics } from "@/queries/useTopics";
+import { DEFAULT_SPACE } from "@/constants/config";
 
 type PreviewAppNode =
     | Node<PreviewStatementNodeData, 'statement'>
@@ -312,6 +314,7 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     const [conflictingPoints, setConflictingPoints] = useState<ConflictingPoint[]>([]);
     const [resolvedMappings, setResolvedMappings] = useState<ResolvedMappings>(new Map());
     const [isCreating, setIsCreating] = useState(false);
+    const { data: topicsData } = useTopics(currentSpace || DEFAULT_SPACE);
 
     const suggestedGraphApplied = useMemo(() => {
         return JSON.stringify(persistedGraph.nodes) !== JSON.stringify(graphData.nodes) ||
@@ -532,13 +535,19 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     }, [onEdgesChangeReactFlow]);
 
     const saveGraph = useCallback(() => {
-        const currentGraph: ViewpointGraph = { nodes: nodes as any, edges: edges as any };
+        const currentGraph: ViewpointGraph = {
+            nodes: nodes as any,
+            edges: edges as any,
+            description: description,
+            linkUrl: linkUrl,
+            topic: topic,
+        };
         // Persist to parent and update baseline
         setPersistedGraph(currentGraph);
         onGraphChange(currentGraph, true); // Pass true for immediate save
         chatState.currentGraphRef.current = currentGraph;
         setGraphModified(false);
-    }, [nodes, edges, onGraphChange, chatState]);
+    }, [nodes, edges, onGraphChange, chatState, description, linkUrl, topic]);
 
     const discardGraph = useCallback(() => {
         setNodes(persistedGraph.nodes as unknown as PreviewAppNode[]);
@@ -694,12 +703,18 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
 
         // --- 4. Call Server Action ---
         try {
+            const spaceIdToUse = currentSpace || DEFAULT_SPACE;
+            let topicIdToUse: number | undefined = undefined;
+            if (topic && topicsData) {
+                const matched = topicsData.find(t => t.name === topic);
+                if (matched) topicIdToUse = matched.id;
+            }
             const result = await createRationaleFromPreview({
                 userId: privyUser.id,
-                spaceId: currentSpace,
+                spaceId: spaceIdToUse,
                 title: rationaleTitle,
                 description: rationaleDescription,
-                topicId: Number(topic) as number,
+                topicId: topicIdToUse,
                 nodes: currentNodes,
                 edges: reactFlowInstance.getEdges(),
                 resolvedMappings: mappingsForAction,
@@ -719,7 +734,7 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
             setIsCreating(false);
         }
 
-    }, [isAuthenticated, currentSpace, privyUser, userData, reactFlowInstance, router, resolvedMappings, description, edges, nodes, persistedGraph, topic]);
+    }, [isAuthenticated, currentSpace, privyUser, userData, reactFlowInstance, router, resolvedMappings, description, edges, nodes, persistedGraph, topic, topicsData]);
 
     const handleResolveDuplicates = (mappings: ResolvedMappings) => {
         setResolvedMappings(mappings);
@@ -734,6 +749,13 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
             setGraphModified(true);
         }
     }, [description, linkUrl, graphData, graphModified]);
+
+    useEffect(() => {
+        const initTopic = graphData.topic || '';
+        if (topic !== initTopic && !graphModified) {
+            setGraphModified(true);
+        }
+    }, [topic, graphData.topic, graphModified]);
 
     return (
         <div className="flex flex-1 overflow-hidden h-full">
@@ -751,7 +773,10 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
                     <TopicSelector
                         currentSpace={currentSpace || ""}
                         value={topic}
-                        onChange={setTopic}
+                        onChange={(newTopic: string) => {
+                            setTopic(newTopic);
+                            setGraphModified(true);
+                        }}
                         wrapperClassName=""
                         triggerClassName="w-full"
                         showLabel={false}
