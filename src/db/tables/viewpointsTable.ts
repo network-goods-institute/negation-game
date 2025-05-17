@@ -1,6 +1,6 @@
 import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { DEFAULT_SPACE } from "@/constants/config";
-import { spacesTable } from "@/db/schema";
+import { spacesTable, topicsTable } from "@/db/schema";
 import { InferColumnsDataTypes } from "drizzle-orm";
 import {
   jsonb,
@@ -30,6 +30,9 @@ export const viewpointsTable = pgTable("viewpoints", {
     (): any => viewpointsTable.id,
     { onDelete: "set null" }
   ),
+  topicId: integer("topic_id").references(() => topicsTable.id, {
+    onDelete: "set null",
+  }),
 });
 
 export type InsertViewpoint = Omit<

@@ -48,6 +48,7 @@ import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { StatementNode } from "@/components/graph/StatementNode";
 import { LinkIcon, FileText, X } from "lucide-react";
 import { EditMessageDialog } from './EditMessageDialog';
+import TopicSelector from "@/components/TopicSelector";
 
 type OwnedPoint = ProfilePoint;
 
@@ -821,6 +822,7 @@ export default function AIAssistant() {
     const [rationaleGraph, setRationaleGraph] = useState<ViewpointGraph>({ nodes: [], edges: [], description: '' });
     const [rationaleDescription, setRationaleDescription] = useState<string>('');
     const [showDescEditor, setShowDescEditor] = useState<boolean>(false);
+    const [rationaleTopic, setRationaleTopic] = useState<string>('');
 
     useEffect(() => {
         const currentChatIdForEffect = chatList.currentChatId;
@@ -835,17 +837,20 @@ export default function AIAssistant() {
                 setRationaleGraph(graph || { nodes: [], edges: [], description: '', linkUrl: '' });
                 setRationaleDescription(graph?.description || '');
                 setLinkUrl(graph?.linkUrl || '');
+                setRationaleTopic((graph as any)?.topic || '');
             } else {
                 setMode('chat');
                 setRationaleGraph({ nodes: [], edges: [], description: '', linkUrl: '' });
                 setRationaleDescription('');
                 setLinkUrl('');
+                setRationaleTopic('');
             }
         } else {
             setMode('chat');
             setRationaleGraph({ nodes: [], edges: [], description: '', linkUrl: '' });
             setRationaleDescription('');
             setLinkUrl('');
+            setRationaleTopic('');
         }
         // every time you saved or updated the chat it would clear the description and linkUrl
         // if you passed in chatList.savedChats, so don't do that
@@ -853,7 +858,12 @@ export default function AIAssistant() {
     }, [chatList.currentChatId]);
 
     const handleRationaleGraphChange = useCallback((partialGraph: ViewpointGraph, immediateSave = false) => {
-        const fullGraph: ViewpointGraph = { ...partialGraph, description: rationaleDescription, linkUrl };
+        const fullGraph: ViewpointGraph = {
+            ...partialGraph,
+            description: rationaleDescription,
+            linkUrl: linkUrl,
+            topic: rationaleTopic,
+        };
         setRationaleGraph(fullGraph);
         if (chatList.currentChatId && mode === 'create_rationale') {
             const curr = chatList.savedChats.find(c => c.id === chatList.currentChatId);
@@ -862,7 +872,15 @@ export default function AIAssistant() {
             const distillId = curr?.distillRationaleId;
             chatList.updateChat(chatList.currentChatId, msgs, title, distillId, fullGraph, immediateSave);
         }
-    }, [chatList, mode, rationaleDescription, linkUrl]);
+    }, [chatList, mode, rationaleDescription, linkUrl, rationaleTopic]);
+
+    // Persist topic changes immediately
+    useEffect(() => {
+        if (mode === 'create_rationale') {
+            handleRationaleGraphChange({ nodes: rationaleGraph.nodes, edges: rationaleGraph.edges }, true);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [rationaleTopic, handleRationaleGraphChange]);
 
     const initialChatOptions: InitialOptionObject[] = [
         {
@@ -918,7 +936,7 @@ export default function AIAssistant() {
                 onCloseMobileMenu={() => setShowMobileMenu(false)}
             />
 
-            <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+            <div className="flex-1 flex flex-col h-full overflow-hidden relative transition-all duration-300 ease-in-out">
                 <ChatHeader
                     isMobile={isMobile}
                     isAuthenticated={isAuthenticated}
@@ -952,6 +970,8 @@ export default function AIAssistant() {
                     setCanvasEnabled={setCanvasEnabled}
                     linkUrl={linkUrl}
                     setLinkUrl={setLinkUrl}
+                    topic={rationaleTopic}
+                    onTopicChange={setRationaleTopic}
                 />
 
                 {mode === 'chat' ? (
@@ -1016,6 +1036,14 @@ export default function AIAssistant() {
                             <X className="h-5 w-5" />
                         </Button>
                     </div>
+                    <TopicSelector
+                        currentSpace={currentSpace || ""}
+                        value={rationaleTopic}
+                        onChange={setRationaleTopic}
+                        wrapperClassName="flex flex-col gap-1"
+                        triggerClassName="w-full"
+                        showLabel={false}
+                    />
                     <div className="flex items-center gap-2">
                         <LinkIcon className="h-5 w-5 text-muted-foreground" />
                         <Input

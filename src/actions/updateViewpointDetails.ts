@@ -10,12 +10,14 @@ export interface UpdateViewpointDetailsArgs {
   id: string;
   title: string;
   description: string;
+  topicId?: number;
 }
 
 export const updateViewpointDetails = async ({
   id,
   title,
   description,
+  topicId,
 }: UpdateViewpointDetailsArgs) => {
   const userId = await getUserId();
   if (!userId) {
@@ -49,6 +51,7 @@ export const updateViewpointDetails = async ({
       .set({
         title,
         description,
+        ...(topicId !== undefined && { topicId }),
         lastUpdatedAt: new Date(),
         viewsAtLastUpdate: currentViewCount,
       })

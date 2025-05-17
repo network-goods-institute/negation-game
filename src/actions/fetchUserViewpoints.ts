@@ -4,10 +4,11 @@ import {
   viewpointsTable,
   usersTable,
   viewpointInteractionsTable,
+  topicsTable,
 } from "@/db/schema";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
-import { eq, desc, and, inArray } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { getUserId } from "@/actions/getUserId";
 import { calculateViewpointStats } from "./utils/calculateViewpointStats";
 
@@ -36,6 +37,7 @@ export const fetchUserViewpoints = async (username?: string) => {
       author: usersTable.username,
       views: viewpointInteractionsTable.views,
       copies: viewpointInteractionsTable.copies,
+      topic: topicsTable.name,
     })
     .from(viewpointsTable)
     .innerJoin(usersTable, eq(usersTable.id, viewpointsTable.createdBy))
@@ -43,6 +45,7 @@ export const fetchUserViewpoints = async (username?: string) => {
       viewpointInteractionsTable,
       eq(viewpointInteractionsTable.viewpointId, viewpointsTable.id)
     )
+    .leftJoin(topicsTable, eq(viewpointsTable.topicId, topicsTable.id))
     .where(eq(viewpointsTable.createdBy, targetUserId))
     .orderBy(desc(viewpointsTable.createdAt));
 

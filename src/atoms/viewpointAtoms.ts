@@ -69,6 +69,8 @@ export type ViewpointGraph = Pick<
   description?: string;
   /** Optional linked URL for source material */
   linkUrl?: string;
+  /** Optional topic tag for the rationale */
+  topic?: string;
 };
 
 export const initialViewpointGraph: ViewpointGraph = {
@@ -83,6 +85,7 @@ export const initialViewpointGraph: ViewpointGraph = {
   edges: [],
   description: "",
   linkUrl: "",
+  topic: "",
 };
 
 export const viewpointGraphAtom = atom(
@@ -140,9 +143,17 @@ export const clearViewpointState = (isPublishing = true) => {
     //   setReasoning("")
     //   setGraph(initialViewpointGraph)
     //   setCollapsedPointIds(new Set())
+    //   setTopic("")
     //
     // This ensures a single source of truth through the atoms
   }
 };
 
 export const copiedFromIdAtom = atom<string | undefined>(undefined);
+
+export const viewpointTopicAtom = atomWithStorage<string>(
+  "viewpointTopic",
+  "",
+  storage,
+  { getOnInit: true }
+);

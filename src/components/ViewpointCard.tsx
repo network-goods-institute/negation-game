@@ -72,6 +72,7 @@ export interface ViewpointCardProps extends React.HTMLAttributes<HTMLDivElement>
     isUsernameLoading?: boolean;
     isUsernameError?: boolean;
     onClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
+    topic?: string;
 }
 
 export const ViewpointCard: React.FC<ViewpointCardProps> = ({
@@ -94,6 +95,7 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
     isUsernameLoading = false,
     isUsernameError = false,
     onClick,
+    topic,
     ...props
 }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -228,6 +230,11 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                 <h3 className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg font-semibold -mt-1 mb-sm select-text flex-1 break-words whitespace-normal overflow-hidden">
                                     {title}
                                 </h3>
+                                {topic && (
+                                    <Badge variant="secondary" className="self-start text-xs mb-1">
+                                        {topic}
+                                    </Badge>
+                                )}
                             </div>
 
                             <div className="text-sm text-muted-foreground line-clamp-2 mb-2 h-10 overflow-hidden select-text">
@@ -271,7 +278,12 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                     <div className="flex flex-col gap-3 pl-3">
                         <div className="flex items-start gap-2">
                             <ViewpointIcon />
-                            <h3 className="text-lg font-semibold -mt-0.5">{title}</h3>
+                            <h3 className="text-lg font-semibold -mt-0.5 flex-1">{title}</h3>
+                            {topic && (
+                                <Badge variant="secondary" className="self-start text-xs ml-auto">
+                                    {topic}
+                                </Badge>
+                            )}
                         </div>
 
                         <div className="text-sm text-muted-foreground mb-1 flex items-center gap-1">

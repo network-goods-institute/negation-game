@@ -13,7 +13,7 @@ import { useFeed } from "@/queries/useFeed";
 import { useSpace } from "@/queries/useSpace";
 import { usePrivy } from "@privy-io/react-auth";
 import { useSetAtom, useAtom } from "jotai";
-import { PlusIcon, TrophyIcon, SearchIcon, BrainCircuitIcon, ShareIcon } from "lucide-react";
+import { PlusIcon, TrophyIcon, SearchIcon, BrainCircuitIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState, useMemo, memo, useEffect, useRef } from "react";
 import { LeaderboardDialog } from "@/components/LeaderboardDialog";
@@ -34,6 +34,11 @@ import { ViewpointCardWrapper } from "@/components/ViewpointCardWrapper";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 import { makePointSuggestionAtom } from "@/atoms/makePointSuggestionAtom";
 import { PointFilterSelector } from "@/components/PointFilterSelector";
+import { useTopics } from "@/queries/useTopics";
+import { createTopic } from "@/actions/createTopic";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 interface PageProps {
     params: { space: string };
@@ -227,6 +232,7 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
                 }}
                 loadingCardId={loadingCardId}
                 handleCardClick={handleCardClick}
+                topic={viewpoint.topic}
             />
         );
     }
@@ -482,6 +488,37 @@ PointsTabContent.displayName = 'PointsTabContent';
 const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, space, handleNewViewpoint, handleCardClick, loadingCardId, points }: any) => {
     const [selectedPointIds, setSelectedPointIds] = useState<number[]>([]);
     const [matchType, setMatchType] = useState<"any" | "all">("any");
+    const [topicFilters, setTopicFilters] = useState<string[]>([]);
+    const { data: topics, refetch: refetchTopics } = useTopics(space ?? DEFAULT_SPACE);
+    const [newTopicDialogOpen, setNewTopicDialogOpen] = useState(false);
+    const [newTopicName, setNewTopicName] = useState("");
+    const [isSubmittingTopic, setIsSubmittingTopic] = useState(false);
+    const newTopicInputRef = useRef<HTMLInputElement>(null);
+
+    const availableTopics = useMemo(() => {
+        return topics ? topics.map((t: any) => t.name).filter((n: string) => n.trim()).sort() : [];
+    }, [topics]);
+
+    useEffect(() => {
+        if (newTopicDialogOpen) {
+            setTimeout(() => newTopicInputRef.current?.focus(), 50);
+        } else {
+            setNewTopicName("");
+        }
+    }, [newTopicDialogOpen]);
+
+    const handleDialogAddTopic = async () => {
+        if (!newTopicName.trim()) return;
+        setIsSubmittingTopic(true);
+        try {
+            await createTopic(newTopicName.trim(), space ?? DEFAULT_SPACE);
+            refetchTopics();
+            setTopicFilters((prev: string[]) => [...prev, newTopicName.trim()]);
+            setNewTopicDialogOpen(false);
+        } finally {
+            setIsSubmittingTopic(false);
+        }
+    };
 
     const filteredViewpoints = useMemo(() => {
         if (!selectedPointIds.length) return viewpoints;
@@ -498,6 +535,15 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
             }
         });
     }, [viewpoints, selectedPointIds, matchType]);
+
+    const finalFilteredViewpoints = useMemo(() => {
+        if (topicFilters.length === 0) return filteredViewpoints;
+        return filteredViewpoints.filter((vp: any) => {
+            if (!vp.topic) return false;
+            const vt = vp.topic.toLowerCase();
+            return topicFilters.some((f: string) => vt.includes(f.toLowerCase()));
+        });
+    }, [filteredViewpoints, topicFilters]);
 
     const handlePointSelect = useCallback((pointId: number) => {
         setSelectedPointIds(prev => [...prev, pointId]);
@@ -523,6 +569,74 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
 
     return (
         <div className="flex flex-col">
+            {availableTopics.length > 0 && (
+                <div className="px-4 pt-3 pb-2 border-b">
+                    <ScrollArea className="max-w-full whitespace-nowrap">
+                        <div className="flex items-center gap-2 pb-2">
+                            <Button
+                                variant={topicFilters.length === 0 ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setTopicFilters([])}
+                                className="rounded-full text-xs h-7 px-3 flex-shrink-0"
+                            >
+                                All Topics
+                            </Button>
+                            {availableTopics.map((topicName) => (
+                                <Button
+                                    key={topicName}
+                                    variant={topicFilters.includes(topicName) ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => {
+                                        if (topicFilters.includes(topicName)) {
+                                            setTopicFilters((prev: string[]) => prev.filter(t => t !== topicName));
+                                        } else {
+                                            setTopicFilters((prev: string[]) => [...prev, topicName]);
+                                        }
+                                    }}
+                                    className="rounded-full text-xs h-7 px-3 flex-shrink-0"
+                                >
+                                    {topicName}
+                                </Button>
+                            ))}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setNewTopicDialogOpen(true)}
+                                className="rounded-full text-xs h-7 px-3 flex-shrink-0"
+                            >
+                                + New Topic
+                            </Button>
+                        </div>
+                    </ScrollArea>
+                </div>
+            )}
+            <Dialog open={newTopicDialogOpen} onOpenChange={setNewTopicDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Add New Topic</DialogTitle>
+                    </DialogHeader>
+                    <Input
+                        ref={newTopicInputRef}
+                        value={newTopicName}
+                        onChange={e => setNewTopicName(e.target.value)}
+                        placeholder="Enter topic name"
+                        onKeyDown={e => {
+                            if (e.key === "Enter" && newTopicName.trim()) {
+                                handleDialogAddTopic();
+                            }
+                        }}
+                        disabled={isSubmittingTopic}
+                    />
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setNewTopicDialogOpen(false)} disabled={isSubmittingTopic}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleDialogAddTopic} disabled={!newTopicName.trim() || isSubmittingTopic}>
+                            Add Topic
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
             <PointFilterSelector
                 points={points || []}
                 selectedPointIds={selectedPointIds}
@@ -533,7 +647,7 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
                 onMatchTypeChange={handleMatchTypeChange}
             />
 
-            {filteredViewpoints.length === 0 ? (
+            {finalFilteredViewpoints.length === 0 ? (
                 <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
                     <span className="text-muted-foreground">
                         {selectedPointIds.length > 0
@@ -546,7 +660,7 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
                     </Button>
                 </div>
             ) : (
-                filteredViewpoints.map((viewpoint: any) => {
+                finalFilteredViewpoints.map((viewpoint: any) => {
                     return (
                         <MemoizedViewpointCardWrapper
                             key={`rationales-tab-${viewpoint.id}`}
@@ -565,6 +679,7 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
                             }}
                             loadingCardId={loadingCardId}
                             handleCardClick={handleCardClick}
+                            topic={viewpoint.topic}
                         />
                     );
                 })

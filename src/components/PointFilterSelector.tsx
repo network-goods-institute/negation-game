@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChevronDownIcon, SearchIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
+import { Label } from "@/components/ui/label";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 
 interface Point {
     pointId: number;
@@ -26,6 +29,7 @@ interface PointFilterSelectorProps {
     onClearAll?: () => void;
     onMatchTypeChange?: (type: "any" | "all") => void;
     matchType?: "any" | "all";
+    onCreateTopic?: (name: string) => void;
 }
 
 export function PointFilterSelector({
@@ -36,6 +40,7 @@ export function PointFilterSelector({
     onClearAll,
     onMatchTypeChange,
     matchType = "any",
+    onCreateTopic,
 }: PointFilterSelectorProps) {
     const [searchTerm, setSearchTerm] = useState("");
     const [isExpanded, setIsExpanded] = useState(false);

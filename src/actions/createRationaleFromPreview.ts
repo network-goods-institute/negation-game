@@ -18,6 +18,7 @@ interface CreateRationaleParams {
   spaceId: string;
   title: string;
   description: string;
+  topicId?: number;
   nodes: ReactFlowNode[];
   edges: ReactFlowEdge[];
   resolvedMappings: Map<string, number | null>;
@@ -28,6 +29,7 @@ export async function createRationaleFromPreview({
   spaceId,
   title,
   description,
+  topicId,
   nodes: previewNodes,
   edges: previewEdges,
   resolvedMappings,
@@ -187,6 +189,7 @@ export async function createRationaleFromPreview({
       id: newViewpointId,
       title: statementNodeContent.title,
       description: statementNodeContent.description,
+      topicId: topicId ?? null,
       graph: finalGraph,
       createdBy: userId,
       space: spaceId,

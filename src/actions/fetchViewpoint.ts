@@ -4,6 +4,7 @@ import {
   usersTable,
   viewpointsTable,
   viewpointInteractionsTable,
+  topicsTable,
 } from "@/db/schema";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
@@ -19,6 +20,7 @@ export const fetchViewpoint = async (id: string) => {
       title: "",
       author: "",
       description: "",
+      topic: "",
       originalPointIds: [] as number[],
       graph: { nodes: [], edges: [] },
       createdBy: "",
@@ -50,6 +52,7 @@ export const fetchViewpoint = async (id: string) => {
       )`,
       views: viewpointInteractionsTable.views,
       copies: viewpointInteractionsTable.copies,
+      topic: topicsTable.name,
     })
     .from(viewpointsTable)
     .innerJoin(usersTable, eq(usersTable.id, viewpointsTable.createdBy))
@@ -57,6 +60,7 @@ export const fetchViewpoint = async (id: string) => {
       viewpointInteractionsTable,
       eq(viewpointInteractionsTable.viewpointId, viewpointsTable.id)
     )
+    .leftJoin(topicsTable, eq(viewpointsTable.topicId, topicsTable.id))
     .where(eq(viewpointsTable.id, id))
     .limit(1)
     .then((results) => {
