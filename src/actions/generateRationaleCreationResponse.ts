@@ -12,6 +12,8 @@ import { StatementNodeData } from "@/components/graph/StatementNode";
 import { AddPointNodeData } from "@/components/graph/AddPointNode";
 import { POINT_MIN_LENGTH, POINT_MAX_LENGTH } from "@/constants/config";
 import { parse } from "node-html-parser";
+import { getDiscourseContent } from "@/actions/getDiscourseContent";
+import { toast } from "sonner";
 
 interface RationaleCreationResponse {
   textStream: ReadableStream<string>;
@@ -27,6 +29,10 @@ interface RationaleCreationContext {
 }
 
 async function fetchLinkContent(url: string): Promise<string | null> {
+  const discourseText = await getDiscourseContent(url);
+  if (discourseText) {
+    return discourseText;
+  }
   try {
     const response = await fetch(url, {
       headers: { "User-Agent": "NegationGameBot/1.0" },
@@ -34,6 +40,9 @@ async function fetchLinkContent(url: string): Promise<string | null> {
     if (!response.ok) {
       console.warn(
         `Failed to fetch link content from ${url}. Status: ${response.status}`
+      );
+      toast.error(
+        `Failed to fetch link content from ${url}. Status: ${response.status} This may because it's not a discourse link or the link is private.`
       );
       return null;
     }
@@ -54,9 +63,9 @@ async function fetchLinkContent(url: string): Promise<string | null> {
           .replace(/\n\s*\n/g, "\n")
           .replace(/\s\s+/g, " ")
           .trim();
-        return extractedText.substring(0, 20000);
+        return extractedText.substring(0, 200000);
       } else {
-        return htmlContent.substring(0, 20000);
+        return htmlContent.substring(0, 200000);
       }
     } else {
       console.warn(`Unsupported content type for ${url}: ${contentType}`);
@@ -97,7 +106,7 @@ export const generateRationaleCreationResponse = async (
       const actualUrl = context.linkUrl;
       const fetchedContent = await fetchLinkContent(actualUrl);
       if (fetchedContent) {
-        linkContext = `\nFetched Content from Provided Link (${actualUrl}):\n${fetchedContent.substring(0, 5000)}...\n(Full content used in context but truncated for display here)`;
+        linkContext = `\nFetched Content from Provided Link (${actualUrl}):\n${fetchedContent.substring(0, 200000)}...\n(Full content used in context but truncated for display here)`;
       } else {
         linkContext = `\nProvided Source Link: ${actualUrl} (Content could not be fetched, was not text-based, or was empty).`;
       }
@@ -112,49 +121,49 @@ export const generateRationaleCreationResponse = async (
     3. How those positions get challenged/refined
     4. Which arguments they find most convincing
 
-*   **Statement Node:** The single root node that defines what this rationale is about.
-    - Just a title/topic - Example: "TypeScript vs JavaScript"
-    - Its children are the MAIN OPTIONS/POSITIONS about this topic
-    - These first-level points represent different perspectives you could take
-    - They connect to the statement with edges of type "statement"
-    - Think of it like a question with multiple possible positions
+*   **Statement Node:** The single root node that defines what this rationale is about. **It is a NEUTRAL TOPIC or QUESTION, not an arguable position itself.**
+    - Just a title/topic - Example: "TypeScript vs JavaScript" or "Best approach for state management in React?"
+    - Its children are the MAIN OPTIONS/POSITIONS/STANCES about this topic.
+    - These first-level points represent different perspectives or answers related to the statement.
+    - They connect to the statement with edges of type "statement".
+    - **IMPORTANT: The statement node itself is NOT a claim to be supported or negated by its children.** Think of it like the title of a debate or a research question.
 
 *   **Point Nodes:** Individual arguments or claims (type: "point"). They contain:
     - "content": The argument text (min 10 chars, max 160 chars)
     - "cred": How much the author endorses this point
-    - Points under statement are main positions/options
-    - Points under other points are counterarguments/refinements
+    - Points under statement are main positions/options regarding the neutral statement topic.
+    - Points under other points are counterarguments/refinements to their parent point.
 
-*   **Negation Edges:** Show how arguments challenge or refine each other:
-    - ONLY between points, NEVER to/from statement node
-    - Connect each negation only to its immediate parent point; do NOT attach negation edges to the statement node or any other ancestor nodes. A node may have multiple children points, but only one parent point.
-    - Edge from A to B means Point B challenges/refines/weakens Point A by:
+*   **Negation Edges:** Only negations (counterarguments) **between point nodes**; each child point negates its parent point:
+    - ONLY between point nodes. NEVER from a point to the statement node, and NEVER from the statement node to a point with type "negation".
+    - Each negation must attach to its immediate parent point; do NOT attach negation edges to the statement node or any other ancestor nodes.
+    - Edge from A to B means Point B negates or weakens Point A by:
       * Providing a direct counterargument
-      * Showing limitations or flaws
-      * Presenting consequences that weaken it
-      * Offering alternative perspectives
+      * Highlighting flaws or limitations
+      * Presenting consequences that weaken the argument
     - Example Structure:
-      Statement: "TypeScript vs JavaScript" (just a title)
-      ├─ Point A: "TypeScript improves maintainability" (a position/option)
+      Statement: "TypeScript vs JavaScript"
+      ├─ Point A: "TypeScript improves maintainability"
       │  ├─ Point B: "But slows down development" (negates A)
       │  │  └─ Point C: "Initial slowdown pays off long-term" (negates B)
-      │  └─ Point D: "Good practices achieve same result" (negates A)
-      └─ Point E: "JavaScript is more flexible" (another position/option)
-         └─ Point F: "TypeScript is just as flexible with types" (negates E)
+      │  └─ Point D: "Strict typing incurs overhead" (negates A)
+      └─ Point E: "JavaScript is more flexible"
+         └─ Point F: "TypeScript's flexibility is sufficient with generics" (negates E)
 
-    IMPORTANT: When creating negation edges, the SOURCE should be the point being negated and the TARGET should be the point doing the negating. For example, if Point B negates Point A, then:
+    - IMPORTANT: Under no circumstances should a child point support or strengthen its parent; if a proposed child appears supportive, ask the user to reframe it explicitly as a negation.
+    - IMPORTANT: Under no circumstances should a point be connected to more than one parent.
+    IMPORTANT: When creating a negation edge, the SOURCE should be the point being negated and the TARGET should be the child negating it, for example:
     { "id": "edge-1", "source": "point-A", "target": "point-B", "type": "negation" }
 
-*   **Endorsements (cred):** Shows how strongly the author believes each point:
-    - Higher number = stronger endorsement
-    - When user asks to \'add X cred to point Y\', tell them "Added X cred to point Y, total cred is now Z"
-    - Helps identify which arguments the author finds most compelling
-    - It's very important to realize that you do not need to endorse every point. Rationales consider a whole argument, endorsements are just what the user specifically believes.
+*   **Endorsements (cred):** Numeric measure of the user's commitment or agreement with a point (no fixed scale; higher number indicates greater commitment):
+    - When the user asks to 'add X cred to point Y', respond: "Added X cred to point Y, total cred is now Z".
+    - Cred values are relative and not limited to a specific range; use them to express how heavily the user stakes their belief.
+    - Not every point requires cred; cred values reflect only what the user explicitly endorses.
 
 **INPUT CONTEXT:**
 - Current Graph Structure: The rationale being built (topic, positions, relationships)
 - Existing Points in Space: Other points that could be reused
-- Source Material: Optional discourse post or external link (content from this link, if provided, will be in \`Fetched Content from Provided Link\`)
+- Source Material: Optional discourse post or external link (content from this link, if provided, will be in \`Fetched Content from Provided Link\`). If a user is talking about a link, it's likely this.
 - Chat History: Our conversation so far
 
 **YOUR TASK:**
@@ -167,6 +176,7 @@ export const generateRationaleCreationResponse = async (
     *   **Prioritize Reusing Existing Points:** Before creating a new point, thoroughly check the \`Existing Points in Space\` list. If an existing point accurately captures the user\'s intended argument, explain this to the user and propose using its ID. Only create a new point if no suitable existing point is found or if the user confirms they want a new one.
     *   First-Level Points: Under statement node, add main positions/options about the topic.
     *   Negations: Connect points to show how they challenge/refine each other.
+    *   Validation: If a proposed new point does not clearly negate its parent, explicitly ask the user to rephrase it as a negation or suggest how it could weaken the parent.
     *   Point Content: Ensure clear, focused arguments (10-160 chars).
     *   Cred: Set/update based on user\'s expressed conviction.
     *   Preserve IDs: Keep existing IDs for unchanged nodes.
@@ -174,6 +184,9 @@ export const generateRationaleCreationResponse = async (
     *   Resolve AddPoints: Convert temporary nodes to proper points.
 
 3.  **Generate Conversational & Guiding Response:**
+    *   **Your response to the user should be direct and focused.** Explain any graph changes made, ask clarifying questions, or provide analysis based on the context.
+    *   **DO NOT include meta-commentary** about your internal processing (e.g., \"I found these usernames...\").**
+    *   **DO NOT simulate a dialogue or use prefixes like \"USER:\" or \"A:\".** Your entire text output before the JSON block is *your single turn* responding to the user.
     *   **Explain Changes Clearly:** If graph modifications were made, explain how new points fit into the reasoning and how points challenge/refine their targets.
     *   **Be Transparent about Point Origins:** Clearly state when you are reusing an existing point (mentioning its ID and content) versus when you are creating a new point. For example: "I found an existing point that seems to match what you\'re saying: Point #123 - \'Content of point 123\'. Shall we use that?" or "Okay, I\'ve added that as a new point."
     *   **Guide Deeper Thinking:**
@@ -191,22 +204,101 @@ export const generateRationaleCreationResponse = async (
     *   Always preserve existing node IDs and data (like cred values).
     *   Your JSON output represents the COMPLETE state of the graph after changes.
     *   If no graph changes were made (e.g., you only asked clarifying questions), do not output the JSON block.
+    *  The user does see the output graph raw text, do not indicate that. Just state that the graph was updated.
 
 **OUTPUT FORMAT EXAMPLE (If graph changes were made):**
-<Your conversational text response explaining changes, asking questions, and guiding the user...>
+// If you made changes to the graph, your response MUST start with the exact phrase below, followed by a newline, then the JSON block.
+// If you made NO changes to the graph (e.g., you are only asking clarifying questions or providing analysis), then your entire response is just your conversational text, and you MUST NOT include the phrase "I've updated the graph for you." and you MUST NOT include a JSON block.
+I've updated the graph for you.
 
 \`\`\`json
 {
   "nodes": [
-    { "id": "statement", "type": "statement", "data": { "statement": "TypeScript vs JavaScript" } },
-    { "id": "point-abc", "type": "point", "data": { "content": "TypeScript improves maintainability", "cred": 10 } },
-    { "id": "point-def", "type": "point", "data": { "content": "JavaScript is more flexible", "cred": 5 } },
-    { "id": "new-point-1", "type": "point", "data": { "content": "But slows down development", "cred": 0 } }
+    {
+      "id": "statement",
+      "type": "statement",
+      "data": { "statement": "DonOfDAOs | Delegate Accelerator Proposal, Pass or Not?" }
+    },
+    {
+      "id": "point_pass",
+      "type": "point",
+      "data": { "content": "The Delegate Accelerator Proposal should be Passed.", "cred": 0 }
+    },
+    {
+      "id": "point_do_not_pass",
+      "type": "point",
+      "data": { "content": "The Delegate Accelerator Proposal should not be Passed.", "cred": 0 }
+    },
+    {
+      "id": "point_financial_incentives",
+      "type": "point",
+      "data": { "content": "The financial incentives may attract participants motivated by money rather than genuine interest.", "cred": 0 }
+    },
+    {
+      "id": "point_delegates_vested_interest",
+      "type": "point",
+      "data": { "content": "Delegates should have a vested interest in Scroll's success, ensuring commitment beyond training.", "cred": 0 }
+    },
+    {
+      "id": "point_skin_in_game",
+      "type": "point",
+      "data": { "content": "Without skin-in-the-game, feedback, or direct consequences, delegates may be misaligned or irresponsible with funds.", "cred": 0 }
+    },
+    {
+      "id": "point_undefined_outcomes",
+      "type": "point",
+      "data": { "content": "The proposal's undefined outcomes obscure its value, making premature approval inadvisable.", "cred": 0 }
+    },
+    {
+      "id": "point_most_delegates_noise",
+      "type": "point",
+      "data": { "content": "Most delegates just add noise and shouldn't be rewarded", "cred": 0 }
+    },
+    {
+      "id": "point_reward_meaningful_contributions",
+      "type": "point",
+      "data": { "content": "The proposal aims to reward meaningful contributions, not just participation", "cred": 0 }
+    }
   ],
   "edges": [
-    { "id": "edge-1", "source": "statement", "target": "point-abc", "type": "statement" },
-    { "id": "edge-2", "source": "statement", "target": "point-def", "type": "statement" },
-    { "id": "edge-3", "source": "point-abc", "target": "new-point-1", "type": "negation" }
+    { "id": "edge-statement-pass", "source": "statement", "target": "point_pass", "type": "statement" },
+    { "id": "edge-statement-do_not_pass", "source": "statement", "target": "point_do_not_pass", "type": "statement" },
+    {
+      "id": "edge-pass-financial_incentives",
+      "source": "point_pass",
+      "target": "point_financial_incentives",
+      "type": "negation"
+    },
+    {
+      "id": "edge-financial_incentives-delegates_vested_interest",
+      "source": "point_financial_incentives",
+      "target": "point_delegates_vested_interest",
+      "type": "negation"
+    },
+    {
+      "id": "edge-pass-skin_in_game",
+      "source": "point_pass",
+      "target": "point_skin_in_game",
+      "type": "negation"
+    },
+    {
+      "id": "edge-skin_in_game-undefined_outcomes",
+      "source": "point_skin_in_game",
+      "target": "point_undefined_outcomes",
+      "type": "negation"
+    },
+    {
+      "id": "edge-pass-most_delegates_noise",
+      "source": "point_pass",
+      "target": "point_most_delegates_noise",
+      "type": "negation"
+    },
+    {
+      "id": "edge-most_delegates_noise-reward_meaningful_contributions",
+      "source": "point_most_delegates_noise",
+      "target": "point_reward_meaningful_contributions",
+      "type": "negation"
+    }
   ]
 }
 \`\`\`
@@ -219,17 +311,20 @@ ${linkContext}
 
 **Remember:**
 - Your main goal is to facilitate the user\'s thinking process.
-- Statement node is just a title/topic.
-- Its children are main positions/options (not negations).
-- Only points can negate other points.
-- Each negation should logically challenge/refine its target.
-- When user says "add X cred", respond with "Added X cred to [point], total is now Y".
+- Statement node is just a title/topic. **It is NEUTRAL and NOT an arguable claim.**
+- Its children are main positions/options (not negations). **These children represent different STANCES or ANSWERS to the statement topic and connect via "statement" edges.**
+- Only points can negate other points. **A child point ALWAYS negates its parent point.**
+- Only 'statement' and 'negation' are valid edge types; do not use any other type (e.g., 'point').
+- Every child point MUST negate its direct parent; supportive relationships are not allowed.
+- Only 'statement' edges may originate from the root statement node; never use 'statement' for point-to-point links.
+- All point-to-point links must use type 'negation'.
+- Each point node must have exactly one parent edge; do not attach a point under multiple parents.
+- When user says "add X cred", respond with "Added X cred to [point], total cred is now Y".
 - Point content must be 10-160 characters.
 - Never include position data - positions are handled by the force layout.
 - If graph changes are made, ALWAYS output the COMPLETE graph as final JSON, including ALL existing nodes and edges.
 - If no graph changes are made, DO NOT output the JSON block.
-- NEVER omit nodes or edges that existed before your changes if outputting JSON.
-- PRESERVE all existing node IDs and data (like cred values) if outputting JSON.`;
+- NEVER omit nodes or edges that existed before your changes if outputting JSON.`;
 
     const chatHistoryString = chatMessages
       .map((m) => `${m.role.toUpperCase()}:\n${m.content}`)
