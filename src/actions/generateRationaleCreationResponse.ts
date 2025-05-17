@@ -214,15 +214,91 @@ I've updated the graph for you.
 \`\`\`json
 {
   "nodes": [
-    { "id": "statement", "type": "statement", "data": { "statement": "TypeScript vs JavaScript" } },
-    { "id": "point-abc", "type": "point", "data": { "content": "TypeScript improves maintainability", "cred": 10 } },
-    { "id": "point-def", "type": "point", "data": { "content": "JavaScript is more flexible", "cred": 5 } },
-    { "id": "new-point-1", "type": "point", "data": { "content": "But slows down development", "cred": 0 } }
+    {
+      "id": "statement",
+      "type": "statement",
+      "data": { "statement": "DonOfDAOs | Delegate Accelerator Proposal, Pass or Not?" }
+    },
+    {
+      "id": "point_pass",
+      "type": "point",
+      "data": { "content": "The Delegate Accelerator Proposal should be Passed.", "cred": 0 }
+    },
+    {
+      "id": "point_do_not_pass",
+      "type": "point",
+      "data": { "content": "The Delegate Accelerator Proposal should not be Passed.", "cred": 0 }
+    },
+    {
+      "id": "point_financial_incentives",
+      "type": "point",
+      "data": { "content": "The financial incentives may attract participants motivated by money rather than genuine interest.", "cred": 0 }
+    },
+    {
+      "id": "point_delegates_vested_interest",
+      "type": "point",
+      "data": { "content": "Delegates should have a vested interest in Scroll's success, ensuring commitment beyond training.", "cred": 0 }
+    },
+    {
+      "id": "point_skin_in_game",
+      "type": "point",
+      "data": { "content": "Without skin-in-the-game, feedback, or direct consequences, delegates may be misaligned or irresponsible with funds.", "cred": 0 }
+    },
+    {
+      "id": "point_undefined_outcomes",
+      "type": "point",
+      "data": { "content": "The proposal's undefined outcomes obscure its value, making premature approval inadvisable.", "cred": 0 }
+    },
+    {
+      "id": "point_most_delegates_noise",
+      "type": "point",
+      "data": { "content": "Most delegates just add noise and shouldn't be rewarded", "cred": 0 }
+    },
+    {
+      "id": "point_reward_meaningful_contributions",
+      "type": "point",
+      "data": { "content": "The proposal aims to reward meaningful contributions, not just participation", "cred": 0 }
+    }
   ],
   "edges": [
-    { "id": "edge-1", "source": "statement", "target": "point-abc", "type": "statement" },
-    { "id": "edge-2", "source": "statement", "target": "point-def", "type": "statement" },
-    { "id": "edge-3", "source": "point-abc", "target": "new-point-1", "type": "negation" }
+    { "id": "edge-statement-pass", "source": "statement", "target": "point_pass", "type": "statement" },
+    { "id": "edge-statement-do_not_pass", "source": "statement", "target": "point_do_not_pass", "type": "statement" },
+    {
+      "id": "edge-pass-financial_incentives",
+      "source": "point_pass",
+      "target": "point_financial_incentives",
+      "type": "negation"
+    },
+    {
+      "id": "edge-financial_incentives-delegates_vested_interest",
+      "source": "point_financial_incentives",
+      "target": "point_delegates_vested_interest",
+      "type": "negation"
+    },
+    {
+      "id": "edge-pass-skin_in_game",
+      "source": "point_pass",
+      "target": "point_skin_in_game",
+      "type": "negation"
+    },
+    {
+      "id": "edge-skin_in_game-undefined_outcomes",
+      "source": "point_skin_in_game",
+      "target": "point_undefined_outcomes",
+      "type": "negation"
+    },
+    {
+      "id": "edge-pass-most_delegates_noise",
+      "source": "point_pass",
+      "target": "point_most_delegates_noise",
+      "type": "negation"
+    },
+    {
+      "id": "edge-most_delegates_noise-reward_meaningful_contributions",
+      "source": "point_most_delegates_noise",
+      "target": "point_reward_meaningful_contributions",
+      "type": "negation"
+    }
   ]
 }
 \`\`\`
