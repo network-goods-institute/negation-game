@@ -32,7 +32,7 @@ import { useUpdateViewpointDetails } from "@/mutations/useUpdateViewpointDetails
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useFavorHistory } from "@/queries/useFavorHistory";
-import { useGraphPoints } from "@/components/graph/useGraphPoints";
+import { useGraphPoints } from "@/hooks/useGraphPoints";
 import { Loader } from "@/components/ui/loader";
 import { useViewpoint } from "@/queries/useViewpoint";
 import { useRouter, notFound, useSearchParams } from "next/navigation";

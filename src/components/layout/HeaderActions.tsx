@@ -16,7 +16,7 @@ import {
     DropdownMenuTrigger,
     DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { KeybindsDialog } from "@/components/chatbot/KeybindsDialog";
+import { KeybindsDialog } from "@/components/KeybindsDialog";
 import { useState } from "react";
 
 export const HeaderActions = () => {

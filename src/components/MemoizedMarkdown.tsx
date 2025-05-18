@@ -257,43 +257,78 @@ export const MemoizedMarkdown = memo(
                 return <p {...props}>{processedChildren}</p>;
             },
             li: ({ node, children, ...props }: StandardComponentProps) => {
-                // Extract raw text from AST node or React children
-                let rawText = '';
-                if (node?.children?.[0]?.type === 'paragraph') {
-                    rawText = (node.children[0].children || []).map((n: any) => n.value || '').join('');
-                } else {
-                    const getRawTextFromChildren = (nodes: any): string => {
-                        if (typeof nodes === 'string') return nodes;
-                        if (Array.isArray(nodes)) return nodes.map(getRawTextFromChildren).join('');
-                        if (nodes?.props?.children) return getRawTextFromChildren(nodes.props.children);
-                        return '';
-                    };
-                    rawText = getRawTextFromChildren(children);
-                }
-                const trimmedText = rawText.trim();
-                // Block Suggestion: Point
-                const pointMatch = blockSuggestPointRegex.exec(trimmedText);
-                if (pointMatch) {
-                    const suggestionText = trimmedText.replace(blockSuggestPointRegex, '$1').trim();
+                // Helper to extract direct text from an AST node's paragraph children.
+                // This aims to get text that is directly part of the LI, not in nested lists.
+                const getDirectTextFromNode = (astNode: any): string => {
+                    let text = '';
+                    if (astNode && astNode.children) {
+                        for (const childNode of astNode.children) {
+                            // Only consider paragraphs that are direct children of the li
+                            if (childNode.type === 'paragraph') {
+                                for (const grandChildNode of childNode.children || []) {
+                                    if (grandChildNode.type === 'text') {
+                                        text += grandChildNode.value || '';
+                                    }
+                                }
+                                text += '\n'; // Add a newline to respect paragraph structure within the li
+                            } else if (childNode.type === 'text') {
+                                // Less common for li direct children, but possible
+                                text += childNode.value || '';
+                            }
+                            // Importantly, we DO NOT recurse into childNode.type === 'list' here
+                        }
+                    }
+                    return text.trim();
+                };
+
+                const directContentOfLi = getDirectTextFromNode(node);
+
+                // Case 1: LI's direct content IS a Point Suggestion block
+                const pointMatch = blockSuggestPointRegex.exec(directContentOfLi);
+                if (pointMatch && directContentOfLi.startsWith('[Suggest Point]>')) {
+                    const suggestionText = directContentOfLi.replace(blockSuggestPointRegex, '$1').trim();
+                    console.log('[MemoizedMarkdown LI Debug] Point Matched:', { directContentOfLi, suggestionText });
                     return (
                         <li {...props}>
                             <SuggestionBlock type="point" text={suggestionText} space={space} />
                         </li>
                     );
                 }
-                // Block Suggestion: Negation
-                const negationMatch = blockSuggestNegationRegex.exec(trimmedText);
-                if (negationMatch) {
-                    const suggestionText = trimmedText.replace(blockSuggestNegationRegex, '$2').trim();
+
+                // Case 2: LI's direct content IS a Negation Suggestion block
+                const negationMatch = blockSuggestNegationRegex.exec(directContentOfLi);
+                if (negationMatch && directContentOfLi.startsWith('[Suggest Negation For:')) {
+                    const suggestionText = directContentOfLi.replace(blockSuggestNegationRegex, '$2').trim();
                     const targetId = parseInt(negationMatch[1], 10);
+                    console.log('[MemoizedMarkdown LI Debug] Negation Matched:', { directContentOfLi, targetId, suggestionText });
                     return (
                         <li {...props}>
                             <SuggestionBlock type="negation" targetId={targetId} text={suggestionText} space={space} />
                         </li>
                     );
                 }
-                // Inline tags in list items
-                const processedChildren = renderTextWithInlineTags(rawText, space, discourseUrl, storedMessages);
+
+                // Case 3: LI is NOT a suggestion block itself.
+                // Its content (`children` prop from react-markdown) needs to be rendered.
+                // This content might be:
+                //   - A <p> element (which our p renderer will handle, including its inline tags)
+                //   - Plain text strings (which need inline tag processing here)
+                //   - Nested <ul>/<ol> elements (react-markdown handles nesting, eventually calling this li renderer again)
+                if (directContentOfLi.includes("[Suggest Negation For:") || directContentOfLi.includes("[Suggest Point]>")) {
+                    console.log('[MemoizedMarkdown LI Debug] Suggestion-like DIRECT text NOT Matched as primary content:', { directContentOfLi, children });
+                }
+
+                const processedChildren = React.Children.map(children, child => {
+                    if (typeof child === 'string') {
+                        // If a direct child of li (passed by react-markdown) is a string, process it for inline tags.
+                        return renderTextWithInlineTags(child, space, discourseUrl, storedMessages);
+                    }
+                    // If child is a React element (e.g., a <p> handled by our p_renderer, or a nested list), pass it through.
+                    // Our custom <p> renderer will call renderTextWithInlineTags for its content.
+                    // Nested lists will have their <li> items processed by this same logic.
+                    return child;
+                });
+
                 return <li {...props}>{processedChildren}</li>;
             },
             code: ({ node, inline, className, children, ...props }: StandardComponentProps) => {

@@ -15,13 +15,12 @@ import {
   ChatSettings,
   ViewpointGraph,
 } from "@/types/chat";
-
-type FlowType =
-  | "distill"
-  | "build"
-  | "generate"
-  | "default"
-  | "create_rationale";
+import {
+  FlowType,
+  FlowParams,
+  determineFlowParams,
+  mapOptionToFlowType,
+} from "@/hooks/useChatFlow";
 
 interface UseChatStateProps {
   currentChatId: string | null;
@@ -81,41 +80,81 @@ export function useChatState({
   const prevChatIdRef = useRef<string | null>(null);
   const activeGeneratingChatRef = useRef<string | null>(null);
   const currentGraphRef = useRef<ViewpointGraph | undefined | null>(undefined);
+  const lastFlowParamsRef = useRef<FlowParams | null>(null);
 
+  // Sync chat state when the current chat changes or its data updates
+  const currentChat = savedChats.find((c) => c.id === currentChatId);
+  const currentChatStateHash = currentChat?.state_hash;
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const chats = savedChats;
+    // Avoid syncing while AI is generating a response (or handling edits)
+    if (currentChatId && generatingChats.has(currentChatId)) {
+      prevChatIdRef.current = currentChatId;
+      return;
+    }
+    const newMessagesFromSavedChat = currentChat?.messages || [];
+    const newGraphFromSavedChat = currentChat?.graph;
+
     const didChatIdChange = currentChatId !== prevChatIdRef.current;
 
-    if (currentChatId) {
-      const currentChat = chats.find((c) => c.id === currentChatId);
-      const newMessages = currentChat?.messages || [];
-      const newGraph = currentChat?.graph;
-
-      setChatMessages((prevMessages) => {
-        const areMessagesDifferent =
-          JSON.stringify(newMessages) !== JSON.stringify(prevMessages);
-        if (didChatIdChange || areMessagesDifferent) {
-          return newMessages;
-        } else {
-          return prevMessages;
-        }
-      });
-
-      if (
-        didChatIdChange ||
-        JSON.stringify(newGraph) !== JSON.stringify(currentGraphRef.current)
-      ) {
-        currentGraphRef.current = newGraph;
-      }
+    if (didChatIdChange) {
+      // Switched to a new chat, so reset local messages to what's in the newly selected saved chat.
+      setChatMessages(newMessagesFromSavedChat);
+      currentGraphRef.current = newGraphFromSavedChat;
+      // prevChatIdRef.current is updated at the end of the effect
     } else {
-      if (didChatIdChange) {
-        setChatMessages([]);
-        currentGraphRef.current = undefined;
+      // Still on the same chat. Compare local messages with messages from savedChat.
+      const localMessagesJson = JSON.stringify(chatMessages);
+      const savedMessagesJson = JSON.stringify(newMessagesFromSavedChat);
+
+      if (savedMessagesJson !== localMessagesJson) {
+        // Messages differ. Determine if savedChat is only an outdated or superset prefix of local state.
+        let ignoreSavedUpdate = false;
+        const localLen = chatMessages.length;
+        const savedLen = newMessagesFromSavedChat.length;
+        if (savedLen <= localLen) {
+          // saved shorter or equal: check if all saved messages match the first part of local
+          ignoreSavedUpdate = newMessagesFromSavedChat.every(
+            (msg, idx) =>
+              JSON.stringify(msg) === JSON.stringify(chatMessages[idx])
+          );
+        } else {
+          // saved longer: check if saved starts with local history
+          ignoreSavedUpdate = newMessagesFromSavedChat
+            .slice(0, localLen)
+            .every(
+              (msg, idx) =>
+                JSON.stringify(msg) === JSON.stringify(chatMessages[idx])
+            );
+        }
+        if (!ignoreSavedUpdate) {
+          // Saved chat contains non-prefix changes; update local messages from saved chat.
+          setChatMessages(newMessagesFromSavedChat);
+        }
       }
     }
 
+    // Update graph ref only on chat switch or when graph object in savedChat changes
+    if (
+      didChatIdChange ||
+      JSON.stringify(newGraphFromSavedChat) !==
+        JSON.stringify(currentGraphRef.current)
+    ) {
+      currentGraphRef.current = newGraphFromSavedChat;
+    }
+
     prevChatIdRef.current = currentChatId;
-  }, [currentChatId, savedChats]);
+  }, [
+    currentChatId,
+    currentChatStateHash, // Reacts to changes in the persisted chat data
+    chatMessages, // Needed for comparison to prevent unnecessary overwrites
+    // currentChat?.messages and currentChat?.graph are implicitly covered by currentChatStateHash
+    // but including them makes dependencies more explicit if hash wasn't perfect.
+    currentChat?.messages,
+    currentChat?.graph,
+    generatingChats,
+  ]);
 
   useEffect(() => {
     if (
@@ -239,6 +278,12 @@ export function useChatState({
       rationaleDescription?: string,
       linkUrl?: string
     ) => {
+      lastFlowParamsRef.current = {
+        flowType,
+        rationaleId: selectedRationaleId,
+        description: rationaleDescription,
+        linkUrl,
+      };
       if (generatingChats.has(chatIdToUse)) {
         return;
       }
@@ -516,20 +561,22 @@ export function useChatState({
       const historyForRetry = chatMessages.slice(0, messageIndex);
       setChatMessages(historyForRetry);
 
-      const currentChatData = savedChats.find((c) => c.id === chatIdToUse);
-      const rationaleIdForRetry = currentChatData?.distillRationaleId ?? null;
-      const graphForRetry = currentChatData?.graph;
-      const flowForRetry: FlowType = rationaleIdForRetry
-        ? "distill"
-        : graphForRetry
-          ? "create_rationale"
-          : "default";
+      // Use last flow params if available, otherwise fallback
+      const {
+        flowType: retryFlow,
+        rationaleId: retryRationaleId,
+        description: retryDescription,
+        linkUrl: retryLinkUrl,
+      } = lastFlowParamsRef.current ||
+      determineFlowParams(undefined, currentGraphRef.current);
 
       await handleResponse(
         historyForRetry,
         chatIdToUse,
-        flowForRetry,
-        rationaleIdForRetry
+        retryFlow,
+        retryRationaleId ?? null,
+        retryDescription,
+        retryLinkUrl
       );
     },
     [
@@ -537,7 +584,6 @@ export function useChatState({
       generatingChats,
       currentChatId,
       handleResponse,
-      savedChats,
       isAuthenticated,
     ]
   );
@@ -568,31 +614,24 @@ export function useChatState({
 
       setChatMessages(historyForEdit);
 
-      const currentChatDataForEdit = savedChats.find(
-        (c) => c.id === currentChatId
+      // Use last flow params if available, otherwise fallback
+      const {
+        flowType: editFlow,
+        rationaleId: editRationaleId,
+        description: editDescription,
+        linkUrl: editLinkUrl,
+      } = lastFlowParamsRef.current ||
+      determineFlowParams(
+        undefined,
+        savedChats.find((c) => c.id === currentChatId)?.graph
       );
-      let rationaleIdForEdit: string | null = null;
-      const graphForEdit = currentChatDataForEdit?.graph;
-      let flowForEdit: FlowType = "default";
-      let descriptionForEdit: string | undefined = undefined;
-      let linkUrlForEdit: string | undefined = undefined;
-
-      if (currentChatDataForEdit?.distillRationaleId) {
-        flowForEdit = "distill";
-        rationaleIdForEdit = currentChatDataForEdit.distillRationaleId;
-      } else if (graphForEdit) {
-        flowForEdit = "create_rationale";
-        descriptionForEdit = graphForEdit.description;
-        linkUrlForEdit = graphForEdit.linkUrl;
-      }
-
       await handleResponse(
         historyForEdit,
         currentChatId || "",
-        flowForEdit,
-        rationaleIdForEdit,
-        descriptionForEdit,
-        linkUrlForEdit
+        editFlow,
+        editRationaleId ?? null,
+        editDescription,
+        editLinkUrl
       );
 
       toast.success("Message updated & regenerating response...");
@@ -668,7 +707,8 @@ export function useChatState({
 
       const messagesForApi = [...systemMessages, ...initialMessages];
 
-      await handleResponse(messagesForApi, chatIdToUse, option.id, null);
+      const flow = mapOptionToFlowType(option.id);
+      await handleResponse(messagesForApi, chatIdToUse, flow, null);
     },
     [
       currentSpace,
@@ -755,29 +795,13 @@ export function useChatState({
         content: userMessageContent,
       };
 
+      // Initialize conversation state
       let chatIdToUse = currentChatId;
       let messagesForHistory = [...chatMessages, newMessage];
-      let currentChatData = savedChats.find((c) => c.id === chatIdToUse);
-      let currentGraph = currentGraphRef.current;
-      let rationaleIdToUse: string | null = null;
-      let flowToUse: FlowType = "default";
-      let descriptionToUse: string | undefined = undefined;
-      let linkUrlToUse: string | undefined = undefined;
+      let graphForUpdate = currentGraphRef.current;
 
-      if (currentChatData?.distillRationaleId) {
-        flowToUse = "distill";
-        rationaleIdToUse = currentChatData.distillRationaleId;
-      } else if (currentGraph) {
-        flowToUse = "create_rationale";
-        descriptionToUse = (currentGraph as any)?.description;
-        linkUrlToUse = (currentGraph as any)?.linkUrl;
-      } else {
-        flowToUse = "generate";
-      }
-
+      // Create a new chat if none exists
       if (!chatIdToUse) {
-        flowToUse = "generate";
-        currentGraph = undefined;
         const newId = await createNewChat(undefined);
         if (!newId) {
           toast.error("Failed to create new chat.");
@@ -786,25 +810,30 @@ export function useChatState({
         }
         chatIdToUse = newId;
         messagesForHistory = [newMessage];
+        graphForUpdate = undefined;
         await new Promise((resolve) => setTimeout(resolve, 0));
       }
+
+      const currentChatData = savedChats.find((c) => c.id === chatIdToUse);
+      const flowParams = determineFlowParams(currentChatData, graphForUpdate);
+      const { flowType, rationaleId, description, linkUrl } = flowParams;
 
       setChatMessages(messagesForHistory);
       updateChat(
         chatIdToUse,
         messagesForHistory,
         undefined,
-        rationaleIdToUse,
-        currentGraph
+        rationaleId ?? null,
+        graphForUpdate
       );
 
       await handleResponse(
         messagesForHistory,
         chatIdToUse,
-        flowToUse,
-        rationaleIdToUse,
-        descriptionToUse,
-        linkUrlToUse
+        flowType,
+        rationaleId ?? null,
+        description,
+        linkUrl
       );
     },
     [

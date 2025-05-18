@@ -172,6 +172,9 @@ export default function AIAssistant() {
     });
     const {
         isInitialized: isChatListInitialized,
+        updateChat,
+        currentChatId,
+        savedChats: chatListSavedChats
     } = chatList;
     const discourse = useDiscourseIntegration({ userData, isAuthenticated, isNonGlobalSpace, currentSpace, privyUserId: privyUser?.id });
     const ownedPointIds = useMemo(() => new Set(ownedPoints.map(p => p.pointId)), [ownedPoints]);
@@ -475,6 +478,7 @@ export default function AIAssistant() {
             const titleToUpdate = needsNewChat ? "New Rationale Chat" : (currentChat?.title || "Rationale Chat");
             if (chatIdToUse) {
                 chatList.updateChat(chatIdToUse, messagesToUpdate, titleToUpdate, null, initialGraph);
+                chatState.setChatMessages(messagesToUpdate);
             } else {
                 console.error("[AIAssistant] Critical error: chatIdToUse is null/undefined before updateChat in create_rationale flow.");
                 toast.error("An internal error occurred while preparing the rationale chat.");
@@ -861,26 +865,24 @@ export default function AIAssistant() {
         const fullGraph: ViewpointGraph = {
             ...partialGraph,
             description: rationaleDescription,
-            linkUrl: linkUrl,
+            linkUrl,
             topic: rationaleTopic,
         };
         setRationaleGraph(fullGraph);
-        if (chatList.currentChatId && mode === 'create_rationale') {
-            const curr = chatList.savedChats.find(c => c.id === chatList.currentChatId);
+        if (currentChatId && mode === 'create_rationale') {
+            const curr = chatListSavedChats.find(c => c.id === currentChatId);
             const msgs = curr?.messages || [];
             const title = curr?.title;
             const distillId = curr?.distillRationaleId;
-            chatList.updateChat(chatList.currentChatId, msgs, title, distillId, fullGraph, immediateSave);
+            updateChat(currentChatId, msgs, title, distillId, fullGraph, immediateSave);
         }
-    }, [chatList, mode, rationaleDescription, linkUrl, rationaleTopic]);
+    }, [currentChatId, chatListSavedChats, updateChat, mode, rationaleDescription, linkUrl, rationaleTopic]);
 
-    // Persist topic changes immediately
     useEffect(() => {
         if (mode === 'create_rationale') {
             handleRationaleGraphChange({ nodes: rationaleGraph.nodes, edges: rationaleGraph.edges }, true);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [rationaleTopic, handleRationaleGraphChange]);
+    }, [rationaleTopic]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const initialChatOptions: InitialOptionObject[] = [
         {

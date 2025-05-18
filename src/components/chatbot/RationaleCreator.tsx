@@ -304,6 +304,7 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     const [nodes, setNodes, onNodesChangeReactFlow] = useNodesState<PreviewAppNode>(graphData.nodes as unknown as PreviewAppNode[]);
     const [edges, setEdges, onEdgesChangeReactFlow] = useEdgesState<PreviewAppEdge>(graphData.edges as unknown as PreviewAppEdge[]);
     const [graphModified, setGraphModified] = useState(false);
+    const [lastGraphDataHash, setLastGraphDataHash] = useState('');
     const { pendingPushIds, currentChatId, savedChats } = chatList;
     const isSavingGraph = !!currentChatId && pendingPushIds.has(currentChatId);
     const { user: privyUser } = usePrivy();
@@ -321,8 +322,17 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
             JSON.stringify(persistedGraph.edges) !== JSON.stringify(graphData.edges);
     }, [persistedGraph, graphData]);
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         if (!graphData) return;
+
+        const newGraphHash = JSON.stringify({
+            nodes: graphData.nodes.map(n => ({ id: n.id, type: n.type, data: n.data })),
+            edges: graphData.edges.map(e => ({ id: e.id, source: e.source, target: e.target }))
+        });
+
+        if (newGraphHash === lastGraphDataHash) return;
+        setLastGraphDataHash(newGraphHash);
 
         setTopic(graphData.topic || '');
         const currentNodesMap = new Map(nodes.map(node => [node.id, node]));
@@ -521,8 +531,7 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
                 reactFlowInstance.fitView({ duration: 600, padding: 0.15 });
             });
         }
-        //eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [graphData, reactFlowInstance, setNodes, setEdges]);
+    }, [graphData, lastGraphDataHash, setLastGraphDataHash, setNodes, setEdges, reactFlowInstance, edges, nodes]);
 
     const handleNodesChange: OnNodesChange<PreviewAppNode> = useCallback((changes) => {
         onNodesChangeReactFlow(changes);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageSquare, Plus, Trash2, X, Pencil, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
@@ -30,6 +30,134 @@ const ChatListSkeleton = () => {
     );
 };
 
+interface ChatListItemProps {
+    chat: SavedChat;
+    currentChatId: string | null;
+    isAuthenticated: boolean;
+    isMobile: boolean;
+    generatingTitles: Set<string>;
+    onSwitchChat: (chatId: string) => void;
+    onTriggerRename: (chatId: string, currentTitle: string) => void;
+    onTriggerDelete: (chatId: string) => void;
+    onCloseMobileMenu: () => void;
+    handleShareChat: (chatId: string) => void;
+}
+
+const ChatListItem = React.memo(({
+    chat,
+    currentChatId,
+    isAuthenticated,
+    isMobile,
+    generatingTitles,
+    onSwitchChat,
+    onTriggerRename,
+    onTriggerDelete,
+    onCloseMobileMenu,
+    handleShareChat
+}: ChatListItemProps) => {
+    const handleClick = useCallback(() => {
+        onSwitchChat(chat.id);
+        if (isMobile) onCloseMobileMenu();
+    }, [chat.id, isMobile, onSwitchChat, onCloseMobileMenu]);
+
+    const handleRenameClick = useCallback<React.MouseEventHandler<HTMLButtonElement>>((event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onTriggerRename(chat.id, chat.title);
+    }, [chat.id, chat.title, onTriggerRename]);
+
+    const handleShareClick = useCallback<React.MouseEventHandler<HTMLButtonElement>>((event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        handleShareChat(chat.id);
+    }, [chat.id, handleShareChat]);
+
+    const handleDeleteClick = useCallback<React.MouseEventHandler<HTMLButtonElement>>((event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onTriggerDelete(chat.id);
+    }, [chat.id, onTriggerDelete]);
+
+    const handleRenameSelect = useCallback(() => {
+        onTriggerRename(chat.id, chat.title);
+    }, [chat.id, chat.title, onTriggerRename]);
+
+    const handleShareSelect = useCallback(() => {
+        handleShareChat(chat.id);
+    }, [chat.id, handleShareChat]);
+
+    const handleDeleteSelect = useCallback(() => {
+        onTriggerDelete(chat.id);
+    }, [chat.id, onTriggerDelete]);
+
+    return (
+        <ContextMenu.Root>
+            <ContextMenu.Trigger className="w-full" disabled={!isAuthenticated}>
+                <div
+                    className={`relative group px-3 py-2.5 md:px-4 md:py-3 rounded-lg cursor-pointer flex items-center transition-colors duration-150 ${chat.id === currentChatId ? 'bg-accent shadow-sm' : 'hover:bg-accent/50'}`}
+                    onClick={handleClick}
+                >
+                    <div className="flex-1 min-w-0 mr-2">
+                        <TooltipProvider delayDuration={300}>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <span className={`block text-xs md:text-sm ${chat.id === currentChatId ? 'font-semibold text-accent-foreground' : 'text-foreground'} overflow-hidden text-ellipsis whitespace-nowrap`}>
+                                        {generatingTitles.has(chat.id) ? (
+                                            <span className="flex items-center gap-2">
+                                                <span className="animate-pulse">Generating title...</span>
+                                            </span>
+                                        ) : (
+                                            ((): string => { const max = isMobile ? 20 : 15; return chat.title.length > max ? `${chat.title.slice(0, max)}...` : chat.title; })()
+                                        )}
+                                    </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="right" className="max-w-[250px] break-words" sideOffset={5}>
+                                    {generatingTitles.has(chat.id) ? "Generating title..." : chat.title}
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                        <span className="text-xs text-muted-foreground truncate block mt-0.5">
+                            {new Date(chat.updatedAt).toLocaleDateString()} · {chat.messages.length} msg
+                        </span>
+                    </div>
+                    <div className={`flex items-center shrink-0 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
+                        <AuthenticatedActionButton
+                            variant="ghost" size="icon" className={`h-6 w-6 text-muted-foreground hover:text-primary`}
+                            onClick={handleRenameClick}
+                            title="Rename chat"
+                        ><Pencil className="h-3.5 w-3.5" /></AuthenticatedActionButton>
+                        <AuthenticatedActionButton
+                            variant="ghost" size="icon" className={`h-6 w-6 text-muted-foreground hover:text-primary`}
+                            onClick={handleShareClick}
+                            disabled={!isAuthenticated}
+                            title="Share chat"
+                        ><ExternalLink className="h-3.5 w-3.5" /></AuthenticatedActionButton>
+                        <AuthenticatedActionButton
+                            variant="ghost" size="icon" className={`h-6 w-6 text-muted-foreground hover:text-destructive`}
+                            onClick={handleDeleteClick}
+                            title="Delete chat"
+                        ><Trash2 className="h-3.5 w-3.5" /></AuthenticatedActionButton>
+                    </div>
+                </div>
+            </ContextMenu.Trigger>
+            <ContextMenu.Content className="min-w-[160px] bg-popover text-popover-foreground rounded-md border shadow-md p-1 z-50">
+                <ContextMenu.Item className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent focus:bg-accent hover:text-accent-foreground focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50" onSelect={handleRenameSelect} disabled={!isAuthenticated}>Rename</ContextMenu.Item>
+                <ContextMenu.Item
+                    className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent focus:bg-accent hover:text-accent-foreground focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                    disabled={!isAuthenticated}
+                    onSelect={handleShareSelect}
+                >
+                    Share
+                </ContextMenu.Item>
+                <ContextMenu.Separator className="h-[1px] bg-border m-[5px]" />
+                <ContextMenu.Item className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-destructive focus:bg-destructive hover:text-destructive-foreground focus:text-destructive-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50" onSelect={handleDeleteSelect} disabled={!isAuthenticated}>Delete</ContextMenu.Item>
+            </ContextMenu.Content>
+        </ContextMenu.Root>
+    );
+});
+
+ChatListItem.displayName = 'ChatListItem';
+
 interface ChatSidebarProps {
     isMobile: boolean;
     showMobileMenu: boolean;
@@ -47,7 +175,7 @@ interface ChatSidebarProps {
     onCloseMobileMenu: () => void;
 }
 
-export const ChatSidebar: React.FC<ChatSidebarProps> = ({
+export const ChatSidebar = React.memo(({
     isMobile,
     showMobileMenu,
     isInitializing,
@@ -62,8 +190,9 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
     onTriggerRename,
     onTriggerDelete,
     onCloseMobileMenu,
-}) => {
+}: ChatSidebarProps) => {
     const [collapsed, setCollapsed] = useState(false);
+
     // Disable collapse on mobile
     useEffect(() => {
         if (isMobile && collapsed) {
@@ -80,17 +209,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
         }
     }, [collapsed, isMobile]);
 
-    if (collapsed && !isMobile) {
-        return (
-            <div className="fixed top-[var(--header-height)] left-0 h-16 w-12 bg-background border-r z-50 flex items-center justify-center">
-                <Button variant="ghost" size="icon" onClick={() => setCollapsed(false)} className="rounded-full h-8 w-8">
-                    <ChevronRight className="h-4 w-4" />
-                </Button>
-            </div>
-        );
-    }
-
-    const handleShareChat = (chatId: string) => {
+    const handleShareChat = useCallback((chatId: string) => {
         if (!currentSpace) {
             toast.error("Cannot share chat: Space context is missing.");
             return;
@@ -123,7 +242,17 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
         navigator.clipboard.writeText(shareUrl)
             .then(() => console.log('Share URL copied to clipboard automatically'))
             .catch(err => console.error('Failed to copy share URL automatically: ', err));
-    };
+    }, [currentSpace, isAuthenticated]);
+
+    if (collapsed && !isMobile) {
+        return (
+            <div className="fixed top-[var(--header-height)] left-0 h-16 w-12 bg-background border-r z-50 flex items-center justify-center">
+                <Button variant="ghost" size="icon" onClick={() => setCollapsed(false)} className="rounded-full h-8 w-8">
+                    <ChevronRight className="h-4 w-4" />
+                </Button>
+            </div>
+        );
+    }
 
     return (
         <div className={`${isMobile ? 'fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out' : 'w-72 border-r flex-shrink-0'}
@@ -176,71 +305,19 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                     ) : (
                         <div className="p-2 md:p-3 space-y-1.5 md:space-y-2">
                             {savedChats.map((chat) => (
-                                <ContextMenu.Root key={chat.id}>
-                                    <ContextMenu.Trigger className="w-full" disabled={!isAuthenticated}>
-                                        <div
-                                            className={`relative group px-3 py-2.5 md:px-4 md:py-3 rounded-lg cursor-pointer flex items-center transition-colors duration-150 ${chat.id === currentChatId ? 'bg-accent shadow-sm' : 'hover:bg-accent/50'}`}
-                                            onClick={() => { onSwitchChat(chat.id); if (isMobile) onCloseMobileMenu(); }}
-                                        >
-                                            <div className="flex-1 min-w-0 mr-2">
-                                                <TooltipProvider delayDuration={300}>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <span className={`block text-xs md:text-sm ${chat.id === currentChatId ? 'font-semibold text-accent-foreground' : 'text-foreground'} overflow-hidden text-ellipsis whitespace-nowrap`}>
-                                                                {generatingTitles.has(chat.id) ? (
-                                                                    <span className="flex items-center gap-2">
-                                                                        <span className="animate-pulse">Generating title...</span>
-                                                                    </span>
-                                                                ) : (
-                                                                    ((): string => { const max = isMobile ? 20 : 15; return chat.title.length > max ? `${chat.title.slice(0, max)}...` : chat.title; })()
-                                                                )}
-                                                            </span>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent side="right" className="max-w-[250px] break-words" sideOffset={5}>
-                                                            {generatingTitles.has(chat.id) ? "Generating title..." : chat.title}
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                                <span className="text-xs text-muted-foreground truncate block mt-0.5">
-                                                    {new Date(chat.updatedAt).toLocaleDateString()} · {chat.messages.length} msg
-                                                </span>
-                                            </div>
-                                            <div className={`flex items-center shrink-0 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
-                                                <AuthenticatedActionButton
-                                                    variant="ghost" size="icon" className={`h-6 w-6 text-muted-foreground hover:text-primary`}
-                                                    onClick={(e) => { e.stopPropagation(); onTriggerRename(chat.id, chat.title); }}
-                                                    title="Rename chat"
-                                                ><Pencil className="h-3.5 w-3.5" /></AuthenticatedActionButton>
-                                                <AuthenticatedActionButton
-                                                    variant="ghost" size="icon" className={`h-6 w-6 text-muted-foreground hover:text-primary`}
-                                                    onClick={(e) => { e.stopPropagation(); handleShareChat(chat.id); }}
-                                                    disabled={!isAuthenticated}
-                                                    title="Share chat"
-                                                ><ExternalLink className="h-3.5 w-3.5" /></AuthenticatedActionButton>
-                                                <AuthenticatedActionButton
-                                                    variant="ghost" size="icon" className={`h-6 w-6 text-muted-foreground hover:text-destructive`}
-                                                    onClick={(e) => { e.stopPropagation(); onTriggerDelete(chat.id); }}
-                                                    title="Delete chat"
-                                                ><Trash2 className="h-3.5 w-3.5" /></AuthenticatedActionButton>
-                                            </div>
-                                        </div>
-                                    </ContextMenu.Trigger>
-                                    <ContextMenu.Content className="min-w-[160px] bg-popover text-popover-foreground rounded-md border shadow-md p-1 z-50">
-                                        <ContextMenu.Item className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent focus:bg-accent hover:text-accent-foreground focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50" onSelect={() => { onTriggerRename(chat.id, chat.title); }} disabled={!isAuthenticated}>Rename</ContextMenu.Item>
-                                        <ContextMenu.Item
-                                            className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent focus:bg-accent hover:text-accent-foreground focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
-                                            disabled={!isAuthenticated}
-                                            onSelect={(event) => {
-                                                event.preventDefault(); // Prevent default context menu closing if needed
-                                                handleShareChat(chat.id);
-                                            }}
-                                        >
-                                            Share
-                                        </ContextMenu.Item>
-                                        <ContextMenu.Separator className="h-[1px] bg-border m-[5px]" />
-                                        <ContextMenu.Item className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-destructive focus:bg-destructive hover:text-destructive-foreground focus:text-destructive-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50" onSelect={() => onTriggerDelete(chat.id)} disabled={!isAuthenticated}>Delete</ContextMenu.Item>
-                                    </ContextMenu.Content>
-                                </ContextMenu.Root>
+                                <ChatListItem
+                                    key={chat.id}
+                                    chat={chat}
+                                    currentChatId={currentChatId}
+                                    isAuthenticated={isAuthenticated}
+                                    isMobile={isMobile}
+                                    generatingTitles={generatingTitles}
+                                    onSwitchChat={onSwitchChat}
+                                    onTriggerRename={onTriggerRename}
+                                    onTriggerDelete={onTriggerDelete}
+                                    onCloseMobileMenu={onCloseMobileMenu}
+                                    handleShareChat={handleShareChat}
+                                />
                             ))}
                         </div>
                     )}
@@ -248,4 +325,6 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             </div>
         </div>
     );
-}; 
+});
+
+ChatSidebar.displayName = 'ChatSidebar'; 

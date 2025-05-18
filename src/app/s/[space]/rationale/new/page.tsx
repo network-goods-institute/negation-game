@@ -50,7 +50,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { EditModeProvider, useEditMode } from "@/components/graph/EditModeContext";
-import { useGraphPoints } from "@/components/graph/useGraphPoints";
+import { useGraphPoints } from "@/hooks/useGraphPoints";
 import { usePublishViewpoint } from "@/mutations/usePublishViewpoint";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Loader } from "@/components/ui/loader";
