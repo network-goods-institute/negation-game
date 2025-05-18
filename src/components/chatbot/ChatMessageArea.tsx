@@ -227,34 +227,71 @@ export function ChatMessageArea({
                                                 />
                                             </div>
                                         )}
+                                        {msg.role === 'assistant' && (
+                                            <div className="absolute bottom-2 right-2 flex gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                                    title="Copy (Ctrl+Click for raw)"
+                                                    onClick={(e) => {
+                                                        if (e.ctrlKey || e.metaKey) {
+                                                            handleRawCopy(i);
+                                                        } else {
+                                                            handleCopy(i);
+                                                        }
+                                                    }}
+                                                    disabled={isGeneratingCurrent || copyingMessageId === messageId}
+                                                >
+                                                    {copyingMessageId === messageId ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                    ) : copySuccessMessageId === messageId ? (
+                                                        <Check className="h-4 w-4 text-green-500" />
+                                                    ) : (
+                                                        <Copy className="h-4 w-4" />
+                                                    )}
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                                    title="Retry"
+                                                    onClick={() => chatState.handleRetry(i)}
+                                                    disabled={isGeneratingCurrent || i === 0}
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                                                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                                                        <path d="M3 3v5h5" />
+                                                    </svg>
+                                                </Button>
+                                            </div>
+                                        )}
                                     </div>
 
-                                    <div className={`mt-1 flex w-full gap-1.5 ${msg.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                            title="Copy (Ctrl+Click for raw)"
-                                            onClick={(e) => {
-                                                if (e.ctrlKey || e.metaKey) {
-                                                    handleRawCopy(i);
-                                                } else {
-                                                    handleCopy(i);
-                                                }
-                                            }}
-                                            disabled={isGeneratingCurrent || copyingMessageId === messageId}
-                                        >
-                                            {copyingMessageId === messageId ? (
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                            ) : copySuccessMessageId === messageId ? (
-                                                <Check className="h-4 w-4 text-green-500" />
-                                            ) : (
-                                                <Copy className="h-4 w-4" />
-                                            )}
-                                        </Button>
-
-                                        {/* Only show Edit button for user messages */}
-                                        {msg.role === 'user' && (
+                                    {msg.role === 'user' && (
+                                        <div className="mt-1 flex w-full gap-1.5 justify-end">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                                title="Copy (Ctrl+Click for raw)"
+                                                onClick={(e) => {
+                                                    if (e.ctrlKey || e.metaKey) {
+                                                        handleRawCopy(i);
+                                                    } else {
+                                                        handleCopy(i);
+                                                    }
+                                                }}
+                                                disabled={isGeneratingCurrent || copyingMessageId === messageId}
+                                            >
+                                                {copyingMessageId === messageId ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : copySuccessMessageId === messageId ? (
+                                                    <Check className="h-4 w-4 text-green-500" />
+                                                ) : (
+                                                    <Copy className="h-4 w-4" />
+                                                )}
+                                            </Button>
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -263,16 +300,13 @@ export function ChatMessageArea({
                                                 onClick={() => onTriggerEdit(i, msg.content)}
                                                 disabled={isGeneratingCurrent}
                                             >
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                                                    <path d="M12 20h9" />
+                                                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                                                </svg>
                                             </Button>
-                                        )}
-
-                                        {msg.role === 'assistant' && (
-                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" title="Retry" onClick={() => chatState.handleRetry(i)} disabled={isGeneratingCurrent || i === 0}>
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
-                                            </Button>
-                                        )}
-                                    </div>
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
