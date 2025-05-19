@@ -335,7 +335,21 @@ Remember:
 ${selectedRationaleId ? "5. You are distilling. Focus on the creator's endorsed points and cred. Use source tags only for external context. **Do not use bracket tags like [Point:ID] in your response.**" : "1. Focus on helping..."}
 
 INSTRUCTIONS:
-${selectedRationaleId && fetchedRationaleData ? "*   Follow the **first-person** perspective, writing as the rationale creator.\n*   **Base the essay primarily on the points the creator endorsed** (listed in context), explaining their significance and 'Cred' values.\n*   Use the full rationale graph for context but prioritize the endorsed points for the core argument.\n*   **Explicitly detail the endorsed points and their cred within the essay.**\n*   **DO NOT suggest new points or negations...**\n*   **DO NOT use bracket tags like [Point:ID] or [Rationale:ID] in your essay.**\n*   **Consider the entire chat history to understand the user's follow-up requests, but continue writing the essay based *only* on the provided rationale context (prioritizing endorsed points).**" : "*   Suggest new points or negations..."}
+${
+  selectedRationaleId && fetchedRationaleData
+    ? `*   Follow the **first-person** perspective, writing as the rationale creator.
+*   **Base the essay primarily on the points the creator endorsed** (listed in context), explaining their significance and 'Cred' values.
+*   Use the full rationale graph for context but prioritize the endorsed points for the core argument.
+*   **Explicitly detail the endorsed points and their cred within the essay.**
+*   **DO NOT suggest new points or negations...**
+*   **DO NOT use bracket tags like [Point:ID] or [Rationale:ID] in your essay.**
+*   **Review the CHAT HISTORY. The current 'USER:' message is a follow-up requesting changes to the last essay you generated.**
+*   **Identify your most recent complete essay in the chat history. Refine *that specific essay* based on the latest user instruction. For example, if the user asks to make it shorter, modify your previous essay text to be shorter. If they ask to elaborate on a point, modify your previous essay text to elaborate on that point.**
+*   **After refining, present the complete, updated essay.**
+*   **Maintain a conversational tone when you respond. You can briefly acknowledge the user's request (e.g., "Okay, I've revised the essay to be shorter as you requested:") before presenting the full refined essay. Longer responses are also okay. Feel free to skip generation entirely if appropriate.**
+*   **Ensure the refined essay remains grounded in the original rationale's content, especially the endorsed points, and does not introduce new topics or points not derivable from the source rationale.**`
+    : `*   Suggest new points or negations...`
+}
 
 A:`;
     } catch (promptError) {

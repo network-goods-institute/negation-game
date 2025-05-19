@@ -270,7 +270,7 @@ export function ChatMessageArea({
                                     )}
 
                                     {msg.role === 'assistant' && (
-                                        <div className="mt-1 flex gap-1.5" style={{ marginLeft: isMobile ? 'calc(100% - 80px)' : 'calc(100% - 380px)' }}>
+                                        <div className={`mt-1 flex w-full ${isMobile ? 'max-w-[90%]' : 'max-w-[80%]'} justify-end gap-1.5`}>
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
