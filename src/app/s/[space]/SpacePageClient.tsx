@@ -39,6 +39,9 @@ import { createTopic } from "@/actions/createTopic";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Label } from "@/components/ui/label";
+import { validateAndFormatUrl } from "@/lib/validateUrl";
 
 interface PageProps {
     params: { space: string };
@@ -492,7 +495,9 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
     const { data: topics, refetch: refetchTopics } = useTopics(space ?? DEFAULT_SPACE);
     const [newTopicDialogOpen, setNewTopicDialogOpen] = useState(false);
     const [newTopicName, setNewTopicName] = useState("");
+    const [discourseUrl, setDiscourseUrl] = useState("");
     const [isSubmittingTopic, setIsSubmittingTopic] = useState(false);
+    const [urlError, setUrlError] = useState<string | null>(null);
     const newTopicInputRef = useRef<HTMLInputElement>(null);
 
     const availableTopics = useMemo(() => {
@@ -504,20 +509,38 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
             setTimeout(() => newTopicInputRef.current?.focus(), 50);
         } else {
             setNewTopicName("");
+            setDiscourseUrl("");
+            setUrlError(null);
         }
     }, [newTopicDialogOpen]);
 
     const handleDialogAddTopic = async () => {
         if (!newTopicName.trim()) return;
+
+        let formattedUrl = "";
+        if (discourseUrl.trim()) {
+            const validUrl = validateAndFormatUrl(discourseUrl.trim());
+            if (!validUrl) {
+                setUrlError("Please enter a valid URL");
+                return;
+            }
+            formattedUrl = validUrl;
+        }
+
         setIsSubmittingTopic(true);
         try {
-            await createTopic(newTopicName.trim(), space ?? DEFAULT_SPACE);
+            await createTopic(newTopicName.trim(), space ?? DEFAULT_SPACE, formattedUrl);
             refetchTopics();
             setTopicFilters((prev: string[]) => [...prev, newTopicName.trim()]);
             setNewTopicDialogOpen(false);
         } finally {
             setIsSubmittingTopic(false);
         }
+    };
+
+    const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setDiscourseUrl(e.target.value);
+        setUrlError(null);
     };
 
     const filteredViewpoints = useMemo(() => {
@@ -581,23 +604,56 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
                             >
                                 All Topics
                             </Button>
-                            {availableTopics.map((topicName) => (
-                                <Button
-                                    key={topicName}
-                                    variant={topicFilters.includes(topicName) ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => {
-                                        if (topicFilters.includes(topicName)) {
-                                            setTopicFilters((prev: string[]) => prev.filter(t => t !== topicName));
-                                        } else {
-                                            setTopicFilters((prev: string[]) => [...prev, topicName]);
-                                        }
-                                    }}
-                                    className="rounded-full text-xs h-7 px-3 flex-shrink-0"
-                                >
-                                    {topicName}
-                                </Button>
-                            ))}
+                            <TooltipProvider>
+                                {availableTopics.map((topicName) => {
+                                    const topic = topics?.find(t => t.name === topicName);
+                                    const validUrl = topic?.discourseUrl ? validateAndFormatUrl(topic.discourseUrl) : null;
+                                    return (
+                                        <Tooltip key={topicName}>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    variant={topicFilters.includes(topicName) ? "default" : "outline"}
+                                                    size="sm"
+                                                    className={cn(
+                                                        "rounded-full text-xs h-7 px-3 flex-shrink-0",
+                                                        validUrl && "underline decoration-dotted"
+                                                    )}
+                                                    onClick={(e) => {
+                                                        if (validUrl && (e.target as HTMLElement).tagName !== 'A') {
+                                                            window.open(validUrl, '_blank');
+                                                            return;
+                                                        }
+                                                        if (topicFilters.includes(topicName)) {
+                                                            setTopicFilters((prev: string[]) => prev.filter(t => t !== topicName));
+                                                        } else {
+                                                            setTopicFilters((prev: string[]) => [...prev, topicName]);
+                                                        }
+                                                    }}
+                                                >
+                                                    {topicName}
+                                                </Button>
+                                            </TooltipTrigger>
+                                            {validUrl && (
+                                                <TooltipContent side="bottom">
+                                                    Related: <a
+                                                        href={validUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-primary hover:underline"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            e.preventDefault();
+                                                            window.open(validUrl, '_blank');
+                                                        }}
+                                                    >
+                                                        {validUrl}
+                                                    </a>
+                                                </TooltipContent>
+                                            )}
+                                        </Tooltip>
+                                    );
+                                })}
+                            </TooltipProvider>
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -615,18 +671,35 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
                     <DialogHeader>
                         <DialogTitle>Add New Topic</DialogTitle>
                     </DialogHeader>
-                    <Input
-                        ref={newTopicInputRef}
-                        value={newTopicName}
-                        onChange={e => setNewTopicName(e.target.value)}
-                        placeholder="Enter topic name"
-                        onKeyDown={e => {
-                            if (e.key === "Enter" && newTopicName.trim()) {
-                                handleDialogAddTopic();
-                            }
-                        }}
-                        disabled={isSubmittingTopic}
-                    />
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Topic Name</Label>
+                            <Input
+                                ref={newTopicInputRef}
+                                value={newTopicName}
+                                onChange={e => setNewTopicName(e.target.value)}
+                                placeholder="Enter topic name"
+                                onKeyDown={e => {
+                                    if (e.key === "Enter" && newTopicName.trim()) {
+                                        handleDialogAddTopic();
+                                    }
+                                }}
+                                disabled={isSubmittingTopic}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Discourse URL (optional)</Label>
+                            <Input
+                                value={discourseUrl}
+                                onChange={handleUrlChange}
+                                placeholder="Enter discourse URL"
+                                disabled={isSubmittingTopic}
+                            />
+                            {urlError && (
+                                <p className="text-sm text-destructive mt-1">{urlError}</p>
+                            )}
+                        </div>
+                    </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setNewTopicDialogOpen(false)} disabled={isSubmittingTopic}>
                             Cancel
