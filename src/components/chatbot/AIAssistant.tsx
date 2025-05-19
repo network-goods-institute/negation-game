@@ -30,7 +30,6 @@ import { ChatRationale, ChatSettings, SavedChat, ChatMessage } from '@/types/cha
 import { useDiscourseIntegration } from "@/hooks/useDiscourseIntegration";
 import { useChatListManagement } from "@/hooks/useChatListManagement";
 import { useChatState } from "@/hooks/useChatState";
-import { ChatSidebar } from './ChatSidebar';
 import { computeChatStateHash } from "@/lib/negation-game/chatUtils";
 import {
     fetchUserChatMetadata,
@@ -39,9 +38,8 @@ import {
     ChatMetadata
 } from "@/actions/chatSyncActions";
 import { fetchSharedChatContent } from "@/actions/chatSharingActions";
-import { ChatHeader } from "./ChatHeader";
-import { ChatMessageArea } from "./ChatMessageArea";
-import { ChatInputForm } from "./ChatInputForm";
+import type { ChatInputFormProps } from "./ChatInputForm";
+import { ChatInputFormSkeleton } from "./ChatInputForm";
 import { fetchAllSpacePoints, PointInSpace } from "@/actions/fetchAllSpacePoints";
 import { RationaleCreator } from "./RationaleCreator";
 import { ViewpointGraph } from "@/atoms/viewpointAtoms";
@@ -49,6 +47,13 @@ import { StatementNode } from "@/components/graph/StatementNode";
 import { LinkIcon, FileText, X } from "lucide-react";
 import { EditMessageDialog } from './EditMessageDialog';
 import TopicSelector from "@/components/TopicSelector";
+import dynamic from "next/dynamic";
+import type { ChatSidebarProps } from "./ChatSidebar";
+import type { ChatHeaderProps } from "./ChatHeader";
+import type { ChatMessageAreaProps } from "./ChatMessageArea";
+import { ChatListSkeleton } from './ChatSidebar';
+import { ChatHeaderSkeleton } from './ChatHeader';
+import { ChatLoadingState } from './ChatMessageArea';
 
 type OwnedPoint = ProfilePoint;
 
@@ -92,6 +97,24 @@ interface BackgroundSyncStatsRef {
     deletes: number;
     errors: number;
 }
+
+// Code-split heavy UI components
+const ChatSidebar = dynamic<ChatSidebarProps>(
+    () => import('./ChatSidebar').then((mod) => mod.ChatSidebar),
+    { ssr: false, loading: () => <ChatListSkeleton /> }
+);
+const ChatHeader = dynamic<ChatHeaderProps>(
+    () => import('./ChatHeader').then((mod) => mod.ChatHeader),
+    { ssr: false, loading: () => <ChatHeaderSkeleton /> }
+);
+const ChatMessageArea = dynamic<ChatMessageAreaProps>(
+    () => import('./ChatMessageArea').then((mod) => mod.ChatMessageArea),
+    { ssr: false, loading: () => <ChatLoadingState /> }
+);
+const ChatInputForm = dynamic<ChatInputFormProps>(
+    () => import('./ChatInputForm').then((mod) => mod.ChatInputForm),
+    { ssr: false, loading: () => <ChatInputFormSkeleton /> }
+);
 
 export default function AIAssistant() {
     const router = useRouter();

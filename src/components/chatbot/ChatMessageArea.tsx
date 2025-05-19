@@ -16,7 +16,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from 'sonner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const ChatLoadingState = () => {
+export const ChatLoadingState = () => {
     return (
         <div className="flex-1 flex flex-col h-full overflow-hidden bg-muted/30">
             <div className="p-6 space-y-6">
@@ -44,7 +44,7 @@ const ChatLoadingState = () => {
     );
 };
 
-interface ChatMessageAreaProps {
+export interface ChatMessageAreaProps {
     isInitializing: boolean;
     isFetchingRationales: boolean;
     chatState: ReturnType<typeof useChatState>;

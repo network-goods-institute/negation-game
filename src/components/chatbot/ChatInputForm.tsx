@@ -5,7 +5,13 @@ import { AutosizeTextarea } from "@/components/ui/autosize-textarea";
 import { AuthenticatedActionButton } from "@/components/AuthenticatedActionButton";
 import { SlidersHorizontal } from "lucide-react";
 
-interface ChatInputFormProps {
+export const ChatInputFormSkeleton = () => (
+    <div className="fixed bottom-0 border-t bg-background p-4 left-0 md:left-[var(--sidebar-width)] right-0 z-20 animate-pulse">
+        <div className="w-full lg:max-w-3xl xl:max-w-4xl mx-auto h-10 bg-muted rounded" />
+    </div>
+);
+
+export interface ChatInputFormProps {
     message: string;
     setMessage: (value: string) => void;
     isGenerating: boolean;

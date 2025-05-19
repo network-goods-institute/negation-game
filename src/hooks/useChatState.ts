@@ -561,14 +561,15 @@ export function useChatState({
       const historyForRetry = chatMessages.slice(0, messageIndex);
       setChatMessages(historyForRetry);
 
-      // Use last flow params if available, otherwise fallback
+      // Determine which flow to retry: use lastFlowParams if set, otherwise derive from saved chat
+      const savedChatForRetry = savedChats.find((c) => c.id === chatIdToUse);
       const {
         flowType: retryFlow,
         rationaleId: retryRationaleId,
         description: retryDescription,
         linkUrl: retryLinkUrl,
-      } = lastFlowParamsRef.current ||
-      determineFlowParams(undefined, currentGraphRef.current);
+      } = lastFlowParamsRef.current ??
+      determineFlowParams(savedChatForRetry, currentGraphRef.current);
 
       await handleResponse(
         historyForRetry,
@@ -585,6 +586,9 @@ export function useChatState({
       currentChatId,
       handleResponse,
       isAuthenticated,
+      savedChats,
+      lastFlowParamsRef,
+      currentGraphRef,
     ]
   );
 

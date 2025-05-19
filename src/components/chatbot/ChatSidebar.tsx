@@ -15,7 +15,7 @@ import { Skeleton } from '../ui/skeleton';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 
-const ChatListSkeleton = () => {
+export const ChatListSkeleton = () => {
     return (
         <div className="p-3 space-y-3">
             {[...Array(5)].map((_, i) => (
@@ -158,7 +158,7 @@ const ChatListItem = React.memo(({
 
 ChatListItem.displayName = 'ChatListItem';
 
-interface ChatSidebarProps {
+export interface ChatSidebarProps {
     isMobile: boolean;
     showMobileMenu: boolean;
     isInitializing: boolean;
