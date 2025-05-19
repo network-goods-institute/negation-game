@@ -466,10 +466,10 @@ export function useChatActions({
         if (!chatExists) {
           const newChatFromServer: SavedChat = {
             ...serverChatData,
-            space: currentSpace, // Ensure space is set to currentSpace
-            graph: serverChatData.graph, // Preserve graph data
+            space: currentSpace,
+            graph: serverChatData.graph,
           };
-          updatedChats.unshift(newChatFromServer); // Add to the beginning if it's new
+          updatedChats.unshift(newChatFromServer);
         }
 
         updatedChats.sort(

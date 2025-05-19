@@ -161,12 +161,6 @@ export function useChatSync({
     (chatData: SavedChat, immediate = false) => {
       if (!chatData || !chatData.id) return;
 
-      console.log("[queuePushUpdate] Queueing update:", {
-        chatId: chatData.id,
-        distillRationaleId: chatData.distillRationaleId,
-        immediate,
-      });
-
       setPendingPushIds((prev) => new Set(prev).add(chatData.id));
 
       if (immediate) {

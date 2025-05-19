@@ -22,6 +22,8 @@ import {
   mapOptionToFlowType,
 } from "@/hooks/useChatFlow";
 
+/* eslint-disable drizzle/enforce-delete-with-where */
+
 interface UseChatStateProps {
   currentChatId: string | null;
   currentSpace: string | null;
@@ -181,18 +183,33 @@ export function useChatState({
       graph?: ViewpointGraph | null
     ) => {
       const chatToUpdate = savedChats.find((c) => c.id === chatId);
-      const rationaleIdForUpdate = chatToUpdate?.distillRationaleId ?? null;
+      const rationaleIdForUpdate =
+        chatToUpdate?.distillRationaleId ??
+        lastFlowParamsRef.current?.rationaleId ??
+        null;
       const graphForUpdate = graph !== undefined ? graph : chatToUpdate?.graph;
       const needsTitle = !chatToUpdate || chatToUpdate.title === "New Chat";
 
+      console.log("[generateAndSetTitle] Starting title generation:", {
+        chatId,
+        currentTitle: chatToUpdate?.title,
+        distillRationaleId: rationaleIdForUpdate,
+        lastFlowRationaleId: lastFlowParamsRef.current?.rationaleId,
+        needsTitle,
+      });
+
       if (!needsTitle) {
+        console.log("[generateAndSetTitle] No title needed, updating chat:", {
+          chatId,
+          title: chatToUpdate.title,
+          distillRationaleId: rationaleIdForUpdate,
+        });
         updateChat(
           chatId,
           finalMessages,
-          undefined,
+          chatToUpdate.title,
           rationaleIdForUpdate,
-          graphForUpdate,
-          true
+          graphForUpdate
         );
         return;
       }
@@ -207,20 +224,28 @@ export function useChatState({
         try {
           while (true) {
             const { done, value } = await reader.read();
-            if (done) {
-              break;
-            }
+            if (done) break;
             if (typeof value === "string") {
               title += value;
             }
           }
-        } catch (titleStreamError) {
         } finally {
           reader.releaseLock();
         }
+
         title = title.trim();
+        console.log("[generateAndSetTitle] Generated title:", {
+          chatId,
+          title,
+          distillRationaleId: rationaleIdForUpdate,
+        });
 
         if (title) {
+          console.log("[generateAndSetTitle] Updating chat with new title:", {
+            chatId,
+            title,
+            distillRationaleId: rationaleIdForUpdate,
+          });
           updateChat(
             chatId,
             finalMessages,
@@ -230,31 +255,34 @@ export function useChatState({
             true
           );
         } else {
-          const assistantMsgContent =
-            finalMessages.find((m) => m.role === "assistant")?.content ||
-            "Chat";
-          const fallbackTitle =
-            assistantMsgContent.split("\n")[0].slice(0, 47) +
-            (assistantMsgContent.length > 47 ? "..." : "");
+          console.log(
+            "[generateAndSetTitle] No title generated, using default:",
+            {
+              chatId,
+              title: "New Chat",
+              distillRationaleId: rationaleIdForUpdate,
+            }
+          );
           updateChat(
             chatId,
             finalMessages,
-            fallbackTitle || "Chat",
+            "New Chat",
             rationaleIdForUpdate,
             graphForUpdate,
             true
           );
         }
-      } catch (titleError) {
-        const assistantMsgContent =
-          finalMessages.find((m) => m.role === "assistant")?.content || "Chat";
-        const fallbackTitle =
-          assistantMsgContent.split("\n")[0].slice(0, 47) +
-          (assistantMsgContent.length > 47 ? "..." : "");
+      } catch (error) {
+        console.error("[generateAndSetTitle] Error generating title:", error);
+        console.log("[generateAndSetTitle] Using default title after error:", {
+          chatId,
+          title: "New Chat",
+          distillRationaleId: rationaleIdForUpdate,
+        });
         updateChat(
           chatId,
           finalMessages,
-          fallbackTitle || "Chat",
+          "New Chat",
           rationaleIdForUpdate,
           graphForUpdate,
           true
@@ -262,13 +290,12 @@ export function useChatState({
       } finally {
         setGeneratingTitles((prev) => {
           const next = new Set(prev);
-          // eslint-disable-next-line drizzle/enforce-delete-with-where
           next.delete(chatId);
           return next;
         });
       }
     },
-    [savedChats, updateChat]
+    [savedChats, updateChat, setGeneratingTitles, lastFlowParamsRef]
   );
 
   const handleResponse = useCallback(
@@ -280,13 +307,27 @@ export function useChatState({
       rationaleDescription?: string,
       linkUrl?: string
     ) => {
+      console.log("[handleResponse] Starting response generation:", {
+        chatId: chatIdToUse,
+        flowType,
+        distillRationaleId: selectedRationaleId,
+        hasDescription: !!rationaleDescription,
+        hasLinkUrl: !!linkUrl,
+        currentMessages: messagesForApi.length,
+      });
+
       lastFlowParamsRef.current = {
         flowType,
         rationaleId: selectedRationaleId,
         description: rationaleDescription,
         linkUrl,
       };
+
       if (generatingChats.has(chatIdToUse)) {
+        console.log(
+          "[handleResponse] Already generating for this chat:",
+          chatIdToUse
+        );
         return;
       }
 
@@ -312,6 +353,12 @@ export function useChatState({
           id: `${chatIdToUse}-${index}`,
         }));
 
+        console.log("[handleResponse] Generating response for flow type:", {
+          flowType,
+          chatId: chatIdToUse,
+          distillRationaleId: selectedRationaleId,
+        });
+
         if (flowType === "generate") {
           responseStream = await generateSuggestionChatBotResponse(
             messagesForApi,
@@ -322,6 +369,13 @@ export function useChatState({
             settings.includeDiscourseMessages ? storedMessages : []
           );
         } else if (flowType === "distill") {
+          console.log(
+            "[handleResponse] Starting distill response generation:",
+            {
+              chatId: chatIdToUse,
+              distillRationaleId: selectedRationaleId,
+            }
+          );
           responseStream = await generateDistillRationaleChatBotResponse(
             messagesForApi,
             settings,
@@ -370,7 +424,6 @@ export function useChatState({
             if (!firstChunkReceived && !done) {
               setFetchingContextChats((prev) => {
                 const newSet = new Set(prev);
-                // eslint-disable-next-line drizzle/enforce-delete-with-where
                 newSet.delete(chatIdToUse);
                 return newSet;
               });
@@ -389,6 +442,12 @@ export function useChatState({
             }
           }
         } catch (streamError) {
+          console.error("[handleResponse] Stream error:", {
+            error: streamError,
+            chatId: chatIdToUse,
+            flowType,
+            distillRationaleId: selectedRationaleId,
+          });
           toast.error(`Error reading AI response stream (${flowType}).`);
           streamTextContent += "\n\n[Error processing stream]";
         } finally {
@@ -412,6 +471,13 @@ export function useChatState({
         };
         const finalMessages = [...messagesForApi, assistantMessage];
 
+        console.log("[handleResponse] Response generation complete:", {
+          chatId: chatIdToUse,
+          flowType,
+          distillRationaleId: selectedRationaleId,
+          messageCount: finalMessages.length,
+        });
+
         // Only update local messages during active generation for this chat
         if (activeGeneratingChatRef.current === chatIdToUse) {
           setChatMessages(finalMessages);
@@ -423,11 +489,24 @@ export function useChatState({
           if (graphToSave) {
             currentGraphRef.current = graphToSave;
           }
+          console.log("[handleResponse] Starting title generation:", {
+            chatId: chatIdToUse,
+            flowType,
+            distillRationaleId: selectedRationaleId,
+          });
           generateAndSetTitle(chatIdToUse, finalMessages, graphToSave).catch(
-            (error) => {}
+            (error) => {
+              console.error("[handleResponse] Title generation error:", error);
+            }
           );
         }
       } catch (error) {
+        console.error("[handleResponse] Error during response generation:", {
+          error,
+          chatId: chatIdToUse,
+          flowType,
+          distillRationaleId: selectedRationaleId,
+        });
         toast.error(
           error instanceof Error
             ? error.message
@@ -448,6 +527,12 @@ export function useChatState({
 
         if (chatIdToUse) {
           const currentChat = savedChats.find((c) => c.id === chatIdToUse);
+          console.log("[handleResponse] Updating chat after error:", {
+            chatId: chatIdToUse,
+            flowType,
+            distillRationaleId: selectedRationaleId,
+            currentChatDistillId: currentChat?.distillRationaleId,
+          });
           updateChat(
             chatIdToUse,
             messagesWithError,
@@ -464,19 +549,16 @@ export function useChatState({
         }
         setGeneratingChats((prev) => {
           const newSet = new Set(prev);
-          // eslint-disable-next-line drizzle/enforce-delete-with-where
           newSet.delete(chatIdToUse);
           return newSet;
         });
         setFetchingContextChats((prev) => {
           const newSet = new Set(prev);
-          // eslint-disable-next-line drizzle/enforce-delete-with-where
           newSet.delete(chatIdToUse);
           return newSet;
         });
         setStreamingContents((prev) => {
           const newMap = new Map(prev);
-          // eslint-disable-next-line drizzle/enforce-delete-with-where
           newMap.delete(chatIdToUse);
           return newMap;
         });
@@ -736,13 +818,28 @@ export function useChatState({
       selectedRationaleTitle: string,
       rationale: ChatRationale
     ) => {
-      if (!selectedRationaleId || !currentSpace || !isAuthenticated) return;
+      console.log("[startDistillChat] Starting distill chat:", {
+        selectedRationaleId,
+        selectedRationaleTitle,
+        currentChatId,
+      });
+
+      if (!selectedRationaleId || !currentSpace || !isAuthenticated) {
+        console.log("[startDistillChat] Invalid state:", {
+          hasRationaleId: !!selectedRationaleId,
+          hasSpace: !!currentSpace,
+          isAuthenticated,
+        });
+        return;
+      }
 
       let chatIdToUse = currentChatId;
 
       if (!chatIdToUse) {
+        console.log("[startDistillChat] Creating new chat for distillation");
         const newId = await createNewChat(undefined);
         if (!newId) {
+          console.error("[startDistillChat] Failed to create new chat");
           toast.error("Failed to create new chat for distillation.");
           return;
         }
@@ -757,14 +854,29 @@ export function useChatState({
         { role: "user", content: initialUserMessage },
       ];
 
+      console.log(
+        "[startDistillChat] Setting initial messages and distillRationaleId:",
+        {
+          chatId: chatIdToUse,
+          distillRationaleId: selectedRationaleId,
+        }
+      );
+
       setChatMessages(initialMessages);
+      // Immediately push initial distill setup to server
       updateChat(
         chatIdToUse,
         initialMessages,
         undefined,
         selectedRationaleId,
-        null
+        null,
+        true
       );
+
+      console.log("[startDistillChat] Starting response generation:", {
+        chatId: chatIdToUse,
+        distillRationaleId: selectedRationaleId,
+      });
 
       await handleResponse(
         initialMessages,

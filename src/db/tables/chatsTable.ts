@@ -28,6 +28,7 @@ export const chatsTable = pgTable("chats", {
   deleted_at: timestamp("deleted_at", { withTimezone: true }),
   is_shared: boolean("is_shared").notNull().default(false),
   share_id: text("share_id").unique(),
+  distillRationaleId: text("distill_rationale_id"),
 });
 
 export const chatsRelations = relations(chatsTable, ({ one }) => ({

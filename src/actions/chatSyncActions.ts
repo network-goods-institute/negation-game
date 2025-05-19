@@ -30,6 +30,7 @@ const ChatContentSchema = z.object({
   createdAt: z.date(),
   updatedAt: z.date(),
   graph: z.custom<ViewpointGraph>().optional().nullable(),
+  distillRationaleId: z.string().nullable().optional(),
 });
 export type ChatContent = z.infer<typeof ChatContentSchema>;
 
@@ -40,6 +41,7 @@ const ClientChatCreateSchema = z.object({
   state_hash: z.string(),
   spaceId: z.string(),
   graph: z.custom<ViewpointGraph>().optional().nullable(),
+  distillRationaleId: z.string().nullable().optional(),
 });
 
 const ClientChatUpdateSchema = z.object({
@@ -48,6 +50,7 @@ const ClientChatUpdateSchema = z.object({
   messages: z.array(z.any()),
   state_hash: z.string(),
   graph: z.custom<ViewpointGraph>().optional().nullable(),
+  distillRationaleId: z.string().nullable().optional(),
 });
 
 /**
@@ -113,6 +116,7 @@ export async function fetchChatContent(
         createdAt: chatsTable.createdAt,
         updatedAt: chatsTable.updatedAt,
         graph: chatsTable.graph,
+        distillRationaleId: chatsTable.distillRationaleId,
       })
       .from(chatsTable)
       .where(and(eq(chatsTable.id, chatId), eq(chatsTable.userId, userId)))
@@ -175,6 +179,7 @@ export async function createDbChat(
     state_hash: createStateHash,
     spaceId: createSpaceId,
     graph: createGraph,
+    distillRationaleId: createDistillRationaleId,
   } = validation.data;
 
   try {
@@ -186,6 +191,7 @@ export async function createDbChat(
       messages: createMessages,
       state_hash: createStateHash,
       graph: createGraph,
+      distillRationaleId: createDistillRationaleId,
     });
     return { success: true, id: createId };
   } catch (error) {
@@ -224,6 +230,7 @@ export async function updateDbChat(
     messages: updateMessages,
     state_hash: updateStateHash,
     graph: updateGraph,
+    distillRationaleId: updateDistillRationaleId,
   } = updateValidation.data;
 
   try {
@@ -235,9 +242,13 @@ export async function updateDbChat(
         state_hash: updateStateHash,
         updatedAt: new Date(),
         graph: updateGraph,
+        distillRationaleId: updateDistillRationaleId,
       })
       .where(and(eq(chatsTable.id, updateId), eq(chatsTable.userId, userId)))
-      .returning({ updatedId: chatsTable.id });
+      .returning({
+        updatedId: chatsTable.id,
+        distillRationaleId: chatsTable.distillRationaleId,
+      });
 
     if (result.length === 0) {
       return { success: false, error: "Chat not found or access denied." };
