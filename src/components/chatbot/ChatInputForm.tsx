@@ -44,7 +44,7 @@ export function ChatInputForm({
 }: ChatInputFormProps) {
     return (
         <div
-            className={`fixed bottom-0 border-t bg-background ${isMobile ? "p-2" : "p-4"} left-0 md:left-[var(--sidebar-width)] right-0 z-20`}
+            className={`fixed bottom-0 border-t bg-background ${isMobile ? "p-2" : "p-4"} left-0 right-0 z-20`}
         >
             <form
                 className={`w-full lg:max-w-3xl xl:max-w-4xl mx-auto flex items-end gap-2 md:gap-3`}
