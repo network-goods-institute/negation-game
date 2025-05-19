@@ -159,6 +159,7 @@ export default function AIAssistant() {
 
     const [isSyncing, setIsSyncing] = useState(false);
     const [syncActivity, setSyncActivity] = useState<'idle' | 'checking' | 'pulling' | 'saving' | 'error'>('idle');
+    const isPulling = syncActivity === 'pulling';
     const [lastSyncTime, setLastSyncTime] = useState<number | null>(null);
     const [lastSyncStats, setLastSyncStats] = useState<SyncStats | null>(null);
     const [syncError, setSyncError] = useState<string | null>(null);
@@ -521,6 +522,10 @@ export default function AIAssistant() {
     };
     const handleFormSubmit = (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
+        if (isPulling) {
+            toast.info("Sync in progress. Please wait before sending.");
+            return;
+        }
         if (chatState.generatingChats.has(chatList.currentChatId || "")) return;
         // If triggered by button click, call without event; otherwise, pass the form event
         if ((e as React.MouseEvent<HTMLButtonElement>).type === 'click') {
@@ -531,8 +536,15 @@ export default function AIAssistant() {
     };
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === "Enter" && !e.shiftKey) {
+            if (isPulling) {
+                toast.info("Sync in progress. Please wait before sending.");
+                return;
+            }
             e.preventDefault();
-            if (chatState.message.trim() && !chatState.generatingChats.has(chatList.currentChatId || "")) {
+            if (
+                chatState.message.trim() &&
+                !chatState.generatingChats.has(chatList.currentChatId || "")
+            ) {
                 chatState.handleSubmit();
             }
         }
@@ -718,13 +730,19 @@ export default function AIAssistant() {
                 }
 
                 chatsToUpdateLocally.forEach(chat => {
-                    if (currentPendingPushIds.has(chat.id)) {
+                    if (
+                        currentPendingPushIds.has(chat.id) ||
+                        chat.id === chatList.currentChatId
+                    ) {
                         return;
                     }
                     chatList.replaceChat(chat.id, chat);
                 });
                 chatsToDeleteLocally.forEach(id => {
-                    if (currentPendingPushIds.has(id)) {
+                    if (
+                        currentPendingPushIds.has(id) ||
+                        id === chatList.currentChatId
+                    ) {
                         return;
                     }
                     try {
@@ -978,7 +996,7 @@ export default function AIAssistant() {
                     onShowMobileMenu={() => setShowMobileMenu(true)}
                     onBack={() => handleBackNavigation(router, setInitialTab)}
                     onTriggerSync={syncChatsRef.current}
-                    isPulling={syncActivity === 'pulling'}
+                    isPulling={isPulling}
                     isSaving={syncActivity === 'saving'}
                     isOffline={isOffline}
                     mode={mode}

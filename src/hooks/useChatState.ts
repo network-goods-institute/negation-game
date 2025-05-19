@@ -86,7 +86,6 @@ export function useChatState({
   const currentChat = savedChats.find((c) => c.id === currentChatId);
   const currentChatStateHash = currentChat?.state_hash;
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     // Avoid syncing while AI is generating a response (or handling edits)
     if (currentChatId && generatingChats.has(currentChatId)) {
@@ -97,13 +96,16 @@ export function useChatState({
     const newGraphFromSavedChat = currentChat?.graph;
 
     const didChatIdChange = currentChatId !== prevChatIdRef.current;
-
     if (didChatIdChange) {
       // Switched to a new chat, so reset local messages to what's in the newly selected saved chat.
       setChatMessages(newMessagesFromSavedChat);
       currentGraphRef.current = newGraphFromSavedChat;
       // prevChatIdRef.current is updated at the end of the effect
     } else {
+      if (currentChatId && generatingChats.has(currentChatId)) {
+        prevChatIdRef.current = currentChatId;
+        return;
+      }
       // Still on the same chat. Compare local messages with messages from savedChat.
       const localMessagesJson = JSON.stringify(chatMessages);
       const savedMessagesJson = JSON.stringify(newMessagesFromSavedChat);
@@ -410,6 +412,7 @@ export function useChatState({
         };
         const finalMessages = [...messagesForApi, assistantMessage];
 
+        // Only update local messages during active generation for this chat
         if (activeGeneratingChatRef.current === chatIdToUse) {
           setChatMessages(finalMessages);
         }
@@ -438,6 +441,7 @@ export function useChatState({
         };
         const messagesWithError = [...messagesForApi, errorMessage];
 
+        // Only update local messages on error if still the active generating chat
         if (activeGeneratingChatRef.current === chatIdToUse) {
           setChatMessages(messagesWithError);
         }
@@ -478,6 +482,7 @@ export function useChatState({
         });
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       generatingChats,
       settings,
@@ -488,6 +493,7 @@ export function useChatState({
       generateAndSetTitle,
       updateChat,
       savedChats,
+      currentChatId,
     ]
   );
 
@@ -618,17 +624,15 @@ export function useChatState({
 
       setChatMessages(historyForEdit);
 
-      // Use last flow params if available, otherwise fallback
+      // Use last flow params if available, otherwise infer from saved chat to preserve distill
+      const savedChatForEdit = savedChats.find((c) => c.id === currentChatId);
       const {
         flowType: editFlow,
         rationaleId: editRationaleId,
         description: editDescription,
         linkUrl: editLinkUrl,
-      } = lastFlowParamsRef.current ||
-      determineFlowParams(
-        undefined,
-        savedChats.find((c) => c.id === currentChatId)?.graph
-      );
+      } = lastFlowParamsRef.current ??
+      determineFlowParams(savedChatForEdit, savedChatForEdit?.graph ?? null);
       await handleResponse(
         historyForEdit,
         currentChatId || "",
@@ -736,12 +740,15 @@ export function useChatState({
 
       let chatIdToUse = currentChatId;
 
-      const newId = await createNewChat(undefined);
-      if (!newId) {
-        toast.error("Failed to create new chat for distillation.");
-        return;
+      if (!chatIdToUse) {
+        const newId = await createNewChat(undefined);
+        if (!newId) {
+          toast.error("Failed to create new chat for distillation.");
+          return;
+        }
+        chatIdToUse = newId;
+        setChatMessages([]);
       }
-      chatIdToUse = newId;
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       const initialUserMessage = `Please help me distill my rationale titled "${selectedRationaleTitle}" (ID: ${selectedRationaleId}) into a well-structured essay. The rationale has ${rationale.graph.nodes.length} points and ${rationale.graph.edges.length} connections. Focus on organizing these points into a coherent argument. Here's the description: "${rationale.description}". Please incorporate relevant context about my endorsed points related to this topic. Do not suggest new points or negations.`;

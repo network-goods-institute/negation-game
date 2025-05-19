@@ -1,0 +1,1 @@
+ALTER TABLE "chats" ADD COLUMN "distill_rationale_id" text;
