@@ -20,6 +20,14 @@ export interface PreviewPointEditorProps extends HTMLAttributes<HTMLDivElement> 
     extraCompact?: boolean;
 }
 
+const MIN_LENGTH_MESSAGE = (
+    <>
+        Points should be standalone or related to their negations. If you want to
+        simply say Yes/No, please restate the statement or explain why you disagree
+        (if a negation).
+    </>
+);
+
 export const PreviewPointEditor: FC<PreviewPointEditorProps> = ({
     className,
     content,
@@ -41,6 +49,8 @@ export const PreviewPointEditor: FC<PreviewPointEditorProps> = ({
     const placeholderText = placeholder || defaultPlaceholder;
 
     const charactersLeft = POINT_MAX_LENGTH - content.length;
+    const showMinLengthMessage =
+        content.length > 0 && content.length < POINT_MIN_LENGTH;
 
     return (
         <div className={cn("flex-grow flex flex-col gap-2 pt-1", className)}>
@@ -57,7 +67,9 @@ export const PreviewPointEditor: FC<PreviewPointEditorProps> = ({
                 {...textareaProps}
             />
             <Separator className="w-full" />
-            <p className="text-muted-foreground/70 text-xs -mt-1">{guidanceNotes}</p>
+            <p className="text-muted-foreground/70 text-xs -mt-1">
+                {showMinLengthMessage ? MIN_LENGTH_MESSAGE : guidanceNotes}
+            </p>
 
             <div className="flex w-full flex-col items-stretch gap-sm">
                 <div className="flex gap-sm items-center self-end">
