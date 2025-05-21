@@ -990,6 +990,7 @@ export const GraphView = ({
         </Panel>
 
         <GlobalExpandPointDialog />
+        <MergeNodesDialog />
       </ReactFlow>
 
       {/* Unsaved changes discard dialog */}
@@ -1103,8 +1104,6 @@ export const GraphView = ({
         initialPoints={shareDialogMode === 'view' ? sharedPoints : undefined}
         sharedBy={shareDialogMode === 'view' ? sharedByUsername : undefined}
       />
-
-      <MergeNodesDialog />
     </>
   );
 };

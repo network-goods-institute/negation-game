@@ -1,3 +1,4 @@
+"use client";
 import { GitMergeIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAtom } from "jotai";
@@ -312,6 +313,15 @@ export const MergeNodesDialog = () => {
                             </p>
                         </div>
                     )}
+
+                    <ul className="space-y-2">
+                        {dialogState.duplicateNodes.map((node) => (
+                            <li key={node.id} className="flex items-center">
+                                <XIcon className="h-4 w-4 text-muted-foreground" />
+                                <span className="ml-2 flex-1">{node.pointId}</span>
+                            </li>
+                        ))}
+                    </ul>
                 </div>
 
                 <div className={cn(
