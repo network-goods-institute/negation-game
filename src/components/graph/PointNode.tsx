@@ -91,7 +91,7 @@ export const PointNode = ({
   const prefetchPoint = usePrefetchPoint();
   const prefetchUserEndorsements = usePrefetchUserEndorsements();
 
-  const { data: pointData } = usePointData(pointId);
+  const { data: pointData, isLoading: isPointDataLoading } = usePointData(pointId);
   const { data: opCred } = useUserEndorsement(originalPosterId, pointId);
 
   const endorsedByOp = opCred && opCred > 0;
@@ -1122,33 +1122,33 @@ export const PointNode = ({
             )}
           </Handle>
         )}
-        {pointData ? (
-          <>
-            <PointCard
-              onNegate={() => setNegatedPointId(pointId)}
-              amountNegations={pointData.amountNegations}
-              amountSupporters={pointData.amountSupporters}
-              content={pointData.content}
-              createdAt={pointData.createdAt}
-              cred={pointData.cred}
-              favor={pointData.favor}
-              pointId={pointData.pointId}
-              viewerContext={{ viewerCred: pointData.viewerCred }}
-              space={pointData.space ?? undefined}
-              isCommand={pointData.isCommand}
-              className={cn(
-                "bg-muted/40 rounded-sm z-10 max-w-[300px] break-words"
-              )}
-              originalPosterId={originalPosterId}
-              inGraphNode={true}
-              graphNodeLevel={level}
-              disablePopover={true}
-              isSharing={isSharing}
-            ></PointCard>
-          </>
-        ) : (
-          <div className="w-full flex-grow h-32 bg-muted/40 animate-pulse" />
-        )}
+        {/* Conditionally render PointCard or its loading skeleton based on pointData */}
+        <PointCard
+          isLoading={isPointDataLoading}
+          onNegate={() => setNegatedPointId(pointId)}
+          amountNegations={pointData?.amountNegations ?? 0}
+          amountSupporters={pointData?.amountSupporters ?? 0}
+          content={pointData?.content ?? ""}
+          createdAt={pointData?.createdAt ?? new Date()}
+          cred={pointData?.cred ?? 0}
+          favor={pointData?.favor ?? 0}
+          pointId={pointId}
+          viewerContext={{ viewerCred: pointData?.viewerCred }}
+          space={pointData?.space ?? undefined}
+          isCommand={pointData?.isCommand}
+          className={cn(
+            "border-0 shadow-none",
+            level % 2 === 0 && "rounded-lg",
+            level % 2 === 1 && "rounded-none"
+          )}
+          inGraphNode
+          restake={pointData?.restake ? { ...pointData.restake, isOwner: false } : null}
+          totalRestakeAmount={pointData?.totalRestakeAmount}
+          doubt={pointData?.doubt}
+          originalPosterId={originalPosterId}
+          graphNodeLevel={level}
+          isSharing={isSharing}
+        />
       </div>
 
       {/* Disconnect point confirmation dialog */}

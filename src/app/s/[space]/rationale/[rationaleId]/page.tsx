@@ -72,7 +72,7 @@ function PointCardWrapper({
     className?: string;
     isSharing?: boolean;
 }) {
-    const { data: pointData } = usePointData(point.pointId);
+    const { data: pointData, isLoading: isPointDataLoading } = usePointData(point.pointId);
     const { originalPosterId } = useOriginalPoster();
     const setNegatedPointId = useSetAtom(negatedPointIdAtom);
     const [hoveredPointId] = useAtom(hoveredPointIdAtom);
@@ -83,24 +83,20 @@ function PointCardWrapper({
         timelineScale: "1W"
     });
 
-    if (!pointData)
-        return (
-            <div className={cn("h-32 w-full bg-muted animate-pulse", className)} />
-        );
-
     return (
         <PointCard
+            isLoading={isPointDataLoading}
             className={cn(
                 className,
                 hoveredPointId === point.pointId && "shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
             )}
             pointId={point.pointId}
-            content={pointData.content}
-            createdAt={pointData.createdAt}
-            cred={pointData.cred}
-            favor={pointData.favor}
-            amountSupporters={pointData.amountSupporters}
-            amountNegations={pointData.amountNegations}
+            content={pointData?.content ?? ""}
+            createdAt={pointData?.createdAt ?? new Date()}
+            cred={pointData?.cred ?? 0}
+            favor={pointData?.favor ?? 0}
+            amountSupporters={pointData?.amountSupporters ?? 0}
+            amountNegations={pointData?.amountNegations ?? 0}
             originalPosterId={originalPosterId}
             onNegate={() => setNegatedPointId(point.pointId)}
             inRationale={true}
