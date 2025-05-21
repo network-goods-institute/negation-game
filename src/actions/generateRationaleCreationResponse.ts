@@ -206,10 +206,26 @@ export const generateRationaleCreationResponse = async (
     *   If no graph changes were made (e.g., you only asked clarifying questions), do not output the JSON block.
     *  The user does see the output graph raw text, do not indicate that. Just state that the graph was updated.
 
-**OUTPUT FORMAT EXAMPLE (If graph changes were made):**
-// If you made changes to the graph, your response MUST start with the exact phrase below, followed by a newline, then the JSON block.
-// If you made NO changes to the graph (e.g., you are only asking clarifying questions or providing analysis), then your entire response is just your conversational text, and you MUST NOT include the phrase "I've updated the graph for you." and you MUST NOT include a JSON block.
-I've updated the graph for you.
+**OUTPUT FORMAT:**
+When responding to the user, follow these rules exactly:
+
+1. If you are ACTUALLY MODIFYING the graph structure (adding/removing/changing nodes or edges):
+   - Your response MUST start with exactly: "Okay. I've done that for you. You should see the updated graph now."
+   - Next, you must give a followup, this can be something like prompting the user with other ideas, questions, or suggestions. The goal is to keep the conversation going and help the user think of new perspectives or changes for their graph.
+   - The above two things MUST be followed by a newline and then a JSON block containing the COMPLETE updated graph
+   - Only use this format if you are making CONCRETE changes to the graph structure
+   - Never say you've updated the graph unless you're including different nodes/edges or cred values in the JSON
+   
+2. If you are NOT modifying the graph (e.g., asking questions, making suggestions, analyzing):
+   - Just write your response text
+   - DO NOT include the update confirmation phrase
+   - DO NOT include any JSON block
+   - Even if discussing potential changes, don't claim you've made them unless you actually have
+
+Example of a change response:
+Okay. I've done that for you. You should see the updated graph now.
+
+H
 
 \`\`\`json
 {
@@ -303,6 +319,9 @@ I've updated the graph for you.
 }
 \`\`\`
 
+Example of a non-change response:
+"That's an interesting point about X. Have you considered how it might relate to Y? We could potentially add a counterargument about Z - would you like me to do that?"
+
 **CURRENT CONTEXT:**
 ${graphContext}
 ${pointsContext}
@@ -314,7 +333,9 @@ ${linkContext}
 - Statement node is just a title/topic. **It is NEUTRAL and NOT an arguable claim.**
 - Its children are main positions/options (not negations). **These children represent different STANCES or ANSWERS to the statement topic and connect via "statement" edges.**
 - Only points can negate other points. **A child point ALWAYS negates its parent point.**
-- Only 'statement' and 'negation' are valid edge types; do not use any other type (e.g., 'point').
+- Only two edge types are allowed: 'statement' for edges from the root statement node to its direct child positions, and 'negation' for all point-to-point relationships between points.
+- Never use 'statement' edges for point-to-point links.
+- Every point-to-point link must use 'negation'; supportive or other edge types are not allowed.
 - Every child point MUST negate its direct parent; supportive relationships are not allowed.
 - Only 'statement' edges may originate from the root statement node; never use 'statement' for point-to-point links.
 - All point-to-point links must use type 'negation'.
@@ -479,6 +500,8 @@ function extractTextAndGraph(
 ): { textContent: string; suggestedGraph: ViewpointGraph } {
   try {
     const jsonMatch = fullResponse.match(/```json\s*([\s\S]*?)\s*```/);
+
+    // If there's no JSON block or update phrase, return original text and graph
     if (!jsonMatch) {
       return {
         textContent: fullResponse,
@@ -499,6 +522,7 @@ function extractTextAndGraph(
       return { textContent, suggestedGraph: fallbackGraph };
     }
 
+    // Process nodes with defaults
     parsedGraph.nodes = parsedGraph.nodes.map((node) => {
       const position = node.position || { x: 0, y: 0 };
 
@@ -534,6 +558,8 @@ function extractTextAndGraph(
       }
       return nodeWithDefaults;
     });
+
+    // Process edges with defaults
     parsedGraph.edges = parsedGraph.edges.map((edge) => ({
       ...edge,
       selected: false,
@@ -547,7 +573,6 @@ function extractTextAndGraph(
           }
         : {}),
     }));
-
     return {
       textContent,
       suggestedGraph: parsedGraph,

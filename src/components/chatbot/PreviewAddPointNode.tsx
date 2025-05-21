@@ -95,7 +95,7 @@ export const PreviewAddPointNode = ({
       type: "point",
       data: {
         content: nodeContent,
-        viewerCred: nodeCred > 0 ? nodeCred : undefined,
+        cred: nodeCred > 0 ? nodeCred : undefined,
       },
       position: {
         x: positionAbsoluteX,

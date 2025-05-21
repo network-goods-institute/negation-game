@@ -203,20 +203,27 @@ export function useChatResponse({
           );
         } else if (flowType === "create_rationale") {
           const currentChat = savedChats.find((c) => c.id === chatIdToUse);
-          const currentGraph = currentGraphRef.current ||
-            currentChat?.graph || { nodes: [], edges: [] };
+          const baseGraph = currentGraphRef.current ||
+            currentChat?.graph || {
+              nodes: [],
+              edges: [],
+              description: "",
+              linkUrl: "",
+              topic: "",
+            };
           const context = {
-            currentGraph: currentGraph,
-            allPointsInSpace: allPointsInSpace,
-            linkUrl: linkUrl,
-            rationaleDescription: rationaleDescription,
+            currentGraph: baseGraph,
+            allPointsInSpace,
+            linkUrl,
+            rationaleDescription,
           };
           const result = await generateRationaleCreationResponse(
             messagesForApi,
             context
           );
           responseStream = result.textStream;
-          suggestedGraph = result.suggestedGraph;
+          // Merge AI-suggested graph structure with existing metadata
+          suggestedGraph = { ...baseGraph, ...result.suggestedGraph };
         } else {
           responseStream = await generateSuggestionChatBotResponse(
             messagesForApi,

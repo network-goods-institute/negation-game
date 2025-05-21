@@ -6,13 +6,12 @@ import { Button } from "@/components/ui/button";
 import { MemoizedMarkdown } from "@/components/MemoizedMarkdown";
 import { AuthenticatedActionButton } from "@/components/AuthenticatedActionButton";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { InitialOptionObject } from "@/types/chatbot";
 import { DetailedSourceList } from "./DetailedSourceList";
 import { ChatRationale } from "@/types/chat";
-import { InitialOptionObject } from "./AIAssistant";
 import { useChatState } from "@/hooks/useChatState";
 import { useChatListManagement } from "@/hooks/useChatListManagement";
 import { useDiscourseIntegration } from "@/hooks/useDiscourseIntegration";
-import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from 'sonner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -82,7 +81,7 @@ export function ChatMessageArea({
 }: ChatMessageAreaProps) {
     const [copyingMessageId, setCopyingMessageId] = useState<string | null>(null);
     const [copySuccessMessageId, setCopySuccessMessageId] = useState<string | null>(null);
-    const debouncedStreamingContent = useDebounce(currentStreamingContent, 150);
+    const streamingContent = currentStreamingContent;
 
     const handleCopy = async (index: number) => {
         const messageId = `${chatList.currentChatId || 'nochat'}-${index}`;
@@ -208,7 +207,7 @@ export function ChatMessageArea({
                             return (
                                 <div key={messageId} className={`group flex w-full flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                                     <div
-                                        className={`relative ${isMobile ? 'max-w-[90%]' : 'max-w-[80%]'} rounded-xl md:rounded-2xl shadow-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-card text-card-foreground'} p-3 md:p-4`}
+                                        className={`relative ${msg.role === 'assistant' ? 'w-full ' : ''}${isMobile ? 'max-w-[90%]' : 'max-w-[80%]'} rounded-xl md:rounded-2xl shadow-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-card text-card-foreground'} p-3 md:p-4`}
                                     >
                                         <MemoizedMarkdown
                                             content={msg.content} id={`msg-${i}`}
@@ -319,11 +318,11 @@ export function ChatMessageArea({
                                 </div>
                             </div>
                         )}
-                        {debouncedStreamingContent && (
+                        {streamingContent && (
                             <div className="flex justify-start">
                                 <div className={`${isMobile ? 'max-w-[90%]' : 'max-w-[80%]'} rounded-xl md:rounded-2xl p-3 md:p-4 shadow-sm bg-card text-card-foreground mr-4 [&_.markdown]:text-sm [&_.markdown]:md:text-base`}>
                                     <MemoizedMarkdown
-                                        content={debouncedStreamingContent + " ▋"}
+                                        content={streamingContent + " ▋"}
                                         id="streaming"
                                         space={currentSpace}
                                         discourseUrl={discourse.discourseUrl}

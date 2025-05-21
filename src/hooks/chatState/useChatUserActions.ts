@@ -17,6 +17,14 @@ export interface UseChatUserActionsProps {
   generatingChats: Set<string>;
   savedChats: SavedChat[];
   setChatMessages: Dispatch<SetStateAction<ChatMessage[]>>;
+  updateChat: (
+    chatId: string,
+    messages: ChatMessage[],
+    title?: string,
+    distillRationaleId?: string | null,
+    graph?: ViewpointGraph | null,
+    immediate?: boolean
+  ) => void;
   handleResponse: (
     messagesForApi: ChatMessage[],
     chatId: string,
@@ -39,6 +47,7 @@ export function useChatUserActions({
   generatingChats,
   savedChats,
   setChatMessages,
+  updateChat,
   handleResponse,
   lastFlowParamsRef,
   currentGraphRef,
@@ -102,6 +111,7 @@ export function useChatUserActions({
       let chatIdToUse = currentChatId;
       const historyForRetry = chatMessages.slice(0, messageIndex);
       setChatMessages(historyForRetry);
+      updateChat(chatIdToUse, historyForRetry);
       const savedChat = savedChats.find((c) => c.id === chatIdToUse);
       const {
         flowType: retryFlow,
@@ -126,6 +136,7 @@ export function useChatUserActions({
       generatingChats,
       savedChats,
       setChatMessages,
+      updateChat,
       handleResponse,
       lastFlowParamsRef,
       currentGraphRef,
@@ -139,8 +150,7 @@ export function useChatUserActions({
         messageIndex < 0 ||
         messageIndex >= chatMessages.length ||
         chatMessages[messageIndex].role !== "user" ||
-        !newContent ||
-        chatMessages[messageIndex].content === newContent
+        !newContent
       ) {
         return;
       }
@@ -153,6 +163,7 @@ export function useChatUserActions({
         editedMessage,
       ];
       setChatMessages(historyForEdit);
+      updateChat(currentChatId, historyForEdit);
       const savedChat = savedChats.find((c) => c.id === currentChatId);
       const {
         flowType: editFlow,
@@ -177,6 +188,7 @@ export function useChatUserActions({
       chatMessages,
       savedChats,
       setChatMessages,
+      updateChat,
       handleResponse,
       lastFlowParamsRef,
     ]
