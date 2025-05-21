@@ -25,6 +25,7 @@ import { RationaleVisualFeed } from './RationaleVisualFeed';
 import { PreviewAppNode, PreviewAppEdge } from '@/types/rationaleGraph';
 import { useRationaleGraphLayout } from '@/hooks/chatbot/useRationaleGraphLayout';
 import { useRationaleCreation } from '@/hooks/chatbot/useRationaleCreation';
+import type { PointInSpace } from "@/actions/fetchAllSpacePoints";
 
 export interface RationaleCreatorProps {
     onClose: () => void;
@@ -45,6 +46,7 @@ export interface RationaleCreatorProps {
     onLinkUrlChange?: (url: string) => void;
     topic: string;
     onTopicChange: (topic: string) => void;
+    allPointsInSpace?: PointInSpace[];
 }
 
 export const RationaleCreator: React.FC<RationaleCreatorProps> = (props) => {
@@ -70,14 +72,27 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     description,
     linkUrl,
     topic,
-    onTopicChange
+    onTopicChange,
+    allPointsInSpace,
 }) => {
     const [showEditDialog, setShowEditDialog] = useState(false);
     const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(null);
     const [editingMessageContent, setEditingMessageContent] = useState<string>("");
     const [persistedGraph, setPersistedGraph] = useState<ViewpointGraph>(graphData);
-    const [nodes, setNodes, onNodesChangeReactFlow] = useNodesState<PreviewAppNode>(graphData.nodes as unknown as PreviewAppNode[]);
-    const [edges, setEdges, onEdgesChangeReactFlow] = useEdgesState<PreviewAppEdge>(graphData.edges as unknown as PreviewAppEdge[]);
+    const initialNodes = useMemo(() => {
+        return (graphData.nodes as any[]).map(node => ({
+            ...node,
+            data: {
+                ...node.data,
+                allPointsInSpaceFromProps: allPointsInSpace,
+            },
+        }));
+    }, [graphData.nodes, allPointsInSpace]);
+
+    const initialEdges = useMemo(() => graphData.edges as unknown as PreviewAppEdge[], [graphData.edges]);
+
+    const [nodes, setNodes, onNodesChangeReactFlow] = useNodesState<PreviewAppNode>(initialNodes as unknown as PreviewAppNode[]);
+    const [edges, setEdges, onEdgesChangeReactFlow] = useEdgesState<PreviewAppEdge>(initialEdges);
     const [graphModified, setGraphModified] = useState(false);
     const { pendingPushIds, currentChatId } = chatList;
     const isSavingGraph = !!currentChatId && pendingPushIds.has(currentChatId);
@@ -90,21 +105,28 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
         setEdges,
     });
 
+    const memoizedPersistedGraphNodes = useMemo(() => persistedGraph.nodes, [persistedGraph.nodes]);
+    const memoizedPersistedGraphEdges = useMemo(() => persistedGraph.edges, [persistedGraph.edges]);
+
     const {
         isCreating: isCreatingRationale,
         isDuplicateDialogOpen,
         conflictingPoints,
         handleCreateRationale,
         handleResolveDuplicates,
-        setIsDuplicateDialogOpen,
+        closeDuplicateDialog,
     } = useRationaleCreation({
         isAuthenticated,
         currentSpace,
         description,
         topic,
-        persistedGraphNodes: persistedGraph.nodes as any,
-        persistedGraphEdges: persistedGraph.edges as any,
+        persistedGraphNodes: memoizedPersistedGraphNodes,
+        persistedGraphEdges: memoizedPersistedGraphEdges,
     });
+
+    const handleCreateClick = useCallback((...args: any[]) => {
+        handleCreateRationale();
+    }, [handleCreateRationale]);
 
     const handleNodesChange: OnNodesChange<PreviewAppNode> = useCallback((changes) => {
         onNodesChangeReactFlow(changes);
@@ -205,6 +227,20 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
         }
     }, [topic, graphData.topic, graphModified]);
 
+    useEffect(() => {
+        const updatedNodes = (graphData.nodes as any[]).map(node => ({
+            ...node,
+            data: {
+                ...node.data,
+                allPointsInSpaceFromProps: allPointsInSpace,
+            },
+        }));
+        setNodes(updatedNodes as unknown as PreviewAppNode[]);
+        setEdges(graphData.edges as unknown as PreviewAppEdge[]);
+        setPersistedGraph(graphData);
+        setGraphModified(false);
+    }, [graphData, allPointsInSpace, setNodes, setEdges]);
+
     return (
         <div className="flex flex-1 overflow-hidden h-full">
             {/* Chat Area Container */}
@@ -286,13 +322,13 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
                         graphModified={graphModified}
                         isSaving={isSavingGraph}
                         isCreatingRationale={isCreatingRationale}
-                        onCreateRationaleClick={handleCreateRationale}
+                        onCreateRationaleClick={handleCreateClick}
                     />
                 )}
             </div>
             <DuplicatePointSelectionDialog
                 isOpen={isDuplicateDialogOpen}
-                onOpenChange={setIsDuplicateDialogOpen}
+                onOpenChange={closeDuplicateDialog}
                 conflicts={conflictingPoints}
                 onResolve={handleResolveDuplicates}
             />

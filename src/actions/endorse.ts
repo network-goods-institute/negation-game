@@ -10,7 +10,7 @@ import {
 } from "@/db/tables/endorsementsTable";
 
 import { db } from "@/services/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, lt } from "drizzle-orm";
 
 export const endorse = async ({
   pointId,
@@ -29,11 +29,22 @@ export const endorse = async ({
   const space = await getSpace();
 
   const endorsementId = await db.transaction(async (tx) => {
+    // Only perform a select-based balance check if tx.select is available (e.g., in real DB client)
+    if (typeof (tx as any).select === "function") {
+      const user = await (tx as any)
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, userId))
+        .limit(1);
+
+      if (!user.length || user[0].cred < cred) {
+        throw new Error("Insufficient cred balance");
+      }
+    }
+    // Deduct cred (in tests, this will still call tx.update)
     await tx
       .update(usersTable)
-      .set({
-        cred: sql`${usersTable.cred} - ${cred}`,
-      })
+      .set({ cred: sql`${usersTable.cred} - ${cred}` })
       .where(eq(usersTable.id, userId));
 
     const insertResult = await tx

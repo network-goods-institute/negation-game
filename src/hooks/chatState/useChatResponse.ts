@@ -222,8 +222,25 @@ export function useChatResponse({
             context
           );
           responseStream = result.textStream;
-          // Merge AI-suggested graph structure with existing metadata
-          suggestedGraph = { ...baseGraph, ...result.suggestedGraph };
+          const mergedNodes = result.suggestedGraph.nodes.map((aiNode) => {
+            const existingNode = baseGraph.nodes.find(
+              (n) => n.id === aiNode.id
+            );
+            if (existingNode) {
+              return {
+                ...aiNode,
+                position: existingNode.position,
+                data: { ...existingNode.data, ...aiNode.data },
+              };
+            }
+            return aiNode;
+          }) as ViewpointGraph["nodes"];
+          suggestedGraph = {
+            ...baseGraph,
+            ...result.suggestedGraph,
+            nodes: mergedNodes,
+            edges: result.suggestedGraph.edges,
+          };
         } else {
           responseStream = await generateSuggestionChatBotResponse(
             messagesForApi,
@@ -268,12 +285,6 @@ export function useChatResponse({
             }
           }
         } catch (streamError) {
-          console.error("[handleResponse] Stream error:", {
-            error: streamError,
-            chatId: chatIdToUse,
-            flowType,
-            distillRationaleId: selectedRationaleId,
-          });
           toast.error(`Error reading AI response stream (${flowType}).`);
           streamTextContent += "\n\n[Error processing stream]";
         } finally {

@@ -446,6 +446,7 @@ export function useAIAssistantController() {
     isAuthenticated,
     isInitializing,
     currentSpace,
+    allPointsInSpace,
     isMobile,
     showGraph,
     graphData: (savedChats.find((c) => c.id === currentChatId)

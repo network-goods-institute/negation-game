@@ -8,6 +8,9 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchPoints } from '@/actions/fetchPoints';
 import { PointCard } from '../PointCard';
 import { Loader } from '../ui/loader';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { InfoIcon } from "lucide-react";
+import { cn } from "@/lib/cn";
 
 export interface ConflictingPoint {
     previewNodeId: string;
@@ -103,27 +106,76 @@ export const DuplicatePointSelectionDialog: React.FC<DuplicatePointSelectionDial
                                 <p className="mb-3 font-medium text-sm break-words">Local Point Content:</p>
                                 <blockquote className="border-l-4 pl-3 mb-4 text-sm bg-muted/30 py-2 rounded-r-md">{conflict.content}</blockquote>
 
-                                <RadioGroup
-                                    value={selections.get(conflict.previewNodeId)?.toString() ?? ''}
-                                    onValueChange={(value: string) => handleSelectionChange(conflict.previewNodeId, value)}
-                                >
-                                    <p className="mb-2 text-sm font-medium">Choose Action:</p>
-                                    <div className="flex items-center space-x-2 mb-3">
-                                        <RadioGroupItem value="new" id={`${conflict.previewNodeId}-new`} />
-                                        <Label htmlFor={`${conflict.previewNodeId}-new`} className="cursor-pointer">
-                                            Create New Point
+                                <div className="space-y-4">
+                                    <p className="mb-2 text-sm font-medium">Choose Action for this point:</p>
+                                    {/* Option 1: Create New Point */}
+                                    <div className={cn(
+                                        "border rounded-md p-3 flex items-start space-x-2",
+                                        selections.get(conflict.previewNodeId) === null && "border-primary bg-primary/20"
+                                    )}>
+                                        <RadioGroup
+                                            value={selections.get(conflict.previewNodeId)?.toString() ?? ''}
+                                            onValueChange={(value: string) => handleSelectionChange(conflict.previewNodeId, value)}
+                                            className="pt-1"
+                                        >
+                                            <RadioGroupItem value="new" id={`${conflict.previewNodeId}-new`} />
+                                        </RadioGroup>
+                                        <Label htmlFor={`${conflict.previewNodeId}-new`} className={cn(
+                                            "cursor-pointer flex-1",
+                                            selections.get(conflict.previewNodeId) === null && "text-primary"
+                                        )}>
+                                            <span className={cn(
+                                                "font-semibold",
+                                                selections.get(conflict.previewNodeId) === null && "text-primary"
+                                            )}>Create New Point</span>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <InfoIcon className="ml-1 inline-block size-4 text-muted-foreground" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent className="max-w-xs">
+                                                        Creating a new point with identical content is generally discouraged as it can lead to fragmentation and confusion. It also allows you to focus your cred together with other points. It&apos;s usually better to reuse an existing point if one matches.
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                            <p className="text-xs text-muted-foreground mt-1">Choose this option to create a brand new point, even if similar existing points were found.</p>
                                         </Label>
                                     </div>
-                                    {conflict.existingPoints.map((existing) => (
-                                        <div key={existing.id} className="flex items-start space-x-2 mb-2">
-                                            <RadioGroupItem value={existing.id.toString()} id={`${conflict.previewNodeId}-${existing.id}`} className="mt-1" />
-                                            <Label htmlFor={`${conflict.previewNodeId}-${existing.id}`} className="flex-1 cursor-pointer">
-                                                Use Existing Point:
-                                                <ExistingPointOption pointId={existing.id} content={existing.content} />
-                                            </Label>
+
+                                    {/* Option 2: Use Existing Point(s) */}
+                                    {conflict.existingPoints.length > 0 && (
+                                        <div className="border rounded-md p-3">
+                                            <div className="flex items-start space-x-2 mb-3">
+                                                <RadioGroup
+                                                    value={selections.get(conflict.previewNodeId)?.toString() ?? ''}
+                                                    onValueChange={(value: string) => handleSelectionChange(conflict.previewNodeId, value)}
+                                                    className="pt-1"
+                                                >
+                                                    {/* This RadioGroup doesn't have its own item, it manages the items below */}
+                                                </RadioGroup>
+                                                <Label className="font-semibold">Use an Existing Point:</Label>
+                                            </div>
+
+                                            <RadioGroup
+                                                value={selections.get(conflict.previewNodeId)?.toString() ?? ''}
+                                                onValueChange={(value: string) => handleSelectionChange(conflict.previewNodeId, value)}
+                                                className="space-y-3 pl-6"
+                                            >
+                                                {conflict.existingPoints.map((existing) => (
+                                                    <div key={existing.id} className={cn(
+                                                        "flex items-start space-x-2",
+                                                        selections.get(conflict.previewNodeId)?.toString() === existing.id.toString() && "border rounded-md p-2 border-primary bg-primary/20"
+                                                    )}>
+                                                        <RadioGroupItem value={existing.id.toString()} id={`${conflict.previewNodeId}-${existing.id}`} className="mt-1" />
+                                                        <Label htmlFor={`${conflict.previewNodeId}-${existing.id}`} className="flex-1 cursor-pointer">
+                                                            <ExistingPointOption pointId={existing.id} content={existing.content} />
+                                                        </Label>
+                                                    </div>
+                                                ))}
+                                            </RadioGroup>
                                         </div>
-                                    ))}
-                                </RadioGroup>
+                                    )}
+                                </div>
                             </div>
                         ))}
                     </div>

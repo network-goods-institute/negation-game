@@ -25,7 +25,7 @@ interface UseRationaleCreationProps {
   currentSpace: string | null;
   description: string;
   topic: string;
-  persistedGraphNodes: RFNode[]; // Use basic RFNode type from @xyflow/react for persisted graph parts if not already PreviewAppNode
+  persistedGraphNodes: RFNode[];
   persistedGraphEdges: PreviewAppEdge[];
 }
 
@@ -41,17 +41,21 @@ export function useRationaleCreation({
   const { data: topicsData } = useTopics(currentSpace || DEFAULT_SPACE);
   const reactFlowInstance = useReactFlow<PreviewAppNode, PreviewAppEdge>();
 
-  const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
-  const [conflictingPoints, setConflictingPoints] = useState<
-    ConflictingPoint[]
-  >([]);
+  const [duplicateDialogState, setDuplicateDialogState] = useState<{
+    isOpen: boolean;
+    conflicts: ConflictingPoint[];
+  }>({ isOpen: false, conflicts: [] });
   const [resolvedMappings, setResolvedMappings] = useState<ResolvedMappings>(
     new Map()
   );
   const [isCreating, setIsCreating] = useState(false);
 
   const handleCreateRationale = useCallback(
-    async (useResolvedMappings = false) => {
+    async (_maybeUseResolvedMappings: boolean | unknown = false) => {
+      const useResolvedMappings =
+        typeof _maybeUseResolvedMappings === "boolean" &&
+        _maybeUseResolvedMappings;
+
       if (
         !isAuthenticated ||
         !currentSpace ||
@@ -65,12 +69,12 @@ export function useRationaleCreation({
 
       const currentNodes = reactFlowInstance.getNodes();
       const currentEdges = reactFlowInstance.getEdges();
-
       setIsCreating(true);
 
       const pointNodes = currentNodes.filter(
         (node) => node.type === "point"
       ) as RFNode<PreviewPointNodeData>[];
+
       for (const node of pointNodes) {
         const contentLength = node.data.content.length;
         if (
@@ -120,10 +124,6 @@ export function useRationaleCreation({
             toast.error(
               "Failed to check for existing points. Please try again."
             );
-            console.error(
-              "[useRationaleCreation] Error fetching existing points:",
-              error
-            );
             setIsCreating(false);
             return;
           }
@@ -139,22 +139,68 @@ export function useRationaleCreation({
           contentToExistingPointsMap.set(p.content, points);
         });
 
-        const conflicts: ConflictingPoint[] = pointNodes
-          .map((node) => ({
-            previewNodeId: node.id,
-            content: node.data.content,
-            existingPoints:
-              contentToExistingPointsMap.get(node.data.content) || [],
-          }))
-          .filter((conflict) => conflict.existingPoints.length > 0);
+        const contentToPreviewNodeIds = new Map<string, string[]>();
+        pointNodes.forEach((node) => {
+          const arr = contentToPreviewNodeIds.get(node.data.content) || [];
+          arr.push(node.id);
+          contentToPreviewNodeIds.set(node.data.content, arr);
+        });
 
-        if (conflicts.length > 0) {
-          setConflictingPoints(conflicts);
-          setIsDuplicateDialogOpen(true);
+        const conflictsRequiringResolution: ConflictingPoint[] = [];
+        const autoResolvedMappingsForThisCheck = new Map<
+          string,
+          number | null
+        >();
+
+        pointNodes.forEach((node) => {
+          if (node.data.existingPointId == null) {
+            const matchingDbPoints =
+              contentToExistingPointsMap.get(node.data.content) || [];
+            const duplicateIds =
+              contentToPreviewNodeIds.get(node.data.content) || [];
+
+            if (duplicateIds.length > 1) {
+              conflictsRequiringResolution.push({
+                previewNodeId: node.id,
+                content: node.data.content,
+                existingPoints: matchingDbPoints,
+              });
+            } else if (matchingDbPoints.length > 1) {
+              conflictsRequiringResolution.push({
+                previewNodeId: node.id,
+                content: node.data.content,
+                existingPoints: matchingDbPoints,
+              });
+            } else if (matchingDbPoints.length === 1) {
+              autoResolvedMappingsForThisCheck.set(
+                node.id,
+                matchingDbPoints[0].id
+              );
+            }
+          }
+        });
+
+        if (conflictsRequiringResolution.length > 0) {
+          setDuplicateDialogState({
+            isOpen: true,
+            conflicts: conflictsRequiringResolution,
+          });
+
+          setResolvedMappings(
+            (currentMappings) =>
+              new Map([
+                ...Array.from(currentMappings.entries()),
+                ...Array.from(autoResolvedMappingsForThisCheck.entries()),
+              ])
+          );
           setIsCreating(false);
           return;
         }
-        mappingsForAction = new Map<string, number | null>();
+
+        mappingsForAction = new Map([
+          ...resolvedMappings,
+          ...autoResolvedMappingsForThisCheck,
+        ]);
       }
 
       toast.info("Creating rationale...");
@@ -164,13 +210,12 @@ export function useRationaleCreation({
         | undefined;
       const rationaleTitle =
         statementNode?.data?.statement || "Untitled Rationale";
-      const rationaleDescription = description || ""; // Use description from props
+      const rationaleDescription = description || "";
 
       try {
         const spaceIdToUse = currentSpace || DEFAULT_SPACE;
         let topicIdToUse: number | undefined = undefined;
         if (topic && topicsData) {
-          // Use topic from props
           const matched = topicsData.find((t) => t.name === topic);
           if (matched) topicIdToUse = matched.id;
         }
@@ -181,8 +226,8 @@ export function useRationaleCreation({
           title: rationaleTitle,
           description: rationaleDescription,
           topicId: topicIdToUse,
-          nodes: currentNodes, // These are PreviewAppNode[] from reactFlowInstance.getNodes()
-          edges: currentEdges, // These are PreviewAppEdge[] from reactFlowInstance.getEdges()
+          nodes: currentNodes,
+          edges: currentEdges,
           resolvedMappings: mappingsForAction,
         });
 
@@ -198,7 +243,6 @@ export function useRationaleCreation({
         toast.error(
           `An error occurred: ${error.message || "Please try again"}`
         );
-        console.error("[useRationaleCreation] Action call failed:", error);
       } finally {
         setIsCreating(false);
       }
@@ -218,20 +262,28 @@ export function useRationaleCreation({
   );
 
   const handleResolveDuplicates = useCallback(
-    (mappings: ResolvedMappings) => {
-      setResolvedMappings(mappings);
-      setIsDuplicateDialogOpen(false);
-      handleCreateRationale(true); // Call with useResolvedMappings = true
+    (newlyResolvedMappings: ResolvedMappings) => {
+      setResolvedMappings(
+        (currentMappings) =>
+          new Map([
+            ...Array.from(currentMappings.entries()),
+            ...Array.from(newlyResolvedMappings.entries()),
+          ])
+      );
+      setDuplicateDialogState({ isOpen: false, conflicts: [] });
+      handleCreateRationale(true);
     },
     [handleCreateRationale]
   );
 
   return {
     isCreating,
-    isDuplicateDialogOpen,
-    conflictingPoints,
+    isDuplicateDialogOpen: duplicateDialogState.isOpen,
+    conflictingPoints: duplicateDialogState.conflicts,
     handleCreateRationale,
     handleResolveDuplicates,
-    setIsDuplicateDialogOpen,
+    closeDuplicateDialog: useCallback(() => {
+      setDuplicateDialogState({ isOpen: false, conflicts: [] });
+    }, [setDuplicateDialogState]),
   };
 }

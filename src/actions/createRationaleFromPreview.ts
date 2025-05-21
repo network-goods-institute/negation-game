@@ -12,6 +12,9 @@ import { PreviewPointNodeData } from "@/components/chatbot/PreviewPointNode";
 import { PreviewStatementNodeData } from "@/components/chatbot/PreviewStatementNode";
 import { AppNode } from "@/components/graph/AppNode";
 import { AppEdge } from "@/components/graph/AppEdge";
+import { fetchUserEndorsements } from "@/actions/fetchUserEndorsements";
+import { sellEndorsement } from "@/actions/sellEndorsement";
+import { fetchPointsByExactContent } from "@/actions/fetchPointsByExactContent";
 
 interface CreateRationaleParams {
   userId: string;
@@ -38,23 +41,15 @@ export async function createRationaleFromPreview({
   rationaleId?: string;
   error?: string;
 }> {
-  console.log("[createRationaleFromPreview] Input previewNodes:", previewNodes);
-  console.log("[createRationaleFromPreview] Input previewEdges:", previewEdges);
-  console.log(
-    "[createRationaleFromPreview] Resolved mappings:",
-    resolvedMappings
-  );
   if (!userId) return { success: false, error: "User not authenticated" };
   if (!spaceId) return { success: false, error: "Space ID is required" };
 
   const finalPointIdMap = new Map<string, number>();
-  const endorsementsToMake: { pointId: number; cred: number }[] = [];
+  const endorsementsToProcess: { pointId: number; targetCred: number }[] = [];
   let statementNodeContent = { title, description };
+  const contentToNewPointIdMap = new Map<string, number>();
 
   try {
-    console.log(
-      "[createRationaleFromPreview] Starting node and point creation processing"
-    );
     for (const node of previewNodes) {
       if (node.type === "statement") {
         const data = node.data as PreviewStatementNodeData;
@@ -64,39 +59,103 @@ export async function createRationaleFromPreview({
         };
       } else if (node.type === "point") {
         const data = node.data as PreviewPointNodeData;
-        const existingPointId = resolvedMappings.get(node.id);
         let finalPointId: number;
-        if (existingPointId != null) {
-          finalPointId = existingPointId as number;
+
+        if (
+          data.existingPointId !== undefined &&
+          data.existingPointId !== null
+        ) {
+          finalPointId = data.existingPointId;
         } else {
-          finalPointId = await makePoint({ content: data.content, cred: 0 });
+          const existingPointIdFromMappings = resolvedMappings.get(node.id);
+
+          if (
+            resolvedMappings.has(node.id) &&
+            existingPointIdFromMappings === null
+          ) {
+            if (contentToNewPointIdMap.has(data.content)) {
+              finalPointId = contentToNewPointIdMap.get(data.content)!;
+            } else {
+              finalPointId = await makePoint({
+                content: data.content,
+                cred: 0,
+              });
+              contentToNewPointIdMap.set(data.content, finalPointId);
+            }
+          } else if (
+            existingPointIdFromMappings !== undefined &&
+            existingPointIdFromMappings !== null
+          ) {
+            finalPointId = existingPointIdFromMappings;
+          } else {
+            if (contentToNewPointIdMap.has(data.content)) {
+              finalPointId = contentToNewPointIdMap.get(data.content)!;
+            } else {
+              const existingGlobalPoints = await fetchPointsByExactContent(
+                [data.content],
+                spaceId
+              );
+              if (existingGlobalPoints.length > 0) {
+                finalPointId = existingGlobalPoints[0].id;
+                contentToNewPointIdMap.set(data.content, finalPointId);
+              } else {
+                finalPointId = await makePoint({
+                  content: data.content,
+                  cred: 0,
+                });
+                contentToNewPointIdMap.set(data.content, finalPointId);
+              }
+            }
+          }
         }
+
         finalPointIdMap.set(node.id, finalPointId);
-        if (data.cred && data.cred > 0) {
-          endorsementsToMake.push({
+        if (typeof data.cred === "number") {
+          endorsementsToProcess.push({
             pointId: finalPointId,
-            cred: data.cred,
+            targetCred: data.cred,
           });
         }
       }
     }
 
-    for (const endorsement of endorsementsToMake) {
-      await endorse({
-        pointId: endorsement.pointId,
-        cred: endorsement.cred,
-      });
+    const endorsementsMap = new Map<number, number>();
+    endorsementsToProcess.forEach(({ pointId, targetCred }) => {
+      const prev = endorsementsMap.get(pointId) ?? 0;
+      endorsementsMap.set(pointId, Math.max(prev, targetCred));
+    });
+    const uniqueEndorsementsToProcess = Array.from(
+      endorsementsMap.entries()
+    ).map(([pointId, targetCred]) => ({ pointId, targetCred }));
+
+    if (uniqueEndorsementsToProcess.length > 0) {
+      const pointIdsToFetch = [
+        ...new Set(uniqueEndorsementsToProcess.map((e) => e.pointId)),
+      ];
+      const currentUserEndorsementsArray = await fetchUserEndorsements(
+        userId,
+        pointIdsToFetch
+      );
+      const currentUserEndorsementsMap = new Map(
+        currentUserEndorsementsArray.map((e) => [e.pointId, e.cred])
+      );
+
+      for (const { pointId, targetCred } of uniqueEndorsementsToProcess) {
+        const currentCredForPoint =
+          currentUserEndorsementsMap.get(pointId) || 0;
+        const delta = targetCred - currentCredForPoint;
+
+        if (delta > 0) {
+          await endorse({ pointId, cred: delta });
+        } else if (delta < 0) {
+          await sellEndorsement({ pointId, amountToSell: Math.abs(delta) });
+        }
+      }
     }
 
     const finalNodes: ReactFlowNode[] = [];
     const finalEdges: ReactFlowEdge[] = [];
 
-    console.log(
-      "[createRationaleFromPreview] finalPointIdMap:",
-      Array.from(finalPointIdMap.entries())
-    );
-
-    // First create all nodes and build an ID mapping
     const previewToFinalIdMap = new Map<string, string>();
     previewNodes.forEach((node) => {
       if (node.type === "statement") {
@@ -111,7 +170,6 @@ export async function createRationaleFromPreview({
         const finalId = finalPointIdMap.get(node.id);
         if (finalId !== undefined) {
           const nodeId = nanoid();
-          // Determine parent preview ID then map to final ID
           const parentEdge = previewEdges.find((e) => e.target === node.id);
           const parentPreviewId = parentEdge?.source || "statement";
           const parentFinalId = previewToFinalIdMap.get(parentPreviewId)!;
@@ -121,10 +179,8 @@ export async function createRationaleFromPreview({
             type: "point",
             position: node.position || { x: 0, y: 0 },
             data: {
-              content: (node.data as PreviewPointNodeData).content,
               pointId: finalId,
               parentId: parentFinalId,
-              hasContent: true,
             },
           });
           previewToFinalIdMap.set(node.id, nodeId);
@@ -132,9 +188,7 @@ export async function createRationaleFromPreview({
       }
     });
 
-    // Create edges: always connect child -> parent, type based on preview source
     previewEdges.forEach((edge) => {
-      // Map preview source/target to final IDs
       const parentFinalId = previewToFinalIdMap.get(edge.source);
       const childFinalId = previewToFinalIdMap.get(edge.target);
       if (!parentFinalId || !childFinalId) return;
@@ -142,7 +196,6 @@ export async function createRationaleFromPreview({
       finalEdges.push({
         id: `edge-${nanoid()}`,
         type: edgeType,
-        // child -> parent orientation
         source: childFinalId,
         target: parentFinalId,
       } as ReactFlowEdge);
@@ -163,24 +216,32 @@ export async function createRationaleFromPreview({
       finalGraph.linkUrl = currentLinkUrl;
     }
 
-    console.log(
-      "[createRationaleFromPreview] finalGraph before DB insert:",
-      JSON.stringify(finalGraph, null, 2)
-    );
-
     for (const edge of previewEdges) {
       if (edge.source === "statement") continue;
-      const sourcePoint = finalPointIdMap.get(edge.source);
-      const targetPoint = finalPointIdMap.get(edge.target);
-      if (sourcePoint != null && targetPoint != null) {
-        const olderPointId = Math.min(sourcePoint, targetPoint);
-        const newerPointId = Math.max(sourcePoint, targetPoint);
-        await db.insert(negationsTable).values({
-          olderPointId,
-          newerPointId,
-          createdBy: userId,
-          space: spaceId,
-        });
+      const sourcePointFinalId = finalPointIdMap.get(edge.source);
+      const targetPointFinalId = finalPointIdMap.get(edge.target);
+
+      if (sourcePointFinalId != null && targetPointFinalId != null) {
+        if (sourcePointFinalId === targetPointFinalId) {
+          continue;
+        }
+
+        const olderPointId = Math.min(sourcePointFinalId, targetPointFinalId);
+        const newerPointId = Math.max(sourcePointFinalId, targetPointFinalId);
+
+        if (olderPointId === newerPointId) {
+          continue;
+        }
+
+        await db
+          .insert(negationsTable)
+          .values({
+            olderPointId,
+            newerPointId,
+            createdBy: userId,
+            space: spaceId,
+          })
+          .onConflictDoNothing();
       }
     }
 
