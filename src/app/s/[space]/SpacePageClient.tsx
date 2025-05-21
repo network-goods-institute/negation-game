@@ -504,6 +504,17 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
         return topics ? topics.map((t: any) => t.name).filter((n: string) => n.trim()).sort() : [];
     }, [topics]);
 
+    const [isTopicsExpanded, setIsTopicsExpanded] = useState(false);
+    const COLLAPSED_TOPIC_LIMIT = 5;
+
+    const topicsToDisplay = useMemo(() => {
+        if (isTopicsExpanded) {
+            return availableTopics;
+        } else {
+            return availableTopics.slice(0, COLLAPSED_TOPIC_LIMIT);
+        }
+    }, [availableTopics, isTopicsExpanded]);
+
     useEffect(() => {
         if (newTopicDialogOpen) {
             setTimeout(() => newTopicInputRef.current?.focus(), 50);
@@ -594,76 +605,98 @@ const RationalesTabContent = memo(({ viewpoints, viewpointsLoading, basePath, sp
         <div className="flex flex-col">
             {availableTopics.length > 0 && (
                 <div className="px-4 pt-3 pb-2 border-b">
-                    <ScrollArea className="max-w-full whitespace-nowrap">
-                        <div className="flex items-center gap-2 pb-2">
-                            <Button
-                                variant={topicFilters.length === 0 ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => setTopicFilters([])}
-                                className="rounded-full text-xs h-7 px-3 flex-shrink-0"
-                            >
-                                All Topics
-                            </Button>
-                            <TooltipProvider>
-                                {availableTopics.map((topicName) => {
-                                    const topic = topics?.find(t => t.name === topicName);
-                                    const validUrl = topic?.discourseUrl ? validateAndFormatUrl(topic.discourseUrl) : null;
-                                    return (
-                                        <Tooltip key={topicName}>
-                                            <TooltipTrigger asChild>
-                                                <Button
-                                                    variant={topicFilters.includes(topicName) ? "default" : "outline"}
-                                                    size="sm"
-                                                    className={cn(
-                                                        "rounded-full text-xs h-7 px-3 flex-shrink-0",
-                                                        validUrl && "underline decoration-dotted"
-                                                    )}
+                    <div className="flex flex-wrap items-center gap-2 pb-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setNewTopicDialogOpen(true)}
+                            className="rounded-full text-xs h-7 px-3 flex-shrink-0"
+                        >
+                            + New Topic
+                        </Button>
+                        <Button
+                            variant={topicFilters.length === 0 ? "default" : "outline"}
+                            size="sm"
+                            onClick={(e) => {
+                                if (topicFilters.length > 0) {
+                                    setTopicFilters([]);
+                                }
+                            }}
+                            className="rounded-full text-xs h-7 px-3 flex-shrink-0"
+                        >
+                            All Topics
+                        </Button>
+                        <TooltipProvider>
+                            {topicsToDisplay.map((topicName: string) => {
+                                const topic = topics?.find(t => t.name === topicName);
+                                const validUrl = topic?.discourseUrl ? validateAndFormatUrl(topic.discourseUrl) : null;
+                                return (
+                                    <Tooltip key={topicName}>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant={topicFilters.includes(topicName) ? "default" : "outline"}
+                                                size="sm"
+                                                className={cn(
+                                                    "rounded-full text-xs h-7 px-3 flex-shrink-0",
+                                                    validUrl && "underline decoration-dotted"
+                                                )}
+                                                onClick={(e) => {
+                                                    if (validUrl && (e.metaKey || e.ctrlKey)) {
+                                                        window.open(validUrl, '_blank');
+                                                        return;
+                                                    }
+                                                    if (topicFilters.includes(topicName)) {
+                                                        setTopicFilters((prev: string[]) => prev.filter(t => t !== topicName));
+                                                    } else {
+                                                        setTopicFilters((prev: string[]) => [...prev, topicName]);
+                                                    }
+                                                }}
+                                            >
+                                                {topicName}
+                                            </Button>
+                                        </TooltipTrigger>
+                                        {validUrl && (
+                                            <TooltipContent side="bottom">
+                                                Related: <a
+                                                    href={validUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-primary hover:underline"
                                                     onClick={(e) => {
-                                                        if (validUrl && (e.target as HTMLElement).tagName !== 'A') {
-                                                            window.open(validUrl, '_blank');
-                                                            return;
-                                                        }
-                                                        if (topicFilters.includes(topicName)) {
-                                                            setTopicFilters((prev: string[]) => prev.filter(t => t !== topicName));
-                                                        } else {
-                                                            setTopicFilters((prev: string[]) => [...prev, topicName]);
-                                                        }
+                                                        e.stopPropagation();
+                                                        e.preventDefault();
+                                                        window.open(validUrl, '_blank');
                                                     }}
                                                 >
-                                                    {topicName}
-                                                </Button>
-                                            </TooltipTrigger>
-                                            {validUrl && (
-                                                <TooltipContent side="bottom">
-                                                    Related: <a
-                                                        href={validUrl}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-primary hover:underline"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            e.preventDefault();
-                                                            window.open(validUrl, '_blank');
-                                                        }}
-                                                    >
-                                                        {validUrl}
-                                                    </a>
-                                                </TooltipContent>
-                                            )}
-                                        </Tooltip>
-                                    );
-                                })}
-                            </TooltipProvider>
+                                                    {validUrl}
+                                                </a>
+                                            </TooltipContent>
+                                        )}
+                                    </Tooltip>
+                                );
+                            })}
+                        </TooltipProvider>
+                        {availableTopics.length > COLLAPSED_TOPIC_LIMIT && (
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setNewTopicDialogOpen(true)}
+                                onClick={() => {
+                                    if (isTopicsExpanded) {
+                                        const visibleTopicNamesAfterCollapse = availableTopics.slice(0, COLLAPSED_TOPIC_LIMIT);
+                                        setTopicFilters(prevFilters =>
+                                            prevFilters.filter(filter =>
+                                                visibleTopicNamesAfterCollapse.includes(filter)
+                                            )
+                                        );
+                                    }
+                                    setIsTopicsExpanded(!isTopicsExpanded);
+                                }}
                                 className="rounded-full text-xs h-7 px-3 flex-shrink-0"
                             >
-                                + New Topic
+                                {isTopicsExpanded ? "Show fewer topics" : "Show all topics"}
                             </Button>
-                        </div>
-                    </ScrollArea>
+                        )}
+                    </div>
                 </div>
             )}
             <Dialog open={newTopicDialogOpen} onOpenChange={setNewTopicDialogOpen}>
