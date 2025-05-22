@@ -136,6 +136,8 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
   const [isCopyOperation, setIsCopyOperation] = useState(false);
   const hasLoadedCopyData = useRef(false);
   const [graphRevision, setGraphRevision] = useState(0);
+  const [startFreshCountdown, setStartFreshCountdown] = useState(10);
+  const countdownRef = useRef<number | null>(null);
 
   const spaceQuery = useSpace();
   const space = spaceQuery;
@@ -154,6 +156,10 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
   const { data: topicsData } = useTopics(space?.data?.id || DEFAULT_SPACE);
 
   useEffect(() => {
+    // Skip draft detection loop when we're in the middle of discarding without nav
+    if (isDiscardingWithoutNav) {
+      return;
+    }
     // If we've already loaded copy data, skip this effect
     if (hasLoadedCopyData.current) {
       console.log("Already loaded copy data, skipping effect");
@@ -302,6 +308,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
     topic,
     graph,
     setCopiedFromId,
+    isDiscardingWithoutNav,
   ]);
 
   // Use a dedicated effect to ensure the copy state gets properly reset when leaving the page
@@ -328,6 +335,27 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       handleBeforeUnload(); // Also run the cleanup when unmounting
     };
   }, [currentSpace, setIsCopyOperation, setIsCopiedFromSessionStorage]);
+
+  // Countdown effect for Start Fresh button
+  useEffect(() => {
+    if (isInitialLoadDialogOpen) {
+      setStartFreshCountdown(10);
+      countdownRef.current = window.setInterval(() => {
+        setStartFreshCountdown(prev => {
+          if (prev <= 1) {
+            if (countdownRef.current) window.clearInterval(countdownRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (countdownRef.current) window.clearInterval(countdownRef.current);
+    }
+    return () => {
+      if (countdownRef.current) window.clearInterval(countdownRef.current);
+    };
+  }, [isInitialLoadDialogOpen]);
 
   const spaceObj = space?.data?.id;
   const [viewGraph, setViewGraph] = useAtom(viewpointGraphAtom);
@@ -465,11 +493,12 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
         clearViewpointState(false);
 
         setIsInitialLoadDialogOpen(false);
+        setGraphRevision(prev => prev + 1); // Force GraphView remount
       } finally {
         setIsDiscardingWithoutNav(false);
       }
     });
-  }, [setReasoning, setStatement, setTopic, setGraph, reactFlow, setCollapsedPointIds, setCopiedFromId, currentSpace]);
+  }, [setReasoning, setStatement, setTopic, setGraph, reactFlow, setCollapsedPointIds, setCopiedFromId, currentSpace, setGraphRevision]);
 
   const handleBackClick = useCallback(() => {
     const targetPath = basePath && basePath.startsWith('/s/') ? basePath : '/';
@@ -782,7 +811,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDiscardWithoutNavigation}
-              disabled={isDiscardingWithoutNav}
+              disabled={isDiscardingWithoutNav || startFreshCountdown > 0}
               className="relative"
             >
               {isDiscardingWithoutNav ? (
@@ -792,6 +821,8 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
                     <div className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
                   </div>
                 </>
+              ) : startFreshCountdown > 0 ? (
+                `Start Fresh (${startFreshCountdown})`
               ) : (
                 "Start Fresh"
               )}

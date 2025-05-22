@@ -43,14 +43,13 @@ import { ViewpointStatsBar } from "@/components/ViewpointStatsBar";
 import { use } from "react";
 import { copyViewpointAndNavigate } from "@/lib/negation-game/copyViewpoint";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
-import { ShareRationaleDialog } from "@/components/graph/ShareRationalePointsDialog";
-import { toast } from "sonner";
-import { selectedPointIdsAtom } from "@/atoms/viewpointAtoms";
 import { UsernameDisplay } from "@/components/UsernameDisplay";
 import Link from "next/link";
 import TopicSelector from "@/components/TopicSelector";
 import { useTopics } from "@/queries/useTopics";
 import { DEFAULT_SPACE } from "@/constants/config";
+import { toast } from "sonner";
+import { selectedPointIdsAtom } from "@/atoms/viewpointAtoms";
 
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
     loading: () => <div className="animate-pulse h-32 bg-muted/30 rounded-md" />,
@@ -148,9 +147,6 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
 
     const [isSharing, setIsSharing] = useState(false);
     const [selectedPointIds, setSelectedPointIds] = useAtom(selectedPointIdsAtom);
-    const [isViewSharedDialogOpen, setIsViewSharedDialogOpen] = useState(false);
-    const [viewSharedPoints, setViewSharedPoints] = useState<number[]>([]);
-    const [sharedByUsername, setSharedByUsername] = useState<string | undefined>(undefined);
 
     const searchParams = useSearchParams();
 
@@ -508,23 +504,6 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
             });
 
     }, [selectedPointIds, user?.username, setSelectedPointIds]);
-
-    useEffect(() => {
-        const viewParam = searchParams?.get('view');
-        const pointsParam = searchParams?.get('points');
-        const byParam = searchParams?.get('by');
-
-        if (viewParam === 'shared' && pointsParam) {
-            const pointIds = pointsParam.split(',').map(Number).filter(id => !isNaN(id));
-            if (pointIds.length > 0) {
-                setViewSharedPoints(pointIds);
-                setSharedByUsername(byParam ?? undefined);
-                setIsViewSharedDialogOpen(true);
-            }
-        } else {
-            setIsViewSharedDialogOpen(false);
-        }
-    }, [searchParams]);
 
     const resetContentModifications = useCallback(() => {
         if (viewpoint) {
@@ -957,15 +936,6 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
-
-                <ShareRationaleDialog
-                    open={isViewSharedDialogOpen}
-                    onOpenChange={setIsViewSharedDialogOpen}
-                    rationaleId={viewpointId}
-                    spaceId={space?.data?.id || 'global'}
-                    initialPoints={viewSharedPoints}
-                    sharedBy={sharedByUsername}
-                />
 
                 <AlertDialog open={isPageCopyConfirmOpen} onOpenChange={setIsPageCopyConfirmOpen}>
                     <AlertDialogContent className="sm:max-w-[425px]">
