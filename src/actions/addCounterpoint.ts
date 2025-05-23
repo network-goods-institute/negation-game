@@ -51,6 +51,7 @@ export const addCounterpoint = async ({
         cred,
         pointId: newPointId,
         userId,
+        space,
       });
     }
 

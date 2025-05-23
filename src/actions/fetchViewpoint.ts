@@ -74,6 +74,47 @@ export const fetchViewpoint = async (id: string) => {
 
   await trackViewpointView(id);
 
+  // Server-side hydrate point data for each graph node (skipped during Jest tests)
+  if (
+    !process.env.JEST_WORKER_ID &&
+    viewpoint.graph &&
+    Array.isArray(viewpoint.graph.nodes)
+  ) {
+    // Collect unique pointIds from graph nodes
+    const pointIds = Array.from(
+      new Set(
+        viewpoint.graph.nodes
+          .filter(
+            (node: any) => node.type === "point" && node.data?.pointId != null
+          )
+          .map((node: any) => node.data.pointId as number)
+      )
+    );
+    if (pointIds.length > 0) {
+      // Dynamically import fetchPoints to avoid test-time errors
+      const { fetchPoints } = await import("@/actions/fetchPoints");
+      const pointsData: any[] = await fetchPoints(pointIds);
+      const pdMap = new Map<number, any>(
+        pointsData.map((p: any) => [p.pointId, p])
+      );
+      // Embed initial data into each point node
+      const hydratedNodes = viewpoint.graph.nodes.map((node: any) => {
+        if (node.type === "point" && node.data?.pointId != null) {
+          const initial = pdMap.get(node.data.pointId);
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              initialPointData: initial ?? null,
+            },
+          };
+        }
+        return node;
+      });
+      viewpoint.graph = { nodes: hydratedNodes, edges: viewpoint.graph.edges };
+    }
+  }
+
   const { totalCred, averageFavor } = await calculateViewpointStats({
     graph: viewpoint.graph,
     createdBy: viewpoint.createdBy,

@@ -1,50 +1,25 @@
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { visitedPointsAtom } from "@/atoms/visitedPointsAtom";
-import { CredInput } from "@/components/CredInput";
 import { PointStats } from "@/components/PointStats";
-import { DoubtIcon } from "@/components/icons/DoubtIcon";
-import { EndorseIcon } from "@/components/icons/EndorseIcon";
-import { NegateIcon } from "@/components/icons/NegateIcon";
-import { RestakeIcon } from "@/components/icons/RestakeIcon";
 import {
   PointIcon,
   PinnedIcon,
   FeedCommandIcon,
-  ThickCircleIcon,
-  SlashedCircleIcon,
 } from "@/components/icons/AppIcons";
-import { Badge } from "@/components/ui/badge";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  Line,
-  LineChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip as RechartsTooltip,
-  XAxis,
-  YAxis,
-  Dot,
-} from "recharts";
 import { useCredInput } from "@/hooks/useCredInput";
-import { usePrefetchRestakeData } from "@/hooks/usePrefetchRestakeData";
 import { useVisitedPoints } from "@/hooks/useVisitedPoints";
 import { cn } from "@/lib/cn";
 import { useEndorse } from "@/mutations/useEndorse";
-import { useUser } from "@/queries/useUser";
 import { useUserEndorsement } from "@/queries/useUserEndorsements";
 import { usePrivy } from "@privy-io/react-auth";
 import { useToggle } from "@uidotdev/usehooks";
 import { useAtom } from "jotai";
-import { CircleIcon, CheckIcon } from "lucide-react";
+import { CheckIcon } from "lucide-react";
 import { Portal } from "@radix-ui/react-portal";
 import {
   HTMLAttributes,
@@ -53,21 +28,22 @@ import {
   useEffect,
   useMemo,
   useState,
-  Fragment,
   useRef,
 } from "react";
-import { AuthenticatedActionButton } from "./AuthenticatedActionButton";
-import { Button } from "./ui/button";
 import { useRouter, usePathname } from "next/navigation";
-import Link from "next/link";
-import { ExternalLinkIcon } from "lucide-react";
 import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
 import { useQueryClient } from "@tanstack/react-query";
 import { getPointUrl } from "@/lib/negation-game/getPointUrl";
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
 import { selectedPointIdsAtom } from "@/atoms/viewpointAtoms";
 import { useSellEndorsement } from '@/mutations/useSellEndorsement';
-import { UsernameDisplay } from "./UsernameDisplay";
+import dynamic from "next/dynamic";
+import type { FavorHistoryChartProps } from "./PointCard/FavorHistoryChart";
+import OPBadge from "./PointCard/OPBadge";
+import VisitedMarker from "./PointCard/VisitedMarker";
+import PointCardHeader from "./PointCard/PointCardHeader";
+import PointCardActions from "./PointCard/PointCardActions";
+import { fetchFavorHistory } from '@/actions/fetchFavorHistory';
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -131,6 +107,12 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   isSharing?: boolean;
 }
 
+// Lazy-load the favor history chart component (default export)
+const FavorHistoryChart = dynamic<FavorHistoryChartProps>(
+  () => import("./PointCard/FavorHistoryChart"),
+  { ssr: false }
+);
+
 export const PointCard = ({
   pointId,
   content,
@@ -171,9 +153,7 @@ export const PointCard = ({
 }: PointCardProps) => {
   const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
   const { mutateAsync: sellEndorsement, isPending: isSelling } = useSellEndorsement();
-  const { data: originalPoster } = useUser(originalPosterId);
   const { data: opCred } = useUserEndorsement(originalPosterId, pointId);
-  const [isOPTooltipOpen, toggleOPTooltip] = useToggle();
   const [_, setHoveredPointId] = useAtom(hoveredPointIdAtom);
   const { user: privyUser, login } = usePrivy();
   const [endorsePopoverOpen, toggleEndorsePopoverOpen] = useToggle(false);
@@ -181,7 +161,6 @@ export const PointCard = ({
     resetWhen: !endorsePopoverOpen,
   });
   const [isSellingMode, setIsSellingMode] = useState(false);
-  const prefetchRestakeData = usePrefetchRestakeData();
   const { isVisited, markPointAsRead } = useVisitedPoints();
   const [visitedPoints] = useAtom(visitedPointsAtom);
   const router = useRouter();
@@ -226,40 +205,39 @@ export const PointCard = ({
         return;
       }
 
-      import('@/actions/fetchFavorHistory').then(({ fetchFavorHistory }) => {
-        fetchFavorHistory({ pointId, scale: "1W" })
-          .then(data => {
-            const normalizedData = Array.isArray(data) ? data.map(point => ({
-              timestamp: point.timestamp instanceof Date ? point.timestamp : new Date(point.timestamp),
-              favor: typeof point.favor === 'number' ? point.favor : 50
-            })) : [];
+      // Fetch favor history
+      fetchFavorHistory({ pointId, scale: "1W" })
+        .then(data => {
+          const normalizedData = Array.isArray(data) ? data.map(point => ({
+            timestamp: point.timestamp instanceof Date ? point.timestamp : new Date(point.timestamp),
+            favor: typeof point.favor === 'number' ? point.favor : 50
+          })) : [];
 
-            // Ensure we have at least 2 points to avoid single dots
-            const finalData = normalizedData.length === 1
+          // Ensure we have at least 2 points to avoid single dots
+          const finalData = normalizedData.length === 1
+            ? [
+              { timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), favor: normalizedData[0].favor },
+              normalizedData[0]
+            ]
+            : normalizedData.length === 0
               ? [
-                { timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), favor: normalizedData[0].favor },
-                normalizedData[0]
+                { timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), favor },
+                { timestamp: new Date(), favor }
               ]
-              : normalizedData.length === 0
-                ? [
-                  { timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), favor },
-                  { timestamp: new Date(), favor }
-                ]
-                : normalizedData;
+              : normalizedData;
 
-            queryClient.setQueryData([pointId, "favor-history", "1W"], finalData);
-            setPopoverFavorHistory(finalData);
-            setIsLoadingFavorHistory(false);
-          })
-          .catch(err => {
-            const fallbackData = [
-              { timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), favor },
-              { timestamp: new Date(), favor }
-            ];
-            setPopoverFavorHistory(fallbackData);
-            setIsLoadingFavorHistory(false);
-          });
-      });
+          queryClient.setQueryData([pointId, "favor-history", "1W"], finalData);
+          setPopoverFavorHistory(finalData);
+          setIsLoadingFavorHistory(false);
+        })
+        .catch(err => {
+          const fallbackData = [
+            { timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), favor },
+            { timestamp: new Date(), favor }
+          ];
+          setPopoverFavorHistory(fallbackData);
+          setIsLoadingFavorHistory(false);
+        });
     }
   }, [pointId, isOpen, disablePopover, queryClient, favor]);
 
@@ -324,12 +302,6 @@ export const PointCard = ({
       setIsOpen(false);
     }, 300);
   }, []);
-
-  const handleRestakeHover = useCallback(() => {
-    if (isNegation && parentPoint?.id && negationId) {
-      prefetchRestakeData(parentPoint.id, negationId);
-    }
-  }, [isNegation, parentPoint?.id, negationId, prefetchRestakeData]);
 
   const handleTargetPointClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -408,101 +380,21 @@ export const PointCard = ({
         </CheckboxPrimitive.Root>
       )}
       <div className="flex flex-col flex-grow w-full min-w-0 pr-8">
-        <div className={cn("flex items-start gap-2", inGraphNode && "pt-4")}>
-          {inGraphNode && graphNodeLevel !== undefined ? (
-            graphNodeLevel % 2 === 0 ? (
-              <SlashedCircleIcon />
-            ) : (
-              <ThickCircleIcon />
-            )
-          ) : isCommand && space && space !== 'global' ? (
-            <FeedCommandIcon />
-          ) : isPinned && space && space !== 'global' ? (
-            <PinnedIcon />
-          ) : (
-            <PointIcon />
-          )}
-          <div className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg -mt-1 mb-sm select-text flex-1 break-words whitespace-normal overflow-hidden">
-            {content}
-            {/* Pin command badges */}
-            {pinnedCommandPointId && space && space !== 'global' && (
-              <Badge variant="outline" className="ml-2 text-xs">
-                {space && !linkDisabled ? (
-                  <Link
-                    href={getPointUrl(pinnedCommandPointId, space)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (onPinBadgeClickCapture) {
-                        onPinBadgeClickCapture(e);
-                      }
-                    }}
-                    className="inline-block w-full h-full"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Button
-                      type="button"
-                      variant="link"
-                      className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
-                      data-action-button="true"
-                      onClick={handlePinCommandClick}
-                    >
-                      {pinStatus || "Pinned by command"}
-                    </Button>
-                  </Link>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="h-auto p-0 text-muted-foreground hover:text-foreground"
-                    data-action-button="true"
-                    onClick={handlePinCommandClick}
-                  >
-                    {pinStatus || "Pinned by command"}
-                  </Button>
-                )}
-              </Badge>
-            )}
-            {parsePinCommand && space && space !== 'global' && (
-              <Badge variant="outline" className="ml-2 text-xs">
-                {space && !linkDisabled ? (
-                  <Link
-                    href={`/s/${space}/${parsePinCommand}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (onPinBadgeClickCapture) {
-                        onPinBadgeClickCapture(e);
-                      }
-                    }}
-                    className="inline-block w-full h-full"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Button
-                      type="button"
-                      variant="link"
-                      className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
-                      data-action-button="true"
-                      onClick={handleTargetPointClick}
-                    >
-                      Proposal to pin
-                    </Button>
-                  </Link>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="h-auto p-0 text-muted-foreground hover:text-foreground"
-                    data-action-button="true"
-                    onClick={handleTargetPointClick}
-                  >
-                    Proposal to pin
-                  </Button>
-                )}
-              </Badge>
-            )}
-          </div>
-        </div>
+        <PointCardHeader
+          inGraphNode={!!inGraphNode}
+          graphNodeLevel={graphNodeLevel}
+          isCommand={!!isCommand}
+          isPinned={!!isPinned}
+          space={space}
+          linkDisabled={!!linkDisabled}
+          pinnedCommandPointId={pinnedCommandPointId}
+          pinStatus={pinStatus}
+          parsePinCommand={parsePinCommand ?? undefined}
+          onPinBadgeClickCapture={onPinBadgeClickCapture ?? undefined}
+          handlePinCommandClick={handlePinCommandClick}
+          handleTargetPointClick={handleTargetPointClick}
+          content={content}
+        />
 
         <PointStats
           className="mb-md select-text"
@@ -512,232 +404,46 @@ export const PointCard = ({
           cred={cred}
         />
 
-        <div className="flex gap-sm w-full text-muted-foreground">
-          <div className="flex gap-sm">
-            <AuthenticatedActionButton
-              variant="ghost"
-              className="p-1 -ml-3 -mb-2 rounded-full size-fit hover:bg-negated/30"
-              data-action-button="true"
-              onClick={(e) => {
-                e.stopPropagation();
-                onNegate?.(e);
-              }}
-            >
-              <NegateIcon />
-            </AuthenticatedActionButton>
-
-            <Popover
-              open={endorsePopoverOpen}
-              onOpenChange={toggleEndorsePopoverOpen}
-            >
-              <PopoverTrigger asChild>
-                <Button
-                  data-action-button="true"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (privyUser === null) {
-                      login();
-                      return;
-                    }
-                    toggleEndorsePopoverOpen();
-                  }}
-                  className={cn(
-                    "p-1 rounded-full -mb-2 size-fit gap-sm hover:bg-endorsed/30",
-                    endorsedByViewer && "text-endorsed pr-3"
-                  )}
-                  variant={"ghost"}
-                >
-                  <EndorseIcon
-                    className={cn(endorsedByViewer && "fill-current")}
-                  />{" "}
-                  {endorsedByViewer && viewerContext?.viewerCred && (
-                    <span className="translate-y-[-1px]">{viewerContext.viewerCred} cred</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="w-[320px] p-3"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex flex-col gap-3 w-full">
-                  <CredInput
-                    credInput={credInput}
-                    setCredInput={setCredInput}
-                    notEnoughCred={notEnoughCred}
-                    endorsementAmount={viewerContext?.viewerCred || 0}
-                    isSelling={isSellingMode}
-                    setIsSelling={setIsSellingMode}
-                  />
-                  <Button
-                    className="w-full"
-                    disabled={credInput === 0 || (!isSellingMode && notEnoughCred) || isEndorsing || isSelling}
-                    onClick={handleEndorseOrSell}
-                  >
-                    {isEndorsing || isSelling ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
-                        <span>{isSellingMode ? 'Selling...' : 'Endorsing...'}</span>
-                      </div>
-                    ) : (
-                      <span>{isSellingMode ? 'Sell' : 'Endorse'}</span>
-                    )}
-                  </Button>
-                  {notEnoughCred && !isSellingMode && (
-                    <span className="text-destructive text-sm">
-                      Not enough cred
-                    </span>
-                  )}
-                  {isSellingMode && credInput > (viewerContext?.viewerCred || 0) && (
-                    <span className="text-destructive text-sm">
-                      Cannot sell more than endorsed amount
-                    </span>
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            {inRationale && !inGraphNode && (
-              <Link
-                href={getPointUrl(pointId, currentSpace || 'global')}
-                target="_blank"
-                rel="noopener noreferrer"
-                data-action-button="true"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Button
-                  variant="ghost"
-                  className="p-1 -mb-2 rounded-full size-fit hover:bg-muted"
-                >
-                  <ExternalLinkIcon className="size-5 translate-y-[2.5px]" />
-                </Button>
-              </Link>
-            )}
-
-            {/* Show restake/doubt icons if this is a negation with a parent point or if we're in a point page */}
-            {(isInPointPage || (isNegation && parentPoint?.cred && parentPoint.cred > 0)) && (
-              <>
-                <Button
-                  variant="ghost"
-                  className={cn(
-                    "p-2 -mb-2 rounded-full size-fit hover:bg-purple-500/30",
-                    showRestakeAmount && "text-endorsed"
-                  )}
-                  data-action-button="true"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onRestake?.({ openedFromSlashedIcon: false });
-                  }}
-                >
-                  <RestakeIcon
-                    className={cn(
-                      showRestakeAmount &&
-                      restake?.isOwner &&
-                      "text-endorsed fill-current"
-                    )}
-                    showPercentage={showRestakeAmount && restake?.isOwner}
-                    percentage={restakePercentage}
-                  />
-                  {showRestakeAmount && isOverHundred && (
-                    <span className="ml-1 translate-y-[-1px]">+</span>
-                  )}
-                </Button>
-                <Button
-                  variant="ghost"
-                  className={cn(
-                    "p-2 -mb-2 -ml-1 rounded-full size-fit hover:bg-amber-500/30",
-                    doubt?.amount !== undefined &&
-                    doubt.amount > 0 &&
-                    doubt.isUserDoubt &&
-                    "text-endorsed"
-                  )}
-                  data-action-button="true"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onRestake?.({ openedFromSlashedIcon: true });
-                  }}
-                >
-                  <div className="flex items-center translate-y-[-0.5px]">
-                    <DoubtIcon
-                      className={cn(
-                        "size-5",
-                        doubt?.amount !== undefined &&
-                        doubt.amount > 0 &&
-                        doubt.isUserDoubt &&
-                        "text-endorsed fill-current"
-                      )}
-                      isFilled={
-                        doubt?.amount !== undefined &&
-                        doubt.amount > 0 &&
-                        doubt.isUserDoubt
-                      }
-                    />
-                    {doubt?.amount !== undefined &&
-                      doubt.amount > 0 &&
-                      doubt.isUserDoubt && (
-                        <span className="ml-1 translate-y-[-1px]">
-                          {doubtPercentage}
-                          {doubtPercentage > 100 && "+"}%
-                        </span>
-                      )}
-                  </div>
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
+        <PointCardActions
+          onNegate={onNegate}
+          endorsedByViewer={endorsedByViewer}
+          viewerCred={viewerContext?.viewerCred || 0}
+          privyUser={privyUser}
+          login={login}
+          popoverOpen={endorsePopoverOpen}
+          togglePopover={toggleEndorsePopoverOpen}
+          credInput={credInput}
+          setCredInput={setCredInput}
+          notEnoughCred={notEnoughCred}
+          isSellingMode={isSellingMode}
+          setIsSellingMode={setIsSellingMode}
+          onSubmit={handleEndorseOrSell}
+          isPending={isEndorsing || isSelling}
+          inRationale={!!inRationale}
+          inGraphNode={!!inGraphNode}
+          pointId={pointId}
+          currentSpace={currentSpace ?? undefined}
+          isInPointPage={isInPointPage}
+          isNegation={!!isNegation}
+          parentCred={parentPoint?.cred}
+          showRestakeAmount={showRestakeAmount}
+          restakeIsOwner={restake?.isOwner}
+          restakePercentage={restakePercentage}
+          isOverHundred={isOverHundred}
+          onRestake={onRestake!}
+          doubtAmount={doubt?.amount}
+          doubtIsUserDoubt={doubt?.isUserDoubt}
+          doubtPercentage={doubtPercentage}
+        />
       </div>
-      {endorsedByOp && (
-        <Tooltip
-          open={isOPTooltipOpen}
-          onOpenChange={toggleOPTooltip}
-          delayDuration={0}
-        >
-          <TooltipTrigger asChild>
-            <Badge
-              className="absolute hover:bg-yellow-600 bottom-1.5 right-1.5 text-yellow-500 text-xs font-medium bg-yellow-500/80 text-background dark:font-bold leading-none px-1 py-0.5 rounded-[6px] align-middle"
-              onClick={() => toggleOPTooltip()}
-            >
-              {opCred} cred
-            </Badge>
-          </TooltipTrigger>
-          <Portal>
-            <TooltipContent
-              side="top"
-              align="center"
-              sideOffset={5}
-              className="z-[100]"
-            >
-              <p>
-                Endorsed by{" "}
-                <strong className="text-yellow-500">
-                  <UsernameDisplay
-                    username={originalPoster?.username || "poster"}
-                    userId={originalPoster?.id}
-                    className="text-sm"
-                  />
-                </strong>{" "}
-                with {opCred} cred
-              </p>
-            </TooltipContent>
-          </Portal>
-        </Tooltip>
-      )}
-      {!isSharing && !visited && privyUser && !disableVisitedMarker && (
-        <div className="absolute top-0.5 right-3 group flex items-center gap-2">
-          <span className="text-sm text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-            Tap to mark seen
-          </span>
-          <button
-            onClick={handleMarkAsRead}
-            className="relative size-3 rounded-full flex items-center justify-center before:absolute before:content-[''] before:size-8 before:-left-2.5 before:-top-2.5"
-          >
-            <div className="absolute inset-0 bg-endorsed/20 rounded-full scale-0 group-hover:scale-150 transition-transform" />
-            <CircleIcon className="size-full fill-endorsed text-endorsed relative" />
-          </button>
-        </div>
-      )}
+      {endorsedByOp && <OPBadge opCred={opCred} originalPosterId={originalPosterId} />}
+      <VisitedMarker
+        isSharing={isSharing}
+        visited={visited}
+        privyUser={privyUser}
+        disableVisitedMarker={disableVisitedMarker}
+        onMarkAsRead={handleMarkAsRead}
+      />
       {props.children}
     </div>
   );
@@ -785,159 +491,13 @@ export const PointCard = ({
               cred={cred}
             />
 
-            {/* Favor History Section */}
-            {(() => {
-              // Choose which data source to use
-              const historyToUse = popoverFavorHistory || initialFavorHistory;
-
-              // If we have valid history data
-              if (Array.isArray(historyToUse)) {
-                // If we only have one point, duplicate it to show a meaningful graph
-                const dataPoints = historyToUse.length === 1
-                  ? [
-                    { timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), favor: historyToUse[0].favor },
-                    historyToUse[0]
-                  ]
-                  : historyToUse;
-
-                // Check if we're using the limited fallback data (only 2 points with same favor)
-                const isLimitedHistory = dataPoints.length === 2 &&
-                  dataPoints[0].favor === dataPoints[1].favor;
-
-                return (
-                  <div className="mt-2">
-                    <div className="flex flex-col mb-2">
-                      <h4 className="text-sm font-semibold">Favor History</h4>
-                      {isLimitedHistory && (
-                        <span className="text-xs text-muted-foreground">Limited history available</span>
-                      )}
-                    </div>
-                    <ResponsiveContainer width="100%" height={100}>
-                      <LineChart
-                        width={300}
-                        height={100}
-                        data={dataPoints}
-                        className="[&>.recharts-surface]:overflow-visible"
-                      >
-                        <XAxis dataKey="timestamp" hide />
-                        <YAxis domain={[0, 100]} hide />
-                        <ReferenceLine
-                          y={50}
-                          className="[&>line]:stroke-muted"
-                        ></ReferenceLine>
-                        <Line
-                          animationDuration={300}
-                          dataKey="favor"
-                          type="stepAfter"
-                          className="overflow-visible text-endorsed"
-                          dot={({ key, ...dot }) => {
-                            if (dot.index === undefined) {
-                              return <Fragment key={key} />;
-                            }
-                            return dot.index === dataPoints.length - 1 ? (
-                              <Fragment key={key}>
-                                <Dot
-                                  {...dot}
-                                  fill={dot.stroke}
-                                  className="animate-ping"
-                                  style={{
-                                    transformOrigin: `${dot.cx}px ${dot.cy}px`,
-                                  }}
-                                />
-                                <Dot {...dot} fill={dot.stroke} />
-                              </Fragment>
-                            ) : (
-                              <Fragment key={key} />
-                            );
-                          }}
-                          stroke={"currentColor"}
-                          strokeWidth={2}
-                        />
-                        <RechartsTooltip
-                          wrapperClassName="backdrop-blur-sm !bg-transparent !pb-0 rounded-sm"
-                          labelClassName=" -top-3 text-muted-foreground text-xs"
-                          formatter={(value: number) => value.toFixed(2)}
-                          labelFormatter={(timestamp: Date) => timestamp.toLocaleString()}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                );
-              }
-              // If we're still loading
-              else if (isLoadingFavorHistory) {
-                return (
-                  <div className="mt-2 h-[120px] animate-pulse flex flex-col items-center justify-center">
-                    <div className="w-full h-4 bg-muted rounded mb-2"></div>
-                    <div className="w-3/4 h-20 bg-muted/50 rounded"></div>
-                  </div>
-                );
-              }
-              // Default fallback - when no data at all, still show a graph with current favor
-              else {
-                const defaultData = [
-                  { timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), favor },
-                  { timestamp: new Date(), favor }
-                ];
-                return (
-                  <div className="mt-2">
-                    <div className="flex flex-col mb-2">
-                      <h4 className="text-sm font-semibold">Favor History</h4>
-                      <span className="text-xs text-muted-foreground">Limited history available</span>
-                    </div>
-                    <ResponsiveContainer width="100%" height={100}>
-                      <LineChart
-                        width={300}
-                        height={100}
-                        data={defaultData}
-                        className="[&>.recharts-surface]:overflow-visible"
-                      >
-                        <XAxis dataKey="timestamp" hide />
-                        <YAxis domain={[0, 100]} hide />
-                        <ReferenceLine
-                          y={50}
-                          className="[&>line]:stroke-muted"
-                        ></ReferenceLine>
-                        <Line
-                          animationDuration={300}
-                          dataKey="favor"
-                          type="stepAfter"
-                          className="overflow-visible text-endorsed"
-                          dot={({ key, ...dot }) => {
-                            if (dot.index === undefined) {
-                              return <Fragment key={key} />;
-                            }
-                            return dot.index === defaultData.length - 1 ? (
-                              <Fragment key={key}>
-                                <Dot
-                                  {...dot}
-                                  fill={dot.stroke}
-                                  className="animate-ping"
-                                  style={{
-                                    transformOrigin: `${dot.cx}px ${dot.cy}px`,
-                                  }}
-                                />
-                                <Dot {...dot} fill={dot.stroke} />
-                              </Fragment>
-                            ) : (
-                              <Fragment key={key} />
-                            );
-                          }}
-                          stroke={"currentColor"}
-                          strokeWidth={2}
-                        />
-                        <RechartsTooltip
-                          wrapperClassName="backdrop-blur-sm !bg-transparent !pb-0 rounded-sm"
-                          labelClassName=" -top-3 text-muted-foreground text-xs"
-                          formatter={(value: number) => value.toFixed(2)}
-                          labelFormatter={(timestamp: Date) => timestamp.toLocaleString()}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                );
-              }
-            })()}
+            {/* Favor History Chart (lazy-loaded) */}
+            <FavorHistoryChart
+              popoverFavorHistory={popoverFavorHistory}
+              initialFavorHistory={initialFavorHistory ?? []}
+              favor={favor}
+              isLoadingFavorHistory={isLoadingFavorHistory}
+            />
           </div>
         </PopoverContent>
       </Portal>
