@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAtom } from "jotai";
 import { visitedPointsAtom } from "@/atoms/visitedPointsAtom";
+import { userEndorsementsQueryKey } from "@/queries/useUserEndorsements";
 
 export const useNegate = () => {
   const queryClient = useQueryClient();
@@ -67,6 +68,15 @@ export const useNegate = () => {
       // Invalidate pinned point in case either point is pinned
       queryClient.invalidateQueries({
         queryKey: ["pinnedPoint"],
+      });
+
+      // Invalidate user's endorsement data for the new counterpoint to refresh OPBadge
+      queryClient.invalidateQueries({
+        queryKey: userEndorsementsQueryKey({
+          pointId: counterpointId,
+          userId: user?.id,
+        }),
+        exact: false,
       });
     },
     onError: (error) => {
