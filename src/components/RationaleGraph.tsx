@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { GraphView } from '@/components/graph/GraphView';
 import useScrollToPoint from '@/hooks/useScrollToPoint';
 import { useReactFlow } from '@xyflow/react';
@@ -6,6 +6,7 @@ import type { ReactFlowInstance } from '@xyflow/react';
 import type { AppNode } from '@/components/graph/AppNode';
 import type { ViewpointGraph } from '@/atoms/viewpointAtoms';
 import type { NodeChange, EdgeChange } from '@xyflow/react';
+import { toast } from 'sonner';
 
 export interface RationaleGraphProps {
     graph: ViewpointGraph;
@@ -48,6 +49,22 @@ export default function RationaleGraph({
     onSave,
     onResetContent,
 }: RationaleGraphProps) {
+    const toastIdRef = useRef<string | number | null>(null);
+    useEffect(() => {
+        if (toastIdRef.current) {
+            toast.dismiss(toastIdRef.current);
+        }
+        const id = toast(
+            "Node expansions, sharing, and other features may take a few seconds to become available as detailed node data loads.",
+            { position: 'bottom-right', duration: 30000 }
+        );
+        toastIdRef.current = id;
+        return () => {
+            if (toastIdRef.current) {
+                toast.dismiss(toastIdRef.current);
+            }
+        };
+    }, []);
     const scrollHandler = useScrollToPoint();
     const reactFlow = useReactFlow<AppNode>();
     const onInit = (instance: ReactFlowInstance<AppNode>) => {
