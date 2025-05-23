@@ -38,6 +38,7 @@ import { GraphDialogs } from "./GraphDialogs";
 import { useCleanAddNodes } from "../../hooks/useCleanAddNodes";
 import { useDeepLinkShareDialog } from "../../hooks/useDeepLinkShareDialog";
 import { useNotOwnerWarning } from "../../hooks/useNotOwnerWarning";
+import { useChunkedPrefetchPoints } from "@/hooks/useChunkedPrefetchPoints";
 
 export interface GraphViewProps
   extends Omit<ReactFlowProps<AppNode>, "onDelete"> {
@@ -143,6 +144,8 @@ export const GraphView = ({
     setNodes,
     setEdges,
   });
+
+  useChunkedPrefetchPoints(flowInstance, nodes);
 
   const { onNodesChange, onEdgesChange } = useGraphChangeHandlers({
     flowInstance,

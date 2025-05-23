@@ -4,7 +4,7 @@ import RationalePointCardWrapper from '@/components/RationalePointCardWrapper';
 import { cn } from '@/lib/cn';
 
 export interface RationalePointsListProps {
-    points: { pointId: number; parentId?: number | string }[];
+    points: { pointId: number; parentId?: number | string; initialPointData?: import('@/queries/usePointData').PointData }[];
     hoveredPointId?: number | null;
     selectedPointIds?: Set<number>;
     editMode?: boolean;
@@ -37,6 +37,7 @@ export default function RationalePointsList({
                     >
                         <RationalePointCardWrapper
                             point={point}
+                            initialPointData={point.initialPointData}
                             className={cn(
                                 'border-b',
                                 hoveredPointId === point.pointId && 'shadow-[inset_0_0_0_2px_hsl(var(--primary))]',

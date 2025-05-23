@@ -1,6 +1,6 @@
 "use client";
 
-import { viewpointGraphAtom, collapsedPointIdsAtom } from "@/atoms/viewpointAtoms";
+import { viewpointGraphAtom } from "@/atoms/viewpointAtoms";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { AppNode } from "@/components/graph/AppNode";
@@ -23,8 +23,6 @@ import { DEFAULT_SPACE } from "@/constants/config";
 import RationalePointsList from "@/components/RationalePointsList";
 import ExistingRationaleHeader from "@/components/rationale/ExistingRationaleHeader";
 import { useViewpoint } from "@/queries/useViewpoint";
-import { useUpdateViewpointDetails } from "@/mutations/useUpdateViewpointDetails";
-import { useGraphPoints } from "@/hooks/useGraphPoints";
 import { Loader } from "@/components/ui/loader";
 import { EditModeProvider, useEditMode } from "@/components/graph/EditModeContext";
 import RationaleMetaForm from "@/components/RationaleMetaForm";
@@ -72,15 +70,19 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     const [isDescriptionEditing, setIsDescriptionEditing] = useState(false);
     const [isTopicEditing, setIsTopicEditing] = useState(false);
 
-    const updateDetailsMutation = useUpdateViewpointDetails();
-
     const [isGraphModified, setIsGraphModified] = useState(false);
 
     const { data: user } = useUser();
     const isOwner = viewpoint ? user?.id === viewpoint.createdBy : false;
     const { isSharing, selectedPointIds, toggleSharingMode, handleGenerateAndCopyShareLink } = useShareLink(user?.username);
 
-    const points = useGraphPoints();
+    const points = (viewpoint?.graph.nodes ?? [])
+        .filter((node: any) => node.type === 'point')
+        .map((node: any) => ({
+            pointId: node.data.pointId,
+            parentId: node.data.parentId,
+            initialPointData: node.data.initialPointData,
+        }));
 
     const reactFlow = useReactFlow<AppNode>();
 

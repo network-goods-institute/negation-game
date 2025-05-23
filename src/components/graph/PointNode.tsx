@@ -26,6 +26,7 @@ export type PointNodeData = {
   parentId?: string;
   expandOnInit?: boolean;
   isExpanding?: boolean;
+  initialPointData?: import("@/queries/usePointData").PointData;
 };
 
 export type PointNode = Node<PointNodeData, "point">;
@@ -36,7 +37,7 @@ export interface PointNodeProps extends NodeProps {
 }
 
 const RawPointNode = ({
-  data: { pointId, parentId, expandOnInit, isExpanding: dataIsExpanding },
+  data: { pointId, parentId, expandOnInit, isExpanding: dataIsExpanding, initialPointData },
   id,
   isSharing,
 }: PointNodeProps) => {
@@ -71,7 +72,11 @@ const RawPointNode = ({
   const { data: originalViewpoint } = useViewpoint(isViewpointContext ? rationaleId : "DISABLED");
   const { originalPosterId } = useOriginalPoster();
 
-  const { pointData, isLoading: isPointDataLoading, opCred, endorsedByOp } = usePointNodeData(pointId, parentId);
+  const { pointData: fetchedPointData, isLoading: hookLoading, endorsedByOp } = usePointNodeData(pointId, parentId);
+  const pointData = hookLoading
+    ? initialPointData
+    : (fetchedPointData ?? initialPointData);
+  const isPointDataLoading = initialPointData == null && hookLoading;
 
   const [recentlyCreatedNegation, setRecentlyCreatedNegation] = useAtom(recentlyCreatedNegationIdAtom);
 
@@ -102,18 +107,6 @@ const RawPointNode = ({
 
     return count;
   }, [pointData, expandedNegationIds, pointId]);
-
-  // Update node internals when pointData changes to reflect new negations
-  useEffect(() => {
-    if (pointData) {
-      updateNodeInternals(id);
-    }
-  }, [id, pointData, updateNodeInternals]);
-
-  // Keep existing effect for connection changes
-  useEffect(() => {
-    updateNodeInternals(id);
-  }, [id, incomingConnections.length, updateNodeInternals, collapsedNegations]);
 
   const hasExpandedRef = useRef(false);
   const strictModeMountRef = useRef(0);
@@ -164,7 +157,12 @@ const RawPointNode = ({
     hasInitializedCollapsedState.current = true;
   }, [isViewpointContext, pointData, originalViewpoint, setCollapsedPointIds, pointId, expandedNegationIds]);
 
-
+  // When fresh data loads, re-measure the node size/layout
+  useEffect(() => {
+    if (fetchedPointData) {
+      updateNodeInternals(id);
+    }
+  }, [fetchedPointData, updateNodeInternals, id]);
 
   const handleSelectPoint = useCallback((point: { pointId: number, parentId?: string | number }) => {
     const uniqueId = `${nanoid()}-${Date.now()}`;
@@ -427,7 +425,7 @@ const RawPointNode = ({
       id={id}
       level={level}
       endorsedByOp={endorsedByOp}
-      isLoading={pointData === undefined}
+      isLoading={isPointDataLoading}
       isExpanding={isExpanding}
       dataIsExpanding={dataIsExpanding}
       hasAnimationPlayed={hasAnimationPlayed}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { usePointData } from "@/queries/usePointData";
+import { usePointData, PointData } from "@/queries/usePointData";
 import { useOriginalPoster } from "@/components/graph/OriginalPosterContext";
 import { useFavorHistory } from "@/queries/useFavorHistory";
 import { useAtom, useSetAtom } from "jotai";
@@ -10,16 +10,24 @@ import { cn } from "@/lib/cn";
 
 export interface RationalePointCardWrapperProps {
     point: { pointId: number; parentId?: number | string };
+    initialPointData?: PointData;
     className?: string;
     isSharing?: boolean;
 }
 
 const RationalePointCardWrapper: React.FC<RationalePointCardWrapperProps> = ({
     point,
+    initialPointData,
     className,
     isSharing = false,
 }) => {
-    const { data: pointData, isLoading } = usePointData(point.pointId);
+    const { data: fetchedData, isLoading: hookLoading } = usePointData(point.pointId);
+    // Display server-hydrated data immediately; once client fetch finishes, switch to fetched data
+    const pointData = hookLoading
+        ? initialPointData
+        : (fetchedData ?? initialPointData);
+    // Only show loading state if there's no hydrated data and client fetch is ongoing
+    const isLoading = initialPointData == null && hookLoading;
     const { originalPosterId } = useOriginalPoster();
     const setNegatedPointId = useSetAtom(negatedPointIdAtom);
     const [hoveredPointId] = useAtom(hoveredPointIdAtom);
