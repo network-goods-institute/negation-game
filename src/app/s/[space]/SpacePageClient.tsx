@@ -1091,7 +1091,7 @@ export function SpacePageClient({ params, searchParams: pageSearchParams }: Page
                         >
                             {isAiAssistantLoading ? (
                                 <>
-                                    <Loader className="size-6 mr-sm" />
+                                    <Loader className="size-6 mr-sm text-white" />
                                     <span>Loading...</span>
                                 </>
                             ) : (

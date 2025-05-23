@@ -41,6 +41,7 @@ import { useNotOwnerWarning } from "../../hooks/useNotOwnerWarning";
 
 export interface GraphViewProps
   extends Omit<ReactFlowProps<AppNode>, "onDelete"> {
+  description?: string;
   onSaveChanges?: (graph: ViewpointGraph) => Promise<boolean | void>;
   canModify?: boolean;
   rootPointId?: number;
@@ -66,6 +67,7 @@ export interface GraphViewProps
 export const GraphView = ({
   rootPointId,
   statement: statement,
+  description,
   onClose,
   closeButtonClassName,
   onNodesChange: onNodesChangeProp,
@@ -208,7 +210,11 @@ export const GraphView = ({
 
   const handleActualCopy = useCallback(async (graphToCopy: ViewpointGraph) => {
     try {
-      const result = await copyViewpointAndNavigate(graphToCopy, statement || "", "");
+      const result = await copyViewpointAndNavigate(
+        graphToCopy,
+        statement || "",
+        description || ""
+      );
 
       // If there's an error, add an additional safety delay before trying to navigate
       if (!result) {
@@ -224,7 +230,7 @@ export const GraphView = ({
       alert("There was an error copying the rationale. Please try again.");
       return false;
     }
-  }, [statement]);
+  }, [statement, description]);
 
   const {
     isSaving: isSavingManaged,

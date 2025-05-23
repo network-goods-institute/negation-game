@@ -45,7 +45,7 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
     closeButtonClassName,
 }) => (
     <>
-        <Panel position="bottom-right" className="z-10 mr-4 mb-6 flex flex-col items-end">
+        <Panel position="bottom-right" className="z-10 mr-4 mb-10 flex flex-col items-end">
             <SharePanel
                 isSharing={isSharing}
                 hideShareButton={hideShareButton}
