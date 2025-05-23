@@ -45,6 +45,13 @@ jest.mock('sonner', () => ({
   Toaster: () => <div data-testid="toaster" />,
 }))
 
+// Mock @privy-io/server-auth to stub PrivyClient
+jest.mock('@privy-io/server-auth', () => ({
+  PrivyClient: class {
+    verifyAuthToken = jest.fn().mockResolvedValue({ userId: null });
+  },
+}))
+
 // Reset all mocks after each test
 afterEach(() => {
   jest.clearAllMocks()

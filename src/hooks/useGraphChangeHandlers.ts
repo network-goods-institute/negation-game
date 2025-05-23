@@ -27,14 +27,14 @@ export function useGraphChangeHandlers({
 }: GraphChangeHandlersParams) {
   const onNodesChange = useCallback(
     (changes: NodeChange<AppNode>[]) => {
+      // Skip local sync/modified flag while dragging
       const isDragging = changes.some(
-        (change) => change.type === "position" && change.dragging
+        (change) => change.type === "position" && (change as any).dragging
       );
-
       if (!isDragging) {
+        // Detect substantive changes (add/remove/data updates)
         const hasSubstantiveChanges = changes.some((change) => {
           if (change.type === "add" || change.type === "remove") return true;
-          if (change.type === "position" && !change.dragging) return true;
           if ((change as any).data && (change as any).type !== "select")
             return true;
           if (
@@ -44,17 +44,15 @@ export function useGraphChangeHandlers({
             return true;
           return false;
         });
-
         if (hasSubstantiveChanges && !isNew) {
           setIsModified(true);
         }
-
         if (flowInstance && setLocalGraph) {
           const { viewport, ...graph } = flowInstance.toObject();
           setLocalGraph(graph);
         }
       }
-
+      // Always propagate changes for controlled nodes state
       onNodesChangeDefault(changes);
       onNodesChangeProp?.(changes);
     },

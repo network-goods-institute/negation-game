@@ -94,6 +94,7 @@ export const GraphView = ({
   const [isDiscarding, setIsDiscarding] = useState(false);
   const [flowInstance, setFlowInstance] =
     useState<ReactFlowInstance<AppNode> | null>(null);
+  const [isPanning, setIsPanning] = useState(false);
   const [nodes, setNodes, onNodesChangeDefault] = useNodesState<AppNode>(
     props.defaultNodes || []
   );
@@ -154,9 +155,11 @@ export const GraphView = ({
     onNodesChangeDefault,
     onEdgesChangeDefault,
     setIsModified,
-    onNodesChangeProp,
-    onEdgesChangeProp,
+    onNodesChangeProp: onNodesChangeProp,
+    onEdgesChangeProp: onEdgesChangeProp,
   });
+
+  // Note: drag updates (node moves) are handled via onNodesChange; skip syncing during drag
 
   const filteredEdges = useFilteredEdges(nodes, edges);
 
@@ -338,10 +341,34 @@ export const GraphView = ({
   // Show a persistent copy warning for non-owners if graph is modified
   useNotOwnerWarning(isModified, canModify, openCopyConfirmDialog);
 
+  // Panning callbacks
+  const handleMoveStart = useCallback(
+    (event: MouseEvent | TouchEvent | null) => {
+      setIsPanning(true);
+    },
+    []
+  );
+  const handleMoveEnd = useCallback(
+    (event: MouseEvent | TouchEvent | null) => {
+      setIsPanning(false);
+      if (flowInstance && setLocalGraph) {
+        const { viewport, ...graph } = flowInstance.toObject();
+        setLocalGraph(graph);
+      }
+      if (!isNew) {
+        setIsModified(true);
+        onModifiedChange?.(true);
+      }
+    },
+    [flowInstance, setLocalGraph, setIsModified, isNew, onModifiedChange]
+  );
+
   return (
     <>
       <GraphCanvas
         onInit={handleOnInit}
+        onMoveStart={handleMoveStart}
+        onMoveEnd={handleMoveEnd}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         nodes={nodes}
