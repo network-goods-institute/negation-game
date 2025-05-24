@@ -1,4 +1,4 @@
-import { cn } from "@/lib/cn";
+import { cn } from "@/lib/utils/cn";
 import { ArrowBigDownIcon, CheckCircle2Icon } from "lucide-react";
 import { ComponentProps, useState, useEffect } from "react";
 

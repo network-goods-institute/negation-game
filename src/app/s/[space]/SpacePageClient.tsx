@@ -1,47 +1,46 @@
 "use client";
 
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
-import { PointCard } from "@/components/PointCard";
+import { PointCard } from "@/components/cards/PointCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import { DEFAULT_SPACE } from "@/constants/config";
-import { useBasePath } from "@/hooks/useBasePath";
+import { useBasePath } from "@/hooks/utils/useBasePath";
 import { encodeId } from "@/lib/negation-game/encodeId";
-import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
-import { useFeed } from "@/queries/useFeed";
-import { useSpace } from "@/queries/useSpace";
+import { preventDefaultIfContainsSelection } from "@/lib/utils/preventDefaultIfContainsSelection";
+import { useFeed } from "@/queries/feed/useFeed";
+import { useSpace } from "@/queries/space/useSpace";
 import { usePrivy } from "@privy-io/react-auth";
 import { useSetAtom, useAtom } from "jotai";
 import { PlusIcon, TrophyIcon, SearchIcon, BrainCircuitIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState, useMemo, memo, useEffect, useRef } from "react";
-import { LeaderboardDialog } from "@/components/LeaderboardDialog";
+import { LeaderboardDialog } from "@/components/dialogs/LeaderboardDialog";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useViewpoints } from "@/queries/useViewpoints";
-import { cn } from "@/lib/cn";
-import { SearchInput } from "@/components/SearchInput";
-import { useSearch } from "@/queries/useSearch";
-import { SearchResultsList } from "@/components/SearchResultsList";
-import { usePinnedPoint } from "@/queries/usePinnedPoint";
+import { useViewpoints } from "@/queries/viewpoints/useViewpoints";
+import { cn } from "@/lib/utils/cn";
+import { SearchInput } from "@/components/search/SearchInput";
+import { useSearch } from "@/queries/search/useSearch";
+import { SearchResultsList } from "@/components/search/SearchResultsList";
+import { usePinnedPoint } from "@/queries/points/usePinnedPoint";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
-import { usePriorityPoints } from "@/queries/usePriorityPoints";
+import { usePriorityPoints } from "@/queries/points/usePriorityPoints";
 import { decodeId } from "@/lib/negation-game/decodeId";
 import { useQueryClient } from "@tanstack/react-query";
-import { usePrefetchPoint } from "@/queries/usePointData";
+import { usePrefetchPoint } from "@/queries/points/usePointData";
 import React from "react";
-import { ViewpointCardWrapper } from "@/components/ViewpointCardWrapper";
+import { ViewpointCardWrapper } from "@/components/cards/ViewpointCardWrapper";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 import { makePointSuggestionAtom } from "@/atoms/makePointSuggestionAtom";
-import { PointFilterSelector } from "@/components/PointFilterSelector";
-import { useTopics } from "@/queries/useTopics";
-import { createTopic } from "@/actions/createTopic";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { PointFilterSelector } from "@/components/inputs/PointFilterSelector";
+import { useTopics } from "@/queries/topics/useTopics";
+import { createTopic } from "@/actions/topics/createTopic";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Label } from "@/components/ui/label";
-import { validateAndFormatUrl } from "@/lib/validateUrl";
+import { validateAndFormatUrl } from "@/lib/validation/validateUrl";
 
 interface PageProps {
     params: { space: string };
@@ -98,7 +97,7 @@ const FeedItem = memo(({ item, basePath, space, setNegatedPointId, login, user, 
             if (existingData) {
                 return;
             }
-            import("@/actions/fetchFavorHistory")
+            import("@/actions/feed/fetchFavorHistory")
                 .then(({ fetchFavorHistory }) => {
                     return fetchFavorHistory({ pointId, scale: "1W" });
                 })
@@ -259,7 +258,7 @@ const PriorityPointItem = memo(({ point, basePath, space, setNegatedPointId, log
             return;
         }
 
-        import("@/actions/fetchFavorHistory")
+        import("@/actions/feed/fetchFavorHistory")
             .then(({ fetchFavorHistory }) => {
                 return fetchFavorHistory({
                     pointId: point.pointId,
@@ -810,7 +809,7 @@ const PinnedPointWithHistory = memo(({ pinnedPoint, space, loadingCardId }: any)
         if (existingData) {
             return;
         }
-        import("@/actions/fetchFavorHistory")
+        import("@/actions/feed/fetchFavorHistory")
             .then(({ fetchFavorHistory }) => {
                 return fetchFavorHistory({
                     pointId: pinnedPoint.pointId,

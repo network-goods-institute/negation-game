@@ -1,8 +1,8 @@
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { AuthenticatedActionButton } from '@/components/AuthenticatedActionButton';
+import { AuthenticatedActionButton } from '@/components/editor/AuthenticatedActionButton';
 import { Loader2, CircleDotIcon, CircleIcon } from 'lucide-react';
-import { useDiscourseIntegration } from '@/hooks/useDiscourseIntegration';
+import { useDiscourseIntegration } from '@/hooks/data/useDiscourseIntegration';
 
 interface DiscourseStatusProps {
     isNonGlobalSpace: boolean;

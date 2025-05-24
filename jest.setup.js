@@ -25,7 +25,7 @@ jest.mock('@radix-ui/react-slot', () => ({
 }))
 
 // Mock @/lib/cn
-jest.mock('@/lib/cn', () => ({
+jest.mock('@/lib/utils/cn', () => ({
   cn: (...args) => args.filter(Boolean).join(' '),
 }))
 

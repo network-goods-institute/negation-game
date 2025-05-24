@@ -2,11 +2,11 @@ import { QueryClientProvider } from "@/components/providers/QueryClientProvider"
 import { ThemedPrivyProvider } from "@/components/providers/ThemedPrivyProvider";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
-import { cn } from "@/lib/cn";
+import { cn } from "@/lib/utils/cn";
 import { Analytics } from "@vercel/analytics/react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { GlobalDialogs } from "@/components/GlobalDialogs";
+import { GlobalDialogs } from "@/components/dialogs/GlobalDialogs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DevOnly } from "@/components/utils/DevOnly";
 import { ToggleableReactQueryDevTools } from "@/components/utils/ToggleableReactQueryDevTools";
@@ -14,10 +14,10 @@ import "@xyflow/react/dist/style.css";
 import "./globals.css";
 import { KnowledgeBaseProvider } from "@/components/contexts/KnowledgeBaseContext";
 import { OnboardingProvider } from "@/components/contexts/OnboardingContext";
-import { HeaderActions } from "@/components/layout/HeaderActions";
+import { HeaderActions } from "@/components/header/HeaderActions";
 import {
   DynamicHeaderContent
-} from "@/components/layout/DynamicHeaderContent";
+} from "@/components/header/DynamicHeaderContent";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 

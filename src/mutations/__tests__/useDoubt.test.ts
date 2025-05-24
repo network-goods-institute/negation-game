@@ -1,9 +1,9 @@
 // Mock dependencies first
-jest.mock("../useAuthenticatedMutation", () => ({
+jest.mock("../auth/useAuthenticatedMutation", () => ({
   useAuthenticatedMutation: jest.fn(),
 }));
 
-jest.mock("@/queries/usePointData", () => ({
+jest.mock("@/queries/points/usePointData", () => ({
   useInvalidateRelatedPoints: jest.fn(),
   pointQueryKey: jest.fn(({ pointId, userId }) => [
     "point",
@@ -20,7 +20,7 @@ jest.mock("@privy-io/react-auth", () => ({
 }));
 
 // Mock useVisitedPoints hook
-jest.mock("@/hooks/useVisitedPoints", () => ({
+jest.mock("@/hooks/points/useVisitedPoints", () => ({
   useVisitedPoints: jest.fn(() => ({
     markPointAsRead: jest.fn(),
     isVisited: jest.fn(),
@@ -29,7 +29,7 @@ jest.mock("@/hooks/useVisitedPoints", () => ({
 }));
 
 // Instead of mocking the action itself, mock its dependencies
-jest.mock("@/actions/doubt", () => {
+jest.mock("@/actions/epistemic/doubt", () => {
   const doubt = jest.fn(async ({ pointId, negationId, amount }) => ({
     doubtId: 123,
     earnings: 5,
@@ -38,13 +38,13 @@ jest.mock("@/actions/doubt", () => {
 });
 
 // Import after mocking
-import { useDoubt } from "../useDoubt";
-import { useAuthenticatedMutation } from "../useAuthenticatedMutation";
-import { doubt } from "@/actions/doubt";
-import { useInvalidateRelatedPoints } from "@/queries/usePointData";
+import { useDoubt } from "../epistemic/useDoubt";
+import { useAuthenticatedMutation } from "../auth/useAuthenticatedMutation";
+import { doubt } from "@/actions/epistemic/doubt";
+import { useInvalidateRelatedPoints } from "@/queries/points/usePointData";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePrivy } from "@privy-io/react-auth";
-import { useVisitedPoints } from "@/hooks/useVisitedPoints";
+import { useVisitedPoints } from "@/hooks/points/useVisitedPoints";
 
 describe("useDoubt", () => {
   // Setup common mocks

@@ -1,7 +1,7 @@
 import { PointPageClient } from "@/app/s/[space]/[encodedPointId]/PointPageClient";
 import { notFound } from "next/navigation";
 import { decodeId } from "@/lib/negation-game/decodeId";
-import { validatePointExists } from "@/actions/validatePointId";
+import { validatePointExists } from "@/actions/points/validatePointId";
 
 export default async function PointPage({
   params,

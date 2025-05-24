@@ -69,12 +69,13 @@ jest.mock("drizzle-orm", () => ({
   inArray: jest.fn((col, vals) => ({ column: col, values: vals })),
 }));
 
-jest.mock("../trackViewpointView", () => ({
+// Mock trackViewpointView action
+jest.mock("../viewpoints/trackViewpointView", () => ({
   trackViewpointView: jest.fn(),
 }));
 
 // Import after mocking
-import { fetchViewpoint } from "../fetchViewpoint";
+import { fetchViewpoint } from "../viewpoints/fetchViewpoint";
 import { db } from "@/services/db";
 import {
   viewpointsTable,
@@ -83,7 +84,7 @@ import {
   topicsTable,
 } from "@/db/schema";
 import { getColumns } from "@/db/utils/getColumns";
-import { trackViewpointView } from "../trackViewpointView";
+import { trackViewpointView } from "../viewpoints/trackViewpointView";
 import { eq, sql, and, desc, inArray } from "drizzle-orm";
 
 describe("fetchViewpoint", () => {

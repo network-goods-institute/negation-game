@@ -1,9 +1,9 @@
 // Mock dependencies first
-jest.mock("../useAuthenticatedMutation", () => ({
+jest.mock("../auth/useAuthenticatedMutation", () => ({
   useAuthenticatedMutation: jest.fn(),
 }));
 
-jest.mock("@/queries/usePointData", () => ({
+jest.mock("@/queries/points/usePointData", () => ({
   useInvalidateRelatedPoints: jest.fn(),
   pointQueryKey: jest.fn(({ pointId, userId }) => [
     "point",
@@ -19,7 +19,7 @@ jest.mock("@privy-io/react-auth", () => ({
   usePrivy: jest.fn(),
 }));
 
-jest.mock("@/queries/useDoubtForRestake", () => ({
+jest.mock("@/queries/epistemic/useDoubtForRestake", () => ({
   doubtForRestakeQueryKey: jest.fn(({ pointId, negationId, userId }) => [
     "doubt-for-restake",
     pointId,
@@ -28,7 +28,7 @@ jest.mock("@/queries/useDoubtForRestake", () => ({
   ]),
 }));
 
-jest.mock("@/queries/useRestakeForPoints", () => ({
+jest.mock("@/queries/epistemic/useRestakeForPoints", () => ({
   restakeForPointsQueryKey: jest.fn(({ pointId, negationId, userId }) => [
     "restake-for-points",
     pointId,
@@ -38,7 +38,7 @@ jest.mock("@/queries/useRestakeForPoints", () => ({
 }));
 
 // Mock useVisitedPoints hook
-jest.mock("@/hooks/useVisitedPoints", () => ({
+jest.mock("@/hooks/points/useVisitedPoints", () => ({
   useVisitedPoints: jest.fn(() => ({
     markPointAsRead: jest.fn(),
     isVisited: jest.fn(),
@@ -47,7 +47,7 @@ jest.mock("@/hooks/useVisitedPoints", () => ({
 }));
 
 // Instead of mocking the action itself, mock its dependencies
-jest.mock("@/actions/restake", () => {
+jest.mock("@/actions/epistemic/restake", () => {
   const restake = jest.fn(async ({ pointId, negationId, amount }) => 123);
   return { restake };
 });
@@ -56,15 +56,15 @@ jest.mock("@/actions/restake", () => {
 jest.useFakeTimers();
 
 // Import after mocking
-import { useRestake } from "../useRestake";
-import { useAuthenticatedMutation } from "../useAuthenticatedMutation";
-import { restake } from "@/actions/restake";
-import { useInvalidateRelatedPoints } from "@/queries/usePointData";
+import { useRestake } from "../epistemic/useRestake";
+import { useAuthenticatedMutation } from "../auth/useAuthenticatedMutation";
+import { restake } from "@/actions/epistemic/restake";
+import { useInvalidateRelatedPoints } from "@/queries/points/usePointData";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePrivy } from "@privy-io/react-auth";
-import { doubtForRestakeQueryKey } from "@/queries/useDoubtForRestake";
-import { restakeForPointsQueryKey } from "@/queries/useRestakeForPoints";
-import { useVisitedPoints } from "@/hooks/useVisitedPoints";
+import { doubtForRestakeQueryKey } from "@/queries/epistemic/useDoubtForRestake";
+import { restakeForPointsQueryKey } from "@/queries/epistemic/useRestakeForPoints";
+import { useVisitedPoints } from "@/hooks/points/useVisitedPoints";
 
 describe("useRestake", () => {
   // Setup common mocks

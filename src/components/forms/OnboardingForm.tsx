@@ -1,6 +1,6 @@
 "use client";
 
-import { isUsernameAvailable } from "@/actions/isUsernameAvailable";
+import { isUsernameAvailable } from "@/actions/users/isUsernameAvailable";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -13,8 +13,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { USERNAME_MAX_LENGTH } from "@/constants/config";
 import { InsertUser, insertUserSchema } from "@/db/tables/usersTable";
-import { cn } from "@/lib/cn";
-import { useInitUser } from "@/mutations/useInitUser";
+import { cn } from "@/lib/utils/cn";
+import { useInitUser } from "@/mutations/user/useInitUser";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { usePrivy } from "@privy-io/react-auth";
 import { FC, HTMLAttributes } from "react";

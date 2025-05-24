@@ -4,7 +4,7 @@ jest.mock("postgres", () => {
   return jest.fn(() => mockSql) as unknown as typeof import("postgres");
 });
 
-import { fetchUsersReputation } from "../fetchUsersReputation";
+import { fetchUsersReputation } from "../users/fetchUsersReputation";
 import postgres from "postgres";
 
 describe("fetchUsersReputation", () => {

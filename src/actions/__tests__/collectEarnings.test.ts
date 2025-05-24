@@ -1,8 +1,3 @@
-// Mock dependencies before importing the implementation
-jest.mock("../getUserId", () => ({
-  getUserId: jest.fn(),
-}));
-
 jest.mock("@/db/schema", () => ({
   doubtsTable: {
     id: "id",
@@ -79,9 +74,14 @@ jest.mock("drizzle-orm", () => {
   };
 });
 
+// mock getUserId before importing the earnings actions
+jest.mock("../users/getUserId", () => ({
+  getUserId: jest.fn(),
+}));
+
 // Import the earnings-related actions after setting up mocks
-import { collectEarnings, previewEarnings } from "../collectEarnings";
-import { getUserId } from "../getUserId";
+import { collectEarnings, previewEarnings } from "../epistemic/collectEarnings";
+import { getUserId } from "../users/getUserId";
 import { db } from "@/services/db";
 import { doubtsTable, endorsementsTable, usersTable } from "@/db/schema";
 

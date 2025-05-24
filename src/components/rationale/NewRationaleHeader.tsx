@@ -1,10 +1,10 @@
 "use client";
 
-import RationaleHeaderBar from "@/components/RationaleHeaderBar";
+import RationaleHeaderBar from "./RationaleHeaderBar";
 import { Separator } from "@/components/ui/separator";
 import { DEFAULT_SPACE } from "@/constants/config";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { AuthenticatedActionButton } from "@/components/AuthenticatedActionButton";
+import { AuthenticatedActionButton } from "@/components/editor/AuthenticatedActionButton";
 import { Button } from "@/components/ui/button";
 import { Trash2Icon } from "lucide-react";
 import {

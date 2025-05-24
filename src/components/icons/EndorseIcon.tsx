@@ -1,9 +1,9 @@
-import { cn } from "@/lib/cn";
+import { cn } from "@/lib/utils/cn";
 import { ArrowBigUpIcon } from "lucide-react";
 import { ComponentProps } from "react";
 
 export interface EndorseIconProps
-  extends ComponentProps<typeof ArrowBigUpIcon> {}
+  extends ComponentProps<typeof ArrowBigUpIcon> { }
 
 export const EndorseIcon = ({ className, ...props }: EndorseIconProps) => (
   <ArrowBigUpIcon className={cn("size-7 stroke-1", className)} {...props} />

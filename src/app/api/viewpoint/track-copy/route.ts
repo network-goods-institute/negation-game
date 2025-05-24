@@ -1,4 +1,4 @@
-import { trackViewpointCopy } from "@/actions/trackViewpointCopy";
+import { trackViewpointCopy } from "@/actions/viewpoints/trackViewpointCopy";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {

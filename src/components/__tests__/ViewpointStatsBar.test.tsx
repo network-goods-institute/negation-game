@@ -1,10 +1,10 @@
 import React from "react";
 import { render, screen, waitFor } from "@/lib/tests/test-utils";
-import { ViewpointStatsBar } from "../ViewpointStatsBar";
+import { ViewpointStatsBar } from "../rationale/ViewpointStatsBar";
 
 // Mock fetchPoints and useQuery
 const mockFetchPoints = jest.fn();
-jest.mock("@/actions/fetchPoints", () => ({
+jest.mock("@/actions/points/fetchPoints", () => ({
     fetchPoints: (...args: any[]) => mockFetchPoints(...args)
 }));
 

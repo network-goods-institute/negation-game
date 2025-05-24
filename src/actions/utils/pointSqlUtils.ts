@@ -3,7 +3,6 @@ import {
   effectiveRestakesView,
   doubtsTable,
   pointsWithDetailsView,
-  pointsTable,
 } from "@/db/schema";
 import { sql } from "drizzle-orm";
 import { PgColumn, PgTable, PgView } from "drizzle-orm/pg-core";

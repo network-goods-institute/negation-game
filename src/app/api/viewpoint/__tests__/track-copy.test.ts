@@ -13,13 +13,13 @@ jest.mock("next/server", () => ({
 }));
 
 // Mock trackViewpointCopy action
-jest.mock("@/actions/trackViewpointCopy", () => ({
+jest.mock("@/actions/viewpoints/trackViewpointCopy", () => ({
   trackViewpointCopy: jest.fn(),
 }));
 
 // Import modules after mocking
 import { POST } from "../track-copy/route";
-import { trackViewpointCopy } from "@/actions/trackViewpointCopy";
+import { trackViewpointCopy } from "@/actions/viewpoints/trackViewpointCopy";
 import { NextRequest } from "next/server";
 
 describe("/api/viewpoint/track-copy", () => {

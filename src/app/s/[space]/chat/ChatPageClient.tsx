@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import AIAssistant from '@/components/chatbot/AIAssistant';
+import AIAssistant from '@/components/chatbot/ai/AIAssistant';
+
 
 export default function ChatPageClient() {
     const [queryClient] = useState(() => new QueryClient());

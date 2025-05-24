@@ -1,4 +1,4 @@
-import { cn } from "@/lib/cn";
+import { cn } from "@/lib/utils/cn";
 import { TrashIcon as LucideTrashIcon } from "lucide-react";
 import { HTMLAttributes } from "react";
 

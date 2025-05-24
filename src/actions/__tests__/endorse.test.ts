@@ -1,9 +1,9 @@
 // Mock dependencies before importing the implementation
-jest.mock("../getUserId", () => ({
+jest.mock("../users/getUserId", () => ({
   getUserId: jest.fn(),
 }));
 
-jest.mock("../getSpace", () => ({
+jest.mock("@/actions/spaces/getSpace", () => ({
   getSpace: jest.fn(),
 }));
 
@@ -71,12 +71,11 @@ jest.mock("drizzle-orm", () => ({
 }));
 
 // Import the endorse action after setting up mocks
-import { endorse } from "../endorse";
-import { getUserId } from "../getUserId";
-import { getSpace } from "../getSpace";
+import { endorse } from "../endorsements/endorse";
+import { getUserId } from "../users/getUserId";
+import { getSpace } from "../spaces/getSpace";
 import { db } from "@/services/db";
 import { usersTable, endorsementsTable } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
 
 describe("endorse", () => {
   beforeEach(() => {

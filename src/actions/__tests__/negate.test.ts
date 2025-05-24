@@ -1,12 +1,3 @@
-// Mock dependencies before importing the implementation
-jest.mock("../getUserId", () => ({
-  getUserId: jest.fn(),
-}));
-
-jest.mock("../getSpace", () => ({
-  getSpace: jest.fn(),
-}));
-
 // Mock DB schema and related imports
 jest.mock("@/db/schema", () => ({
   usersTable: {
@@ -55,13 +46,20 @@ jest.mock("sonner", () => ({
   },
 }));
 
+// Add mock for getUserId and getSpace
+jest.mock("../users/getUserId", () => ({
+  getUserId: jest.fn(),
+}));
+jest.mock("@/actions/spaces/getSpace", () => ({
+  getSpace: jest.fn(),
+}));
+
 // Import the negate action after setting up mocks
-import { negate } from "../negate";
-import { getUserId } from "../getUserId";
-import { getSpace } from "../getSpace";
+import { negate } from "../points/negate";
+import { getUserId } from "../users/getUserId";
+import { getSpace } from "@/actions/spaces/getSpace";
 import { db } from "@/services/db";
 import { usersTable, endorsementsTable, negationsTable } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
 
 describe("negate", () => {
   beforeEach(() => {

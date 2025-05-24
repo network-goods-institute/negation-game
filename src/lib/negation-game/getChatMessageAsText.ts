@@ -1,5 +1,5 @@
-import { fetchPoint } from "@/actions/fetchPoint";
-import { fetchViewpoint } from "@/actions/fetchViewpoint";
+import { fetchPoint } from "@/actions/points/fetchPoint";
+import { fetchViewpoint } from "@/actions/viewpoints/fetchViewpoint";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import type { DiscourseMessage } from "@/types/chat";
 

@@ -9,11 +9,11 @@ afterEach(() => {
   console.error = originalConsoleError;
 });
 
-jest.mock("../useAuthenticatedMutation", () => ({
+jest.mock("../auth/useAuthenticatedMutation", () => ({
   useAuthenticatedMutation: jest.fn(),
 }));
 
-jest.mock("@/queries/usePointData", () => ({
+jest.mock("@/queries/points/usePointData", () => ({
   useInvalidateRelatedPoints: jest.fn(),
   pointQueryKey: jest.fn(({ pointId, userId }) => [
     "point",
@@ -51,7 +51,7 @@ jest.mock("react", () => {
 });
 
 // Instead of mocking the action itself, mock its dependencies
-jest.mock("@/actions/deletePoint", () => {
+jest.mock("@/actions/points/deletePoint", () => {
   const deletePoint = jest.fn(async ({ pointId }) => ({
     success: true,
     message: "Point deleted successfully and all cred reimbursed",
@@ -63,10 +63,10 @@ jest.mock("@/actions/deletePoint", () => {
 jest.useFakeTimers();
 
 // Import after mocking
-import { useDeletePoint } from "../useDeletePoint";
-import { useAuthenticatedMutation } from "../useAuthenticatedMutation";
-import { deletePoint } from "@/actions/deletePoint";
-import { useInvalidateRelatedPoints } from "@/queries/usePointData";
+import { useDeletePoint } from "../points/useDeletePoint";
+import { useAuthenticatedMutation } from "../auth/useAuthenticatedMutation";
+import { deletePoint } from "@/actions/points/deletePoint";
+import { useInvalidateRelatedPoints } from "@/queries/points/usePointData";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter, usePathname } from "next/navigation";

@@ -13,36 +13,35 @@ import { useEffect, useState, useCallback, useTransition } from "react";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
-import { AppNode } from "@/components/graph/AppNode";
-import { OriginalPosterProvider } from "@/components/graph/OriginalPosterContext";
+import { AppNode } from "@/components/graph/nodes/AppNode";
+import { OriginalPosterProvider } from "@/components/contexts/OriginalPosterContext";
 import { Separator } from "@/components/ui/separator";
 import { Dynamic } from "@/components/utils/Dynamic";
 import {
   DEFAULT_SPACE,
   PLACEHOLDER_STATEMENT,
 } from "@/constants/config";
-import { useBasePath } from "@/hooks/useBasePath";
-import { cn } from "@/lib/cn";
-import { useSpace } from "@/queries/useSpace";
-import { useUser } from "@/queries/useUser";
+import { useBasePath } from "@/hooks/utils/useBasePath";
+import { cn } from "@/lib/utils/cn";
+import { useSpace } from "@/queries/space/useSpace";
+import { useUser } from "@/queries/users/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import {
   ReactFlowProvider,
   useReactFlow,
 } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
-import useRationaleDraftLifecycle from "@/hooks/useRationaleDraftLifecycle";
-import { EditModeProvider } from "@/components/graph/EditModeContext";
-import { useGraphPoints } from "@/hooks/useGraphPoints";
-import usePublishRationale from "@/hooks/usePublishRationale";
+import useRationaleDraftLifecycle from "@/hooks/viewpoints/useRationaleDraftLifecycle";
+import { useGraphPoints } from "@/hooks/graph/useGraphPoints";
+import usePublishRationale from "@/hooks/viewpoints/usePublishRationale";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Loader } from "@/components/ui/loader";
 import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
 import NewRationaleHeader from "@/components/rationale/NewRationaleHeader";
-import RationaleGraph from "@/components/RationaleGraph";
+import RationaleGraph from "@/components/rationale/RationaleGraph";
 import NewRationaleForm from "@/components/rationale/NewRationaleForm";
-import { useTopics } from "@/queries/useTopics";
-import useIsMobile from "@/hooks/useIsMobile";
+import { useTopics } from "@/queries/topics/useTopics";
+import useIsMobile from "@/hooks/ui/useIsMobile";
 
 function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" | "rationales" | null) => void }) {
   const { updateNodeData } = useReactFlow();
@@ -353,10 +352,8 @@ export default function NewViewpointPage() {
   const setInitialTab = useSetAtom(initialSpaceTabAtom);
 
   return (
-    <EditModeProvider>
-      <OriginalPosterProvider originalPosterId={privyUser?.id}>
-        <ViewpointPageContent key={searchParams.toString()} setInitialTab={setInitialTab} />
-      </OriginalPosterProvider>
-    </EditModeProvider>
+    <OriginalPosterProvider originalPosterId={privyUser?.id}>
+      <ViewpointPageContent key={searchParams.toString()} setInitialTab={setInitialTab} />
+    </OriginalPosterProvider>
   );
 }

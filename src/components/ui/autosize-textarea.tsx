@@ -1,5 +1,5 @@
 "use client";
-import { cn } from "@/lib/cn";
+import { cn } from "@/lib/utils/cn"
 import * as React from "react";
 import { useImperativeHandle } from "react";
 

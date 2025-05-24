@@ -61,7 +61,7 @@ jest.mock("../utils/calculateViewpointStats", () => ({
   calculateViewpointStats: jest.fn(),
 }));
 
-import { fetchViewpoints } from "../fetchViewpoints";
+import { fetchViewpoints } from "../viewpoints/fetchViewpoints";
 import { db } from "@/services/db";
 import {
   viewpointsTable,

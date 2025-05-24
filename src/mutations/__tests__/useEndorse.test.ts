@@ -1,9 +1,9 @@
 // Mock dependencies first
-jest.mock("../useAuthenticatedMutation", () => ({
+jest.mock("../auth/useAuthenticatedMutation", () => ({
   useAuthenticatedMutation: jest.fn(),
 }));
 
-jest.mock("@/queries/usePointData", () => ({
+jest.mock("@/queries/points/usePointData", () => ({
   useInvalidateRelatedPoints: jest.fn(),
   pointQueryKey: jest.fn(({ pointId, userId }) => [
     "point",
@@ -19,7 +19,7 @@ jest.mock("@privy-io/react-auth", () => ({
   usePrivy: jest.fn(),
 }));
 
-jest.mock("@/queries/useUserEndorsements", () => ({
+jest.mock("@/queries/users/useUserEndorsements", () => ({
   userEndorsementsQueryKey: jest.fn(({ pointId, userId }) => [
     "user-endorsements",
     pointId,
@@ -27,11 +27,11 @@ jest.mock("@/queries/useUserEndorsements", () => ({
   ]),
 }));
 
-jest.mock("@/queries/useSpace", () => ({
+jest.mock("@/queries/space/useSpace", () => ({
   useSpace: jest.fn(),
 }));
 
-jest.mock("@/hooks/useVisitedPoints", () => ({
+jest.mock("@/hooks/points/useVisitedPoints", () => ({
   useVisitedPoints: jest.fn(),
 }));
 
@@ -44,21 +44,21 @@ jest.mock("@/atoms/visitedPointsAtom", () => ({
 }));
 
 // Instead of mocking the action itself, mock its dependencies
-jest.mock("@/actions/endorse", () => {
+jest.mock("@/actions/endorsements/endorse", () => {
   const endorse = jest.fn(async ({ pointId, cred }) => 123);
   return { endorse };
 });
 
 // Import after mocking
-import { useEndorse } from "../useEndorse";
-import { useAuthenticatedMutation } from "../useAuthenticatedMutation";
-import { endorse } from "@/actions/endorse";
-import { useInvalidateRelatedPoints } from "@/queries/usePointData";
+import { useEndorse } from "../endorsements/useEndorse";
+import { useAuthenticatedMutation } from "../auth/useAuthenticatedMutation";
+import { endorse } from "@/actions/endorsements/endorse";
+import { useInvalidateRelatedPoints } from "@/queries/points/usePointData";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePrivy } from "@privy-io/react-auth";
-import { userEndorsementsQueryKey } from "@/queries/useUserEndorsements";
-import { useSpace } from "@/queries/useSpace";
-import { useVisitedPoints } from "@/hooks/useVisitedPoints";
+import { userEndorsementsQueryKey } from "@/queries/users/useUserEndorsements";
+import { useSpace } from "@/queries/space/useSpace";
+import { useVisitedPoints } from "@/hooks/points/useVisitedPoints";
 import { useAtom } from "jotai";
 import { visitedPointsAtom } from "@/atoms/visitedPointsAtom";
 
