@@ -32,7 +32,6 @@ import {
 } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
 import useRationaleDraftLifecycle from "@/hooks/viewpoints/useRationaleDraftLifecycle";
-import { EditModeProvider } from "@/components/contexts/EditModeContext";
 import { useGraphPoints } from "@/hooks/graph/useGraphPoints";
 import usePublishRationale from "@/hooks/viewpoints/usePublishRationale";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
@@ -353,10 +352,8 @@ export default function NewViewpointPage() {
   const setInitialTab = useSetAtom(initialSpaceTabAtom);
 
   return (
-    <EditModeProvider>
-      <OriginalPosterProvider originalPosterId={privyUser?.id}>
-        <ViewpointPageContent key={searchParams.toString()} setInitialTab={setInitialTab} />
-      </OriginalPosterProvider>
-    </EditModeProvider>
+    <OriginalPosterProvider originalPosterId={privyUser?.id}>
+      <ViewpointPageContent key={searchParams.toString()} setInitialTab={setInitialTab} />
+    </OriginalPosterProvider>
   );
 }

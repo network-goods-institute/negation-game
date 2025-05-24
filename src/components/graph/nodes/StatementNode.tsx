@@ -1,4 +1,3 @@
-import { useEditMode } from "@/components/contexts/EditModeContext";
 import { cn } from "@/lib/utils/cn";
 import {
   Handle,
@@ -96,7 +95,7 @@ export const StatementNode = ({
   });
 
   const { addEdges, addNodes, getNodes, getEdges, getNode, updateNodeData } = useReactFlow();
-  const editing = useEditMode();
+  const editing = true;
   const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
   const [collapsedNodePositions, setCollapsedNodePositions] = useAtom(collapsedNodePositionsAtom);
   const updateNodeInternals = useUpdateNodeInternals();
