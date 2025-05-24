@@ -20,7 +20,7 @@ jest.mock("drizzle-orm", () => ({
 }));
 
 // Import after mocking
-import { trackViewpointCopy } from "../trackViewpointCopy";
+import { trackViewpointCopy } from "../viewpoints/trackViewpointCopy";
 import { db } from "@/services/db";
 import { viewpointInteractionsTable } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";

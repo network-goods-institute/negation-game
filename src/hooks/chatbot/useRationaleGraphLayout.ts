@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { useReactFlow, Node } from "@xyflow/react";
 import { PreviewAppNode, PreviewAppEdge } from "@/types/rationaleGraph";
 import { ViewpointGraph } from "@/atoms/viewpointAtoms";
-import { PreviewStatementNodeData } from "@/components/chatbot/PreviewStatementNode";
-import { PreviewPointNodeData } from "@/components/chatbot/PreviewPointNode";
-import { PreviewAddPointNodeData } from "@/components/chatbot/PreviewAddPointNode";
+import { PreviewStatementNodeData } from "@/components/chatbot/preview/PreviewStatementNode";
+import { PreviewPointNodeData } from "@/components/chatbot/preview/PreviewPointNode";
+import { PreviewAddPointNodeData } from "@/components/chatbot/preview/PreviewAddPointNode";
 
 interface UseRationaleGraphLayoutProps {
   graphData: ViewpointGraph;

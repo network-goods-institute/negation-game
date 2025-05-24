@@ -47,7 +47,7 @@ global.indexedDB = {
 } as any;
 
 // Now that we've set up all the mocks, we can import the hook
-import { useVisitedPoints } from '@/hooks/useVisitedPoints';
+import { useVisitedPoints } from '../points/useVisitedPoints';
 import { usePrivy } from '@privy-io/react-auth';
 
 describe('useVisitedPoints', () => {

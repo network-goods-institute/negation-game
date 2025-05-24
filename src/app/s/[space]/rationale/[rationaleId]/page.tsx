@@ -3,39 +3,39 @@
 import { viewpointGraphAtom } from "@/atoms/viewpointAtoms";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
-import { AppNode } from "@/components/graph/AppNode";
+import { AppNode } from "@/components/graph/nodes/AppNode";
 import {
     OriginalPosterProvider,
-} from "@/components/graph/OriginalPosterContext";
-import { NegateDialog } from "@/components/NegateDialog";
+} from "@/components/contexts/OriginalPosterContext";
+import { NegateDialog } from "@/components/dialogs/NegateDialog";
 import { Dynamic } from "@/components/utils/Dynamic";
-import { useBasePath } from "@/hooks/useBasePath";
-import { cn } from "@/lib/cn";
-import { useSpace } from "@/queries/useSpace";
-import { useUser } from "@/queries/useUser";
+import { useBasePath } from "@/hooks/utils/useBasePath";
+import { cn } from "@/lib/utils/cn";
+import { useSpace } from "@/queries/space/useSpace";
+import { useUser } from "@/queries/users/useUser";
 import { ReactFlowProvider, useReactFlow, } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
 import React, { use, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter, notFound } from "next/navigation";
 import Link from "next/link";
-import { useTopics } from "@/queries/useTopics";
+import { useTopics } from "@/queries/topics/useTopics";
 import { DEFAULT_SPACE } from "@/constants/config";
-import RationalePointsList from "@/components/RationalePointsList";
+import RationalePointsList from "@/components/rationale/RationalePointsList";
 import ExistingRationaleHeader from "@/components/rationale/ExistingRationaleHeader";
-import { useViewpoint } from "@/queries/useViewpoint";
+import { useViewpoint } from "@/queries/viewpoints/useViewpoint";
 import { Loader } from "@/components/ui/loader";
-import { EditModeProvider, useEditMode } from "@/components/graph/EditModeContext";
-import RationaleMetaForm from "@/components/RationaleMetaForm";
-import RationaleGraph from "@/components/RationaleGraph";
+import { EditModeProvider, useEditMode } from "@/components/contexts/EditModeContext"
+import RationaleMetaForm from "@/components/rationale/RationaleMetaForm";
+import RationaleGraph from "@/components/rationale/RationaleGraph";
 import { copyViewpointAndNavigate } from "@/lib/negation-game/copyViewpoint";
-import { useCopyUrl } from "@/hooks/useCopyUrl";
-import { useCopyConfirm } from "@/hooks/useCopyConfirm";
-import { useShareLink } from "@/hooks/useShareLink";
-import { ViewpointStatsBar } from "@/components/ViewpointStatsBar";
-import { UsernameDisplay } from "@/components/UsernameDisplay";
-import useSaveViewpoint, { UseSaveViewpointParams } from '@/hooks/useSaveViewpoint';
-import UnsavedChangesDialog from '@/components/UnsavedChangesDialog';
-import { useConfirmDiscard } from "@/hooks/useConfirmDiscard";
+import { useCopyUrl } from "@/hooks/viewpoints/useCopyUrl";
+import { useCopyConfirm } from "@/hooks/viewpoints/useCopyConfirm";
+import { useShareLink } from "@/hooks/viewpoints/useShareLink";
+import { ViewpointStatsBar } from "@/components/rationale/ViewpointStatsBar";
+import { UsernameDisplay } from "@/components/ui/UsernameDisplay";
+import useSaveViewpoint, { UseSaveViewpointParams } from '@/hooks/viewpoints/useSaveViewpoint';
+import UnsavedChangesDialog from '@/components/dialogs/UnsavedChangesDialog';
+import { useConfirmDiscard } from "@/hooks/graph/useConfirmDiscard";
 import { useQueryClient } from '@tanstack/react-query';
 
 function CopiedFromLink({ sourceId }: { sourceId: string }) {

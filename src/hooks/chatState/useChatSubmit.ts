@@ -1,7 +1,7 @@
 import React, { useCallback } from "react";
-import type { FlowType } from "@/hooks/useChatFlow";
+import type { FlowType } from "@/hooks/chat/useChatFlow";
 import { toast } from "sonner";
-import { determineFlowParams } from "@/hooks/useChatFlow";
+import { determineFlowParams } from "@/hooks/chat/useChatFlow";
 import type { ChatMessage, SavedChat, ViewpointGraph } from "@/types/chat";
 
 export interface UseChatSubmitProps {

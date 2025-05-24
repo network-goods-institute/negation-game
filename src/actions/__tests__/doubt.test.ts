@@ -1,5 +1,5 @@
 // Mock dependencies before importing the implementation
-jest.mock("../getUserId", () => ({
+jest.mock("../users/getUserId", () => ({
   getUserId: jest.fn(),
 }));
 
@@ -92,8 +92,8 @@ jest.mock("drizzle-orm", () => {
 });
 
 // Import the doubt action after setting up mocks
-import { doubt } from "../doubt";
-import { getUserId } from "../getUserId";
+import { doubt } from "../epistemic/doubt";
+import { getUserId } from "../users/getUserId";
 import { db } from "@/services/db";
 import { doubtsTable, doubtHistoryTable, usersTable } from "@/db/schema";
 

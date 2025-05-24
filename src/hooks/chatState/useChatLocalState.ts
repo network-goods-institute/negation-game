@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { ChatMessage, ViewpointGraph } from "@/types/chat";
-import { UseChatStateProps } from "@/hooks/chatState/useChatStateTypes";
-import { FlowParams } from "@/hooks/useChatFlow";
+import { UseChatStateProps } from "@/hooks/chatstate/useChatStateTypes";
+import { FlowParams } from "@/hooks/chat/useChatFlow";
 
 export function useChatLocalState({
   currentChatId,

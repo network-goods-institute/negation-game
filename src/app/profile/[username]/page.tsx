@@ -1,35 +1,35 @@
 "use client";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useUser } from "@/queries/useUser";
+import { useUser } from "@/queries/users/useUser"
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
-import { PointCard } from "@/components/PointCard";
+import { PointCard } from "@/components/cards/PointCard";
 import Link from "next/link";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import { Button } from "@/components/ui/button";
 import { ArrowLeftIcon, ArrowDownIcon, PencilIcon, ExternalLinkIcon } from "lucide-react";
 import { useState, useMemo, useCallback, useEffect, memo } from "react";
-import { useProfilePoints } from "@/queries/useProfilePoints";
-import { useUserViewpoints } from "@/queries/useUserViewpoints";
+import { useProfilePoints } from "@/queries/points/useProfilePoints";
+import { useUserViewpoints } from "@/queries/users/useUserViewpoints";
 import { Separator } from "@/components/ui/separator";
-import type { ProfilePoint } from "@/actions/fetchProfilePoints";
 import React from "react";
-import { useUserEndorsedPoints } from "@/queries/useUserEndorsedPoints";
+import { useUserEndorsedPoints } from "@/queries/users/useUserEndorsedPoints";
 import { getBackButtonHandler } from "@/lib/negation-game/backButtonUtils";
-import { ViewpointCardWrapper } from "@/components/ViewpointCardWrapper";
+import { ViewpointCardWrapper } from "@/components/cards/ViewpointCardWrapper";
 import { usePathname } from "next/navigation";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 import { useSetAtom } from "jotai";
-import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
+import { preventDefaultIfContainsSelection } from "@/lib/utils/preventDefaultIfContainsSelection";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { ProfilePoint } from "@/actions/points/fetchProfilePoints";
 
 type ProfileTab = "profile" | "endorsements" | "dashboard";
 
 const ProfileEditDialog = dynamic(
-    () => import("@/components/ProfileEditDialog").then(mod => mod.ProfileEditDialog),
+    () => import("@/components/dialogs/ProfileEditDialog").then(mod => mod.ProfileEditDialog),
     {
         ssr: false,
         loading: () => null

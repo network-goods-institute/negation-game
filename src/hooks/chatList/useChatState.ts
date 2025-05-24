@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { nanoid } from "nanoid";
 import { SavedChat } from "@/types/chat";
-import { ChatListManagementProps, ChatState } from "./chatListTypes";
+import {
+  ChatListManagementProps,
+  ChatState,
+} from "@/hooks/chatlist/chatListTypes";
 
 export function useChatState({
   currentSpace,

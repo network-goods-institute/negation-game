@@ -3,7 +3,10 @@ import { nanoid } from "nanoid";
 import { toast } from "sonner";
 import { SavedChat, ChatMessage } from "@/types/chat";
 import { ViewpointGraph } from "@/atoms/viewpointAtoms";
-import { createDbChat, markChatAsDeleted } from "@/actions/chatSyncActions";
+import {
+  createDbChat,
+  markChatAsDeleted,
+} from "@/actions/chat/chatSyncActions";
 import { computeChatStateHash } from "@/lib/negation-game/chatUtils";
 import { ChatListManagementProps } from "./chatListTypes";
 

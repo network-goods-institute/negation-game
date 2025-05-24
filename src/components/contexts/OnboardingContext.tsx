@@ -16,7 +16,7 @@ import {
     DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button';
-import { MemoizedMarkdown } from '@/components/MemoizedMarkdown';
+import { MemoizedMarkdown } from '@/components/editor/MemoizedMarkdown';
 import { InfoIcon } from 'lucide-react';
 import { useKnowledgeBase } from '@/components/contexts/KnowledgeBaseContext';
 

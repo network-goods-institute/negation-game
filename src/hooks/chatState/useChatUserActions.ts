@@ -1,8 +1,8 @@
 import React, { useCallback, Dispatch, SetStateAction } from "react";
 import { toast } from "sonner";
 import { getChatMessageAsText } from "@/lib/negation-game/getChatMessageAsText";
-import { determineFlowParams } from "@/hooks/useChatFlow";
-import type { FlowType } from "@/hooks/useChatFlow";
+import { determineFlowParams } from "@/hooks/chat/useChatFlow";
+import type { FlowType } from "@/hooks/chat/useChatFlow";
 import type {
   ChatMessage,
   SavedChat,

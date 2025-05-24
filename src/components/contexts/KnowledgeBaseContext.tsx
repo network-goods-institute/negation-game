@@ -7,7 +7,7 @@ import {
     ReactNode,
     useCallback,
 } from 'react';
-import { KnowledgeBaseDialog } from '@/components/kb/KnowledgeBaseDialog';
+import { KnowledgeBaseDialog } from '../knowledgebase/KnowledgeBaseDialog';
 
 interface KnowledgeBaseContextType {
     isOpen: boolean;

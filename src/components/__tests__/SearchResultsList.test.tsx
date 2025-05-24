@@ -1,10 +1,10 @@
 import { render, screen } from '@testing-library/react';
-import { SearchResultsList } from '../SearchResultsList';
-import { SearchResult } from '@/actions/searchContent';
+import { SearchResultsList } from '../search/SearchResultsList';
+import { SearchResult } from '@/actions/search/searchContent';
 import userEvent from '@testing-library/user-event';
 
 // Mock the necessary dependencies
-jest.mock('@/hooks/useBasePath', () => ({
+jest.mock('@/hooks/utils/useBasePath', () => ({
     useBasePath: () => '/s/global',
 }));
 
@@ -26,7 +26,7 @@ jest.mock('@/components/ui/loader', () => ({
 }));
 
 // Mock PointCard component
-jest.mock('@/components/PointCard', () => ({
+jest.mock('@/components/cards/PointCard', () => ({
     PointCard: (props: any) => (
         <div data-testid="point-card" className={props.className}>
             {props.isLoading && <div data-testid="loading-spinner" />}
@@ -35,7 +35,7 @@ jest.mock('@/components/PointCard', () => ({
 }));
 
 // Mock the ViewpointCardWrapper component
-jest.mock('@/components/ViewpointCardWrapper', () => ({
+jest.mock('@/components/cards/ViewpointCardWrapper', () => ({
     ViewpointCardWrapper: (props: any) => (
         <div
             data-testid="viewpoint-card-wrapper"

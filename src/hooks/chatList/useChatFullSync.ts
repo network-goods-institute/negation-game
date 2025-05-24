@@ -5,7 +5,7 @@ import {
   fetchChatContent,
   updateDbChat,
   ChatMetadata,
-} from "@/actions/chatSyncActions";
+} from "@/actions/chat/chatSyncActions";
 import { computeChatStateHash } from "@/lib/negation-game/chatUtils";
 import { SavedChat } from "@/types/chat";
 

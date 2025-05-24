@@ -1,5 +1,5 @@
 // Mock dependencies before importing the implementation
-jest.mock("../getUserId", () => ({
+jest.mock("../users/getUserId", () => ({
   getUserId: jest.fn(),
 }));
 
@@ -79,8 +79,8 @@ jest.mock("drizzle-orm", () => {
 });
 
 // Import the slash action after setting up mocks
-import { slash } from "../slash";
-import { getUserId } from "../getUserId";
+import { slash } from "../epistemic/slash";
+import { getUserId } from "../users/getUserId";
 import { db } from "@/services/db";
 import {
   restakesTable,

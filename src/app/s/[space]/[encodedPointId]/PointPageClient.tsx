@@ -9,12 +9,12 @@ import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { negationContentAtom } from "@/atoms/negationContentAtom";
-import { CredInput } from "@/components/CredInput";
-import { PointCard } from "@/components/PointCard";
-import { PointStats } from "@/components/PointStats";
-import { RestakeDialog } from "@/components/RestakeDialog";
-import { SelectNegationDialog } from "@/components/SelectNegationDialog";
-import { GraphView } from "@/components/graph/EncodedGraphView";
+import { CredInput } from "@/components/inputs/CredInput";
+import { PointCard } from "@/components/cards/PointCard";
+import { PointStats } from "@/components/cards/pointcard/PointStats";
+import { RestakeDialog } from "@/components/dialogs/RestakeDialog";
+import { SelectNegationDialog } from "@/components/dialogs/SelectNegationDialog";
+import { GraphView } from "@/components/graph/base/EncodedGraphView";
 import { EndorseIcon } from "@/components/icons/EndorseIcon";
 import { NegateIcon } from "@/components/icons/NegateIcon";
 import { PointIcon } from "@/components/icons/AppIcons";
@@ -30,21 +30,20 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DEFAULT_SPACE, DEFAULT_TIMESCALE } from "@/constants/config";
-import { useBasePath } from "@/hooks/useBasePath";
-import { useCredInput } from "@/hooks/useCredInput";
-import { useVisitedPoints } from "@/hooks/useVisitedPoints";
-import { cn } from "@/lib/cn";
+import { useBasePath } from "@/hooks/utils/useBasePath";
+import { useCredInput } from "@/hooks/ui/useCredInput";
+import { useVisitedPoints } from "@/hooks/points/useVisitedPoints";
+import { cn } from "@/lib/utils/cn";
 import { decodeId } from "@/lib/negation-game/decodeId";
 import { encodeId } from "@/lib/negation-game/encodeId";
-import { preventDefaultIfContainsSelection } from "@/lib/preventDefaultIfContainsSelection";
+import { preventDefaultIfContainsSelection } from "@/lib/utils/preventDefaultIfContainsSelection";
 import { TimelineScale, timelineScales } from "@/lib/negation-game/timelineScale";
-import { useEndorse } from "@/mutations/useEndorse";
-import { useCounterpointSuggestions } from "@/queries/useCounterpointSuggestions";
-import { useFavorHistory } from "@/queries/useFavorHistory";
-import { usePrefetchPoint } from "@/queries/usePointData";
-import { usePointNegations } from "@/queries/usePointNegations";
-import { useSpace } from "@/queries/useSpace";
-import { useUser } from "@/queries/useUser";
+import { useEndorse } from "@/mutations/endorsements/useEndorse";
+import { useFavorHistory } from "@/queries/epistemic/useFavorHistory";
+import { usePrefetchPoint } from "@/queries/points/usePointData";
+import { usePointNegations } from "@/queries/points/usePointNegations";
+import { useSpace } from "@/queries/space/useSpace";
+import { useUser } from "@/queries/users/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { AvatarImage } from "@radix-ui/react-avatar";
 import { useToggle } from "@uidotdev/usehooks";
@@ -59,7 +58,6 @@ import {
     SparklesIcon,
     MoreVertical,
     ClipboardCopyIcon,
-    CheckIcon
 } from "lucide-react";
 import { nanoid } from "nanoid";
 import { notFound, useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -74,12 +72,12 @@ import {
     XAxis,
     YAxis,
 } from "recharts";
-import { usePointData, pointQueryKey } from "@/queries/usePointData";
+import { usePointData, pointQueryKey } from "@/queries/points/usePointData";
 import { Badge } from "@/components/ui/badge";
 import { useQueryClient } from "@tanstack/react-query";
-import { usePrefetchRestakeData } from "@/hooks/usePrefetchRestakeData";
+import { usePrefetchRestakeData } from "@/hooks/epistemic/usePrefetchRestakeData";
 import { visitedPointsAtom } from "@/atoms/visitedPointsAtom";
-import { DeletePointDialog } from "@/components/DeletePointDialog";
+import { DeletePointDialog } from "@/components/dialogs/DeletePointDialog";
 import { isWithinDeletionTimelock } from "@/lib/negation-game/deleteTimelock";
 import { getPointUrl } from "@/lib/negation-game/getPointUrl";
 import {
@@ -90,8 +88,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getBackButtonHandler } from "@/lib/negation-game/backButtonUtils";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
-import { useSellEndorsement } from '@/mutations/useSellEndorsement';
-import { AuthenticatedActionButton } from "@/components/AuthenticatedActionButton";
+import { useSellEndorsement } from "@/mutations/endorsements/useSellEndorsement";
+import { AuthenticatedActionButton } from "@/components/editor/AuthenticatedActionButton";
 import { toast } from "sonner";
 
 type Point = {
@@ -115,6 +113,7 @@ type PageProps = {
     params: { encodedPointId: string; space: string };
     searchParams: { [key: string]: string | string[] | undefined };
 };
+import { useCounterpointSuggestions } from "@/queries/ai/useCounterpointSuggestions";
 
 const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, handleNegate, point, prefetchRestakeData, setRestakePoint, handleNegationHover, handleNegationHoverEnd, prefetchPoint, loadingCardId, onCardClick }: any) => {
     const [favorHistoryLoaded, setFavorHistoryLoaded] = useState(false);
@@ -125,7 +124,7 @@ const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, ha
         handleNegationHover(negation.pointId);
 
         if (!favorHistoryLoaded) {
-            import("@/actions/fetchFavorHistory")
+            import("@/actions/feed/fetchFavorHistory")
                 .then(({ fetchFavorHistory }) => {
                     fetchFavorHistory({
                         pointId: negation.pointId,
@@ -314,8 +313,8 @@ export function PointPageClient({
                 try {
                     // Use Promise.all to parallelize these essential requests
                     const [negationsModule, favorHistoryModule] = await Promise.all([
-                        import("@/actions/fetchPointNegations"),
-                        import("@/actions/fetchFavorHistory")
+                        import("@/actions/points/fetchPointNegations"),
+                        import("@/actions/feed/fetchFavorHistory")
                     ]);
 
                     // Then run the actual data fetches in parallel

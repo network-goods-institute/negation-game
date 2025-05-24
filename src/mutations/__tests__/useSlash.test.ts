@@ -1,9 +1,9 @@
 // Mock dependencies first
-jest.mock("../useAuthenticatedMutation", () => ({
+jest.mock("../auth/useAuthenticatedMutation", () => ({
   useAuthenticatedMutation: jest.fn(),
 }));
 
-jest.mock("@/queries/usePointData", () => ({
+jest.mock("@/queries/points/usePointData", () => ({
   useInvalidateRelatedPoints: jest.fn(),
   pointQueryKey: jest.fn(({ pointId, userId }) => [
     "point",
@@ -20,7 +20,7 @@ jest.mock("@privy-io/react-auth", () => ({
 }));
 
 // Mock useVisitedPoints hook
-jest.mock("@/hooks/useVisitedPoints", () => ({
+jest.mock("@/hooks/points/useVisitedPoints", () => ({
   useVisitedPoints: jest.fn(() => ({
     markPointAsRead: jest.fn(),
     isVisited: jest.fn(),
@@ -29,19 +29,19 @@ jest.mock("@/hooks/useVisitedPoints", () => ({
 }));
 
 // Instead of mocking the action itself, mock its dependencies
-jest.mock("@/actions/slash", () => {
+jest.mock("@/actions/epistemic/slash", () => {
   const slash = jest.fn(async ({ pointId, negationId, amount }) => 123);
   return { slash };
 });
 
 // Import after mocking
-import { useSlash } from "../useSlash";
-import { useAuthenticatedMutation } from "../useAuthenticatedMutation";
-import { slash } from "@/actions/slash";
-import { useInvalidateRelatedPoints } from "@/queries/usePointData";
+import { useSlash } from "../epistemic/useSlash";
+import { useAuthenticatedMutation } from "../auth/useAuthenticatedMutation";
+import { slash } from "@/actions/epistemic/slash";
+import { useInvalidateRelatedPoints } from "@/queries/points/usePointData";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePrivy } from "@privy-io/react-auth";
-import { useVisitedPoints } from "@/hooks/useVisitedPoints";
+import { useVisitedPoints } from "@/hooks/points/useVisitedPoints";
 
 describe("useSlash", () => {
   // Setup common mocks

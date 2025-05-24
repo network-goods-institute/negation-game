@@ -1,6 +1,6 @@
 import React, { useCallback } from "react";
 import { toast } from "sonner";
-import { mapOptionToFlowType } from "@/hooks/useChatFlow";
+import { mapOptionToFlowType } from "@/hooks/chat/useChatFlow";
 import type {
   ChatMessage,
   SavedChat,
@@ -9,7 +9,7 @@ import type {
   DiscourseMessage,
   ViewpointGraph,
 } from "@/types/chat";
-import type { FlowType } from "@/hooks/useChatFlow";
+import type { FlowType } from "@/hooks/chat/useChatFlow";
 
 export interface UseChatStarterProps {
   currentChatId: string | null;

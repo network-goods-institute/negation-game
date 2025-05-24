@@ -1,5 +1,5 @@
 import { CircleIcon, EyeIcon, TriangleIcon, PinIcon, DiscIcon } from "lucide-react";
-import { cn } from "@/lib/cn";
+import { cn } from "@/lib/utils/cn";
 
 interface IconProps {
     className?: string;

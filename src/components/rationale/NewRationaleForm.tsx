@@ -1,7 +1,7 @@
 "use client";
 
-import RationaleMetaForm, { RationaleMetaFormProps } from "@/components/RationaleMetaForm";
-import RationalePointsList, { RationalePointsListProps } from "@/components/RationalePointsList";
+import RationaleMetaForm, { RationaleMetaFormProps } from "./RationaleMetaForm";
+import RationalePointsList, { RationalePointsListProps } from "./RationalePointsList";
 
 export interface NewRationaleFormProps {
     title: string;

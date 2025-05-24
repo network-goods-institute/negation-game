@@ -1,5 +1,5 @@
 // Mock dependencies before importing the implementation
-jest.mock("../getUserId", () => ({
+jest.mock("../users/getUserId", () => ({
   getUserId: jest.fn(),
 }));
 
@@ -78,8 +78,8 @@ jest.mock("@/services/db", () => {
 });
 
 // Now import the actual implementation and its dependencies
-import { restake } from "../restake";
-import { getUserId } from "../getUserId";
+import { restake } from "../epistemic/restake";
+import { getUserId } from "../users/getUserId";
 import { db } from "@/services/db";
 import {
   restakesTable,
@@ -87,9 +87,6 @@ import {
   slashesTable,
   slashHistoryTable,
 } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
-// Import sql from our mock to avoid conflicts
-const { sql } = jest.requireMock("drizzle-orm");
 
 describe("restake", () => {
   beforeEach(() => {

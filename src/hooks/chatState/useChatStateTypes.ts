@@ -6,7 +6,7 @@ import {
   ChatSettings,
   ViewpointGraph,
 } from "@/types/chat";
-import { PointInSpace } from "@/actions/fetchAllSpacePoints";
+import { PointInSpace } from "@/actions/points/fetchAllSpacePoints";
 
 export interface UseChatStateProps {
   currentChatId: string | null;

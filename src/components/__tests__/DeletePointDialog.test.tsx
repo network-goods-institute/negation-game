@@ -14,14 +14,14 @@ jest.mock('@/lib/privy/getPrivyClient', () => ({
     })),
 }));
 
-jest.mock('@/actions/getUserId', () => ({
+jest.mock('@/actions/users/getUserId', () => ({
     getUserId: jest.fn(() => Promise.resolve('test-user')),
 }));
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { DeletePointDialog } from '@/components/DeletePointDialog';
-import { useDeletePoint } from '@/mutations/useDeletePoint';
+import { DeletePointDialog } from '@/components/dialogs/DeletePointDialog';
+import { useDeletePoint } from '@/mutations/points/useDeletePoint';
 import { isWithinDeletionTimelock } from '@/lib/negation-game/deleteTimelock';
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -29,7 +29,7 @@ import { useRouter, usePathname } from 'next/navigation';
 jest.useFakeTimers();
 
 // Mock all the dependencies
-jest.mock('@/mutations/useDeletePoint');
+jest.mock('@/mutations/points/useDeletePoint');
 jest.mock('@/lib/negation-game/deleteTimelock');
 jest.mock('next/navigation', () => ({
     useRouter: jest.fn(),

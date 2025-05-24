@@ -1,9 +1,9 @@
 // Mock dependencies first
-jest.mock("../useAuthenticatedMutation", () => ({
+jest.mock("../auth/useAuthenticatedMutation", () => ({
   useAuthenticatedMutation: jest.fn(),
 }));
 
-jest.mock("@/queries/usePointData", () => ({
+jest.mock("@/queries/points/usePointData", () => ({
   useInvalidateRelatedPoints: jest.fn(),
 }));
 
@@ -16,7 +16,7 @@ jest.mock("@privy-io/react-auth", () => ({
 }));
 
 // Mock the action
-jest.mock("@/actions/collectEarnings", () => {
+jest.mock("@/actions/epistemic/collectEarnings", () => {
   const collectEarnings = jest.fn(async () => ({
     totalEarnings: 42,
     affectedPoints: [1, 2, 3],
@@ -25,13 +25,13 @@ jest.mock("@/actions/collectEarnings", () => {
 });
 
 // Import after mocking
-import { useCollectEarnings } from "../useCollectEarnings";
-import { useAuthenticatedMutation } from "../useAuthenticatedMutation";
-import { collectEarnings } from "@/actions/collectEarnings";
-import { useInvalidateRelatedPoints } from "@/queries/usePointData";
+import { useCollectEarnings } from "../epistemic/useCollectEarnings";
+import { useAuthenticatedMutation } from "../auth/useAuthenticatedMutation";
+import { collectEarnings } from "@/actions/epistemic/collectEarnings";
+import { useInvalidateRelatedPoints } from "@/queries/points/usePointData";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePrivy } from "@privy-io/react-auth";
-import { userQueryKey } from "@/queries/useUser";
+import { userQueryKey } from "@/queries/users/useUser";
 
 describe("useCollectEarnings", () => {
   // Setup common mocks

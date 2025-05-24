@@ -1,9 +1,12 @@
 import { useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { SavedChat } from "@/types/chat";
-import { updateDbChat, createDbChat } from "@/actions/chatSyncActions";
+import { updateDbChat, createDbChat } from "@/actions/chat/chatSyncActions";
 import { computeChatStateHash } from "@/lib/negation-game/chatUtils";
-import { ChatListManagementProps, ChatSyncState } from "./chatListTypes";
+import {
+  ChatListManagementProps,
+  ChatSyncState,
+} from "@/hooks/chatlist/chatListTypes";
 
 const PUSH_DEBOUNCE_MS = 2500;
 

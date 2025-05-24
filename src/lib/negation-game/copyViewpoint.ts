@@ -1,6 +1,6 @@
 import { ViewpointGraph } from "@/atoms/viewpointAtoms";
-import { AppNode } from "@/components/graph/AppNode";
-import { StatementNodeData } from "@/components/graph/StatementNode";
+import { AppNode } from "@/components/graph/nodes/AppNode";
+import { StatementNodeData } from "@/components/graph/nodes/StatementNode";
 import { Edge } from "@xyflow/react";
 
 /**
@@ -237,7 +237,7 @@ export const copyViewpointAndNavigate = async (
     let summaryDescription = `Copy of the rationale "${title.trim()}". This is a copy of an existing rationale.`;
 
     const { generateRationaleSummary } = await import(
-      "@/actions/generateRationaleSummary"
+      "@/actions/ai/generateRationaleSummary"
     );
 
     try {

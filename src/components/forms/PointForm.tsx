@@ -12,7 +12,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { POINT_MAX_LENGTH } from "@/constants/config";
 import { InsertPoint, insertPointSchema } from "@/db/tables/pointsTable";
-import { cn } from "@/lib/cn";
+import { cn } from "@/lib/utils/cn";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FC, HTMLAttributes } from "react";
 import { SubmitHandler, useForm } from "react-hook-form";

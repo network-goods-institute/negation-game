@@ -3,16 +3,16 @@
  */
 import React from "react";
 import { renderHook } from "@testing-library/react";
-import { useUpdateViewpointDetails } from "../useUpdateViewpointDetails";
+import { useUpdateViewpointDetails } from "../viewpoints/useUpdateViewpointDetails";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useAuthenticatedMutation } from "../useAuthenticatedMutation";
+import { useAuthenticatedMutation } from "../auth/useAuthenticatedMutation";
 
 // Mock the dependencies
-jest.mock("../useAuthenticatedMutation", () => ({
+jest.mock("../auth/useAuthenticatedMutation", () => ({
     useAuthenticatedMutation: jest.fn()
 }));
 
-jest.mock("@/actions/updateViewpointDetails", () => ({
+jest.mock("@/actions/viewpoints/updateViewpointDetails", () => ({
     updateViewpointDetails: jest.fn()
 }));
 
@@ -48,7 +48,7 @@ describe("useUpdateViewpointDetails", () => {
 
     it("should call useAuthenticatedMutation with the correct parameters", () => {
         // Import the real updateViewpointDetails to pass to hook
-        const { updateViewpointDetails } = require("@/actions/updateViewpointDetails");
+        const { updateViewpointDetails } = require("@/actions/viewpoints/updateViewpointDetails");
 
         renderHook(() => useUpdateViewpointDetails(), { wrapper });
 

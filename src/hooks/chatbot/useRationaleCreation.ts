@@ -2,11 +2,11 @@ import { useState, useCallback } from "react";
 import { useReactFlow, Node as RFNode } from "@xyflow/react";
 import { useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
-import { useUser } from "@/queries/useUser";
-import { useTopics } from "@/queries/useTopics";
+import { useUser } from "@/queries/users/useUser";
+import { useTopics } from "@/queries/topics/useTopics";
 import { toast } from "sonner";
-import { fetchPointsByExactContent } from "@/actions/fetchPointsByExactContent";
-import { createRationaleFromPreview } from "@/actions/createRationaleFromPreview";
+import { fetchPointsByExactContent } from "@/actions/points/fetchPointsByExactContent";
+import { createRationaleFromPreview } from "@/actions/viewpoints/createRationaleFromPreview";
 import {
   POINT_MIN_LENGTH,
   POINT_MAX_LENGTH,
@@ -15,10 +15,10 @@ import {
 import {
   ConflictingPoint,
   ResolvedMappings,
-} from "@/components/chatbot/DuplicatePointSelectionDialog";
+} from "@/components/chatbot/dialogs/DuplicatePointSelectionDialog";
 import { PreviewAppNode, PreviewAppEdge } from "@/types/rationaleGraph";
-import { PreviewStatementNodeData } from "@/components/chatbot/PreviewStatementNode";
-import { PreviewPointNodeData } from "@/components/chatbot/PreviewPointNode";
+import { PreviewStatementNodeData } from "@/components/chatbot/preview/PreviewStatementNode";
+import { PreviewPointNodeData } from "@/components/chatbot/preview/PreviewPointNode";
 
 interface UseRationaleCreationProps {
   isAuthenticated: boolean;

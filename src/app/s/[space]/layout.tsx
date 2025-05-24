@@ -1,4 +1,4 @@
-import { fetchSpace } from "@/actions/fetchSpace";
+import { fetchSpace } from "@/actions/spaces/fetchSpace";
 import { notFound } from "next/navigation";
 
 export default async function SpaceLayout({

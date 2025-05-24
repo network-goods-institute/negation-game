@@ -1,7 +1,7 @@
 "use client";
 
-import { AppEdge } from "@/components/graph/AppEdge";
-import { AppNode } from "@/components/graph/AppNode";
+import { AppEdge } from "@/components/graph/edges/AppEdge";
+import { AppNode } from "@/components/graph/nodes/AppNode";
 import { PLACEHOLDER_STATEMENT } from "@/constants/config";
 import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
 import { ReactFlowJsonObject, Edge } from "@xyflow/react";

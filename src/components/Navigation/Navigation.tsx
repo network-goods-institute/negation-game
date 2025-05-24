@@ -1,10 +1,10 @@
 "use client";
 
-import { NavigationItem } from "@/components/Navigation/NavigationItem";
+import { NavigationItem } from "@/components/navigation/NavigationItem";
 import { usePrivy } from "@privy-io/react-auth";
 import { FC, HTMLAttributes } from "react";
 
-export interface NavigationProps extends HTMLAttributes<HTMLDivElement> {}
+export interface NavigationProps extends HTMLAttributes<HTMLDivElement> { }
 
 export const Navigation: FC<NavigationProps> = ({ ...props }) => {
   const { authenticated } = usePrivy();

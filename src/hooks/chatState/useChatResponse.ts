@@ -1,12 +1,12 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
-import { generateDistillRationaleChatBotResponse } from "@/actions/generateDistillRationaleChatBotResponse";
-import { generateSuggestionChatBotResponse } from "@/actions/generateSuggestionChatBotResponse";
-import { generateRationaleCreationResponse } from "@/actions/generateRationaleCreationResponse";
-import { generateChatName } from "@/actions/generateChatName";
+import { generateDistillRationaleChatBotResponse } from "@/actions/ai/generateDistillRationaleChatBotResponse";
+import { generateSuggestionChatBotResponse } from "@/actions/ai/generateSuggestionChatBotResponse";
+import { generateRationaleCreationResponse } from "@/actions/ai/generateRationaleCreationResponse";
+import { generateChatName } from "@/actions/ai/generateChatName";
 import { extractSourcesFromMarkdown } from "@/lib/negation-game/chatUtils";
 import type { ChatMessage, SavedChat, ViewpointGraph } from "@/types/chat";
-import type { FlowParams, FlowType } from "@/hooks/useChatFlow";
+import type { FlowParams, FlowType } from "@/hooks/chat/useChatFlow";
 import type { Dispatch, SetStateAction, MutableRefObject } from "react";
 
 /* eslint-disable drizzle/enforce-delete-with-where */

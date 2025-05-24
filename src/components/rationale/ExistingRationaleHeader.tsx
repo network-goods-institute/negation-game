@@ -1,11 +1,11 @@
 "use client";
 
-import RationaleHeaderBar from "@/components/RationaleHeaderBar";
+import RationaleHeaderBar from "./RationaleHeaderBar";
 import { Button } from "@/components/ui/button";
-import { AuthenticatedActionButton } from "@/components/AuthenticatedActionButton";
+import { AuthenticatedActionButton } from "@/components/editor/AuthenticatedActionButton";
 import { CopyIcon, LinkIcon, CheckIcon, Share2Icon } from "lucide-react";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
-import { cn } from "@/lib/cn";
+import { cn } from "@/lib/utils/cn";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
 
 export interface ExistingRationaleHeaderProps {
