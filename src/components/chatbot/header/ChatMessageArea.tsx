@@ -133,9 +133,11 @@ export function ChatMessageArea({
                         </div>
                         <div className="grid gap-3 md:gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             {initialOptions.map((option) => {
-                                const isDisabled = option.id === 'distill'
-                                    ? isFetchingRationales || !isAuthenticated || (!isFetchingRationales && availableRationales.length === 0)
-                                    : option.disabled || !isAuthenticated;
+                                const isDisabled = !isAuthenticated
+                                    ? false
+                                    : option.id === 'distill'
+                                        ? isFetchingRationales
+                                        : !!option.disabled;
                                 const description = option.id === 'distill'
                                     ? "Organize your existing rationales into an essay."
                                     : option.description;
@@ -161,8 +163,7 @@ export function ChatMessageArea({
                                     <div key={option.id} className="flex flex-col items-center">
                                         <AuthenticatedActionButton
                                             variant="outline"
-                                            className={`w-full h-auto min-h-[6rem] p-2 md:min-h-[8rem] md:p-4 flex flex-col items-center justify-center gap-1.5 text-center rounded-lg hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 ${isDisabled || option.comingSoon ? 'opacity-50 cursor-not-allowed' : ''
-                                                }`}
+                                            className={`w-full h-auto min-h-[6rem] p-2 md:min-h-[8rem] md:p-4 flex flex-col items-center justify-center gap-1.5 text-center rounded-lg hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 ${option.comingSoon ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             onClick={() => onStartChatOption(option)}
                                             disabled={isDisabled || option.comingSoon || isGeneratingCurrent}
                                             aria-disabled={isDisabled || option.comingSoon}

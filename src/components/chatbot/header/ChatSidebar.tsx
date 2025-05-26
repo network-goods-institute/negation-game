@@ -14,6 +14,7 @@ import { SavedChat } from '@/types/chat';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
+import { usePrivy } from '@privy-io/react-auth';
 
 export const ChatListSkeleton = () => {
     return (
@@ -55,6 +56,7 @@ const ChatListItem = React.memo(({
     onCloseMobileMenu,
     handleShareChat
 }: ChatListItemProps) => {
+    const { authenticated, login } = usePrivy();
     const handleClick = useCallback(() => {
         onSwitchChat(chat.id);
         if (isMobile) onCloseMobileMenu();
@@ -79,20 +81,32 @@ const ChatListItem = React.memo(({
     }, [chat.id, onTriggerDelete]);
 
     const handleRenameSelect = useCallback(() => {
-        onTriggerRename(chat.id, chat.title);
-    }, [chat.id, chat.title, onTriggerRename]);
+        if (!authenticated) {
+            login();
+        } else {
+            onTriggerRename(chat.id, chat.title);
+        }
+    }, [authenticated, login, chat.id, chat.title, onTriggerRename]);
 
     const handleShareSelect = useCallback(() => {
-        handleShareChat(chat.id);
-    }, [chat.id, handleShareChat]);
+        if (!authenticated) {
+            login();
+        } else {
+            handleShareChat(chat.id);
+        }
+    }, [authenticated, login, chat.id, handleShareChat]);
 
     const handleDeleteSelect = useCallback(() => {
-        onTriggerDelete(chat.id);
-    }, [chat.id, onTriggerDelete]);
+        if (!authenticated) {
+            login();
+        } else {
+            onTriggerDelete(chat.id);
+        }
+    }, [authenticated, login, chat.id, onTriggerDelete]);
 
     return (
         <ContextMenu.Root>
-            <ContextMenu.Trigger className="w-full" disabled={!isAuthenticated}>
+            <ContextMenu.Trigger className="w-full">
                 <div
                     className={`relative group px-3 py-2.5 md:px-4 md:py-3 rounded-lg cursor-pointer flex items-center transition-colors duration-150 ${chat.id === currentChatId ? 'bg-accent shadow-sm' : 'hover:bg-accent/50'}`}
                     onClick={handleClick}
@@ -129,7 +143,6 @@ const ChatListItem = React.memo(({
                         <AuthenticatedActionButton
                             variant="ghost" size="icon" className={`h-6 w-6 text-muted-foreground hover:text-primary`}
                             onClick={handleShareClick}
-                            disabled={!isAuthenticated}
                             title="Share chat"
                         ><ExternalLink className="h-3.5 w-3.5" /></AuthenticatedActionButton>
                         <AuthenticatedActionButton
@@ -141,16 +154,10 @@ const ChatListItem = React.memo(({
                 </div>
             </ContextMenu.Trigger>
             <ContextMenu.Content className="min-w-[160px] bg-popover text-popover-foreground rounded-md border shadow-md p-1 z-50">
-                <ContextMenu.Item className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent focus:bg-accent hover:text-accent-foreground focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50" onSelect={handleRenameSelect} disabled={!isAuthenticated}>Rename</ContextMenu.Item>
-                <ContextMenu.Item
-                    className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent focus:bg-accent hover:text-accent-foreground focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
-                    disabled={!isAuthenticated}
-                    onSelect={handleShareSelect}
-                >
-                    Share
-                </ContextMenu.Item>
+                <ContextMenu.Item className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent focus:bg-accent hover:text-accent-foreground focus:text-accent-foreground" onSelect={handleRenameSelect}>Rename</ContextMenu.Item>
+                <ContextMenu.Item className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent focus:bg-accent hover:text-accent-foreground focus:text-accent-foreground" onSelect={handleShareSelect}>Share</ContextMenu.Item>
                 <ContextMenu.Separator className="h-[1px] bg-border m-[5px]" />
-                <ContextMenu.Item className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-destructive focus:bg-destructive hover:text-destructive-foreground focus:text-destructive-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50" onSelect={handleDeleteSelect} disabled={!isAuthenticated}>Delete</ContextMenu.Item>
+                <ContextMenu.Item className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-destructive focus:bg-destructive hover:text-destructive-foreground focus:text-destructive-foreground" onSelect={handleDeleteSelect}>Delete</ContextMenu.Item>
             </ContextMenu.Content>
         </ContextMenu.Root>
     );
