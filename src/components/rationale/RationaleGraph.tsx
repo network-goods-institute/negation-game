@@ -56,7 +56,14 @@ export default function RationaleGraph({
         }
         const id = toast(
             "Node expansions, sharing, and other features may take a few seconds to become available as detailed node data loads.",
-            { position: 'bottom-right', duration: 30000 }
+            {
+                position: 'bottom-right',
+                duration: 30000,
+                action: {
+                    label: 'Dismiss',
+                    onClick: () => toast.dismiss(id),
+                },
+            }
         );
         toastIdRef.current = id;
         return () => {
