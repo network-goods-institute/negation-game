@@ -40,7 +40,10 @@ export interface ReviewResults {
     rating: number;
     feedback: string;
     existingSimilarCounterpoints: CounterpointCandidate[];
-    suggestions: string[];
+    suggestions: {
+        suggestion: string;
+        reason: string;
+    }[];
 }
 
 interface CounterpointReviewProps {
@@ -197,7 +200,7 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                                     onClick={(e) => {
                                         console.log('CounterpointReview: AI suggestion clicked', suggestion);
                                         e.stopPropagation();
-                                        onSelectSuggestion(suggestion);
+                                        onSelectSuggestion(suggestion.suggestion);
                                     }}
                                     className="relative flex flex-col gap-2 p-4 w-full bg-background cursor-pointer border border-dashed rounded-md transition-colors shadow-sm hover:border-blue-500 hover:ring-1 hover:ring-blue-500"
                                 >
@@ -209,7 +212,13 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                                         </Badge>
                                         {/* Text takes full width on mobile */}
                                         <span className="w-full text-md">
-                                            {suggestion}
+                                            {suggestion.suggestion}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center mt-2">
+                                        <BrainCircuitIcon className="size-4 text-blue-500 mr-2 flex-shrink-0" />
+                                        <span className="text-sm text-blue-500 font-medium">
+                                            {suggestion.reason}
                                         </span>
                                     </div>
                                 </div>

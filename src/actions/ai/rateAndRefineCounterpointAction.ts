@@ -56,7 +56,7 @@ if it's rated below ${GOOD_ENOUGH_POINT_RATING}, provide feedback on how to impr
 - The feedback should start with "It could be improved by..." and be clear, concise, and actionable.
 - The feedback should not be opinionated in regards to the claim of the COUNTERPOINT, but rather focus on the clarity, conciseness, structure and relevance of the statement.
 
-Also offer 3 rephrasings of the COUNTERPOINT that would make it better according to the criteria above.
+Also offer 3 rephrasings of the COUNTERPOINT that would make it better according to the criteria above, along with a distinct reason for each why it's better.
 
 - The rephrasings MUST EXPRESS THE SAME MAIN IDEA as the COUNTERPOINT.
 - The rephrasings MUST MEET ALL CRITERIA ABOVE, so that they would be rated 10.
@@ -65,6 +65,8 @@ Also offer 3 rephrasings of the COUNTERPOINT that would make it better according
 - The rephrasings must avoid using fancy, outdated, or overly formal expressions.
 - The rephrasings should not include opening remarks, going straight to the point.
 - The rephrasings should contain between ${POINT_MIN_LENGTH} and ${POINT_MAX_LENGTH} characters.
+
+Each reason should be concise and highlight a specific improvement over the original counterpoint or other suggestions, making sure the reasons are distinct from each other.
 
 Focus on being clear, concise, and easy to understand, as if you're explaining something to a friend in today's world in an accessible way.
 Match the input language, do not translate to English.
@@ -82,8 +84,15 @@ Match the input language, do not translate to English.
           .int()
           .describe("rating of the counterpoint"),
         suggestions: z
-          .array(z.string())
-          .describe("Suggested rephrasings of the COUNTERPOINT"),
+          .array(
+            z.object({
+              suggestion: z.string().describe("Suggested rephrasing"),
+              reason: z
+                .string()
+                .describe("Reason why this suggestion is better"),
+            })
+          )
+          .describe("Suggested rephrasings of the COUNTERPOINT with reasons"),
         feedback: z
           .string()
           .describe("Feedback for the user on how to improve the COUNTERPOINT"),
