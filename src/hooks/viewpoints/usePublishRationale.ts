@@ -63,7 +63,7 @@ export default function usePublishRationale() {
         reactFlow.setNodes(initialViewpointGraph.nodes);
         reactFlow.setEdges(initialViewpointGraph.edges);
       }
-      push(`${basePath}/rationale/${id}`);
+      push(`${basePath}/rationale/${id}?published=true`);
       return id;
     } catch (e) {
       console.error("Publish failed", e);

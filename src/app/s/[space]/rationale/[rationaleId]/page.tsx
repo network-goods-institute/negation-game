@@ -16,7 +16,7 @@ import { useUser } from "@/queries/users/useUser";
 import { ReactFlowProvider, useReactFlow, } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
 import React, { use, useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useRouter, notFound } from "next/navigation";
+import { useRouter, notFound, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useTopics } from "@/queries/topics/useTopics";
 import { DEFAULT_SPACE } from "@/constants/config";
@@ -36,6 +36,7 @@ import useSaveViewpoint, { UseSaveViewpointParams } from '@/hooks/viewpoints/use
 import UnsavedChangesDialog from '@/components/dialogs/UnsavedChangesDialog';
 import { useConfirmDiscard } from "@/hooks/graph/useConfirmDiscard";
 import { useQueryClient } from '@tanstack/react-query';
+import { PublishAcknowledgementDialog } from "@/components/dialogs/PublishAcknowledgementDialog";
 
 function CopiedFromLink({ sourceId }: { sourceId: string }) {
     const { data: sourceViewpoint, isLoading } = useViewpoint(sourceId);
@@ -54,6 +55,18 @@ function CopiedFromLink({ sourceId }: { sourceId: string }) {
 }
 
 function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
+    const searchParams = useSearchParams();
+    const justPublished = searchParams.get('published') === 'true';
+    const [showPublishDialog, setShowPublishDialog] = useState(justPublished);
+
+    useEffect(() => {
+        if (justPublished) {
+            setShowPublishDialog(true);
+            const newUrl = window.location.pathname;
+            window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, '', newUrl);
+        }
+    }, [justPublished]);
+
     const queryClient = useQueryClient();
     const router = useRouter();
     const basePath = useBasePath();
@@ -243,120 +256,126 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     const { title, author, statistics, createdBy } = latestViewpoint;
 
     return (
-        <main className="relative flex-grow md:grid md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background h-full overflow-hidden">
-            <div className="hidden md:block"></div>
-
-
-            <div className="flex flex-col h-full md:col-start-2 border-x overflow-hidden">
-                <ExistingRationaleHeader
-                    isSharing={isSharing}
-                    isCopying={isCopying}
-                    isCopyingUrl={isCopyingUrl}
-                    toggleSharingMode={toggleSharingMode}
-                    handleCopyUrl={handleCopyUrl}
-                    isPageCopyConfirmOpen={isPageCopyConfirmOpen}
-                    setIsPageCopyConfirmOpen={setIsPageCopyConfirmOpen}
-                    handleCopy={handleCopy}
-                    handleBackClick={handleBackClick}
-                    canvasEnabled={canvasEnabled}
-                    toggleCanvas={() => setCanvasEnabled(!canvasEnabled)}
-                />
-                {/* --- Scrollable Content START*/}
-                <div className={cn(
-                    "flex-grow overflow-y-auto pb-10",
-                    canvasEnabled && "hidden md:block", // Hide content on mobile when canvas active
-                    // Add extra padding-bottom on mobile if canvas is OFF and changes exist
-                    !canvasEnabled && (isGraphModified || isContentModified) && isOwner && "pb-24 md:pb-10",
-                    isSharing && "pb-24 md:pb-24"
-                )}>
-                    {/* Content: Title, Meta, Description, Points */}
-                    <RationaleMetaForm
-                        title={editableTitle}
-                        onTitleChange={setEditableTitle}
-                        isTitleEditing={isTitleEditing}
-                        onTitleEdit={handleTitleEdit}
-                        onTitleBlur={handleEditingBlur}
-                        description={editableDescription}
-                        onDescriptionChange={setEditableDescription}
-                        isDescriptionEditing={isDescriptionEditing}
-                        onDescriptionEdit={handleDescriptionEdit}
-                        onDescriptionBlur={handleEditingBlur}
-                        topic={editableTopic}
-                        onTopicChange={(val) => { setEditableTopic(val); setIsContentModified(true); setIsTopicEditing(false); }}
-                        topics={topicsData || []}
-                        currentSpace={space?.data?.id || DEFAULT_SPACE}
-                        isNew={false}
-                        canEdit={true}
-                        showEditButtons={true}
-                        titleModified={isContentModified}
-                        descriptionModified={isContentModified}
-                        renderCopiedFromLink={latestViewpoint?.copiedFromId ? <CopiedFromLink sourceId={latestViewpoint.copiedFromId} /> : null}
-                        renderHeader={
-                            <>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm text-muted-foreground">By</span>
-                                    <UsernameDisplay username={author} userId={createdBy} className="text-sm text-muted-foreground" />
-                                </div>
-                                <ViewpointStatsBar
-                                    views={statistics.views}
-                                    copies={statistics.copies}
-                                    totalCred={statistics.totalCred}
-                                    averageFavor={statistics.averageFavor}
-                                    className="mt-1"
-                                />
-                            </>
-                        }
-                    />
-
-                    {/* Points List */}
-                    <RationalePointsList
-                        points={points}
-                        hoveredPointId={hoveredPointId}
-                        selectedPointIds={selectedPointIds}
-                        editMode={true}
-                        isSharing={isSharing}
-                        containerClassName="relative flex flex-col"
-                    />
-                </div>
-                {/* --- Scrollable Content END --- */}
-            </div>
-
-            {/* Column 3 (Graph View) using shared RationaleGraph */}
-            <Dynamic>
-                <RationaleGraph
-                    graph={localGraph!}
-                    setGraph={setGraph}
-                    setLocalGraph={setLocalGraph}
-                    statement={title}
-                    description={editableDescription}
-                    canModify={isOwner}
-                    canvasEnabled={canvasEnabled}
-                    className={cn(
-                        "!fixed inset-0 top-[var(--header-height)] !h-[calc(100vh-var(--header-height))]",
-                        "md:!relative md:col-start-3 md:inset-[reset] md:top-[reset] md:!h-full md:!z-auto",
-                        !canvasEnabled && "hidden md:block"
-                    )}
-                    isSaving={extractedSaving}
-                    isContentModified={isContentModified}
-                    isSharing={isSharing}
-                    toggleSharingMode={toggleSharingMode}
-                    handleGenerateAndCopyShareLink={handleGenerateAndCopyShareLink}
-                    originalGraphData={originalGraph!}
-                    onSave={onSaveChanges}
-                    onResetContent={resetContentModifications}
-                    onModifiedChange={setIsGraphModified}
-                />
-            </Dynamic>
-
-            <NegateDialog />
-
-            <UnsavedChangesDialog
-                open={isDiscardDialogOpen}
-                onOpenChange={setIsDiscardDialogOpen}
-                onDiscard={handleDiscard}
-                onCancel={() => setIsDiscardDialogOpen(false)}
+        <>
+            <PublishAcknowledgementDialog
+                open={showPublishDialog}
+                onOpenChange={setShowPublishDialog}
             />
-        </main>
+            <main className="relative flex-grow md:grid md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background h-full overflow-hidden">
+                <div className="hidden md:block"></div>
+
+
+                <div className="flex flex-col h-full md:col-start-2 border-x overflow-hidden">
+                    <ExistingRationaleHeader
+                        isSharing={isSharing}
+                        isCopying={isCopying}
+                        isCopyingUrl={isCopyingUrl}
+                        toggleSharingMode={toggleSharingMode}
+                        handleCopyUrl={handleCopyUrl}
+                        isPageCopyConfirmOpen={isPageCopyConfirmOpen}
+                        setIsPageCopyConfirmOpen={setIsPageCopyConfirmOpen}
+                        handleCopy={handleCopy}
+                        handleBackClick={handleBackClick}
+                        canvasEnabled={canvasEnabled}
+                        toggleCanvas={() => setCanvasEnabled(!canvasEnabled)}
+                    />
+                    {/* --- Scrollable Content START*/}
+                    <div className={cn(
+                        "flex-grow overflow-y-auto pb-10",
+                        canvasEnabled && "hidden md:block", // Hide content on mobile when canvas active
+                        // Add extra padding-bottom on mobile if canvas is OFF and changes exist
+                        !canvasEnabled && (isGraphModified || isContentModified) && isOwner && "pb-24 md:pb-10",
+                        isSharing && "pb-24 md:pb-24"
+                    )}>
+                        {/* Content: Title, Meta, Description, Points */}
+                        <RationaleMetaForm
+                            title={editableTitle}
+                            onTitleChange={setEditableTitle}
+                            isTitleEditing={isTitleEditing}
+                            onTitleEdit={handleTitleEdit}
+                            onTitleBlur={handleEditingBlur}
+                            description={editableDescription}
+                            onDescriptionChange={setEditableDescription}
+                            isDescriptionEditing={isDescriptionEditing}
+                            onDescriptionEdit={handleDescriptionEdit}
+                            onDescriptionBlur={handleEditingBlur}
+                            topic={editableTopic}
+                            onTopicChange={(val) => { setEditableTopic(val); setIsContentModified(true); setIsTopicEditing(false); }}
+                            topics={topicsData || []}
+                            currentSpace={space?.data?.id || DEFAULT_SPACE}
+                            isNew={false}
+                            canEdit={true}
+                            showEditButtons={true}
+                            titleModified={isContentModified}
+                            descriptionModified={isContentModified}
+                            renderCopiedFromLink={latestViewpoint?.copiedFromId ? <CopiedFromLink sourceId={latestViewpoint.copiedFromId} /> : null}
+                            renderHeader={
+                                <>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm text-muted-foreground">By</span>
+                                        <UsernameDisplay username={author} userId={createdBy} className="text-sm text-muted-foreground" />
+                                    </div>
+                                    <ViewpointStatsBar
+                                        views={statistics.views}
+                                        copies={statistics.copies}
+                                        totalCred={statistics.totalCred}
+                                        averageFavor={statistics.averageFavor}
+                                        className="mt-1"
+                                    />
+                                </>
+                            }
+                        />
+
+                        {/* Points List */}
+                        <RationalePointsList
+                            points={points}
+                            hoveredPointId={hoveredPointId}
+                            selectedPointIds={selectedPointIds}
+                            editMode={true}
+                            isSharing={isSharing}
+                            containerClassName="relative flex flex-col"
+                        />
+                    </div>
+                    {/* --- Scrollable Content END --- */}
+                </div>
+
+                {/* Column 3 (Graph View) using shared RationaleGraph */}
+                <Dynamic>
+                    <RationaleGraph
+                        graph={localGraph!}
+                        setGraph={setGraph}
+                        setLocalGraph={setLocalGraph}
+                        statement={title}
+                        description={editableDescription}
+                        canModify={isOwner}
+                        canvasEnabled={canvasEnabled}
+                        className={cn(
+                            "!fixed inset-0 top-[var(--header-height)] !h-[calc(100vh-var(--header-height))]",
+                            "md:!relative md:col-start-3 md:inset-[reset] md:top-[reset] md:!h-full md:!z-auto",
+                            !canvasEnabled && "hidden md:block"
+                        )}
+                        isSaving={extractedSaving}
+                        isContentModified={isContentModified}
+                        isSharing={isSharing}
+                        toggleSharingMode={toggleSharingMode}
+                        handleGenerateAndCopyShareLink={handleGenerateAndCopyShareLink}
+                        originalGraphData={originalGraph!}
+                        onSave={onSaveChanges}
+                        onResetContent={resetContentModifications}
+                        onModifiedChange={setIsGraphModified}
+                    />
+                </Dynamic>
+
+                <NegateDialog />
+
+                <UnsavedChangesDialog
+                    open={isDiscardDialogOpen}
+                    onOpenChange={setIsDiscardDialogOpen}
+                    onDiscard={handleDiscard}
+                    onCancel={() => setIsDiscardDialogOpen(false)}
+                />
+            </main>
+        </>
     );
 }
 
