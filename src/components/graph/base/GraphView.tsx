@@ -355,12 +355,8 @@ export const GraphView = ({
         const { viewport, ...graph } = flowInstance.toObject();
         setLocalGraph(graph);
       }
-      if (!isNew) {
-        setIsModified(true);
-        onModifiedChange?.(true);
-      }
     },
-    [flowInstance, setLocalGraph, setIsModified, isNew, onModifiedChange]
+    [flowInstance, setLocalGraph]
   );
 
   return (

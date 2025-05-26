@@ -344,6 +344,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                     originalGraphData={originalGraph!}
                     onSave={onSaveChanges}
                     onResetContent={resetContentModifications}
+                    onModifiedChange={setIsGraphModified}
                 />
             </Dynamic>
 

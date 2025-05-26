@@ -34,6 +34,7 @@ export function useGraphChangeHandlers({
       if (!isDragging) {
         // Detect substantive changes (add/remove/data updates)
         const hasSubstantiveChanges = changes.some((change) => {
+          if (change.type === "position") return true;
           if (change.type === "add" || change.type === "remove") return true;
           if ((change as any).data && (change as any).type !== "select")
             return true;

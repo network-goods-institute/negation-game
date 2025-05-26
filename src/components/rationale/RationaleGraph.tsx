@@ -27,6 +27,7 @@ export interface RationaleGraphProps {
     hideShareButton?: boolean;
     onSave: (graph: ViewpointGraph) => Promise<boolean>;
     onResetContent?: () => void;
+    onModifiedChange?: (isModified: boolean) => void;
 }
 
 export default function RationaleGraph({
@@ -48,6 +49,7 @@ export default function RationaleGraph({
     hideShareButton,
     onSave,
     onResetContent,
+    onModifiedChange,
 }: RationaleGraphProps) {
     const toastIdRef = useRef<string | number | null>(null);
     useEffect(() => {
@@ -111,6 +113,7 @@ export default function RationaleGraph({
             isContentModified={isContentModified}
             onSaveChanges={onSave}
             onResetContent={onResetContent}
+            onModifiedChange={onModifiedChange}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             hideShareButton={hideShareButton}
