@@ -120,6 +120,13 @@ export function ChatMessageArea({
         }
     };
 
+    const optionTooltips: Partial<Record<InitialOptionObject['id'], string>> = {
+        build: '',
+        distill: 'Use AI to generate a coherent essay that explains your perspective using your existing rationales, points, and endorsements.',
+        generate: 'Use AI to brainstorm new points or negations based on your current points and context. It can also help you ask questions and understand more about the space you\'re in.',
+        create_rationale: 'Use AI to begin a new rationale from scratch with AI guidance and suggestions. It can help you get started and can remove a lot of the difficult that may arise from manually writing a rationale.',
+    };
+
     return (
         <div className="flex-1 overflow-y-auto bg-muted/20 min-h-0 pt-16 pb-24 md:pb-28">
             {isInitializing ? (
@@ -141,6 +148,7 @@ export function ChatMessageArea({
                                 const description = option.id === 'distill'
                                     ? "Organize your existing rationales into an essay."
                                     : option.description;
+                                const tooltipText = optionTooltips[option.id] ?? description;
 
                                 const earlyAccessBadge = option.isEarlyAccess ? (
                                     <TooltipProvider>
@@ -161,37 +169,46 @@ export function ChatMessageArea({
 
                                 return (
                                     <div key={option.id} className="flex flex-col items-center">
-                                        <AuthenticatedActionButton
-                                            variant="outline"
-                                            className={`w-full h-auto min-h-[6rem] p-2 md:min-h-[8rem] md:p-4 flex flex-col items-center justify-center gap-1.5 text-center rounded-lg hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 ${option.comingSoon ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                            onClick={() => onStartChatOption(option)}
-                                            disabled={isDisabled || option.comingSoon || isGeneratingCurrent}
-                                            aria-disabled={isDisabled || option.comingSoon}
-                                        >
-                                            {option.id === 'distill' && isInitializing ? (
-                                                <div className="flex flex-col items-center gap-1.5">
-                                                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                                                    <span className="text-xs text-muted-foreground">Loading Rationales...</span>
-                                                </div>
-                                            ) : option.id === 'distill' && isFetchingRationales ? (
-                                                <div className="flex flex-col items-center gap-1.5">
-                                                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                                                    <span className="text-xs text-muted-foreground">Loading Rationales...</span>
-                                                </div>
-                                            ) : (
-                                                <>
-                                                    <div className="text-sm md:text-lg font-semibold break-words whitespace-normal">
-                                                        {option.title}
-                                                    </div>
-                                                    <p className="text-xs text-muted-foreground text-balance">
-                                                        {description}
-                                                    </p>
-                                                    {option.comingSoon && (
-                                                        <span className="text-xs text-primary font-medium mt-1">Coming Soon</span>
-                                                    )}
-                                                </>
-                                            )}
-                                        </AuthenticatedActionButton>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <AuthenticatedActionButton
+                                                        variant="outline"
+                                                        className={`w-full h-auto min-h-[6rem] p-2 md:min-h-[8rem] md:p-4 flex flex-col items-center justify-center gap-1.5 text-center rounded-lg hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 ${option.comingSoon ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                        onClick={() => onStartChatOption(option)}
+                                                        disabled={isDisabled || option.comingSoon || isGeneratingCurrent}
+                                                        aria-disabled={isDisabled || option.comingSoon}
+                                                    >
+                                                        {option.id === 'distill' && isInitializing ? (
+                                                            <div className="flex flex-col items-center gap-1.5">
+                                                                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                                                <span className="text-xs text-muted-foreground">Loading Rationales...</span>
+                                                            </div>
+                                                        ) : option.id === 'distill' && isFetchingRationales ? (
+                                                            <div className="flex flex-col items-center gap-1.5">
+                                                                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                                                <span className="text-xs text-muted-foreground">Loading Rationales...</span>
+                                                            </div>
+                                                        ) : (
+                                                            <>
+                                                                <div className="text-sm md:text-lg font-semibold break-words whitespace-normal">
+                                                                    {option.title}
+                                                                </div>
+                                                                <p className="text-xs text-muted-foreground text-balance">
+                                                                    {description}
+                                                                </p>
+                                                                {option.comingSoon && (
+                                                                    <span className="text-xs text-primary font-medium mt-1">Coming Soon</span>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                    </AuthenticatedActionButton>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top" align="center">
+                                                    <p className="text-xs">{tooltipText}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                         {earlyAccessBadge}
                                     </div>
                                 );
