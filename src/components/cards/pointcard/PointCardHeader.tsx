@@ -3,8 +3,6 @@ import {
     PointIcon,
     PinnedIcon,
     FeedCommandIcon,
-    ThickCircleIcon,
-    SlashedCircleIcon,
 } from "@/components/icons/AppIcons";
 import { cn } from "@/lib/utils/cn";
 import PinBadges from "./PinBadges";
@@ -41,9 +39,7 @@ export const PointCardHeader: React.FC<PointCardHeaderProps> = ({
     content,
 }) => {
     let Icon: React.ComponentType<any>;
-    if (inGraphNode && graphNodeLevel !== undefined) {
-        Icon = graphNodeLevel % 2 === 0 ? SlashedCircleIcon : ThickCircleIcon;
-    } else if (isCommand && space && space !== "global") {
+    if (isCommand && space && space !== "global") {
         Icon = FeedCommandIcon;
     } else if (isPinned && space && space !== "global") {
         Icon = PinnedIcon;
