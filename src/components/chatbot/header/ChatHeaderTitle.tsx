@@ -42,15 +42,23 @@ export function ChatHeaderTitle({
                     <Menu className="h-5 w-5" />
                 </Button>
             ) : (
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={onBack}
-                    className="text-primary hover:bg-primary/10 rounded-full h-9 w-9"
-                    title="Back to Dashboard"
-                >
-                    <ArrowLeft className="h-5 w-5" />
-                </Button>
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={onBack}
+                                className="text-primary hover:bg-primary/10 rounded-full h-9 w-9"
+                            >
+                                <ArrowLeft className="h-5 w-5" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                            Back to Dashboard
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
             )}
             <div className="flex items-center gap-2">
                 <h2 className="text-base md:text-lg font-semibold">

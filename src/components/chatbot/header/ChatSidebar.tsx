@@ -273,33 +273,43 @@ export const ChatSidebar = React.memo(({
                         <span className="text-base md:text-lg">Chats</span>
                     </h2>
                     <div className="flex items-center gap-1">
-                        {!isMobile && (
-                            <Button variant="ghost" size="icon" onClick={() => setCollapsed(true)} className="hidden md:inline-flex rounded-full h-8 w-8 text-muted-foreground hover:bg-accent">
-                                <ChevronLeft className="h-4 w-4" />
-                            </Button>
-                        )}
-                        <TooltipProvider delayDuration={200}>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <AuthenticatedActionButton
-                                        variant="ghost" size="icon"
-                                        className="rounded-full h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                        onClick={onTriggerDeleteAll}
-                                        disabled={savedChats.length === 0 || !isAuthenticated || isInitializing}
-                                        title="Delete All Chats"
-                                    ><Trash2 className="h-4 w-4" /></AuthenticatedActionButton>
-                                </TooltipTrigger>
-                                <TooltipContent side="bottom" sideOffset={5}>Delete All Chats ({savedChats.length})</TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
                         <AuthenticatedActionButton
-                            variant="ghost" size="icon"
+                            variant="ghost"
+                            size="icon"
                             onClick={onNewChat}
                             title="New Chat"
                             className="rounded-full h-8 w-8"
-                        ><Plus className="h-4 w-4" /></AuthenticatedActionButton>
+                        >
+                            <Plus className="h-4 w-4" />
+                        </AuthenticatedActionButton>
+                        {!isMobile && (
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => setCollapsed(true)}
+                                            className="hidden md:inline-flex rounded-full h-8 w-8 text-muted-foreground hover:bg-accent"
+                                        >
+                                            <ChevronLeft className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom">
+                                        Collapse Sidebar
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        )}
                         {isMobile && (
-                            <Button variant="ghost" size="icon" onClick={onCloseMobileMenu} className="rounded-full h-8 w-8"><X className="h-4 w-4" /></Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={onCloseMobileMenu}
+                                className="rounded-full h-8 w-8"
+                            >
+                                <X className="h-4 w-4" />
+                            </Button>
                         )}
                     </div>
                 </div>
