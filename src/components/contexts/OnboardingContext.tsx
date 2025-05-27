@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { useKnowledgeBase } from '@/components/contexts/KnowledgeBaseContext';
 import { useWriteup } from '@/components/contexts/WriteupContext';
 import { KeybindsDialog } from '@/components/dialogs/KeybindsDialog';
+import { VideoIntroDialog } from '@/components/dialogs/VideoIntroDialog';
 import { Library, FileText, Keyboard, PlayCircle } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'onboardingDismissed';
@@ -46,20 +47,22 @@ export const useOptionalOnboarding = (): OnboardingContextType | undefined => {
     return useContext(OnboardingContext);
 };
 
-interface OnboardingDialogProps {
+type OnboardingDialogProps = {
     isOpen: boolean;
     onClose: () => void;
     onDismissPermanently: () => void;
-}
+};
 
 const OnboardingDialog = ({ isOpen, onClose, onDismissPermanently }: OnboardingDialogProps) => {
     const { openDialog: openKbDialog } = useKnowledgeBase();
     const { openDialog: openWriteupDialog } = useWriteup();
     const [showKeybinds, setShowKeybinds] = useState(false);
+    const [showVideo, setShowVideo] = useState(false);
 
     return (
         <>
             <KeybindsDialog open={showKeybinds} onOpenChange={setShowKeybinds} showBack />
+            <VideoIntroDialog open={showVideo} onOpenChange={setShowVideo} showBack />
             <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
                 <DialogContent className="max-w-md w-full">
                     <DialogHeader>
@@ -98,12 +101,12 @@ const OnboardingDialog = ({ isOpen, onClose, onDismissPermanently }: OnboardingD
                             <span className="text-xs text-muted-foreground text-center mt-1">Keyboard shortcuts</span>
                         </button>
                         <button
-                            className="flex flex-col items-center p-4 bg-muted rounded-lg opacity-50 cursor-not-allowed"
-                            disabled
+                            className="flex flex-col items-center p-4 bg-muted rounded-lg hover:bg-muted/80"
+                            onClick={() => setShowVideo(true)}
                         >
                             <PlayCircle className="h-6 w-6 mb-2" />
                             <span className="font-semibold">Video Intro</span>
-                            <span className="text-xs text-muted-foreground text-center mt-1">[Coming soon]</span>
+                            <span className="text-xs text-muted-foreground text-center mt-1">Watch Episodes</span>
                         </button>
                     </div>
                     <DialogFooter className="flex justify-end space-x-2">

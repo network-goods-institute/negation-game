@@ -5,7 +5,7 @@ import { ModeToggle } from "@/components/ui/ModeToggle";
 import { GitHubButton } from "@/components/icons/GitHubButton";
 import { Dynamic } from "@/components/utils/Dynamic";
 import { Button } from "@/components/ui/button";
-import { InfoIcon, MoreHorizontal, Github, FileText, Library, Keyboard } from "lucide-react";
+import { InfoIcon, MoreHorizontal, Github, FileText, Library, Keyboard, PlayCircle } from "lucide-react";
 import { useOnboarding } from "@/components/contexts/OnboardingContext";
 import { useKnowledgeBase } from "@/components/contexts/KnowledgeBaseContext";
 import { useWriteup } from "@/components/contexts/WriteupContext";
@@ -18,6 +18,7 @@ import {
     DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { KeybindsDialog } from "@/components/dialogs/KeybindsDialog";
+import { VideoIntroDialog } from "@/components/dialogs/VideoIntroDialog";
 import { useState } from "react";
 
 export const HeaderActions = () => {
@@ -25,9 +26,11 @@ export const HeaderActions = () => {
     const { openDialog: openKbDialog } = useKnowledgeBase();
     const { openDialog: openWriteupDialog } = useWriteup();
     const [showKeybinds, setShowKeybinds] = useState(false);
+    const [showVideo, setShowVideo] = useState(false);
 
     return (
         <>
+            <VideoIntroDialog open={showVideo} onOpenChange={setShowVideo} showBack={false} />
             <KeybindsDialog open={showKeybinds} onOpenChange={setShowKeybinds} />
             <div className="flex gap-1 sm:gap-sm flex-shrink-0 items-center">
                 <Dynamic>
@@ -62,6 +65,10 @@ export const HeaderActions = () => {
                             <DropdownMenuItem onClick={() => openWriteupDialog()}>
                                 <FileText className="mr-2 h-4 w-4" />
                                 <span>Full Write-up</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setShowVideo(true)}>
+                                <PlayCircle className="mr-2 h-4 w-4" />
+                                <span>Video Intro</span>
                             </DropdownMenuItem>
                             <DropdownMenuItem onSelect={() => setShowKeybinds(true)}>
                                 <Keyboard className="mr-2 h-4 w-4" />
@@ -101,6 +108,10 @@ export const HeaderActions = () => {
                             <DropdownMenuItem onClick={() => openWriteupDialog()}>
                                 <FileText className="mr-2 h-4 w-4" />
                                 <span>Full Write-up</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setShowVideo(true)}>
+                                <PlayCircle className="mr-2 h-4 w-4" />
+                                <span>Video Intro</span>
                             </DropdownMenuItem>
                             <DropdownMenuItem onSelect={() => setShowKeybinds(true)}>
                                 <Keyboard className="mr-2 h-4 w-4" />
