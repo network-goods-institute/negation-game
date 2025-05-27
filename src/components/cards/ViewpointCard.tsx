@@ -20,31 +20,36 @@ const DynamicMarkdown = dynamic(() => import('react-markdown'), {
 });
 
 const stripMarkdown = (text: string): string => {
-    return text
-        // Remove headers
-        .replace(/#{1,6}\s+/g, '')
-        // Remove bold and italic
-        .replace(/[*_]{1,3}([^*_]+)[*_]{1,3}/g, '$1')
-        // Remove links
-        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-        // Remove images
-        .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
-        // Remove code blocks
-        .replace(/```[\s\S]*?```/g, '')
-        // Remove inline code
-        .replace(/`([^`]+)`/g, '$1')
-        // Remove blockquotes
-        .replace(/^>\s+/gm, '')
-        // Remove horizontal rules
-        .replace(/^---+$/gm, '')
-        // Remove list markers
-        .replace(/^[\s-]*[-+*]\s+/gm, '')
-        .replace(/^\s*\d+\.\s+/gm, '')
-        // Remove HTML tags
-        .replace(/<[^>]*>/g, '')
-        // Collapse multiple newlines
-        .replace(/\n{2,}/g, '\n')
-        .trim();
+    let previous: string;
+    do {
+        previous = text;
+        text = text
+            // Remove headers
+            .replace(/#{1,6}\s+/g, '')
+            // Remove bold and italic
+            .replace(/[*_]{1,3}([^*_]+)[*_]{1,3}/g, '$1')
+            // Remove links
+            .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+            // Remove images
+            .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+            // Remove code blocks
+            .replace(/```[\s\S]*?```/g, '')
+            // Remove inline code
+            .replace(/`([^`]+)`/g, '$1')
+            // Remove blockquotes
+            .replace(/^>\s+/gm, '')
+            // Remove horizontal rules
+            .replace(/^---+$/gm, '')
+            // Remove list markers
+            .replace(/^[\s-]*[-+*]\s+/gm, '')
+            .replace(/^\s*\d+\.\s+/gm, '')
+            // Remove HTML tags
+            .replace(/<[^>]*>/g, '')
+            // Collapse multiple newlines
+            .replace(/\n{2,}/g, '\n')
+            .trim();
+    } while (text !== previous);
+    return text;
 };
 
 export interface ViewpointCardProps extends React.HTMLAttributes<HTMLDivElement> {
