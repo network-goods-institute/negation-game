@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useUser } from "@/queries/users/useUser";
 import { usePrivy } from "@privy-io/react-auth";
+import { clearPrivyCookie } from '@/app/actions/auth';
 import {
   DropdownMenuContent,
   DropdownMenuTrigger,
@@ -86,7 +87,7 @@ export const ConnectButton = () => {
               <CoinsIcon className="size-4" />
               Collect Earnings
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={logout} className="gap-2">
+            <DropdownMenuItem onClick={async () => { await clearPrivyCookie(); logout(); }} className="gap-2">
               <LogOutIcon className="size-4" />
               Sign out
             </DropdownMenuItem>
