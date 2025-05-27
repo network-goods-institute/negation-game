@@ -108,7 +108,7 @@ const OnboardingDialog = ({ isOpen, onClose, onDismissPermanently }: OnboardingD
                     </div>
                     <DialogFooter className="flex justify-end space-x-2">
                         <Button variant="outline" onClick={onDismissPermanently}>
-                            Don't show again
+                            Don&apos;t show again
                         </Button>
                         <Button onClick={onClose}>Close</Button>
                     </DialogFooter>
