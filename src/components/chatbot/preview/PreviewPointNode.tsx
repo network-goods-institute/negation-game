@@ -55,6 +55,8 @@ export const PreviewPointNode = ({
   const [existingPointDetails, setExistingPointDetails] = useState<PointData | null>(null);
   const [currentSpacePath, setCurrentSpacePath] = useState<string>("global");
   const [isDuplicateOnCanvas, setIsDuplicateOnCanvas] = useState(false);
+  const [matchedExistingPoints, setMatchedExistingPoints] = useState<PointInSpace[]>([]);
+  const [matchedDetails, setMatchedDetails] = useState<Record<number, PointData | null>>({});
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -66,7 +68,7 @@ export const PreviewPointNode = ({
   }, []);
 
   useEffect(() => {
-    const fetchDetails = async (pointIdToFetch: number) => {
+    const fetchSingleDetail = async (pointIdToFetch: number) => {
       try {
         const details = await fetchPointById(pointIdToFetch);
         setExistingPointDetails(details);
@@ -75,58 +77,83 @@ export const PreviewPointNode = ({
         setExistingPointDetails(null);
       }
     };
+    const fetchDetailForMatch = async (pointIdToFetch: number) => {
+      try {
+        const details = await fetchPointById(pointIdToFetch);
+        setMatchedDetails(prev => ({ ...prev, [pointIdToFetch]: details }));
+      } catch (error) {
+        console.error(`Error fetching details for point ${pointIdToFetch}:`, error);
+        setMatchedDetails(prev => ({ ...prev, [pointIdToFetch]: null }));
+      }
+    };
 
     if (!content) {
+      setMatchedExistingPoints([]);
       setLocalExistingPointId(undefined);
       setLocalIsNew(true);
       setExistingPointDetails(null);
+      setMatchedDetails({});
       return;
     }
 
-    // If an existingPointId is already provided (e.g., by AI or user disambiguation via RationaleCreator),
-    // prioritize it for setting local state.
+    // Prioritize explicit existingPointId mapping
     if (existingPointId !== undefined && existingPointId !== null) {
+      setMatchedExistingPoints([]);
+      setMatchedDetails({});
       setLocalExistingPointId(existingPointId);
-      // If isNew is explicitly passed with existingPointId, respect it, otherwise assume false.
       setLocalIsNew(isNew === undefined ? false : isNew);
-      if (existingPointId) fetchDetails(existingPointId);
-      else setExistingPointDetails(null); // Clear details if existingPointId became null
+      if (existingPointId) {
+        fetchSingleDetail(existingPointId);
+      } else {
+        setExistingPointDetails(null);
+      }
       return;
     }
 
-    // Fallback: if no existingPointId provided directly via data prop,
-    // check allPointsInSpaceFromProps for a *single* match to update UI indicator.
-    // The comprehensive multi-match check and disambiguation is handled by useRationaleCreation.
+    // Fallback: match allPointsInSpaceFromProps by content
     if (allPointsInSpaceFromProps) {
-      const matchedPoint = allPointsInSpaceFromProps.find(
-        (p) => p.content === content
-      );
-
-      if (matchedPoint) {
-        setLocalExistingPointId(matchedPoint.id);
+      const matches = allPointsInSpaceFromProps.filter(p => p.content === content);
+      if (matches.length === 1) {
+        const match = matches[0];
+        setMatchedExistingPoints([]);
+        setMatchedDetails({});
+        setLocalExistingPointId(match.id);
         setLocalIsNew(false);
-        fetchDetails(matchedPoint.id);
+        fetchSingleDetail(match.id);
+      } else if (matches.length > 1) {
+        setMatchedExistingPoints(matches);
+        setLocalExistingPointId(undefined);
+        setLocalIsNew(false);
+        setExistingPointDetails(null);
+        setMatchedDetails({});
+        matches.forEach(m => fetchDetailForMatch(m.id));
       } else {
+        setMatchedExistingPoints([]);
         setLocalExistingPointId(undefined);
         setLocalIsNew(true);
         setExistingPointDetails(null);
+        setMatchedDetails({});
       }
     } else {
+      setMatchedExistingPoints([]);
       setLocalExistingPointId(undefined);
       setLocalIsNew(true);
       setExistingPointDetails(null);
+      setMatchedDetails({});
     }
-  }, [content, allPointsInSpaceFromProps, id, existingPointId, isNew]);
+  }, [content, allPointsInSpaceFromProps, existingPointId, isNew, id]);
 
   const hasPositiveCred = cred !== undefined && cred > 0;
 
   // Determine if the database check is pending
   const isPendingCheck = allPointsInSpaceFromProps === undefined;
 
-  // Determine status based on DB check (only if not pending)
-  const dbPointStatus = !isPendingCheck && localExistingPointId !== undefined ? "existing" : "new";
+  // Determine status based on DB check (only if not pending) and any existing matches
+  const hasMatch = !isPendingCheck && (matchedExistingPoints.length > 0 || localExistingPointId !== undefined);
+  const dbPointStatus = hasMatch ? "existing" : "new";
 
   const encodedLocalId = localExistingPointId ? encodeId(localExistingPointId) : null;
+  const encodedLocalIds = matchedExistingPoints.map(p => encodeId(p.id));
 
   useEffect(() => {
     if (!content) {
@@ -336,6 +363,9 @@ export const PreviewPointNode = ({
             localExistingPointId={localExistingPointId}
             encodedLocalId={encodedLocalId}
             existingPointDetails={existingPointDetails}
+            matchingExistingPoints={matchedExistingPoints}
+            matchingDetails={matchedDetails}
+            encodedLocalIds={encodedLocalIds}
             currentSpacePath={currentSpacePath}
           />
         </div>
