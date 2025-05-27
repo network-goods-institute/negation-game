@@ -225,6 +225,27 @@ export const generateDistillRationaleChatBotResponse = async (
       ? allDiscourseMessages.slice(-3)
       : [];
 
+    // Determine if this is a revision request (has prior assistant message)
+    const assistantCount = messages.filter(
+      (m) => m.role === "assistant"
+    ).length;
+    const isDistillFlow = Boolean(selectedRationaleId && fetchedRationaleData);
+    // Build two variants: initial distill instructions vs revision instructions
+    const initialDistillInstr = `*   Follow the **first-person** perspective, writing as the rationale creator.
+*   **Base the essay primarily on the points the creator endorsed** (listed in context), explaining their significance and 'Cred' values.
+*   Use the full rationale graph for context and flow, but prioritize the endorsed points for the core argument.
+*   **Explicitly detail the endorsed points and their cred within the essay.**
+*   **Do NOT suggest new points or negations.**`;
+    const revisionDistillInstr = `*   Follow the **first-person** perspective, writing as the rationale creator.
+*   **Base the essay primarily on the points the creator endorsed** (listed in context), explaining their significance and 'Cred' values.
+*   Use the full rationale graph for context and flow, but prioritize the endorsed points for the core argument.
+*   **Explicitly detail the endorsed points and their cred within the essay.**
+*   **Do NOT suggest new points or negations.**
+*   **Review the CHAT HISTORY.** The current user message is a follow-up requesting changes to the last essay you generated.
+*   **Identify your most recent complete essay in the chat history. Refine *that specific essay* based on the latest user instruction. For example, if the user asks to make it shorter, modify your previous essay text to be shorter. If they ask to elaborate on a point, modify your previous essay text to elaborate on that point.**
+*   **After refining, present the complete, updated essay.**
+*   **Maintain a conversational tone when you respond. You can briefly acknowledge the user's request (e.g., "Okay, I've revised the essay to be shorter as you requested:") before presenting the full refined essay. Longer responses are also okay. Feel free to skip generation entirely if appropriate.**
+*   **Ensure the refined essay remains grounded in the original rationale's content, especially the endorsed points, and does not introduce new topics or points not derivable from the source rationale.**`;
     let finalPromptString;
     try {
       let mainGoalInstruction = "";
@@ -336,19 +357,11 @@ ${selectedRationaleId ? "5. You are distilling. Focus on the creator's endorsed 
 
 INSTRUCTIONS:
 ${
-  selectedRationaleId && fetchedRationaleData
-    ? `*   Follow the **first-person** perspective, writing as the rationale creator.
-*   **Base the essay primarily on the points the creator endorsed** (listed in context), explaining their significance and 'Cred' values.
-*   Use the full rationale graph for context but prioritize the endorsed points for the core argument.
-*   **Explicitly detail the endorsed points and their cred within the essay.**
-*   **DO NOT suggest new points or negations...**
-*   **DO NOT use bracket tags like [Point:ID] or [Rationale:ID] in your essay.**
-*   **Review the CHAT HISTORY. The current 'USER:' message is a follow-up requesting changes to the last essay you generated.**
-*   **Identify your most recent complete essay in the chat history. Refine *that specific essay* based on the latest user instruction. For example, if the user asks to make it shorter, modify your previous essay text to be shorter. If they ask to elaborate on a point, modify your previous essay text to elaborate on that point.**
-*   **After refining, present the complete, updated essay.**
-*   **Maintain a conversational tone when you respond. You can briefly acknowledge the user's request (e.g., "Okay, I've revised the essay to be shorter as you requested:") before presenting the full refined essay. Longer responses are also okay. Feel free to skip generation entirely if appropriate.**
-*   **Ensure the refined essay remains grounded in the original rationale's content, especially the endorsed points, and does not introduce new topics or points not derivable from the source rationale.**`
-    : `*   Suggest new points or negations...`
+  isDistillFlow
+    ? assistantCount > 0
+      ? revisionDistillInstr
+      : initialDistillInstr
+    : suggestionRule
 }
 
 A:`;
