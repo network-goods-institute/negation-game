@@ -1,6 +1,7 @@
 "use client";
 
 import { getAccessToken } from "@privy-io/react-auth";
+import { setPrivyCookie } from "@/app/actions/auth";
 
 /**
  * Sets the Privy token as a cookie after retrieving it from the SDK
@@ -14,13 +15,8 @@ export async function setPrivyToken(): Promise<boolean> {
       return false;
     }
 
-    // Set cookie with 1 hour expiry
-    const expiryDate = new Date();
-    expiryDate.setTime(expiryDate.getTime() + 60 * 60 * 1000); // 1 hour from now
-
-    // Set the cookie with secure and samesite attributes
-    document.cookie = `privy-token=${token}; expires=${expiryDate.toUTCString()}; path=/; ${process.env.NODE_ENV === "production" ? "secure; " : ""}samesite=strict`;
-
+    // Use server action to set HttpOnly cookie
+    await setPrivyCookie(token);
     return true;
   } catch (error) {
     console.error("Error setting Privy token:", error);

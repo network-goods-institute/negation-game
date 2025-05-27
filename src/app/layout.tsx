@@ -19,6 +19,7 @@ import { HeaderActions } from "@/components/header/HeaderActions";
 import {
   DynamicHeaderContent
 } from "@/components/header/DynamicHeaderContent";
+import { getCurrentUser } from "@/app/actions/auth";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -27,11 +28,13 @@ export const metadata: Metadata = {
   description: "A protocol layer for reasoned disagreement: powered by economic incentives, governed by epistemic values, and designed for minds willing to change.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const user = await getCurrentUser();
+
   return (
     <html lang="en" suppressHydrationWarning className="h-full">
       <body className={cn("font-sans", inter.variable, "h-full flex flex-col")}>

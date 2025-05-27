@@ -1,7 +1,10 @@
+"use client";
+
 import { NewUserForm } from "../forms/NewUserForm";
 import { usePrivy } from "@privy-io/react-auth";
 import { DialogDescription, DialogContent, DialogTitle, DialogProps, Dialog } from "@radix-ui/react-dialog";
 import { FC } from "react";
+import { clearPrivyCookie } from '@/app/actions/auth';
 
 export interface NewUserDialogProps extends DialogProps { }
 
@@ -15,7 +18,7 @@ export const NewUserDialog: FC<NewUserDialogProps> = ({ ...props }) => {
         <DialogDescription
           hidden
         >{`Let's set up your account`}</DialogDescription>
-        <NewUserForm onCancel={logout} />
+        <NewUserForm onCancel={async () => { await clearPrivyCookie(); logout(); }} />
       </DialogContent>
     </Dialog>
   );
