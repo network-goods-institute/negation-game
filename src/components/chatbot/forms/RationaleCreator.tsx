@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useCallback, useState, useMemo } from 'react';
+import React, { useEffect, useCallback, useState, useMemo, useRef } from 'react';
 import { ChatInputForm } from './ChatInputForm';
 import { ChatMessageArea } from '../header/ChatMessageArea';
 import { useChatState } from '@/hooks/chat/useChatState';
@@ -79,6 +79,7 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(null);
     const [editingMessageContent, setEditingMessageContent] = useState<string>("");
     const [persistedGraph, setPersistedGraph] = useState<ViewpointGraph>(graphData);
+    const prevPersistedGraphRef = useRef<ViewpointGraph>(graphData);
     const initialNodes = useMemo(() => {
         return (graphData.nodes as any[]).map(node => ({
             ...node,
@@ -94,6 +95,7 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     const [nodes, setNodes, onNodesChangeReactFlow] = useNodesState<PreviewAppNode>(initialNodes as unknown as PreviewAppNode[]);
     const [edges, setEdges, onEdgesChangeReactFlow] = useEdgesState<PreviewAppEdge>(initialEdges);
     const [graphModified, setGraphModified] = useState(false);
+    const [aiPrevGraph, setAIPrevGraph] = useState<ViewpointGraph | null>(null);
     const { pendingPushIds, currentChatId } = chatList;
     const isSavingGraph = !!currentChatId && pendingPushIds.has(currentChatId);
 
@@ -159,6 +161,17 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
         onGraphChange(persistedGraph, true);
         chatState.currentGraphRef.current = persistedGraph;
     }, [persistedGraph, setNodes, setEdges, onGraphChange, chatState]);
+
+    const revertAISuggestion = useCallback(() => {
+        if (aiPrevGraph) {
+            setNodes(aiPrevGraph.nodes as unknown as PreviewAppNode[]);
+            setEdges(aiPrevGraph.edges as unknown as PreviewAppEdge[]);
+            setPersistedGraph(aiPrevGraph);
+            onGraphChange(aiPrevGraph, true);
+            chatState.currentGraphRef.current = aiPrevGraph;
+            setAIPrevGraph(null);
+        }
+    }, [aiPrevGraph, setNodes, setEdges, onGraphChange, chatState]);
 
     const handleFormSubmit = (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
@@ -228,6 +241,7 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     }, [topic, graphData.topic, graphModified]);
 
     useEffect(() => {
+        const prevGraph = prevPersistedGraphRef.current;
         const updatedNodes = (graphData.nodes as any[]).map(node => ({
             ...node,
             data: {
@@ -237,9 +251,15 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
         }));
         setNodes(updatedNodes as unknown as PreviewAppNode[]);
         setEdges(graphData.edges as unknown as PreviewAppEdge[]);
+        if (!graphModified && prevGraph && prevGraph !== graphData) {
+            setAIPrevGraph(prevGraph);
+        }
+        prevPersistedGraphRef.current = graphData;
         setPersistedGraph(graphData);
         setGraphModified(false);
-    }, [graphData, allPointsInSpace, setNodes, setEdges]);
+        // We intentionally omit setters and graphModified from deps to avoid unnecessary effect runs
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [graphData, allPointsInSpace]);
 
     return (
         <div className="flex flex-1 overflow-hidden h-full">
@@ -296,8 +316,6 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
                     onKeyDown={handleKeyDown}
                     onShowSettings={() => { /* Maybe disable settings here? */ }}
                     hideSettings={true}
-                    graphModified={graphModified}
-                    saveGraph={saveGraph}
                 />
             </div>
 
@@ -319,6 +337,8 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
                         onEdgesChange={handleEdgesChange}
                         onSaveGraph={saveGraph}
                         onDiscard={discardGraph}
+                        onRevertAISuggestion={revertAISuggestion}
+                        showRevertAISuggestion={!!aiPrevGraph}
                         graphModified={graphModified}
                         isSaving={isSavingGraph}
                         isCreatingRationale={isCreatingRationale}

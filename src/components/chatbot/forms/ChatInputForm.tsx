@@ -23,8 +23,6 @@ export interface ChatInputFormProps {
     onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
     onShowSettings: () => void;
     hideSettings?: boolean;
-    graphModified?: boolean;
-    saveGraph?: () => void;
 }
 
 export function ChatInputForm({
@@ -39,8 +37,6 @@ export function ChatInputForm({
     onKeyDown,
     onShowSettings,
     hideSettings = false,
-    graphModified = false,
-    saveGraph,
 }: ChatInputFormProps) {
     return (
         <div
@@ -60,7 +56,7 @@ export function ChatInputForm({
                                 ? "Waiting for response..."
                                 : isMobile
                                     ? "Type your message here..."
-                                    : "Type your message here... (Ctrl+Enter to send)"
+                                    : "Type your message here... (Enter to send)"
                     }
                     className={`flex-1 py-2.5 px-3 md:px-4 text-xs sm:text-sm md:text-base rounded-lg border shadow-sm resize-none focus-visible:ring-1 focus-visible:ring-ring`}
                     disabled={
@@ -81,16 +77,9 @@ export function ChatInputForm({
                         !isAuthenticated ||
                         isInitializing
                     }
-                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                        if ((e.ctrlKey || e.metaKey) && graphModified && saveGraph) {
-                            e.preventDefault();
-                            saveGraph();
-                            onSubmit(e);
-                        }
-                    }}
                     rightLoading={isGenerating}
                     className="rounded-lg h-9 px-3 md:h-10 md:px-4"
-                    title={"Send Message (Ctrl+Enter)"}
+                    title={"Send Message (Enter)"}
                 >
                     {!isGenerating && (
                         <svg

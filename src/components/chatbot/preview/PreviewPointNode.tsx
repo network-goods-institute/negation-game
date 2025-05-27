@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { Position, NodeProps, useReactFlow, Node, Handle } from "@xyflow/react";
 import { cn } from "@/lib/utils/cn";
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, KeyboardEvent, FocusEvent } from "react";
 import { nanoid } from 'nanoid';
 import { NegateIcon } from "@/components/icons/NegateIcon";
 import { Button } from "@/components/ui/button";
@@ -211,13 +211,32 @@ export const PreviewPointNode = ({
     }
   };
 
-  const handleEditToggle = (e: React.MouseEvent) => {
+  const handleEditToggle = (e: any) => {
     e.stopPropagation();
     if (isEditing) {
       updateNodeData(id, { content: editedContent });
     }
     setIsEditing(!isEditing);
   };
+
+  const handleEditorKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      updateNodeData(id, { content: editedContent });
+      setIsEditing(false);
+    }
+  }, [editedContent, id, updateNodeData]);
+
+  const handleEditorBlur = useCallback((e: FocusEvent<HTMLTextAreaElement>) => {
+    e.stopPropagation();
+    updateNodeData(id, { content: editedContent });
+    setIsEditing(false);
+  }, [editedContent, id, updateNodeData]);
+
+  useEffect(() => {
+    setEditedContent(content);
+  }, [content]);
 
   return (
     <>
@@ -271,7 +290,9 @@ export const PreviewPointNode = ({
                 className="min-h-[80px]"
                 textareaProps={{
                   autoFocus: true,
-                  onClick: (e) => e.stopPropagation()
+                  onClick: (e) => e.stopPropagation(),
+                  onKeyDown: handleEditorKeyDown,
+                  onBlur: handleEditorBlur
                 }}
                 compact
                 extraCompact

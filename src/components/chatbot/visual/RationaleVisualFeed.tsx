@@ -31,6 +31,8 @@ interface RationaleVisualFeedProps {
     isSaving: boolean;
     isCreatingRationale: boolean;
     onCreateRationaleClick: () => void;
+    onRevertAISuggestion?: () => void;
+    showRevertAISuggestion?: boolean;
 }
 
 export const RationaleVisualFeed: React.FC<RationaleVisualFeedProps> = ({
@@ -40,6 +42,8 @@ export const RationaleVisualFeed: React.FC<RationaleVisualFeedProps> = ({
     onEdgesChange,
     onSaveGraph,
     onDiscard,
+    onRevertAISuggestion,
+    showRevertAISuggestion,
     graphModified,
     isSaving,
     isCreatingRationale,
@@ -140,6 +144,18 @@ export const RationaleVisualFeed: React.FC<RationaleVisualFeedProps> = ({
                                     )}
                                 >
                                     Discard
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={onRevertAISuggestion}
+                                    disabled={!showRevertAISuggestion || isSaving}
+                                    size="sm"
+                                    className={cn(
+                                        "shadow-lg w-[160px]",
+                                        (!showRevertAISuggestion || isSaving) && "opacity-50"
+                                    )}
+                                >
+                                    Undo AI Changes
                                 </Button>
                             </div>
                             <AuthenticatedActionButton

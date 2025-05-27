@@ -348,7 +348,7 @@ export function useAIAssistantController() {
     chatState.handleSubmit();
   };
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
       chatState.handleSubmit();
     }

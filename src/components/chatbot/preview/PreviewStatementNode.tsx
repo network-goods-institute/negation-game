@@ -10,7 +10,7 @@ import {
 } from "@xyflow/react";
 import { ArrowDownIcon, PencilIcon, SaveIcon } from "lucide-react";
 import { nanoid } from 'nanoid';
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -40,6 +40,10 @@ export const PreviewStatementNode = ({
   const { addNodes, addEdges, updateNodeData } = useReactFlow();
   const [isEditing, setIsEditing] = useState(false);
   const [editedStatement, setEditedStatement] = useState(statement);
+
+  useEffect(() => {
+    setEditedStatement(statement);
+  }, [statement]);
 
   const handleAddClick = () => {
     const newNodeId = `previewaddpoint-${nanoid()}`;
