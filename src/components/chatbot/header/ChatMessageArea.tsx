@@ -329,10 +329,16 @@ export function ChatMessageArea({
                             );
                         })}
                         {isGeneratingCurrent && isFetchingCurrentContext && (
-                            <div className="flex justify-center items-center p-4">
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    Fetching relevant Negation Game user activity...
+                            <div className="mt-1 flex flex-col px-2 md:px-4">
+                                <div className={`${isMobile ? 'max-w-[90%]' : 'max-w-[80%]'} bg-muted/20 p-3 md:p-4 rounded-xl`}>
+                                    <div className="flex items-center space-x-1 mb-2">
+                                        <span className="h-2 w-2 bg-muted rounded-full animate-bounce"></span>
+                                        <span className="h-2 w-2 bg-muted rounded-full animate-bounce delay-75"></span>
+                                        <span className="h-2 w-2 bg-muted rounded-full animate-bounce delay-150"></span>
+                                    </div>
+                                    <Skeleton className="h-4 w-24 mb-1 rounded-md" />
+                                    <Skeleton className="h-4 w-32 mb-1 rounded-md" />
+                                    <Skeleton className="h-4 w-16 rounded-md" />
                                 </div>
                             </div>
                         )}

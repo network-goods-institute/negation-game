@@ -3,7 +3,7 @@
 import React from "react";
 import { AutosizeTextarea } from "@/components/ui/autosize-textarea";
 import { AuthenticatedActionButton } from "@/components/editor/AuthenticatedActionButton";
-import { SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal, Loader2 } from "lucide-react";
 
 export const ChatInputFormSkeleton = () => (
     <div className="fixed bottom-0 border-t bg-background p-4 left-0 md:left-[var(--sidebar-width)] right-0 z-20 animate-pulse">
@@ -77,11 +77,12 @@ export function ChatInputForm({
                         !isAuthenticated ||
                         isInitializing
                     }
-                    rightLoading={isGenerating}
-                    className="rounded-lg h-9 px-3 md:h-10 md:px-4"
-                    title={"Send Message (Enter)"}
+                    className="rounded-lg h-9 w-9 md:h-10 md:w-10 flex items-center justify-center"
+                    title={isGenerating ? "Sending..." : "Send Message (Enter)"}
                 >
-                    {!isGenerating && (
+                    {isGenerating ? (
+                        <Loader2 className="h-5 w-5 animate-spin text-current" />
+                    ) : (
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
                             viewBox="0 0 24 24"
