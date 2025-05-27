@@ -26,6 +26,9 @@ import { PreviewAppNode, PreviewAppEdge } from '@/types/rationaleGraph';
 import { useRationaleGraphLayout } from '@/hooks/chatbot/useRationaleGraphLayout';
 import { useRationaleCreation } from '@/hooks/chatbot/useRationaleCreation';
 import type { PointInSpace } from "@/actions/points/fetchAllSpacePoints";
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Check, Save } from 'lucide-react';
 
 export interface RationaleCreatorProps {
     onClose: () => void;
@@ -71,6 +74,7 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     canvasEnabled,
     description,
     linkUrl,
+    onLinkUrlChange,
     topic,
     onTopicChange,
     allPointsInSpace,
@@ -153,6 +157,14 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
         chatState.currentGraphRef.current = currentGraph;
         setGraphModified(false);
     }, [nodes, edges, onGraphChange, chatState, description, linkUrl, topic]);
+
+    const [linkSaved, setLinkSaved] = useState(false);
+    const handleSaveLink = useCallback(() => {
+        saveGraph();
+        setLinkSaved(true);
+        toast.success("Link saved!");
+        setTimeout(() => setLinkSaved(false), 2000);
+    }, [saveGraph]);
 
     const discardGraph = useCallback(() => {
         setNodes(persistedGraph.nodes as unknown as PreviewAppNode[]);
@@ -285,6 +297,30 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
                         triggerClassName="w-full"
                         showLabel={false}
                     />
+                </div>
+                <div className="px-4 py-2">
+                    <div className="relative w-full">
+                        <Input
+                            type="url"
+                            placeholder="Paste Discourse Link"
+                            value={linkUrl || ""}
+                            onChange={(e) => onLinkUrlChange?.(e.target.value)}
+                            className="pr-12"
+                        />
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            className="absolute right-2 top-1/2 -translate-y-1/2"
+                            onClick={handleSaveLink}
+                            disabled={!graphModified}
+                            title={linkSaved ? "Saved" : "Save link"}
+                        >
+                            {linkSaved
+                                ? <Check className="h-5 w-5 text-green-500" />
+                                : <Save className="h-5 w-5" />
+                            }
+                        </Button>
+                    </div>
                 </div>
                 <ChatMessageArea
                     isInitializing={isInitializing}
