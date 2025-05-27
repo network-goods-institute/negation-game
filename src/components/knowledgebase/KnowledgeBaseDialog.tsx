@@ -15,6 +15,7 @@ import { WhatIsSlashing } from '@/components/knowledgebase/WhatIsSlashing';
 import { WhatIsDoubting } from '@/components/knowledgebase/WhatIsDoubting';
 import { WhatAreEdges } from '@/components/knowledgebase/WhatAreEdges';
 import { cn } from '@/lib/utils/cn';
+import { useOnboarding } from '@/components/contexts/OnboardingContext';
 
 type KbTopic =
     | 'point'
@@ -33,9 +34,11 @@ type KbTopic =
 interface KnowledgeBaseDialogProps {
     isOpen: boolean;
     onClose: () => void;
+    showBack?: boolean;
 }
 
-export const KnowledgeBaseDialog = ({ isOpen, onClose }: KnowledgeBaseDialogProps) => {
+export const KnowledgeBaseDialog = ({ isOpen, onClose, showBack = false }: KnowledgeBaseDialogProps) => {
+    const { openDialog: openOnboarding } = useOnboarding();
     const [selectedTopic, setSelectedTopic] = useState<KbTopic>('point');
 
     const renderTopic = () => {
@@ -113,6 +116,11 @@ export const KnowledgeBaseDialog = ({ isOpen, onClose }: KnowledgeBaseDialogProp
                     </main>
                 </div>
                 <DialogFooter className="p-6 pt-4 border-t mt-auto flex-shrink-0">
+                    {showBack && (
+                        <Button variant="outline" onClick={() => { onClose(); openOnboarding(); }}>
+                            Back to Guide
+                        </Button>
+                    )}
                     <Button variant="outline" onClick={onClose}>Close</Button>
                 </DialogFooter>
             </DialogContent>

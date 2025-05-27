@@ -1,17 +1,11 @@
-import { OnboardingForm } from "@/components/forms/OnboardingForm";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { NewUserForm } from "../forms/NewUserForm";
 import { usePrivy } from "@privy-io/react-auth";
-import { DialogProps } from "@radix-ui/react-dialog";
+import { DialogDescription, DialogContent, DialogTitle, DialogProps, Dialog } from "@radix-ui/react-dialog";
 import { FC } from "react";
 
-export interface OnboardingDialogProps extends DialogProps { }
+export interface NewUserDialogProps extends DialogProps { }
 
-export const OnboardingDialog: FC<OnboardingDialogProps> = ({ ...props }) => {
+export const NewUserDialog: FC<NewUserDialogProps> = ({ ...props }) => {
   const { logout } = usePrivy();
 
   return (
@@ -21,7 +15,7 @@ export const OnboardingDialog: FC<OnboardingDialogProps> = ({ ...props }) => {
         <DialogDescription
           hidden
         >{`Let's set up your account`}</DialogDescription>
-        <OnboardingForm onCancel={logout} />
+        <NewUserForm onCancel={logout} />
       </DialogContent>
     </Dialog>
   );

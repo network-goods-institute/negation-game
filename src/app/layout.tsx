@@ -14,6 +14,7 @@ import "@xyflow/react/dist/style.css";
 import "./globals.css";
 import { KnowledgeBaseProvider } from "@/components/contexts/KnowledgeBaseContext";
 import { OnboardingProvider } from "@/components/contexts/OnboardingContext";
+import { WriteupProvider } from "@/components/contexts/WriteupContext";
 import { HeaderActions } from "@/components/header/HeaderActions";
 import {
   DynamicHeaderContent
@@ -43,27 +44,29 @@ export default function RootLayout({
           <ThemedPrivyProvider>
             <QueryClientProvider>
               <KnowledgeBaseProvider>
-                <OnboardingProvider>
-                  <TooltipProvider>
-                    <header className="sticky top-0 z-20 border-b py-sm flex justify-between container-padding items-center w-full bg-background h-[var(--header-height)]">
-                      <div className="flex items-center min-w-0" id="header-container">
-                        <div className="flex items-center min-w-0 overflow-hidden" id="dynamic-header-content">
-                          <DynamicHeaderContent />
+                <WriteupProvider>
+                  <OnboardingProvider>
+                    <TooltipProvider>
+                      <header className="sticky top-0 z-20 border-b py-sm flex justify-between container-padding items-center w-full bg-background h-[var(--header-height)]">
+                        <div className="flex items-center min-w-0" id="header-container">
+                          <div className="flex items-center min-w-0 overflow-hidden" id="dynamic-header-content">
+                            <DynamicHeaderContent />
+                          </div>
                         </div>
-                      </div>
-                      <HeaderActions />
-                    </header>
+                        <HeaderActions />
+                      </header>
 
-                    {children}
+                      {children}
 
-                    <Toaster />
-                    <GlobalDialogs />
-                    <Analytics />
-                  </TooltipProvider>
-                  <DevOnly>
-                    <ToggleableReactQueryDevTools />
-                  </DevOnly>
-                </OnboardingProvider>
+                      <Toaster />
+                      <GlobalDialogs />
+                      <Analytics />
+                    </TooltipProvider>
+                    <DevOnly>
+                      <ToggleableReactQueryDevTools />
+                    </DevOnly>
+                  </OnboardingProvider>
+                </WriteupProvider>
               </KnowledgeBaseProvider>
             </QueryClientProvider>
           </ThemedPrivyProvider>

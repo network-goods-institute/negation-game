@@ -7,12 +7,12 @@ import {
     ReactNode,
     useCallback,
 } from 'react';
-import { KnowledgeBaseDialog } from '../knowledgebase/KnowledgeBaseDialog';
 
 interface KnowledgeBaseContextType {
     isOpen: boolean;
-    openDialog: () => void;
+    openDialog: (showBack?: boolean) => void;
     closeDialog: () => void;
+    showBack: boolean;
 }
 
 const KnowledgeBaseContext = createContext<KnowledgeBaseContextType | undefined>(
@@ -29,25 +29,28 @@ export const useKnowledgeBase = () => {
 
 export const KnowledgeBaseProvider = ({ children }: { children: ReactNode }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [showBack, setShowBack] = useState(false);
 
-    const openDialog = useCallback(() => {
+    const openDialog = useCallback((back = false) => {
+        setShowBack(back);
         setIsOpen(true);
     }, []);
 
     const closeDialog = useCallback(() => {
         setIsOpen(false);
+        setShowBack(false);
     }, []);
 
-    const value = {
+    const value: KnowledgeBaseContextType = {
         isOpen,
         openDialog,
         closeDialog,
+        showBack,
     };
 
     return (
         <KnowledgeBaseContext.Provider value={value}>
             {children}
-            <KnowledgeBaseDialog isOpen={isOpen} onClose={closeDialog} />
         </KnowledgeBaseContext.Provider>
     );
 }; 

@@ -1,6 +1,6 @@
 "use client";
 
-import { OnboardingDialog } from "@/components/forms/OnboardingDialog";
+import { NewUserDialog } from "@/components/dialogs/NewUserDialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -42,7 +42,7 @@ export const ConnectButton = () => {
   if (!user)
     return (
       <>
-        <OnboardingDialog open={!isLoading} />
+        <NewUserDialog open={!isLoading} />
         <Button
           key="connect"
           className="w-28 sm:w-36 rounded-full text-sm"

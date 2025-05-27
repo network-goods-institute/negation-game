@@ -21,11 +21,11 @@ import { FC, HTMLAttributes } from "react";
 import { useForm } from "react-hook-form";
 import { ZodIssueCode } from "zod";
 
-export interface OnboardingFormProps extends HTMLAttributes<HTMLFormElement> {
+export interface NewUserFormProps extends HTMLAttributes<HTMLFormElement> {
   onCancel: () => void;
 }
 
-export const OnboardingForm: FC<OnboardingFormProps> = ({
+export const NewUserForm: FC<NewUserFormProps> = ({
   onCancel,
   className,
   ...props
@@ -35,8 +35,6 @@ export const OnboardingForm: FC<OnboardingFormProps> = ({
     isPending: isSubmitting,
     isSuccess,
   } = useInitUser();
-  const { user } = usePrivy();
-
   const form = useForm<Pick<InsertUser, "username">>({
     resolver: zodResolver(
       insertUserSchema

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { InfoIcon, MoreHorizontal, Github, FileText, Library, Keyboard } from "lucide-react";
 import { useOnboarding } from "@/components/contexts/OnboardingContext";
 import { useKnowledgeBase } from "@/components/contexts/KnowledgeBaseContext";
+import { useWriteup } from "@/components/contexts/WriteupContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
     DropdownMenu,
@@ -16,12 +17,13 @@ import {
     DropdownMenuTrigger,
     DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { KeybindsDialog } from "../dialogs/KeybindsDialog";
+import { KeybindsDialog } from "@/components/dialogs/KeybindsDialog";
 import { useState } from "react";
 
 export const HeaderActions = () => {
     const { openDialog: openOnboardingDialog } = useOnboarding();
     const { openDialog: openKbDialog } = useKnowledgeBase();
+    const { openDialog: openWriteupDialog } = useWriteup();
     const [showKeybinds, setShowKeybinds] = useState(false);
 
     return (
@@ -49,13 +51,17 @@ export const HeaderActions = () => {
                             </TooltipContent>
                         </Tooltip>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={openOnboardingDialog}>
-                                <FileText className="mr-2 h-4 w-4" />
-                                <span>Full Writeup</span>
+                            <DropdownMenuItem onClick={() => openOnboardingDialog()}>
+                                <InfoIcon className="mr-2 h-4 w-4" />
+                                <span>Onboarding</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={openKbDialog}>
+                            <DropdownMenuItem onClick={() => openKbDialog()}>
                                 <Library className="mr-2 h-4 w-4" />
                                 <span>Knowledge Base</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openWriteupDialog()}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                <span>Full Write-up</span>
                             </DropdownMenuItem>
                             <DropdownMenuItem onSelect={() => setShowKeybinds(true)}>
                                 <Keyboard className="mr-2 h-4 w-4" />
@@ -84,13 +90,17 @@ export const HeaderActions = () => {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={openOnboardingDialog}>
-                                <FileText className="mr-2 h-4 w-4" />
-                                <span>Full Writeup</span>
+                            <DropdownMenuItem onClick={() => openOnboardingDialog()}>
+                                <InfoIcon className="mr-2 h-4 w-4" />
+                                <span>Onboarding</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={openKbDialog}>
+                            <DropdownMenuItem onClick={() => openKbDialog()}>
                                 <Library className="mr-2 h-4 w-4" />
                                 <span>Knowledge Base</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openWriteupDialog()}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                <span>Full Write-up</span>
                             </DropdownMenuItem>
                             <DropdownMenuItem onSelect={() => setShowKeybinds(true)}>
                                 <Keyboard className="mr-2 h-4 w-4" />
