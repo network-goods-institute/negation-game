@@ -102,6 +102,7 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     const [aiPrevGraph, setAIPrevGraph] = useState<ViewpointGraph | null>(null);
     const { pendingPushIds, currentChatId } = chatList;
     const isSavingGraph = !!currentChatId && pendingPushIds.has(currentChatId);
+    const skipAIPrevGraphRef = useRef(false);
 
     useRationaleGraphLayout({
         graphData,
@@ -145,6 +146,8 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
     }, [onEdgesChangeReactFlow]);
 
     const saveGraph = useCallback(() => {
+        // Mark this update as a manual save so we don't treat it as an AI suggestion
+        skipAIPrevGraphRef.current = true;
         const currentGraph: ViewpointGraph = {
             nodes: nodes as any,
             edges: edges as any,
@@ -170,20 +173,20 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
         setNodes(persistedGraph.nodes as unknown as PreviewAppNode[]);
         setEdges(persistedGraph.edges as unknown as PreviewAppEdge[]);
         setGraphModified(false);
-        onGraphChange(persistedGraph, true);
+        // Do not sync on discard; only UI reset
         chatState.currentGraphRef.current = persistedGraph;
-    }, [persistedGraph, setNodes, setEdges, onGraphChange, chatState]);
+    }, [persistedGraph, setNodes, setEdges, chatState]);
 
     const revertAISuggestion = useCallback(() => {
         if (aiPrevGraph) {
             setNodes(aiPrevGraph.nodes as unknown as PreviewAppNode[]);
             setEdges(aiPrevGraph.edges as unknown as PreviewAppEdge[]);
             setPersistedGraph(aiPrevGraph);
-            onGraphChange(aiPrevGraph, true);
+            // Do not sync on revert; only UI reset
             chatState.currentGraphRef.current = aiPrevGraph;
             setAIPrevGraph(null);
         }
-    }, [aiPrevGraph, setNodes, setEdges, onGraphChange, chatState]);
+    }, [aiPrevGraph, setNodes, setEdges, chatState]);
 
     const handleFormSubmit = (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
@@ -263,7 +266,10 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
         }));
         setNodes(updatedNodes as unknown as PreviewAppNode[]);
         setEdges(graphData.edges as unknown as PreviewAppEdge[]);
-        if (!graphModified && prevGraph && prevGraph !== graphData) {
+        // Only mark AI suggestion when not a manual save
+        if (skipAIPrevGraphRef.current) {
+            skipAIPrevGraphRef.current = false;
+        } else if (!graphModified && prevGraph && prevGraph !== graphData) {
             setAIPrevGraph(prevGraph);
         }
         prevPersistedGraphRef.current = graphData;
@@ -272,6 +278,11 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
         // We intentionally omit setters and graphModified from deps to avoid unnecessary effect runs
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [graphData, allPointsInSpace]);
+
+    // Reset AI suggestion history when switching chats
+    useEffect(() => {
+        setAIPrevGraph(null);
+    }, [chatList.currentChatId]);
 
     return (
         <div className="flex flex-1 overflow-hidden h-full">

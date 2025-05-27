@@ -313,14 +313,22 @@ export function useChatFullSync({
       return;
     }
     if (isAuthenticated && currentSpace) {
-      syncChatsRef.current();
+      if (!generatingChats.has(currentChatId || "")) {
+        syncChatsRef.current();
+      }
       if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
-      syncIntervalRef.current = setInterval(
-        () => syncChatsRef.current(),
-        60000
-      );
+      syncIntervalRef.current = setInterval(() => {
+        if (!generatingChats.has(currentChatId || "")) {
+          syncChatsRef.current();
+        }
+      }, 60000);
       const onVisible = () => {
-        if (document.visibilityState === "visible") syncChatsRef.current();
+        if (
+          document.visibilityState === "visible" &&
+          !generatingChats.has(currentChatId || "")
+        ) {
+          syncChatsRef.current();
+        }
       };
       document.addEventListener("visibilitychange", onVisible);
       return () => {
@@ -330,7 +338,13 @@ export function useChatFullSync({
     } else {
       if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
     }
-  }, [isAuthenticated, currentSpace, isOffline]);
+  }, [
+    isAuthenticated,
+    currentSpace,
+    isOffline,
+    currentChatId,
+    generatingChats,
+  ]);
 
   const triggerSync = useCallback(() => {
     syncChatsRef.current();
