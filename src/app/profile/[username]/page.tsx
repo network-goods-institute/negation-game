@@ -25,6 +25,7 @@ import dynamic from "next/dynamic";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ProfilePoint } from "@/actions/points/fetchProfilePoints";
+import { ProfileBadge, RationaleRank } from "@/components/ui/ProfileBadge";
 
 type ProfileTab = "profile" | "endorsements" | "dashboard";
 
@@ -111,6 +112,9 @@ export default function ProfilePage({ params }: ProfilePageProps) {
 
     const userCred = profilePoints?.[0]?.cred || 0;
     const isOwnProfile = privyUser?.id === userData?.id;
+    const rationaleCount = userViewpoints?.length || 0;
+    const rationaleBadgeThresholds = [1, 5, 10, 25, 50, 100];
+    const earnedRationaleBadges = rationaleBadgeThresholds.filter(threshold => rationaleCount >= threshold);
 
     // Wrap validPoints in useMemo to stabilize it
     const validPoints = useMemo(() => Array.isArray(myPoints) ? myPoints : [], [myPoints]);
@@ -287,12 +291,6 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                         )}
                     </div>
 
-                    {userData?.bio && (
-                        <div className="mb-4 p-3 bg-muted/30 rounded-lg">
-                            <p className="text-sm whitespace-pre-wrap">{userData.bio}</p>
-                        </div>
-                    )}
-
                     {userData?.delegationUrl && (
                         <div className="mb-6 p-4 bg-primary/5 border rounded-lg">
                             <div className="flex flex-col items-center text-center space-y-2">
@@ -309,6 +307,24 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                     <span>Delegate Now</span>
                                     <ExternalLinkIcon className="size-4" />
                                 </a>
+                            </div>
+                        </div>
+                    )}
+
+                    {userData?.bio && (
+                        <div className="mb-4 p-3 bg-muted/30 rounded-lg">
+                            <p className="text-sm whitespace-pre-wrap">{userData.bio}</p>
+                        </div>
+                    )}
+
+                    {/* Badges Section */}
+                    {earnedRationaleBadges.length > 0 && (
+                        <div className="mb-6 p-4 bg-muted/10 border border-muted rounded-lg">
+                            <h3 className="text-lg font-medium mb-2">Badges</h3>
+                            <div className="flex flex-wrap gap-4">
+                                {earnedRationaleBadges.map((threshold) => (
+                                    <ProfileBadge key={threshold} threshold={threshold as RationaleRank} />
+                                ))}
                             </div>
                         </div>
                     )}

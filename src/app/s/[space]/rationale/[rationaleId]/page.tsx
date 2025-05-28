@@ -37,6 +37,8 @@ import UnsavedChangesDialog from '@/components/dialogs/UnsavedChangesDialog';
 import { useConfirmDiscard } from "@/hooks/graph/useConfirmDiscard";
 import { useQueryClient } from '@tanstack/react-query';
 import { PublishAcknowledgementDialog } from "@/components/dialogs/PublishAcknowledgementDialog";
+import { useUserViewpoints } from "@/queries/users/useUserViewpoints";
+import type { RationaleRank } from "@/components/ui/ProfileBadge";
 
 function CopiedFromLink({ sourceId }: { sourceId: string }) {
     const { data: sourceViewpoint, isLoading } = useViewpoint(sourceId);
@@ -58,6 +60,11 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     const searchParams = useSearchParams();
     const justPublished = searchParams.get('published') === 'true';
     const [showPublishDialog, setShowPublishDialog] = useState(justPublished);
+    const { data: currentUser } = useUser();
+    const { data: currentUserViewpoints } = useUserViewpoints(currentUser?.username);
+    const rationaleCount = currentUserViewpoints?.length || 0;
+    const thresholds: RationaleRank[] = [1, 5, 10, 25, 50, 100];
+    const newBadgeThreshold = thresholds.find((t) => t === rationaleCount);
 
     useEffect(() => {
         if (justPublished) {
@@ -260,6 +267,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
             <PublishAcknowledgementDialog
                 open={showPublishDialog}
                 onOpenChange={setShowPublishDialog}
+                badgeThreshold={newBadgeThreshold}
             />
             <main className="relative flex-grow md:grid md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background h-full overflow-hidden">
                 <div className="hidden md:block"></div>

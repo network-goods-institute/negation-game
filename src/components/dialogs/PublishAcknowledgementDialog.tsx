@@ -10,15 +10,17 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Sparkles } from "lucide-react";
+import { ProfileBadge, RationaleRank } from "@/components/ui/ProfileBadge";
 
 interface PublishAcknowledgementDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    badgeThreshold?: RationaleRank;
 }
 
 export const PublishAcknowledgementDialog: React.FC<
     PublishAcknowledgementDialogProps
-> = ({ open, onOpenChange }) => {
+> = ({ open, onOpenChange, badgeThreshold }) => {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-md bg-gradient-to-br from-green-400 via-emerald-500 to-teal-600 text-white border-none shadow-2xl rounded-lg overflow-hidden">
@@ -36,6 +38,14 @@ export const PublishAcknowledgementDialog: React.FC<
                     <p className="text-lg">
                         Your brilliant rationale has been published for all the world to see!
                     </p>
+                    {badgeThreshold && (
+                        <div className="space-y-2">
+                            <p className="text-lg font-medium">Congrats! You earned a new badge:</p>
+                            <div className="flex justify-center">
+                                <ProfileBadge threshold={badgeThreshold} />
+                            </div>
+                        </div>
+                    )}
                     <div className="flex items-center justify-center gap-2 bg-white/10 p-3 rounded-md">
                         <CheckCircle className="w-5 h-5 text-lime-300" />
                         <p className="text-sm font-medium">
