@@ -13,7 +13,7 @@ export const NewUserDialog: FC<NewUserDialogProps> = ({ ...props }) => {
 
   return (
     <Dialog {...props}>
-      <DialogContent className=" flex flex-col items-center justify-center overflow-auto  h-screen rounded-none sm:rounded-md sm:h-fit gap-0  bg-background  p-4 sm:p-10 shadow-sm sm:max-w-xl w-full">
+      <DialogContent className="flex flex-col items-center justify-center overflow-auto max-h-[90vh] rounded-none sm:rounded-md gap-0 bg-background p-4 sm:p-10 shadow-sm sm:max-w-xl w-full">
         <DialogTitle className="self-center mb-2xl">{`Let's get you started`}</DialogTitle>
         <DialogDescription
           hidden

@@ -3,7 +3,6 @@ import { ThemedPrivyProvider } from "@/components/providers/ThemedPrivyProvider"
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils/cn";
-import { Analytics } from "@vercel/analytics/react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { GlobalDialogs } from "@/components/dialogs/GlobalDialogs";
@@ -63,7 +62,6 @@ export default async function RootLayout({
 
                       <Toaster />
                       <GlobalDialogs />
-                      <Analytics />
                     </TooltipProvider>
                     <DevOnly>
                       <ToggleableReactQueryDevTools />

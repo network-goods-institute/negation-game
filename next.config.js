@@ -1,13 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   webpack: (config, { isServer }) => {
-    // Only set globalObject to 'self' for client-side builds
     if (!isServer) {
       config.output.globalObject = 'self';
     }
     return config;
   },
-  // Disable image optimization during build to speed up builds
   images: {
     unoptimized: process.env.NODE_ENV === 'development',
   },
@@ -18,27 +16,46 @@ const nextConfig = {
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: 
-              "default-src 'self'; " +
-              "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; " +
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-              "img-src 'self' data: blob: https:; " +
-              "media-src 'self' https:; " +
-              "font-src 'self' https://fonts.gstatic.com; " +
-              "object-src 'none'; " +
-              "base-uri 'self'; " +
-              "form-action 'self'; " +
-              "frame-ancestors 'none'; " +
-              "child-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org; " +
-              "frame-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://www.loom.com; " +
-              "connect-src 'self' https://auth.privy.io wss://relay.walletconnect.com wss://relay.walletconnect.org wss://www.walletlink.org https://*.rpc.privy.systems https://explorer-api.walletconnect.com; " +
-              "worker-src 'self' blob:; " +
-              "manifest-src 'self'",
-          },
-        ],
-      },
+            value: [
+              // default
+              "default-src 'self'",
+
+              // scripts (your own + Cloudflare challenge)
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com",
+
+              // styles & fonts
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+              "font-src 'self' https://fonts.gstatic.com",
+
+              // images & media
+              "img-src 'self' data: blob: https:",
+              "media-src 'self' https:",
+
+              // no plugins or embeds of other origins
+              "object-src 'none'",
+              "base-uri 'self'",
+              "form-action 'self'",
+
+              // prevent others framing your page
+              "frame-ancestors 'none'",
+
+              // iframes you embed
+              "frame-src 'self' https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://www.loom.com https://privy.play.negationgame.com",
+
+              // AJAX, WebSocket, SIWE/API calls
+              "connect-src 'self' https://auth.privy.io wss://relay.walletconnect.com wss://relay.walletconnect.org wss://www.walletlink.org https://*.rpc.privy.systems https://explorer-api.walletconnect.com https://api.web3modal.org https://pulse.walletconnect.org https://privy.play.negationgame.com",
+
+              // service workers, web workers
+              "worker-src 'self' blob:",
+
+              // PWA manifest
+              "manifest-src 'self'"
+            ].join('; ')
+          }
+        ]
+      }
     ];
   },
-}
+};
 
-module.exports = nextConfig 
+module.exports = nextConfig;
