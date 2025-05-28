@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useUser } from "@/queries/users/useUser";
 import { usePrivy } from "@privy-io/react-auth";
-import { clearPrivyCookie } from '@/app/actions/auth';
+import { clearPrivyCookie } from '@/actions/users/auth';
 import {
   DropdownMenuContent,
   DropdownMenuTrigger,

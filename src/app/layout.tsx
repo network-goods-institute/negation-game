@@ -19,7 +19,7 @@ import { HeaderActions } from "@/components/header/HeaderActions";
 import {
   DynamicHeaderContent
 } from "@/components/header/DynamicHeaderContent";
-import { getCurrentUser } from "@/app/actions/auth";
+import { getCurrentUser } from "@/actions/users/auth";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 

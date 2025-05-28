@@ -1,7 +1,7 @@
 "use client";
 
 import { getAccessToken } from "@privy-io/react-auth";
-import { setPrivyCookie } from "@/app/actions/auth";
+import { setPrivyCookie } from "@/actions/users/auth";
 
 /**
  * Sets the Privy token as a cookie after retrieving it from the SDK
