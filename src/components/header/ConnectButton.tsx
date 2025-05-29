@@ -13,15 +13,17 @@ import {
 import { useUser } from "@/queries/users/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { clearPrivyCookie } from '@/actions/users/auth';
-import { LoaderCircleIcon, CoinsIcon, UserIcon, LogOutIcon } from "lucide-react";
+import { LoaderCircleIcon, CoinsIcon, UserIcon, LogOutIcon, TrophyIcon } from "lucide-react";
 import { useState } from "react";
 import { EarningsDialog } from "../dialogs/EarningsDialog";
 import Link from "next/link";
+import { LeaderboardDialog } from "@/components/dialogs/LeaderboardDialog";
 
 export const ConnectButton = () => {
   const { login, logout, user: privyUser } = usePrivy();
   const { data: user, isLoading } = useUser();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
 
   if (!privyUser)
     return (
@@ -85,6 +87,10 @@ export const ConnectButton = () => {
               <CoinsIcon className="size-4" />
               Collect Earnings
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setLeaderboardOpen(true)} className="gap-2">
+              <TrophyIcon className="size-4" />
+              Leaderboard
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={async () => { await clearPrivyCookie(); logout(); }} className="gap-2">
               <LogOutIcon className="size-4" />
               Sign out
@@ -93,6 +99,7 @@ export const ConnectButton = () => {
         </DropdownMenu>
 
         <EarningsDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+        <LeaderboardDialog open={leaderboardOpen} onOpenChange={setLeaderboardOpen} space="global" />
       </>
     );
 };

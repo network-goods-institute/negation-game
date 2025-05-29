@@ -48,12 +48,15 @@ import CounterpointReview, { CounterpointCandidate } from "../ai/CounterpointRev
 import { toast } from "sonner";
 import { encodeId } from '@/lib/negation-game/encodeId';
 import { CreatedNegationView } from '../chatbot/preview/CreatedNegationView';
+import { selectPointForNegationOpenAtom } from "@/atoms/selectPointForNegationOpenAtom";
+import { useSetAtom } from 'jotai';
 
 export interface NegateDialogProps
   extends Omit<DialogProps, "open" | "onOpenChange"> { }
 
 export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   const [negationSuggestion, setNegationSuggestion] = useAtom(makeNegationSuggestionAtom);
+  const setSelectPointDialogOpen = useSetAtom(selectPointForNegationOpenAtom);
 
   const initialNegatedPointId = negationSuggestion?.targetId;
   const [negatedPointId, setNegatedPointId] = useAtom(negatedPointIdAtom);
@@ -405,7 +408,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
       {...props}
       open={isOpen}
       onOpenChange={(open) => {
-        if (!open) handleClose(); // Full close handler
+        if (!open) handleClose();
       }}
     >
       <DialogContent className="@container sm:top-xl flex flex-col overflow-hidden sm:translate-y-0 h-full rounded-none sm:rounded-md sm:h-fit gap-0 bg-background p-4 sm:p-8 shadow-sm w-full max-w-xl max-h-[90vh]">
@@ -428,8 +431,17 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                   ? "Add your cred behind this existing negation"
                   : "Add a new negation to the Point"}
               </DialogDescription>
-              <DialogClose className="text-primary">
-                <ArrowLeftIcon />
+              <DialogClose asChild>
+                <button
+                  className="text-primary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleClose();
+                    setSelectPointDialogOpen(true);
+                  }}
+                >
+                  <ArrowLeftIcon />
+                </button>
               </DialogClose>
             </div>
 

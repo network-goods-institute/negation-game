@@ -6,7 +6,6 @@ import {
   endorsementsTable,
   negationsTable,
   pointsTable,
-  effectiveRestakesView,
 } from "@/db/schema";
 import { Point } from "@/db/tables/pointsTable";
 import { addFavor } from "@/db/utils/addFavor";
