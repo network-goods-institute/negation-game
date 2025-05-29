@@ -251,6 +251,58 @@ export const ChatSidebar = React.memo(({
             .catch(err => console.error('Failed to copy share URL automatically: ', err));
     }, [currentSpace, isAuthenticated]);
 
+    if (isMobile) {
+        if (!showMobileMenu) {
+            return null;
+        }
+        return (
+            <div className="fixed inset-x-0 bottom-0 z-50 transform transition-transform duration-300 ease-in-out translate-y-0 h-1/2 bg-background shadow-lg rounded-t-lg">
+                <div className="h-16 border-b flex items-center justify-between px-4">
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                        <MessageSquare className="h-5 w-5 text-primary" />
+                        <span>Chats</span>
+                    </h2>
+                    <Button variant="ghost" size="icon" onClick={onCloseMobileMenu}>
+                        <X className="h-4 w-4" />
+                    </Button>
+                </div>
+                <ScrollArea className="flex-1 p-2">
+                    {isInitializing ? (
+                        <ChatListSkeleton />
+                    ) : savedChats.length === 0 ? (
+                        <div className="text-center py-8 px-4 text-muted-foreground">
+                            <p className="text-sm">No chats yet</p>
+                            <p className="text-xs mt-1">Start a new conversation!</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            {savedChats.map((chat) => (
+                                <ChatListItem
+                                    key={chat.id}
+                                    chat={chat}
+                                    currentChatId={currentChatId}
+                                    isAuthenticated={isAuthenticated}
+                                    isMobile={isMobile}
+                                    generatingTitles={generatingTitles}
+                                    onSwitchChat={onSwitchChat}
+                                    onTriggerRename={onTriggerRename}
+                                    onTriggerDelete={onTriggerDelete}
+                                    onCloseMobileMenu={onCloseMobileMenu}
+                                    handleShareChat={handleShareChat}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </ScrollArea>
+                <div className="border-t px-4 py-2 space-y-2">
+                    <Button variant="default" size="sm" onClick={onNewChat} className="w-full">
+                        New Chat
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+
     if (collapsed && !isMobile) {
         return (
             <div className="fixed top-[var(--header-height)] left-0 h-16 w-12 bg-background border-r z-50 flex items-center justify-center">

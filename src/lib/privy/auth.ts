@@ -16,6 +16,7 @@ export async function getCurrentUser() {
   } catch (error) {
     console.error("Error verifying Privy auth token:", error);
     // Clear invalid cookie
+    // eslint-disable-next-line drizzle/enforce-delete-with-where
     await cookieStore.delete("privy-token");
     return null;
   }
