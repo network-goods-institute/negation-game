@@ -18,17 +18,17 @@ You can find the live site [here](https://negationgame.com).
 
 - **Points**: These are statements or arguments that users make in the system. When you make a point, you're essentially putting forward a claim or position.
 
-- **Negations**: These are counterarguments to points. A negation challenges a point directly, creating a paired relationship between the original point and its counterevidence.
+- **Negations**: These are counterarguments to points. A negation challenges a point directly, creating a paired relationship between the original point and its counterevidence. You can endorse your negation while creating it.
 
 ### Cred and Favor
 
-- **Cred**: The primary currency in the system. You spend cred to endorse points, make restakes, and place doubts.
+- **Cred**: The primary resource in the system. Each user starts with a fixed allocation of Cred, which acts like a delegation power. You spend Cred to endorse Points and place Doubts; Restakes and Slashes do not cost additional Cred. When you Doubt, your earnings accumulate passively from the favor bonus until the Restaker Slashes, which cuts off further earnings. Use the "Collect Earnings" button in your profile to redeem any accumulated earnings. You must check in on it regularly to collect your earnings or you may miss out if the Restaker Slashes.
 
-- **Favor**: A measure of how much the community believes in a point. It's calculated based on the point/negation cred ratio and is boosted by restakes, but reduced by slashes and doubts.
+- **Favor**: A measure of how much the community believes in a Point. It's calculated based on the point/negation Cred ratio and is boosted by Restakes, but reduced by Slashes and Doubts.
 
-### Rationales (Viewpoints)
+### Rationales
 
-- **Rationales**: These are structured collections of points and negations that represent complete arguments or viewpoints. They allow users to create and share comprehensive reasoning structures rather than isolated points.
+- **Rationales**: These are structured collections of Points and Negations that represent complete arguments. They allow users to create and share comprehensive reasoning structures rather than isolated points.
 
 ### Spaces
 
@@ -37,31 +37,33 @@ Spaces are separate communities or contexts within the Negation Game. Each space
 - **Global Space**: The default space where all users can participate
 - **Specialized Spaces**: Topic, community, or DAO-specific spaces
 
-Each space has its own feed of points, negations, and rationales, allowing communities to develop focused conversations around their specific interests or domains.
+Each space has its own feed of Points, Negations, and Rationales, allowing communities to develop focused conversations around their specific interests or domains.
 
 ## Advanced Mechanisms
 
 ### The Commitment Mechanism: Restakes, Slashes, and Doubts
 
-- **Restaking**: When you endorse a point and believe in it strongly, you can "restake" on it, which is a commitment to change your mind about the point if a specific negation proves true. Restaking costs cred immediately but grants a favor bonus to the parent point, demonstrating your conviction.
+**Restaking**, **Slashing**, and **Doubting** form the system's commitment mechanisms with distinct Cred implications:
 
-- **Slashing**: If you later acknowledge that a negation has merit and changes your mind, you "slash" your restake. This is an act of intellectual honesty - fulfilling your commitment to change your mind when presented with compelling evidence. Slashing costs no additional cred but removes the favor bonus.
+- **Restaking**: Commit to reconsider your endorsement if a specific negation proves true. Restaking does not cost additional Cred; it allocates a portion of your existing Cred endorsed to the parent Point and grants a favor bonus to the parent Point. This bonus is at risk and can be claimed by Doubters until you Slash.
+- **Slashing**: Fulfill your Restake commitment by acknowledging the negation changed your mind. Slashing costs no additional Cred, removes the favor bonus, and you earn Cred based on the conditions you committed to.
+- **Doubting**: Bet against a Restaker's likelihood of Slashing. Doubting costs Cred to place; if the Restaker does not Slash when expected, you win your Doubt and earn Cred, redeemable via the "Collect Earnings" button. If they Slash, you lose your Doubted Cred.
 
-- **Doubting**: If you believe someone won't follow through on their restake commitment (won't change their mind even if evidence proves them wrong), you can "doubt" their restake. This is a bet against their intellectual honesty. If they never slash, you win your doubt; if they do slash, you lose proportionally.
 
 ## How to Use the Negation Game
 
 ### Getting Started
 
-1. **Connect your account**: Use the connect button to authenticate. You can link your wallet, email or Google Account.
-2. **Explore the feed**: Browse existing points and negations in your chosen space
+1. **Connect your account**: Use the connect button to authenticate. You can link your wallet, email, Google Account, or Farcaster.
+2. **Explore the feed**: Browse existing points and negations in your chosen space. Use the search feature to find specific content.
 3. **Make a point**: Create your first statement to start participating
+4. **Use the AI Assistant**: Navigate to the Chat tab to ask questions, generate points, and explore rationales with the built-in AI Assistant.
 
 ### Basic Interactions
 
-- **Endorse a point**: When you see a point you agree with, you can endorse it with cred
-- **Negate a point**: Create a counterargument to challenge an existing point
-- **Create a rationale**: Organize multiple points into a structured argument
+- **Endorse a point**: When you see a Point you agree with, you can endorse it with Cred
+- **Negate a point**: Create a counterargument to challenge an existing Point
+- **Create a rationale**: Organize multiple Points and Negations into a structured argument
 
 ### Complex Interactions
 

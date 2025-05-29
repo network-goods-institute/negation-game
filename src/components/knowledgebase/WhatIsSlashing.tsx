@@ -14,10 +14,9 @@ export const WhatIsSlashing = () => {
                 </p>
             </div>
             <ul>
-                <li>This fulfills your commitment to change your mind when presented with compelling evidence you previously agreed would change your mind.</li>
-                <li>Slashing costs no additional cred.</li>
-                <li>It removes the favor bonus previously granted by the restake from the parent point.</li>
-                <li>If others doubted your restake, slashing penalizes those doubters proportionally.</li>
+                <li>This fulfills your commitment to change your mind when compelling evidence meets your agreed condition.</li>
+                <li>Slashing costs no additional Cred.</li>
+                <li>It removes the favor bonus previously granted by your Restake from the parent Point, cutting off future earnings for Doubters.</li>
             </ul>
         </article>
     );
