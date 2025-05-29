@@ -4,6 +4,8 @@ import { NewUserDialog } from "@/components/dialogs/NewUserDialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -11,10 +13,6 @@ import {
 import { useUser } from "@/queries/users/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { clearPrivyCookie } from '@/actions/users/auth';
-import {
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@radix-ui/react-dropdown-menu";
 import { LoaderCircleIcon, CoinsIcon, UserIcon, LogOutIcon } from "lucide-react";
 import { useState } from "react";
 import { EarningsDialog } from "../dialogs/EarningsDialog";
