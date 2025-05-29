@@ -18,7 +18,7 @@ import { HeaderActions } from "@/components/header/HeaderActions";
 import {
   DynamicHeaderContent
 } from "@/components/header/DynamicHeaderContent";
-import { getCurrentUser } from "@/actions/users/auth";
+import { getCurrentUser } from "@/lib/privy/auth";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
