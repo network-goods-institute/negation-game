@@ -81,5 +81,6 @@ export function useRationaleGraphLayout({
         });
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [graphData, setNodes, reactFlowInstance]);
 }

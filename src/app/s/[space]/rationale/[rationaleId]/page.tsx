@@ -40,6 +40,7 @@ import { PublishAcknowledgementDialog } from "@/components/dialogs/PublishAcknow
 import { useUserViewpoints } from "@/queries/users/useUserViewpoints";
 import type { RationaleRank } from "@/components/ui/ProfileBadge";
 import type { ViewpointGraph } from "@/atoms/viewpointAtoms";
+import MobileSaveFooter from '@/components/rationale/MobileSaveFooter';
 
 function CopiedFromLink({ sourceId }: { sourceId: string }) {
     const { data: sourceViewpoint, isLoading } = useViewpoint(sourceId);
@@ -336,6 +337,16 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                         />
                     </div>
                     {/* --- Scrollable Content END --- */}
+                    <MobileSaveFooter
+                        isOwner={isOwner}
+                        isGraphModified={isGraphModified}
+                        isContentModified={isContentModified}
+                        isSaving={isSaving}
+                        commitSaveChanges={() => commitSaveChanges(localGraph!)}
+                        resetContentModifications={resetContentModifications}
+                        clearGraphModifications={() => setIsGraphModified(false)}
+                        canvasEnabled={canvasEnabled}
+                    />
                 </div>
 
                 {/* Column 3 (Graph View) using shared RationaleGraph */}
