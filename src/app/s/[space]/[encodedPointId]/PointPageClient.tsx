@@ -613,8 +613,8 @@ export function PointPageClient({
 
                 {point && (
                     <div className="@container/point relative flex-grow bg-background">
-                        <div className="sticky top-0 z-10 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
-                            <div className="flex items-center gap-2">
+                        <div className="sticky top-0 z-10 w-full flex flex-wrap sm:flex-nowrap items-center justify-start sm:justify-between gap-3 gap-y-2 px-4 py-3 bg-background/70 backdrop-blur">
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
                                 <Button
                                     variant={"link"}
                                     size={"icon"}
@@ -648,7 +648,7 @@ export function PointPageClient({
                                     </>
                                 )}
                             </div>
-                            <div className="flex gap-sm items-center text-muted-foreground">
+                            <div className="flex w-full sm:w-auto gap-sm items-center justify-start sm:justify-end text-muted-foreground">
                                 <Button
                                     variant="ghost"
                                     className="p-2 rounded-full size-fit hover:bg-muted/30"
