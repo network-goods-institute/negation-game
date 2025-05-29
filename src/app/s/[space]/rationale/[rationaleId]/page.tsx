@@ -39,6 +39,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { PublishAcknowledgementDialog } from "@/components/dialogs/PublishAcknowledgementDialog";
 import { useUserViewpoints } from "@/queries/users/useUserViewpoints";
 import type { RationaleRank } from "@/components/ui/ProfileBadge";
+import type { ViewpointGraph } from "@/atoms/viewpointAtoms";
 
 function CopiedFromLink({ sourceId }: { sourceId: string }) {
     const { data: sourceViewpoint, isLoading } = useViewpoint(sourceId);
@@ -175,7 +176,42 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
         setIsTopicEditing(false);
     }, [editableTitle, editableDescription, editableTopic, setIsContentModified]);
 
-    const { onSaveChanges, isSaving: extractedSaving } = useSaveViewpoint({
+    const handleTitleEdit = useCallback(() => {
+        setIsTitleEditing(true);
+    }, []);
+
+    const handleDescriptionEdit = useCallback(() => {
+        setIsDescriptionEditing(true);
+    }, []);
+
+    // Reset content modifications back to the original fetched data
+    const resetContentModifications = useCallback(() => {
+        if (viewpoint) {
+            setEditableTitle(originalTitleRef.current);
+            setEditableDescription(originalDescriptionRef.current);
+            setEditableTopic(originalTopicRef.current);
+
+            setIsContentModified(false);
+
+            const originalViewpoint = {
+                ...viewpoint,
+                title: originalTitleRef.current,
+                description: originalDescriptionRef.current,
+                topic: originalTopicRef.current,
+                _pendingChanges: false,
+                _reverted: Date.now(),
+            };
+
+            queryClient.setQueryData<typeof viewpoint>(["viewpoint", viewpoint.id], originalViewpoint);
+
+            if (originalGraph) {
+                setLocalGraph(originalGraph);
+            }
+        }
+    }, [viewpoint, queryClient, originalGraph, setLocalGraph]);
+
+    // Hook for saving existing rationale; on save, update refs so future discards use saved state
+    const { onSaveChanges: saveChanges, isSaving } = useSaveViewpoint({
         viewpointId,
         createdBy: viewpoint?.createdBy || '',
         isOwner,
@@ -187,62 +223,17 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
         originalGraph: originalGraph!,
     } as UseSaveViewpointParams);
 
-    useEffect(() => {
-        if (reactFlow && editableTitle) {
-            reactFlow.setNodes((nodes: AppNode[]) => {
-                return nodes.map(node => {
-                    if (node.id === "statement" && node.type === "statement") {
-                        return {
-                            ...node,
-                            data: {
-                                ...node.data,
-                                statement: editableTitle
-                            }
-                        };
-                    }
-                    return node;
-                });
-            });
-        }
-    }, [editableTitle, reactFlow]);
-
-    const handleTitleEdit = useCallback(() => {
-        setIsTitleEditing(true);
-    }, []);
-
-    const handleDescriptionEdit = useCallback(() => {
-        setIsDescriptionEditing(true);
-    }, []);
-
-    const resetContentModifications = useCallback(() => {
-        if (viewpoint) {
-            setEditableTitle(originalTitleRef.current);
-            setEditableDescription(originalDescriptionRef.current);
-            setEditableTopic(originalTopicRef.current);
-
+    const commitSaveChanges = useCallback(async (graph: ViewpointGraph) => {
+        const result = await saveChanges(graph);
+        if (result) {
+            // Set refs to current values so discard resets to this state
+            originalTitleRef.current = editableTitle;
+            originalDescriptionRef.current = editableDescription;
+            originalTopicRef.current = editableTopic;
             setIsContentModified(false);
-
-            const originalViewpoint = {
-                ...viewpoint,
-                // Force updated values for display using refs
-                title: originalTitleRef.current,
-                description: originalDescriptionRef.current,
-                topic: originalTopicRef.current,
-                // Remove any pending changes flag
-                _pendingChanges: false,
-                // Include a timestamp to ensure React detects the change
-                _reverted: Date.now()
-            };
-
-            // Update the query cache with the original values
-            queryClient.setQueryData<typeof viewpoint>(["viewpoint", viewpoint.id], originalViewpoint);
-
-            // Ensure the local graph is also reset to original
-            if (originalGraph) {
-                setLocalGraph(originalGraph);
-            }
         }
-    }, [viewpoint, queryClient, originalGraph, setLocalGraph]);
+        return result;
+    }, [saveChanges, editableTitle, editableDescription, editableTopic]);
 
     const { isDiscardDialogOpen, setIsDiscardDialogOpen, handleBackClick, handleDiscard } = useConfirmDiscard(
         basePath,
@@ -362,13 +353,13 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                             "md:!relative md:col-start-3 md:inset-[reset] md:top-[reset] md:!h-full md:!z-auto",
                             !canvasEnabled && "hidden md:block"
                         )}
-                        isSaving={extractedSaving}
+                        isSaving={isSaving}
                         isContentModified={isContentModified}
                         isSharing={isSharing}
                         toggleSharingMode={toggleSharingMode}
                         handleGenerateAndCopyShareLink={handleGenerateAndCopyShareLink}
                         originalGraphData={originalGraph!}
-                        onSave={onSaveChanges}
+                        onSave={commitSaveChanges}
                         onResetContent={resetContentModifications}
                         onModifiedChange={setIsGraphModified}
                     />
