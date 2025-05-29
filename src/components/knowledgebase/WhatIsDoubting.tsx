@@ -26,9 +26,9 @@ export const WhatIsDoubting = () => {
                 </p>
             </div>
             <ul>
-                <li>Doubting costs Cred to place and stakes your spent Cred on the Restaker's favor bonus.</li>
+                <li>Doubting costs Cred to place and stakes your spent Cred on the Restaker&apos;s favor bonus.</li>
                 <li>The maximum amount you can doubt is limited by the total effective favor bonus available on that Point-Negation pair (excluding fully slashed restakes).</li>
-                <li>Your earnings accumulate passively from the favor bonus until the Restaker Slashes, which stops further earnings. Use the "Collect Earnings" button in your profile to redeem any accumulated earnings. Make sure to check in on it regularly to collect your earnings or you may miss out if the Restaker Slashes.</li>
+                <li>Your earnings accumulate passively from the favor bonus until the Restaker Slashes, which stops further earnings. Use the &quot;Collect Earnings&quot; button in your profile to redeem any accumulated earnings. Make sure to check in on it regularly to collect your earnings or you may miss out if the Restaker Slashes.</li>
                 <li>If the Restaker Slashes, your future earnings stop; the Cred you spent to Doubt is not refunded.</li>
                 <li>Doubts reduce the favor bonus granted by the Restake immediately upon placement (using max(slashed, doubted)).</li>
             </ul>

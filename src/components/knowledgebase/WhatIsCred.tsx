@@ -4,7 +4,7 @@ export const WhatIsCred = () => {
             <h2>What are Cred and Favor?</h2>
             <h3>Cred</h3>
             <p>
-                "Cred" (Credibility) is the primary resource in the Negation Game, allocated to each user at the start. You spend Cred to endorse Points and place Doubts; Restakes and Slashes do not cost additional Cred. When you Doubt, your earnings accumulate passively from the favor bonus until the Restaker Slashes, which cuts off further earnings. Use the "Collect Earnings" button in your profile to redeem any accumulated earnings. You must check in on it regularly to collect your earnings or you may miss out if the Restaker Slashes.
+                &quot;Cred&quot; (Credibility) is the primary resource in the Negation Game, allocated to each user at the start. You spend Cred to endorse Points and place Doubts; Restakes and Slashes do not cost additional Cred. When you Doubt, your earnings accumulate passively from the favor bonus until the Restaker Slashes, which cuts off further earnings. Use the &quot;Collect Earnings&quot; button in your profile to redeem any accumulated earnings. You must check in on it regularly to collect your earnings or you may miss out if the Restaker Slashes.
             </p>
             <h3>Favor</h3>
             <p>
