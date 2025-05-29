@@ -20,7 +20,6 @@ export const ThemedPrivyProvider = ({ children }: PropsWithChildren) => {
         embeddedWallets: {
           createOnLogin: "off",
         },
-
         defaultChain: mainnet,
         supportedChains: [mainnet],
       }}

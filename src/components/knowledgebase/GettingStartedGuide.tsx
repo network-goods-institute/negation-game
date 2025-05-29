@@ -5,15 +5,16 @@ export const GettingStartedGuide = () => {
 
             <h3>Getting Started</h3>
             <ol>
-                <li><strong>Connect your account</strong>: Use the connect button to authenticate. You can link your wallet, email or Google Account.</li>
-                <li><strong>Explore the feed</strong>: Browse existing points and negations in your chosen space.</li>
+                <li><strong>Connect your account</strong>: Use the connect button to authenticate. You can link your wallet, email, Google Account, or Farcaster.</li>
+                <li><strong>Explore the feed</strong>: Browse existing points, negations, and rationales. Use the search function to find specific topics.</li>
                 <li><strong>Make a point</strong>: Create your first statement to start participating.</li>
+                <li><strong>Use the AI Assistant</strong>: Navigate to the Chat tab to ask questions, generate points, and explore rationales with our built-in AI Assistant.</li>
             </ol>
 
             <h3>Basic Interactions</h3>
             <ul>
                 <li><strong>Endorse a point</strong>: When you see a point you agree with, you can endorse it with cred.</li>
-                <li><strong>Negate a point</strong>: Create a counterargument to challenge an existing point.</li>
+                <li><strong>Negate a point</strong>: Create a counterargument to challenge an existing point. You can endorse your negation while creating it.</li>
                 <li><strong>Create a rationale</strong>: Organize multiple points and negations into a structured argument (see &quot;What are Rationales?&quot;).</li>
             </ul>
 

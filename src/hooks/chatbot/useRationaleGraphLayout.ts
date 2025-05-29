@@ -2,9 +2,6 @@ import { useEffect, useState } from "react";
 import { useReactFlow, Node } from "@xyflow/react";
 import { PreviewAppNode, PreviewAppEdge } from "@/types/rationaleGraph";
 import { ViewpointGraph } from "@/atoms/viewpointAtoms";
-import { PreviewStatementNodeData } from "@/components/chatbot/preview/PreviewStatementNode";
-import { PreviewPointNodeData } from "@/components/chatbot/preview/PreviewPointNode";
-import { PreviewAddPointNodeData } from "@/components/chatbot/preview/PreviewAddPointNode";
 
 interface UseRationaleGraphLayoutProps {
   graphData: ViewpointGraph;
@@ -29,7 +26,6 @@ export function useRationaleGraphLayout({
   setNodes,
   setEdges,
 }: UseRationaleGraphLayoutProps) {
-  const [lastGraphDataHash, setLastGraphDataHash] = useState("");
   const reactFlowInstance = useReactFlow<PreviewAppNode, PreviewAppEdge>();
 
   useEffect(() => {
@@ -85,5 +81,6 @@ export function useRationaleGraphLayout({
         });
       }
     }
-  }, [graphData, currentNodesFromState, setNodes, reactFlowInstance]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [graphData, setNodes, reactFlowInstance]);
 }

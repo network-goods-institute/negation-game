@@ -3,7 +3,6 @@ import { ThemedPrivyProvider } from "@/components/providers/ThemedPrivyProvider"
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils/cn";
-import { Analytics } from "@vercel/analytics/react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { GlobalDialogs } from "@/components/dialogs/GlobalDialogs";
@@ -19,7 +18,7 @@ import { HeaderActions } from "@/components/header/HeaderActions";
 import {
   DynamicHeaderContent
 } from "@/components/header/DynamicHeaderContent";
-import { getCurrentUser } from "@/actions/users/auth";
+import { getCurrentUser } from "@/lib/privy/auth";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -63,7 +62,6 @@ export default async function RootLayout({
 
                       <Toaster />
                       <GlobalDialogs />
-                      <Analytics />
                     </TooltipProvider>
                     <DevOnly>
                       <ToggleableReactQueryDevTools />

@@ -24,6 +24,12 @@ export const VideoIntroDialog: React.FC<VideoIntroDialogProps> = ({ open, onOpen
     };
 
     useEffect(() => {
+        if (open) {
+            setEpisode(showBack ? 2 : 1);
+        }
+    }, [open, showBack]);
+
+    useEffect(() => {
         if (open) setLoaded(prev => ({ ...prev, [episode]: false }));
     }, [open, episode]);
 

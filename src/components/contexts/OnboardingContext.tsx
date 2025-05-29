@@ -20,7 +20,8 @@ import { useKnowledgeBase } from '@/components/contexts/KnowledgeBaseContext';
 import { useWriteup } from '@/components/contexts/WriteupContext';
 import { KeybindsDialog } from '@/components/dialogs/KeybindsDialog';
 import { VideoIntroDialog } from '@/components/dialogs/VideoIntroDialog';
-import { Library, FileText, Keyboard, PlayCircle } from 'lucide-react';
+import { Loader } from '@/components/ui/loader';
+import { Library, FileText, Keyboard } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'onboardingDismissed';
 const LAST_SHOWN_KEY = 'onboardingLastShown';
@@ -57,14 +58,23 @@ const OnboardingDialog = ({ isOpen, onClose, onDismissPermanently }: OnboardingD
     const { openDialog: openKbDialog } = useKnowledgeBase();
     const { openDialog: openWriteupDialog } = useWriteup();
     const [showKeybinds, setShowKeybinds] = useState(false);
-    const [showVideo, setShowVideo] = useState(false);
+    const [showVideo2, setShowVideo2] = useState(false);
+    const [episode, setEpisode] = useState<1 | 2>(1);
+    const [loaded, setLoaded] = useState<{ [key in 1 | 2]: boolean }>({ 1: false, 2: false });
+    const srcMap: Record<number, string> = {
+        1: 'https://www.loom.com/embed/19bb3e00649d40c08b4f09cee598a525',
+        2: 'https://www.loom.com/embed/a8ae681369564c55938f885d5fe9612c',
+    };
+    useEffect(() => {
+        if (isOpen) setLoaded(prev => ({ ...prev, [episode]: false }));
+    }, [isOpen, episode]);
 
     return (
         <>
             <KeybindsDialog open={showKeybinds} onOpenChange={setShowKeybinds} showBack />
-            <VideoIntroDialog open={showVideo} onOpenChange={setShowVideo} showBack />
+            <VideoIntroDialog open={showVideo2} onOpenChange={setShowVideo2} showBack />
             <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-                <DialogContent className="max-w-md w-full">
+                <DialogContent className="max-w-2xl w-full">
                     <DialogHeader>
                         <DialogTitle>🚀 Welcome!</DialogTitle>
                         <p className="text-sm text-muted-foreground mt-1">Get started with the Negation Game</p>
@@ -93,20 +103,32 @@ const OnboardingDialog = ({ isOpen, onClose, onDismissPermanently }: OnboardingD
                             <span className="text-xs text-muted-foreground text-center mt-1">The full length introduction to the Negation Game</span>
                         </button>
                         <button
-                            className="flex flex-col items-center p-4 bg-muted rounded-lg hover:bg-muted/80"
+                            className="col-span-2 flex justify-center flex-col items-center p-4 bg-muted rounded-lg hover:bg-muted/80"
                             onClick={() => setShowKeybinds(true)}
                         >
                             <Keyboard className="h-6 w-6 mb-2" />
                             <span className="font-semibold">Keybinds</span>
                             <span className="text-xs text-muted-foreground text-center mt-1">Keyboard shortcuts</span>
                         </button>
-                        <button
-                            className="flex flex-col items-center p-4 bg-muted rounded-lg hover:bg-muted/80"
-                            onClick={() => setShowVideo(true)}
-                        >
-                            <PlayCircle className="h-6 w-6 mb-2" />
-                            <span className="font-semibold">Video Intro</span>
-                            <span className="text-xs text-muted-foreground text-center mt-1">Watch Episodes</span>
+                    </div>
+                    <div className="mt-6 relative pb-[56.25%]">
+                        {!loaded[episode] && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-background">
+                                <Loader className="h-12 w-12 text-primary" />
+                            </div>
+                        )}
+                        <iframe
+                            src={srcMap[episode]}
+                            frameBorder="0"
+                            allow="autoplay; fullscreen; picture-in-picture"
+                            className="absolute top-0 left-0 w-full h-full"
+                            allowFullScreen
+                            onLoad={() => setLoaded(prev => ({ ...prev, [episode]: true }))}
+                        />
+                    </div>
+                    <div className="flex justify-center mt-4">
+                        <button className="text-sm text-primary underline" onClick={() => setShowVideo2(true)}>
+                            Watch Episode 2
                         </button>
                     </div>
                     <DialogFooter className="flex justify-end space-x-2">

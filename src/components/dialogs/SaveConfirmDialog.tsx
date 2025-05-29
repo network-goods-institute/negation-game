@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils/cn";
 import { Loader } from "@/components/ui/loader";
+import useIsMobile from "@/hooks/ui/useIsMobile";
 
 export interface SaveConfirmDialogProps {
     open: boolean;
@@ -36,6 +37,8 @@ export const SaveConfirmDialog = ({
     isProcessing,
     saveAction,
 }: SaveConfirmDialogProps) => {
+    const isMobile = useIsMobile();
+
     const daysSinceUpdate = lastUpdated
         ? Math.floor((Date.now() - lastUpdated.getTime()) / (1000 * 60 * 60 * 24))
         : 0;
@@ -70,11 +73,17 @@ export const SaveConfirmDialog = ({
                         </span>
                     </AlertDialogDescription>
                 </AlertDialogHeader>
-                <AlertDialogFooter className="flex flex-col sm:flex-row gap-2">
+                <AlertDialogFooter className={cn(
+                    "gap-2",
+                    isMobile ? "flex flex-col" : "flex flex-row"
+                )}>
                     <AlertDialogCancel
                         disabled={isProcessing}
                         onClick={onCancel}
-                        className="mt-0 h-8 text-xs px-3"
+                        className={cn(
+                            "mt-0 h-8 text-xs px-3",
+                            isMobile && "w-full"
+                        )}
                     >
                         Cancel
                     </AlertDialogCancel>
@@ -82,7 +91,10 @@ export const SaveConfirmDialog = ({
                         onClick={onSaveAsNew}
                         disabled={isProcessing}
                         variant="secondary"
-                        className="flex-1 h-8 text-xs px-3"
+                        className={cn(
+                            "h-8 text-xs px-3",
+                            isMobile ? "w-full" : "flex-1"
+                        )}
                         size="sm"
                     >
                         {isProcessing && saveAction === "new" ? (
@@ -97,7 +109,10 @@ export const SaveConfirmDialog = ({
                     <Button
                         onClick={onSaveExisting}
                         disabled={isProcessing}
-                        className="flex-1 h-8 text-xs px-3"
+                        className={cn(
+                            "h-8 text-xs px-3",
+                            isMobile ? "w-full" : "flex-1"
+                        )}
                         size="sm"
                     >
                         {isProcessing && saveAction === "existing" ? (

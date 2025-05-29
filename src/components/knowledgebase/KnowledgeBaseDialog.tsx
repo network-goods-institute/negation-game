@@ -14,6 +14,7 @@ import { WhatIsRestaking } from '@/components/knowledgebase/WhatIsRestaking';
 import { WhatIsSlashing } from '@/components/knowledgebase/WhatIsSlashing';
 import { WhatIsDoubting } from '@/components/knowledgebase/WhatIsDoubting';
 import { WhatAreEdges } from '@/components/knowledgebase/WhatAreEdges';
+import { WhatIsAIAssistant } from '@/components/knowledgebase/WhatIsAIAssistant';
 import { cn } from '@/lib/utils/cn';
 import { useOnboarding } from '@/components/contexts/OnboardingContext';
 
@@ -29,6 +30,7 @@ type KbTopic =
     | 'doubting'
     | 'gettingStarted'
     | 'edges'
+    | 'assistant'
     | null;
 
 interface KnowledgeBaseDialogProps {
@@ -45,6 +47,8 @@ export const KnowledgeBaseDialog = ({ isOpen, onClose, showBack = false }: Knowl
         switch (selectedTopic) {
             case 'point':
                 return <WhatIsAPoint />;
+            case 'assistant':
+                return <WhatIsAIAssistant />;
             case 'negation':
                 return <WhatIsANegation />;
             case 'cred':
@@ -108,6 +112,7 @@ export const KnowledgeBaseDialog = ({ isOpen, onClose, showBack = false }: Knowl
                             <TopicButton topic="slashing" label="What is Slashing?" />
                             <TopicButton topic="doubting" label="What is Doubting?" />
                             <TopicButton topic="edges" label="Understanding Edges" />
+                            <TopicButton topic="assistant" label="AI Assistant" />
                         </div>
                     </nav>
 
