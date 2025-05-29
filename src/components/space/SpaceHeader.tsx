@@ -24,7 +24,7 @@ export function SpaceHeader({ space, isLoading, onAiClick }: SpaceHeaderProps) {
     return (
         <div className="py-3 px-4 flex items-center justify-between gap-3 w-full border-b">
             <div className="flex items-center gap-3">
-                <Avatar className="border-2 sm:border-4 border-background h-12 w-12 sm:h-20 sm:w-20">
+                <Avatar className="border-2 sm:border-a4 border-background h-12 w-12 sm:h-20 sm:w-20">
                     {space.data.icon ? (
                         <AvatarImage src={space.data.icon} alt={`s/${space.data.id} icon`} />
                     ) : (

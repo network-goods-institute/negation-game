@@ -1,7 +1,6 @@
 "use client";
 
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
-import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import { useBasePath } from "@/hooks/utils/useBasePath";
 import { preventDefaultIfContainsSelection } from "@/lib/utils/preventDefaultIfContainsSelection";
@@ -9,16 +8,13 @@ import { useFeed } from "@/queries/feed/useFeed";
 import { useSpace } from "@/queries/space/useSpace";
 import { usePrivy } from "@privy-io/react-auth";
 import { useSetAtom, useAtom } from "jotai";
-import { PlusIcon, TrophyIcon } from "lucide-react";
-
+import { PlusIcon, EyeIcon } from "lucide-react";
 import { useCallback, useState, useMemo, memo, useEffect, useRef, Profiler } from "react";
-import { LeaderboardDialog } from "@/components/dialogs/LeaderboardDialog";
 import { useRouter, usePathname } from "next/navigation";
 import { useViewpoints } from "@/queries/viewpoints/useViewpoints";
 import { useSearch } from "@/queries/search/useSearch";
 import { SearchResultsList } from "@/components/search/SearchResultsList";
 import { usePinnedPoint } from "@/queries/points/usePinnedPoint";
-import { ViewpointIcon } from "@/components/icons/AppIcons";
 import { usePriorityPoints } from "@/queries/points/usePriorityPoints";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePrefetchPoint } from "@/queries/points/usePointData";
@@ -66,7 +62,6 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
     const setMakePointSuggestion = useSetAtom(makePointSuggestionAtom);
     const basePath = useBasePath();
     const space = useSpace(params.space);
-    const [leaderboardOpen, setLeaderboardOpen] = useState(false);
     const router = useRouter();
     const pathname = usePathname();
     const [isNavigating, setIsNavigating] = useState(false);
@@ -248,103 +243,177 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
 
     if (selectedTab === null) {
         return (
-            <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow bg-background">
-                <div className="relative w-full sm:col-[2] flex flex-col gap-0 border-x overflow-auto">
-                    <Loader className="absolute self-center my-auto top-0 bottom-0" />
+            <main className="flex-1 grid sm:grid-cols-[minmax(200px,600px)_1fr] overflow-auto bg-background min-h-0">
+                <div className="col-span-full flex items-center justify-center h-full">
+                    <Loader className="size-8" />
                 </div>
             </main>
         );
     }
 
     return (
-        <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow bg-background">
-            <div className="relative w-full sm:col-[2] flex flex-col gap-0 border-x overflow-auto">
-                <SpaceHeader
-                    space={space}
-                    isLoading={isAiAssistantLoading}
-                    onAiClick={handleAiAssistantClick}
-                />
-
-                <SpaceTabs
-                    selectedTab={selectedTab}
-                    onTabChange={handleTabChange}
-                    searchQuery={searchQuery}
-                    onSearchChange={handleSearchChange}
-                    isAiLoading={isAiAssistantLoading}
-                    onAiClick={handleAiAssistantClick}
-                    spaceId={space.data?.id ?? "global"}
-                />
-
-                {selectedTab === null && (
-                    <div className="flex items-center justify-center flex-1 min-h-[50vh]">
-                        <Loader className="h-6 w-6" />
+        <main className="flex-1 grid sm:grid-cols-[minmax(200px,600px)_1fr] bg-background min-h-0">
+            <div className="relative w-full flex flex-col min-h-0">
+                {/* Sticky header with toolbar, space header, and tabs */}
+                <div className="sticky top-0 z-20 bg-background">
+                    <div className="flex flex-col items-center sm:hidden gap-4 p-4 bg-background">
+                        <div className="flex gap-4 justify-center">
+                            <button
+                                type="button"
+                                onClick={loginOrMakePoint}
+                                className="w-60 h-60 bg-background border hover:bg-accent transition-colors rounded-lg flex flex-col items-center justify-center p-6"
+                            >
+                                <PlusIcon className="size-16 mb-4" />
+                                <span className="text-2xl font-bold">Make a Point</span>
+                                <span className="text-base text-muted-foreground text-center mt-2">Add a new discussion point</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleNewViewpoint}
+                                className="w-60 h-60 bg-background border hover:bg-accent transition-colors rounded-lg flex flex-col items-center justify-center p-6"
+                            >
+                                <EyeIcon className="size-16 mb-4" />
+                                <span className="text-2xl font-bold">New Rationale</span>
+                                <span className="text-base text-muted-foreground text-center mt-2">Begin a new rationale</span>
+                            </button>
+                        </div>
+                        <button
+                            type="button"
+                            disabled
+                            className="w-60 h-60 bg-background border rounded-lg flex flex-col items-center justify-center p-6 opacity-50 cursor-not-allowed mx-auto mt-4"
+                        >
+                            <PlusIcon className="size-16 mb-4" />
+                            <span className="text-2xl font-bold">Make a Negation</span>
+                            <span className="text-base text-muted-foreground text-center mt-2">Propose a new negation</span>
+                        </button>
                     </div>
-                )}
-
-                {selectedTab !== "search" && selectedTab !== "rationales" &&
-                    pinnedPoint && !pinnedPointLoading && isInSpecificSpace && (
-                        <div className="border-b transition-opacity duration-200 ease-in-out">
-                            <PinnedPointWithHistory
-                                pinnedPoint={pinnedPoint}
-                                space={space.data?.id ?? "global"}
-                                loadingCardId={loadingCardId}
-                                basePath={basePath}
-                                handleCardClick={handleCardClick}
-                                handleNavigate={handlePinnedPointClick}
-                            />
+                    <SpaceHeader
+                        space={space}
+                        isLoading={isAiAssistantLoading}
+                        onAiClick={handleAiAssistantClick}
+                    />
+                    <SpaceTabs
+                        selectedTab={selectedTab}
+                        onTabChange={handleTabChange}
+                        searchQuery={searchQuery}
+                        onSearchChange={handleSearchChange}
+                        isAiLoading={isAiAssistantLoading}
+                        onAiClick={handleAiAssistantClick}
+                        spaceId={space.data?.id ?? "global"}
+                    />
+                </div>
+                {/* Scrollable feed content below sticky header */}
+                <div className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 min-h-0">
+                    {selectedTab === null && (
+                        <div className="col-span-full flex items-center justify-center h-full">
+                            <Loader className="size-8" />
                         </div>
                     )}
 
-                {selectedTab !== "search" && selectedTab !== "rationales" &&
-                    (priorityPointsLoading ? (
-                        <div className="border-b py-4 px-6 min-h-[120px] flex items-center justify-center">
-                            <div className="animate-pulse flex flex-col w-full gap-2">
-                                <div className="h-6 bg-muted rounded w-3/4"></div>
-                                <div className="h-4 bg-muted rounded w-1/2 mt-2"></div>
-                                <div className="h-3 bg-muted rounded w-1/4 mt-2"></div>
-                                <div className="flex gap-2 mt-2">
-                                    <div className="h-5 w-5 bg-muted rounded-full"></div>
-                                    <div className="h-5 w-5 bg-muted rounded-full"></div>
-                                    <div className="h-5 w-5 bg-muted rounded-full"></div>
+                    {selectedTab !== "search" && selectedTab !== "rationales" &&
+                        pinnedPoint && !pinnedPointLoading && isInSpecificSpace && (
+                            <div className="border-b transition-opacity duration-200 ease-in-out">
+                                <PinnedPointWithHistory
+                                    pinnedPoint={pinnedPoint}
+                                    space={space.data?.id ?? "global"}
+                                    loadingCardId={loadingCardId}
+                                    basePath={basePath}
+                                    handleCardClick={handleCardClick}
+                                    handleNavigate={handlePinnedPointClick}
+                                />
+                            </div>
+                        )}
+
+                    {selectedTab !== "search" && selectedTab !== "rationales" &&
+                        (priorityPointsLoading ? (
+                            <div className="border-b py-4 px-6 min-h-[120px] flex items-center justify-center">
+                                <div className="animate-pulse flex flex-col w-full gap-2">
+                                    <div className="h-6 bg-muted rounded w-3/4"></div>
+                                    <div className="h-4 bg-muted rounded w-1/2 mt-2"></div>
+                                    <div className="h-3 bg-muted rounded w-1/4 mt-2"></div>
+                                    <div className="flex gap-2 mt-2">
+                                        <div className="h-5 w-5 bg-muted rounded-full"></div>
+                                        <div className="h-5 w-5 bg-muted rounded-full"></div>
+                                        <div className="h-5 w-5 bg-muted rounded-full"></div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ) : filteredPriorityPoints.length > 0 ? (
-                        <div className="border-b transition-opacity duration-200 ease-in-out">
-                            <PriorityPointsSection
-                                filteredPriorityPoints={filteredPriorityPoints}
-                                basePath={basePath}
-                                space={space.data?.id ?? "global"}
-                                setNegatedPointId={setNegatedPointId}
-                                login={login}
-                                user={privyUser}
-                                selectedTab={selectedTab}
+                        ) : filteredPriorityPoints.length > 0 ? (
+                            <div className="border-b transition-opacity duration-200 ease-in-out">
+                                <PriorityPointsSection
+                                    filteredPriorityPoints={filteredPriorityPoints}
+                                    basePath={basePath}
+                                    space={space.data?.id ?? "global"}
+                                    setNegatedPointId={setNegatedPointId}
+                                    login={login}
+                                    user={privyUser}
+                                    selectedTab={selectedTab}
+                                    loadingCardId={loadingCardId}
+                                    handleCardClick={handleCardClick}
+                                    onPrefetchPoint={prefetchPoint}
+                                />
+                            </div>
+                        ) : null)}
+
+                    {selectedTab === "search" ? (
+                        searchQuery.trim().length >= 2 ? (
+                            <SearchResultsList
+                                results={searchResults}
+                                isLoading={searchLoading}
+                                query={searchQuery}
+                                hasSearched={hasSearched}
                                 loadingCardId={loadingCardId}
                                 handleCardClick={handleCardClick}
-                                onPrefetchPoint={prefetchPoint}
                             />
-                        </div>
-                    ) : null)}
-
-                {selectedTab === "search" ? (
-                    searchQuery.trim().length >= 2 ? (
-                        <SearchResultsList
-                            results={searchResults}
-                            isLoading={searchLoading}
-                            query={searchQuery}
-                            hasSearched={hasSearched}
-                            loadingCardId={loadingCardId}
+                        ) : (
+                            <Profiler
+                                id="SearchPointsTabContent"
+                                onRender={(id, phase, actualDuration) => {
+                                    console.log(
+                                        `SearchPointsTabContent [${phase}] render time: ${actualDuration}ms`
+                                    );
+                                }}
+                            >
+                                <PointsTabContent
+                                    points={Array.isArray(points) ? points : []}
+                                    isLoading={isLoading}
+                                    combinedFeed={combinedFeed}
+                                    basePath={basePath}
+                                    space={space.data?.id ?? "global"}
+                                    setNegatedPointId={setNegatedPointId}
+                                    login={login}
+                                    user={privyUser}
+                                    pinnedPoint={pinnedPoint}
+                                    loginOrMakePoint={loginOrMakePoint}
+                                    handleCardClick={handleCardClick}
+                                    loadingCardId={loadingCardId}
+                                    onPrefetchPoint={prefetchPoint}
+                                />
+                            </Profiler>
+                        )
+                    ) : selectedTab === "all" ? (
+                        <AllTabContent
+                            points={Array.isArray(points) ? points : []}
+                            viewpoints={viewpoints}
+                            isLoading={isLoading}
+                            viewpointsLoading={viewpointsLoading}
+                            combinedFeed={combinedFeed}
+                            basePath={basePath}
+                            space={space.data?.id ?? "global"}
+                            setNegatedPointId={setNegatedPointId}
+                            login={login}
+                            user={privyUser}
+                            pinnedPoint={pinnedPoint}
+                            loginOrMakePoint={loginOrMakePoint}
+                            handleNewViewpoint={handleNewViewpoint}
                             handleCardClick={handleCardClick}
+                            loadingCardId={loadingCardId}
+                            onPrefetchPoint={prefetchPoint}
                         />
-                    ) : (
-                        <Profiler
-                            id="SearchPointsTabContent"
-                            onRender={(id, phase, actualDuration) => {
-                                console.log(
-                                    `SearchPointsTabContent [${phase}] render time: ${actualDuration}ms`
-                                );
-                            }}
-                        >
+                    ) : selectedTab === "points" ? (
+                        <Profiler id="PointsTabContent" onRender={(id, phase, actualDuration) => {
+                            console.log(`PointsTabContent [${phase}] render time: ${actualDuration}ms`);
+                        }}>
                             <PointsTabContent
                                 points={Array.isArray(points) ? points : []}
                                 isLoading={isLoading}
@@ -361,100 +430,50 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                                 onPrefetchPoint={prefetchPoint}
                             />
                         </Profiler>
-                    )
-                ) : selectedTab === "all" ? (
-                    <AllTabContent
-                        points={Array.isArray(points) ? points : []}
-                        viewpoints={viewpoints}
-                        isLoading={isLoading}
-                        viewpointsLoading={viewpointsLoading}
-                        combinedFeed={combinedFeed}
-                        basePath={basePath}
-                        space={space.data?.id ?? "global"}
-                        setNegatedPointId={setNegatedPointId}
-                        login={login}
-                        user={privyUser}
-                        pinnedPoint={pinnedPoint}
-                        loginOrMakePoint={loginOrMakePoint}
-                        handleNewViewpoint={handleNewViewpoint}
-                        handleCardClick={handleCardClick}
-                        loadingCardId={loadingCardId}
-                        onPrefetchPoint={prefetchPoint}
-                    />
-                ) : selectedTab === "points" ? (
-                    <Profiler id="PointsTabContent" onRender={(id, phase, actualDuration) => {
-                        console.log(`PointsTabContent [${phase}] render time: ${actualDuration}ms`);
-                    }}>
-                        <PointsTabContent
-                            points={Array.isArray(points) ? points : []}
-                            isLoading={isLoading}
-                            combinedFeed={combinedFeed}
-                            basePath={basePath}
+                    ) : (
+                        <RationalesTabContent
+                            viewpoints={viewpoints}
+                            viewpointsLoading={viewpointsLoading}
                             space={space.data?.id ?? "global"}
-                            setNegatedPointId={setNegatedPointId}
-                            login={login}
-                            user={privyUser}
-                            pinnedPoint={pinnedPoint}
-                            loginOrMakePoint={loginOrMakePoint}
+                            handleNewViewpoint={handleNewViewpoint}
                             handleCardClick={handleCardClick}
                             loadingCardId={loadingCardId}
-                            onPrefetchPoint={prefetchPoint}
+                            points={Array.isArray(points) ? points : []}
                         />
-                    </Profiler>
-                ) : (
-                    <RationalesTabContent
-                        viewpoints={viewpoints}
-                        viewpointsLoading={viewpointsLoading}
-                        space={space.data?.id ?? "global"}
-                        handleNewViewpoint={handleNewViewpoint}
-                        handleCardClick={handleCardClick}
-                        loadingCardId={loadingCardId}
-                        points={Array.isArray(points) ? points : []}
-                    />
-                )}
-            </div>
-            <div className="fixed bottom-md right-sm sm:right-md flex flex-col items-end gap-3">
-                <Button
-                    className="aspect-square rounded-full h-[58px] w-[58px] sm:h-10 sm:w-[160px] order-3"
-                    onClick={loginOrMakePoint}
-                >
-                    <PlusIcon className="size-7 sm:size-5" />
-                    <span className="hidden sm:block ml-sm">Make a Point</span>
-                </Button>
-
-                <Button
-                    className="aspect-square rounded-full h-[58px] w-[58px] sm:h-10 sm:w-[160px] order-2"
-                    onClick={handleNewViewpoint}
-                    rightLoading={isNavigating}
-                >
-                    {isNavigating ? (
-                        <>
-                            <span className="hidden sm:block">Creating...</span>
-                            <Loader className="sm:hidden size-5 text-primary mx-auto" />
-                        </>
-                    ) : (
-                        <>
-                            <ViewpointIcon />
-                            <span className="hidden sm:block ml-sm">New Rationale</span>
-                        </>
                     )}
-                </Button>
-
-                <Button
-                    variant="ghost"
-                    className="aspect-square rounded-full h-[58px] w-[58px] sm:h-10 sm:w-auto sm:px-6 order-0"
-                    onClick={() => setLeaderboardOpen(true)}
-                >
-                    <TrophyIcon className="size-7 sm:size-5" />
-                    <span className="hidden sm:block ml-sm">Leaderboard</span>
-                </Button>
+                </div>
             </div>
-
-            <LeaderboardDialog
-                open={leaderboardOpen}
-                onOpenChange={setLeaderboardOpen}
-                space={space.data?.id || "global"}
-            />
+            <aside className="hidden sm:flex flex-col items-center justify-center p-6 gap-8 border-l">
+                <div className="flex gap-8">
+                    <button
+                        type="button"
+                        onClick={loginOrMakePoint}
+                        className="w-72 h-72 bg-background border hover:bg-accent transition-colors rounded-lg flex flex-col items-center justify-center p-6"
+                    >
+                        <PlusIcon className="size-16 mb-4" />
+                        <span className="text-2xl font-bold">Make a Point</span>
+                        <span className="text-base text-muted-foreground text-center mt-2">Add a new discussion point</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleNewViewpoint}
+                        className="w-72 h-72 bg-background border hover:bg-accent transition-colors rounded-lg flex flex-col items-center justify-center p-6"
+                    >
+                        <EyeIcon className="size-16 mb-4" />
+                        <span className="text-2xl font-bold">New Rationale</span>
+                        <span className="text-base text-muted-foreground text-center mt-2">Begin a new rationale</span>
+                    </button>
+                </div>
+                <button
+                    type="button"
+                    disabled
+                    className="w-72 h-72 bg-background border rounded-lg flex flex-col items-center justify-center p-6 opacity-50 cursor-not-allowed"
+                >
+                    <PlusIcon className="size-16 mb-4" />
+                    <span className="text-2xl font-bold">Make a Negation</span>
+                    <span className="text-base text-muted-foreground text-center mt-2">Propose a new negation</span>
+                </button>
+            </aside>
         </main>
     );
 } 
