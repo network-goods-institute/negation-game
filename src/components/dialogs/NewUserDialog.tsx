@@ -2,7 +2,8 @@
 
 import { NewUserForm } from "../forms/NewUserForm";
 import { usePrivy } from "@privy-io/react-auth";
-import { DialogDescription, DialogContent, DialogTitle, DialogProps, Dialog } from "@radix-ui/react-dialog";
+import type { DialogProps } from '@radix-ui/react-dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { FC } from "react";
 import { clearPrivyCookie } from '@/actions/users/auth';
 
