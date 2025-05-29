@@ -360,17 +360,33 @@ ${linkContext}
 
     const aiResult = await withRetry(async () => {
       try {
-        const response = await streamText({
-          model: google("gemini-2.0-flash"),
-          prompt: finalPrompt,
-        });
+        let response;
+        try {
+          response = await streamText({
+            model: google("gemini-2.5-flash-preview-05-20"),
+            prompt: finalPrompt,
+          });
+        } catch (err) {
+          if (
+            err instanceof Error &&
+            /rate limit|overload/i.test(err.message)
+          ) {
+            console.warn(
+              "Primary model rate limited, falling back to gemini-2.0-flash"
+            );
+            response = await streamText({
+              model: google("gemini-2.0-flash"),
+              prompt: finalPrompt,
+            });
+          } else {
+            throw err;
+          }
+        }
         if (!response) throw new Error("Failed to get response from AI model");
         return response;
       } catch (error) {
         if (error instanceof Error) {
-          if (error.message.includes("rate limit")) {
-            throw new Error("AI service is currently busy. Please try again.");
-          } else if (error.message.includes("context length")) {
+          if (error.message.includes("context length")) {
             throw new Error(
               "Conversation context is too long. Please try shortening your message or starting a new chat."
             );
