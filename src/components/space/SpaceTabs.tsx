@@ -7,6 +7,10 @@ import { SearchIcon, BrainCircuitIcon } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { SearchInput } from "@/components/search/SearchInput";
 import { DEFAULT_SPACE } from "@/constants/config";
+import useIsMobile from "@/hooks/ui/useIsMobile";
+import { useAtom } from "jotai";
+import { rationalesFiltersOpenAtom } from "@/atoms/rationalesFiltersOpenAtom";
+import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 
 export type Tab = "all" | "points" | "rationales" | "search";
 
@@ -29,13 +33,15 @@ export function SpaceTabs({
     onAiClick,
     spaceId,
 }: SpaceTabsProps) {
+    const isMobile = useIsMobile();
+    const [filtersOpen, setFiltersOpen] = useAtom(rationalesFiltersOpenAtom);
     return (
         <div className="flex flex-col gap-4 px-4 sm:px-lg py-3 sm:py-sm border-b">
             <div className="flex gap-2 sm:gap-4 overflow-x-auto no-scrollbar">
                 <button
                     onClick={() => onTabChange("rationales")}
                     className={cn(
-                        "py-1.5 sm:py-2 px-3 sm:px-4 rounded text-sm sm:text-base whitespace-nowrap focus:outline-none",
+                        "py-1.5 sm:py-2 px-2 sm:px-4 rounded text-sm sm:text-base whitespace-normal sm:whitespace-nowrap focus:outline-none",
                         selectedTab === "rationales"
                             ? "bg-primary text-white"
                             : "bg-transparent text-primary"
@@ -46,7 +52,7 @@ export function SpaceTabs({
                 <button
                     onClick={() => onTabChange("points")}
                     className={cn(
-                        "py-1.5 sm:py-2 px-3 sm:px-4 rounded text-sm sm:text-base whitespace-nowrap focus:outline-none",
+                        "py-1.5 sm:py-2 px-2 sm:px-4 rounded text-sm sm:text-base whitespace-normal sm:whitespace-nowrap focus:outline-none",
                         selectedTab === "points"
                             ? "bg-primary text-white"
                             : "bg-transparent text-primary"
@@ -57,7 +63,7 @@ export function SpaceTabs({
                 <button
                     onClick={() => onTabChange("all")}
                     className={cn(
-                        "py-1.5 sm:py-2 px-3 sm:px-4 rounded text-sm sm:text-base whitespace-nowrap focus:outline-none",
+                        "py-1.5 sm:py-2 px-2 sm:px-4 rounded text-sm sm:text-base whitespace-normal sm:whitespace-nowrap focus:outline-none",
                         selectedTab === "all"
                             ? "bg-primary text-white"
                             : "bg-transparent text-primary"
@@ -68,7 +74,7 @@ export function SpaceTabs({
                 <button
                     onClick={() => onTabChange("search")}
                     className={cn(
-                        "py-1.5 sm:py-2 px-3 sm:px-4 rounded text-sm sm:text-base whitespace-nowrap focus:outline-none flex items-center gap-1",
+                        "py-1.5 sm:py-2 px-2 sm:px-4 rounded text-sm sm:text-base whitespace-normal sm:whitespace-nowrap focus:outline-none flex items-center gap-1",
                         selectedTab === "search"
                             ? "bg-primary text-white"
                             : "bg-transparent text-primary"
@@ -77,6 +83,20 @@ export function SpaceTabs({
                     <SearchIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     <span>Search</span>
                 </button>
+                {isMobile && selectedTab === "rationales" && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setFiltersOpen(open => !open)}
+                        className="flex items-center ml-2 whitespace-nowrap"
+                        text="Filtering"
+                        rightSlot={
+                            filtersOpen
+                                ? <ChevronUpIcon className="h-4 w-4" />
+                                : <ChevronDownIcon className="h-4 w-4" />
+                        }
+                    />
+                )}
                 {spaceId === DEFAULT_SPACE && (
                     <Button
                         variant="ghost"

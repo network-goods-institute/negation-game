@@ -237,7 +237,7 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                 )}
                             </div>
 
-                            <div className="text-sm text-muted-foreground line-clamp-2 mb-2 h-10 overflow-hidden select-text">
+                            <div className="text-sm text-muted-foreground select-text sm:line-clamp-2 sm:mb-2 sm:h-10 sm:overflow-hidden whitespace-normal">
                                 {plainDescription}
                             </div>
 

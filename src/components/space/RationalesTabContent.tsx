@@ -1,6 +1,9 @@
 "use client";
 
 import React, { memo, useState, useEffect, useRef, useMemo, useCallback } from "react";
+import useIsMobile from "@/hooks/ui/useIsMobile";
+import { useAtom } from "jotai";
+import { rationalesFiltersOpenAtom } from "@/atoms/rationalesFiltersOpenAtom";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import { DEFAULT_SPACE } from "@/constants/config";
@@ -40,6 +43,8 @@ export const RationalesTabContent = memo(({
     const [selectedPointIds, setSelectedPointIds] = useState<number[]>([]);
     const [matchType, setMatchType] = useState<"any" | "all">("any");
     const [topicFilters, setTopicFilters] = useState<string[]>([]);
+    const isMobile = useIsMobile();
+    const [filtersOpen] = useAtom(rationalesFiltersOpenAtom);
     const { data: topics, refetch: refetchTopics } = useTopics(space ?? DEFAULT_SPACE);
     const [newTopicDialogOpen, setNewTopicDialogOpen] = useState(false);
     const [newTopicName, setNewTopicName] = useState("");
@@ -160,82 +165,99 @@ export const RationalesTabContent = memo(({
 
     return (
         <div className="flex flex-col">
-            {availableTopics.length > 0 && (
-                <div className="px-4 pt-3 pb-2 border-b">
-                    <div className="flex flex-wrap items-center gap-2 pb-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setNewTopicDialogOpen(true)}
-                            className="rounded-full text-xs h-7 px-3 flex-shrink-0"
-                        >
-                            + New Topic
-                        </Button>
-                        <Button
-                            variant={topicFilters.length === 0 ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => { if (topicFilters.length > 0) setTopicFilters([]); }}
-                            className="rounded-full text-xs h-7 px-3 flex-shrink-0"
-                        >
-                            All Topics
-                        </Button>
-                        <TooltipProvider>
-                            {topicsToDisplay.map((topicName: string) => {
-                                const topic = topics?.find(t => t.name === topicName);
-                                const validUrl = topic?.discourseUrl ? validateAndFormatUrl(topic.discourseUrl) : null;
-                                return (
-                                    <Tooltip key={topicName}>
-                                        <TooltipTrigger asChild>
-                                            <Button
-                                                variant={topicFilters.includes(topicName) ? "default" : "outline"}
-                                                size="sm"
-                                                className={cn(
-                                                    "rounded-full text-xs h-7 px-3 flex-shrink-0",
-                                                    validUrl && "underline decoration-dotted"
-                                                )}
-                                                onClick={(e) => {
-                                                    if (validUrl && (e.metaKey || e.ctrlKey)) {
-                                                        window.open(validUrl, '_blank');
-                                                        return;
-                                                    }
-                                                    if (topicFilters.includes(topicName)) {
-                                                        setTopicFilters(prev => prev.filter(t => t !== topicName));
-                                                    } else {
-                                                        setTopicFilters(prev => [...prev, topicName]);
-                                                    }
-                                                }}
-                                            >
-                                                {topicName}
-                                            </Button>
-                                        </TooltipTrigger>
-                                        {validUrl && (
-                                            <TooltipContent side="bottom">
-                                                Related: <a href={validUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline" onClick={(e) => { e.preventDefault(); window.open(validUrl, '_blank'); }}>{validUrl}</a>
-                                            </TooltipContent>
-                                        )}
-                                    </Tooltip>
-                                );
-                            })}
-                        </TooltipProvider>
-                        {availableTopics.length > COLLAPSED_TOPIC_LIMIT && (
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                    if (isTopicsExpanded) {
-                                        const visibleTopicNamesAfterCollapse = availableTopics.slice(0, COLLAPSED_TOPIC_LIMIT);
-                                        setTopicFilters(prev => prev.filter(f => visibleTopicNamesAfterCollapse.includes(f)));
-                                    }
-                                    setIsTopicsExpanded(!isTopicsExpanded);
-                                }}
-                                className="rounded-full text-xs h-7 px-3 flex-shrink-0"
-                            >
-                                {isTopicsExpanded ? "Show fewer topics" : "Show all topics"}
-                            </Button>
+            <div className="sticky top-0 z-10 bg-background">
+                {(!isMobile || filtersOpen) && (
+                    <>
+                        {availableTopics.length > 0 && (
+                            <div className="px-4 pt-3 pb-2 border-b">
+                                <div className="flex flex-wrap items-center gap-2 pb-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setNewTopicDialogOpen(true)}
+                                        className="rounded-full text-xs h-7 px-3 flex-shrink-0"
+                                    >
+                                        + New Topic
+                                    </Button>
+                                    <Button
+                                        variant={topicFilters.length === 0 ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => { if (topicFilters.length > 0) setTopicFilters([]); }}
+                                        className="rounded-full text-xs h-7 px-3 flex-shrink-0"
+                                    >
+                                        All Topics
+                                    </Button>
+                                    <TooltipProvider>
+                                        {topicsToDisplay.map((topicName: string) => {
+                                            const topic = topics?.find(t => t.name === topicName);
+                                            const validUrl = topic?.discourseUrl ? validateAndFormatUrl(topic.discourseUrl) : null;
+                                            return (
+                                                <Tooltip key={topicName}>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant={topicFilters.includes(topicName) ? "default" : "outline"}
+                                                            size="sm"
+                                                            className={cn(
+                                                                "rounded-full text-xs h-7 px-3 flex-shrink-0",
+                                                                validUrl && "underline decoration-dotted"
+                                                            )}
+                                                            onClick={(e) => {
+                                                                if (validUrl && (e.metaKey || e.ctrlKey)) {
+                                                                    window.open(validUrl, '_blank');
+                                                                    return;
+                                                                }
+                                                                if (topicFilters.includes(topicName)) {
+                                                                    setTopicFilters(prev => prev.filter(t => t !== topicName));
+                                                                } else {
+                                                                    setTopicFilters(prev => [...prev, topicName]);
+                                                                }
+                                                            }}
+                                                        >
+                                                            {topicName}
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    {validUrl && (
+                                                        <TooltipContent side="bottom">
+                                                            Related: <a href={validUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline" onClick={(e) => { e.preventDefault(); window.open(validUrl, '_blank'); }}>{validUrl}</a>
+                                                        </TooltipContent>
+                                                    )}
+                                                </Tooltip>
+                                            );
+                                        })}
+                                    </TooltipProvider>
+                                    {availableTopics.length > COLLAPSED_TOPIC_LIMIT && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => {
+                                                if (isTopicsExpanded) {
+                                                    const visibleTopicNamesAfterCollapse = availableTopics.slice(0, COLLAPSED_TOPIC_LIMIT);
+                                                    setTopicFilters(prev => prev.filter(f => visibleTopicNamesAfterCollapse.includes(f)));
+                                                }
+                                                setIsTopicsExpanded(!isTopicsExpanded);
+                                            }}
+                                            className="rounded-full text-xs h-7 px-3 flex-shrink-0"
+                                        >
+                                            {isTopicsExpanded ? "Show fewer topics" : "Show all topics"}
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
                         )}
-                    </div>
-                </div>
-            )}
+                        <div className="px-4 py-2 border-b">
+                            <PointFilterSelector
+                                points={points || []}
+                                selectedPointIds={selectedPointIds}
+                                onPointSelect={handlePointSelect}
+                                onPointDeselect={handlePointDeselect}
+                                onClearAll={handleClearAll}
+                                matchType={matchType}
+                                onMatchTypeChange={handleMatchTypeChange}
+                            />
+                        </div>
+                    </>
+                )}
+            </div>
             <Dialog open={newTopicDialogOpen} onOpenChange={setNewTopicDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
@@ -272,15 +294,6 @@ export const RationalesTabContent = memo(({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-            <PointFilterSelector
-                points={points || []}
-                selectedPointIds={selectedPointIds}
-                onPointSelect={handlePointSelect}
-                onPointDeselect={handlePointDeselect}
-                onClearAll={handleClearAll}
-                matchType={matchType}
-                onMatchTypeChange={handleMatchTypeChange}
-            />
             {finalFilteredViewpoints.length === 0 ? (
                 <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
                     <span className="text-muted-foreground">

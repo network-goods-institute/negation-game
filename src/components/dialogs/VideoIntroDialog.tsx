@@ -19,8 +19,8 @@ export const VideoIntroDialog: React.FC<VideoIntroDialogProps> = ({ open, onOpen
     const [loaded, setLoaded] = useState<{ [key in 1 | 2]: boolean }>({ 1: false, 2: false });
 
     const srcMap: Record<number, string> = {
-        1: 'https://www.loom.com/embed/19bb3e00649d40c08b4f09cee598a525',
-        2: 'https://www.loom.com/embed/a8ae681369564c55938f885d5fe9612c',
+        1: 'https://www.youtube.com/embed/I69YBnZJ3QU',
+        2: 'https://www.youtube.com/embed/d5CC7lnRZrM',
     };
 
     useEffect(() => {

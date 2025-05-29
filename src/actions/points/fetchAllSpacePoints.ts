@@ -2,14 +2,18 @@
 
 import { getSpace } from "@/actions/spaces/getSpace";
 import { db } from "@/services/db";
-import { pointsTable } from "@/db/schema";
+import { pointsWithDetailsView } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-export type PointInSpace = {
-  id: number;
+export interface PointInSpace {
+  pointId: number;
   content: string;
   createdBy: string;
-};
+  createdAt: Date;
+  amountNegations: number;
+  amountSupporters: number;
+  cred: number;
+}
 
 /**
  * Fetches essential details (id, content, createdBy) for all points
@@ -25,12 +29,16 @@ export const fetchAllSpacePoints = async (): Promise<PointInSpace[]> => {
   try {
     const points = await db
       .select({
-        id: pointsTable.id,
-        content: pointsTable.content,
-        createdBy: pointsTable.createdBy,
+        pointId: pointsWithDetailsView.pointId,
+        content: pointsWithDetailsView.content,
+        createdBy: pointsWithDetailsView.createdBy,
+        createdAt: pointsWithDetailsView.createdAt,
+        amountNegations: pointsWithDetailsView.amountNegations,
+        amountSupporters: pointsWithDetailsView.amountSupporters,
+        cred: pointsWithDetailsView.cred,
       })
-      .from(pointsTable)
-      .where(eq(pointsTable.space, space));
+      .from(pointsWithDetailsView)
+      .where(eq(pointsWithDetailsView.space, space));
 
     return points;
   } catch (error) {

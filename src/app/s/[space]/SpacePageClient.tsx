@@ -30,6 +30,11 @@ import { RationalesTabContent } from "@/components/space/RationalesTabContent";
 import { PriorityPointsSection } from "@/components/space/PriorityPointsSection";
 import { PointsTabContent } from "@/components/space/PointsTabContent";
 import { useResetLoadingOnPathChange } from "@/hooks/ui/useResetLoadingOnPathChange";
+import { SelectPointForNegationDialog } from "@/components/dialogs/SelectPointForNegationDialog";
+import { makeNegationSuggestionAtom } from "@/atoms/makeNegationSuggestionAtom";
+import { selectPointForNegationOpenAtom } from "@/atoms/selectPointForNegationOpenAtom";
+import useIsMobile from "@/hooks/ui/useIsMobile";
+import { Button } from "@/components/ui/button";
 
 interface PageProps {
     params: { space: string };
@@ -79,6 +84,9 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
 
     const [selectedTab, setSelectedTab] = useState<Tab | null>(null);
     const [isAiAssistantLoading, setIsAiAssistantLoading] = useState(false);
+    const [isSelectNegationOpen, setIsSelectNegationOpen] = useAtom(selectPointForNegationOpenAtom);
+    const setMakeNegationSuggestion = useSetAtom(makeNegationSuggestionAtom);
+    const isMobile = useIsMobile();
 
 
     useEffect(() => {
@@ -256,42 +264,20 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
             <div className="relative w-full flex flex-col min-h-0">
                 {/* Sticky header with toolbar, space header, and tabs */}
                 <div className="sticky top-0 z-20 bg-background">
-                    <div className="flex flex-col items-center sm:hidden gap-4 p-4 bg-background">
-                        <div className="flex gap-4 justify-center">
-                            <button
-                                type="button"
-                                onClick={loginOrMakePoint}
-                                className="w-60 h-60 bg-background border hover:bg-accent transition-colors rounded-lg flex flex-col items-center justify-center p-6"
-                            >
-                                <PlusIcon className="size-16 mb-4" />
-                                <span className="text-2xl font-bold">Make a Point</span>
-                                <span className="text-base text-muted-foreground text-center mt-2">Add a new discussion point</span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleNewViewpoint}
-                                className="w-60 h-60 bg-background border hover:bg-accent transition-colors rounded-lg flex flex-col items-center justify-center p-6"
-                            >
-                                <EyeIcon className="size-16 mb-4" />
-                                <span className="text-2xl font-bold">New Rationale</span>
-                                <span className="text-base text-muted-foreground text-center mt-2">Begin a new rationale</span>
-                            </button>
+                    {isMobile && (
+                        <div className="flex justify-around items-center bg-background border-b px-4 py-2">
+                            <Button onClick={loginOrMakePoint} variant="default" size="sm">Make a Point</Button>
+                            <Button onClick={handleNewViewpoint} variant="secondary" size="sm">New Rationale</Button>
+                            <Button onClick={() => setIsSelectNegationOpen(true)} variant="destructive" size="sm">Make a Negation</Button>
                         </div>
-                        <button
-                            type="button"
-                            disabled
-                            className="w-60 h-60 bg-background border rounded-lg flex flex-col items-center justify-center p-6 opacity-50 cursor-not-allowed mx-auto mt-4"
-                        >
-                            <PlusIcon className="size-16 mb-4" />
-                            <span className="text-2xl font-bold">Make a Negation</span>
-                            <span className="text-base text-muted-foreground text-center mt-2">Propose a new negation</span>
-                        </button>
-                    </div>
-                    <SpaceHeader
-                        space={space}
-                        isLoading={isAiAssistantLoading}
-                        onAiClick={handleAiAssistantClick}
-                    />
+                    )}
+                    {!isMobile && (
+                        <SpaceHeader
+                            space={space}
+                            isLoading={isAiAssistantLoading}
+                            onAiClick={handleAiAssistantClick}
+                        />
+                    )}
                     <SpaceTabs
                         selectedTab={selectedTab}
                         onTabChange={handleTabChange}
@@ -466,14 +452,21 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                 </div>
                 <button
                     type="button"
-                    disabled
-                    className="w-72 h-72 bg-background border rounded-lg flex flex-col items-center justify-center p-6 opacity-50 cursor-not-allowed"
+                    onClick={() => setIsSelectNegationOpen(true)}
+                    className="w-72 h-72 bg-background border hover:bg-accent transition-colors rounded-lg flex flex-col items-center justify-center p-6"
                 >
                     <PlusIcon className="size-16 mb-4" />
                     <span className="text-2xl font-bold">Make a Negation</span>
                     <span className="text-base text-muted-foreground text-center mt-2">Propose a new negation</span>
                 </button>
             </aside>
+            <SelectPointForNegationDialog
+                isOpen={isSelectNegationOpen}
+                onOpenChange={setIsSelectNegationOpen}
+                onPointSelected={(id) => {
+                    setMakeNegationSuggestion({ targetId: id, text: "" });
+                }}
+            />
         </main>
     );
 } 
