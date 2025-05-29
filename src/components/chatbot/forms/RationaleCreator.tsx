@@ -238,14 +238,20 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
 
     useEffect(() => {
         const prevGraph = prevPersistedGraphRef.current;
-        const updatedNodes = (graphData.nodes as any[]).map(node => ({
-            ...node,
-            data: {
-                ...node.data,
-                allPointsInSpaceFromProps: allPointsInSpace,
-            },
-        }));
-        setNodes(updatedNodes as unknown as PreviewAppNode[]);
+        setNodes((prevNodes) => {
+            const updated = (graphData.nodes as any[]).map((node) => {
+                const existing = (prevNodes as any[]).find((n) => n.id === node.id);
+                return {
+                    ...node,
+                    position: existing?.position ?? node.position,
+                    data: {
+                        ...node.data,
+                        allPointsInSpaceFromProps: allPointsInSpace,
+                    },
+                };
+            });
+            return updated as PreviewAppNode[];
+        });
         setEdges(graphData.edges as unknown as PreviewAppEdge[]);
         // Only mark AI suggestion when not a manual save
         if (skipAIPrevGraphRef.current) {
