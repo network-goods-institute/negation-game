@@ -8,7 +8,6 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-    LinkIcon,
     FileText,
     EyeIcon,
     EyeOffIcon,

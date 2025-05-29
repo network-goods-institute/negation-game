@@ -507,7 +507,7 @@ function buildGraphContext(
 function buildPointsContext(points: PointInSpace[]): string {
   if (points.length === 0) return "\nExisting Points in Space: (None)\n";
   return `\nExisting Points in Space:\n${points
-    .map((p) => `- ID: ${p.id}, Content: "${p.content}"`)
+    .map((p) => `- ID: ${p.pointId}, Content: "${p.content}"`)
     .join("\n")}\n`;
 }
 

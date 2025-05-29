@@ -117,16 +117,16 @@ export const PreviewPointNode = ({
         const match = matches[0];
         setMatchedExistingPoints([]);
         setMatchedDetails({});
-        setLocalExistingPointId(match.id);
+        setLocalExistingPointId(match.pointId);
         setLocalIsNew(false);
-        fetchSingleDetail(match.id);
+        fetchSingleDetail(match.pointId);
       } else if (matches.length > 1) {
         setMatchedExistingPoints(matches);
         setLocalExistingPointId(undefined);
         setLocalIsNew(false);
         setExistingPointDetails(null);
         setMatchedDetails({});
-        matches.forEach(m => fetchDetailForMatch(m.id));
+        matches.forEach(m => fetchDetailForMatch(m.pointId));
       } else {
         setMatchedExistingPoints([]);
         setLocalExistingPointId(undefined);
@@ -153,7 +153,7 @@ export const PreviewPointNode = ({
   const dbPointStatus = hasMatch ? "existing" : "new";
 
   const encodedLocalId = localExistingPointId ? encodeId(localExistingPointId) : null;
-  const encodedLocalIds = matchedExistingPoints.map(p => encodeId(p.id));
+  const encodedLocalIds = matchedExistingPoints.map(p => encodeId(p.pointId));
 
   useEffect(() => {
     if (!content) {

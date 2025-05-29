@@ -82,12 +82,12 @@ function buildContextString(
     allPointsInSpace.forEach((p) => {
       const content = sanitizeText(p.content || "[Content unavailable]");
       let ownershipLabel = "";
-      if (ownedPointIds.has(p.id)) {
+      if (ownedPointIds.has(p.pointId)) {
         ownershipLabel = " (You created this)";
-      } else if (endorsedPointIds.has(p.id)) {
+      } else if (endorsedPointIds.has(p.pointId)) {
         ownershipLabel = " (You endorsed this)";
       }
-      context += `- [Point:${p.id}] ${content.substring(0, 100)}...${ownershipLabel}\n`;
+      context += `- [Point:${p.pointId}] ${content.substring(0, 100)}...${ownershipLabel}\n`;
     });
     context += "\n";
   } else {

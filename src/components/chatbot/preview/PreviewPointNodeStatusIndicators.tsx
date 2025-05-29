@@ -77,7 +77,7 @@ export const PreviewPointNodeStatusIndicators: React.FC<PreviewPointNodeStatusIn
                 const len = matchingExistingPoints.length;
                 const current = matchingExistingPoints[selectedIdx];
                 const currentEncoded = encodedLocalIds[selectedIdx];
-                const currentDetail = matchingDetails[current.id];
+                const currentDetail = matchingDetails[current.pointId];
                 const prev = () => setSelectedIdx((selectedIdx - 1 + len) % len);
                 const next = () => setSelectedIdx((selectedIdx + 1) % len);
                 return (
@@ -94,7 +94,7 @@ export const PreviewPointNodeStatusIndicators: React.FC<PreviewPointNodeStatusIn
                                     <p className="font-semibold text-center">{selectedIdx + 1} of {len}</p>
                                     <ChevronRightIcon className="h-4 w-4 cursor-pointer text-muted-foreground" onClick={(e) => { e.stopPropagation(); next(); }} />
                                 </div>
-                                <p className="text-xs">ID: {current.id} / {currentEncoded}</p>
+                                <p className="text-xs">ID: {current.pointId} / {currentEncoded}</p>
                                 {currentDetail ? (
                                     <div className="text-xs mt-1 space-y-0.5">
                                         <p>Cred: {currentDetail.cred}</p>
