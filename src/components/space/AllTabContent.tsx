@@ -44,6 +44,9 @@ export const AllTabContent = memo(({
     loadingCardId,
     onPrefetchPoint
 }: AllTabContentProps) => {
+    const [visibleCount, setVisibleCount] = useState(20);
+    const visibleItems = useMemo(() => combinedFeed.slice(0, visibleCount), [combinedFeed, visibleCount]);
+
     if (!points || !viewpoints || isLoading || viewpointsLoading) {
         return (
             <div className="flex-1 flex items-center justify-center min-h-[calc(100vh-200px)]">
@@ -71,8 +74,6 @@ export const AllTabContent = memo(({
         );
     }
 
-    const [visibleCount, setVisibleCount] = useState(20);
-    const visibleItems = useMemo(() => combinedFeed.slice(0, visibleCount), [combinedFeed, visibleCount]);
     return (
         <>
             {visibleItems.map((item: any) => (
