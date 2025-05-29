@@ -193,14 +193,7 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
         if (chatState.generatingChats.has(chatList.currentChatId || '')) return;
 
         if (graphModified) {
-            toast.error("Graph has unsaved changes. Save manually, or use Ctrl+Enter / Ctrl+Click on send to auto-save and send.", {
-                action: {
-                    label: "Save Changes",
-                    onClick: saveGraph,
-                },
-                duration: 5000,
-            });
-            return;
+            saveGraph();
         }
 
         if (e.type === 'submit' || (e.nativeEvent && (e.nativeEvent as SubmitEvent).type === 'submit')) {
@@ -215,19 +208,7 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
             e.preventDefault();
             if (chatState.message.trim() && !chatState.generatingChats.has(chatList.currentChatId || '')) {
                 if (graphModified) {
-                    if (e.ctrlKey || e.metaKey) {
-                        saveGraph();
-                        chatState.handleSubmit();
-                    } else {
-                        toast.error("Graph has unsaved changes. Save manually, or use Ctrl+Enter / Ctrl+Click on send to auto-save and send.", {
-                            action: {
-                                label: "Save Changes",
-                                onClick: saveGraph,
-                            },
-                            duration: 5000,
-                        });
-                    }
-                    return;
+                    saveGraph();
                 }
                 chatState.handleSubmit();
             }
