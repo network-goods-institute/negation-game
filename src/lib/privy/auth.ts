@@ -13,11 +13,12 @@ export async function getCurrentUser() {
   try {
     const session = await client.verifyAuthToken(token);
     return session;
-  } catch (error) {
+  } catch (error: any) {
+    // If token has expired, silently return null
+    if (error?.name === "JWTExpired") {
+      return null;
+    }
     console.error("Error verifying Privy auth token:", error);
-    // Clear invalid cookie
-    // eslint-disable-next-line drizzle/enforce-delete-with-where
-    await cookieStore.delete("privy-token");
     return null;
   }
 }
