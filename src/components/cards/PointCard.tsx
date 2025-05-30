@@ -30,8 +30,8 @@ import {
   useState,
   useRef,
 } from "react";
-import { useRouter, usePathname } from "next/navigation";
-import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
+import { useRouter } from "next/navigation";
+import { useCurrentSpace } from "@/hooks/utils/useCurrentSpace";
 import { useQueryClient } from "@tanstack/react-query";
 import { getPointUrl } from "@/lib/negation-game/getPointUrl";
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
@@ -164,8 +164,7 @@ export const PointCard = ({
   const { isVisited, markPointAsRead } = useVisitedPoints();
   const [visitedPoints] = useAtom(visitedPointsAtom);
   const router = useRouter();
-  const pathname = usePathname();
-  const currentSpace = getSpaceFromPathname(pathname);
+  const currentSpace = useCurrentSpace();
   const queryClient = useQueryClient();
 
   const [isOpen, setIsOpen] = useState(false);

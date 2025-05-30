@@ -17,10 +17,7 @@ import { AppNode } from "@/components/graph/nodes/AppNode";
 import { OriginalPosterProvider } from "@/components/contexts/OriginalPosterContext";
 import { Separator } from "@/components/ui/separator";
 import { Dynamic } from "@/components/utils/Dynamic";
-import {
-  DEFAULT_SPACE,
-  PLACEHOLDER_STATEMENT,
-} from "@/constants/config";
+import { PLACEHOLDER_STATEMENT } from "@/constants/config";
 import { useBasePath } from "@/hooks/utils/useBasePath";
 import { cn } from "@/lib/utils/cn";
 import { useSpace } from "@/queries/space/useSpace";
@@ -34,9 +31,9 @@ import { useAtom, useSetAtom } from "jotai";
 import useRationaleDraftLifecycle from "@/hooks/viewpoints/useRationaleDraftLifecycle";
 import { useGraphPoints } from "@/hooks/graph/useGraphPoints";
 import usePublishRationale from "@/hooks/viewpoints/usePublishRationale";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader } from "@/components/ui/loader";
-import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
+import { useCurrentSpace } from "@/hooks/utils/useCurrentSpace";
 import NewRationaleHeader from "@/components/rationale/NewRationaleHeader";
 import RationaleGraph from "@/components/rationale/RationaleGraph";
 import NewRationaleForm from "@/components/rationale/NewRationaleForm";
@@ -48,7 +45,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
   const router = useRouter();
   const { push } = router;
   const basePath = useBasePath();
-  const pathname = usePathname();
+  const currentSpace = useCurrentSpace();
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const {
@@ -63,8 +60,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
 
   const spaceQuery = useSpace();
   const space = spaceQuery;
-  const currentSpace = getSpaceFromPathname(pathname);
-  const spaceId = space?.data?.id ?? DEFAULT_SPACE;
+  const spaceId = space.data!.id;
   const { data: topicsData } = useTopics(spaceId);
 
   const [canvasEnabled, setCanvasEnabled] = useAtom(canvasEnabledAtom);
@@ -86,9 +82,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       setIsReactFlowReady(false);
 
       // Also clean session storage to ensure a fresh state on return
-      // Always treat missing currentSpace as 'global'
-      const effectiveSpace = currentSpace || 'global';
-      const storageKey = `copyingViewpoint:${effectiveSpace}`;
+      const storageKey = currentSpace ? `copyingViewpoint:${currentSpace}` : `copyingViewpoint`;
       sessionStorage.removeItem(storageKey);
     };
 
@@ -182,8 +176,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       setIsConfirmDialogOpen(false);
 
       // Clear any session storage data - always treat missing currentSpace as 'global'
-      const effectiveSpace = currentSpace || 'global';
-      const storageKey = `copyingViewpoint:${effectiveSpace}`;
+      const storageKey = currentSpace ? `copyingViewpoint:${currentSpace}` : `copyingViewpoint`;
       sessionStorage.removeItem(storageKey);
 
       // Set justPublished flag to indicate published state without 
@@ -212,8 +205,8 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       reactFlow.setEdges(initialViewpointGraph.edges);
     }
     // Clear sessionStorage draft data
-    const effectiveSpace = currentSpace || 'global';
-    sessionStorage.removeItem(`copyingViewpoint:${effectiveSpace}`);
+    const storageKey = currentSpace ? `copyingViewpoint:${currentSpace}` : `copyingViewpoint`;
+    sessionStorage.removeItem(storageKey);
     clearViewpointState(false);
     // Close dialog & remount graph
     setIsInitialLoadDialogOpen(false);

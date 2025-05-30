@@ -27,6 +27,9 @@ export const useMakePoint = () => {
       });
 
       queryClient.invalidateQueries({
+        queryKey: ["space-points"],
+      });
+      queryClient.invalidateQueries({
         queryKey: ["feed"],
       });
       queryClient.invalidateQueries({

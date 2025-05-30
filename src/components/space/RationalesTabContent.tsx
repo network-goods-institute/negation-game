@@ -6,7 +6,6 @@ import { useAtom } from "jotai";
 import { rationalesFiltersOpenAtom } from "@/atoms/rationalesFiltersOpenAtom";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
-import { DEFAULT_SPACE } from "@/constants/config";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -45,7 +44,10 @@ export const RationalesTabContent = memo(({
     const [topicFilters, setTopicFilters] = useState<string[]>([]);
     const isMobile = useIsMobile();
     const [filtersOpen] = useAtom(rationalesFiltersOpenAtom);
-    const { data: topics, refetch: refetchTopics } = useTopics(space ?? DEFAULT_SPACE);
+    if (!space) {
+        throw new Error("Space is required to load topics");
+    }
+    const { data: topics, refetch: refetchTopics } = useTopics(space);
     const [newTopicDialogOpen, setNewTopicDialogOpen] = useState(false);
     const [newTopicName, setNewTopicName] = useState("");
     const [discourseUrl, setDiscourseUrl] = useState("");
@@ -93,7 +95,7 @@ export const RationalesTabContent = memo(({
 
         setIsSubmittingTopic(true);
         try {
-            await createTopic(newTopicName.trim(), space ?? DEFAULT_SPACE, formattedUrl);
+            await createTopic(newTopicName.trim(), space, formattedUrl);
             refetchTopics();
             setTopicFilters((prev) => [...prev, newTopicName.trim()]);
             setNewTopicDialogOpen(false);

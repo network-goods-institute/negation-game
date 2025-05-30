@@ -14,6 +14,7 @@ import { useAtom } from "jotai";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { getPointUrl } from "@/lib/negation-game/getPointUrl";
 import { usePrivy } from "@privy-io/react-auth";
+import { useCurrentSpace } from "@/hooks/utils/useCurrentSpace";
 
 export interface ExpandablePoint {
     pointId: number;
@@ -54,6 +55,7 @@ export const ExpandablePointNode: React.FC<ExpandablePointNodeProps> = ({
     onZoomToNode,
 }) => {
     const { data: pointData, isLoading } = usePointData(point.pointId);
+    const currentSpace = useCurrentSpace();
     const [isVisible, setIsVisible] = useState(true);
     const [isActive, setIsActive] = useState(false);
     const [hoveredPointId, setHoveredPointId] = useAtom(hoveredPointIdAtom);
@@ -190,7 +192,12 @@ export const ExpandablePointNode: React.FC<ExpandablePointNodeProps> = ({
                                     )}
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        window.open(getPointUrl(point.pointId), '_blank', 'noopener,noreferrer');
+                                        if (!currentSpace) return;
+                                        window.open(
+                                            getPointUrl(point.pointId, currentSpace),
+                                            '_blank',
+                                            'noopener,noreferrer'
+                                        );
                                     }}
                                 >
                                     <ExternalLinkIcon className={isMobile ? "h-3 w-3" : "h-3.5 w-3.5"} />

@@ -4,7 +4,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { useTopics } from "@/queries/topics/useTopics";
 import { createTopic } from "@/actions/topics/createTopic";
-import { DEFAULT_SPACE } from "@/constants/config";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -29,7 +28,7 @@ export const TopicSelector: React.FC<TopicSelectorProps> = ({
     triggerClassName = "",
     showLabel = true,
 }) => {
-    const { data: topics, refetch } = useTopics(currentSpace || DEFAULT_SPACE);
+    const { data: topics, refetch } = useTopics(currentSpace);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [newTopic, setNewTopic] = useState("");
     const [discourseUrl, setDiscourseUrl] = useState("");

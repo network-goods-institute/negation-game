@@ -1,4 +1,3 @@
-import { DEFAULT_SPACE } from "@/constants/config";
 import { spacesTable, usersTable } from "@/db/schema";
 import { pointsTable } from "@/db/tables/pointsTable";
 import { InferColumnsDataTypes, lt } from "drizzle-orm";
@@ -26,24 +25,22 @@ export const negationsTable = pgTable(
       onDelete: "cascade",
     }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
-    space: varchar("space")
-      .references(() => spacesTable.id, {
-        onDelete: "cascade",
-      })
-      .default(DEFAULT_SPACE),
+    space: varchar("space").references(() => spacesTable.id, {
+      onDelete: "cascade",
+    }),
   },
   (table) => ({
     olderPointFirstConstraint: check(
       "olderPointFirst",
-      lt(table.olderPointId, table.newerPointId),
+      lt(table.olderPointId, table.newerPointId)
     ),
     olderPointIndex: index("olderPointIndex").on(table.olderPointId),
     newerPointIndex: index("newerPointIndex").on(table.newerPointId),
     uniqueNegationsConstraint: unique("uniqueNegation").on(
       table.olderPointId,
-      table.newerPointId,
+      table.newerPointId
     ),
-  }),
+  })
 );
 
 export type InsertNegation = typeof negationsTable.$inferInsert;

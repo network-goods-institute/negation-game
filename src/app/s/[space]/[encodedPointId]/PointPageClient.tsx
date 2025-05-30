@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { DEFAULT_SPACE, DEFAULT_TIMESCALE } from "@/constants/config";
+import { DEFAULT_TIMESCALE } from "@/constants/config";
 import { useBasePath } from "@/hooks/utils/useBasePath";
 import { useCredInput } from "@/hooks/ui/useCredInput";
 import { useVisitedPoints } from "@/hooks/points/useVisitedPoints";
@@ -562,9 +562,7 @@ export function PointPageClient({
     const handleCopyMarkdownLink = useCallback(async () => {
         if (!point || !point.content || typeof point.pointId !== 'number') return;
 
-        const currentSpaceId = spaceData.data?.id && spaceData.data.id !== DEFAULT_SPACE
-            ? spaceData.data.id
-            : DEFAULT_SPACE;
+        const currentSpaceId = spaceData.data?.id!;
 
         const pointUrlPath = getPointUrl(point.pointId, currentSpaceId);
         const fullUrl = `${window.location.origin}${pointUrlPath}`;
@@ -624,7 +622,7 @@ export function PointPageClient({
                                 >
                                     <ArrowLeftIcon />
                                 </Button>
-                                {spaceData.data && spaceData.data.id !== DEFAULT_SPACE ? (
+                                {spaceData.data ? (
                                     <>
                                         <Avatar className="border-4 border-background h-12 w-12">
                                             {spaceData.data.icon && (
@@ -641,12 +639,7 @@ export function PointPageClient({
                                             s/{spaceData.data.id}
                                         </h1>
                                     </>
-                                ) : (
-                                    <>
-                                        <PointIcon />
-                                        <h1 className="text-xl font-medium">Point</h1>
-                                    </>
-                                )}
+                                ) : null}
                             </div>
                             <div className="flex w-full sm:w-auto gap-sm items-center justify-start sm:justify-end text-muted-foreground">
                                 <Button
@@ -819,7 +812,7 @@ export function PointPageClient({
                                 </p>
 
                                 {/* Show different badges based on pin status */}
-                                {isPinned && isInSpecificSpace && spaceData.data?.id !== 'global' && point?.pinnedByCommandId && (
+                                {isPinned && isInSpecificSpace && point?.pinnedByCommandId && (
                                     <Badge variant="outline" className="text-xs shrink-0">
                                         <Link
                                             href={getPointUrl(point.pinnedByCommandId, spaceData.data?.id || 'global')}
@@ -842,7 +835,7 @@ export function PointPageClient({
                                         </Link>
                                     </Badge>
                                 )}
-                                {parsePinCommand && !isPinned && isInSpecificSpace && spaceData.data?.id !== 'global' && (
+                                {parsePinCommand && !isPinned && isInSpecificSpace && (
                                     <Badge variant="outline" className="text-xs shrink-0">
                                         <Link
                                             href={getPointUrl(parsePinCommand, spaceData?.data?.id || 'global')}

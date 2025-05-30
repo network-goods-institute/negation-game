@@ -5,7 +5,6 @@ import { encodeId } from '@/lib/negation-game/encodeId';
 import { useSetAtom } from 'jotai';
 import { makePointSuggestionAtom } from '@/atoms/makePointSuggestionAtom';
 import { makeNegationSuggestionAtom } from '@/atoms/makeNegationSuggestionAtom';
-import { DEFAULT_SPACE } from '@/constants/config';
 import { usePointData } from '@/queries/points/usePointData';
 import { PointReference } from '../visual/PointReference';
 
@@ -75,9 +74,11 @@ export const SuggestionBlock: React.FC<SuggestionBlockProps> = ({ type, targetId
         const textForAction = text;
 
         if (type === 'point') {
-            setMakePointSuggestion({ text: textForAction, context: 'chat', spaceId: space ?? DEFAULT_SPACE });
+            if (!space) return;
+            setMakePointSuggestion({ text: textForAction, context: 'chat', spaceId: space });
         } else if (isNegationSuggestion) {
-            setMakeNegationSuggestion({ targetId, text: textForAction, context: 'chat', spaceId: space ?? DEFAULT_SPACE });
+            if (!space) return;
+            setMakeNegationSuggestion({ targetId, text: textForAction, context: 'chat', spaceId: space });
         }
     };
 

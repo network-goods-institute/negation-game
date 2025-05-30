@@ -10,7 +10,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { POINT_MAX_LENGTH, POINT_MIN_LENGTH, DEFAULT_SPACE } from "@/constants/config";
+import { POINT_MAX_LENGTH, POINT_MIN_LENGTH } from "@/constants/config";
 import { useCredInput } from "@/hooks/ui/useCredInput";
 import { useSubmitHotkey } from "@/hooks/ui/useSubmitHotkey";
 import { cn } from "@/lib/utils/cn";
@@ -162,7 +162,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({ ...props }) => {
   const renderSuccessView = () => {
     if (!createdPointId) return null;
 
-    const effectiveSpaceId = spaceId || DEFAULT_SPACE;
+    const effectiveSpaceId = spaceId!;
 
     return (
       <>

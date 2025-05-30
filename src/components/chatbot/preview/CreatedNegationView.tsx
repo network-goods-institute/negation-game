@@ -5,7 +5,7 @@ import { Loader2, CheckCircle, ExternalLinkIcon } from 'lucide-react';
 import { PointCard } from '@/components/cards/PointCard';
 import Link from 'next/link';
 import { getPointUrl } from '@/lib/negation-game/getPointUrl';
-import { useSpace } from '@/queries/space/useSpace';
+import { useCurrentSpace } from '@/hooks/utils/useCurrentSpace';
 import { useSetAtom } from 'jotai';
 import { negatedPointIdAtom } from '@/atoms/negatedPointIdAtom';
 import { usePrivy } from '@privy-io/react-auth';
@@ -19,7 +19,7 @@ interface CreatedNegationViewProps {
 export const CreatedNegationView: React.FC<CreatedNegationViewProps> =
     ({ originalPointId, counterpointId, onExitPreview }) => {
 
-        const { data: spaceData } = useSpace();
+        const currentSpace = useCurrentSpace();
         const { data: originalPoint, isLoading: isLoadingOriginal, error: errorOriginal } = usePointData(originalPointId);
         const { data: counterpoint, isLoading: isLoadingCounter, error: errorCounter } = usePointData(counterpointId);
         const setNegatedPointId = useSetAtom(negatedPointIdAtom);
@@ -28,8 +28,8 @@ export const CreatedNegationView: React.FC<CreatedNegationViewProps> =
         const isLoading = isLoadingOriginal || isLoadingCounter;
         const hasError = errorOriginal || errorCounter;
 
-        const originalPointUrl = getPointUrl(originalPointId, spaceData?.id);
-        const counterpointUrl = getPointUrl(counterpointId, spaceData?.id);
+        const originalPointUrl = getPointUrl(originalPointId, currentSpace!);
+        const counterpointUrl = getPointUrl(counterpointId, currentSpace!);
 
         const handleNegateOriginal = (e: React.MouseEvent<HTMLButtonElement>) => {
             e.preventDefault();

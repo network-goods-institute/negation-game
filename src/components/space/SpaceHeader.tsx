@@ -5,7 +5,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import { BrainCircuitIcon } from "lucide-react";
-import { DEFAULT_SPACE } from "@/constants/config";
 import type { useSpace } from "@/queries/space/useSpace";
 
 type SpaceResult = ReturnType<typeof useSpace>;
@@ -17,7 +16,7 @@ interface SpaceHeaderProps {
 }
 
 export function SpaceHeader({ space, isLoading, onAiClick }: SpaceHeaderProps) {
-    if (!space?.data || space.data.id === DEFAULT_SPACE) {
+    if (!space?.data) {
         return null;
     }
 

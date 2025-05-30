@@ -1,7 +1,6 @@
-import { DEFAULT_SPACE, SPACE_HEADER } from "@/constants/config";
+import { SPACE_HEADER } from "@/constants/config";
 import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
 import { isValidSpaceId } from "@/lib/negation-game/isValidSpaceId";
-import { spaceBasePath } from "@/lib/negation-game/spaceBasePath";
 import { VALID_SPACE_IDS } from "@/lib/negation-game/staticSpacesList";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -153,6 +152,11 @@ export default function middleware(req: NextRequest) {
     if (response) return response;
   }
 
+  // Special-case root path on non-play hosts to serve the marketing homepage
+  if (url.pathname === "/" && host !== "play.negationgame.com") {
+    return NextResponse.next();
+  }
+
   // Replace 'viewpoint' with 'rationale' in the URL
   if (url.pathname.includes("viewpoint")) {
     const newPathname = url.pathname.replace(/viewpoint/g, "rationale");
@@ -163,48 +167,30 @@ export default function middleware(req: NextRequest) {
       newUrl.searchParams.set(key, value);
     }
 
-    const response = NextResponse.redirect(newUrl);
-    return response;
+    return NextResponse.redirect(newUrl);
   }
 
-  // Handle profile routes with /profile/username format
-  if (url.pathname.startsWith("/profile/")) {
+  // Explicit space segment is required; for any /s/:space path, set the header and continue
+  if (url.pathname.startsWith("/s/")) {
+    const space = getSpaceFromPathname(url.pathname);
+    if (!space) {
+      return; // malformed /s/ path, let Next.js handle 404
+    }
     const response = NextResponse.next();
-    response.headers.set(SPACE_HEADER, DEFAULT_SPACE);
-    return response;
-  }
-
-  // Legacy /profile route - just set header and let the page handle redirect
-  if (url.pathname === "/profile") {
-    const response = NextResponse.next();
-    response.headers.set(SPACE_HEADER, DEFAULT_SPACE);
-    return response;
-  }
-
-  // If path doesn't start with /s/, rewrite it to /s/global, preserving search params
-  if (!url.pathname.startsWith("/s/")) {
-    const space = DEFAULT_SPACE;
-    const rewritePath = `/s/global${url.pathname}${url.search}`;
-    const rewriteUrlObject = new URL(rewritePath, req.url);
-    const response = NextResponse.rewrite(rewriteUrlObject);
     response.headers.set(SPACE_HEADER, space);
     return response;
   }
 
-  const space = getSpaceFromPathname(url.pathname);
+  // Handle profile paths without rewriting
+  if (url.pathname.startsWith("/profile")) {
+    return NextResponse.next();
+  }
 
-  // let it 404 if it's a malformed url
-  if (!space) return;
-
-  const response =
-    space === DEFAULT_SPACE
-      ? // Redirect from /s/global/* to /*, preserving search params
-        NextResponse.redirect(
-          url.origin +
-            url.pathname.replace(spaceBasePath(space), "") +
-            url.search
-        )
-      : NextResponse.next();
-  response.headers.set(SPACE_HEADER, space);
-  return response;
+  // No explicit space in URL: rewrite to /s/global
+  const rewriteUrl = new URL(`/s/global${url.pathname}`, req.url);
+  // Preserve query parameters
+  for (const [key, value] of url.searchParams.entries()) {
+    rewriteUrl.searchParams.set(key, value);
+  }
+  return NextResponse.rewrite(rewriteUrl);
 }

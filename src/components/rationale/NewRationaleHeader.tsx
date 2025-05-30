@@ -2,7 +2,6 @@
 
 import RationaleHeaderBar from "./RationaleHeaderBar";
 import { Separator } from "@/components/ui/separator";
-import { DEFAULT_SPACE } from "@/constants/config";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AuthenticatedActionButton } from "@/components/editor/AuthenticatedActionButton";
 import { Button } from "@/components/ui/button";
@@ -66,7 +65,7 @@ export default function NewRationaleHeader({
             />
             <Separator />
             <div className="sticky top-[calc(2.5rem+1px)] z-50 w-full flex items-center justify-between gap-3 px-4 py-3 bg-background/70 backdrop-blur">
-                {spaceData && spaceData.id !== DEFAULT_SPACE ? (
+                {spaceData ? (
                     <div className="flex items-center gap-2">
                         <Avatar className="border-4 border-background size-8">
                             {spaceData.icon && (

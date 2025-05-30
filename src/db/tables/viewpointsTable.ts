@@ -1,5 +1,4 @@
 import { ViewpointGraph } from "@/atoms/viewpointAtoms";
-import { DEFAULT_SPACE } from "@/constants/config";
 import { spacesTable, topicsTable } from "@/db/schema";
 import { InferColumnsDataTypes } from "drizzle-orm";
 import {
@@ -21,11 +20,9 @@ export const viewpointsTable = pgTable("viewpoints", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   lastUpdatedAt: timestamp("last_updated_at").notNull().defaultNow(),
   viewsAtLastUpdate: integer("views_at_last_update").notNull().default(0),
-  space: varchar("space")
-    .references(() => spacesTable.id, {
-      onDelete: "cascade",
-    })
-    .default(DEFAULT_SPACE),
+  space: varchar("space").references(() => spacesTable.id, {
+    onDelete: "cascade",
+  }),
   copiedFromId: varchar("copied_from_id").references(
     (): any => viewpointsTable.id,
     { onDelete: "set null" }

@@ -2,7 +2,6 @@ import { Metadata } from "next";
 import { db } from "@/services/db";
 import { viewpointsTable, usersTable } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { DEFAULT_SPACE } from "@/constants/config";
 
 interface Props {
     params: Promise<{
@@ -23,7 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             };
         }
 
-        const space = spaceParam === 'global' ? DEFAULT_SPACE : spaceParam;
+        const space = spaceParam;
 
         const notFoundMetadata = {
             title: "Rationale Not Found",

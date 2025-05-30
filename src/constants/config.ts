@@ -11,8 +11,6 @@ export const DEFAULT_TIMESCALE: TimelineScale = "ALL";
 
 export const GOOD_ENOUGH_POINT_RATING = 7;
 
-export const DEFAULT_SPACE = "global";
-
 export const SPACE_HEADER = "x-space";
 
 export const USER_INITIAL_CRED = 500;
