@@ -239,7 +239,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({ ...props }) => {
                   credInput={cred}
                   setCredInput={setCred}
                   notEnoughCred={notEnoughCred}
-                  allowZero={true}
+                  allowZero={false}
                 />
                 <Button
                   variant="ghost"
@@ -398,7 +398,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({ ...props }) => {
 
         <Button
           onClick={handleSubmit}
-          disabled={!user || (!selectedPoint && !(content.length >= POINT_MIN_LENGTH && content.length <= POINT_MAX_LENGTH)) || isSubmitting}
+          disabled={!user || (!selectedPoint && !(content.length >= POINT_MIN_LENGTH && content.length <= POINT_MAX_LENGTH)) || isSubmitting || (selectedPoint && cred <= 0)}
         >
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isSubmitting
