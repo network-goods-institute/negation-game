@@ -16,8 +16,16 @@ export const getUserId = async (): Promise<string | null> => {
     const verificationResult = await privyClient.verifyAuthToken(privyToken);
     return verificationResult.userId;
   } catch (error) {
-    // Log the error for debugging
     console.warn("Error verifying Privy token:", error);
+
+    // If token expired, return null to trigger re-auth
+    if (
+      (error as any).name === "JWTExpired" ||
+      (error as any).code === "ERR_JWT_EXPIRED"
+    ) {
+      console.warn("Privy token expired");
+      return null;
+    }
 
     // If we get an invalid auth token error, return null to trigger re-auth
     if (

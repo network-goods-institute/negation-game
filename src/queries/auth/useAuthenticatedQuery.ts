@@ -9,6 +9,7 @@ import {
 import { useEffect, useState, useCallback } from "react";
 import { handleAuthError } from "@/lib/auth/handleAuthError";
 import { setPrivyToken } from "@/lib/privy/setPrivyToken";
+import { clearPrivyCookie } from "@/actions/users/auth";
 
 const AUTH_ERROR_MESSAGES = [
   "Must be authenticated",
@@ -94,13 +95,16 @@ export function useAuthenticatedQuery<
 
           return await (options.queryFn as any)(...args);
         } else {
-          // Show error toast if token refresh fails but user appears authenticated
+          // If refresh fails, clear server-side cookie then trigger login
+          await clearPrivyCookie();
           handleAuthError(error, "refreshing authentication");
           login();
           throw new Error("Authentication refresh failed");
         }
       }
       if (isAuthError(error) && retryCount >= MAX_RETRIES) {
+        // Max retries reached—clear cookie and show error to force fresh login
+        await clearPrivyCookie();
         handleAuthError(
           error,
           "performing action after multiple retry attempts"
