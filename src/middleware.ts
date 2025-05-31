@@ -152,8 +152,8 @@ export default function middleware(req: NextRequest) {
     if (response) return response;
   }
 
-  // Special-case root path on non-play hosts to serve the marketing homepage
-  if (url.pathname === "/" && host !== "play.negationgame.com") {
+  // Special-case root path to serve the marketing homepage
+  if (url.pathname === "/") {
     return NextResponse.next();
   }
 
