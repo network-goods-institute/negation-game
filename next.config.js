@@ -40,7 +40,7 @@ const nextConfig = {
               "frame-ancestors 'none'",
 
               // iframes you embed
-              "frame-src 'self' https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://www.loom.com https://privy.play.negationgame.com",
+              "frame-src 'self' https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://privy.play.negationgame.com https://www.youtube.com",
 
               // AJAX, WebSocket, SIWE/API calls
               "connect-src 'self' https://auth.privy.io wss://relay.walletconnect.com wss://relay.walletconnect.org wss://www.walletlink.org https://*.rpc.privy.systems https://explorer-api.walletconnect.com https://api.web3modal.org https://pulse.walletconnect.org https://privy.play.negationgame.com",
