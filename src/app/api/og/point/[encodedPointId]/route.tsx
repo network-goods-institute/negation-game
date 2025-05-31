@@ -1,6 +1,5 @@
 import { ImageResponse } from "next/og";
 import { decodeId } from "@/lib/negation-game/decodeId";
-import { DEFAULT_SPACE } from "@/constants/config";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -15,8 +14,11 @@ export async function GET(request: Request) {
 
     const pointId = decodeId(encodedPointId);
     const url = new URL(request.url);
-    const spaceParam = url.searchParams.get("space") || DEFAULT_SPACE;
-    const space = spaceParam === DEFAULT_SPACE ? DEFAULT_SPACE : spaceParam;
+    // Require explicit space parameter (must match /s/:space)
+    const space = url.searchParams.get("space");
+    if (!space) {
+        return new Response("Missing space parameter", { status: 400 });
+    }
 
     // Get the base URL from the request
     const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';

@@ -2,8 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAtom, useSetAtom } from "jotai";
 import { useReactFlow } from "@xyflow/react";
 import type { AppNode } from "@/components/graph/nodes/AppNode";
-import { usePathname } from "next/navigation";
-import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
+import { useCurrentSpace } from "@/hooks/utils/useCurrentSpace";
 import {
   viewpointGraphAtom,
   viewpointStatementAtom,
@@ -17,8 +16,7 @@ import {
  */
 export default function useRationaleDraftLifecycle() {
   const reactFlow = useReactFlow<AppNode>();
-  const pathname = usePathname();
-  const currentSpace = getSpaceFromPathname(pathname) || "global";
+  const currentSpace = useCurrentSpace();
 
   const setCopiedFromId = useSetAtom(copiedFromIdAtom);
   const [graph, setGraph] = useAtom(viewpointGraphAtom);
@@ -44,7 +42,9 @@ export default function useRationaleDraftLifecycle() {
     if (hasLoadedCopyData.current) {
       return;
     }
-    const storageKey = `copyingViewpoint:${currentSpace}`;
+    const storageKey = currentSpace
+      ? `copyingViewpoint:${currentSpace}`
+      : `copyingViewpoint`;
     const copyData = sessionStorage.getItem(storageKey);
     if (copyData) {
       try {

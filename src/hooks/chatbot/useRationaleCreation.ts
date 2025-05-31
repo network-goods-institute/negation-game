@@ -7,11 +7,7 @@ import { useTopics } from "@/queries/topics/useTopics";
 import { toast } from "sonner";
 import { fetchPointsByExactContent } from "@/actions/points/fetchPointsByExactContent";
 import { createRationaleFromPreview } from "@/actions/viewpoints/createRationaleFromPreview";
-import {
-  POINT_MIN_LENGTH,
-  POINT_MAX_LENGTH,
-  DEFAULT_SPACE,
-} from "@/constants/config";
+import { POINT_MIN_LENGTH, POINT_MAX_LENGTH } from "@/constants/config";
 import {
   ConflictingPoint,
   ResolvedMappings,
@@ -38,7 +34,10 @@ export function useRationaleCreation({
   const router = useRouter();
   const { user: privyUser } = usePrivy();
   const { data: userData } = useUser(privyUser?.id);
-  const { data: topicsData } = useTopics(currentSpace || DEFAULT_SPACE);
+  if (!currentSpace) {
+    throw new Error("Space is required to fetch topics");
+  }
+  const { data: topicsData } = useTopics(currentSpace);
   const reactFlowInstance = useReactFlow<PreviewAppNode, PreviewAppEdge>();
 
   const [duplicateDialogState, setDuplicateDialogState] = useState<{
@@ -213,7 +212,7 @@ export function useRationaleCreation({
       const rationaleDescription = description || "";
 
       try {
-        const spaceIdToUse = currentSpace || DEFAULT_SPACE;
+        const spaceIdToUse = currentSpace;
         let topicIdToUse: number | undefined = undefined;
         if (topic && topicsData) {
           const matched = topicsData.find((t) => t.name === topic);

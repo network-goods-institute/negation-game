@@ -79,11 +79,11 @@ export const regenerateGraphIds = (graph: ViewpointGraph): ViewpointGraph => {
 };
 
 /**
- * Gets the current space from the URL
- * @returns The space name or 'global' if not found
+ * Gets the current space from the URL path
+ * @returns The space name or null if not found
  */
-export const getSpaceFromUrl = (): string => {
-  if (typeof window === "undefined") return "global";
+export const getSpaceFromUrl = (): string | null => {
+  if (typeof window === "undefined") return null;
 
   const urlParts = window.location.pathname.split("/");
   const spaceIndex = urlParts.indexOf("s") + 1;
@@ -94,7 +94,7 @@ export const getSpaceFromUrl = (): string => {
     urlParts[spaceIndex] === "null" ||
     urlParts[spaceIndex] === "undefined"
   ) {
-    return "global";
+    return null;
   }
 
   return urlParts[spaceIndex];
@@ -202,6 +202,10 @@ export const copyViewpointToStorage = (
     const regeneratedGraph = regenerateGraphIds(preparedGraph);
 
     const space = getSpaceFromUrl();
+    if (!space) {
+      console.error("Space is required to copy viewpoint");
+      return false;
+    }
 
     const storageKey = getCopyStorageKey(space);
 
@@ -284,13 +288,14 @@ export const copyViewpointAndNavigate = async (
       }
     }
 
-    // Navigate to the new page
+    // Navigate to the new page under the explicit space
     const space = getSpaceFromUrl();
-    // Ensure we have a valid space in the URL
-    const url =
-      space === "global"
-        ? "/s/global/rationale/new"
-        : `/s/${space}/rationale/new`;
+    if (!space) {
+      console.error("Space is required to navigate after copying");
+      return false;
+    }
+
+    const url = `/s/${space}/rationale/new`;
     console.log("Navigating to new rationale page:", url);
 
     // Use window.location for a full page reload

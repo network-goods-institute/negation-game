@@ -1,4 +1,3 @@
-import { DEFAULT_SPACE } from "@/constants/config";
 import { spacesTable } from "@/db/schema";
 import { sql } from "drizzle-orm";
 import { uniqueIndex } from "drizzle-orm/mysql-core";
@@ -9,15 +8,13 @@ export const definitionsTable = pgTable(
   {
     term: varchar("term").primaryKey(),
     definition: text("definition").notNull(),
-    space: varchar("space")
-      .references(() => spacesTable.id, {
-        onDelete: "cascade",
-      })
-      .default(DEFAULT_SPACE),
+    space: varchar("space").references(() => spacesTable.id, {
+      onDelete: "cascade",
+    }),
   },
   (table) => ({
     uniqueTermIndex: uniqueIndex("uniqueTermIndex").on(
-      sql`concat(${table.space},'-',lower(${table.term}))`,
+      sql`concat(${table.space},'-',lower(${table.term}))`
     ),
-  }),
+  })
 );

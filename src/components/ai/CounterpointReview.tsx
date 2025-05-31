@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils/cn";
 import { DialogClose } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getPointUrl } from "@/lib/negation-game/getPointUrl";
+import { useCurrentSpace } from "@/hooks/utils/useCurrentSpace";
 
 export interface CounterpointCandidate {
     id: number;
@@ -67,6 +68,7 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
     onSelectSuggestion,
     onSelectOwnText,
 }) => {
+    const currentSpace = useCurrentSpace();
     return (
         <div className="flex flex-col w-full h-full max-h-[80vh] overflow-hidden relative">
             <div className="absolute top-4 right-4 z-10">
@@ -146,7 +148,12 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                                                             className="h-6 w-6 p-0 rounded-full external-link-btn"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                window.open(getPointUrl(counterpointCandidate.id), '_blank', 'noopener,noreferrer');
+                                                                if (!currentSpace) return;
+                                                                window.open(
+                                                                    getPointUrl(counterpointCandidate.id, currentSpace),
+                                                                    '_blank',
+                                                                    'noopener,noreferrer'
+                                                                );
                                                             }}
                                                         >
                                                             <ExternalLinkIcon className="h-3.5 w-3.5" />

@@ -6,7 +6,6 @@ import { Loader } from "@/components/ui/loader";
 import { SearchIcon, BrainCircuitIcon } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { SearchInput } from "@/components/search/SearchInput";
-import { DEFAULT_SPACE } from "@/constants/config";
 import useIsMobile from "@/hooks/ui/useIsMobile";
 import { useAtom } from "jotai";
 import { rationalesFiltersOpenAtom } from "@/atoms/rationalesFiltersOpenAtom";
@@ -96,26 +95,6 @@ export function SpaceTabs({
                                 : <ChevronDownIcon className="h-4 w-4" />
                         }
                     />
-                )}
-                {spaceId === DEFAULT_SPACE && (
-                    <Button
-                        variant="ghost"
-                        onClick={onAiClick}
-                        disabled={isAiLoading}
-                        className="ml-auto py-1.5 sm:py-2 px-2 sm:px-4 text-xs sm:text-sm flex items-center gap-1"
-                    >
-                        {isAiLoading ? (
-                            <>
-                                <Loader className="size-3.5 sm:size-4 mr-1" />
-                                <span className="hidden sm:inline">Loading...</span>
-                            </>
-                        ) : (
-                            <>
-                                <BrainCircuitIcon className="size-3.5 sm:size-4" />
-                                <span className="hidden sm:inline">AI Assistant</span>
-                            </>
-                        )}
-                    </Button>
                 )}
             </div>
 

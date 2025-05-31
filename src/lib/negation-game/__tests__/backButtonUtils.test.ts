@@ -196,27 +196,6 @@ describe("backButtonUtils", () => {
       expect(mockRouter.back).not.toHaveBeenCalled();
     });
 
-    test("should set points tab and navigate to global space from global point page", () => {
-      const mockLocation = {
-        ...window.location,
-        hostname: "example.com",
-        pathname: "/abc123",
-      };
-      // @ts-ignore
-      delete window.location;
-      // @ts-ignore
-      window.location = mockLocation;
-
-      window.history.back = jest.fn();
-
-      handleBackNavigation(mockRouter, mockSetInitialTab);
-
-      expect(mockSetInitialTab).toHaveBeenCalledWith("points");
-      expect(mockRouter.push).toHaveBeenCalledWith("/s/global");
-      expect(window.history.back).not.toHaveBeenCalled();
-      expect(mockRouter.back).not.toHaveBeenCalled();
-    });
-
     test("should use window.history.back() when history exists and no specific route matched", () => {
       window.history.back = jest.fn();
       Object.defineProperty(window.history, "length", {

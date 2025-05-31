@@ -105,16 +105,7 @@ export function handleBackNavigation(
     return;
   }
 
-  const knownTopLevelPaths = ["s", "profile", "settings", "about", "api"];
-  if (
-    pathParts.length === 1 &&
-    !knownTopLevelPaths.includes(pathParts[0]) &&
-    !pathParts[0].includes(".")
-  ) {
-    setInitialTab("points");
-    router.push(`/s/global`);
-    return;
-  }
+  // No default space fallback for single-segment paths; fall through to history or home handling
 
   setInitialTab(null);
 

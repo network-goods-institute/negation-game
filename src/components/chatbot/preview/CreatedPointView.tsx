@@ -5,7 +5,6 @@ import { usePointData } from '@/queries/points/usePointData';
 import { PointCard } from '@/components/cards/PointCard';
 import { Loader } from '@/components/ui/loader';
 import { encodeId } from '@/lib/negation-game/encodeId';
-import { DEFAULT_SPACE } from '@/constants/config';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ExternalLinkIcon } from 'lucide-react';
@@ -26,7 +25,7 @@ export function CreatedPointView({ pointId, spaceId, onClose }: CreatedPointView
 
     let pointUrl = "#";
     try {
-        const effectiveSpaceId = spaceId || DEFAULT_SPACE;
+        const effectiveSpaceId = spaceId;
         pointUrl = `/s/${effectiveSpaceId}/${encodeId(pointId)}`;
     } catch (e) {
         console.error("Failed to encode point ID for link:", e);

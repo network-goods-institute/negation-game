@@ -1,12 +1,8 @@
-import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
 import { spaceBasePath } from "@/lib/negation-game/spaceBasePath";
-import { usePathname } from "next/navigation";
-import { useMemo } from "react";
+import { useCurrentSpace } from "@/hooks/utils/useCurrentSpace";
 
 export const useBasePath = () => {
-  const pathName = usePathname();
-
-  const space = useMemo(() => getSpaceFromPathname(pathName), [pathName]);
+  const space = useCurrentSpace();
 
   return space ? spaceBasePath(space) : "";
 };

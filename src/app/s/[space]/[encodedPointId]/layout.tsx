@@ -2,7 +2,6 @@ import { Metadata } from "next";
 import { db } from "@/services/db";
 import { pointsWithDetailsView, usersTable } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
-import { DEFAULT_SPACE } from "@/constants/config";
 import { decodeId } from "@/lib/negation-game/decodeId";
 import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
@@ -27,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         }
 
         const pointId = decodeId(encodedPointId);
-        const space = spaceParam === DEFAULT_SPACE ? DEFAULT_SPACE : spaceParam;
+        const space = spaceParam;
 
         const domain = process.env.NODE_ENV === "development"
             ? "localhost:3000"

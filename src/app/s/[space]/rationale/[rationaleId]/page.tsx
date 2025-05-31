@@ -19,7 +19,6 @@ import React, { use, useState, useEffect, useCallback, useRef, useMemo } from "r
 import { useRouter, notFound, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useTopics } from "@/queries/topics/useTopics";
-import { DEFAULT_SPACE } from "@/constants/config";
 import RationalePointsList from "@/components/rationale/RationalePointsList";
 import ExistingRationaleHeader from "@/components/rationale/ExistingRationaleHeader";
 import { useViewpoint } from "@/queries/viewpoints/useViewpoint";
@@ -124,7 +123,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
         );
     });
 
-    const spaceId = space?.data?.id ?? DEFAULT_SPACE;
+    const spaceId = space?.data?.id!;
     const { data: topicsData } = useTopics(spaceId);
     // Compute numeric topicId early for callbacks
     const topicsList = (topicsData ?? []) as { id: number; name: string }[];
@@ -302,7 +301,7 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                             topic={editableTopic}
                             onTopicChange={(val) => { setEditableTopic(val); setIsContentModified(true); setIsTopicEditing(false); }}
                             topics={topicsData || []}
-                            currentSpace={space?.data?.id || DEFAULT_SPACE}
+                            currentSpace={space?.data?.id!}
                             isNew={false}
                             canEdit={true}
                             showEditButtons={true}

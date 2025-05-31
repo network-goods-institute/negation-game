@@ -1,4 +1,3 @@
-import { DEFAULT_SPACE } from "@/constants/config";
 import { spacesTable } from "@/db/schema";
 import { InferColumnsDataTypes, sql } from "drizzle-orm";
 import {
@@ -20,11 +19,9 @@ export const pointsTable = pgTable("points", {
     .array()
     .notNull()
     .default(sql`ARRAY[]::text[]`),
-  space: varchar("space")
-    .references(() => spacesTable.id, {
-      onDelete: "cascade",
-    })
-    .default(DEFAULT_SPACE),
+  space: varchar("space").references(() => spacesTable.id, {
+    onDelete: "cascade",
+  }),
   isCommand: boolean("is_command").notNull().default(false),
 });
 

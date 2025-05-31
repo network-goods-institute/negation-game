@@ -4,7 +4,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import TopicSelector from '../inputs/TopicSelector';
 import { cn } from '@/lib/utils/cn';
-import { DEFAULT_SPACE } from '@/constants/config';
 import { Button } from '@/components/ui/button';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -139,7 +138,7 @@ export default function RationaleMetaForm({
             )}
             <Separator className="my-2" />
             <TopicSelector
-                currentSpace={currentSpace || DEFAULT_SPACE}
+                currentSpace={currentSpace}
                 value={topic}
                 onChange={onTopicChange}
                 wrapperClassName="pt-2 pb-2"
