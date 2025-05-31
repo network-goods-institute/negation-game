@@ -185,22 +185,19 @@ describe("Middleware", () => {
       );
     });
 
-    test("allows play subdomain to continue to rewrite logic", () => {
+    test("allows play subdomain to continue serving root without rewrite", () => {
       const result = mockMiddleware(
         "https://play.negationgame.com",
         "play.negationgame.com"
       );
 
-      // For play subdomain, we should eventually rewrite to /s/global
-      // Since we're mocking, let's check that neither next nor redirect were called from handleSubdomain
-      expect(NextResponse.next).not.toHaveBeenCalled();
+      // For play subdomain at root, we should serve the homepage (next)
+      expect(NextResponse.next).toHaveBeenCalled();
       expect(NextResponse.redirect).not.toHaveBeenCalled();
 
-      // The middleware should proceed to the rewrite logic after handleSubdomain returns undefined
       expect(result).toBeDefined();
-      // Check this is a rewrite (to /s/global)
-      expect(result?.type).toBe("rewrite");
-      expect(String((result as any).url)).toContain("/s/global");
+      // Check this is a next() response
+      expect(result?.type).toBe("next");
     });
 
     test("redirects to negationgame.com for blacklisted subdomains", () => {
@@ -353,7 +350,12 @@ describe("Middleware", () => {
 
         // These should not return NextResponse.next() without modifications
         // Unless they're special paths like /profile/username
-        if (path === "/profile/username" || path === "/profile") {
+        if (
+          path === "/" ||
+          path === "/profile/username" ||
+          path === "/profile"
+        ) {
+          // Root and profile paths should not rewrite
           expect(result?.type).toBe("next");
         } else if (path.includes("viewpoint")) {
           expect(result?.type).toBe("redirect");
