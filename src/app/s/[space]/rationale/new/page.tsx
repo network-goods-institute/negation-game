@@ -9,11 +9,12 @@ import {
   clearViewpointState,
   viewpointTopicAtom,
 } from "@/atoms/viewpointAtoms";
-import { useEffect, useState, useCallback, useTransition } from "react";
+import { useEffect, useState, useCallback, useTransition, useMemo } from "react";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 import { AppNode } from "@/components/graph/nodes/AppNode";
+import type { PointNode } from "@/components/graph/nodes/PointNode";
 import { OriginalPosterProvider } from "@/components/contexts/OriginalPosterContext";
 import { Separator } from "@/components/ui/separator";
 import { Dynamic } from "@/components/utils/Dynamic";
@@ -29,7 +30,6 @@ import {
 } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
 import useRationaleDraftLifecycle from "@/hooks/viewpoints/useRationaleDraftLifecycle";
-import { useGraphPoints } from "@/hooks/graph/useGraphPoints";
 import usePublishRationale from "@/hooks/viewpoints/usePublishRationale";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader } from "@/components/ui/loader";
@@ -67,7 +67,17 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
   const isMobile = useIsMobile(640);
   const reactFlow = useReactFlow<AppNode>();
   const [graph, setGraph] = useAtom(viewpointGraphAtom);
-  const points = useGraphPoints();
+  const points = useMemo(() => {
+    // Narrow to only point nodes so TS knows node.data has point fields
+    const pointNodes = graph.nodes.filter(
+      (node): node is PointNode => node.type === "point"
+    );
+    return pointNodes.map((node) => ({
+      pointId: node.data.pointId,
+      parentId: node.data.parentId,
+      initialPointData: node.data.initialPointData,
+    }));
+  }, [graph.nodes]);
   const [statement, setStatement] = useAtom(viewpointStatementAtom);
   const [reasoning, setReasoning] = useAtom(viewpointReasoningAtom);
   const [topic, setTopic] = useAtom(viewpointTopicAtom);

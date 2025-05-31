@@ -15,8 +15,8 @@ import { useSpace } from "@/queries/space/useSpace";
 import { useUser } from "@/queries/users/useUser";
 import { ReactFlowProvider, useReactFlow, } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
-import React, { use, useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useRouter, notFound, useSearchParams } from "next/navigation";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useRouter, notFound, useSearchParams, useParams } from "next/navigation";
 import Link from "next/link";
 import { useTopics } from "@/queries/topics/useTopics";
 import RationalePointsList from "@/components/rationale/RationalePointsList";
@@ -96,7 +96,11 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     const isOwner = viewpoint ? user?.id === viewpoint.createdBy : false;
     const { isSharing, selectedPointIds, toggleSharingMode, handleGenerateAndCopyShareLink } = useShareLink(user?.username);
 
-    const points = (viewpoint?.graph.nodes ?? [])
+    const reactFlow = useReactFlow<AppNode>();
+    const originalGraph = useMemo(() => viewpoint?.graph, [viewpoint]);
+    const [localGraph, setLocalGraph] = useState(originalGraph);
+    // Derive points from the localGraph so new points appear immediately in the sidebar
+    const points = (localGraph?.nodes ?? [])
         .filter((node: any) => node.type === 'point')
         .map((node: any) => ({
             pointId: node.data.pointId,
@@ -104,10 +108,6 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
             initialPointData: node.data.initialPointData,
         }));
 
-    const reactFlow = useReactFlow<AppNode>();
-
-    const originalGraph = useMemo(() => viewpoint?.graph, [viewpoint]);
-    const [localGraph, setLocalGraph] = useState(originalGraph);
     const { isCopying, isPageCopyConfirmOpen, setIsPageCopyConfirmOpen, handleCopy } = useCopyConfirm(async () => {
         let currentGraph;
         if (reactFlow) {
@@ -388,16 +388,9 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     );
 }
 
-export default function NewViewpointPage({
-    params,
-}: {
-    params: Promise<{ rationaleId: string; space: string }>;
-}) {
-    const { rationaleId } = use(params);
-
-    return (
-        <ViewpointPageWrapper rationaleId={rationaleId} />
-    );
+export default function NewViewpointPage() {
+    const { rationaleId } = useParams<{ rationaleId: string; space: string }>();
+    return <ViewpointPageWrapper rationaleId={rationaleId!} />;
 }
 
 function ViewpointPageWrapper({ rationaleId }: { rationaleId: string }) {
