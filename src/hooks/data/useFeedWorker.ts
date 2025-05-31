@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSetPointData, PointData } from "@/queries/points/usePointData";
 import { useQueryClient } from "@tanstack/react-query";
-import { getWorkerCode } from "@/workers/workerCode";
 import {
   isBrowser,
   areWorkersSupported,
@@ -53,11 +52,11 @@ export const useFeedWorker = () => {
     }
 
     try {
-      const workerCode = getWorkerCode();
-
-      const blob = new Blob([workerCode], { type: "application/javascript" });
-      const workerUrl = URL.createObjectURL(blob);
-      const worker = new Worker(workerUrl);
+      // Instantiate the static worker
+      const worker = new Worker(
+        new URL("../../workers/feedWorker.ts", import.meta.url),
+        { type: "module" }
+      );
 
       workerRef.current = worker;
       setIsWorkerSupported(true);
@@ -93,7 +92,6 @@ export const useFeedWorker = () => {
       };
 
       return () => {
-        URL.revokeObjectURL(workerUrl);
         worker.terminate();
         workerRef.current = null;
       };
