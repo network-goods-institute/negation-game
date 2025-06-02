@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { CopyIcon, ClockIcon, InfoIcon, PlusCircleIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import type { PointInSpace } from '@/actions/points/fetchAllSpacePoints';
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 
 
 interface PreviewPointNodeStatusIndicatorsProps {
@@ -45,9 +46,11 @@ export const PreviewPointNodeStatusIndicators: React.FC<PreviewPointNodeStatusIn
                         <TooltipTrigger asChild>
                             <CopyIcon className="h-3.5 w-3.5 text-orange-500" />
                         </TooltipTrigger>
-                        <TooltipContent side="top" onClick={(e) => e.stopPropagation()}>
-                            <p>This content is duplicated in another node on the canvas. This is allowed, this is purely informational.</p>
-                        </TooltipContent>
+                        <TooltipPrimitive.Portal>
+                            <TooltipContent side="top" onClick={(e) => e.stopPropagation()}>
+                                <p>This content is duplicated in another node on the canvas. This is allowed, this is purely informational.</p>
+                            </TooltipContent>
+                        </TooltipPrimitive.Portal>
                     </Tooltip>
                 </div>
             )}
@@ -65,9 +68,11 @@ export const PreviewPointNodeStatusIndicators: React.FC<PreviewPointNodeStatusIn
                                 <ClockIcon className="h-4 w-4 text-muted-foreground" />
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent side="top" onClick={(e) => e.stopPropagation()}>
-                            <p>Please save the rationale to check if this point already exists.</p>
-                        </TooltipContent>
+                        <TooltipPrimitive.Portal>
+                            <TooltipContent side="top" onClick={(e) => e.stopPropagation()}>
+                                <p>Please save the rationale to check if this point already exists.</p>
+                            </TooltipContent>
+                        </TooltipPrimitive.Portal>
                     </Tooltip>
                 </div>
             )}
@@ -88,27 +93,29 @@ export const PreviewPointNodeStatusIndicators: React.FC<PreviewPointNodeStatusIn
                                     <InfoIcon className="h-4 w-4 text-blue-500" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top" onClick={(e) => e.stopPropagation()} className="max-w-xs">
-                                <div className="flex items-center justify-between mb-2">
-                                    <ChevronLeftIcon className="h-4 w-4 cursor-pointer text-muted-foreground" onClick={(e) => { e.stopPropagation(); prev(); }} />
-                                    <p className="font-semibold text-center">{selectedIdx + 1} of {len}</p>
-                                    <ChevronRightIcon className="h-4 w-4 cursor-pointer text-muted-foreground" onClick={(e) => { e.stopPropagation(); next(); }} />
-                                </div>
-                                <p className="text-xs">ID: {current.pointId} / {currentEncoded}</p>
-                                {currentDetail ? (
-                                    <div className="text-xs mt-1 space-y-0.5">
-                                        <p>Cred: {currentDetail.cred}</p>
-                                        <p>Favor: {Math.round(currentDetail.favor || 0)}</p>
-                                        <p>Supporters: {currentDetail.amountSupporters}</p>
-                                        <p>Negations: {currentDetail.amountNegations}</p>
+                            <TooltipPrimitive.Portal>
+                                <TooltipContent className="max-w-xs" side="top" onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <ChevronLeftIcon className="h-4 w-4 cursor-pointer text-muted-foreground" onClick={(e) => { e.stopPropagation(); prev(); }} />
+                                        <p className="font-semibold text-center">{selectedIdx + 1} of {len}</p>
+                                        <ChevronRightIcon className="h-4 w-4 cursor-pointer text-muted-foreground" onClick={(e) => { e.stopPropagation(); next(); }} />
                                     </div>
-                                ) : (
-                                    <p className="text-xs italic">Loading details...</p>
-                                )}
-                                <Link href={`/s/${currentSpacePath}/${currentEncoded}`} target="_blank" rel="noopener noreferrer" className="block text-xs mt-2 text-blue-500 hover:underline">
-                                    View point &rarr;
-                                </Link>
-                            </TooltipContent>
+                                    <p className="text-xs">ID: {current.pointId} / {currentEncoded}</p>
+                                    {currentDetail ? (
+                                        <div className="text-xs mt-1 space-y-0.5">
+                                            <p>Cred: {currentDetail.cred}</p>
+                                            <p>Favor: {Math.round(currentDetail.favor || 0)}</p>
+                                            <p>Supporters: {currentDetail.amountSupporters}</p>
+                                            <p>Negations: {currentDetail.amountNegations}</p>
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs italic">Loading details...</p>
+                                    )}
+                                    <Link href={`/s/${currentSpacePath}/${currentEncoded}`} target="_blank" rel="noopener noreferrer" className="block text-xs mt-2 text-blue-500 hover:underline">
+                                        View point &rarr;
+                                    </Link>
+                                </TooltipContent>
+                            </TooltipPrimitive.Portal>
                         </Tooltip>
                     </div>
                 );
@@ -125,23 +132,25 @@ export const PreviewPointNodeStatusIndicators: React.FC<PreviewPointNodeStatusIn
                                 </Button>
                             </Link>
                         </TooltipTrigger>
-                        <TooltipContent side="top" onClick={(e) => e.stopPropagation()} className="max-w-xs">
-                            <p className="font-semibold">Existing Point</p>
-                            <p className="text-xs">ID: {localExistingPointId} / {encodedLocalId}</p>
-                            {existingPointDetails ? (
-                                <div className="text-xs mt-1 space-y-0.5">
-                                    <p>Cred: {existingPointDetails.cred}</p>
-                                    <p>Favor: {Math.round(existingPointDetails.favor || 0)}</p>
-                                    <p>Supporters: {existingPointDetails.amountSupporters}</p>
-                                    <p>Negations: {existingPointDetails.amountNegations}</p>
-                                </div>
-                            ) : (
-                                <p className="text-xs mt-1 italic">Loading details...</p>
-                            )}
-                            <Link href={`/s/${currentSpacePath}/${encodedLocalId}`} target="_blank" rel="noopener noreferrer" className="block text-xs mt-2 text-blue-500 hover:underline">
-                                View point &rarr;
-                            </Link>
-                        </TooltipContent>
+                        <TooltipPrimitive.Portal>
+                            <TooltipContent className="max-w-xs" side="top" onClick={(e) => e.stopPropagation()}>
+                                <p className="font-semibold">Existing Point</p>
+                                <p className="text-xs">ID: {localExistingPointId} / {encodedLocalId}</p>
+                                {existingPointDetails ? (
+                                    <div className="text-xs mt-1 space-y-0.5">
+                                        <p>Cred: {existingPointDetails.cred}</p>
+                                        <p>Favor: {Math.round(existingPointDetails.favor || 0)}</p>
+                                        <p>Supporters: {existingPointDetails.amountSupporters}</p>
+                                        <p>Negations: {existingPointDetails.amountNegations}</p>
+                                    </div>
+                                ) : (
+                                    <p className="text-xs mt-1 italic">Loading details...</p>
+                                )}
+                                <Link href={`/s/${currentSpacePath}/${encodedLocalId}`} target="_blank" rel="noopener noreferrer" className="block text-xs mt-2 text-blue-500 hover:underline">
+                                    View point &rarr;
+                                </Link>
+                            </TooltipContent>
+                        </TooltipPrimitive.Portal>
                     </Tooltip>
                 </div>
             )}
@@ -159,9 +168,11 @@ export const PreviewPointNodeStatusIndicators: React.FC<PreviewPointNodeStatusIn
                                 <PlusCircleIcon className="h-4 w-4 text-green-500" />
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent side="top" onClick={(e) => e.stopPropagation()}>
-                            <p>This will be created as a new point.</p>
-                        </TooltipContent>
+                        <TooltipPrimitive.Portal>
+                            <TooltipContent side="top" onClick={(e) => e.stopPropagation()}>
+                                <p>This will be created as a new point.</p>
+                            </TooltipContent>
+                        </TooltipPrimitive.Portal>
                     </Tooltip>
                 </div>
             )}
