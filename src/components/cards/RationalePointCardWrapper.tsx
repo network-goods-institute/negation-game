@@ -53,7 +53,7 @@ const RationalePointCardWrapper: React.FC<RationalePointCardWrapperProps> = ({
             favor={pointData.favor}
             amountSupporters={pointData.amountSupporters}
             amountNegations={pointData.amountNegations}
-            viewerContext={{ viewerCred: pointData.viewerCred ?? undefined }}
+            viewerContext={{ viewerCred: pointData.viewerCred, viewerNegationsCred: pointData.viewerNegationsCred ?? 0 }}
             originalPosterId={originalPosterId}
             onNegate={() => setNegatedPointId(point.pointId)}
             inRationale={true}

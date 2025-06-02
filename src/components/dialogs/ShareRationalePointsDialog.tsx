@@ -1,3 +1,5 @@
+"use client";
+
 import { useRouter } from "next/navigation";
 import { FC, useCallback, useMemo, useState, useEffect, memo, useRef } from "react";
 import { Portal } from "@radix-ui/react-portal";

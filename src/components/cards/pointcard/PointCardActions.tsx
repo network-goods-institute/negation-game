@@ -1,3 +1,4 @@
+"use client";
 import React from "react";
 import { AuthenticatedActionButton } from "@/components/editor/AuthenticatedActionButton";
 import { NegateIcon } from "@/components/icons/NegateIcon";
@@ -7,11 +8,13 @@ import { ExternalLinkIcon } from "lucide-react";
 import { getPointUrl } from "@/lib/negation-game/getPointUrl";
 import { EndorsementControl } from "./EndorsementControl";
 import RestakeDoubtControls from "./RestakeDoubtControls";
+import { cn } from "@/lib/utils/cn";
 
 export interface PointCardActionsProps {
     onNegate?: React.MouseEventHandler<HTMLButtonElement>;
     endorsedByViewer: boolean;
     viewerCred: number;
+    viewerNegationsCred: number;
     privyUser: any;
     login: () => void;
     popoverOpen: boolean;
@@ -44,6 +47,7 @@ export const PointCardActions: React.FC<PointCardActionsProps> = ({
     onNegate,
     endorsedByViewer,
     viewerCred,
+    viewerNegationsCred,
     privyUser,
     login,
     popoverOpen,
@@ -75,14 +79,19 @@ export const PointCardActions: React.FC<PointCardActionsProps> = ({
         <div className="flex gap-sm">
             <AuthenticatedActionButton
                 variant="ghost"
-                className="p-1 -ml-3 -mb-2 rounded-full size-fit hover:bg-negated/30"
+                className="p-1 -ml-3 -mb-2 rounded-full size-fit gap-sm hover:bg-negated/30"
                 data-action-button="true"
                 onClick={(e) => {
                     e.stopPropagation();
                     onNegate?.(e);
                 }}
             >
-                <NegateIcon />
+                <NegateIcon className={cn(viewerNegationsCred > 0 && "text-negated")} />
+                {viewerNegationsCred === 0 ? (
+                    <span className="ml-0">Negate</span>
+                ) : (
+                    <span className="ml-0">{viewerNegationsCred} cred</span>
+                )}
             </AuthenticatedActionButton>
 
             <EndorsementControl

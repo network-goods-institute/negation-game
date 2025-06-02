@@ -672,11 +672,6 @@ export function PointPageClient({
                                     open={endorsePopoverOpen}
                                     onOpenChange={toggleEndorsePopoverOpen}
                                 >
-                                    {endorsedByViewer && (
-                                        <span className="align-middle text-sm text-endorsed">
-                                            {point.viewerCred} cred
-                                        </span>
-                                    )}
                                     <PopoverTrigger asChild>
                                         <AuthenticatedActionButton
                                             className={cn(
@@ -688,15 +683,12 @@ export function PointPageClient({
                                             data-action-button="true"
                                             onClick={handleEndorse}
                                         >
-                                            <EndorseIcon
-                                                className={cn(
-                                                    "@md/point:hidden",
-                                                    endorsedByViewer && "fill-current"
-                                                )}
-                                            />
-                                            <span className="hidden @md/point:inline">
-                                                {point.viewerCred ? "Endorsed" : "Endorse"}
-                                            </span>
+                                            <EndorseIcon className={cn(endorsedByViewer && "fill-current")} />
+                                            {point.viewerCred && point.viewerCred > 0 ? (
+                                                <span className="ml-0">{point.viewerCred} cred</span>
+                                            ) : (
+                                                <span className="ml-0">Endorse</span>
+                                            )}
                                         </AuthenticatedActionButton>
                                     </PopoverTrigger>
 
@@ -739,7 +731,7 @@ export function PointPageClient({
                                 <AuthenticatedActionButton
                                     variant="ghost"
                                     className={cn(
-                                        "p-2  rounded-full size-fit hover:bg-primary/30",
+                                        "p-2 rounded-full size-fit gap-sm hover:bg-primary/30",
                                         "@md/point:border @md/point:px-4"
                                     )}
                                     data-action-button="true"
@@ -749,11 +741,12 @@ export function PointPageClient({
                                         }
                                     }}
                                 >
-                                    <NegateIcon
-                                        className="@md/point:hidden"
-                                        showSuccess={recentlyNegated}
-                                    />
-                                    <span className="hidden @md/point:inline">Negate</span>
+                                    <NegateIcon showSuccess={recentlyNegated} className={cn(point.viewerNegationsCred > 0 && "text-negated")} />
+                                    {point.viewerNegationsCred && point.viewerNegationsCred > 0 ? (
+                                        <span className="ml-0">{point.viewerNegationsCred} cred</span>
+                                    ) : (
+                                        <span className="ml-0">Negate</span>
+                                    )}
                                 </AuthenticatedActionButton>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>

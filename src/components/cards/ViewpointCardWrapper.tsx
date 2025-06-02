@@ -39,7 +39,7 @@ export function ViewpointCardWrapper({
 }: ViewpointCardWrapperProps) {
     // Card click handler - only triggers navigation when the ViewpointCard
     // component determines it's a valid click (not a text selection)
-    const onCardClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const onCardClick = useCallback(() => {
         handleCardClick?.(`rationale-${id}`);
     }, [id, handleCardClick]);
 
@@ -48,16 +48,13 @@ export function ViewpointCardWrapper({
             draggable={false}
             href={`/s/${space}/rationale/${id}`}
             className="flex border-b cursor-pointer hover:bg-accent"
-            onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                preventDefaultIfContainsSelection(e);
-                // Don't navigate if text is selected or if it's an action button
-                const isActionButton = (e.target as HTMLElement).closest('[data-action-button="true"]');
-                if (!isActionButton && window.getSelection()?.isCollapsed !== false) {
-                    handleCardClick?.(`rationale-${id}`);
-                }
+            onClick={(e) => {
+                preventDefaultIfContainsSelection(e as unknown as React.MouseEvent<HTMLAnchorElement>);
+                onCardClick();
             }}
         >
             <ViewpointCard
+                onClick={onCardClick}
                 className={className}
                 id={id}
                 topic={topic}

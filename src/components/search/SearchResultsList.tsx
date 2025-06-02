@@ -34,6 +34,7 @@ interface PointData {
     username: string;
     relevance: number;
     viewerCred?: number;
+    viewerNegationsCred?: number;
 }
 
 export function SearchResultsList({ results, isLoading, query, hasSearched = false, loadingCardId, handleCardClick }: SearchResultsListProps) {
@@ -103,7 +104,7 @@ export function SearchResultsList({ results, isLoading, query, hasSearched = fal
                                 favor={pointData.favor || 0}
                                 amountNegations={pointData.amountNegations || 0}
                                 amountSupporters={pointData.amountSupporters || 0}
-                                viewerContext={{ viewerCred: pointData.viewerCred || 0 }}
+                                viewerContext={{ viewerCred: pointData.viewerCred || 0, viewerNegationsCred: pointData.viewerNegationsCred || 0 }}
                                 onNegate={(e) => {
                                     e.preventDefault();
                                     user !== null ? setNegatedPointId(Number(result.id)) : login();

@@ -1,3 +1,4 @@
+"use client";
 import React from "react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -55,8 +56,11 @@ export const EndorsementControl: React.FC<EndorsementControlProps> = ({
                 variant="ghost"
             >
                 <EndorseIcon className={cn(endorsedByViewer && "fill-current")} />
+                {!endorsedByViewer && (
+                    <span className="ml-0">Endorse</span>
+                )}
                 {endorsedByViewer && viewerCred > 0 && (
-                    <span className="translate-y-[-1px]">{viewerCred} cred</span>
+                    <span className="translate-y-[-1px] ml-0">{viewerCred} cred</span>
                 )}
             </Button>
         </PopoverTrigger>

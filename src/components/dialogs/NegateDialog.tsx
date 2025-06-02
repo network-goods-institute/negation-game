@@ -1,3 +1,5 @@
+"use client";
+
 import { reviewProposedCounterpointAction } from "@/actions/ai/reviewProposedCounterpointAction";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { negationContentAtom } from "@/atoms/negationContentAtom";

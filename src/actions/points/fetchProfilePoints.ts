@@ -1,7 +1,13 @@
 "use server";
 
 import { db } from "@/services/db";
-import { pointsWithDetailsView, doubtsTable, usersTable } from "@/db/schema";
+import {
+  pointsWithDetailsView,
+  doubtsTable,
+  usersTable,
+  endorsementsTable,
+  negationsTable,
+} from "@/db/schema";
 import { getUserId } from "@/actions/users/getUserId";
 import { eq, and } from "drizzle-orm";
 import { addFavor } from "@/db/utils/addFavor";
@@ -29,6 +35,7 @@ export type ProfilePoint = {
   favor: number;
   space: string | null;
   viewerCred?: number;
+  viewerNegationsCred?: number;
   negationIds: number[];
   restakesByPoint: number;
   slashedAmount: number;
@@ -73,6 +80,20 @@ export const fetchProfilePoints = async (
       .select({
         ...getColumns(pointsWithDetailsView),
         viewerCred: viewerCredSql(userId),
+        viewerNegationsCred: userId
+          ? sql<number>`
+              COALESCE((
+                SELECT SUM(${endorsementsTable.cred})
+                FROM ${endorsementsTable}
+                WHERE ${endorsementsTable.userId} = ${userId}
+                  AND ${endorsementsTable.pointId} IN (
+                    SELECT older_point_id FROM ${negationsTable} WHERE newer_point_id = ${pointsWithDetailsView.pointId}
+                    UNION
+                    SELECT newer_point_id FROM ${negationsTable} WHERE older_point_id = ${pointsWithDetailsView.pointId}
+                  )
+              ), 0)
+            `.mapWith(Number)
+          : sql<number>`0`.mapWith(Number),
         restakesByPoint: restakesByPointSql(pointsWithDetailsView),
         slashedAmount: slashedAmountSql(pointsWithDetailsView),
         doubtedAmount: doubtedAmountSql(pointsWithDetailsView),

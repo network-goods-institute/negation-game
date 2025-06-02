@@ -1,6 +1,5 @@
 "use server";
 
-import { getSpace } from "@/actions/spaces/getSpace";
 import { getUserId } from "@/actions/users/getUserId";
 import {
   endorsementsTable,
@@ -22,41 +21,13 @@ import {
   totalRestakeAmountSql,
   viewerDoubtSql,
 } from "@/actions/utils/pointSqlUtils";
+import type { UserEndorsedPoint } from "./fetchUserEndorsedPoints";
 
-export type UserEndorsedPoint = {
-  pointId: number;
-  content: string;
-  createdAt: Date;
-  createdBy: string;
-  cred: number;
-  amountSupporters: number;
-  amountNegations: number;
-  negationsCred: number;
-  favor: number;
-  space: string | null;
-  endorsedCred: number;
-  viewerCred: number;
-  viewerNegationsCred?: number;
-  negationIds: number[];
-  restakesByPoint: number;
-  slashedAmount: number;
-  doubtedAmount: number;
-  totalRestakeAmount: number;
-  doubt?: {
-    id: number | null;
-    amount: number | null;
-    userAmount: number;
-    isUserDoubt: boolean;
-  } | null;
-};
-
-export const fetchUserEndorsedPoints = async (
+export const fetchAllUserEndorsedPoints = async (
   username?: string
 ): Promise<UserEndorsedPoint[] | null> => {
   const viewerId = await getUserId();
   if (!viewerId) return [];
-
-  const space = await getSpace();
 
   let targetUserId = viewerId;
 
@@ -74,12 +45,7 @@ export const fetchUserEndorsedPoints = async (
   const endorsedPointIds = await db
     .select({ pointId: endorsementsTable.pointId })
     .from(endorsementsTable)
-    .where(
-      and(
-        eq(endorsementsTable.userId, targetUserId),
-        eq(endorsementsTable.space, space)
-      )
-    );
+    .where(eq(endorsementsTable.userId, targetUserId));
 
   if (endorsedPointIds.length === 0) return [];
 

@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect, useState } from "react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -65,8 +67,11 @@ export const PreviewPointNodeEndorsement: React.FC<PreviewPointNodeEndorsementPr
                     variant="ghost"
                 >
                     <EndorseIcon className={cn(hasPositiveCred && "fill-current")} />
+                    {!hasPositiveCred && (
+                        <span className="ml-0">Endorse</span>
+                    )}
                     {hasPositiveCred && (
-                        <span className="translate-y-[-1px] ml-1">{cred} cred</span>
+                        <span className="translate-y-[-1px] ml-0">{cred} cred</span>
                     )}
                 </Button>
             </PopoverTrigger>

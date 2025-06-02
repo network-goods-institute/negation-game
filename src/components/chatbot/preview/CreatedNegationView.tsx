@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import { usePointData } from '@/queries/points/usePointData';
 import { Button } from '@/components/ui/button';

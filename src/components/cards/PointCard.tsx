@@ -1,3 +1,5 @@
+"use client";
+
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { visitedPointsAtom } from "@/atoms/visitedPointsAtom";
 import { PointStats } from "@/components/cards/pointcard/PointStats";
@@ -55,6 +57,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   amountNegations: number;
   viewerContext?: {
     viewerCred?: number;
+    viewerNegationsCred?: number;
   };
   onNegate?: MouseEventHandler<HTMLButtonElement>;
   isNegation?: boolean;
@@ -189,6 +192,7 @@ export const PointCard = ({
 
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  const viewerNegationsCred = viewerContext?.viewerNegationsCred ?? 0;
   const endorsedByViewer = viewerContext?.viewerCred !== undefined && viewerContext.viewerCred > 0;
   const endorsedByOp = opCred && opCred > 0;
   const visited = visitedPoints.has(pointId);
@@ -340,7 +344,8 @@ export const PointCard = ({
   const renderCardContent = () => (
     <div
       className={cn(
-        "@container/point flex gap-3 pt-4 pb-3 px-4 relative rounded-none will-change-auto",
+        "@container/point flex gap-3 pt-4 px-4 relative rounded-none will-change-auto",
+        inGraphNode ? "pb-6" : "pb-3",
         isPinned && "border-l-4 border-primary",
         isPriority && !isPinned && "border-l-4 border-amber-400",
         inGraphNode && "pt-2.5",
@@ -407,6 +412,7 @@ export const PointCard = ({
           onNegate={onNegate}
           endorsedByViewer={endorsedByViewer}
           viewerCred={viewerContext?.viewerCred || 0}
+          viewerNegationsCred={viewerNegationsCred}
           privyUser={privyUser}
           login={login}
           popoverOpen={endorsePopoverOpen}

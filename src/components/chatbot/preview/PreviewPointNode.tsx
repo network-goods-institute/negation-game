@@ -332,10 +332,11 @@ export const PreviewPointNode = ({
           <div className="absolute bottom-1.5 left-1.5 flex gap-sm text-muted-foreground">
             <Button
               variant="ghost"
-              className="p-1 rounded-full size-fit hover:bg-negated/30"
+              className="p-1 rounded-full size-fit gap-sm hover:bg-negated/30"
               onClick={handleAddClick}
             >
               <NegateIcon />
+              <span className="ml-0">Negate</span>
             </Button>
 
             <PreviewPointNodeEndorsement

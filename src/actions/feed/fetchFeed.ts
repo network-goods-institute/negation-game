@@ -9,6 +9,7 @@ import {
   doubtsTable,
   pointsTable,
   spacesTable,
+  negationsTable,
 } from "@/db/schema";
 import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
@@ -29,6 +30,7 @@ export type FeedPoint = {
   negationsCred: number;
   space: string | null;
   viewerCred?: number;
+  viewerNegationsCred?: number;
   negationIds: number[];
   restakesByPoint: number;
   slashedAmount: number;
@@ -92,6 +94,20 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
           FROM ${endorsementsTable}
           WHERE ${endorsementsTable.pointId} = ${pointsWithDetailsView.pointId}
             AND ${endorsementsTable.userId} = ${viewerId || sql`NULL`}
+        ), 0)
+      `.mapWith(Number),
+      viewerNegationsCred: sql<number>`
+        COALESCE((
+          SELECT SUM(${endorsementsTable.cred})
+          FROM ${endorsementsTable}
+          WHERE ${endorsementsTable.userId} = ${viewerId || sql`NULL`}
+            AND ${endorsementsTable.pointId} IN (
+              SELECT older_point_id FROM ${negationsTable}
+              WHERE newer_point_id = ${pointsWithDetailsView.pointId}
+              UNION
+              SELECT newer_point_id FROM ${negationsTable}
+              WHERE older_point_id = ${pointsWithDetailsView.pointId}
+            )
         ), 0)
       `.mapWith(Number),
       restakesByPoint: sql<number>`

@@ -12,7 +12,7 @@ import { useProfilePoints } from "@/queries/points/useProfilePoints";
 import { useUserViewpoints } from "@/queries/users/useUserViewpoints";
 import { Separator } from "@/components/ui/separator";
 import React from "react";
-import { useUserEndorsedPoints } from "@/queries/users/useUserEndorsedPoints";
+import { useUserAllEndorsedPoints } from "@/queries/users/useUserAllEndorsedPoints";
 import { getBackButtonHandler } from "@/lib/negation-game/backButtonUtils";
 import { ViewpointCardWrapper } from "@/components/cards/ViewpointCardWrapper";
 import { usePathname } from "next/navigation";
@@ -69,7 +69,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     // Fetch viewpoints always (needed for profile and dashboard)
     const { data: userViewpoints, isLoading: isLoadingViewpoints } = useUserViewpoints(username);
     // Fetch endorsed points always (needed for profile stats)
-    const { data: endorsedPoints, isLoading: isLoadingEndorsedPoints } = useUserEndorsedPoints(username);
+    const { data: endorsedPoints, isLoading: isLoadingEndorsedPoints } = useUserAllEndorsedPoints(username);
     const { data: userData } = useUser(username);
     const [editProfileOpen, setEditProfileOpen] = useState(false);
 
@@ -451,7 +451,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                                 favor={point.favor}
                                                                 amountSupporters={point.amountSupporters}
                                                                 amountNegations={point.amountNegations}
-                                                                viewerContext={{ viewerCred: point.viewerCred }}
+                                                                viewerContext={{ viewerCred: point.viewerCred, viewerNegationsCred: point.viewerNegationsCred ?? 0 }}
                                                                 space={point.space ?? undefined}
                                                                 isLoading={loadingCardId === `point-${point.pointId}`}
                                                                 onNegate={(e) => {
@@ -515,7 +515,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                 favor={point.favor}
                                                 amountSupporters={point.amountSupporters}
                                                 amountNegations={point.amountNegations}
-                                                viewerContext={{ viewerCred: point.viewerCred }}
+                                                viewerContext={{ viewerCred: point.viewerCred, viewerNegationsCred: point.viewerNegationsCred ?? 0 }}
                                                 space={point.space ?? undefined}
                                                 isLoading={loadingCardId === `point-${point.pointId}`}
                                                 onNegate={(e) => {
@@ -598,7 +598,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                             favor={point.favor}
                                                             amountSupporters={point.amountSupporters}
                                                             amountNegations={point.amountNegations}
-                                                            viewerContext={{ viewerCred: point.viewerCred }}
+                                                            viewerContext={{ viewerCred: point.viewerCred, viewerNegationsCred: point.viewerNegationsCred ?? 0 }}
                                                             space={point.space ?? undefined}
                                                             isLoading={loadingCardId === `point-${point.pointId}`}
                                                             onNegate={(e) => {

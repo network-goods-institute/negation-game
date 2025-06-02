@@ -107,7 +107,6 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
 
     useResetLoadingOnPathChange(pathname, () => {
         setLoadingCardId(null);
-        setIsAiAssistantLoading(false);
     });
 
     useEffect(() => {
