@@ -251,9 +251,10 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     );
     selectCounterpointCandidate(undefined);
     setHasContentBeenReviewed(true); // Mark as reviewed
+    setLastReviewedContent(counterpointContent); // Sync lastReviewedContent so needsReview is false
     setPostReviewAction('reopen'); // <-- Set action type for keeping own text
     setReviewDialogOpen(false); // Close review dialog
-  }, [reviewResults, setGuidanceNotes]);
+  }, [reviewResults, setGuidanceNotes, counterpointContent, setLastReviewedContent]);
 
   const handleSubmit = useCallback(() => {
     if (!canSubmit || isSubmitting || !negatedPoint) return;
