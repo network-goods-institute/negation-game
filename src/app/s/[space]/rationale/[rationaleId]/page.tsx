@@ -2,6 +2,7 @@
 
 import { viewpointGraphAtom } from "@/atoms/viewpointAtoms";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
+import { feedEnabledAtom } from "@/atoms/feedEnabledAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { AppNode } from "@/components/graph/nodes/AppNode";
 import {
@@ -40,6 +41,8 @@ import { useUserViewpoints } from "@/queries/users/useUserViewpoints";
 import type { RationaleRank } from "@/components/ui/ProfileBadge";
 import type { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import MobileSaveFooter from '@/components/rationale/MobileSaveFooter';
+import PointsFeedContainer from "@/components/rationale/PointsFeedContainer";
+import useIsMobile from "@/hooks/ui/useIsMobile";
 
 function CopiedFromLink({ sourceId }: { sourceId: string }) {
     const { data: sourceViewpoint, isLoading } = useViewpoint(sourceId);
@@ -57,7 +60,7 @@ function CopiedFromLink({ sourceId }: { sourceId: string }) {
     );
 }
 
-function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
+function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string; spaceSlug: string }) {
     const searchParams = useSearchParams();
     const justPublished = searchParams.get('published') === 'true';
     const [showPublishDialog, setShowPublishDialog] = useState(justPublished);
@@ -80,6 +83,9 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
     const basePath = useBasePath();
     const space = useSpace();
     const [canvasEnabled, setCanvasEnabled] = useAtom(canvasEnabledAtom);
+    const [feedEnabled] = useAtom(feedEnabledAtom);
+    const showFeed = feedEnabled;
+    const isMobile = useIsMobile(640);
     const { isCopyingUrl, handleCopyUrl } = useCopyUrl();
     const { data: viewpoint } = useViewpoint(viewpointId);
 
@@ -260,10 +266,14 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                 onOpenChange={setShowPublishDialog}
                 badgeThreshold={newBadgeThreshold}
             />
-            <main className="relative flex-grow md:grid md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background h-full overflow-hidden">
+            <main className={cn(
+                "relative flex-grow bg-background h-full overflow-hidden",
+                "md:grid",
+                showFeed
+                    ? "md:grid-cols-[0_minmax(200px,400px)_1fr_minmax(200px,400px)]"
+                    : "md:grid-cols-[0_minmax(200px,400px)_1fr]"
+            )}>
                 <div className="hidden md:block"></div>
-
-
                 <div className="flex flex-col h-full md:col-start-2 border-x overflow-hidden">
                     <ExistingRationaleHeader
                         isSharing={isSharing}
@@ -281,8 +291,8 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                     {/* --- Scrollable Content START*/}
                     <div className={cn(
                         "flex-grow overflow-y-auto pb-10",
-                        canvasEnabled && "hidden md:block", // Hide content on mobile when canvas active
-                        // Add extra padding-bottom on mobile if canvas is OFF and changes exist
+                        showFeed && isMobile && "hidden",
+                        canvasEnabled && "hidden md:block",
                         !canvasEnabled && (isGraphModified || isContentModified) && isOwner && "pb-24 md:pb-10",
                         isSharing && "pb-24 md:pb-24"
                     )}>
@@ -336,16 +346,18 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                         />
                     </div>
                     {/* --- Scrollable Content END --- */}
-                    <MobileSaveFooter
-                        isOwner={isOwner}
-                        isGraphModified={isGraphModified}
-                        isContentModified={isContentModified}
-                        isSaving={isSaving}
-                        commitSaveChanges={() => commitSaveChanges(localGraph!)}
-                        resetContentModifications={resetContentModifications}
-                        clearGraphModifications={() => setIsGraphModified(false)}
-                        canvasEnabled={canvasEnabled}
-                    />
+                    {!showFeed || !isMobile ? (
+                        <MobileSaveFooter
+                            isOwner={isOwner}
+                            isGraphModified={isGraphModified}
+                            isContentModified={isContentModified}
+                            isSaving={isSaving}
+                            commitSaveChanges={() => commitSaveChanges(localGraph!)}
+                            resetContentModifications={resetContentModifications}
+                            clearGraphModifications={() => setIsGraphModified(false)}
+                            canvasEnabled={canvasEnabled}
+                        />
+                    ) : null}
                 </div>
 
                 {/* Column 3 (Graph View) using shared RationaleGraph */}
@@ -361,7 +373,8 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                         className={cn(
                             "!fixed inset-0 top-[var(--header-height)] !h-[calc(100vh-var(--header-height))]",
                             "md:!relative md:col-start-3 md:inset-[reset] md:top-[reset] md:!h-full md:!z-auto",
-                            !canvasEnabled && "hidden md:block"
+                            !canvasEnabled && "hidden md:block",
+                            showFeed && isMobile && "hidden"
                         )}
                         isSaving={isSaving}
                         isContentModified={isContentModified}
@@ -374,6 +387,9 @@ function ViewpointPageContent({ viewpointId }: { viewpointId: string }) {
                         onModifiedChange={setIsGraphModified}
                     />
                 </Dynamic>
+
+                {/* Column 4 (Points Feed) */}
+                <PointsFeedContainer />
 
                 <NegateDialog />
 
@@ -394,6 +410,7 @@ export default function NewViewpointPage() {
 }
 
 function ViewpointPageWrapper({ rationaleId }: { rationaleId: string }) {
+    const { rationaleId: routeRationaleId, space: spaceSlug } = useParams<{ rationaleId: string; space: string }>();
     const { data: viewpoint, isLoading, isError } = useViewpoint(rationaleId);
 
     if (isLoading) {
@@ -417,7 +434,7 @@ function ViewpointPageWrapper({ rationaleId }: { rationaleId: string }) {
     return (
         <OriginalPosterProvider originalPosterId={creatorId}>
             <ReactFlowProvider>
-                <ViewpointPageContent viewpointId={rationaleId} />
+                <ViewpointPageContent viewpointId={rationaleId} spaceSlug={spaceSlug} />
             </ReactFlowProvider>
         </OriginalPosterProvider>
     );

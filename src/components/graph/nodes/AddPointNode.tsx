@@ -29,7 +29,7 @@ import { XIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useState, useMemo, useEffect } from "react";
 import { collapsedPointIdsAtom } from "@/atoms/viewpointAtoms";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useSetAtom } from "jotai";
 
 export type AddPointNodeData = {
   parentId: string;
@@ -45,15 +45,20 @@ export interface AddPointNodeProps extends Omit<NodeProps, "data"> {
 
 export const AddPointNode = ({
   id,
-  data: { parentId },
+  data: { parentId, content: dataContent = "", hasContent },
   positionAbsoluteX,
   positionAbsoluteY,
 }: AddPointNodeProps) => {
-  const { deleteElements, addEdges, addNodes, getNode, getNodes, getEdges, updateNodeData } = useReactFlow();
-  const [content, setContent] = useState("");
+  const { deleteElements, addEdges, addNodes, getNode, getNodes, updateNodeData } = useReactFlow();
+  const [content, setContent] = useState(dataContent);
+  useEffect(() => {
+    if (dataContent !== content) {
+      setContent(dataContent);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataContent]);
   const debouncedContent = useDebounce(content, 1000);
   const { credInput, setCredInput } = useCredInput();
-  const collapsedPointIds = useAtomValue(collapsedPointIdsAtom);
   const setCollapsedPointIds = useSetAtom(collapsedPointIdsAtom);
 
   useEffect(() => {

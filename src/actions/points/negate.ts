@@ -5,7 +5,7 @@ import { getUserId } from "@/actions/users/getUserId";
 import { endorsementsTable, negationsTable, usersTable } from "@/db/schema";
 import { Point } from "@/db/tables/pointsTable";
 import { db } from "@/services/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 
 export interface NegateArgs {
   negatedPointId: Point["id"];
@@ -45,11 +45,24 @@ export const negate = async ({
       });
     }
 
-    return await tx
+    const insertResult = await tx
       .insert(negationsTable)
       .values({ createdBy: userId, newerPointId, olderPointId, space })
-      .returning({ negationId: negationsTable.id })
-      .then(([{ negationId }]) => negationId);
+      .onConflictDoNothing()
+      .returning({ negationId: negationsTable.id });
+    if (insertResult.length > 0) {
+      return insertResult[0].negationId;
+    }
+    const [existing] = await tx
+      .select({ id: negationsTable.id })
+      .from(negationsTable)
+      .where(
+        and(
+          eq(negationsTable.olderPointId, olderPointId),
+          eq(negationsTable.newerPointId, newerPointId)
+        )
+      );
+    return existing.id;
   });
 
   return negationId;

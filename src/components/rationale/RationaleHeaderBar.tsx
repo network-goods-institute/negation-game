@@ -1,7 +1,9 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeftIcon, NetworkIcon } from 'lucide-react';
+import { ArrowLeftIcon, NetworkIcon, List } from 'lucide-react';
 import useIsMobile from '@/hooks/ui/useIsMobile';
+import { useAtom } from 'jotai';
+import { feedEnabledAtom } from '@/atoms/feedEnabledAtom';
 
 
 interface RationaleHeaderBarProps {
@@ -20,6 +22,7 @@ export default function RationaleHeaderBar({
     children,
 }: RationaleHeaderBarProps) {
     const isMobile = useIsMobile();
+    const [feedEnabled, setFeedEnabled] = useAtom(feedEnabledAtom);
 
     return (
         <div className="sticky top-0 z-20 w-full flex items-center justify-between px-2 py-1.5 bg-background/70 backdrop-blur border-b">
@@ -37,14 +40,24 @@ export default function RationaleHeaderBar({
                     {title}
                 </h1>
                 {isMobile && (
-                    <Button
-                        size="icon"
-                        variant={isCanvasEnabled ? 'default' : 'outline'}
-                        className="rounded-full p-1 size-7 ml-2"
-                        onClick={toggleCanvas}
-                    >
-                        <NetworkIcon className="size-3.5" />
-                    </Button>
+                    <>
+                        <Button
+                            size="icon"
+                            variant={isCanvasEnabled ? 'default' : 'outline'}
+                            className="rounded-full p-1 size-7 ml-2"
+                            onClick={toggleCanvas}
+                        >
+                            <NetworkIcon className="size-3.5" />
+                        </Button>
+                        <Button
+                            size="icon"
+                            variant={feedEnabled ? 'default' : 'outline'}
+                            className="rounded-full p-1 size-7 ml-2"
+                            onClick={() => setFeedEnabled(!feedEnabled)}
+                        >
+                            <List className="size-3.5" />
+                        </Button>
+                    </>
                 )}
             </div>
             {children && <div className="flex items-center gap-1">{children}</div>}

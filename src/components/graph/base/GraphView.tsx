@@ -15,10 +15,11 @@ import {
   ReactFlowProps,
   useEdgesState,
   useNodesState,
+  Connection,
 } from "@xyflow/react";
 import { useTheme } from "next-themes";
 import { useCallback, useMemo, useEffect, useState } from "react";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import { collapsedPointIdsAtom, ViewpointGraph, selectedPointIdsAtom } from "@/atoms/viewpointAtoms";
 import React from "react";
 import { useParams } from "next/navigation";
@@ -39,6 +40,11 @@ import { useCleanAddNodes } from "@/hooks/graph/useCleanAddNodes";
 import { useDeepLinkShareDialog } from "@/hooks/graph/useDeepLinkShareDialog";
 import { useNotOwnerWarning } from "@/hooks/viewpoints/useNotOwnerWarning";
 import { useChunkedPrefetchPoints } from "@/hooks/graph/useChunkedPrefetchPoints";
+import { connectNodesDialogAtom } from "@/atoms/connectNodesAtom";
+import ConnectNodesDialog from "@/components/dialogs/ConnectNodesDialog";
+import { useGraphPaneHandlers } from "@/hooks/graph/useGraphPaneHandlers";
+import { useGraphCopyHandler } from "@/hooks/graph/useGraphCopyHandler";
+import { useGraphNodeDropHandler } from "@/hooks/graph/useGraphNodeDropHandler";
 
 export interface GraphViewProps
   extends Omit<ReactFlowProps<AppNode>, "onDelete"> {
@@ -92,8 +98,7 @@ export const GraphView = ({
 }: GraphViewProps) => {
   const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
   const [isDiscarding, setIsDiscarding] = useState(false);
-  const [flowInstance, setFlowInstance] =
-    useState<ReactFlowInstance<AppNode> | null>(null);
+  const [flowInstance, setFlowInstance] = useState<ReactFlowInstance<AppNode> | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [nodes, setNodes, onNodesChangeDefault] = useNodesState<AppNode>(
     props.defaultNodes || []
@@ -188,12 +193,10 @@ export const GraphView = ({
 
   const edgeTypes = useMemo(() => ({ negation: NegationEdge, statement: NegationEdge }), []);
 
-  const { defaultNodes, defaultEdges, onInit, ...otherProps } = props;
-  // With edit mode always on, we'll simplify this, can probably be refactored out completely eventually  
-  const effectiveProps = {
-    ...otherProps,
-    ...(onInit && { onInit }),
-  };
+  const { defaultNodes, defaultEdges, onInit: _unusedInit, ...otherProps } = props;
+  // With edit mode always on, we'll simplify this
+  // We intentionally don't forward props.onInit so our handleOnInit always runs
+  const effectiveProps = { ...otherProps };
 
   const getCurrentGraphData = useCallback((): ViewpointGraph => {
     // Ensure statement node is updated if needed, similar to save logic
@@ -214,29 +217,22 @@ export const GraphView = ({
     return { nodes: updatedNodes, edges: currentEdges };
   }, [nodes, edges, statement]);
 
-  const handleActualCopy = useCallback(async (graphToCopy: ViewpointGraph) => {
-    try {
-      const result = await copyViewpointAndNavigate(
-        graphToCopy,
-        statement || "",
-        description || ""
-      );
+  const handlePaneClick = useCleanAddNodes({ nodes, setNodes, setEdges });
 
-      // If there's an error, add an additional safety delay before trying to navigate
-      if (!result) {
-        console.error("Failed to copy viewpoint, forcing navigation");
-        await new Promise(resolve => setTimeout(resolve, 300));
-        const url = `/s/global/rationale/new`;
-        window.location.href = url;
-      }
+  // Extract pane and initialization handlers
+  const { handleOnInit, handleMoveStart, handleMoveEnd } = useGraphPaneHandlers({
+    defaultNodes: props.defaultNodes as AppNode[] | undefined,
+    defaultEdges: props.defaultEdges,
+    onInitProp: props.onInit,
+    flowInstance,
+    setFlowInstance,
+    setLocalGraph,
+    setIsPanning,
+  });
 
-      return result;
-    } catch (error) {
-      console.error("Error during copy operation:", error);
-      alert("There was an error copying the rationale. Please try again.");
-      return false;
-    }
-  }, [statement, description]);
+  // Copy and node-drop handlers
+  const handleActualCopy = useGraphCopyHandler(statement || "", description || "");
+  const handleNodeDragStop = useGraphNodeDropHandler(flowInstance, !!canModify);
 
   const {
     isSaving: isSavingManaged,
@@ -305,31 +301,6 @@ export const GraphView = ({
     getCurrentGraph: getCurrentGraphData,
   });
 
-  // Clean up empty add-point nodes on pane click
-  const handlePaneClick = useCleanAddNodes({ nodes, setNodes, setEdges });
-
-  // Create a combined onInit function that sets the flowInstance and supports existing onInit
-  const handleOnInit = useCallback((instance: ReactFlowInstance<AppNode>) => {
-    setFlowInstance(instance);
-
-    // Wait briefly before setting any default nodes/edges (helps with copy operations)
-    setTimeout(() => {
-      // Ensure we load the default nodes/edges here too as a fallback
-      if (props.defaultNodes && props.defaultNodes.length > 0) {
-        instance.setNodes(props.defaultNodes);
-      }
-
-      if (props.defaultEdges && props.defaultEdges.length > 0) {
-        instance.setEdges(props.defaultEdges);
-      }
-
-      // Call the original onInit if provided
-      if (props.onInit) {
-        props.onInit(instance);
-      }
-    }, 50);
-  }, [props]);
-
   const {
     isShareDialogOpen,
     setIsShareDialogOpen,
@@ -341,27 +312,10 @@ export const GraphView = ({
   // Show a persistent copy warning for non-owners if graph is modified
   useNotOwnerWarning(isModified, canModify, openCopyConfirmDialog);
 
-  // Panning callbacks
-  const handleMoveStart = useCallback(
-    (event: MouseEvent | TouchEvent | null) => {
-      setIsPanning(true);
-    },
-    []
-  );
-  const handleMoveEnd = useCallback(
-    (event: MouseEvent | TouchEvent | null) => {
-      setIsPanning(false);
-      if (flowInstance && setLocalGraph) {
-        const { viewport, ...graph } = flowInstance.toObject();
-        setLocalGraph(graph);
-      }
-    },
-    [flowInstance, setLocalGraph]
-  );
-
   return (
     <>
       <GraphCanvas
+        onNodeDragStop={handleNodeDragStop}
         onInit={handleOnInit}
         onMoveStart={handleMoveStart}
         onMoveEnd={handleMoveEnd}
@@ -409,6 +363,7 @@ export const GraphView = ({
         <GlobalExpandPointDialog />
         <MergeNodesDialog />
       </GraphCanvas>
+      <ConnectNodesDialog />
       <GraphDialogs
         isDiscardDialogOpen={isDiscardDialogOpen}
         closeDiscardDialog={closeDiscardDialog}

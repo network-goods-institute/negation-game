@@ -84,8 +84,10 @@ describe("negate", () => {
     // Mock transaction
     const insertValues = jest.fn().mockReturnThis();
     const insertReturning = jest.fn().mockResolvedValue([{ negationId: 789 }]);
+    const onConflictDoNothing = jest.fn().mockReturnThis();
     const insert = jest.fn().mockReturnValue({
       values: insertValues,
+      onConflictDoNothing,
       returning: insertReturning,
     });
 
@@ -142,12 +144,14 @@ describe("negate", () => {
     const negationReturning = jest
       .fn()
       .mockResolvedValue([{ negationId: 789 }]);
+    const negationOnConflict = jest.fn().mockReturnThis();
 
     const insert = jest
       .fn()
       .mockReturnValueOnce({ values: endorsementValues })
       .mockReturnValueOnce({
         values: negationValues,
+        onConflictDoNothing: negationOnConflict,
         returning: negationReturning,
       });
 
@@ -203,8 +207,10 @@ describe("negate", () => {
     // Mock transaction
     const insertValues = jest.fn().mockReturnThis();
     const insertReturning = jest.fn().mockResolvedValue([{ negationId: 789 }]);
+    const onConflictDoNothing = jest.fn().mockReturnThis();
     const insert = jest.fn().mockReturnValue({
       values: insertValues,
+      onConflictDoNothing,
       returning: insertReturning,
     });
 
@@ -260,8 +266,10 @@ describe("negate", () => {
     // Mock transaction
     const insertValues = jest.fn().mockReturnThis();
     const insertReturning = jest.fn().mockResolvedValue([{ negationId: 789 }]);
+    const onConflictDoNothing2 = jest.fn().mockReturnThis();
     const insert = jest.fn().mockReturnValue({
       values: insertValues,
+      onConflictDoNothing: onConflictDoNothing2,
       returning: insertReturning,
     });
 

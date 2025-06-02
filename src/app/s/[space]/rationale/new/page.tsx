@@ -39,6 +39,8 @@ import RationaleGraph from "@/components/rationale/RationaleGraph";
 import NewRationaleForm from "@/components/rationale/NewRationaleForm";
 import { useTopics } from "@/queries/topics/useTopics";
 import useIsMobile from "@/hooks/ui/useIsMobile";
+import { feedEnabledAtom } from "@/atoms/feedEnabledAtom";
+import PointsFeedContainer from "@/components/rationale/PointsFeedContainer";
 
 function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" | "rationales" | null) => void }) {
   const { updateNodeData } = useReactFlow();
@@ -64,6 +66,8 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
   const { data: topicsData } = useTopics(spaceId);
 
   const [canvasEnabled, setCanvasEnabled] = useAtom(canvasEnabledAtom);
+  const [feedEnabled] = useAtom(feedEnabledAtom);
+  const showFeed = feedEnabled;
   const isMobile = useIsMobile(640);
   const reactFlow = useReactFlow<AppNode>();
   const [graph, setGraph] = useAtom(viewpointGraphAtom);
@@ -239,46 +243,55 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
   }, [push, basePath]);
 
   return (
-    <main className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background">
-      <div className="w-full sm:col-[2] flex flex-col border-x">
-        <div className="relative flex-grow bg-background">
-          <NewRationaleHeader
-            spaceData={headerSpaceData}
-            spaceId={spaceId}
-            openConfirmDialog={openConfirmDialog}
-            isConfirmDialogOpen={isConfirmDialogOpen}
-            setIsConfirmDialogOpen={setIsConfirmDialogOpen}
-            isPending={isPending}
-            publish={handlePublish}
-            isPublishing={isPublishing}
-            canPublish={canPublish}
-            isInitialLoadDialogOpen={isInitialLoadDialogOpen}
-            isCopiedFromSessionStorage={isCopiedFromSessionStorage}
-            setIsInitialLoadDialogOpen={setIsInitialLoadDialogOpen}
-            handleDiscardWithoutNavigation={handleDiscardWithoutNavigation}
-            isDiscardingWithoutNav={isDiscardingWithoutNav}
-            clearGraphAndState={clearGraphAndState}
-            handleBackClick={handleBackClick}
-            canvasEnabled={canvasEnabled}
-            toggleCanvas={() => setCanvasEnabled(!canvasEnabled)}
-          />
-          <Separator />
-          <NewRationaleForm
-            title={statement}
-            onTitleChange={setStatement}
-            description={reasoning}
-            onDescriptionChange={setReasoning}
-            topic={topic}
-            onTopicChange={setTopic}
-            topics={topicsData || []}
-            currentSpace={spaceId}
-            points={points}
-            hoveredPointId={hoveredPointId}
-            isDescriptionEditing={isEditingDescription}
-            onDescriptionEdit={() => setIsEditingDescription(true)}
-            onDescriptionBlur={() => setIsEditingDescription(false)}
-          />
-        </div>
+    <main className={cn(
+      "relative flex-grow bg-background h-full overflow-hidden",
+      "md:grid",
+      showFeed
+        ? "md:grid-cols-[0_minmax(200px,400px)_1fr_minmax(200px,400px)]"
+        : "md:grid-cols-[0_minmax(200px,400px)_1fr]"
+    )}>
+      <div className="hidden md:block" />
+      <div className="flex flex-col h-full md:col-start-2 border-x overflow-hidden">
+        <NewRationaleHeader
+          spaceData={headerSpaceData}
+          spaceId={spaceId}
+          openConfirmDialog={openConfirmDialog}
+          isConfirmDialogOpen={isConfirmDialogOpen}
+          setIsConfirmDialogOpen={setIsConfirmDialogOpen}
+          isPending={isPending}
+          publish={handlePublish}
+          isPublishing={isPublishing}
+          canPublish={canPublish}
+          isInitialLoadDialogOpen={isInitialLoadDialogOpen}
+          isCopiedFromSessionStorage={isCopiedFromSessionStorage}
+          setIsInitialLoadDialogOpen={setIsInitialLoadDialogOpen}
+          handleDiscardWithoutNavigation={handleDiscardWithoutNavigation}
+          isDiscardingWithoutNav={isDiscardingWithoutNav}
+          clearGraphAndState={clearGraphAndState}
+          handleBackClick={handleBackClick}
+          canvasEnabled={canvasEnabled}
+          toggleCanvas={() => setCanvasEnabled(!canvasEnabled)}
+        />
+        <Separator />
+        {!showFeed || !isMobile ? (
+          <div className="flex-grow overflow-y-auto pb-10">
+            <NewRationaleForm
+              title={statement}
+              onTitleChange={setStatement}
+              description={reasoning}
+              onDescriptionChange={setReasoning}
+              topic={topic}
+              onTopicChange={setTopic}
+              topics={topicsData || []}
+              currentSpace={spaceId}
+              points={points}
+              hoveredPointId={hoveredPointId}
+              isDescriptionEditing={isEditingDescription}
+              onDescriptionEdit={() => setIsEditingDescription(true)}
+              onDescriptionBlur={() => setIsEditingDescription(false)}
+            />
+          </div>
+        ) : null}
       </div>
 
       <Dynamic>
@@ -290,8 +303,10 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
           canvasEnabled={canvasEnabled}
           className={cn(
             "!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset]  !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md:z-auto",
-            !canvasEnabled && isMobile && "hidden"
+            !canvasEnabled && isMobile && "hidden",
+            showFeed && isMobile && "hidden"
           )}
+          canModify={true}
           isNew={true}
           isSaving={isPublishing}
           hideShareButton={true}
@@ -306,6 +321,8 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
           }}
         />
       </Dynamic>
+
+      <PointsFeedContainer />
     </main>
   );
 }
