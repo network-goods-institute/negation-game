@@ -1,8 +1,13 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, MessageCircle, Shield, Zap } from "lucide-react";
+import { fetchSpace } from "@/actions/spaces/fetchSpace";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
-export default function HomePage() {
+export default async function HomePage() {
+    const globalSpace = await fetchSpace("global");
+    const scrollSpace = await fetchSpace("scroll");
+
     return (
         <div className="flex flex-col min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900">
             <header className="fixed w-full z-10 backdrop-blur-sm bg-white/75 dark:bg-slate-900/75 border-b border-slate-200 dark:border-slate-800">
@@ -55,16 +60,36 @@ export default function HomePage() {
                 <section id="spaces" className="py-20 bg-slate-100 dark:bg-slate-800">
                     <div className="max-w-7xl mx-auto px-4 text-center mb-12">
                         <h2 className="text-3xl font-bold dark:text-white">Explore Spaces</h2>
-                        <p className="mt-2 text-muted-foreground dark:text-slate-400">Choose a space to dive into tailored discussions.</p>
+                        <p className="mt-2 text-muted-foreground dark:text-slate-400">
+                            Choose a space to dive into tailored discussions.
+                        </p>
                     </div>
                     <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <Link href="/s/global" className="block p-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 hover:shadow-lg transition">
+                        <Link href="/s/global" className="p-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 hover:shadow-lg transition flex flex-col items-center text-center">
+                            <Avatar className="mb-4 h-16 w-16">
+                                {globalSpace?.icon ? (
+                                    <AvatarImage src={globalSpace.icon} alt="s/global icon" />
+                                ) : (
+                                    <AvatarFallback>G</AvatarFallback>
+                                )}
+                            </Avatar>
                             <h3 className="text-2xl font-semibold dark:text-white">Global</h3>
-                            <p className="mt-2 text-muted-foreground dark:text-slate-400">Browse community-wide conversations and topics across the platform.</p>
+                            <p className="mt-2 text-muted-foreground dark:text-slate-400">
+                                Browse community-wide conversations and topics across the platform.
+                            </p>
                         </Link>
-                        <Link href="/s/scroll" className="block p-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 hover:shadow-lg transition">
+                        <Link href="/s/scroll" className="p-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 hover:shadow-lg transition flex flex-col items-center text-center">
+                            <Avatar className="mb-4 h-16 w-16">
+                                {scrollSpace?.icon ? (
+                                    <AvatarImage src={scrollSpace.icon} alt="s/scroll icon" />
+                                ) : (
+                                    <AvatarFallback>S</AvatarFallback>
+                                )}
+                            </Avatar>
                             <h3 className="text-2xl font-semibold dark:text-white">Scroll DAO</h3>
-                            <p className="mt-2 text-muted-foreground dark:text-slate-400">Explore governance discussions and proposals within the Scroll DAO community.</p>
+                            <p className="mt-2 text-muted-foreground dark:text-slate-400">
+                                Explore governance discussions and proposals within the Scroll DAO community.
+                            </p>
                         </Link>
                     </div>
                 </section>
