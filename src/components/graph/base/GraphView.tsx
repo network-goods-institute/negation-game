@@ -15,16 +15,15 @@ import {
   ReactFlowProps,
   useEdgesState,
   useNodesState,
-  Connection,
 } from "@xyflow/react";
 import { useTheme } from "next-themes";
 import { useCallback, useMemo, useEffect, useState } from "react";
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom } from "jotai";
+import { showEndorsementsAtom } from "@/atoms/showEndorsementsAtom";
 import { collapsedPointIdsAtom, ViewpointGraph, selectedPointIdsAtom } from "@/atoms/viewpointAtoms";
 import React from "react";
 import { useParams } from "next/navigation";
 import { useViewpoint } from "@/queries/viewpoints/useViewpoint";
-import { copyViewpointAndNavigate } from "@/lib/negation-game/copyViewpoint";
 import { MergeNodesDialog } from "@/components/dialogs/MergeNodesDialog";
 import { GraphCanvas } from "@/components/graph/base/GraphCanvas";
 import { GraphControls } from "../controls/GraphControls";
@@ -96,6 +95,7 @@ export const GraphView = ({
   originalGraphData,
   ...props
 }: GraphViewProps) => {
+  const [showEndorsements] = useAtom(showEndorsementsAtom);
   const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
   const [isDiscarding, setIsDiscarding] = useState(false);
   const [flowInstance, setFlowInstance] = useState<ReactFlowInstance<AppNode> | null>(null);
@@ -183,12 +183,13 @@ export const GraphView = ({
         <PointNode
           {...pointProps}
           isSharing={isSharing || false}
+          showEndorsements={showEndorsements}
         />
       ),
       statement: StatementNode,
       addPoint: AddPointNode,
     }),
-    [isSharing]
+    [isSharing, showEndorsements]
   );
 
   const edgeTypes = useMemo(() => ({ negation: NegationEdge, statement: NegationEdge }), []);

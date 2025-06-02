@@ -46,6 +46,7 @@ import { VisitedMarker } from "@/components/cards/pointcard/VisitedMarker";
 import { PointCardHeader } from "@/components/cards/pointcard/PointCardHeader";
 import { PointCardActions } from "@/components/cards/pointcard/PointCardActions";
 import { fetchFavorHistory } from '@/actions/feed/fetchFavorHistory';
+import { usePointEndorsementBreakdown } from "../../queries/points/usePointEndorsementBreakdown";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -108,6 +109,8 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   isLoading?: boolean;
   disableVisitedMarker?: boolean;
   isSharing?: boolean;
+  /** Whether to show detailed endorsements breakdown */
+  showEndorsements?: boolean;
 }
 
 // Lazy-load the favor history chart component (default export)
@@ -152,8 +155,10 @@ export const PointCard = ({
   isLoading = false,
   disableVisitedMarker = false,
   isSharing = false,
+  showEndorsements = false,
   ...props
 }: PointCardProps) => {
+  const { data: endorsementDetails } = usePointEndorsementBreakdown(pointId, showEndorsements);
   const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
   const { mutateAsync: sellEndorsement, isPending: isSelling } = useSellEndorsement();
   const { data: opCred } = useUserEndorsement(originalPosterId, pointId);
@@ -441,7 +446,13 @@ export const PointCard = ({
           doubtPercentage={doubtPercentage}
         />
       </div>
-      {endorsedByOp && <OPBadge opCred={opCred} originalPosterId={originalPosterId} />}
+      {(endorsedByOp || (showEndorsements && endorsementDetails && endorsementDetails.length > 0)) && (
+        <OPBadge
+          opCred={endorsedByOp ? opCred : undefined}
+          originalPosterId={originalPosterId}
+          breakdown={showEndorsements ? endorsementDetails : undefined}
+        />
+      )}
       <VisitedMarker
         isSharing={isSharing}
         visited={visited}

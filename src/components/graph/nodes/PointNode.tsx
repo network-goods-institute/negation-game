@@ -34,12 +34,14 @@ export type PointNode = Node<PointNodeData, "point">;
 export interface PointNodeProps extends NodeProps {
   data: PointNodeData;
   isSharing?: boolean;
+  showEndorsements?: boolean;
 }
 
 const RawPointNode = ({
   data: { pointId, parentId, expandOnInit, isExpanding: dataIsExpanding, initialPointData },
   id,
   isSharing,
+  showEndorsements = false,
 }: PointNodeProps) => {
 
   const { expand, collapse } = useExpandCollapse(id, pointId, parentId);
@@ -484,6 +486,7 @@ const RawPointNode = ({
         originalPosterId={originalPosterId}
         graphNodeLevel={level}
         isSharing={isSharing}
+        showEndorsements={showEndorsements}
       />
       <DisconnectDialog
         open={isConfirmDialogOpen}
