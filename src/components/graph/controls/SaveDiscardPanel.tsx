@@ -5,7 +5,7 @@ import { Panel } from "@xyflow/react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { AuthenticatedActionButton } from "@/components/editor/AuthenticatedActionButton";
-import { XIcon, Undo2Icon } from "lucide-react";
+import { XIcon, Trash2Icon } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { cn } from "@/lib/utils/cn";
 
@@ -97,8 +97,8 @@ export const SaveDiscardPanel: React.FC<SaveDiscardPanelProps> = memo(({
                                     disabled={isSaving || isSavingLocal || isDiscarding}
                                     className="bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-lg px-4 py-2 flex items-center justify-center gap-2 w-[160px]"
                                 >
-                                    {isDiscarding ? <Loader className="size-4 animate-spin" /> : <Undo2Icon className="size-4" />}
-                                    <span className="text-sm font-medium">Discard</span>
+                                    {isDiscarding ? <Loader className="size-4 animate-spin" /> : <Trash2Icon className="size-4" />}
+                                    <span className="text-sm font-medium">Discard Changes</span>
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent>
