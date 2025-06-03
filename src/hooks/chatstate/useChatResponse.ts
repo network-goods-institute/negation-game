@@ -214,12 +214,27 @@ export function useChatResponse({
               linkUrl: "",
               topic: "",
             };
+          // Preprocess linkUrl: extract URL from last user message if not explicitly provided
+          let contextLinkUrl = linkUrl;
+          if (!contextLinkUrl) {
+            const lastUserMsg = messagesForApi
+              .slice()
+              .reverse()
+              .find((m) => m.role === "user");
+            if (lastUserMsg) {
+              const match = lastUserMsg.content.match(/https?:\/\/[^\s)\"]+/i);
+              if (match) {
+                contextLinkUrl = match[0];
+              }
+            }
+          }
+
           const payload = {
             messages: messagesForApi,
             context: {
               currentGraph: baseGraph,
               allPointsInSpace,
-              linkUrl,
+              linkUrl: contextLinkUrl,
               rationaleDescription,
             },
           };

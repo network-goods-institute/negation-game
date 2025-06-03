@@ -345,6 +345,11 @@ export function useAIAssistantController() {
       return;
     }
     if (chatState.generatingChats.has(currentChatId || "")) return;
+    // Auto-detect link in the user's message and set input field
+    const detectedUrlMatch = chatState.message.match(/https?:\/\/[^\s)\"]+/i);
+    if (detectedUrlMatch) {
+      setLinkUrl(detectedUrlMatch[0]);
+    }
     chatState.handleSubmit();
   };
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
