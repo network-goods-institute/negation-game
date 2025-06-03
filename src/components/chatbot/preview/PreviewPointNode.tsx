@@ -270,7 +270,7 @@ export const PreviewPointNode = ({
       <TooltipProvider>
         <div
           className={cn(
-            "relative bg-background border-2 rounded-lg p-4 min-h-28 w-64",
+            "relative z-0 hover:z-50 bg-background border-2 rounded-lg p-4 min-h-28 w-64",
             "border-muted-foreground/60 dark:border-muted-foreground/40",
             hasPositiveCred && "border-yellow-500 dark:border-yellow-500",
             "select-none",

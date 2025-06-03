@@ -2,7 +2,6 @@ import { useCallback } from "react";
 import { toast } from "sonner";
 import { generateDistillRationaleChatBotResponse } from "@/actions/ai/generateDistillRationaleChatBotResponse";
 import { generateSuggestionChatBotResponse } from "@/actions/ai/generateSuggestionChatBotResponse";
-import { generateRationaleCreationResponse } from "@/actions/ai/generateRationaleCreationResponse";
 import { generateChatName } from "@/actions/ai/generateChatName";
 import { extractSourcesFromMarkdown } from "@/lib/negation-game/chatUtils";
 import type { ChatMessage, SavedChat, ViewpointGraph } from "@/types/chat";
@@ -202,6 +201,7 @@ export function useChatResponse({
             selectedRationaleId
           );
         } else if (flowType === "create_rationale") {
+          // Delegate AI generation to our dedicated API route to avoid server-action timeouts
           const currentChat = savedChats.find((c) => c.id === chatIdToUse);
           const baseGraph = currentGraphRef.current ||
             currentChat?.graph || {
@@ -211,18 +211,40 @@ export function useChatResponse({
               linkUrl: "",
               topic: "",
             };
-          const context = {
-            currentGraph: baseGraph,
-            allPointsInSpace,
-            linkUrl,
-            rationaleDescription,
+          const payload = {
+            messages: messagesForApi,
+            context: {
+              currentGraph: baseGraph,
+              allPointsInSpace,
+              linkUrl,
+              rationaleDescription,
+            },
           };
-          const result = await generateRationaleCreationResponse(
-            messagesForApi,
-            context
-          );
-          responseStream = result.textStream;
-          const mergedNodes = result.suggestedGraph.nodes.map((aiNode) => {
+          const res = await fetch("/api/rationale/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            throw new Error(
+              `Rationale API error: ${res.status} ${res.statusText}`
+            );
+          }
+          // stream the AI text response
+          if (!res.body) {
+            throw new Error("Empty response body from Rationale API");
+          }
+          responseStream = res.body as unknown as ReadableStream<
+            string | Uint8Array | object
+          >;
+          // extract the suggested graph from response header
+          const graphHeader = res.headers.get("x-graph");
+          if (!graphHeader) {
+            throw new Error("Missing suggestedGraph in API response");
+          }
+          const apiGraph: ViewpointGraph = JSON.parse(graphHeader);
+          // merge positions and preserve existing node data
+          const mergedNodes = apiGraph.nodes.map((aiNode) => {
             const existingNode = baseGraph.nodes.find(
               (n) => n.id === aiNode.id
             );
@@ -237,9 +259,9 @@ export function useChatResponse({
           }) as ViewpointGraph["nodes"];
           suggestedGraph = {
             ...baseGraph,
-            ...result.suggestedGraph,
+            ...apiGraph,
             nodes: mergedNodes,
-            edges: result.suggestedGraph.edges,
+            edges: apiGraph.edges,
           };
         } else {
           responseStream = await generateSuggestionChatBotResponse(
@@ -258,6 +280,7 @@ export function useChatResponse({
           );
 
         const reader = responseStream.getReader();
+        const decoder = new TextDecoder();
         let firstChunkReceived = false;
         let streamTextContent = "";
         try {
@@ -277,8 +300,16 @@ export function useChatResponse({
               break;
             }
 
-            if (typeof value === "string" && value.length > 0) {
-              streamTextContent += value;
+            let chunk = "";
+            if (typeof value === "string") {
+              chunk = value;
+            } else if (value instanceof Uint8Array) {
+              chunk = decoder.decode(value, { stream: true });
+            } else if (value) {
+              chunk = String(value);
+            }
+            if (chunk) {
+              streamTextContent += chunk;
               setStreamingContents((prev) =>
                 new Map(prev).set(chatIdToUse, streamTextContent)
               );

@@ -22,7 +22,6 @@ import {
   GOOD_ENOUGH_POINT_RATING,
 } from "@/constants/config";
 import { useCredInput } from "@/hooks/ui/useCredInput";
-import { useSubmitHotkey } from "@/hooks/ui/useSubmitHotkey";
 import { cn } from "@/lib/utils/cn";
 import { useAddCounterpoint } from "@/mutations/points/useAddCounterpoint";
 import { useEndorse } from "@/mutations/endorsements/useEndorse";
@@ -394,8 +393,6 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     handleSubmit,
   ]);
 
-  useSubmitHotkey(handleSubmitOrReview, !!currentNegatedPointId && !reviewDialogOpen);
-
   const [platformKey, setPlatformKey] = useState('Alt');
 
   useEffect(() => {
@@ -403,6 +400,21 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   }, []);
 
   const isOpen = negationSuggestion !== null || negatedPointId !== undefined;
+
+  // Suppress Ctrl/Cmd+Enter submission when the dialog is open
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isOpen) return;
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [isOpen]);
 
   const [isProcessing, setIsProcessing] = useState(false);
 
