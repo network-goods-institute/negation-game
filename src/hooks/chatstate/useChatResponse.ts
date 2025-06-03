@@ -280,6 +280,7 @@ export function useChatResponse({
           );
 
         const reader = responseStream.getReader();
+        const decoder = new TextDecoder();
         let firstChunkReceived = false;
         let streamTextContent = "";
         try {
@@ -299,8 +300,16 @@ export function useChatResponse({
               break;
             }
 
-            if (typeof value === "string" && value.length > 0) {
-              streamTextContent += value;
+            let chunk = "";
+            if (typeof value === "string") {
+              chunk = value;
+            } else if (value instanceof Uint8Array) {
+              chunk = decoder.decode(value, { stream: true });
+            } else if (value) {
+              chunk = String(value);
+            }
+            if (chunk) {
+              streamTextContent += chunk;
               setStreamingContents((prev) =>
                 new Map(prev).set(chatIdToUse, streamTextContent)
               );
