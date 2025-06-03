@@ -65,7 +65,7 @@ export default async function HomePage() {
                         </p>
                     </div>
                     <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <Link href="/s/global" className="p-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 hover:shadow-lg transition flex flex-col items-center text-center">
+                        <div className="p-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 hover:shadow-lg transition flex flex-col items-center text-center">
                             <Avatar className="mb-4 h-16 w-16">
                                 {globalSpace?.icon ? (
                                     <AvatarImage src={globalSpace.icon} alt="s/global icon" />
@@ -77,8 +77,14 @@ export default async function HomePage() {
                             <p className="mt-2 text-muted-foreground dark:text-slate-400">
                                 Browse community-wide conversations and topics across the platform.
                             </p>
-                        </Link>
-                        <Link href="/s/scroll" className="p-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 hover:shadow-lg transition flex flex-col items-center text-center">
+                            <Button size="sm" className="mt-4 font-medium gap-2 text-base" asChild>
+                                <Link href="/s/global">
+                                    Go to Space
+                                    <ArrowRight className="w-4 h-4" />
+                                </Link>
+                            </Button>
+                        </div>
+                        <div className="p-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 hover:shadow-lg transition flex flex-col items-center text-center">
                             <Avatar className="mb-4 h-16 w-16">
                                 {scrollSpace?.icon ? (
                                     <AvatarImage src={scrollSpace.icon} alt="s/scroll icon" />
@@ -90,7 +96,13 @@ export default async function HomePage() {
                             <p className="mt-2 text-muted-foreground dark:text-slate-400">
                                 Explore governance discussions and proposals within the Scroll DAO community.
                             </p>
-                        </Link>
+                            <Button size="sm" className="mt-4 font-medium gap-2 text-base" asChild>
+                                <Link href="/s/scroll">
+                                    Go to Space
+                                    <ArrowRight className="w-4 h-4" />
+                                </Link>
+                            </Button>
+                        </div>
                     </div>
                 </section>
 
