@@ -21,7 +21,7 @@ export function UsernameDisplay({
     const { data, isLoading, isError } = useProfilePreviewData(userId);
 
     const triggerClasses = cn(
-        "font-medium underline-offset-2 cursor-pointer text-primary",
+        "font-medium underline-offset-2 cursor-pointer text-yellow-500",
         className
     );
 

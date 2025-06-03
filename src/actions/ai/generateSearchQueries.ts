@@ -1,6 +1,6 @@
 "use server";
 
-import { google } from "@ai-sdk/google";
+import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { z } from "zod";
 
@@ -61,7 +61,7 @@ Match the language of the input conversation.
 Output *only* a JSON object matching the required schema containing a list of these keywords. Do not add any explanation or commentary. List only single words or short acronyms.`;
 
     const { object } = await generateObject({
-      model: google("gemini-2.0-flash"),
+      model: openai("gpt-4o-mini"),
       schema: searchKeywordsSchema,
       prompt,
       mode: "json",

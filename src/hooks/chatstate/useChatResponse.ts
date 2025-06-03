@@ -120,6 +120,9 @@ export function useChatResponse({
         }
       } catch (error) {
         console.error("[generateAndSetTitle] Error generating title:", error);
+        toast.error(
+          "Failed to generate chat name. Please contact support if this persists."
+        );
         updateChat(
           chatId,
           finalMessages,
@@ -316,7 +319,9 @@ export function useChatResponse({
             }
           }
         } catch (streamError) {
-          toast.error(`Error reading AI response stream (${flowType}).`);
+          toast.error(
+            `Error reading AI response stream (${flowType}). Please contact support if this persists.`
+          );
           streamTextContent += "\n\n[Error processing stream]";
         } finally {
           reader.releaseLock();
@@ -365,7 +370,7 @@ export function useChatResponse({
         toast.error(
           error instanceof Error
             ? error.message
-            : `Failed to get ${flowType} response`
+            : `Failed to get ${flowType} response. Please contact support if this persists.`
         );
         const errorMessageContent = `I apologize, but I encountered an error processing your ${flowType} request. Please try again.`;
         const errorMessage: ChatMessage = {
@@ -391,6 +396,8 @@ export function useChatResponse({
             currentChat?.graph
           );
         }
+        console.error("[handleResponse] Error during initial AI call:", error);
+        toast.error("Failed to get AI response.");
       } finally {
         if (activeGeneratingChatRef.current === chatIdToUse) {
           activeGeneratingChatRef.current = null;

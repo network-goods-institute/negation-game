@@ -6,7 +6,7 @@ import {
   POINT_MIN_LENGTH,
 } from "@/constants/config";
 import { Point } from "@/db/tables/pointsTable";
-import { google } from "@ai-sdk/google";
+import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { withRetry } from "@/lib/utils/withRetry";
@@ -75,7 +75,7 @@ Match the input language, do not translate to English.
 
   const { object: counterpointEvaluation } = await withRetry(async () => {
     return generateObject({
-      model: google("gemini-2.0-flash"),
+      model: openai("gpt-4o-mini"),
       schema: z.object({
         rating: z
           .number()

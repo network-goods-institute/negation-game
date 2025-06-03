@@ -320,9 +320,9 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                             renderCopiedFromLink={latestViewpoint?.copiedFromId ? <CopiedFromLink sourceId={latestViewpoint.copiedFromId} /> : null}
                             renderHeader={
                                 <>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm text-muted-foreground">By</span>
-                                        <UsernameDisplay username={author} userId={createdBy} className="text-sm text-muted-foreground" />
+                                    <div className="text-sm text-muted-foreground mb-1">
+                                        By{" "}
+                                        <UsernameDisplay username={author} userId={createdBy} className="font-bold text-yellow-500" />
                                     </div>
                                     <ViewpointStatsBar
                                         views={statistics.views}

@@ -1,6 +1,11 @@
 import { getCounterpointSuggestions } from "@/actions/ai/getCounterpointSuggestions";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useQueryClient,
+  UseQueryResult,
+} from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 export const counterpointSuggestionsKey = (pointId?: number) => [
   "counterpoint-suggestions",
@@ -33,10 +38,7 @@ export const useCounterpointSuggestions = (pointId?: number) => {
   >([]);
 
   useEffect(() => {
-    if (
-      counterpointSuggestionsStream === undefined ||
-      counterpointSuggestionsStream.locked
-    )
+    if (!counterpointSuggestionsStream || counterpointSuggestionsStream.locked)
       return;
 
     setCounterpointSuggestions([]);
@@ -44,12 +46,20 @@ export const useCounterpointSuggestions = (pointId?: number) => {
 
     const consumeStream = async () => {
       const reader = counterpointSuggestionsStream.getReader();
-      while (!isCancelled) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        setCounterpointSuggestions((prev) => [...prev, value]);
+      try {
+        while (!isCancelled) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          setCounterpointSuggestions((prev) => [...prev, value]);
+        }
+      } catch (error) {
+        toast.error(
+          "Failed to stream counterpoint suggestions. Please contact support if this persists."
+        );
+        console.error("Error consuming stream:", error);
+      } finally {
+        reader.releaseLock();
       }
-      reader.releaseLock();
     };
 
     consumeStream();

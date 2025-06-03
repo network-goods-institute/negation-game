@@ -4,7 +4,7 @@ import { fetchPointNegations } from "@/actions/points/fetchPointNegations";
 import { POINT_MAX_LENGTH } from "@/constants/config";
 import { definitionsTable, pointsTable } from "@/db/schema";
 import { db } from "@/services/db";
-import { google } from "@ai-sdk/google";
+import { openai } from "@ai-sdk/openai";
 import { streamObject } from "ai";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -65,7 +65,7 @@ Focus on being clear and insightful, as if you're explaining a thoughtful counte
 
   const { elementStream } = await withRetry(async () => {
     return streamObject({
-      model: google("gemini-2.0-flash"),
+      model: openai("gpt-4o-mini"),
       output: "array",
       schema: z.string().describe("Content of the counterpoint"),
       prompt,

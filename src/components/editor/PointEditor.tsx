@@ -160,6 +160,11 @@ export const PointEditor: FC<PointEditorProps> = ({
             />
           </svg>
         </div>
+        {charactersLeft < 0 && (
+          <span className="ml-md text-destructive text-sm h-fit -mt-1">
+            Character limit exceeded
+          </span>
+        )}
       </div>
       {notEnoughCred && (
         <span className="ml-md text-destructive text-sm h-fit -mt-1">

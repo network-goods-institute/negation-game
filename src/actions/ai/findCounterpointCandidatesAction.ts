@@ -150,7 +150,7 @@ Match the input language, do not translate to English.
     finishReason,
   } = await withRetry(async () => {
     return generateObject({
-      model: google("gemini-2.0-flash"),
+      model: openai("gpt-4o-mini"),
       output: "array",
       schema: z.number().describe("id of the statement"),
       prompt,

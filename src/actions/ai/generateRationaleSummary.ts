@@ -3,7 +3,7 @@
 import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { pointsTable } from "@/db/tables/pointsTable";
 import { db } from "@/services/db";
-import { google } from "@ai-sdk/google";
+import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { inArray } from "drizzle-orm";
 import { z } from "zod";
@@ -83,7 +83,7 @@ Write the summary in clear, straightforward language that would be appropriate f
 
     const { object: result } = await withRetry(async () => {
       return generateObject({
-        model: google("gemini-2.0-flash"),
+        model: openai("gpt-4o-mini"),
         schema: z.object({
           summary: z.string().describe("A concise summary of the rationale"),
         }),

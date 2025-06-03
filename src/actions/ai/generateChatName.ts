@@ -1,6 +1,6 @@
 "use server";
 
-import { google } from "@ai-sdk/google";
+import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
 import { withRetry } from "@/lib/utils/withRetry";
 
@@ -34,7 +34,7 @@ TITLE:`;
     const { textStream } = await withRetry(async () => {
       try {
         const response = await streamText({
-          model: google("gemini-2.0-flash"),
+          model: openai("gpt-4o-mini"),
           prompt,
           maxTokens: 20,
         });

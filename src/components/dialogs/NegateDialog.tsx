@@ -110,6 +110,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     isLoading: isReviewingCounterpoint,
     isSuccess: counterpointWasReviewed,
     refetch: reviewCounterpoint,
+    error: reviewError,
   } = useQuery({
     enabled: false,
     queryKey: [
@@ -150,6 +151,13 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   });
 
   const needsReview = counterpointContent !== lastReviewedContent;
+
+  useEffect(() => {
+    if (reviewError) {
+      toast.error("Failed to review counterpoint. Please contact support if this persists.");
+      console.error("Error reviewing counterpoint:", reviewError);
+    }
+  }, [reviewError]);
 
   const canReview =
     charactersLeft >= 0 && counterpointContent.length >= POINT_MIN_LENGTH;
