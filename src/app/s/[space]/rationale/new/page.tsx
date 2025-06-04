@@ -66,7 +66,10 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
   const { data: topicsData } = useTopics(spaceId);
 
   const [canvasEnabled, setCanvasEnabled] = useAtom(canvasEnabledAtom);
-  const [feedEnabled] = useAtom(feedEnabledAtom);
+  const [feedEnabled, setFeedEnabled] = useAtom(feedEnabledAtom);
+  useEffect(() => {
+    setFeedEnabled(true);
+  }, [setFeedEnabled]);
   const showFeed = feedEnabled;
   const isMobile = useIsMobile(640);
   const reactFlow = useReactFlow<AppNode>();

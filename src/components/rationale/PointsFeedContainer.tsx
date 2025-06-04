@@ -8,7 +8,7 @@ import { useParams } from "next/navigation";
 import RationaleSpacePointsFeed from "@/components/rationale/RationaleSpacePointsFeed";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ChevronLeftIcon } from "lucide-react";
+import { ChevronLeftIcon, XIcon } from "lucide-react";
 import type { PointInSpace } from "@/actions/points/fetchAllSpacePoints";
 import { cn } from "@/lib/utils/cn";
 
@@ -49,14 +49,21 @@ const PointsFeedContainer: React.FC = () => {
     }, [reactFlow]);
 
     return showFeed ? (
-        <RationaleSpacePointsFeed
-            onPointAdd={handleAddPoint}
-            spaceSlug={spaceSlug!}
-            className={cn(
-                "!fixed inset-0 top-[var(--header-height)] !h-[calc(100vh-var(--header-height))]",
-                "md:!relative md:col-start-4 md:inset-[reset] md:top-[reset] md:!h-full md:!z-auto"
-            )}
-        />
+        <>
+            <RationaleSpacePointsFeed
+                onPointAdd={handleAddPoint}
+                spaceSlug={spaceSlug!}
+                className={cn(
+                    "!fixed inset-0 top-[var(--header-height)] !h-[calc(100vh-var(--header-height))]",
+                    "md:!relative md:col-start-4 md:inset-[reset] md:top-[reset] md:!h-full md:!z-auto"
+                )}
+            />
+            <div className="hidden md:flex absolute top-4 right-4 z-50">
+                <Button size="icon" variant="ghost" onClick={() => setFeedEnabled(false)} aria-label="Collapse feed">
+                    <XIcon className="h-4 w-4 text-muted-foreground" />
+                </Button>
+            </div>
+        </>
     ) : (
         <div className="hidden md:flex absolute top-4 right-4 z-50">
             <TooltipProvider delayDuration={200}>
@@ -68,7 +75,7 @@ const PointsFeedContainer: React.FC = () => {
                             onClick={() => setFeedEnabled(true)}
                             aria-label="Open feed"
                         >
-                            <ChevronLeftIcon className="size-4" />
+                            <ChevronLeftIcon className="h-4 w-4 text-muted-foreground" />
                         </Button>
                     </TooltipTrigger>
                     <TooltipContent side="left">Show points feed</TooltipContent>

@@ -9,8 +9,6 @@ import { Loader } from "@/components/ui/loader";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import { cn } from "@/lib/utils/cn";
 import { Button } from "@/components/ui/button";
-import { useAtom } from 'jotai';
-import { feedEnabledAtom } from '@/atoms/feedEnabledAtom';
 import Link from 'next/link';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { InfoIcon } from "lucide-react";
@@ -26,7 +24,6 @@ const RationaleSpacePointsFeed: React.FC<RationaleSpacePointsFeedProps> = ({
     onPointAdd,
     spaceSlug,
 }) => {
-    const [, setFeedEnabled] = useAtom(feedEnabledAtom);
     const { data: points, isLoading } = useQuery<PointInSpace[]>({
         queryKey: ["space-points-for-rationale"],
         queryFn: fetchAllSpacePoints,
@@ -45,11 +42,8 @@ const RationaleSpacePointsFeed: React.FC<RationaleSpacePointsFeedProps> = ({
     return (
         <div className={cn("flex flex-col h-full border-l overflow-hidden", className)}>
             {/* Desktop collapse header */}
-            <div className="sticky top-0 z-20 flex justify-end px-4 py-2 border-b bg-background">
-                <h2 className="text-lg font-semibold mr-auto">Space Points Feed</h2>
-                <Button size="icon" variant="ghost" className="hidden md:flex" onClick={() => setFeedEnabled(false)} aria-label="Collapse feed">
-                    <XIcon className="h-4 w-4 text-muted-foreground" />
-                </Button>
+            <div className="sticky top-0 z-20 flex justify-between px-4 py-2 border-b bg-background">
+                <h2 className="text-lg font-semibold">Space Points Feed</h2>
             </div>
             <div className="flex items-center px-4 py-2 border-b gap-2">
                 <TooltipProvider>

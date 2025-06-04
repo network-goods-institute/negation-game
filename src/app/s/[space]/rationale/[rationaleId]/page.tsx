@@ -83,7 +83,10 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
     const basePath = useBasePath();
     const space = useSpace();
     const [canvasEnabled, setCanvasEnabled] = useAtom(canvasEnabledAtom);
-    const [feedEnabled] = useAtom(feedEnabledAtom);
+    const [feedEnabled, setFeedEnabled] = useAtom(feedEnabledAtom);
+    useEffect(() => {
+        setFeedEnabled(false);
+    }, [setFeedEnabled]);
     const showFeed = feedEnabled;
     const isMobile = useIsMobile(640);
     const { isCopyingUrl, handleCopyUrl } = useCopyUrl();
