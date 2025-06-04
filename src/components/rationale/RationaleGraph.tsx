@@ -7,6 +7,11 @@ import type { AppNode } from '../graph/nodes/AppNode';
 import type { ViewpointGraph } from '@/atoms/viewpointAtoms';
 import type { NodeChange, EdgeChange } from '@xyflow/react';
 import { toast } from 'sonner';
+import { useGraphPoints } from '@/hooks/graph/useGraphPoints';
+import { useQuery } from '@tanstack/react-query';
+import type { PointData } from '@/queries/points/usePointData';
+import { fetchPoints } from '@/actions/points/fetchPoints';
+import { GraphSizingContext } from '@/components/graph/base/GraphSizingContext';
 
 export interface RationaleGraphProps {
     graph: ViewpointGraph;
@@ -51,6 +56,17 @@ export default function RationaleGraph({
     onResetContent,
     onModifiedChange,
 }: RationaleGraphProps) {
+    const uniquePoints = useGraphPoints();
+    const pointIds = uniquePoints.map((p) => p.pointId);
+    const { data: pointsData } = useQuery<PointData[]>({
+        queryKey: ['graph-creds', pointIds],
+        queryFn: () => fetchPoints(pointIds),
+        enabled: pointIds.length > 0,
+    });
+    const creds = pointsData?.map((p) => p.cred ?? 0) ?? [];
+    const minCred = creds.length > 0 ? Math.min(...creds) : 0;
+    const maxCred = creds.length > 0 ? Math.max(...creds) : 0;
+
     const toastIdRef = useRef<string | number | null>(null);
     useEffect(() => {
         if (toastIdRef.current) {
@@ -98,29 +114,31 @@ export default function RationaleGraph({
     );
 
     return (
-        <GraphView
-            onNodeClick={scrollHandler}
-            onInit={onInit}
-            defaultNodes={graph.nodes}
-            defaultEdges={graph.edges}
-            statement={statement}
-            description={description}
-            canModify={canModify}
-            canvasEnabled={canvasEnabled}
-            className={className}
-            isNew={isNew}
-            isSaving={isSaving}
-            isContentModified={isContentModified}
-            onSaveChanges={onSave}
-            onResetContent={onResetContent}
-            onModifiedChange={onModifiedChange}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            hideShareButton={hideShareButton}
-            isSharing={isSharing}
-            toggleSharingMode={toggleSharingMode}
-            handleGenerateAndCopyShareLink={handleGenerateAndCopyShareLink}
-            originalGraphData={originalGraphData}
-        />
+        <GraphSizingContext.Provider value={{ minCred, maxCred }}>
+            <GraphView
+                onNodeClick={scrollHandler}
+                onInit={onInit}
+                defaultNodes={graph.nodes}
+                defaultEdges={graph.edges}
+                statement={statement}
+                description={description}
+                canModify={canModify}
+                canvasEnabled={canvasEnabled}
+                className={className}
+                isNew={isNew}
+                isSaving={isSaving}
+                isContentModified={isContentModified}
+                onSaveChanges={onSave}
+                onResetContent={onResetContent}
+                onModifiedChange={onModifiedChange}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                hideShareButton={hideShareButton}
+                isSharing={isSharing}
+                toggleSharingMode={toggleSharingMode}
+                handleGenerateAndCopyShareLink={handleGenerateAndCopyShareLink}
+                originalGraphData={originalGraphData}
+            />
+        </GraphSizingContext.Provider>
     );
 } 

@@ -10,8 +10,7 @@ import { DuplicatePointNode } from "@/atoms/mergeNodesAtom";
  * Returns a callback to handle node drag end events by opening the appropriate dialog (connect or merge)
  */
 export function useGraphNodeDropHandler(
-  flowInstance: ReactFlowInstance<AppNode> | null,
-  canModify: boolean
+  flowInstance: ReactFlowInstance<AppNode> | null
 ) {
   const setConnectDialog = useSetAtom(connectNodesDialogAtom);
   const setMergeNodesDialog = useSetAtom(mergeNodesDialogAtom);
@@ -19,11 +18,11 @@ export function useGraphNodeDropHandler(
   return useCallback(
     (event: React.MouseEvent, node: AppNode) => {
       console.log("handleNodeDragStop called for node", node.id, {
-        canModify,
         hasFlow: Boolean(flowInstance),
       });
-      if (!canModify || !flowInstance) {
-        console.log("Cannot modify or missing flow instance");
+      // Require a valid React Flow instance
+      if (!flowInstance) {
+        console.log("Missing flow instance");
         return;
       }
       const moved = flowInstance.getNodes().find((n) => n.id === node.id);
@@ -32,19 +31,22 @@ export function useGraphNodeDropHandler(
         console.log("Moved node data not found");
         return;
       }
-      const threshold = 50;
-
-      // Find all overlapping nodes (excluding the dragged node itself)
-      const allOverlappedNodes = flowInstance
-        .getNodes()
-        .filter(
-          (n) =>
-            n.id !== node.id &&
-            Math.hypot(
-              n.position.x - moved.position.x,
-              n.position.y - moved.position.y
-            ) < threshold
+      // Bounding-box intersection detection (more sensitive overlap)
+      const allOverlappedNodes = flowInstance.getNodes().filter((n) => {
+        if (n.id === node.id) return false;
+        // Get bounding box for moved node
+        const aw = moved.measured?.width ?? 250;
+        const ah = moved.measured?.height ?? 160;
+        // Get bounding box for target node
+        const bw = n.measured?.width ?? 250;
+        const bh = n.measured?.height ?? 160;
+        return (
+          moved.position.x < n.position.x + bw &&
+          moved.position.x + aw > n.position.x &&
+          moved.position.y < n.position.y + bh &&
+          moved.position.y + ah > n.position.y
         );
+      });
 
       const draggedPointId = (node.data as any)?.pointId as number | undefined;
 
@@ -169,6 +171,6 @@ export function useGraphNodeDropHandler(
         });
       }
     },
-    [flowInstance, canModify, setConnectDialog, setMergeNodesDialog]
+    [flowInstance, setConnectDialog, setMergeNodesDialog]
   );
 }

@@ -2,6 +2,9 @@ import React from "react";
 import { Panel, MiniMap, Controls } from "@xyflow/react";
 import { SharePanel } from "./SharePanel";
 import { SaveDiscardPanel } from "./SaveDiscardPanel";
+import { useAtom } from 'jotai';
+import { dynamicNodeSizingAtom } from '@/atoms/graphSettingsAtom';
+import { Switch } from '@/components/ui/switch';
 
 export interface GraphControlsProps {
     isSharing?: boolean;
@@ -22,6 +25,16 @@ export interface GraphControlsProps {
     unsavedChangesModalClassName?: string;
     onClose?: () => void;
     closeButtonClassName?: string;
+}
+
+function DynamicSizingToggle() {
+    const [dynamicSizing, setDynamicSizing] = useAtom(dynamicNodeSizingAtom);
+    return (
+        <div className="self-start flex items-center space-x-2 mb-4">
+            <Switch checked={dynamicSizing} onCheckedChange={setDynamicSizing} />
+            <span className="text-sm">Dynamic node sizing</span>
+        </div>
+    );
 }
 
 export const GraphControls: React.FC<GraphControlsProps> = ({
@@ -46,6 +59,7 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
 }) => (
     <>
         <Panel position="bottom-right" className="z-10 mr-4 mb-10 flex flex-col items-end">
+            <DynamicSizingToggle />
             <SharePanel
                 isSharing={isSharing}
                 hideShareButton={hideShareButton}
