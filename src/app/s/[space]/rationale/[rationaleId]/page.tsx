@@ -114,20 +114,23 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
             initialPointData: node.data.initialPointData,
         }));
 
-    const { isCopying, isPageCopyConfirmOpen, setIsPageCopyConfirmOpen, handleCopy } = useCopyConfirm(async () => {
-        let currentGraph;
-        if (reactFlow) {
-            currentGraph = { nodes: reactFlow.getNodes(), edges: reactFlow.getEdges() };
-        } else {
-            currentGraph = localGraph!;
+    const { isCopying, isPageCopyConfirmOpen, setIsPageCopyConfirmOpen, handleCopy } = useCopyConfirm(
+        async (publishCopy: boolean = true) => {
+            let currentGraph;
+            if (reactFlow) {
+                currentGraph = { nodes: reactFlow.getNodes(), edges: reactFlow.getEdges() };
+            } else {
+                currentGraph = localGraph!;
+            }
+            await copyViewpointAndNavigate(
+                currentGraph,
+                editableTitle,
+                editableDescription,
+                viewpoint!.id,
+                publishCopy
+            );
         }
-        await copyViewpointAndNavigate(
-            currentGraph,
-            editableTitle,
-            editableDescription,
-            viewpoint!.id
-        );
-    });
+    );
 
     const spaceId = space?.data?.id!;
     const { data: topicsData } = useTopics(spaceId);
