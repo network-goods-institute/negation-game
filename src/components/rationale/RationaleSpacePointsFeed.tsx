@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { useAtom } from 'jotai';
 import { feedEnabledAtom } from '@/atoms/feedEnabledAtom';
 import Link from 'next/link';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { InfoIcon } from "lucide-react";
 
 export interface RationaleSpacePointsFeedProps {
     className?: string;
@@ -50,6 +52,19 @@ const RationaleSpacePointsFeed: React.FC<RationaleSpacePointsFeedProps> = ({
                 </Button>
             </div>
             <div className="flex items-center px-4 py-2 border-b gap-2">
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <InfoIcon className="size-5 text-muted-foreground cursor-help shrink-0" />
+                        </TooltipTrigger>
+                        <TooltipContent side="right" align="start" className="max-w-xs">
+                            Click the "+" button next to a point to add it into the graph.<br />
+                            New points will attach to the "Add Point" node when it exists, otherwise it will be dropped into the graph with no connections.<br />
+                            To create connections, drag two nodes on top of each other. Clicking connect will make the last node you touched, negate the other. <br />
+                            This will create an edge between the two nodes.
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
                 <div className="relative flex-grow">
                     <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
