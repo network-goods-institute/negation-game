@@ -186,6 +186,16 @@ export default function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Redirect top-level '/chat' to '/s/global/chat'
+  if (url.pathname === "/chat" || url.pathname.startsWith("/chat/")) {
+    const redirectUrl = new URL(`/s/global${url.pathname}`, req.url);
+    // Preserve query parameters
+    for (const [key, value] of url.searchParams.entries()) {
+      redirectUrl.searchParams.set(key, value);
+    }
+    return NextResponse.redirect(redirectUrl);
+  }
+
   // No explicit space in URL: rewrite to /s/global
   const rewriteUrl = new URL(`/s/global${url.pathname}`, req.url);
   // Preserve query parameters

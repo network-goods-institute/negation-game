@@ -230,17 +230,16 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                 <h3 className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg font-semibold -mt-1 mb-sm select-text flex-1 break-words whitespace-normal overflow-hidden">
                                     {title}
                                 </h3>
-                                {topic && (
-                                    <Badge variant="secondary" className="self-start text-xs mb-1">
-                                        {topic}
-                                    </Badge>
-                                )}
                             </div>
 
                             <div className="text-sm text-muted-foreground select-text sm:line-clamp-2 sm:mb-2 sm:h-10 sm:overflow-hidden whitespace-normal">
                                 {plainDescription}
                             </div>
-
+                            {topic && (
+                                <Badge variant="secondary" className="text-xs mb-1 mt-2 w-fit block">
+                                    {topic}
+                                </Badge>
+                            )}
                             <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
                                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                                     <ViewpointIcon className="w-3.5 h-3.5" />
@@ -276,11 +275,6 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                         <div className="flex items-start gap-2">
                             <ViewpointIcon />
                             <h3 className="text-lg font-semibold -mt-0.5 flex-1">{title}</h3>
-                            {topic && (
-                                <Badge variant="secondary" className="self-start text-xs ml-auto">
-                                    {topic}
-                                </Badge>
-                            )}
                         </div>
 
                         <div className="text-sm text-muted-foreground mb-1 flex items-center gap-1">
@@ -291,6 +285,12 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                 className="font-bold text-yellow-500 text-sm"
                             />
                         </div>
+
+                        {topic && (
+                            <Badge variant="secondary" className="text-xs mb-2 mt-1 w-fit block">
+                                {topic}
+                            </Badge>
+                        )}
 
                         <ViewpointStatsBar
                             views={statistics?.views || 0}

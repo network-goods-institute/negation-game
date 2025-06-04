@@ -300,10 +300,10 @@ const RationaleCreatorInner: React.FC<RationaleCreatorProps> = ({
                     <div className="relative w-full">
                         <Input
                             type="url"
-                            placeholder="Paste Discourse Link"
+                            placeholder="Paste sDiscourse Link"
                             value={linkUrl || ""}
                             onChange={(e) => onLinkUrlChange?.(e.target.value)}
-                            className="pr-12"
+                            className="pr-12 h-14 bg-yellow-100 dark:bg-yellow-900 border-yellow-400 border-2 focus:ring-2 focus:ring-yellow-500"
                         />
                         <Button
                             size="icon"
