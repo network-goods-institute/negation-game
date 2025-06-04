@@ -7,6 +7,7 @@ import {
   createDbChat,
   markChatAsDeleted,
 } from "@/actions/chat/chatSyncActions";
+import { setPrivyToken } from "@/lib/privy/setPrivyToken";
 import { computeChatStateHash } from "@/lib/negation-game/chatUtils";
 import { ChatListManagementProps } from "./chatListTypes";
 
@@ -155,6 +156,7 @@ export function useChatActions({
 
       (async () => {
         try {
+          await setPrivyToken();
           const actualHash = await computeChatStateHash(
             "New Chat",
             [],

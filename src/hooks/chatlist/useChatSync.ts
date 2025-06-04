@@ -7,6 +7,7 @@ import {
   ChatListManagementProps,
   ChatSyncState,
 } from "@/hooks/chatlist/chatListTypes";
+import { setPrivyToken } from "@/lib/privy/setPrivyToken";
 
 const PUSH_DEBOUNCE_MS = 2500;
 
@@ -31,6 +32,11 @@ export function useChatSync({
       if (!isAuthenticated || !currentSpace) return;
       if (!chatData || !chatData.id) {
         return;
+      }
+      try {
+        await setPrivyToken();
+      } catch (error) {
+        console.warn("Failed to refresh Privy token before chat sync:", error);
       }
 
       const chatId = chatData.id;

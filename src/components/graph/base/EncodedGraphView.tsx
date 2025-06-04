@@ -4,7 +4,6 @@
 
 import React from 'react';
 import { GlobalExpandPointDialog } from "@/components/dialogs/expandpointdialog";
-import { MergeNodesDialog } from "@/components/dialogs/MergeNodesDialog";
 
 import { AddPointNode } from "@/components/graph/nodes/AddPointNode";
 import { AppNode } from "@/components/graph/nodes/AppNode";
@@ -148,7 +147,6 @@ export const GraphView = ({
             />
             <Controls />
             <GlobalExpandPointDialog />
-            <MergeNodesDialog />
         </ReactFlow>
     );
 };

@@ -68,7 +68,8 @@ export const PreviewPointNode = ({
   }, []);
 
   useEffect(() => {
-    const fetchSingleDetail = async (pointIdToFetch: number) => {
+    const fetchSingleDetail = async (pointIdToFetch?: number | null) => {
+      if (pointIdToFetch == null) return;
       try {
         const details = await fetchPointById(pointIdToFetch);
         setExistingPointDetails(details);
@@ -77,7 +78,8 @@ export const PreviewPointNode = ({
         setExistingPointDetails(null);
       }
     };
-    const fetchDetailForMatch = async (pointIdToFetch: number) => {
+    const fetchDetailForMatch = async (pointIdToFetch?: number | null) => {
+      if (pointIdToFetch == null) return;
       try {
         const details = await fetchPointById(pointIdToFetch);
         setMatchedDetails(prev => ({ ...prev, [pointIdToFetch]: details }));
@@ -285,17 +287,6 @@ export const PreviewPointNode = ({
             isConnectable={true}
           />
 
-          <Handle
-            id={`${id}-delete-handle`}
-            type="source"
-            position={Position.Top}
-            className="pt-1 pb-0.5 px-2 translate-y-[-100%] -translate-x-1/2 size-fit bg-muted text-center border-2 border-b-0 rounded-t-full pointer-events-auto !cursor-pointer"
-            isConnectable={false}
-            onClick={handleDelete}
-          >
-            <XIcon className="size-4" />
-          </Handle>
-
           <Button
             variant="ghost"
             size="icon"
@@ -308,6 +299,20 @@ export const PreviewPointNode = ({
               <PencilIcon className="h-4 w-4" />
             )}
           </Button>
+
+          <button
+            onClick={handleDelete}
+            className={cn(
+              'absolute top-0 right-0 transform translate-x-1/2 -translate-y-1/2',
+              'w-8 h-8 bg-background border-2 border-muted-foreground rounded-full',
+              'flex items-center justify-center',
+              'pointer-events-auto z-20 cursor-pointer',
+              'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
+            )}
+            title="Delete node"
+          >
+            <XIcon className="size-4" />
+          </button>
 
           <div className="text-sm break-words">
             {isEditing ? (
@@ -346,16 +351,14 @@ export const PreviewPointNode = ({
             />
           </div>
 
+          {/* Restore the bottom source handle but make it visually minimal */}
           <Handle
             type="source"
             position={Position.Bottom}
             id={`${id}-add-handle`}
-            className="pb-1 pt-0.5 px-2 translate-y-[100%] -translate-x-1/2 size-fit bg-muted text-center border-border border-2 rounded-b-full pointer-events-auto !cursor-pointer"
-            isConnectable={false}
-            onClick={handleAddClick}
-          >
-            <ArrowDownIcon className="size-4" />
-          </Handle>
+            className="!opacity-0 !pointer-events-auto size-4 !bottom-[-8px] !left-1/2 !-translate-x-1/2 !transform !border-0 !bg-transparent"
+            isConnectable={true}
+          />
 
           <PreviewPointNodeStatusIndicators
             isDuplicateOnCanvas={isDuplicateOnCanvas}
