@@ -45,6 +45,7 @@ import ConnectNodesFrame from "@/components/graph/overlays/ConnectNodesFrame";
 import { MergeNodesFrame } from "@/components/graph/overlays/MergeNodesFrame";
 import { connectNodesDialogAtom } from "@/atoms/connectNodesAtom";
 import { mergeNodesDialogAtom } from "@/atoms/mergeNodesAtom";
+import CollapseHintOverlay from "@/components/graph/overlays/CollapseHintOverlay";
 
 export interface GraphViewProps
   extends Omit<ReactFlowProps<AppNode>, "onDelete"> {
@@ -237,7 +238,7 @@ export const GraphView = ({
 
   // Copy and node-drop handlers
   const handleActualCopy = useGraphCopyHandler(statement || "", description || "");
-  const handleNodeDragStop = useGraphNodeDropHandler(flowInstance, !!canModify);
+  const handleNodeDragStop = useGraphNodeDropHandler(flowInstance);
 
   const {
     isSaving: isSavingManaged,
@@ -395,39 +396,39 @@ export const GraphView = ({
           onClose={onClose}
           closeButtonClassName={closeButtonClassName}
         />
-
+        <CollapseHintOverlay />
         <GlobalExpandPointDialog />
+        <GraphDialogs
+          isDiscardDialogOpen={isDiscardDialogOpen}
+          closeDiscardDialog={closeDiscardDialog}
+          handleConfirmDiscard={handleConfirmDiscard}
+
+          isCopyConfirmOpen={isCopyConfirmOpen}
+          closeCopyConfirmDialog={closeCopyConfirmDialog}
+          handleConfirmCopy={handleConfirmCopy}
+
+          isSaveAsNewConfirmOpen={isSaveAsNewConfirmOpen}
+          closeSaveAsNewConfirmDialog={closeSaveAsNewConfirmDialog}
+          handleConfirmSaveAsNew={handleConfirmSaveAsNew}
+
+          isSaveConfirmDialogOpen={isSaveConfirmDialogOpen}
+          cancelSaveConfirmation={cancelSaveConfirmation}
+          executeSaveExisting={executeSaveExisting}
+          executeSaveAsNew={executeSaveAsNew}
+          saveConfirmData={saveConfirmData}
+          currentSaveAction={currentSaveAction}
+
+          isShareDialogOpen={isShareDialogOpen}
+          onShareDialogOpenChange={setIsShareDialogOpen}
+          shareDialogMode={shareDialogMode}
+          sharedPoints={sharedPoints}
+          sharedByUsername={sharedByUsername}
+          rationaleId={rationaleId}
+          spaceId={spaceId}
+        />
+        <ConnectNodesFrame />
         <MergeNodesFrame />
       </GraphCanvas>
-      <ConnectNodesFrame />
-      <GraphDialogs
-        isDiscardDialogOpen={isDiscardDialogOpen}
-        closeDiscardDialog={closeDiscardDialog}
-        handleConfirmDiscard={handleConfirmDiscard}
-
-        isCopyConfirmOpen={isCopyConfirmOpen}
-        closeCopyConfirmDialog={closeCopyConfirmDialog}
-        handleConfirmCopy={handleConfirmCopy}
-
-        isSaveAsNewConfirmOpen={isSaveAsNewConfirmOpen}
-        closeSaveAsNewConfirmDialog={closeSaveAsNewConfirmDialog}
-        handleConfirmSaveAsNew={handleConfirmSaveAsNew}
-
-        isSaveConfirmDialogOpen={isSaveConfirmDialogOpen}
-        cancelSaveConfirmation={cancelSaveConfirmation}
-        executeSaveExisting={executeSaveExisting}
-        executeSaveAsNew={executeSaveAsNew}
-        saveConfirmData={saveConfirmData}
-        currentSaveAction={currentSaveAction}
-
-        isShareDialogOpen={isShareDialogOpen}
-        onShareDialogOpenChange={setIsShareDialogOpen}
-        shareDialogMode={shareDialogMode}
-        sharedPoints={sharedPoints}
-        sharedByUsername={sharedByUsername}
-        rationaleId={rationaleId}
-        spaceId={spaceId}
-      />
     </>
   );
 };

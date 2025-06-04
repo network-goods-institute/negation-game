@@ -20,7 +20,7 @@ import { DisconnectDialog } from "@/components/dialogs/DisconnectDialog";
 import { NodeHandles } from "@/components/graph/nodes/NodeHandles";
 import { GraphNodeShell } from "@/components/graph/nodes/GraphNodeShell";
 import { calculateInitialLayout } from "@/components/utils/graph-utils";
-import { dynamicNodeSizingAtom } from '@/atoms/graphSettingsAtom';
+import { dynamicNodeSizingAtom, collapseHintAtom } from '@/atoms/graphSettingsAtom';
 import { useGraphSizing } from '@/components/graph/base/GraphSizingContext';
 
 export type PointNodeData = {
@@ -260,11 +260,15 @@ const RawPointNode = ({
 
   const collapseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isCollapsingRef = useRef(false);
+  const setCollapseHint = useSetAtom(collapseHintAtom);
+  const collapseClickPositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const handleCollapseClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
+    const node = getNode(id)!;
+    const nodeWidth = node.measured?.width ?? 0;
+    collapseClickPositionRef.current = { x: node.position.x + nodeWidth / 2, y: node.position.y };
     if (isCollapsingRef.current) {
       return;
     }
@@ -286,8 +290,10 @@ const RawPointNode = ({
     )) {
       setIsConfirmDialogOpen(true);
     } else if (parentId) {
-      // For all other cases, collapse without confirmation
       collapse().finally(() => {
+        const { x, y } = collapseClickPositionRef.current;
+        setCollapseHint({ x, y });
+        setTimeout(() => setCollapseHint(null), 3000);
         collapseTimeoutRef.current = setTimeout(() => {
           isCollapsingRef.current = false;
         }, 300);
@@ -298,10 +304,12 @@ const RawPointNode = ({
   const confirmCollapse = useCallback(async () => {
     setIsCollapsing(true);
     try {
-      await collapse();
+      collapse();
+      const { x, y } = collapseClickPositionRef.current;
+      setCollapseHint({ x, y });
+      setTimeout(() => setCollapseHint(null), 3000);
     } finally {
       setIsCollapsing(false);
-      setIsConfirmDialogOpen(false);
     }
   }, [collapse]);
 
