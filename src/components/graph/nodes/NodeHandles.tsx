@@ -1,6 +1,6 @@
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { CircleIcon, XIcon } from 'lucide-react';
+import { XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
 export interface NodeHandlesProps {
@@ -24,6 +24,7 @@ export function NodeHandles({ id, collapsedCount, onExpand, onCollapse, parentId
                     collapsedCount === 0 && 'invisible'
                 )}
                 onClick={onExpand}
+                title={collapsedCount > 0 ? `Expand ${collapsedCount} hidden negations` : 'Expand negations'}
             >
                 {collapsedCount > 0 && (
                     <span className="text-center w-full text-sm">
@@ -32,22 +33,29 @@ export function NodeHandles({ id, collapsedCount, onExpand, onCollapse, parentId
                 )}
             </Handle>
             {parentId && (
-                <Handle
-                    id={`${id}-outgoing-handle`}
-                    type="source"
-                    position={Position.Top}
-                    className={cn(
-                        'pt-1 pb-0.5 px-2 translate-y-[-100%] -translate-x-1/2 size-fit bg-muted text-center border-2 border-b-0 rounded-t-full pointer-events-auto !cursor-pointer'
-                    )}
+                <button
                     onClick={onCollapse}
-                >
-                    {parentId === 'statement' ? (
-                        <CircleIcon className="size-4" />
-                    ) : (
-                        <XIcon className="size-4" />
+                    className={cn(
+                        'absolute top-0 right-0 transform translate-x-[10px] -translate-y-1/2',
+                        'w-8 h-8 bg-background border-2 border-muted-foreground rounded-full',
+                        'flex items-center justify-center',
+                        'pointer-events-auto z-20 cursor-pointer',
+                        'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
                     )}
-                </Handle>
+                    title="Collapse node"
+                >
+                    <XIcon className="size-4" />
+                </button>
             )}
+            <Handle
+                id={`${id}-source-handle`}
+                type="source"
+                position={Position.Top}
+                className="opacity-0 pointer-events-none"
+                isConnectable={true}
+                isConnectableStart={true}
+                isConnectableEnd={true}
+            />
         </>
     );
 } 
