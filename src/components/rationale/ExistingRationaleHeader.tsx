@@ -10,6 +10,8 @@ import { ViewpointIcon } from "@/components/icons/AppIcons";
 import { useAtom } from "jotai";
 import { showEndorsementsAtom } from "@/atoms/showEndorsementsAtom";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { useState } from "react";
+import { Switch } from "@/components/ui/switch";
 
 export interface ExistingRationaleHeaderProps {
     isSharing: boolean;
@@ -19,7 +21,7 @@ export interface ExistingRationaleHeaderProps {
     handleCopyUrl: () => void;
     isPageCopyConfirmOpen: boolean;
     setIsPageCopyConfirmOpen: (open: boolean) => void;
-    handleCopy: () => void;
+    handleCopy: (publishOnCopy: boolean) => void;
     handleBackClick: () => void;
     canvasEnabled: boolean;
     toggleCanvas: () => void;
@@ -38,6 +40,7 @@ export default function ExistingRationaleHeader({
     canvasEnabled,
     toggleCanvas,
 }: ExistingRationaleHeaderProps) {
+    const [publishOnCopy, setPublishOnCopy] = useState(true);
     const [showEndorsements, setShowEndorsements] = useAtom(showEndorsementsAtom);
     return (
         <>
@@ -176,9 +179,13 @@ export default function ExistingRationaleHeader({
                             Are you sure you want to make a copy of this rationale?
                         </AlertDialogDescription>
                     </AlertDialogHeader>
+                    <div className="flex items-center space-x-2 px-6 py-4">
+                        <Switch checked={publishOnCopy} onCheckedChange={setPublishOnCopy} />
+                        <span className="text-sm">Publish after copy</span>
+                    </div>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => { setIsPageCopyConfirmOpen(false); handleCopy(); }}>
+                        <AlertDialogAction onClick={() => { setIsPageCopyConfirmOpen(false); handleCopy(publishOnCopy); }}>
                             Yes, make a copy
                         </AlertDialogAction>
                     </AlertDialogFooter>

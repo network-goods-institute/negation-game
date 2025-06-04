@@ -171,6 +171,21 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
     return id;
   };
 
+  const searchParams = useSearchParams();
+  const autoPublish = searchParams.get('autoPublish') === 'true';
+  const [autoPublishInvoked, setAutoPublishInvoked] = useState(false);
+  useEffect(() => {
+    if (
+      isCopiedFromSessionStorage &&
+      autoPublish &&
+      !autoPublishInvoked &&
+      canPublish
+    ) {
+      setAutoPublishInvoked(true);
+      handlePublish();
+    }
+  }, [isCopiedFromSessionStorage, autoPublish, autoPublishInvoked, canPublish, handlePublish]);
+
   const clearGraphAndState = useCallback(() => {
     startTransition(() => {
       // Set all atoms back to their defaults

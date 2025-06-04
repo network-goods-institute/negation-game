@@ -11,6 +11,7 @@ import {
   viewpointReasoningAtom,
   viewpointTopicAtom,
   collapsedPointIdsAtom,
+  copiedFromIdAtom,
 } from "@/atoms/viewpointAtoms";
 import { useSpace } from "@/queries/space/useSpace";
 import { useTopics } from "@/queries/topics/useTopics";
@@ -26,6 +27,7 @@ export default function usePublishRationale() {
   const [description, setReasoning] = useAtom(viewpointReasoningAtom);
   const [topic, setTopic] = useAtom(viewpointTopicAtom);
   const [, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
+  const [copiedFromId, setCopiedFromId] = useAtom(copiedFromIdAtom);
 
   const { mutateAsync, isPending } = usePublishViewpoint();
   const { push } = useRouter();
@@ -45,7 +47,6 @@ export default function usePublishRationale() {
         const found = topicsData.find((t) => t.name === topic);
         if (found) topicId = found.id;
       }
-      const copiedFromId = undefined;
       const id = await mutateAsync({
         title: statement,
         description,
@@ -59,6 +60,7 @@ export default function usePublishRationale() {
       setTopic("");
       setGraph(initialViewpointGraph);
       setCollapsedPointIds(new Set());
+      setCopiedFromId(undefined);
       if (reactFlow) {
         reactFlow.setNodes(initialViewpointGraph.nodes);
         reactFlow.setEdges(initialViewpointGraph.edges);
@@ -85,6 +87,8 @@ export default function usePublishRationale() {
     statement,
     topic,
     topicsData,
+    copiedFromId,
+    setCopiedFromId,
   ]);
 
   return {

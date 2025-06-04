@@ -232,7 +232,8 @@ export const copyViewpointAndNavigate = async (
   graphToCopy: ViewpointGraph,
   title: string = "",
   description: string = "",
-  sourceId?: string
+  sourceId?: string,
+  autoPublish: boolean = false
 ): Promise<boolean> => {
   // Before storing, log the graph for debugging
   console.log("Copying graph with nodes:", graphToCopy.nodes.length);
@@ -288,14 +289,15 @@ export const copyViewpointAndNavigate = async (
       }
     }
 
-    // Navigate to the new page under the explicit space
+    // Navigate to the new page under the explicit space, optionally auto-publishing
     const space = getSpaceFromUrl();
     if (!space) {
       console.error("Space is required to navigate after copying");
       return false;
     }
-
-    const url = `/s/${space}/rationale/new`;
+    const url = `/s/${space}/rationale/new${
+      autoPublish ? "?autoPublish=true" : ""
+    }`;
     console.log("Navigating to new rationale page:", url);
 
     // Use window.location for a full page reload
