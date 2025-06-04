@@ -39,11 +39,10 @@ import { useCleanAddNodes } from "@/hooks/graph/useCleanAddNodes";
 import { useDeepLinkShareDialog } from "@/hooks/graph/useDeepLinkShareDialog";
 import { useNotOwnerWarning } from "@/hooks/viewpoints/useNotOwnerWarning";
 import { useChunkedPrefetchPoints } from "@/hooks/graph/useChunkedPrefetchPoints";
-import { connectNodesDialogAtom } from "@/atoms/connectNodesAtom";
-import ConnectNodesDialog from "@/components/dialogs/ConnectNodesDialog";
 import { useGraphPaneHandlers } from "@/hooks/graph/useGraphPaneHandlers";
 import { useGraphCopyHandler } from "@/hooks/graph/useGraphCopyHandler";
 import { useGraphNodeDropHandler } from "@/hooks/graph/useGraphNodeDropHandler";
+import ConnectNodesFrame from "@/components/graph/overlays/ConnectNodesFrame";
 
 export interface GraphViewProps
   extends Omit<ReactFlowProps<AppNode>, "onDelete"> {
@@ -364,7 +363,7 @@ export const GraphView = ({
         <GlobalExpandPointDialog />
         <MergeNodesDialog />
       </GraphCanvas>
-      <ConnectNodesDialog />
+      <ConnectNodesFrame />
       <GraphDialogs
         isDiscardDialogOpen={isDiscardDialogOpen}
         closeDiscardDialog={closeDiscardDialog}
