@@ -24,7 +24,6 @@ import { collapsedPointIdsAtom, ViewpointGraph, selectedPointIdsAtom } from "@/a
 import React from "react";
 import { useParams } from "next/navigation";
 import { useViewpoint } from "@/queries/viewpoints/useViewpoint";
-import { MergeNodesDialog } from "@/components/dialogs/MergeNodesDialog";
 import { GraphCanvas } from "@/components/graph/base/GraphCanvas";
 import { GraphControls } from "../controls/GraphControls";
 import { useFilteredEdges } from "@/hooks/graph/useFilteredEdges";
@@ -43,6 +42,9 @@ import { useGraphPaneHandlers } from "@/hooks/graph/useGraphPaneHandlers";
 import { useGraphCopyHandler } from "@/hooks/graph/useGraphCopyHandler";
 import { useGraphNodeDropHandler } from "@/hooks/graph/useGraphNodeDropHandler";
 import ConnectNodesFrame from "@/components/graph/overlays/ConnectNodesFrame";
+import { MergeNodesFrame } from "@/components/graph/overlays/MergeNodesFrame";
+import { connectNodesDialogAtom } from "@/atoms/connectNodesAtom";
+import { mergeNodesDialogAtom } from "@/atoms/mergeNodesAtom";
 
 export interface GraphViewProps
   extends Omit<ReactFlowProps<AppNode>, "onDelete"> {
@@ -107,6 +109,9 @@ export const GraphView = ({
   );
   const { theme } = useTheme();
   const [selectedIds] = useAtom(selectedPointIdsAtom);
+
+  const [, setConnectDialogState] = useAtom(connectNodesDialogAtom);
+  const [, setMergeNodesDialogState] = useAtom(mergeNodesDialogAtom);
 
   // Track if the graph has been modified since loading or last save
   const [isModified, setIsModified] = useState(false);
@@ -273,13 +278,28 @@ export const GraphView = ({
           flowInstance.setViewport({ x: 0, y: 0, zoom: 1 });
         }
       }
+
+      setConnectDialogState({
+        isOpen: false,
+        sourceId: "",
+        targetId: "",
+        onClose: undefined,
+      });
+      setMergeNodesDialogState({
+        isOpen: false,
+        pointId: 0,
+        duplicateNodes: [],
+        onClose: undefined,
+      });
+
     } finally {
       setIsDiscarding(false);
     }
   }, [
     onResetContent,
     originalGraphData,
-    setNodes, setEdges, setLocalGraph, setCollapsedPointIds, flowInstance, setIsModified
+    setNodes, setEdges, setLocalGraph, setCollapsedPointIds, flowInstance, setIsModified,
+    setConnectDialogState, setMergeNodesDialogState
   ]);
 
   const {
@@ -312,6 +332,21 @@ export const GraphView = ({
   // Show a persistent copy warning for non-owners if graph is modified
   useNotOwnerWarning(isModified, canModify, openCopyConfirmDialog);
 
+  const handleNodeDragStart = useCallback(() => {
+    setConnectDialogState({
+      isOpen: false,
+      sourceId: "",
+      targetId: "",
+      onClose: undefined,
+    });
+    setMergeNodesDialogState({
+      isOpen: false,
+      pointId: 0,
+      duplicateNodes: [],
+      onClose: undefined,
+    });
+  }, [setConnectDialogState, setMergeNodesDialogState]);
+
   return (
     <>
       <GraphCanvas
@@ -331,6 +366,7 @@ export const GraphView = ({
         colorMode={theme as ColorMode}
         proOptions={{ hideAttribution: true }}
         onPaneClick={handlePaneClick}
+        onNodeDragStart={handleNodeDragStart}
         {...effectiveProps}
       >
         <Background
@@ -361,7 +397,7 @@ export const GraphView = ({
         />
 
         <GlobalExpandPointDialog />
-        <MergeNodesDialog />
+        <MergeNodesFrame />
       </GraphCanvas>
       <ConnectNodesFrame />
       <GraphDialogs
