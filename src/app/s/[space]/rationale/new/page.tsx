@@ -163,13 +163,13 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
     ? { id: space.data.id, icon: space.data.icon ?? undefined }
     : undefined;
   // Wrap publish to ensure a string ID is always returned
-  const handlePublish = async (): Promise<string> => {
+  const handlePublish = useCallback(async (): Promise<string> => {
     const id = await publish();
     if (id === undefined) {
       throw new Error("Publish failed: no ID returned");
     }
     return id;
-  };
+  }, [publish]);
 
   const searchParams = useSearchParams();
   const autoPublish = searchParams.get('autoPublish') === 'true';

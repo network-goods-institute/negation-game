@@ -299,7 +299,7 @@ const RawPointNode = ({
         }, 300);
       });
     }
-  }, [parentId, collapse, isNewViewpointPage, isViewpointContext, originalViewpoint, wasInOriginalGraph]);
+  }, [parentId, collapse, isNewViewpointPage, isViewpointContext, originalViewpoint, wasInOriginalGraph, setCollapseHint, getNode, id]);
 
   const confirmCollapse = useCallback(async () => {
     setIsCollapsing(true);
@@ -311,7 +311,7 @@ const RawPointNode = ({
     } finally {
       setIsCollapsing(false);
     }
-  }, [collapse]);
+  }, [collapse, setCollapseHint]);
 
   // Reset animation state after mount
   useEffect(() => {

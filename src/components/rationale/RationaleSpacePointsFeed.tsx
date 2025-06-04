@@ -58,8 +58,8 @@ const RationaleSpacePointsFeed: React.FC<RationaleSpacePointsFeedProps> = ({
                             <InfoIcon className="size-5 text-muted-foreground cursor-help shrink-0" />
                         </TooltipTrigger>
                         <TooltipContent side="right" align="start" className="max-w-xs">
-                            Click the "+" button next to a point to add it into the graph.<br />
-                            New points will attach to the "Add Point" node when it exists, otherwise it will be dropped into the graph with no connections.<br />
+                            Click the &quot;+&quot; button next to a point to add it into the graph.<br />
+                            New points will attach to the &quot;Add Point&quot; node when it exists, otherwise it will be dropped into the graph with no connections.<br />
                             To create connections, drag two nodes on top of each other. Clicking connect will make the last node you touched, negate the other. <br />
                             This will create an edge between the two nodes.
                         </TooltipContent>
