@@ -5,6 +5,7 @@ import { AppNode } from "@/components/graph/nodes/AppNode";
 import { NegationEdge } from "@/components/graph/edges/NegationEdge";
 import { PointNode } from "@/components/graph/nodes/PointNode";
 import { StatementNode } from "@/components/graph/nodes/StatementNode";
+import { CommentNode } from "@/components/graph/nodes/CommentNode";
 import { GlobalExpandPointDialog } from "@/components/dialogs/expandpointdialog";
 import {
   Background,
@@ -193,6 +194,7 @@ export const GraphView = ({
       ),
       statement: StatementNode,
       addPoint: AddPointNode,
+      comment: CommentNode,
     }),
     [isSharing, showEndorsements]
   );

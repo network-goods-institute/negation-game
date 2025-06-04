@@ -3,6 +3,7 @@
 import { useCallback, Dispatch, SetStateAction } from "react";
 import type { ReactFlowInstance, NodeChange, EdgeChange } from "@xyflow/react";
 import type { AppNode } from "@/components/graph/nodes/AppNode";
+import type { CommentNodeData } from "@/components/graph/nodes/CommentNode";
 
 export interface GraphChangeHandlersParams {
   flowInstance: ReactFlowInstance<AppNode> | null;
@@ -27,35 +28,53 @@ export function useGraphChangeHandlers({
 }: GraphChangeHandlersParams) {
   const onNodesChange = useCallback(
     (changes: NodeChange<AppNode>[]) => {
-      // Skip local sync/modified flag while dragging
       const isDragging = changes.some(
-        (change) => change.type === "position" && (change as any).dragging
+        (change) => change.type === "position" && change.dragging
       );
+
       if (!isDragging) {
-        // Detect substantive changes (add/remove/data updates)
         const hasSubstantiveChanges = changes.some((change) => {
-          if (change.type === "position") return true;
-          if (change.type === "add" || change.type === "remove") return true;
-          if ((change as any).data && (change as any).type !== "select")
-            return true;
           if (
-            (change as any).item?.data?._lastModified ||
-            (change as any).data?._lastModified
-          )
+            change.type === "add" ||
+            change.type === "remove" ||
+            change.type === "position"
+          ) {
             return true;
+          }
+
+          if (
+            "item" in change &&
+            change.item &&
+            typeof change.item === "object" &&
+            "data" in change.item &&
+            change.item.data
+          ) {
+            const nodeItem = change.item as AppNode;
+
+            if (nodeItem.type === "comment") {
+              const commentData = nodeItem.data as CommentNodeData;
+              if (commentData._lastModified) {
+                return true;
+              }
+              return true;
+            }
+          }
           return false;
         });
+
         if (hasSubstantiveChanges && !isNew) {
           setIsModified(true);
         }
-        if (flowInstance && setLocalGraph) {
+        if (flowInstance && setLocalGraph && hasSubstantiveChanges) {
           const { viewport, ...graph } = flowInstance.toObject();
           setLocalGraph(graph);
         }
       }
-      // Always propagate changes for controlled nodes state
+
       onNodesChangeDefault(changes);
-      onNodesChangeProp?.(changes);
+      if (onNodesChangeProp) {
+        onNodesChangeProp(changes);
+      }
     },
     [
       onNodesChangeDefault,
