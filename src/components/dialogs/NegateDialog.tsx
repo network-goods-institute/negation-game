@@ -541,7 +541,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                     credInput={cred}
                     setCredInput={setCred}
                     notEnoughCred={notEnoughCred}
-                    allowZero={!selectedCounterpointCandidate?.isCounterpoint}
+                    allowZero={false}
                   />
                 </div>
               ) : (

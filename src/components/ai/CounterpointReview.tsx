@@ -90,10 +90,10 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                     <div className="mb-8">
                         <div className="flex items-center gap-2 mb-3">
                             <CircleIcon className="text-primary size-5" />
-                            <h4 className="text-md font-medium">Endorse an Existing Point</h4>
+                            <h4 className="text-md font-medium">Reuse an Existing Point</h4>
                         </div>
                         <p className="text-sm text-muted-foreground mb-3">
-                            These points already exist. Endorsing them adds your cred behind their argument.
+                            Do these mean the same thing as your point? Reusing points gets you the most influence.
                         </p>
                         <div className="space-y-3">
                             {reviewResults.existingSimilarCounterpoints.map((counterpointCandidate) => (
