@@ -83,7 +83,7 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
                                 <MessageSquareIcon className="size-4" />
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent>
+                        <TooltipContent side="bottom">
                             <p>Add comment</p>
                         </TooltipContent>
                     </Tooltip>

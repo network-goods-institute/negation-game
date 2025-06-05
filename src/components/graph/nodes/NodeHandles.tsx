@@ -36,7 +36,7 @@ export function NodeHandles({ id, collapsedCount, onExpand, onCollapse, parentId
                 <button
                     onClick={onCollapse}
                     className={cn(
-                        'absolute top-0 right-0 transform translate-x-[10px] -translate-y-1/2',
+                        'absolute -top-2 -right-2 transform translate-x-[10px] -translate-y-1/2',
                         'w-8 h-8 bg-background border-2 border-muted-foreground rounded-full',
                         'flex items-center justify-center',
                         'pointer-events-auto z-20 cursor-pointer',
