@@ -79,6 +79,26 @@ const OnboardingDialog = ({ isOpen, onClose, onDismissPermanently }: OnboardingD
                         <DialogTitle>🚀 Welcome!</DialogTitle>
                         <p className="text-sm text-muted-foreground mt-1">Get started with the Negation Game</p>
                     </DialogHeader>
+                    <div className="mt-6 relative pb-[56.25%]">
+                        {!loaded[episode] && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-background">
+                                <Loader className="h-12 w-12 text-primary" />
+                            </div>
+                        )}
+                        <iframe
+                            src={srcMap[episode]}
+                            frameBorder="0"
+                            allow="autoplay; fullscreen; picture-in-picture"
+                            className="absolute top-0 left-0 w-full h-full"
+                            allowFullScreen
+                            onLoad={() => setLoaded(prev => ({ ...prev, [episode]: true }))}
+                        />
+                    </div>
+                    <div className="flex justify-center mt-4">
+                        <button className="text-sm text-primary underline" onClick={() => setShowVideo2(true)}>
+                            Watch Episode 2
+                        </button>
+                    </div>
                     <div className="grid grid-cols-2 gap-4 p-6">
                         <button
                             className="flex flex-col items-center p-4 bg-muted rounded-lg hover:bg-muted/80"
@@ -109,26 +129,6 @@ const OnboardingDialog = ({ isOpen, onClose, onDismissPermanently }: OnboardingD
                             <Keyboard className="h-6 w-6 mb-2" />
                             <span className="font-semibold">Keybinds</span>
                             <span className="text-xs text-muted-foreground text-center mt-1">Keyboard shortcuts</span>
-                        </button>
-                    </div>
-                    <div className="mt-6 relative pb-[56.25%]">
-                        {!loaded[episode] && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-background">
-                                <Loader className="h-12 w-12 text-primary" />
-                            </div>
-                        )}
-                        <iframe
-                            src={srcMap[episode]}
-                            frameBorder="0"
-                            allow="autoplay; fullscreen; picture-in-picture"
-                            className="absolute top-0 left-0 w-full h-full"
-                            allowFullScreen
-                            onLoad={() => setLoaded(prev => ({ ...prev, [episode]: true }))}
-                        />
-                    </div>
-                    <div className="flex justify-center mt-4">
-                        <button className="text-sm text-primary underline" onClick={() => setShowVideo2(true)}>
-                            Watch Episode 2
                         </button>
                     </div>
                     <DialogFooter className="flex justify-end space-x-2">
