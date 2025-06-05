@@ -561,7 +561,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
             {selectedCounterpointCandidate ? (
               <div className="items-end mt-md flex flex-col w-full xs:flex-row justify-end gap-2">
                 <Button
-                  className="min-w-28 w-full xs:w-fit"
+                  className="px-8 min-w-28 w-full xs:w-fit"
                   rightLoading={isSubmitting}
                   disabled={!canSubmit || isSubmitting}
                   onClick={handleSubmit}
@@ -578,7 +578,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
             ) : hasContentBeenReviewed ? (
               <div className="items-end mt-md flex flex-col w-full xs:flex-row justify-end gap-2">
                 <Button
-                  className="min-w-28 w-full xs:w-fit"
+                  className="px-8 min-w-28 w-full xs:w-fit"
                   rightLoading={isSubmitting}
                   disabled={!canSubmit || isSubmitting}
                   onClick={handleSubmit}
@@ -587,7 +587,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                 </Button>
                 <Button
                   variant="outline"
-                  className="min-w-28 w-full xs:w-fit"
+                  className="px-8 min-w-28 w-full xs:w-fit"
                   disabled={isReviewingCounterpoint || !canReview || isSubmitting}
                   rightLoading={postReviewAction === 'regenerate' && isReviewingCounterpoint}
                   onClick={() => {
@@ -611,7 +611,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                   <TooltipTrigger asChild>
                     <Button
                       disabled={!canReview || isReviewingCounterpoint || isSubmitting || isProcessing}
-                      className="min-w-28 w-full xs:w-fit"
+                      className="px-8 min-w-28 w-full xs:w-fit"
                       rightLoading={isSubmitting || isReviewingCounterpoint}
                       onClick={(e) => {
                         if (isProcessing || isReviewingCounterpoint || isSubmitting) {
