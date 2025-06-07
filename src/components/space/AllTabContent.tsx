@@ -1,11 +1,12 @@
 "use client";
 
-import React, { memo, useState, useMemo } from "react";
+import React, { memo, useState, useMemo, useCallback } from "react";
 import { Loader } from "@/components/ui/loader";
 import { Button } from "@/components/ui/button";
 import { PlusIcon } from "lucide-react";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
 import { FeedItem } from "@/components/space/FeedItem";
+import { useInfiniteScroll } from "@/hooks/ui/useInfiniteScroll";
 
 export interface AllTabContentProps {
     points?: any[];
@@ -46,6 +47,12 @@ export const AllTabContent = memo(({
 }: AllTabContentProps) => {
     const [visibleCount, setVisibleCount] = useState(20);
     const visibleItems = useMemo(() => combinedFeed.slice(0, visibleCount), [combinedFeed, visibleCount]);
+
+    const loadMore = useCallback(() => {
+        setVisibleCount(c => Math.min(c + 20, combinedFeed.length));
+    }, [combinedFeed.length]);
+
+    const sentinelRef = useInfiniteScroll(loadMore, [combinedFeed.length]);
 
     if (!points || !viewpoints || isLoading || viewpointsLoading) {
         return (
@@ -92,10 +99,8 @@ export const AllTabContent = memo(({
                 />
             ))}
             {visibleCount < combinedFeed.length && (
-                <div className="flex justify-center my-4">
-                    <Button variant="outline" onClick={() => setVisibleCount(c => c + 20)}>
-                        Load more
-                    </Button>
+                <div className="flex justify-center my-4" ref={sentinelRef}>
+                    <Loader className="h-6 w-6" />
                 </div>
             )}
         </>

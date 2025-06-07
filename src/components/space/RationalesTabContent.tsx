@@ -17,6 +17,7 @@ import { createTopic } from "@/actions/topics/createTopic";
 import { useTopics } from "@/queries/topics/useTopics";
 import { PointFilterSelector } from "@/components/inputs/PointFilterSelector";
 import { ViewpointCardWrapper } from "@/components/cards/ViewpointCardWrapper";
+import { useInfiniteScroll } from "@/hooks/ui/useInfiniteScroll";
 
 const MemoizedViewpointCardWrapper = memo(ViewpointCardWrapper);
 
@@ -137,6 +138,14 @@ export const RationalesTabContent = memo(({
 
     const [visibleCount, setVisibleCount] = useState(20);
     const visibleViewpoints = useMemo(() => finalFilteredViewpoints.slice(0, visibleCount), [finalFilteredViewpoints, visibleCount]);
+
+    const loadMore = useCallback(() => {
+        setVisibleCount(c => Math.min(c + 20, finalFilteredViewpoints.length));
+    }, [finalFilteredViewpoints.length]);
+
+    const sentinelRef = useInfiniteScroll(loadMore, [finalFilteredViewpoints.length]);
+
+    // Reset visibleCount when filtered viewpoints change
     useEffect(() => {
         setVisibleCount(20);
     }, [finalFilteredViewpoints]);
@@ -332,10 +341,8 @@ export const RationalesTabContent = memo(({
                         />
                     ))}
                     {visibleCount < finalFilteredViewpoints.length && (
-                        <div className="flex justify-center my-4">
-                            <Button variant="outline" onClick={() => setVisibleCount(c => c + 20)}>
-                                Load more
-                            </Button>
+                        <div className="flex justify-center my-4" ref={sentinelRef}>
+                            <Loader className="h-6 w-6" />
                         </div>
                     )}
                 </>
