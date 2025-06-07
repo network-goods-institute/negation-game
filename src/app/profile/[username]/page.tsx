@@ -110,7 +110,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     // Wrap userEndorsedPoints in useMemo to stabilize it
     const userEndorsedPoints = useMemo(() => endorsedPoints || [], [endorsedPoints]);
 
-    const userCred = profilePoints?.[0]?.cred || 0;
+    const userCred = userData?.cred || 0;
     const isOwnProfile = privyUser?.id === userData?.id;
     const rationaleCount = userViewpoints?.length || 0;
     const rationaleBadgeThresholds = [1, 5, 10, 25, 50, 100];
