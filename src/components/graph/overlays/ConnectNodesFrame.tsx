@@ -156,7 +156,7 @@ export default function ConnectNodesFrame() {
                             onClick={handleConnect}
                             disabled={isPending}
                             style={{ pointerEvents: "auto" }}
-                            className="absolute -bottom-6 -right-6 rounded-full border-4 border-purple-500 bg-background"
+                            className="absolute -bottom-6 -right-6 rounded-full border-4 border-purple-500 dark:border-purple-300 bg-background text-foreground"
                         >
                             {isPending ? "Connecting…" : "Connect"}
                         </Button>

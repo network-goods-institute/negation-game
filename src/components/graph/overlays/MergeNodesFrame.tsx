@@ -220,7 +220,7 @@ export const MergeNodesFrame = () => {
                             onClick={handleMerge}
                             disabled={isMerging}
                             style={{ pointerEvents: "auto" }}
-                            className="absolute -bottom-6 -right-6 rounded-full border-4 border-blue-500 bg-background"
+                            className="absolute -bottom-6 -right-6 rounded-full border-4 border-blue-500 dark:border-blue-300 bg-background text-foreground"
                         >
                             {isMerging ? (
                                 <>
