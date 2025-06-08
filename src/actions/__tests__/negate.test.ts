@@ -117,6 +117,7 @@ describe("negate", () => {
     expect(txMock.insert).toHaveBeenCalledWith(negationsTable);
     expect(insertValues).toHaveBeenCalledWith({
       createdBy: "user-123",
+      isObjection: false,
       newerPointId: 456,
       olderPointId: 123,
       space: "test-space",
@@ -193,6 +194,7 @@ describe("negate", () => {
     expect(txMock.insert).toHaveBeenNthCalledWith(2, negationsTable);
     expect(negationValues).toHaveBeenCalledWith({
       createdBy: "user-123",
+      isObjection: false,
       newerPointId: 456,
       olderPointId: 123,
       space: "test-space",
@@ -233,6 +235,7 @@ describe("negate", () => {
     expect(txMock.insert).toHaveBeenCalledWith(negationsTable);
     expect(insertValues).toHaveBeenCalledWith({
       createdBy: "user-123",
+      isObjection: false,
       newerPointId: 456, // The higher ID
       olderPointId: 123, // The lower ID
       space: "test-space",
@@ -292,6 +295,7 @@ describe("negate", () => {
     expect(result).toBe(789);
     expect(insertValues).toHaveBeenCalledWith({
       createdBy: "user-123",
+      isObjection: false,
       newerPointId: 456,
       olderPointId: 123,
       space: "test-space",
