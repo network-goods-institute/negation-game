@@ -21,12 +21,9 @@ export const addCounterpoint = async ({
   content,
   negatedPointId,
   cred = 0,
-  isObjection = false,
 }: Omit<InsertPoint, "createdBy"> & {
   negatedPointId: Negation["olderPointId"];
-} & Pick<InsertEndorsement, "cred"> & { isObjection?: boolean }): Promise<
-  Point["id"]
-> => {
+} & Pick<InsertEndorsement, "cred">): Promise<Point["id"]> => {
   const userId = await getUserId();
 
   if (!userId) {
@@ -63,7 +60,6 @@ export const addCounterpoint = async ({
       newerPointId: newPointId,
       createdBy: userId,
       space,
-      isObjection,
     });
 
     waitUntil(addEmbedding({ content, id: newPointId }));
@@ -75,7 +71,6 @@ export const addCounterpoint = async ({
 
 export interface NegationRelationshipResult {
   negationId: number;
-  isObjection: boolean;
 }
 
 export const fetchNegationRelationship = async (
@@ -85,7 +80,6 @@ export const fetchNegationRelationship = async (
   const [negation] = await db
     .select({
       negationId: negationsTable.id,
-      isObjection: negationsTable.isObjection,
     })
     .from(negationsTable)
     .where(

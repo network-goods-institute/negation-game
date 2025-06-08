@@ -2,6 +2,7 @@ export { definitionsTable } from "@/db/tables/definitionsTable";
 export { embeddingsTable } from "@/db/tables/embeddingsTable";
 export { endorsementsTable } from "@/db/tables/endorsementsTable";
 export { negationsTable } from "@/db/tables/negationsTable";
+export { objectionsTable } from "@/db/tables/objectionsTable";
 export { pointsTable } from "@/db/tables/pointsTable";
 export {
   restakeActionEnum,

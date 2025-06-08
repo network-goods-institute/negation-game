@@ -524,6 +524,8 @@ const RawPointNode = ({
         graphNodeLevel={level}
         isSharing={isSharing}
         showEndorsements={showEndorsements}
+        isObjection={pointData?.isObjection ?? false}
+        objectionTargetId={pointData?.objectionTargetId ?? undefined}
       />
       <DisconnectDialog
         open={isConfirmDialogOpen}

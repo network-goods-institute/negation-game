@@ -11,14 +11,12 @@ export interface NegateArgs {
   negatedPointId: Point["id"];
   counterpointId: Point["id"];
   cred?: number;
-  isObjection?: boolean;
 }
 
 export const negate = async ({
   negatedPointId,
   counterpointId,
   cred = 0,
-  isObjection = false,
 }: NegateArgs) => {
   const userId = await getUserId();
   const space = await getSpace();
@@ -54,7 +52,6 @@ export const negate = async ({
         newerPointId,
         olderPointId,
         space,
-        isObjection,
       })
       .onConflictDoNothing()
       .returning({ negationId: negationsTable.id });

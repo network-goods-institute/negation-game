@@ -91,6 +91,7 @@ import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 import { useSellEndorsement } from "@/mutations/endorsements/useSellEndorsement";
 import { AuthenticatedActionButton } from "@/components/editor/AuthenticatedActionButton";
 import { toast } from "sonner";
+import { ObjectionHeader } from '@/components/cards/pointcard/ObjectionHeader';
 
 type Point = {
     id: number;
@@ -108,6 +109,7 @@ type Point = {
     pinnedByCommandId?: number | null;
     createdBy?: string;
     isObjection?: boolean;
+    objectionTargetId?: number;
 };
 
 type PageProps = {
@@ -183,6 +185,7 @@ const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, ha
                     viewerContext={{ viewerCred: negation.viewerCred }}
                     isNegation={true}
                     isObjection={negation.isObjection}
+                    objectionTargetId={negation.objectionTargetId}
                     parentPoint={{
                         ...point,
                         id: point.pointId,
@@ -801,6 +804,11 @@ export function PointPageClient({
                             onMouseLeave={() => setHoveredPointId(undefined)}
                             className=" px-4 py-3 border-b data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
                         >
+                            {point?.isObjection && point?.objectionTargetId && (
+                                <div className="mb-2 flex justify-center">
+                                    <ObjectionHeader id={point.pointId} parentId={point.objectionTargetId} space={space} />
+                                </div>
+                            )}
                             <div className="flex items-start gap-2">
                                 <p className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg mb-sm break-words whitespace-normal min-w-0">
                                     {point?.content}

@@ -122,6 +122,8 @@ export const FeedItem = memo(({
                     linkDisabled={true}
                     disablePopover={true}
                     isLoading={loadingCardId === `point-${point.pointId}`}
+                    isObjection={point.isObjection ?? false}
+                    objectionTargetId={point.objectionTargetId ?? undefined}
                 />
             </Link>
         );
