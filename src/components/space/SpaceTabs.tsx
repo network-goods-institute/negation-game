@@ -2,8 +2,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Loader } from "@/components/ui/loader";
-import { SearchIcon, BrainCircuitIcon } from "lucide-react";
+import { SearchIcon, PlusIcon, EyeIcon } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { SearchInput } from "@/components/search/SearchInput";
 import useIsMobile from "@/hooks/ui/useIsMobile";
@@ -21,6 +20,9 @@ interface SpaceTabsProps {
     isAiLoading: boolean;
     onAiClick: () => void;
     spaceId?: string;
+    onLoginOrMakePoint: () => void;
+    onNewViewpoint: () => void;
+    onSelectNegation: () => void;
 }
 
 export function SpaceTabs({
@@ -28,15 +30,28 @@ export function SpaceTabs({
     onTabChange,
     searchQuery,
     onSearchChange,
-    isAiLoading,
-    onAiClick,
-    spaceId,
+    onLoginOrMakePoint,
+    onNewViewpoint,
+    onSelectNegation,
 }: SpaceTabsProps) {
     const isMobile = useIsMobile();
     const [filtersOpen, setFiltersOpen] = useAtom(rationalesFiltersOpenAtom);
     return (
-        <div className="flex flex-col gap-4 px-4 sm:px-lg py-3 sm:py-sm border-b">
-            <div className="flex gap-2 sm:gap-4 overflow-x-auto no-scrollbar">
+        <div className="flex flex-col gap-4 px-4 sm:px-lg py-3 sm:py-sm">
+            {!isMobile && (
+                <div className="flex justify-around items-center bg-background px-4 py-2 mb-4 sm:px-0 space-x-4">
+                    <Button onClick={onLoginOrMakePoint} variant="outline" size="default" className="flex-1 text-sm">
+                        <PlusIcon className="h-4 w-4 mr-2" /> Make a Point
+                    </Button>
+                    <Button onClick={onNewViewpoint} variant="outline" size="default" className="flex-1 text-sm">
+                        <EyeIcon className="h-4 w-4 mr-2" /> New Rationale
+                    </Button>
+                    <Button onClick={onSelectNegation} variant="outline" size="default" className="flex-1 text-sm">
+                        <PlusIcon className="h-4 w-4 mr-2" /> Make a Negation
+                    </Button>
+                </div>
+            )}
+            <div className={cn("flex gap-2 sm:gap-4 overflow-x-auto no-scrollbar", !isMobile && "border-t pt-4")}>
                 <button
                     onClick={() => onTabChange("rationales")}
                     className={cn(

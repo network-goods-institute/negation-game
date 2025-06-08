@@ -8,7 +8,6 @@ import { useFeed } from "@/queries/feed/useFeed";
 import { useSpace } from "@/queries/space/useSpace";
 import { usePrivy } from "@privy-io/react-auth";
 import { useSetAtom, useAtom } from "jotai";
-import { PlusIcon, EyeIcon } from "lucide-react";
 import { useCallback, useState, useMemo, memo, useEffect, useRef, Profiler } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useViewpoints } from "@/queries/viewpoints/useViewpoints";
@@ -21,8 +20,8 @@ import { usePrefetchPoint } from "@/queries/points/usePointData";
 import React from "react";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 import { makePointSuggestionAtom } from "@/atoms/makePointSuggestionAtom";
-import { SpaceHeader } from "@/components/space/SpaceHeader";
-import { SpaceTabs } from "@/components/space/SpaceTabs";
+import { SpacePageHeader } from "@/components/space/SpacePageHeader";
+import { SpacePageAside } from "@/components/space/SpacePageAside";
 import { PinnedPointWithHistory } from "@/components/space/PinnedPointWithHistory";
 import { FeedItem } from "@/components/space/FeedItem";
 import { AllTabContent } from "@/components/space/AllTabContent";
@@ -33,8 +32,7 @@ import { useResetLoadingOnPathChange } from "@/hooks/ui/useResetLoadingOnPathCha
 import { SelectPointForNegationDialog } from "@/components/dialogs/SelectPointForNegationDialog";
 import { makeNegationSuggestionAtom } from "@/atoms/makeNegationSuggestionAtom";
 import { selectPointForNegationOpenAtom } from "@/atoms/selectPointForNegationOpenAtom";
-import useIsMobile from "@/hooks/ui/useIsMobile";
-import { Button } from "@/components/ui/button";
+
 
 interface PageProps {
     params: { space: string };
@@ -81,14 +79,12 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
     });
 
     const { data: viewpoints, isLoading: viewpointsLoading } = useViewpoints(space.data?.id || "global");
+    const [asideTab, setAsideTab] = useState<'topics' | 'create'>('topics');
 
     const [selectedTab, setSelectedTab] = useState<Tab | null>(null);
     const [isAiAssistantLoading, setIsAiAssistantLoading] = useState(false);
     const [isSelectNegationOpen, setIsSelectNegationOpen] = useAtom(selectPointForNegationOpenAtom);
     const setMakeNegationSuggestion = useSetAtom(makeNegationSuggestionAtom);
-    const isMobile = useIsMobile();
-
-
     useEffect(() => {
         if (selectedTab === null && initialTabFromAtom) {
             setSelectedTab(initialTabFromAtom);
@@ -261,32 +257,18 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
     return (
         <main className="flex-1 grid sm:grid-cols-[minmax(200px,600px)_1fr] bg-background min-h-0">
             <div className="relative w-full flex flex-col min-h-0">
-                {/* Sticky header with toolbar, space header, and tabs */}
-                <div className="sticky top-0 z-20 bg-background">
-                    {isMobile && (
-                        <div className="flex justify-around items-center bg-background border-b px-4 py-2">
-                            <Button onClick={loginOrMakePoint} variant="default" size="sm">Make a Point</Button>
-                            <Button onClick={handleNewViewpoint} variant="secondary" size="sm">New Rationale</Button>
-                            <Button onClick={() => setIsSelectNegationOpen(true)} variant="destructive" size="sm">Make a Negation</Button>
-                        </div>
-                    )}
-                    {!isMobile && (
-                        <SpaceHeader
-                            space={space}
-                            isLoading={isAiAssistantLoading}
-                            onAiClick={handleAiAssistantClick}
-                        />
-                    )}
-                    <SpaceTabs
-                        selectedTab={selectedTab}
-                        onTabChange={handleTabChange}
-                        searchQuery={searchQuery}
-                        onSearchChange={handleSearchChange}
-                        isAiLoading={isAiAssistantLoading}
-                        onAiClick={handleAiAssistantClick}
-                        spaceId={space.data?.id ?? "global"}
-                    />
-                </div>
+                <SpacePageHeader
+                    space={space}
+                    selectedTab={selectedTab}
+                    onTabChange={handleTabChange}
+                    searchQuery={searchQuery}
+                    onSearchChange={handleSearchChange}
+                    isAiLoading={isAiAssistantLoading}
+                    onAiClick={handleAiAssistantClick}
+                    onLoginOrMakePoint={loginOrMakePoint}
+                    onNewViewpoint={handleNewViewpoint}
+                    onSelectNegation={() => setIsSelectNegationOpen(true)}
+                />
                 {/* Scrollable feed content below sticky header */}
                 <div className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 min-h-0">
                     {selectedTab === null && (
@@ -428,37 +410,14 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                     )}
                 </div>
             </div>
-            <aside className="hidden sm:flex flex-col items-center justify-center p-6 gap-8 border-l">
-                <div className="flex gap-8">
-                    <button
-                        type="button"
-                        onClick={loginOrMakePoint}
-                        className="w-72 h-72 bg-background border hover:bg-accent transition-colors rounded-lg flex flex-col items-center justify-center p-6"
-                    >
-                        <PlusIcon className="size-16 mb-4" />
-                        <span className="text-2xl font-bold">Make a Point</span>
-                        <span className="text-base text-muted-foreground text-center mt-2">Add a new discussion point</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={handleNewViewpoint}
-                        className="w-72 h-72 bg-background border hover:bg-accent transition-colors rounded-lg flex flex-col items-center justify-center p-6"
-                    >
-                        <EyeIcon className="size-16 mb-4" />
-                        <span className="text-2xl font-bold">New Rationale</span>
-                        <span className="text-base text-muted-foreground text-center mt-2">Begin a new rationale</span>
-                    </button>
-                </div>
-                <button
-                    type="button"
-                    onClick={() => setIsSelectNegationOpen(true)}
-                    className="w-72 h-72 bg-background border hover:bg-accent transition-colors rounded-lg flex flex-col items-center justify-center p-6"
-                >
-                    <PlusIcon className="size-16 mb-4" />
-                    <span className="text-2xl font-bold">Make a Negation</span>
-                    <span className="text-base text-muted-foreground text-center mt-2">Propose a new negation</span>
-                </button>
-            </aside>
+            <SpacePageAside
+                spaceId={space.data?.id ?? "global"}
+                asideTab={asideTab}
+                setAsideTab={setAsideTab}
+                loginOrMakePoint={loginOrMakePoint}
+                handleNewViewpoint={handleNewViewpoint}
+                setIsSelectNegationOpen={setIsSelectNegationOpen}
+            />
             <SelectPointForNegationDialog
                 isOpen={isSelectNegationOpen}
                 onOpenChange={setIsSelectNegationOpen}

@@ -242,8 +242,11 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                             )}
                             <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
                                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                    <ViewpointIcon className="w-3.5 h-3.5" />
-                                    <UsernameDisplay username={author} userId={authorId} className="font-bold text-yellow-500 text-xs" />
+                                    <UsernameDisplay
+                                        username={author}
+                                        userId={authorId}
+                                        className="font-bold text-yellow-500 text-xs"
+                                    />
                                 </span>
                                 <div className="flex items-center gap-2">
                                     <ViewpointStatsBar
