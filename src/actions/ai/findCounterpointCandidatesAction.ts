@@ -10,7 +10,6 @@ import {
 import { Point } from "@/db/tables/pointsTable";
 import { addFavor } from "@/db/utils/addFavor";
 import { db } from "@/services/db";
-import { google } from "@ai-sdk/google";
 import { openai } from "@ai-sdk/openai";
 import { embed, generateObject } from "ai";
 import {

@@ -29,6 +29,8 @@ export type PointNodeData = {
   expandOnInit?: boolean;
   isExpanding?: boolean;
   initialPointData?: import("@/queries/points/usePointData").PointData;
+  isObjection?: boolean;
+  objectionTargetId?: number;
 };
 
 export type PointNode = Node<PointNodeData, "point">;
@@ -68,6 +70,7 @@ const RawPointNode = ({
     addEdges,
     getNode,
     getEdges,
+    setNodes
   } = useReactFlow();
 
   const params = useParams();
@@ -165,8 +168,23 @@ const RawPointNode = ({
   useEffect(() => {
     if (fetchedPointData) {
       updateNodeInternals(id);
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.id === id) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                isObjection: fetchedPointData.isObjection,
+                objectionTargetId: fetchedPointData.objectionTargetId,
+              },
+            };
+          }
+          return node;
+        })
+      );
     }
-  }, [fetchedPointData, updateNodeInternals, id]);
+  }, [fetchedPointData, updateNodeInternals, id, setNodes]);
 
   const handleSelectPoint = useCallback((point: { pointId: number, parentId?: string | number }) => {
     const uniqueId = `${nanoid()}-${Date.now()}`;
