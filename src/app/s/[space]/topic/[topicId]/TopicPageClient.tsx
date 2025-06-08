@@ -129,12 +129,12 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                 {topicsLoading ? (
                     <div className="flex items-center justify-center py-4"><Loader className="size-8" /></div>
                 ) : (
-                    <div className="grid grid-cols-3 gap-4 justify-items-center">
+                    <div className="grid grid-cols-3 gap-8 justify-items-center">
                         {allTopics?.filter(t => t.id !== topic.id).map(t => (
                             <Link
                                 key={t.id}
                                 href={`/s/${space}/topic/${encodeId(t.id)}`}
-                                className="w-32 h-32 bg-muted rounded flex flex-col items-center justify-center p-2 text-lg font-bold text-center shadow-md border border-transparent hover:border-primary transition-all duration-200 ease-in-out hover:scale-105 group relative overflow-hidden"
+                                className="w-48 h-48 bg-muted rounded flex flex-col items-center justify-center p-2 text-xl font-bold text-center shadow-md border border-transparent hover:border-primary transition-all duration-200 ease-in-out hover:scale-105 group relative overflow-hidden"
                             >
                                 {t.name}
                                 {t.discourseUrl && (
