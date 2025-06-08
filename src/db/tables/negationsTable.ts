@@ -9,6 +9,7 @@ import {
   timestamp,
   unique,
   varchar,
+  boolean,
 } from "drizzle-orm/pg-core";
 
 export const negationsTable = pgTable(
@@ -28,6 +29,7 @@ export const negationsTable = pgTable(
     space: varchar("space").references(() => spacesTable.id, {
       onDelete: "cascade",
     }),
+    isObjection: boolean("is_objection").notNull().default(false),
   },
   (table) => ({
     olderPointFirstConstraint: check(

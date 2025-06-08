@@ -104,6 +104,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   const [recentlyCreatedNegation, setRecentlyCreatedNegation] = useAtom(recentlyCreatedNegationIdAtom);
 
   const [createdCounterpointId, setCreatedCounterpointId] = useState<number | null>(null);
+  const [isObjection, setIsObjection] = useState(false);
 
   const {
     data: reviewResults,
@@ -174,6 +175,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     setCreatedCounterpointId(null);
     setHasContentBeenReviewed(false);
     setPostReviewAction(null);
+    setIsObjection(false);
   }, [resetCred, setCounterpointContent]);
 
   const handleClose = useCallback(() => {
@@ -183,6 +185,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     setCreatedCounterpointId(null);
     setHasContentBeenReviewed(false);
     setPostReviewAction(null);
+    setIsObjection(false);
   }, [resetFormOnly, setNegationSuggestion, setNegatedPointId]);
 
   const handleExitPreview = useCallback(() => {
@@ -276,6 +279,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
         content: counterpointContent,
         cred,
         negatedPointId: negatedPoint.pointId,
+        isObjection,
       }).then(newPointId => {
         finalCounterpointId = newPointId;
         return newPointId;
@@ -300,6 +304,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
           negatedPointId: negatedPoint.pointId,
           counterpointId: candidate.id,
           cred,
+          isObjection,
         }).then(() => finalCounterpointId);
       }
     }
@@ -359,7 +364,8 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     endorse,
     negate,
     setRecentlyCreatedNegation,
-    negationSuggestion?.context
+    negationSuggestion?.context,
+    isObjection
   ]);
 
   const handleSubmitOrReview = useCallback(() => {
@@ -560,93 +566,237 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
 
             {selectedCounterpointCandidate ? (
               <div className="items-end mt-md flex flex-col w-full xs:flex-row justify-end gap-2">
-                <Button
-                  className="px-8 min-w-28 w-full xs:w-fit"
-                  rightLoading={isSubmitting}
-                  disabled={!canSubmit || isSubmitting}
-                  onClick={handleSubmit}
-                >
-                  {isSubmitting
-                    ? selectedCounterpointCandidate.isCounterpoint
-                      ? "Endorsing..."
-                      : "Negating..."
-                    : selectedCounterpointCandidate.isCounterpoint
-                      ? "Endorse"
-                      : "Endorse Negation"}
-                </Button>
+                <div className="items-center mt-md flex flex-col w-full xs:flex-row justify-between gap-2">
+                  <div className="flex gap-2" role="group" aria-label="Mode selection">
+                    {/* Counterpoint Button */}
+                    <Tooltip delayDuration={0}>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={() => setIsObjection(false)}
+                          className={cn(
+                            "px-3 py-1 rounded-md border border-input",
+                            "bg-transparent text-muted-foreground",
+                            !isObjection && "bg-gray-200 text-foreground dark:bg-gray-700 dark:text-white",
+                            !isObjection
+                              ? "hover:bg-gray-200 hover:text-foreground dark:hover:bg-gray-700 dark:hover:text-white focus-visible:bg-gray-200 focus-visible:text-foreground dark:focus-visible:bg-gray-700 dark:focus-visible:text-white"
+                              : "hover:bg-transparent hover:text-muted-foreground focus-visible:bg-transparent focus-visible:text-muted-foreground"
+                          )}
+                        >
+                          Counterpoint
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        Make a counterpoint (argue the point is false)
+                      </TooltipContent>
+                    </Tooltip>
+                    {/* Objection Button */}
+                    <Tooltip delayDuration={0}>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={() => setIsObjection(true)}
+                          className={cn(
+                            "px-3 py-1 rounded-md border border-input",
+                            "bg-transparent text-muted-foreground",
+                            isObjection && "bg-red-600 text-white",
+                            isObjection
+                              ? "hover:bg-red-600 hover:text-white focus-visible:bg-red-600 focus-visible:text-white"
+                              : "hover:bg-transparent hover:text-muted-foreground focus-visible:bg-transparent focus-visible:text-muted-foreground"
+                          )}
+                        >
+                          Objection
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        Make an objection (argue the point is irrelevant)
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <div className="flex gap-2 ml-auto">
+                    <Button
+                      className="px-8 min-w-28 w-full xs:w-fit"
+                      rightLoading={isSubmitting}
+                      disabled={!canSubmit || isSubmitting}
+                      onClick={handleSubmit}
+                    >
+                      {isSubmitting
+                        ? selectedCounterpointCandidate.isCounterpoint
+                          ? "Endorsing..."
+                          : "Negating..."
+                        : selectedCounterpointCandidate.isCounterpoint
+                          ? "Endorse"
+                          : "Endorse Negation"}
+                    </Button>
+                  </div>
+                </div>
               </div>
             ) : hasContentBeenReviewed ? (
               <div className="items-end mt-md flex flex-col w-full xs:flex-row justify-end gap-2">
-                <Button
-                  className="px-8 min-w-28 w-full xs:w-fit"
-                  rightLoading={isSubmitting}
-                  disabled={!canSubmit || isSubmitting}
-                  onClick={handleSubmit}
-                >
-                  {isSubmitting ? "Submitting..." : "Submit"}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="px-8 min-w-28 w-full xs:w-fit"
-                  disabled={isReviewingCounterpoint || !canReview || isSubmitting}
-                  rightLoading={postReviewAction === 'regenerate' && isReviewingCounterpoint}
-                  onClick={() => {
-                    if (postReviewAction === 'regenerate') {
-                      reviewCounterpoint();
-                    } else {
-                      setReviewDialogOpen(true);
-                    }
-                  }}
-                >
-                  {postReviewAction === 'regenerate'
-                    ? isReviewingCounterpoint
-                      ? "Reviewing..."
-                      : "Review Again"
-                    : "Review suggestions"}
-                </Button>
+                <div className="items-center mt-md flex flex-col w-full xs:flex-row justify-between gap-2">
+                  <div className="flex gap-2" role="group" aria-label="Mode selection">
+                    {/* Counterpoint Button */}
+                    <Tooltip delayDuration={0}>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={() => setIsObjection(false)}
+                          className={cn(
+                            "px-3 py-1 rounded-md border border-input",
+                            "bg-transparent text-muted-foreground",
+                            !isObjection && "bg-gray-200 text-foreground dark:bg-gray-700 dark:text-white",
+                            !isObjection
+                              ? "hover:bg-gray-200 hover:text-foreground dark:hover:bg-gray-700 dark:hover:text-white focus-visible:bg-gray-200 focus-visible:text-foreground dark:focus-visible:bg-gray-700 dark:focus-visible:text-white"
+                              : "hover:bg-transparent hover:text-muted-foreground focus-visible:bg-transparent focus-visible:text-muted-foreground"
+                          )}
+                        >
+                          Counterpoint
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        Make a counterpoint (argue the point is false)
+                      </TooltipContent>
+                    </Tooltip>
+                    {/* Objection Button */}
+                    <Tooltip delayDuration={0}>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={() => setIsObjection(true)}
+                          className={cn(
+                            "px-3 py-1 rounded-md border border-input",
+                            "bg-transparent text-muted-foreground",
+                            isObjection && "bg-red-600 text-white",
+                            isObjection
+                              ? "hover:bg-red-600 hover:text-white focus-visible:bg-red-600 focus-visible:text-white"
+                              : "hover:bg-transparent hover:text-muted-foreground focus-visible:bg-transparent focus-visible:text-muted-foreground"
+                          )}
+                        >
+                          Objection
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        Make an objection (argue the point is irrelevant)
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <div className="flex gap-2 ml-auto">
+                    <Button
+                      className="px-8 min-w-28 w-full xs:w-fit"
+                      rightLoading={isSubmitting}
+                      disabled={!canSubmit || isSubmitting}
+                      onClick={handleSubmit}
+                    >
+                      {isSubmitting ? "Submitting..." : "Submit"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="px-8 min-w-28 w-full xs:w-fit"
+                      disabled={isReviewingCounterpoint || !canReview || isSubmitting}
+                      rightLoading={postReviewAction === 'regenerate' && isReviewingCounterpoint}
+                      onClick={() => {
+                        if (postReviewAction === 'regenerate') {
+                          reviewCounterpoint();
+                        } else {
+                          setReviewDialogOpen(true);
+                        }
+                      }}
+                    >
+                      {postReviewAction === 'regenerate'
+                        ? isReviewingCounterpoint
+                          ? "Reviewing..."
+                          : "Review Again"
+                        : "Review suggestions"}
+                    </Button>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="flex items-center gap-2 mt-md self-end">
-                <Tooltip delayDuration={0}>
-                  <TooltipTrigger asChild>
-                    <Button
-                      disabled={!canReview || isReviewingCounterpoint || isSubmitting || isProcessing}
-                      className="px-8 min-w-28 w-full xs:w-fit"
-                      rightLoading={isSubmitting || isReviewingCounterpoint}
-                      onClick={(e) => {
-                        if (isProcessing || isReviewingCounterpoint || isSubmitting) {
-                          console.log('NegateDialog: click ignored—already processing');
-                          return;
-                        }
-                        console.log('NegateDialog: Review & Negate button clicked', {
-                          altKey: e.altKey,
-                          canReview,
-                          isReviewingCounterpoint,
-                          isSubmitting,
-                          isProcessing
-                        });
-                        if (e.altKey) {
-                          console.log('NegateDialog: Alt key pressed, skipping review, calling handleSubmit');
-                          setIsSubmitting(true);
-                          handleSubmit();
-                          return;
-                        }
-                        console.log('NegateDialog: Calling reviewCounterpoint via button click');
-                        setIsProcessing(true);
-                        reviewCounterpoint().finally(() => setIsProcessing(false));
-                      }}
-                    >
-                      {isSubmitting
-                        ? "Submitting..."
-                        : isReviewingCounterpoint
-                          ? "Reviewing..."
-                          : "Review & Negate"}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="text-xs">
-                    Hold {platformKey} and click to skip review
-                  </TooltipContent>
-                </Tooltip>
+                <div className="flex items-center gap-2 mt-md justify-between self-end w-full xs:flex-row">
+                  <div className="flex gap-2" role="group" aria-label="Mode selection">
+                    {/* Counterpoint Button */}
+                    <Tooltip delayDuration={0}>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={() => setIsObjection(false)}
+                          className={cn(
+                            "px-3 py-1 rounded-md border border-input",
+                            "bg-transparent text-muted-foreground",
+                            !isObjection && "bg-gray-200 text-foreground dark:bg-gray-700 dark:text-white",
+                            !isObjection
+                              ? "hover:bg-gray-200 hover:text-foreground dark:hover:bg-gray-700 dark:hover:text-white focus-visible:bg-gray-200 focus-visible:text-foreground dark:focus-visible:bg-gray-700 dark:focus-visible:text-white"
+                              : "hover:bg-transparent hover:text-muted-foreground focus-visible:bg-transparent focus-visible:text-muted-foreground"
+                          )}
+                        >
+                          Counterpoint
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        Make a counterpoint (argue the point is false)
+                      </TooltipContent>
+                    </Tooltip>
+                    {/* Objection Button */}
+                    <Tooltip delayDuration={0}>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={() => setIsObjection(true)}
+                          className={cn(
+                            "px-3 py-1 rounded-md border border-input",
+                            "bg-transparent text-muted-foreground",
+                            isObjection && "bg-red-600 text-white",
+                            isObjection
+                              ? "hover:bg-red-600 hover:text-white focus-visible:bg-red-600 focus-visible:text-white"
+                              : "hover:bg-transparent hover:text-muted-foreground focus-visible:bg-transparent focus-visible:text-muted-foreground"
+                          )}
+                        >
+                          Objection
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        Make an objection (argue the point is irrelevant)
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <div className="flex gap-2 ml-auto">
+                    <Tooltip delayDuration={0}>
+                      <TooltipTrigger asChild>
+                        <Button
+                          disabled={!canReview || isReviewingCounterpoint || isSubmitting || isProcessing}
+                          className="px-8 min-w-28 w-full xs:w-fit"
+                          rightLoading={isSubmitting || isReviewingCounterpoint}
+                          onClick={(e) => {
+                            if (isProcessing || isReviewingCounterpoint || isSubmitting) {
+                              console.log('NegateDialog: click ignored—already processing');
+                              return;
+                            }
+                            console.log('NegateDialog: Review & Negate button clicked', {
+                              altKey: e.altKey,
+                              canReview,
+                              isReviewingCounterpoint,
+                              isSubmitting,
+                              isProcessing
+                            });
+                            if (e.altKey) {
+                              console.log('NegateDialog: Alt key pressed, skipping review, calling handleSubmit');
+                              setIsSubmitting(true);
+                              handleSubmit();
+                              return;
+                            }
+                            console.log('NegateDialog: Calling reviewCounterpoint via button click');
+                            setIsProcessing(true);
+                            reviewCounterpoint().finally(() => setIsProcessing(false));
+                          }}
+                        >
+                          {isSubmitting
+                            ? "Submitting..."
+                            : isReviewingCounterpoint
+                              ? "Reviewing..."
+                              : "Review & Negate"}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">
+                        Hold {platformKey} and click to skip review
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                </div>
               </div>
             )}
           </>

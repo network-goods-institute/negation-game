@@ -111,6 +111,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   isSharing?: boolean;
   /** Whether to show detailed endorsements breakdown */
   showEndorsements?: boolean;
+  isObjection?: boolean;
 }
 
 // Lazy-load the favor history chart component (default export)
@@ -156,6 +157,7 @@ export const PointCard = ({
   disableVisitedMarker = false,
   isSharing = false,
   showEndorsements = false,
+  isObjection,
   ...props
 }: PointCardProps) => {
   const { data: endorsementDetails } = usePointEndorsementBreakdown(pointId, showEndorsements);
@@ -444,6 +446,7 @@ export const PointCard = ({
           doubtAmount={doubt?.amount}
           doubtIsUserDoubt={doubt?.isUserDoubt}
           doubtPercentage={doubtPercentage}
+          isObjection={isObjection}
         />
       </div>
       {(endorsedByOp || (showEndorsements && endorsementDetails && endorsementDetails.length > 0)) && (

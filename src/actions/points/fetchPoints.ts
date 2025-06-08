@@ -140,6 +140,11 @@ export const fetchPoints = async (ids: number[]) => {
             },
           }
         : {}),
+      isObjection: sql<boolean>`EXISTS (
+        SELECT 1 FROM ${negationsTable}
+        WHERE ${negationsTable.newerPointId} = ${pointsWithDetailsView.pointId}
+        AND ${negationsTable.isObjection} = TRUE
+      )`.mapWith(Boolean),
     })
     .from(pointsWithDetailsView)
     .leftJoin(

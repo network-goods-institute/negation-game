@@ -32,6 +32,7 @@ export interface PointCardActionsProps {
     currentSpace?: string;
     isInPointPage: boolean;
     isNegation: boolean;
+    isObjection?: boolean;
     parentCred?: number;
     showRestakeAmount: boolean;
     restakeIsOwner?: boolean;
@@ -65,6 +66,7 @@ export const PointCardActions: React.FC<PointCardActionsProps> = ({
     currentSpace,
     isInPointPage,
     isNegation,
+    isObjection,
     parentCred,
     showRestakeAmount,
     restakeIsOwner,

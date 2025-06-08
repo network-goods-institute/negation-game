@@ -41,6 +41,7 @@ export type NegationResult = {
   totalRestakeAmount: number;
   isPinned: boolean;
   isCommand: boolean;
+  isObjection: boolean;
   pinnedByCommandId: number | null;
 };
 

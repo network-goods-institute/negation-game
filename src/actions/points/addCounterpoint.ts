@@ -15,15 +15,18 @@ import { Negation } from "@/db/tables/negationsTable";
 import { InsertPoint, Point } from "@/db/tables/pointsTable";
 import { db } from "@/services/db";
 import { waitUntil } from "@vercel/functions";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and, or } from "drizzle-orm";
 
 export const addCounterpoint = async ({
   content,
   negatedPointId,
   cred = 0,
+  isObjection = false,
 }: Omit<InsertPoint, "createdBy"> & {
   negatedPointId: Negation["olderPointId"];
-} & Pick<InsertEndorsement, "cred">): Promise<Point["id"]> => {
+} & Pick<InsertEndorsement, "cred"> & { isObjection?: boolean }): Promise<
+  Point["id"]
+> => {
   const userId = await getUserId();
 
   if (!userId) {
@@ -59,6 +62,8 @@ export const addCounterpoint = async ({
       olderPointId: negatedPointId,
       newerPointId: newPointId,
       createdBy: userId,
+      space,
+      isObjection,
     });
 
     waitUntil(addEmbedding({ content, id: newPointId }));
@@ -66,4 +71,35 @@ export const addCounterpoint = async ({
 
     return newPointId;
   });
+};
+
+export interface NegationRelationshipResult {
+  negationId: number;
+  isObjection: boolean;
+}
+
+export const fetchNegationRelationship = async (
+  point1Id: number,
+  point2Id: number
+): Promise<NegationRelationshipResult | null> => {
+  const [negation] = await db
+    .select({
+      negationId: negationsTable.id,
+      isObjection: negationsTable.isObjection,
+    })
+    .from(negationsTable)
+    .where(
+      or(
+        and(
+          eq(negationsTable.olderPointId, point1Id),
+          eq(negationsTable.newerPointId, point2Id)
+        ),
+        and(
+          eq(negationsTable.olderPointId, point2Id),
+          eq(negationsTable.newerPointId, point1Id)
+        )
+      )
+    );
+
+  return negation || null;
 };

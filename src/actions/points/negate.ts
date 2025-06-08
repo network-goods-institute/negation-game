@@ -11,12 +11,14 @@ export interface NegateArgs {
   negatedPointId: Point["id"];
   counterpointId: Point["id"];
   cred?: number;
+  isObjection?: boolean;
 }
 
 export const negate = async ({
   negatedPointId,
   counterpointId,
   cred = 0,
+  isObjection = false,
 }: NegateArgs) => {
   const userId = await getUserId();
   const space = await getSpace();
@@ -47,7 +49,13 @@ export const negate = async ({
 
     const insertResult = await tx
       .insert(negationsTable)
-      .values({ createdBy: userId, newerPointId, olderPointId, space })
+      .values({
+        createdBy: userId,
+        newerPointId,
+        olderPointId,
+        space,
+        isObjection,
+      })
       .onConflictDoNothing()
       .returning({ negationId: negationsTable.id });
     if (insertResult.length > 0) {

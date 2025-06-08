@@ -107,6 +107,7 @@ type Point = {
     isPinned?: boolean;
     pinnedByCommandId?: number | null;
     createdBy?: string;
+    isObjection?: boolean;
 };
 
 type PageProps = {
@@ -181,6 +182,7 @@ const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, ha
                     cred={negation.cred}
                     viewerContext={{ viewerCred: negation.viewerCred }}
                     isNegation={true}
+                    isObjection={negation.isObjection}
                     parentPoint={{
                         ...point,
                         id: point.pointId,
