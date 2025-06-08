@@ -7,6 +7,7 @@ import { Loader } from "@/components/ui/loader";
 import Link from "next/link";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import { useTopics } from "@/queries/topics/useTopics";
+import { PlusIcon, EyeIcon } from "lucide-react";
 
 interface SpacePageAsideProps {
     spaceId: string;
@@ -60,15 +61,36 @@ export function SpacePageAside({
                 </TabsContent>
                 <TabsContent value="create" className="mt-20 space-y-16">
                     <div className="flex gap-8 justify-center">
-                        <Button onClick={loginOrMakePoint} variant="outline" className="w-72 h-72" size="default">
-                            Make a Point
+                        <Button
+                            onClick={loginOrMakePoint}
+                            variant="outline"
+                            className="w-72 h-72 flex flex-col items-center justify-center rounded-none"
+                            size="default"
+                        >
+                            <PlusIcon className="w-16 h-16 text-muted-foreground mb-4" />
+                            <span className="text-2xl font-bold">Make a Point</span>
+                            <span className="text-base text-muted-foreground text-center mt-2">Add a new discussion point</span>
                         </Button>
-                        <Button onClick={handleNewViewpoint} variant="outline" className="w-72 h-72" size="default">
-                            New Rationale
+                        <Button
+                            onClick={handleNewViewpoint}
+                            variant="outline"
+                            className="w-72 h-72 flex flex-col items-center justify-center rounded-none"
+                            size="default"
+                        >
+                            <EyeIcon className="w-16 h-16 text-muted-foreground mb-4" />
+                            <span className="text-2xl font-bold">New Rationale</span>
+                            <span className="text-base text-muted-foreground text-center mt-2">Begin a new rationale</span>
                         </Button>
                     </div>
-                    <Button onClick={() => setIsSelectNegationOpen(true)} variant="outline" className="mx-auto w-72 h-72" size="default">
-                        Make a Negation
+                    <Button
+                        onClick={() => setIsSelectNegationOpen(true)}
+                        variant="outline"
+                        className="mx-auto w-72 h-72 flex flex-col items-center justify-center rounded-none"
+                        size="default"
+                    >
+                        <PlusIcon className="w-16 h-16 text-muted-foreground mb-4" />
+                        <span className="text-2xl font-bold">Make a Negation</span>
+                        <span className="text-base text-muted-foreground text-center mt-2">Propose a new negation</span>
                     </Button>
                 </TabsContent>
             </Tabs>
