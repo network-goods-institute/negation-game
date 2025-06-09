@@ -1,14 +1,17 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { ViewpointCardWrapper } from "@/components/cards/ViewpointCardWrapper";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowLeftIcon, Search, ChevronDownIcon, ChevronUpIcon, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTopics } from "@/queries/topics/useTopics";
 import Link from "next/link";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import { Loader } from "@/components/ui/loader";
+import { TopicCard } from "@/components/topic/TopicCard";
+import useIsMobile from "@/hooks/ui/useIsMobile";
 
 
 interface Topic {
@@ -53,8 +56,23 @@ interface TopicPageClientProps {
 
 export default function TopicPageClient({ topic, viewpoints, space }: TopicPageClientProps) {
     const router = useRouter();
+    const isMobile = useIsMobile();
     const [sortKey, setSortKey] = useState<SortKey>("recent");
     const [sortDirection, setSortDirection] = useState<'desc' | 'asc'>("desc");
+    const [topicsOpen, setTopicsOpen] = useState(false);
+    const [topicSearch, setTopicSearch] = useState("");
+
+    useEffect(() => {
+        const handleCloseTopics = () => {
+            setTopicsOpen(false);
+        };
+
+        window.addEventListener('closeTopics', handleCloseTopics);
+        return () => {
+            window.removeEventListener('closeTopics', handleCloseTopics);
+        };
+    }, []);
+
     const sorted = useMemo(() => {
         const arr = [...viewpoints].sort(sortFunctions[sortKey]);
         return sortDirection === 'desc' ? arr : arr.reverse();
@@ -62,99 +80,228 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
 
     const { data: allTopics, isLoading: topicsLoading } = useTopics(space);
 
+    const filteredTopics = useMemo(() => {
+        if (!allTopics) return [];
+        const otherTopics = allTopics.filter(t => t.id !== topic.id);
+        if (!topicSearch.trim()) return otherTopics;
+        return otherTopics.filter(t =>
+            t.name.toLowerCase().includes(topicSearch.toLowerCase())
+        );
+    }, [allTopics, topic.id, topicSearch]);
+
     return (
-        <div className="flex-1 grid sm:grid-cols-[minmax(0,600px)_1fr] bg-background min-h-0">
-            <div className="relative w-full flex flex-col min-h-0 px-4 py-4 overflow-y-auto">
-                {/* Back button */}
-                <div className="mb-4">
-                    <button onClick={() => router.back()} className="flex items-center text-base text-primary hover:underline">
-                        <ArrowLeftIcon className="h-5 w-5 mr-1" /> Back
-                    </button>
-                </div>
-                <h1 className="text-2xl font-bold mb-4">Topic: {topic.name}</h1>
-                {topic.discourseUrl && (
-                    <a
-                        href={topic.discourseUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-500 hover:underline text-sm mb-4 block"
-                    >
-                        {topic.discourseUrl.replace(/^(https?:\/\/)?(www\.)?/i, '')}
-                    </a>
-                )}
-                <div className="flex items-center mb-6 gap-4">
-                    <span className="font-medium">Sort by:</span>
-                    <Select defaultValue="recent" onValueChange={(value) => setSortKey(value as SortKey)}>
-                        <SelectTrigger className="w-40">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="recent">Recent</SelectItem>
-                            <SelectItem value="author">Author</SelectItem>
-                            <SelectItem value="cred">Cred</SelectItem>
-                            <SelectItem value="favor">Favor</SelectItem>
-                            <SelectItem value="views">Views</SelectItem>
-                            <SelectItem value="copies">Copies</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Button variant="outline" size="sm" className="ml-2" onClick={() => setSortDirection(d => d === 'desc' ? 'asc' : 'desc')}>
-                        {sortDirection === 'desc' ? 'Desc' : 'Asc'}
-                    </Button>
-                </div>
-                {/* Global Graph View */}
-                <div className="mb-6">
-                    <div className="border rounded-lg p-6 text-center">
-                        <h2 className="text-lg font-semibold mb-2">Global Graph View</h2>
-                        <p className="text-muted-foreground text-sm mb-4">
-                            View all {viewpoints.length} rationales from this topic in an interactive graph
-                        </p>
-                        <Link href={`/s/${space}/topic/${encodeId(topic.id)}/graph`}>
-                            <Button variant="default" size="lg" className="w-full sm:w-auto">
-                                Open Global Graph
-                            </Button>
+        <div className="flex-1 flex flex-col bg-background min-h-0">
+            {/* Mobile Header with Topics Toggle */}
+            {isMobile && (
+                <div className="flex items-center justify-between p-4 border-b bg-background">
+                    <div className="flex items-center gap-2">
+                        <Link href={`/s/${space}`}>
+                            <button className="flex items-center text-base text-primary hover:underline">
+                                <ArrowLeftIcon className="h-5 w-5 mr-1" /> Back
+                            </button>
                         </Link>
                     </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setTopicsOpen(!topicsOpen)}
+                        className="flex items-center whitespace-nowrap"
+                    >
+                        <span>Topics</span>
+                        {topicsOpen ? <ChevronUpIcon className="h-4 w-4 ml-1" /> : <ChevronDownIcon className="h-4 w-4 ml-1" />}
+                    </Button>
                 </div>
-                <div className="flex flex-col space-y-4">
-                    {sorted.map((vp) => (
-                        <ViewpointCardWrapper
-                            key={vp.id}
-                            id={vp.id}
-                            title={vp.title}
-                            description={vp.description}
-                            authorId={vp.authorId}
-                            author={vp.authorUsername}
-                            createdAt={new Date(vp.createdAt)}
-                            space={space}
-                            statistics={vp.statistics}
-                            topic={topic.name}
-                        />
-                    ))}
-                </div>
-            </div>
-            <aside className="hidden sm:flex flex-col p-6 gap-4 border-l overflow-y-auto">
-                <h2 className="text-xl font-bold mb-4">Other Topics</h2>
-                {topicsLoading ? (
-                    <div className="flex items-center justify-center py-4"><Loader className="size-8" /></div>
-                ) : (
-                    <div className="grid grid-cols-3 gap-8 justify-items-center">
-                        {allTopics?.filter(t => t.id !== topic.id).map(t => (
-                            <Link
-                                key={t.id}
-                                href={`/s/${space}/topic/${encodeId(t.id)}`}
-                                className="w-48 h-48 bg-muted rounded flex flex-col items-center justify-center p-2 text-xl font-bold text-center shadow-md border border-transparent hover:border-primary transition-all duration-200 ease-in-out hover:scale-105 group relative overflow-hidden"
-                            >
-                                {t.name}
-                                {t.discourseUrl && (
-                                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-2 text-white text-xs break-words text-left">
-                                        <span className="truncate">{t.discourseUrl.replace(/^(https?:\/\/)?(www\.)?/i, '')}</span>
-                                    </div>
-                                )}
+            )}
+
+            <div className="flex-1 grid sm:grid-cols-[minmax(0,1550px)_280px] bg-background min-h-0 overflow-hidden">
+                {/* Main Content */}
+                <div className="relative w-full flex flex-col min-h-0 px-4 py-4 overflow-y-auto">
+                    {/* Desktop Back button */}
+                    {!isMobile && (
+                        <div className="mb-4">
+                            <Link href={`/s/${space}`}>
+                                <button className="flex items-center text-base text-primary hover:underline">
+                                    <ArrowLeftIcon className="h-5 w-5 mr-1" /> Back
+                                </button>
                             </Link>
+                        </div>
+                    )}
+
+                    <h1 className="text-2xl font-bold mb-4">Topic: {topic.name}</h1>
+                    {topic.discourseUrl && (
+                        <a
+                            href={topic.discourseUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-500 hover:underline text-sm mb-4 block"
+                        >
+                            {topic.discourseUrl.replace(/^(https?:\/\/)?(www\.)?/i, '')}
+                        </a>
+                    )}
+
+                    <div className="flex items-center mb-6 gap-4">
+                        <span className="font-medium">Sort by:</span>
+                        <Select defaultValue="recent" onValueChange={(value) => setSortKey(value as SortKey)}>
+                            <SelectTrigger className="w-40">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="recent">Recent</SelectItem>
+                                <SelectItem value="author">Author</SelectItem>
+                                <SelectItem value="cred">Cred</SelectItem>
+                                <SelectItem value="favor">Favor</SelectItem>
+                                <SelectItem value="views">Views</SelectItem>
+                                <SelectItem value="copies">Copies</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Button variant="outline" size="sm" className="ml-2" onClick={() => setSortDirection(d => d === 'desc' ? 'asc' : 'desc')}>
+                            {sortDirection === 'desc' ? 'Desc' : 'Asc'}
+                        </Button>
+                    </div>
+
+                    {/* Global Graph View */}
+                    <div className="mb-6">
+                        <div className="border rounded-lg p-6 text-center">
+                            <h2 className="text-lg font-semibold mb-2">Global Graph View</h2>
+                            <p className="text-muted-foreground text-sm mb-4">
+                                View all {viewpoints.length} rationales from this topic in an interactive graph
+                            </p>
+                            <Link href={`/s/${space}/topic/${encodeId(topic.id)}/graph`}>
+                                <Button variant="default" size="lg" className="w-full sm:w-auto">
+                                    Open Global Graph
+                                </Button>
+                            </Link>
+                        </div>
+                    </div>
+
+                    {/* Viewpoints List */}
+                    <div className="flex flex-col space-y-4">
+                        {sorted.map((vp) => (
+                            <ViewpointCardWrapper
+                                key={vp.id}
+                                id={vp.id}
+                                title={vp.title}
+                                description={vp.description}
+                                authorId={vp.authorId}
+                                author={vp.authorUsername}
+                                createdAt={new Date(vp.createdAt)}
+                                space={space}
+                                statistics={vp.statistics}
+                                topic={topic.name}
+                            />
                         ))}
                     </div>
+                </div>
+
+                {/* Desktop Sidebar */}
+                {!isMobile && (
+                    <aside className="hidden sm:flex flex-col p-4 gap-4 border-l overflow-y-auto bg-muted/20">
+                        <div className="space-y-4">
+                            <h2 className="text-lg font-semibold">Other Topics</h2>
+
+                            {/* Topic Search */}
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search topics..."
+                                    value={topicSearch}
+                                    onChange={(e) => setTopicSearch(e.target.value)}
+                                    className="pl-10"
+                                />
+                            </div>
+
+                            {topicsLoading ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <Loader className="size-6" />
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {filteredTopics.length > 0 ? (
+                                        filteredTopics.map(t => (
+                                            <TopicCard
+                                                key={t.id}
+                                                topic={t}
+                                                spaceId={space}
+                                                size="sm"
+                                                className="w-full"
+                                            />
+                                        ))
+                                    ) : (
+                                        <div className="text-center py-4 text-muted-foreground">
+                                            <p className="text-sm">
+                                                {topicSearch.trim() ? 'No topics found' : 'No other topics'}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </aside>
                 )}
-            </aside>
+            </div>
+
+            {/* Mobile Topics Overlay */}
+            {isMobile && topicsOpen && (
+                <div className="fixed inset-0 z-50 bg-background animate-in slide-in-from-right duration-300">
+                    <div className="flex flex-col h-full">
+                        {/* Header with close button */}
+                        <div className="flex items-center justify-between p-4 border-b">
+                            <h2 className="text-lg font-semibold text-foreground">Other Topics</h2>
+                            <button
+                                onClick={() => {
+                                    window.dispatchEvent(new CustomEvent('closeTopics'));
+                                }}
+                                className="p-2 hover:bg-accent rounded-md"
+                                aria-label="Close topics"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 overflow-y-auto p-4">
+                            <div className="space-y-4">
+                                {/* Topic Search */}
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search topics..."
+                                        value={topicSearch}
+                                        onChange={(e) => setTopicSearch(e.target.value)}
+                                        className="pl-10"
+                                    />
+                                </div>
+
+                                {topicsLoading ? (
+                                    <div className="flex items-center justify-center py-8">
+                                        <Loader className="size-8" />
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {filteredTopics.length > 0 ? (
+                                            filteredTopics.map(t => (
+                                                <TopicCard
+                                                    key={t.id}
+                                                    topic={t}
+                                                    spaceId={space}
+                                                    size="md"
+                                                    className="w-full"
+                                                />
+                                            ))
+                                        ) : (
+                                            <div className="text-center py-8 text-muted-foreground">
+                                                <p className="text-sm">
+                                                    {topicSearch.trim() ? 'No topics found' : 'No other topics'}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 } 

@@ -79,12 +79,19 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
     });
 
     const { data: viewpoints, isLoading: viewpointsLoading } = useViewpoints(space.data?.id || "global");
-    const [asideTab, setAsideTab] = useState<'topics' | 'create'>('topics');
 
     const [selectedTab, setSelectedTab] = useState<Tab | null>(null);
     const [isAiAssistantLoading, setIsAiAssistantLoading] = useState(false);
+    const [isNewRationaleLoading, setIsNewRationaleLoading] = useState(false);
     const [isSelectNegationOpen, setIsSelectNegationOpen] = useAtom(selectPointForNegationOpenAtom);
     const setMakeNegationSuggestion = useSetAtom(makeNegationSuggestionAtom);
+
+    // Filter states
+    const [selectedPointIds, setSelectedPointIds] = useState<number[]>([]);
+    const [matchType, setMatchType] = useState<"any" | "all">("any");
+    const [topicFilters, setTopicFilters] = useState<string[]>([]);
+    const [filtersOpen, setFiltersOpen] = useState(false);
+    const [topicsOpen, setTopicsOpen] = useState(false);
     useEffect(() => {
         if (selectedTab === null && initialTabFromAtom) {
             setSelectedTab(initialTabFromAtom);
@@ -93,6 +100,18 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
             setSelectedTab("rationales");
         }
     }, [initialTabFromAtom, selectedTab, setInitialTabAtom]);
+
+    // Handle close topics event from mobile overlay
+    useEffect(() => {
+        const handleCloseTopics = () => {
+            setTopicsOpen(false);
+        };
+
+        window.addEventListener('closeTopics', handleCloseTopics);
+        return () => {
+            window.removeEventListener('closeTopics', handleCloseTopics);
+        };
+    }, []);
 
     const { searchQuery, searchResults, isLoading: searchLoading, handleSearch, isActive, hasSearched } = useSearch();
     const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
@@ -103,6 +122,7 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
 
     useResetLoadingOnPathChange(pathname, () => {
         setLoadingCardId(null);
+        setIsNewRationaleLoading(false);
     });
 
     useEffect(() => {
@@ -142,6 +162,7 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
     const handleNewViewpoint = () => {
         if (privyUser) {
             setIsNavigating(true);
+            setIsNewRationaleLoading(true);
             router.push(`${basePath}/rationale/new`);
         } else {
             login();
@@ -244,6 +265,23 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
         router.push(`${basePath}/chat`);
     };
 
+
+    const handlePointSelect = useCallback((pointId: number) => {
+        setSelectedPointIds(prev => [...prev, pointId]);
+    }, []);
+
+    const handlePointDeselect = useCallback((pointId: number) => {
+        setSelectedPointIds(prev => prev.filter(id => id !== pointId));
+    }, []);
+
+    const handleClearAll = useCallback(() => {
+        setSelectedPointIds([]);
+    }, []);
+
+    const handleMatchTypeChange = useCallback((type: "any" | "all") => {
+        setMatchType(type);
+    }, []);
+
     if (selectedTab === null) {
         return (
             <main className="flex-1 grid sm:grid-cols-[minmax(200px,600px)_1fr] overflow-auto bg-background min-h-0">
@@ -255,8 +293,8 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
     }
 
     return (
-        <main className="flex-1 grid sm:grid-cols-[minmax(200px,600px)_1fr] bg-background min-h-0">
-            <div className="relative w-full flex flex-col min-h-0">
+        <main className="flex-1 grid sm:grid-cols-[minmax(200px,600px)_1fr] bg-background min-h-0 overflow-hidden">
+            <div className="relative w-full flex flex-col min-h-0 overflow-hidden">
                 <SpacePageHeader
                     space={space}
                     selectedTab={selectedTab}
@@ -267,10 +305,15 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                     onAiClick={handleAiAssistantClick}
                     onLoginOrMakePoint={loginOrMakePoint}
                     onNewViewpoint={handleNewViewpoint}
+                    isNewRationaleLoading={isNewRationaleLoading}
                     onSelectNegation={() => setIsSelectNegationOpen(true)}
+                    filtersOpen={filtersOpen}
+                    onFiltersToggle={() => setFiltersOpen(!filtersOpen)}
+                    topicsOpen={topicsOpen}
+                    onTopicsToggle={() => setTopicsOpen(!topicsOpen)}
                 />
                 {/* Scrollable feed content below sticky header */}
-                <div className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 min-h-0">
+                <div className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 min-h-0 min-w-0">
                     {selectedTab === null && (
                         <div className="col-span-full flex items-center justify-center h-full">
                             <Loader className="size-8" />
@@ -376,6 +419,15 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                             handleCardClick={handleCardClick}
                             loadingCardId={loadingCardId}
                             onPrefetchPoint={prefetchPoint}
+                            selectedPointIds={selectedPointIds}
+                            matchType={matchType}
+                            topicFilters={topicFilters}
+                            filtersOpen={filtersOpen}
+                            onPointSelect={handlePointSelect}
+                            onPointDeselect={handlePointDeselect}
+                            onClearAll={handleClearAll}
+                            onMatchTypeChange={handleMatchTypeChange}
+                            onTopicFiltersChange={setTopicFilters}
                         />
                     ) : selectedTab === "points" ? (
                         <Profiler id="PointsTabContent" onRender={(id, phase, actualDuration) => {
@@ -403,20 +455,30 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                             viewpointsLoading={viewpointsLoading}
                             space={space.data?.id ?? "global"}
                             handleNewViewpoint={handleNewViewpoint}
+                            isNewRationaleLoading={isNewRationaleLoading}
                             handleCardClick={handleCardClick}
                             loadingCardId={loadingCardId}
                             points={Array.isArray(points) ? points : []}
+                            selectedPointIds={selectedPointIds}
+                            matchType={matchType}
+                            topicFilters={topicFilters}
+                            filtersOpen={filtersOpen}
+                            onPointSelect={handlePointSelect}
+                            onPointDeselect={handlePointDeselect}
+                            onClearAll={handleClearAll}
+                            onMatchTypeChange={handleMatchTypeChange}
+                            onTopicFiltersChange={setTopicFilters}
                         />
                     )}
                 </div>
             </div>
             <SpacePageAside
                 spaceId={space.data?.id ?? "global"}
-                asideTab={asideTab}
-                setAsideTab={setAsideTab}
                 loginOrMakePoint={loginOrMakePoint}
                 handleNewViewpoint={handleNewViewpoint}
+                isNewRationaleLoading={isNewRationaleLoading}
                 setIsSelectNegationOpen={setIsSelectNegationOpen}
+                topicsOpen={topicsOpen}
             />
             <SelectPointForNegationDialog
                 isOpen={isSelectNegationOpen}

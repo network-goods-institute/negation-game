@@ -2,13 +2,12 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { SearchIcon, PlusIcon, EyeIcon } from "lucide-react";
+import { SearchIcon, PlusIcon, FilterIcon } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { SearchInput } from "@/components/search/SearchInput";
 import useIsMobile from "@/hooks/ui/useIsMobile";
-import { useAtom } from "jotai";
-import { rationalesFiltersOpenAtom } from "@/atoms/rationalesFiltersOpenAtom";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import { NewRationaleButton } from "@/components/rationale/NewRationaleButton";
 
 export type Tab = "all" | "points" | "rationales" | "search";
 
@@ -22,7 +21,12 @@ interface SpaceTabsProps {
     spaceId?: string;
     onLoginOrMakePoint: () => void;
     onNewViewpoint: () => void;
+    isNewRationaleLoading?: boolean;
     onSelectNegation: () => void;
+    filtersOpen: boolean;
+    onFiltersToggle: () => void;
+    topicsOpen: boolean;
+    onTopicsToggle: () => void;
 }
 
 export function SpaceTabs({
@@ -32,26 +36,73 @@ export function SpaceTabs({
     onSearchChange,
     onLoginOrMakePoint,
     onNewViewpoint,
+    isNewRationaleLoading = false,
     onSelectNegation,
+    filtersOpen,
+    onFiltersToggle,
+    topicsOpen,
+    onTopicsToggle,
 }: SpaceTabsProps) {
     const isMobile = useIsMobile();
-    const [filtersOpen, setFiltersOpen] = useAtom(rationalesFiltersOpenAtom);
+
+    const getActionButtons = () => {
+        switch (selectedTab) {
+            case "rationales":
+                return (
+                    <NewRationaleButton
+                        onClick={onNewViewpoint}
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 text-sm"
+                        loading={isNewRationaleLoading}
+                    />
+                );
+            case "points":
+                return (
+                    <>
+                        <Button onClick={onLoginOrMakePoint} variant="outline" size="default" className="flex-1 text-sm">
+                            <PlusIcon className="h-4 w-4 mr-2" /> Make a Point
+                        </Button>
+                        <Button onClick={onSelectNegation} variant="outline" size="default" className="flex-1 text-sm">
+                            <PlusIcon className="h-4 w-4 mr-2" /> Make a Negation
+                        </Button>
+                    </>
+                );
+            case "all":
+                return (
+                    <>
+                        <Button onClick={onLoginOrMakePoint} variant="outline" size="default" className="flex-1 text-sm">
+                            <PlusIcon className="h-4 w-4 mr-2" /> Make a Point
+                        </Button>
+                        <NewRationaleButton
+                            onClick={onNewViewpoint}
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 text-sm"
+                            loading={isNewRationaleLoading}
+                        />
+                        <Button onClick={onSelectNegation} variant="outline" size="default" className="flex-1 text-sm">
+                            <PlusIcon className="h-4 w-4 mr-2" /> Make a Negation
+                        </Button>
+                    </>
+                );
+            default:
+                return null;
+        }
+    };
+
+    const showFiltersButton = selectedTab === "rationales" || selectedTab === "all";
+
     return (
         <div className="flex flex-col gap-4 px-4 sm:px-lg py-3 sm:py-sm">
-            {!isMobile && (
+            {!isMobile && selectedTab !== "search" && (
                 <div className="flex justify-around items-center bg-background px-4 py-2 mb-4 sm:px-0 space-x-4">
-                    <Button onClick={onLoginOrMakePoint} variant="outline" size="default" className="flex-1 text-sm">
-                        <PlusIcon className="h-4 w-4 mr-2" /> Make a Point
-                    </Button>
-                    <Button onClick={onNewViewpoint} variant="outline" size="default" className="flex-1 text-sm">
-                        <EyeIcon className="h-4 w-4 mr-2" /> New Rationale
-                    </Button>
-                    <Button onClick={onSelectNegation} variant="outline" size="default" className="flex-1 text-sm">
-                        <PlusIcon className="h-4 w-4 mr-2" /> Make a Negation
-                    </Button>
+                    {getActionButtons()}
                 </div>
             )}
-            <div className={cn("flex gap-2 sm:gap-4 overflow-x-auto no-scrollbar", !isMobile && "border-t pt-4")}>
+
+            {/* Main tabs row */}
+            <div className={cn("flex gap-2 sm:gap-4", !isMobile && "border-t pt-4", isMobile && "overflow-x-auto no-scrollbar")}>
                 <button
                     onClick={() => onTabChange("rationales")}
                     className={cn(
@@ -97,21 +148,52 @@ export function SpaceTabs({
                     <SearchIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     <span>Search</span>
                 </button>
-                {isMobile && selectedTab === "rationales" && (
+
+                {/* Desktop filter toggle */}
+                {!isMobile && showFiltersButton && (
+                    <Button
+                        variant={filtersOpen ? "default" : "outline"}
+                        size="sm"
+                        onClick={onFiltersToggle}
+                        className="flex items-center gap-1 whitespace-nowrap"
+                    >
+                        <FilterIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        <span>Filters</span>
+                    </Button>
+                )}
+            </div>
+
+            {/* Mobile toggles row */}
+            {isMobile && (
+                <div className="flex gap-2 justify-center">
+                    {showFiltersButton && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={onFiltersToggle}
+                            className="flex items-center whitespace-nowrap"
+                            text="Filtering"
+                            rightSlot={
+                                filtersOpen
+                                    ? <ChevronUpIcon className="h-4 w-4" />
+                                    : <ChevronDownIcon className="h-4 w-4" />
+                            }
+                        />
+                    )}
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setFiltersOpen(open => !open)}
-                        className="flex items-center ml-2 whitespace-nowrap"
-                        text="Filtering"
+                        onClick={onTopicsToggle}
+                        className="flex items-center whitespace-nowrap"
+                        text="Topics"
                         rightSlot={
-                            filtersOpen
+                            topicsOpen
                                 ? <ChevronUpIcon className="h-4 w-4" />
                                 : <ChevronDownIcon className="h-4 w-4" />
                         }
                     />
-                )}
-            </div>
+                </div>
+            )}
 
             {selectedTab === "search" && (
                 <div className="pb-2">

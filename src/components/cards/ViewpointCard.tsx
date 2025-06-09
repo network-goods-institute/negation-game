@@ -13,6 +13,7 @@ import { ViewpointIcon } from "@/components/icons/AppIcons";
 import { useRouter } from "next/navigation";
 import { ViewpointStatsBar } from "../rationale/ViewpointStatsBar";
 import { UsernameDisplay } from "@/components/ui/UsernameDisplay";
+import useIsMobile from "@/hooks/ui/useIsMobile";
 
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
     loading: () => <div className="animate-pulse h-32 bg-muted/30 rounded-md" />,
@@ -103,6 +104,7 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
     const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [isSelecting, setIsSelecting] = useState(false);
     const mouseDownRef = useRef<{ x: number, y: number } | null>(null);
+    const isMobile = useIsMobile();
 
     const plainDescription = useMemo(() => stripMarkdown(description), [description]);
 
@@ -120,6 +122,7 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
     }, []);
 
     const handleHoverStart = useCallback(() => {
+        if (isMobile) return; // Disable popover on mobile
         if (hoverTimeoutRef.current) {
             clearTimeout(hoverTimeoutRef.current);
             hoverTimeoutRef.current = null;
@@ -127,9 +130,10 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
         if (!isOpen) {
             setIsOpen(true);
         }
-    }, [isOpen]);
+    }, [isOpen, isMobile]);
 
     const handleHoverEnd = useCallback(() => {
+        if (isMobile) return; // Disable popover on mobile
         if (hoverTimeoutRef.current) {
             clearTimeout(hoverTimeoutRef.current);
         }
@@ -137,7 +141,7 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
         hoverTimeoutRef.current = setTimeout(() => {
             setIsOpen(false);
         }, 100); // Small delay to prevent flickering when moving between elements
-    }, []);
+    }, [isMobile]);
 
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
         mouseDownRef.current = { x: e.clientX, y: e.clientY };
@@ -240,15 +244,15 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                     {topic}
                                 </Badge>
                             )}
-                            <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
-                                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center text-xs text-muted-foreground mt-1 gap-1 sm:gap-0">
+                                <span className="flex items-center gap-1 text-xs text-muted-foreground min-w-0">
                                     <UsernameDisplay
                                         username={author}
                                         userId={authorId}
-                                        className="font-bold text-yellow-500 text-xs"
+                                        className="font-bold text-yellow-500 text-xs truncate"
                                     />
                                 </span>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-shrink-0">
                                     <ViewpointStatsBar
                                         views={statistics?.views || 0}
                                         copies={statistics?.copies || 0}
@@ -256,7 +260,7 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                         averageFavor={statistics?.averageFavor}
                                         className="mr-2"
                                     />
-                                    <Badge variant="secondary" className="text-xs">
+                                    <Badge variant="secondary" className="text-xs flex-shrink-0">
                                         {new Date(createdAt).toLocaleDateString('en-US', {
                                             year: 'numeric',
                                             month: 'numeric',
@@ -276,8 +280,10 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                     onMouseEnter={handleHoverStart}
                     onMouseLeave={handleHoverEnd}
                     side="right"
-                    align="start"
                     sideOffset={5}
+                    align="start"
+                    avoidCollisions={true}
+                    collisionPadding={16}
                 >
                     <div className="flex flex-col gap-3 pl-3">
                         <div className="flex items-start gap-2">

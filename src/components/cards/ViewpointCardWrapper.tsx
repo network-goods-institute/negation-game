@@ -47,7 +47,7 @@ export function ViewpointCardWrapper({
         <Link
             draggable={false}
             href={`/s/${space}/rationale/${id}`}
-            className="flex border-b cursor-pointer hover:bg-accent"
+            className="flex border-b cursor-pointer hover:bg-accent min-w-0 w-full"
             onClick={(e) => {
                 preventDefaultIfContainsSelection(e as unknown as React.MouseEvent<HTMLAnchorElement>);
                 onCardClick();
@@ -55,7 +55,7 @@ export function ViewpointCardWrapper({
         >
             <ViewpointCard
                 onClick={onCardClick}
-                className={className}
+                className={`${className} min-w-0 w-full`}
                 id={id}
                 topic={topic}
                 title={title}

@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, LayoutGrid, List, X } from "lucide-react";
 import Link from "next/link";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import GlobalTopicGraph from "@/components/topic/GlobalTopicGraph";
@@ -12,6 +12,8 @@ import RationalePointsList from "@/components/rationale/RationalePointsList";
 import { Loader } from "@/components/ui/loader";
 import { useAtom } from "jotai";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
+import useIsMobile from "@/hooks/ui/useIsMobile";
+import { cn } from "@/lib/utils/cn";
 
 interface Topic {
     id: number;
@@ -35,13 +37,19 @@ export default function TopicGraphPageClient({ topic, space }: TopicGraphPageCli
         }));
     }, [topicPoints]);
 
+    const [view, setView] = useState<'graph' | 'list'>('list');
+    const isMobile = useIsMobile();
+
     return (
         <div className="flex-grow bg-background h-full overflow-hidden md:grid md:grid-cols-[0_minmax(200px,400px)_1fr]">
             {/* Hidden spacer column */}
             <div className="hidden md:block"></div>
 
             {/* Left sidebar - Points List */}
-            <div className="flex flex-col h-full md:col-start-2 border-x overflow-hidden">
+            <div className={cn(
+                "flex flex-col h-full md:col-start-2 border-x overflow-hidden",
+                isMobile && view === 'graph' && "hidden"
+            )}>
                 {/* Header */}
                 <div className="sticky top-0 z-20 w-full flex items-center justify-between px-4 py-3 bg-background border-b">
                     <div className="flex items-center gap-4">
@@ -65,6 +73,19 @@ export default function TopicGraphPageClient({ topic, space }: TopicGraphPageCli
                             )}
                         </div>
                     </div>
+
+                    {/* View Toggle - Mobile */}
+                    {isMobile && view === 'list' && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setView('graph')}
+                            className="flex items-center gap-2"
+                        >
+                            <LayoutGrid className="h-4 w-4" />
+                            View Graph
+                        </Button>
+                    )}
                 </div>
 
                 {/* Points List */}
@@ -90,7 +111,26 @@ export default function TopicGraphPageClient({ topic, space }: TopicGraphPageCli
             </div>
 
             {/* Right side - Graph */}
-            <div className="flex flex-col h-full md:col-start-3">
+            <div className={cn(
+                "flex flex-col h-full md:col-start-3",
+                isMobile && view === 'list' && "hidden"
+            )}>
+                {/* Mobile Graph Header with Close Button */}
+                {isMobile && view === 'graph' && (
+                    <div className="sticky top-0 z-20 w-full flex items-center justify-between px-4 py-3 bg-background border-b">
+                        <h1 className="text-sm font-semibold">Graph View: {topic.name}</h1>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setView('list')}
+                            className="flex items-center gap-2"
+                        >
+                            <X className="h-4 w-4" />
+                            Close
+                        </Button>
+                    </div>
+                )}
+
                 <Dynamic>
                     <GlobalTopicGraph
                         topicId={topic.id}
