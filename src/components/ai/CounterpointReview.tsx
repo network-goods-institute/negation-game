@@ -27,7 +27,8 @@ export interface CounterpointCandidate {
     amountNegations: number;
     amountSupporters: number;
     cred: number;
-    isCounterpoint: boolean;
+    isCounterpoint?: boolean;
+    isObjection?: boolean;
     createdAt?: Date;
     createdBy?: string;
     similarity?: number;
@@ -56,6 +57,8 @@ interface CounterpointReviewProps {
     onClose: () => void;
     onSelectSuggestion: (suggestion: string) => void;
     onSelectOwnText: () => void;
+    isObjection: boolean;
+    contextPointContent?: string;
 }
 
 export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
@@ -67,6 +70,8 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
     onClose,
     onSelectSuggestion,
     onSelectOwnText,
+    isObjection,
+    contextPointContent,
 }) => {
     const currentSpace = useCurrentSpace();
     return (
@@ -82,8 +87,26 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
 
             <div className="p-6 overflow-auto flex-grow">
                 <h3 className="text-xl font-semibold text-center mb-6">
-                    Choose a Counterpoint Approach
+                    {isObjection ? "Choose an Objection Approach" : "Choose a Counterpoint Approach"}
                 </h3>
+
+                {/* Context Point Section for Objection Mode */}
+                {isObjection && contextPointContent && (
+                    <div className="mb-8">
+                        <div className="flex items-center gap-2 mb-3">
+                            <CircleIcon className="text-muted-foreground size-5" />
+                            <h4 className="text-md font-medium">Original Point Being Defended</h4>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-3">
+                            Your objection argues that the negated point is irrelevant to this point.
+                        </p>
+                        <div className="p-4 w-full bg-background border rounded-md shadow-sm">
+                            <p className="tracking-tight text-md @sm/point:text-lg">
+                                {contextPointContent}
+                            </p>
+                        </div>
+                    </div>
+                )}
 
                 {/* Existing Points Section */}
                 {reviewResults.existingSimilarCounterpoints.length > 0 && (
@@ -96,17 +119,17 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                             Do these mean the same thing as your point? Reusing points gets you the most influence.
                         </p>
                         <div className="space-y-3">
-                            {reviewResults.existingSimilarCounterpoints.map((counterpointCandidate) => (
+                            {reviewResults.existingSimilarCounterpoints.map((candidate) => (
                                 <div
-                                    key={counterpointCandidate.id}
+                                    key={candidate.id}
                                     className="flex flex-col gap-3 p-4 w-full bg-background cursor-pointer border rounded-md transition-colors shadow-sm hover:border-primary hover:ring-1 hover:ring-primary relative"
                                     onClick={(e) => {
-                                        console.log('CounterpointReview: existing counterpoint selected', counterpointCandidate);
+                                        console.log('CounterpointReview: existing counterpoint selected', candidate);
                                         e.stopPropagation();
                                         if ((e.target as HTMLElement).closest('.external-link-btn')) {
                                             return;
                                         }
-                                        selectCounterpointCandidate(counterpointCandidate);
+                                        selectCounterpointCandidate(candidate);
                                         onClose();
                                     }}
                                 >
@@ -116,29 +139,29 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                                             <TooltipTrigger asChild>
                                                 <div className={cn(
                                                     "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium shadow-sm",
-                                                    counterpointCandidate.favor > 7 ? "bg-green-100 text-green-800 border border-green-300" :
-                                                        counterpointCandidate.favor > 4 ? "bg-blue-100 text-blue-800 border border-blue-300" :
+                                                    candidate.favor > 7 ? "bg-green-100 text-green-800 border border-green-300" :
+                                                        candidate.favor > 4 ? "bg-blue-100 text-blue-800 border border-blue-300" :
                                                             "bg-gray-100 text-gray-800 border border-gray-300"
                                                 )}>
                                                     <TrendingUpIcon className="size-3" />
-                                                    <span>{counterpointCandidate.favor}</span>
+                                                    <span>{candidate.favor}</span>
                                                 </div>
                                             </TooltipTrigger>
                                             <TooltipContent side="top">
-                                                <p>Favor: {counterpointCandidate.favor}</p>
+                                                <p>Favor: {candidate.favor}</p>
                                             </TooltipContent>
                                         </Tooltip>
                                     </div>
 
                                     <div className="flex flex-col gap-1">
                                         <span className="text-md font-medium">
-                                            {counterpointCandidate.content}
+                                            {candidate.content}
                                         </span>
 
                                         <div className="flex justify-end mb-1">
                                             <div className="flex items-center gap-2">
                                                 <Badge className="bg-primary/15 text-primary border-primary hover:bg-primary/20 whitespace-nowrap">
-                                                    Existing
+                                                    {candidate.isObjection ? "Existing Objection" : "Existing Counterpoint"}
                                                 </Badge>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
@@ -150,7 +173,7 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                                                                 e.stopPropagation();
                                                                 if (!currentSpace) return;
                                                                 window.open(
-                                                                    getPointUrl(counterpointCandidate.id, currentSpace),
+                                                                    getPointUrl(candidate.id, currentSpace),
                                                                     '_blank',
                                                                     'noopener,noreferrer'
                                                                 );
@@ -168,10 +191,10 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                                         </div>
 
                                         <PointStats
-                                            favor={counterpointCandidate.favor}
-                                            amountNegations={counterpointCandidate.amountNegations}
-                                            amountSupporters={counterpointCandidate.amountSupporters}
-                                            cred={counterpointCandidate.cred}
+                                            favor={candidate.favor}
+                                            amountNegations={candidate.amountNegations}
+                                            amountSupporters={candidate.amountSupporters}
+                                            cred={candidate.cred}
                                         />
                                     </div>
                                 </div>
@@ -296,7 +319,7 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                                     ? "bg-yellow-500/15 text-yellow-500 border-yellow-500 hover:bg-yellow-500/20"
                                     : "bg-green-500/15 text-green-500 border-green-500 hover:bg-green-500/20"
                             )}>
-                                {reviewResults.rating < GOOD_ENOUGH_POINT_RATING ? "Needs Work" : "Your Text"}
+                                {reviewResults.rating < GOOD_ENOUGH_POINT_RATING ? "Needs Work" : isObjection ? "Your Objection" : "Your Counterpoint"}
                             </Badge>
                         </div>
 
@@ -312,7 +335,7 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                                 <>
                                     <CircleCheckBigIcon className="size-4 text-green-500 mr-2 flex-shrink-0" />
                                     <span className="text-sm text-green-500">
-                                        That&apos;s a good counterpoint
+                                        That&apos;s a good {isObjection ? "objection" : "counterpoint"}
                                     </span>
                                 </>
                             )}

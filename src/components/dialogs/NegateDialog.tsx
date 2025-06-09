@@ -1,6 +1,7 @@
 "use client";
 
 import { reviewProposedCounterpointAction } from "@/actions/ai/reviewProposedCounterpointAction";
+import { reviewProposedObjectionAction } from "@/actions/ai/reviewProposedObjectionAction";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { negationContentAtom } from "@/atoms/negationContentAtom";
 import { recentlyCreatedNegationIdAtom } from "@/atoms/recentlyCreatedNegationIdAtom";
@@ -48,12 +49,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import CounterpointReview, { CounterpointCandidate } from "../ai/CounterpointReview";
+import CounterpointReview, { CounterpointCandidate, ReviewResults as CounterpointReviewResults } from "../ai/CounterpointReview";
 import { toast } from "sonner";
 import { encodeId } from '@/lib/negation-game/encodeId';
 import { CreatedNegationView } from '../chatbot/preview/CreatedNegationView';
 import { selectPointForNegationOpenAtom } from "@/atoms/selectPointForNegationOpenAtom";
 import { useSetAtom } from 'jotai';
+import { ReviewResults as ObjectionReviewResults } from "@/actions/ai/rateAndRefineObjectionAction";
 
 export interface NegateDialogProps
   extends Omit<DialogProps, "open" | "onOpenChange"> { }
@@ -129,27 +131,52 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     enabled: false,
     queryKey: [
       "counterpoint-review",
-      negatedPoint?.pointId,
+      currentNegatedPointId,
       counterpointContent,
-      negatedPoint?.content
+      negatedPoint?.content,
+      isObjection,
+      availableContexts[selectedContextIndex]?.contextPointId,
+      availableContexts[selectedContextIndex]?.contextContent
     ] as const,
-    queryFn: async ({ queryKey: [, pointId, content] }) => {
+    queryFn: async ({ queryKey: [, pointId, content, negatedContent, isObj, contextId, contextContent] }) => {
       if (!pointId) throw new Error("No point ID");
 
-      const reviewResults = await reviewProposedCounterpointAction({
-        negatedPointId: pointId,
-        negatedPointContent: negatedPoint!.content,
-        counterpointContent: content,
-      });
+      let reviewResults;
+      if (isObj) {
+        if (!contextId || !contextContent) throw new Error("No context ID or content for objection");
+        reviewResults = await reviewProposedObjectionAction({
+          targetPointId: pointId,
+          negatedPointContent: negatedContent!,
+          objectionContent: content,
+          contextPointId: contextId,
+          contextPointContent: contextContent,
+        });
+      } else {
+        reviewResults = await reviewProposedCounterpointAction({
+          negatedPointId: pointId,
+          negatedPointContent: negatedContent!,
+          counterpointContent: content,
+        });
+      }
 
       setGuidanceNotes(undefined);
       setLastReviewedContent(content);
       setHasContentBeenReviewed(true);
 
-      reviewResults.suggestions.forEach((selectedSuggestion) =>
-        queryClient.setQueryData<typeof reviewResults>(
+      // Type assertion for reviewResults based on isObj
+      const currentReviewResults = reviewResults as (typeof isObj extends true ? ObjectionReviewResults : CounterpointReviewResults);
+
+      // Filter existing similar counterpoints based on the current mode (isObjection)
+      currentReviewResults.existingSimilarCounterpoints = currentReviewResults.existingSimilarCounterpoints.filter(
+        (candidate) => candidate.isObjection === isObj
+      );
+
+      currentReviewResults.suggestions.forEach((selectedSuggestion) =>
+        queryClient.setQueryData<
+          typeof currentReviewResults
+        >(
           ["counterpoint-review", pointId, selectedSuggestion] as const,
-          produce(reviewResults, (draft) => {
+          produce(currentReviewResults, (draft) => {
             draft.rating = 10;
             draft.suggestions = draft.suggestions.filter(
               (suggestion) => suggestion !== selectedSuggestion
@@ -921,6 +948,8 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
               onClose={() => setReviewDialogOpen(false)}
               onSelectSuggestion={handleSuggestionSelected}
               onSelectOwnText={handleSelectOwnText}
+              isObjection={isObjection}
+              contextPointContent={availableContexts[selectedContextIndex]?.contextContent}
             />
           </DialogContent>
         </Dialog>
