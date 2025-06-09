@@ -1,5 +1,6 @@
 import { BezierEdge, Edge, EdgeProps, useReactFlow } from "@xyflow/react";
 import { PointNodeData } from "@/components/graph/nodes/PointNode";
+import { PreviewPointNodeData } from "@/components/chatbot/preview/PreviewPointNode";
 
 // Define the underlying edge type for negations
 export type NegationEdgeType = Edge<any, "negation">;
@@ -9,16 +10,44 @@ export interface NegationEdgeProps extends EdgeProps<NegationEdgeType> { }
 
 export const NegationEdge = (props: NegationEdgeProps) => {
   const { getNode } = useReactFlow();
-  // Hide hyphen label when connecting to a statement node (options should not display hyphens)
   const targetNode = getNode(props.target);
   const sourceNode = getNode(props.source);
 
-  const isObjectionEdge = sourceNode?.type === 'point' &&
-    (sourceNode.data as PointNodeData)?.isObjection &&
-    (sourceNode.data as PointNodeData)?.objectionTargetId === (targetNode?.data as PointNodeData)?.pointId;
+  // Check for objection in the TARGET node (the node doing the negating/objecting)
+  const isObjectionEdge = targetNode?.type === 'point' && (() => {
+    const targetData = targetNode.data as PointNodeData | PreviewPointNodeData;
+
+    // If it's not marked as an objection, it's not an objection edge
+    if (!targetData?.isObjection) {
+      return false;
+    }
+
+    // For regular PointNodeData
+    if ('pointId' in targetData) {
+      const sourceData = sourceNode?.data as PointNodeData | undefined;
+      return targetData.objectionTargetId === sourceData?.pointId;
+    }
+
+    // For PreviewPointNodeData
+    if ('content' in targetData && !('pointId' in targetData)) {
+      const sourceData = sourceNode?.data as PreviewPointNodeData | undefined;
+
+      // Handle string node IDs (preview nodes)
+      if (typeof targetData.objectionTargetId === 'string') {
+        return targetData.objectionTargetId === sourceNode?.id;
+      }
+
+      // Handle numeric point IDs
+      if (typeof targetData.objectionTargetId === 'number') {
+        return targetData.objectionTargetId === sourceData?.existingPointId;
+      }
+    }
+
+    return false;
+  })();
 
   const showLabel = targetNode?.type !== "statement";
-  const labelContent = isObjectionEdge ? "/" : "-"; // Changed to a simple forward slash
+  const labelContent = isObjectionEdge ? "/" : "-";
 
   return (
     <BezierEdge

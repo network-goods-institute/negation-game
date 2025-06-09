@@ -1,4 +1,3 @@
-import React, { useState } from 'react';
 import {
     ReactFlow,
     MiniMap,
@@ -10,6 +9,7 @@ import {
     OnEdgesChange,
     useReactFlow,
 } from '@xyflow/react';
+import React, { useState } from 'react';
 import '@xyflow/react/dist/style.css';
 import { useTheme } from "next-themes";
 import { cn } from '@/lib/utils/cn';
@@ -19,6 +19,9 @@ import { Save, Loader2, CheckCircle } from 'lucide-react';
 import * as ContextMenu from '@radix-ui/react-context-menu';
 import { AuthenticatedActionButton } from '@/components/editor/AuthenticatedActionButton';
 import { PreviewAppNode, PreviewAppEdge, nodeTypes, edgeTypes } from '@/types/rationaleGraph';
+import { PreviewMergeNodesFrame } from './PreviewMergeNodesFrame';
+import PreviewConnectNodesFrame from './PreviewConnectNodesFrame';
+
 
 interface RationaleVisualFeedProps {
     nodes: PreviewAppNode[];
@@ -53,6 +56,8 @@ export const RationaleVisualFeed: React.FC<RationaleVisualFeedProps> = ({
     const [targetNodeId, setTargetNodeId] = useState<string | null>(null);
     const reactFlowInstance = useReactFlow<PreviewAppNode, PreviewAppEdge>();
 
+
+
     const handleAddNegationClick = (nodeId: string) => {
         setTargetNodeId(nodeId);
     };
@@ -70,17 +75,17 @@ export const RationaleVisualFeed: React.FC<RationaleVisualFeedProps> = ({
             },
             position: {
                 x: targetNode.position.x,
-                y: targetNode.position.y + (targetNode.height || 100) + 50, // Position below parent
+                y: targetNode.position.y + (targetNode.height || 100) + 50,
             },
         });
 
         reactFlowInstance.addEdges({
             id: `edge-${nanoid()}`,
             source: targetId,
-            sourceHandle: `${targetId}-add-handle`, // Ensure this handle exists on point/statement nodes
+            sourceHandle: `${targetId}-add-handle`,
             target: uniqueId,
-            targetHandle: `${uniqueId}-target`, // Ensure this handle exists on addPoint node
-            type: 'negation', // Or a generic 'default' edge type
+            targetHandle: `${uniqueId}-target`,
+            type: 'negation',
         });
     };
 
@@ -93,6 +98,7 @@ export const RationaleVisualFeed: React.FC<RationaleVisualFeedProps> = ({
                         edges={edges}
                         onNodesChange={onNodesChange}
                         onEdgesChange={onEdgesChange}
+
                         nodeTypes={nodeTypes}
                         edgeTypes={edgeTypes}
                         fitView
@@ -206,6 +212,8 @@ export const RationaleVisualFeed: React.FC<RationaleVisualFeedProps> = ({
                     )}
                 </ContextMenu.Content>
             </ContextMenu.Root>
+            <PreviewMergeNodesFrame />
+            <PreviewConnectNodesFrame />
         </div>
     );
 }; 

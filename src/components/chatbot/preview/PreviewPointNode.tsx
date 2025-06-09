@@ -20,6 +20,8 @@ import { PreviewPointNodeEndorsement } from "./PreviewPointNodeEndorsement";
 import { PreviewPointNodeStatusIndicators } from "./PreviewPointNodeStatusIndicators";
 import { ObjectionIcon } from "@/components/icons/ObjectionIcon";
 import { fetchPointById } from "@/actions/points/fetchPointById";
+import { usePreviewMergeDetection } from "@/hooks/chatbot/usePreviewMergeDetection";
+import { usePreviewConnectDetection } from "@/hooks/chatbot/usePreviewConnectDetection";
 
 /**
  * Simplified PointNode for RationaleCreator Preview
@@ -105,7 +107,7 @@ export const PreviewPointNode = ({
 
   const { targetPoint: objectionTargetPoint, contextPoint: objectionContextPoint } = getObjectionPointsFromGraph();
 
-
+  usePreviewConnectDetection(id);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
