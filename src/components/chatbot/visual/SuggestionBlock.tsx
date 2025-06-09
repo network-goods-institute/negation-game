@@ -118,7 +118,7 @@ export const SuggestionBlock: React.FC<SuggestionBlockProps> = ({ type, targetId
                     </div>
                     <div className="mb-3 p-3 bg-orange-50 dark:bg-orange-950/20 border-l-4 border-orange-400 rounded-r-md">
                         <p className="text-sm text-orange-800 dark:text-orange-200">
-                            You're suggesting that in regards to the counterpoint → original point relationship,
+                            You&apos;re suggesting that in regards to the counterpoint → original point relationship,
                             the counterpoint is irrelevant because:
                         </p>
                     </div>

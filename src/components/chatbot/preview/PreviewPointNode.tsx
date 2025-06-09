@@ -353,15 +353,15 @@ export const PreviewPointNode = ({
                         </p>
                         <div>
                           <p className="text-xs text-muted-foreground">Original point being defended:</p>
-                          <p className="text-xs italic">"{objectionContextPoint.content}"</p>
+                          <p className="text-xs italic">&quot;{objectionContextPoint.content}&quot;</p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Counterpoint being objected to:</p>
-                          <p className="text-xs italic">"{objectionTargetPoint.content}"</p>
+                          <p className="text-xs italic">&quot;{objectionTargetPoint.content}&quot;</p>
                         </div>
                         <div className="pt-1 border-t">
                           <p className="text-xs text-muted-foreground">
-                            This objection claims the counterpoint above doesn't actually address the original point.
+                            This objection claims the counterpoint above doesn&apos;t actually address the original point.
                           </p>
                         </div>
                       </>
