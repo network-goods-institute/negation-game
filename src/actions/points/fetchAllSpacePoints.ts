@@ -2,8 +2,8 @@
 
 import { getSpace } from "@/actions/spaces/getSpace";
 import { db } from "@/services/db";
-import { pointsWithDetailsView } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { pointsWithDetailsView, objectionsTable } from "@/db/schema";
+import { eq, sql } from "drizzle-orm";
 
 export interface PointInSpace {
   pointId: number;
@@ -13,6 +13,9 @@ export interface PointInSpace {
   amountNegations: number;
   amountSupporters: number;
   cred: number;
+  isObjection: boolean;
+  objectionTargetId: number | null;
+  objectionContextId: number | null;
 }
 
 /**
@@ -36,8 +39,18 @@ export const fetchAllSpacePoints = async (): Promise<PointInSpace[]> => {
         amountNegations: pointsWithDetailsView.amountNegations,
         amountSupporters: pointsWithDetailsView.amountSupporters,
         cred: pointsWithDetailsView.cred,
+        isObjection:
+          sql<boolean>`CASE WHEN ${objectionsTable.objectionPointId} IS NOT NULL THEN true ELSE false END`.mapWith(
+            Boolean
+          ),
+        objectionTargetId: objectionsTable.targetPointId,
+        objectionContextId: objectionsTable.contextPointId,
       })
       .from(pointsWithDetailsView)
+      .leftJoin(
+        objectionsTable,
+        eq(objectionsTable.objectionPointId, pointsWithDetailsView.pointId)
+      )
       .where(eq(pointsWithDetailsView.space, space));
 
     return points;

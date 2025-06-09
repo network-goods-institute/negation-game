@@ -70,15 +70,13 @@ export const addObjection = async ({
   const parentEdgeId = negationRelationship[0].id;
 
   return await db.transaction(async (tx) => {
-    // Create the objection point
     const objectionPointId = await tx
       .insert(pointsTable)
       .values({ content, createdBy: userId, space })
       .returning({ id: pointsTable.id })
       .then(([{ id }]) => id);
 
-    // Create endorsement if cred > 0
-    let endorsementId: number;
+    let endorsementId: number | null = null;
     if (cred > 0) {
       await tx
         .update(usersTable)
@@ -97,21 +95,8 @@ export const addObjection = async ({
         })
         .returning({ id: endorsementsTable.id })
         .then(([{ id }]) => id);
-    } else {
-      // Create a zero-cred endorsement for consistency
-      endorsementId = await tx
-        .insert(endorsementsTable)
-        .values({
-          cred: 0,
-          pointId: objectionPointId,
-          userId,
-          space,
-        })
-        .returning({ id: endorsementsTable.id })
-        .then(([{ id }]) => id);
     }
 
-    // Create the objection relationship
     await tx.insert(objectionsTable).values({
       objectionPointId,
       targetPointId,
@@ -122,7 +107,6 @@ export const addObjection = async ({
       space,
     });
 
-    // Create the negation relationship (objection point negates target point)
     await tx.insert(negationsTable).values({
       olderPointId: Math.min(objectionPointId, targetPointId),
       newerPointId: Math.max(objectionPointId, targetPointId),

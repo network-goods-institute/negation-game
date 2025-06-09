@@ -29,9 +29,10 @@ export const objectionsTable = pgTable(
     parentEdgeId: integer("parent_edge_id")
       .references(() => negationsTable.id, { onDelete: "cascade" })
       .notNull(),
-    endorsementId: integer("endorsement_id")
-      .references(() => endorsementsTable.id, { onDelete: "cascade" })
-      .notNull(),
+    endorsementId: integer("endorsement_id").references(
+      () => endorsementsTable.id,
+      { onDelete: "cascade" }
+    ),
     createdBy: varchar("created_by")
       .references(() => usersTable.id, { onDelete: "cascade" })
       .notNull(),

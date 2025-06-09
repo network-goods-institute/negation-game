@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import Link from 'next/link';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { InfoIcon } from "lucide-react";
+import { ObjectionHeader } from "@/components/cards/pointcard/ObjectionHeader";
 
 export interface RationaleSpacePointsFeedProps {
     className?: string;
@@ -84,6 +85,15 @@ const RationaleSpacePointsFeed: React.FC<RationaleSpacePointsFeedProps> = ({
                     filteredPoints.map((pt) => (
                         <div key={pt.pointId} className="px-4 py-2 border-b flex items-center justify-between">
                             <div className="flex flex-col flex-1 break-words">
+                                {pt.isObjection && pt.objectionTargetId && (
+                                    <div className="mb-2">
+                                        <ObjectionHeader
+                                            id={pt.pointId}
+                                            parentId={pt.objectionTargetId}
+                                            space={spaceSlug}
+                                        />
+                                    </div>
+                                )}
                                 <div>{pt.content}</div>
                                 <div className="flex items-center gap-2 mt-1">
                                     <span className="text-xs text-muted-foreground">Negations: {pt.amountNegations}</span>

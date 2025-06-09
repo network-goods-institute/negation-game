@@ -6,6 +6,8 @@ import {
   effectiveRestakesView,
   slashesTable,
   doubtsTable,
+  endorsementsTable,
+  negationsTable,
 } from "@/db/schema";
 import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
@@ -33,6 +35,20 @@ export const fetchPointById = async (
       isCommand: pointsWithDetailsView.isCommand,
       pinnedByCommandId: sql<number | null>`null`.mapWith((val) => val),
       viewerCred: viewerCredSql(viewerId),
+      viewerNegationsCred: viewerId
+        ? sql<number>`
+            COALESCE((
+              SELECT SUM(${endorsementsTable.cred})
+              FROM ${endorsementsTable}
+              WHERE ${endorsementsTable.userId} = ${viewerId}
+                AND ${endorsementsTable.pointId} IN (
+                  SELECT older_point_id FROM ${negationsTable} WHERE newer_point_id = ${pointsWithDetailsView.pointId}
+                  UNION
+                  SELECT newer_point_id FROM ${negationsTable} WHERE older_point_id = ${pointsWithDetailsView.pointId}
+                )
+            ), 0)
+          `.mapWith(Number)
+        : sql<number>`0`.mapWith(Number),
       restakesByPoint: restakesByPointSql(pointsWithDetailsView),
       slashedAmount: slashedAmountSql(pointsWithDetailsView),
       doubtedAmount: doubtedAmountSql(pointsWithDetailsView),

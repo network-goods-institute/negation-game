@@ -119,6 +119,10 @@ export const ObjectionPreview: React.FC<ObjectionPreviewProps> = ({
                                     favor={leftPoint.favor}
                                     amountSupporters={leftPoint.amountSupporters}
                                     amountNegations={leftPoint.amountNegations}
+                                    viewerContext={{
+                                        viewerCred: leftPoint.viewerCred,
+                                        viewerNegationsCred: leftPoint.viewerNegationsCred,
+                                    }}
                                     linkDisabled
                                     className="border rounded-lg"
                                     onNegate={() => handleNegateInPreview(leftPoint.pointId)}
@@ -149,6 +153,10 @@ export const ObjectionPreview: React.FC<ObjectionPreviewProps> = ({
                                         favor={rightPoint.favor}
                                         amountSupporters={rightPoint.amountSupporters}
                                         amountNegations={rightPoint.amountNegations}
+                                        viewerContext={{
+                                            viewerCred: rightPoint.viewerCred,
+                                            viewerNegationsCred: rightPoint.viewerNegationsCred,
+                                        }}
                                         linkDisabled
                                         className="border rounded-lg"
                                         onNegate={() => handleNegateInPreview(rightPoint.pointId)}

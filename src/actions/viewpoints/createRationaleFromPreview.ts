@@ -8,7 +8,7 @@ import {
   objectionsTable,
   pointsTable,
 } from "@/db/schema";
-import { or, and, eq } from "drizzle-orm";
+import { or, and, eq, sql } from "drizzle-orm";
 import { makePoint } from "@/actions/points/makePoint";
 import { endorse } from "@/actions/endorsements/endorse";
 import { nanoid } from "nanoid";
@@ -637,35 +637,21 @@ export async function createRationaleFromPreview({
 
               const parentEdgeId = negationRelationship[0].id;
 
-              // Get or create endorsement
+              // Only get endorsement if one exists with actual cred
               const endorsement = await db
                 .select({ id: endorsementsTable.id })
                 .from(endorsementsTable)
                 .where(
                   and(
                     eq(endorsementsTable.pointId, objectionPointId),
-                    eq(endorsementsTable.userId, userId)
+                    eq(endorsementsTable.userId, userId),
+                    sql`${endorsementsTable.cred} > 0`
                   )
                 )
                 .limit(1);
 
-              let endorsementId: number;
-
-              if (endorsement.length > 0) {
-                endorsementId = endorsement[0].id;
-              } else {
-                const newEndorsement = await db
-                  .insert(endorsementsTable)
-                  .values({
-                    cred: 0,
-                    pointId: objectionPointId,
-                    userId,
-                    space: spaceId,
-                  })
-                  .returning({ id: endorsementsTable.id });
-
-                endorsementId = newEndorsement[0].id;
-              }
+              const endorsementId =
+                endorsement.length > 0 ? endorsement[0].id : null;
 
               // Create objection
               await db.insert(objectionsTable).values({
