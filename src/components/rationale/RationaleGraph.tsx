@@ -30,9 +30,12 @@ export interface RationaleGraphProps {
     handleGenerateAndCopyShareLink?: () => void;
     originalGraphData?: ViewpointGraph;
     hideShareButton?: boolean;
+    hideSavePanel?: boolean;
+    hideComments?: boolean;
     onSave: (graph: ViewpointGraph) => Promise<boolean>;
     onResetContent?: () => void;
     onModifiedChange?: (isModified: boolean) => void;
+    nodesDraggable?: boolean;
 }
 
 export default function RationaleGraph({
@@ -52,9 +55,12 @@ export default function RationaleGraph({
     handleGenerateAndCopyShareLink,
     originalGraphData,
     hideShareButton,
+    hideSavePanel,
+    hideComments,
     onSave,
     onResetContent,
     onModifiedChange,
+    nodesDraggable,
 }: RationaleGraphProps) {
     const uniquePoints = useGraphPoints();
     const pointIds = uniquePoints.map((p) => p.pointId);
@@ -138,6 +144,9 @@ export default function RationaleGraph({
                 toggleSharingMode={toggleSharingMode}
                 handleGenerateAndCopyShareLink={handleGenerateAndCopyShareLink}
                 originalGraphData={originalGraphData}
+                hideSavePanel={hideSavePanel}
+                hideComments={hideComments}
+                nodesDraggable={nodesDraggable}
             />
         </GraphSizingContext.Provider>
     );

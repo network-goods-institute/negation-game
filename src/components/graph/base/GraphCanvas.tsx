@@ -27,6 +27,7 @@ export interface GraphCanvasProps
     onNodesChange: (changes: NodeChange<AppNode>[]) => void;
     onEdgesChange: (changes: EdgeChange[]) => void;
     onInit?: (instance: ReactFlowInstance<AppNode>) => void;
+    nodesDraggable?: boolean;
 }
 
 export const GraphCanvas: React.FC<GraphCanvasProps> = memo(
@@ -38,6 +39,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = memo(
         onNodesChange,
         onEdgesChange,
         onInit,
+        nodesDraggable,
         ...props
     }) => {
         const { theme } = useTheme();
@@ -55,6 +57,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = memo(
                 zoomOnPinch
                 colorMode={theme as ColorMode}
                 proOptions={{ hideAttribution: true }}
+                nodesDraggable={nodesDraggable}
                 {...props}
             >
                 <Background

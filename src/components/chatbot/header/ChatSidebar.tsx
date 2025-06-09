@@ -131,7 +131,12 @@ const ChatListItem = React.memo(({
                             </Tooltip>
                         </TooltipProvider>
                         <span className="text-xs text-muted-foreground truncate block mt-0.5">
-                            {new Date(chat.updatedAt).toLocaleDateString()} · {chat.messages.length} msg
+                            {new Date(chat.updatedAt).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'numeric',
+                                day: 'numeric',
+                                timeZone: 'UTC'
+                            })} · {chat.messages.length} msg
                         </span>
                     </div>
                     <div className={`flex items-center shrink-0 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>

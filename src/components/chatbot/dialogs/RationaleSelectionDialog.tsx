@@ -209,7 +209,12 @@ export function RationaleSelectionDialog({
                                                 </span>
                                                 {rationale.createdAt && (
                                                     <span className="flex-shrink-0">
-                                                        Published: {new Date(rationale.createdAt).toLocaleDateString()}
+                                                        Published: {new Date(rationale.createdAt).toLocaleDateString('en-US', {
+                                                            year: 'numeric',
+                                                            month: 'numeric',
+                                                            day: 'numeric',
+                                                            timeZone: 'UTC'
+                                                        })}
                                                     </span>
                                                 )}
                                             </div>

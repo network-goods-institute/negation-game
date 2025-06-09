@@ -1,0 +1,104 @@
+"use client";
+
+import React, { useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { ArrowLeftIcon } from "lucide-react";
+import Link from "next/link";
+import { encodeId } from "@/lib/negation-game/encodeId";
+import GlobalTopicGraph from "@/components/topic/GlobalTopicGraph";
+import { Dynamic } from "@/components/utils/Dynamic";
+import { useTopicPoints } from "@/queries/topics/useTopicPoints";
+import RationalePointsList from "@/components/rationale/RationalePointsList";
+import { Loader } from "@/components/ui/loader";
+import { useAtom } from "jotai";
+import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
+
+interface Topic {
+    id: number;
+    name: string;
+    discourseUrl?: string | null;
+}
+
+interface TopicGraphPageClientProps {
+    topic: Topic;
+    space: string;
+}
+
+export default function TopicGraphPageClient({ topic, space }: TopicGraphPageClientProps) {
+    const { data: topicPoints, isLoading: pointsLoading } = useTopicPoints(topic.id);
+    const [hoveredPointId] = useAtom(hoveredPointIdAtom);
+    const points = useMemo(() => {
+        if (!topicPoints) return [];
+        return topicPoints.map(point => ({
+            pointId: point.pointId,
+            initialPointData: point,
+        }));
+    }, [topicPoints]);
+
+    return (
+        <div className="flex-grow bg-background h-full overflow-hidden md:grid md:grid-cols-[0_minmax(200px,400px)_1fr]">
+            {/* Hidden spacer column */}
+            <div className="hidden md:block"></div>
+
+            {/* Left sidebar - Points List */}
+            <div className="flex flex-col h-full md:col-start-2 border-x overflow-hidden">
+                {/* Header */}
+                <div className="sticky top-0 z-20 w-full flex items-center justify-between px-4 py-3 bg-background border-b">
+                    <div className="flex items-center gap-4">
+                        <Link href={`/s/${space}/topic/${encodeId(topic.id)}`}>
+                            <Button variant="outline" size="sm" className="flex items-center gap-2">
+                                <ArrowLeftIcon className="h-4 w-4" />
+                                Back
+                            </Button>
+                        </Link>
+                        <div>
+                            <h1 className="text-sm font-semibold">Global Graph: {topic.name}</h1>
+                            {topic.discourseUrl && (
+                                <a
+                                    href={topic.discourseUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-muted-foreground hover:text-primary"
+                                >
+                                    Related discussion
+                                </a>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Points List */}
+                <div className="flex-grow overflow-y-auto">
+                    {pointsLoading ? (
+                        <div className="flex items-center justify-center h-32">
+                            <Loader className="h-6 w-6" />
+                        </div>
+                    ) : points.length > 0 ? (
+                        <RationalePointsList
+                            points={points}
+                            hoveredPointId={hoveredPointId}
+                            editMode={false}
+                            isSharing={false}
+                            containerClassName="relative flex flex-col"
+                        />
+                    ) : (
+                        <div className="flex items-center justify-center h-32 text-muted-foreground">
+                            <p className="text-sm">No points found for this topic</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Right side - Graph */}
+            <div className="flex flex-col h-full md:col-start-3">
+                <Dynamic>
+                    <GlobalTopicGraph
+                        topicId={topic.id}
+                        topicName={topic.name}
+                        className="h-full"
+                    />
+                </Dynamic>
+            </div>
+        </div>
+    );
+} 

@@ -10,6 +10,7 @@ import Link from "next/link";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import { Loader } from "@/components/ui/loader";
 
+
 interface Topic {
     id: number;
     name: string;
@@ -100,11 +101,18 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                         {sortDirection === 'desc' ? 'Desc' : 'Asc'}
                     </Button>
                 </div>
-                {/* Global Graph View moved here */}
-                <div className="border-2 border-dashed border-muted p-6 rounded-lg mb-6 text-center">
-                    <span className="text-lg font-semibold">Global Graph View</span>
-                    <div className="mt-4">
-                        <Button variant="outline" size="lg">Coming Soon</Button>
+                {/* Global Graph View */}
+                <div className="mb-6">
+                    <div className="border rounded-lg p-6 text-center">
+                        <h2 className="text-lg font-semibold mb-2">Global Graph View</h2>
+                        <p className="text-muted-foreground text-sm mb-4">
+                            View all {viewpoints.length} rationales from this topic in an interactive graph
+                        </p>
+                        <Link href={`/s/${space}/topic/${encodeId(topic.id)}/graph`}>
+                            <Button variant="default" size="lg" className="w-full sm:w-auto">
+                                Open Global Graph
+                            </Button>
+                        </Link>
                     </div>
                 </div>
                 <div className="flex flex-col space-y-4">

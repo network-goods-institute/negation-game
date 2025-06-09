@@ -15,6 +15,8 @@ import type { AppNode } from "@/components/graph/nodes/AppNode";
 export interface GraphControlsProps {
     isSharing?: boolean;
     hideShareButton?: boolean;
+    hideSavePanel?: boolean;
+    hideComments?: boolean;
     numberOfSelectedPoints: number;
     handleGenerateAndCopyShareLink?: () => void;
     toggleSharingMode?: () => void;
@@ -46,6 +48,8 @@ function DynamicSizingToggle() {
 export const GraphControls: React.FC<GraphControlsProps> = ({
     isSharing = false,
     hideShareButton = false,
+    hideSavePanel = false,
+    hideComments = false,
     numberOfSelectedPoints,
     handleGenerateAndCopyShareLink,
     toggleSharingMode,
@@ -76,7 +80,7 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
     return (
         <>
             <Panel position="top-left" className="z-10 mt-1 ml-2 flex items-center">
-                {canModify && (
+                {canModify && !hideComments && (
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button variant="outline" size="icon" onClick={handleAddComment}>
@@ -94,8 +98,10 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
                     <Controls />
                 </div>
             </Panel>
-            <Panel position="bottom-right" className="z-10 mr-4 mb-10 flex flex-col items-end">
+            <Panel position="top-right" className="z-10 mr-4 mt-2 flex flex-col items-end">
                 <DynamicSizingToggle />
+            </Panel>
+            <Panel position="bottom-right" className="z-10 mr-4 mb-10 flex flex-col items-end">
                 <SharePanel
                     isSharing={isSharing}
                     hideShareButton={hideShareButton}
@@ -109,21 +115,23 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
                     <MiniMap nodeStrokeWidth={3} zoomable pannable />
                 </div>
             </Panel>
-            <SaveDiscardPanel
-                onClose={onClose}
-                closeButtonClassName={closeButtonClassName}
-                isModified={isModified}
-                isContentModified={isContentModified}
-                isNew={isNew}
-                canModify={canModify}
-                isSaving={isSaving}
-                isSavingLocal={isSavingLocal}
-                isDiscarding={isDiscarding}
-                onSave={onSave}
-                onCopyAsNew={onCopyAsNew}
-                onOpenDiscardDialog={onOpenDiscardDialog}
-                className={unsavedChangesModalClassName}
-            />
+            {!hideSavePanel && (
+                <SaveDiscardPanel
+                    onClose={onClose}
+                    closeButtonClassName={closeButtonClassName}
+                    isModified={isModified}
+                    isContentModified={isContentModified}
+                    isNew={isNew}
+                    canModify={canModify}
+                    isSaving={isSaving}
+                    isSavingLocal={isSavingLocal}
+                    isDiscarding={isDiscarding}
+                    onSave={onSave}
+                    onCopyAsNew={onCopyAsNew}
+                    onOpenDiscardDialog={onOpenDiscardDialog}
+                    className={unsavedChangesModalClassName}
+                />
+            )}
         </>
     );
 }; 

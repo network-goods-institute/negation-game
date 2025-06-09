@@ -8,11 +8,16 @@ jest.mock("@/lib/negation-game/encodeId", () => ({
 
 // Mock the window location for testing
 const mockWindowLocation = (pathname: string) => {
-  const originalWindow = { ...window };
-  delete (window as any).location;
-  window.location = { ...originalWindow.location, pathname } as any;
+  const originalLocation = window.location;
+  Object.defineProperty(window, "location", {
+    value: { ...originalLocation, pathname },
+    writable: true,
+  });
   return () => {
-    window.location = originalWindow.location;
+    Object.defineProperty(window, "location", {
+      value: originalLocation,
+      writable: true,
+    });
   };
 };
 

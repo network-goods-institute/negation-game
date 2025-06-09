@@ -257,7 +257,12 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                         className="mr-2"
                                     />
                                     <Badge variant="secondary" className="text-xs">
-                                        {new Date(createdAt).toLocaleDateString()}
+                                        {new Date(createdAt).toLocaleDateString('en-US', {
+                                            year: 'numeric',
+                                            month: 'numeric',
+                                            day: 'numeric',
+                                            timeZone: 'UTC'
+                                        })}
                                     </Badge>
                                 </div>
                             </div>

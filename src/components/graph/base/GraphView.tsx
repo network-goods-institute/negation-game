@@ -67,10 +67,13 @@ export interface GraphViewProps
   onModifiedChange?: (isModified: boolean) => void;
   canvasEnabled?: boolean;
   hideShareButton?: boolean;
+  hideSavePanel?: boolean;
+  hideComments?: boolean;
   isSharing?: boolean;
   toggleSharingMode?: () => void;
   handleGenerateAndCopyShareLink?: () => void;
   originalGraphData?: ViewpointGraph;
+  nodesDraggable?: boolean;
 }
 
 export const GraphView = ({
@@ -92,10 +95,13 @@ export const GraphView = ({
   onModifiedChange,
   canvasEnabled,
   hideShareButton,
+  hideSavePanel,
+  hideComments,
   isSharing,
   toggleSharingMode,
   handleGenerateAndCopyShareLink,
   originalGraphData,
+  nodesDraggable,
   ...props
 }: GraphViewProps) => {
   const [showEndorsements] = useAtom(showEndorsementsAtom);
@@ -370,6 +376,7 @@ export const GraphView = ({
         proOptions={{ hideAttribution: true }}
         onPaneClick={handlePaneClick}
         onNodeDragStart={handleNodeDragStart}
+        nodesDraggable={nodesDraggable}
         {...effectiveProps}
       >
         <Background
@@ -381,6 +388,8 @@ export const GraphView = ({
         <GraphControls
           isSharing={isSharing || false}
           hideShareButton={hideShareButton}
+          hideSavePanel={hideSavePanel}
+          hideComments={hideComments}
           numberOfSelectedPoints={selectedIds.size}
           handleGenerateAndCopyShareLink={handleGenerateAndCopyShareLink}
           toggleSharingMode={toggleSharingMode}
