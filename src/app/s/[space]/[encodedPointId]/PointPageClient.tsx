@@ -616,8 +616,14 @@ export function PointPageClient({
 
                 {point && (
                     <div className="@container/point relative flex-grow bg-background">
-                        <div className="sticky top-0 z-10 w-full flex flex-wrap sm:flex-nowrap items-center justify-start sm:justify-between gap-3 gap-y-2 px-4 py-3 bg-background/70 backdrop-blur">
-                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <div className={cn(
+                            "sticky top-0 z-10 w-full flex flex-wrap items-center justify-start gap-3 gap-y-2 px-4 py-3 bg-background/70 backdrop-blur",
+                            !canvasEnabled && "sm:flex-nowrap sm:justify-between"
+                        )}>
+                            <div className={cn(
+                                "flex items-center gap-2 w-full",
+                                !canvasEnabled && "sm:w-auto"
+                            )}>
                                 <Button
                                     variant={"link"}
                                     size={"icon"}
@@ -646,7 +652,10 @@ export function PointPageClient({
                                     </>
                                 ) : null}
                             </div>
-                            <div className="flex w-full sm:w-auto gap-sm items-center justify-start sm:justify-end text-muted-foreground">
+                            <div className={cn(
+                                "flex w-full gap-sm items-center justify-start text-muted-foreground",
+                                !canvasEnabled && "sm:w-auto sm:justify-end"
+                            )}>
                                 <Button
                                     variant="ghost"
                                     className="p-2 rounded-full size-fit hover:bg-muted/30"
