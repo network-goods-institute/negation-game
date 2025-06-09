@@ -112,6 +112,8 @@ export function SearchResultsList({ results, isLoading, query, hasSearched = fal
                                 space={pointData.space}
                                 isCommand={result.content.startsWith('/')}
                                 isLoading={loadingCardId === `point-${result.id}`}
+                                isObjection={(pointData as any).isObjection ?? false}
+                                objectionTargetId={(pointData as any).objectionTargetId ?? undefined}
                             />
                         </Link>
                     );

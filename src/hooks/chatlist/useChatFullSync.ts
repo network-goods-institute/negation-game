@@ -84,6 +84,22 @@ export function useChatFullSync({
         setSyncActivity("pulling");
         activitySet = true;
 
+        // Refresh token before sync to handle potential token expiration
+        if (typeof window !== "undefined") {
+          try {
+            const { setPrivyToken } = await import("@/lib/privy/setPrivyToken");
+            const tokenRefreshed = await setPrivyToken();
+            if (!tokenRefreshed) {
+              console.warn("Token refresh returned false during sync startup");
+            }
+          } catch (tokenError) {
+            console.warn(
+              "Token refresh failed during sync, continuing anyway:",
+              tokenError
+            );
+          }
+        }
+
         const serverMetadata: ChatMetadata[] =
           await fetchUserChatMetadata(currentSpace);
 
@@ -272,6 +288,39 @@ export function useChatFullSync({
         const isNetworkError =
           err instanceof TypeError &&
           (message.includes("fetch") || message.includes("network"));
+
+        const isAuthError =
+          message.toLowerCase().includes("not authenticated") ||
+          message.toLowerCase().includes("authentication required") ||
+          message.toLowerCase().includes("must be authenticated") ||
+          message.toLowerCase().includes("user not authenticated") ||
+          message.toLowerCase().includes("invalid auth token") ||
+          message.toLowerCase().includes("jwt") ||
+          message.toLowerCase().includes("token");
+
+        // If it's an auth error and we haven't retried yet, try refreshing token and retry
+        if (
+          isAuthError &&
+          retryCount < maxRetries &&
+          typeof window !== "undefined"
+        ) {
+          console.log(
+            `Chat sync failed with auth error (attempt ${retryCount + 1}/${maxRetries}), refreshing token and retrying...`
+          );
+          try {
+            const { setPrivyToken } = await import("@/lib/privy/setPrivyToken");
+            const tokenRefreshed = await setPrivyToken();
+            if (tokenRefreshed) {
+              // Wait a moment for token to propagate
+              await new Promise((resolve) => setTimeout(resolve, 500));
+              // Retry the sync
+              return attemptSync(retryCount + 1);
+            }
+          } catch (tokenError) {
+            console.warn("Token refresh failed during retry:", tokenError);
+          }
+        }
+
         if (isNetworkError) {
           setSyncActivity("error");
           setSyncError("Network error. Please check connection.");
@@ -281,6 +330,12 @@ export function useChatFullSync({
             });
             setIsOffline(true);
           }
+        } else if (isAuthError && retryCount >= maxRetries) {
+          setIsOffline(false);
+          setSyncError(
+            "Authentication expired. Please refresh the page or log in again."
+          );
+          setSyncActivity("error");
         } else {
           setIsOffline(false);
           setSyncError(message);
@@ -322,18 +377,8 @@ export function useChatFullSync({
           syncChatsRef.current();
         }
       }, 60000);
-      const onVisible = () => {
-        if (
-          document.visibilityState === "visible" &&
-          !generatingChats.has(currentChatId || "")
-        ) {
-          syncChatsRef.current();
-        }
-      };
-      document.addEventListener("visibilitychange", onVisible);
       return () => {
         if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
-        document.removeEventListener("visibilitychange", onVisible);
       };
     } else {
       if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);

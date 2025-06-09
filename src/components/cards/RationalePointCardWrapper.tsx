@@ -59,6 +59,8 @@ const RationalePointCardWrapper: React.FC<RationalePointCardWrapperProps> = ({
             inRationale={true}
             favorHistory={favorHistory}
             isSharing={isSharing}
+            isObjection={pointData.isObjection}
+            objectionTargetId={pointData.objectionTargetId}
         />
     );
 };

@@ -10,6 +10,7 @@ import {
   spacesTable,
   endorsementsTable,
   negationsTable,
+  objectionsTable,
 } from "@/db/schema";
 import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
@@ -141,10 +142,19 @@ export const fetchPoints = async (ids: number[]) => {
           }
         : {}),
       isObjection: sql<boolean>`EXISTS (
-        SELECT 1 FROM ${negationsTable}
-        WHERE ${negationsTable.newerPointId} = ${pointsWithDetailsView.pointId}
-        AND ${negationsTable.isObjection} = TRUE
+        SELECT 1 FROM ${objectionsTable}
+        WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
       )`.mapWith(Boolean),
+      objectionTargetId: sql<number | null>`(
+        SELECT ${objectionsTable.targetPointId} FROM ${objectionsTable}
+        WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
+        LIMIT 1
+      )`.mapWith((v) => v),
+      objectionContextId: sql<number | null>`(
+        SELECT ${objectionsTable.contextPointId} FROM ${objectionsTable}
+        WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
+        LIMIT 1
+      )`.mapWith((v) => v),
     })
     .from(pointsWithDetailsView)
     .leftJoin(

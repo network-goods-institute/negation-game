@@ -33,8 +33,12 @@ export function useChatSync({
       if (!chatData || !chatData.id) {
         return;
       }
+      // Refresh token before sync to handle potential token expiration
       try {
-        await setPrivyToken();
+        const tokenRefreshed = await setPrivyToken();
+        if (!tokenRefreshed) {
+          console.warn("Token refresh returned false before chat sync");
+        }
       } catch (error) {
         console.warn("Failed to refresh Privy token before chat sync:", error);
       }
@@ -117,14 +121,88 @@ export function useChatSync({
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
+
+        // Check if this is an authentication error and retry once with token refresh
+        const isAuthError =
+          errorMessage.toLowerCase().includes("not authenticated") ||
+          errorMessage.toLowerCase().includes("authentication required") ||
+          errorMessage.toLowerCase().includes("must be authenticated") ||
+          errorMessage.toLowerCase().includes("user not authenticated") ||
+          errorMessage.toLowerCase().includes("invalid auth token") ||
+          errorMessage.toLowerCase().includes("jwt") ||
+          errorMessage.toLowerCase().includes("token");
+
+        if (isAuthError) {
+          console.log(
+            "[executePush] Auth error detected, attempting token refresh and retry:",
+            {
+              chatId,
+              error: errorMessage,
+            }
+          );
+
+          try {
+            const tokenRefreshed = await setPrivyToken();
+            if (tokenRefreshed) {
+              // Wait a moment for token to propagate
+              await new Promise((resolve) => setTimeout(resolve, 300));
+
+              // Retry the operation once
+              let retrySuccess = false;
+              try {
+                let retryResult = await updateDbChat(chatData);
+                retrySuccess = retryResult.success;
+
+                if (!retrySuccess) {
+                  const createPayload = { ...chatData, spaceId: currentSpace };
+                  retryResult = await createDbChat(createPayload);
+                  retrySuccess = retryResult.success;
+                  op = "create";
+                }
+
+                if (retrySuccess) {
+                  console.log(
+                    "[executePush] Retry after token refresh successful:",
+                    {
+                      chatId,
+                      operation: op,
+                    }
+                  );
+                  if (op === "create") {
+                    onBackgroundCreateSuccess?.(chatId);
+                  } else {
+                    onBackgroundUpdateSuccess?.(chatId);
+                  }
+                  return; // Exit successfully
+                }
+              } catch (retryError) {
+                console.warn("[executePush] Retry failed:", retryError);
+              }
+            }
+          } catch (tokenError) {
+            console.warn(
+              "[executePush] Token refresh failed during retry:",
+              tokenError
+            );
+          }
+        }
+
         console.error("[executePush] Sync error:", {
           chatId,
           error: errorMessage,
           distillRationaleId: chatData.distillRationaleId,
         });
-        toast.error(
-          `Error saving chat "${chatData.title.substring(0, 20)}..." to server. Check connection.`
-        );
+
+        if (isAuthError) {
+          toast.error(
+            "Authentication expired. Please refresh the page to continue syncing chats."
+          );
+        } else {
+          toast.error(
+            `Error saving chat "${chatData.title.substring(0, 20)}..." to server. Check connection.`
+          );
+        }
+
         if (op === "create") {
           onBackgroundCreateError?.(chatId, errorMessage);
         } else {

@@ -44,6 +44,7 @@ import type { FavorHistoryChartProps } from "./pointcard/FavorHistoryChart";
 import { OPBadge } from "@/components/cards/pointcard/OPBadge";
 import { VisitedMarker } from "@/components/cards/pointcard/VisitedMarker";
 import { PointCardHeader } from "@/components/cards/pointcard/PointCardHeader";
+import { ObjectionHeader } from "@/components/cards/pointcard/ObjectionHeader";
 import { PointCardActions } from "@/components/cards/pointcard/PointCardActions";
 import { fetchFavorHistory } from '@/actions/feed/fetchFavorHistory';
 import { usePointEndorsementBreakdown } from "../../queries/points/usePointEndorsementBreakdown";
@@ -112,6 +113,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   /** Whether to show detailed endorsements breakdown */
   showEndorsements?: boolean;
   isObjection?: boolean;
+  objectionTargetId?: number;
 }
 
 // Lazy-load the favor history chart component (default export)
@@ -158,6 +160,7 @@ export const PointCard = ({
   isSharing = false,
   showEndorsements = false,
   isObjection,
+  objectionTargetId,
   ...props
 }: PointCardProps) => {
   const { data: endorsementDetails } = usePointEndorsementBreakdown(pointId, showEndorsements);
@@ -198,6 +201,7 @@ export const PointCard = ({
   }, [pointId, setSelectedIds]);
 
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
 
   const viewerNegationsCred = viewerContext?.viewerNegationsCred ?? 0;
   const endorsedByViewer = viewerContext?.viewerCred !== undefined && viewerContext.viewerCred > 0;
@@ -391,6 +395,11 @@ export const PointCard = ({
         </CheckboxPrimitive.Root>
       )}
       <div className="flex flex-col flex-grow w-full min-w-0 pr-8">
+        {isObjection && objectionTargetId && (
+          <div className="mb-2 flex justify-center">
+            <ObjectionHeader id={pointId} parentId={objectionTargetId} space={space} />
+          </div>
+        )}
         <PointCardHeader
           inGraphNode={!!inGraphNode}
           graphNodeLevel={graphNodeLevel}
@@ -405,6 +414,9 @@ export const PointCard = ({
           handlePinCommandClick={handlePinCommandClick}
           handleTargetPointClick={handleTargetPointClick}
           content={content}
+          isObjection={isObjection}
+          parentPointId={parentPoint?.id}
+          pointId={pointId}
         />
 
         <PointStats
@@ -437,6 +449,7 @@ export const PointCard = ({
           currentSpace={currentSpace ?? undefined}
           isInPointPage={isInPointPage}
           isNegation={!!isNegation}
+          isObjection={isObjection}
           parentCred={parentPoint?.cred}
           showRestakeAmount={showRestakeAmount}
           restakeIsOwner={restake?.isOwner}
@@ -446,7 +459,6 @@ export const PointCard = ({
           doubtAmount={doubt?.amount}
           doubtIsUserDoubt={doubt?.isUserDoubt}
           doubtPercentage={doubtPercentage}
-          isObjection={isObjection}
         />
       </div>
       {(endorsedByOp || (showEndorsements && endorsementDetails && endorsementDetails.length > 0)) && (

@@ -5,12 +5,14 @@ import { encodeId } from '@/lib/negation-game/encodeId';
 import { useSetAtom } from 'jotai';
 import { makePointSuggestionAtom } from '@/atoms/makePointSuggestionAtom';
 import { makeNegationSuggestionAtom } from '@/atoms/makeNegationSuggestionAtom';
+import { makeObjectionSuggestionAtom } from '@/atoms/makeObjectionSuggestionAtom';
 import { usePointData } from '@/queries/points/usePointData';
 import { PointReference } from '../visual/PointReference';
 
 interface SuggestionBlockProps {
-    type: 'point' | 'negation';
+    type: 'point' | 'negation' | 'objection';
     targetId?: number;
+    contextId?: number;
     text: string;
     space?: string | null;
 }
@@ -52,10 +54,11 @@ const renderTextWithReferences = (text: string, spaceInput: string | null | unde
     });
 };
 
-export const SuggestionBlock: React.FC<SuggestionBlockProps> = ({ type, targetId, text, space }) => {
+export const SuggestionBlock: React.FC<SuggestionBlockProps> = ({ type, targetId, contextId, text, space }) => {
     const Icon = type === 'point' ? GitBranchPlus : PenSquare;
     const setMakePointSuggestion = useSetAtom(makePointSuggestionAtom);
     const setMakeNegationSuggestion = useSetAtom(makeNegationSuggestionAtom);
+    const setMakeObjectionSuggestion = useSetAtom(makeObjectionSuggestionAtom);
 
     let displayTargetId: string | number | undefined;
     if (type === 'negation' && targetId !== undefined) {
@@ -69,6 +72,7 @@ export const SuggestionBlock: React.FC<SuggestionBlockProps> = ({ type, targetId
     }
 
     const isNegationSuggestion = type === 'negation' && targetId !== undefined;
+    const isObjectionSuggestion = type === 'objection' && targetId !== undefined && contextId !== undefined;
 
     const handleClick = () => {
         const textForAction = text;
@@ -79,6 +83,15 @@ export const SuggestionBlock: React.FC<SuggestionBlockProps> = ({ type, targetId
         } else if (isNegationSuggestion) {
             if (!space) return;
             setMakeNegationSuggestion({ targetId, text: textForAction, context: 'chat', spaceId: space });
+        } else if (isObjectionSuggestion) {
+            if (!space) return;
+            setMakeObjectionSuggestion({
+                targetId,
+                contextId,
+                text: textForAction,
+                context: 'chat',
+                spaceId: space
+            });
         }
     };
 
@@ -87,11 +100,31 @@ export const SuggestionBlock: React.FC<SuggestionBlockProps> = ({ type, targetId
         buttonText = 'Make Point';
     } else if (isNegationSuggestion) {
         buttonText = 'Suggest Negation';
+    } else if (isObjectionSuggestion) {
+        buttonText = 'Suggest Objection';
     }
 
     return (
         <div className="my-4 p-4 border rounded-lg bg-card/50 overflow-hidden">
-            {isNegationSuggestion && (
+            {isObjectionSuggestion && contextId && (
+                <>
+                    <div className="mb-3">
+                        <p className="text-xs text-muted-foreground mb-2">Original point being defended:</p>
+                        <TargetPointDisplay pointId={contextId} />
+                    </div>
+                    <div className="mb-3">
+                        <p className="text-xs text-muted-foreground mb-2">Counterpoint being objected to:</p>
+                        <TargetPointDisplay pointId={targetId} />
+                    </div>
+                    <div className="mb-3 p-3 bg-orange-50 dark:bg-orange-950/20 border-l-4 border-orange-400 rounded-r-md">
+                        <p className="text-sm text-orange-800 dark:text-orange-200">
+                            You&apos;re suggesting that in regards to the counterpoint → original point relationship,
+                            the counterpoint is irrelevant because:
+                        </p>
+                    </div>
+                </>
+            )}
+            {isNegationSuggestion && !isObjectionSuggestion && (
                 <TargetPointDisplay pointId={targetId} />
             )}
             <p className="mb-3 text-sm whitespace-pre-wrap break-words">

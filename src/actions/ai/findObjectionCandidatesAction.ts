@@ -6,6 +6,7 @@ import {
   endorsementsTable,
   negationsTable,
   pointsTable,
+  objectionsTable,
 } from "@/db/schema";
 import { Point } from "@/db/tables/pointsTable";
 import { addFavor } from "@/db/utils/addFavor";
@@ -31,35 +32,39 @@ import {
   doubtedAmountSql,
 } from "@/actions/utils/pointSqlUtils";
 
-export interface FindCounterpointCandidatesArgs {
-  negatedPointId: Point["id"];
+export interface FindObjectionCandidatesArgs {
+  targetPointId: Point["id"];
   negatedPointContent: Point["content"];
-  counterpointContent: Point["content"];
+  contextPointId: Point["id"];
+  contextPointContent: Point["content"];
+  objectionContent: Point["content"];
 }
 
-export const findCounterpointCandidatesAction = async ({
-  negatedPointId,
-  counterpointContent,
-}: FindCounterpointCandidatesArgs) => {
+export const findObjectionCandidatesAction = async ({
+  targetPointId,
+  contextPointId,
+  objectionContent,
+}: FindObjectionCandidatesArgs) => {
   const space = await getSpace();
 
   const embedding = (
     await embed({
       model: openai.embedding("text-embedding-3-small", { dimensions: 384 }),
-      value: counterpointContent,
+      value: objectionContent,
     })
   ).embedding;
 
   const similarity = sql<number>`1 - (${cosineDistance(embeddingsTable.embedding, embedding)})`;
 
-  const isCounterpoint = exists(
+  const isObjection = exists(
     db
       .select()
-      .from(negationsTable)
+      .from(objectionsTable)
       .where(
-        or(
-          sql`${negationsTable.olderPointId} = ${pointsTable.id} AND ${negationsTable.newerPointId} = ${negatedPointId}`,
-          sql`${negationsTable.newerPointId} = ${pointsTable.id} AND ${negationsTable.olderPointId} = ${negatedPointId}`
+        and(
+          eq(objectionsTable.objectionPointId, pointsTable.id),
+          eq(objectionsTable.targetPointId, targetPointId),
+          eq(objectionsTable.contextPointId, contextPointId)
         )
       )
   ).mapWith(Boolean);
@@ -71,7 +76,7 @@ export const findCounterpointCandidatesAction = async ({
       content: pointsTable.content,
       createdAt: pointsTable.createdAt,
       createdBy: pointsTable.createdBy,
-      isCounterpoint,
+      isObjection,
       amountNegations: sql<number>`
       COALESCE((
         SELECT COUNT(*)
@@ -121,7 +126,8 @@ export const findCounterpointCandidatesAction = async ({
     .where(
       and(
         gt(similarity, 0.5),
-        ne(pointsTable.id, negatedPointId),
+        ne(pointsTable.id, targetPointId),
+        ne(pointsTable.id, contextPointId),
         eq(pointsTable.space, space)
       )
     )
@@ -133,18 +139,18 @@ export const findCounterpointCandidatesAction = async ({
 
 ${similarPoints.map(({ id, content }) => `${id}: ${content}`).join("\n---\n")}
 
-Using this statement as the COUNTERPOINT CANDIDATE:
-${counterpointContent}
+Using this statement as the OBJECTION CANDIDATE:
+${objectionContent}
 ---
 
-Identify the IDs of statements that are similar in meaning, express the same idea or similar as the COUNTERPOINT CANDIDATE.
+Identify the IDs of statements that are similar in meaning, express the same idea or similar as the OBJECTION CANDIDATE.
 
 return no results if no statements meet the criteria.
 Match the input language, do not translate to English.
     `;
 
   const {
-    object: viableCounterpointIds,
+    object: viableObjectionIds,
     toJsonResponse,
     finishReason,
   } = await withRetry(async () => {
@@ -156,5 +162,5 @@ Match the input language, do not translate to English.
     });
   });
 
-  return similarPoints.filter(({ id }) => viableCounterpointIds.includes(id));
+  return similarPoints.filter(({ id }) => viableObjectionIds.includes(id));
 };

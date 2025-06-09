@@ -12,7 +12,7 @@ import { CommitmentMechanism } from '@/components/knowledgebase/CommitmentMechan
 import { GettingStartedGuide } from '@/components/knowledgebase/GettingStartedGuide';
 import { WhatIsRestaking } from '@/components/knowledgebase/WhatIsRestaking';
 import { WhatIsSlashing } from '@/components/knowledgebase/WhatIsSlashing';
-import { WhatIsDoubting } from '@/components/knowledgebase/WhatIsDoubting';
+import { WhatIsDoubting } from './WhatIsDoubting';
 import { WhatAreEdges } from '@/components/knowledgebase/WhatAreEdges';
 import { WhatIsAIAssistant } from '@/components/knowledgebase/WhatIsAIAssistant';
 import { cn } from '@/lib/utils/cn';

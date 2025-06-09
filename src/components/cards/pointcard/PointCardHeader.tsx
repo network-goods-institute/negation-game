@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import {
     PointIcon,
@@ -6,6 +8,7 @@ import {
 } from "@/components/icons/AppIcons";
 import { cn } from "@/lib/utils/cn";
 import PinBadges from "./PinBadges";
+import { ObjectionIcon } from "@/components/icons/ObjectionIcon";
 
 export interface PointCardHeaderProps {
     inGraphNode: boolean;
@@ -21,11 +24,13 @@ export interface PointCardHeaderProps {
     handlePinCommandClick: React.MouseEventHandler;
     handleTargetPointClick: React.MouseEventHandler;
     content: string;
+    isObjection?: boolean;
+    parentPointId?: number;
+    pointId?: number;
 }
 
-export const PointCardHeader: React.FC<PointCardHeaderProps> = ({
+export const PointCardHeader = ({
     inGraphNode,
-    graphNodeLevel,
     isCommand,
     isPinned,
     space,
@@ -37,19 +42,19 @@ export const PointCardHeader: React.FC<PointCardHeaderProps> = ({
     handlePinCommandClick,
     handleTargetPointClick,
     content,
-}) => {
-    let Icon: React.ComponentType<any>;
-    if (isCommand && space && space !== "global") {
-        Icon = FeedCommandIcon;
-    } else if (isPinned && space && space !== "global") {
-        Icon = PinnedIcon;
-    } else {
-        Icon = PointIcon;
-    }
-
+    isObjection,
+}: PointCardHeaderProps) => {
     return (
         <div className={cn("flex items-start gap-2", inGraphNode && "pt-4")}>
-            <Icon />
+            {isCommand && space && space !== "global" ? (
+                <FeedCommandIcon />
+            ) : isPinned && space && space !== "global" ? (
+                <PinnedIcon />
+            ) : isObjection ? (
+                <ObjectionIcon className="w-5 h-5 stroke-1 text-muted-foreground" />
+            ) : (
+                <PointIcon />
+            )}
             <div className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg -mt-1 mb-sm select-text flex-1 break-words whitespace-normal overflow-hidden">
                 {content}
                 <PinBadges
@@ -66,5 +71,3 @@ export const PointCardHeader: React.FC<PointCardHeaderProps> = ({
         </div>
     );
 };
-
-export default PointCardHeader; 

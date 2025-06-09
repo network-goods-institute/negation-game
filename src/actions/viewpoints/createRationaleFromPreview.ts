@@ -2,7 +2,12 @@
 
 import { db } from "@/services/db";
 import { viewpointsTable } from "@/db/tables/viewpointsTable";
-import { negationsTable } from "@/db/schema";
+import {
+  negationsTable,
+  endorsementsTable,
+  objectionsTable,
+} from "@/db/schema";
+import { or, and, eq } from "drizzle-orm";
 import { makePoint } from "@/actions/points/makePoint";
 import { endorse } from "@/actions/endorsements/endorse";
 import { nanoid } from "nanoid";
@@ -174,14 +179,49 @@ export async function createRationaleFromPreview({
           const parentPreviewId = parentEdge?.source || "statement";
           const parentFinalId = previewToFinalIdMap.get(parentPreviewId)!;
 
+          // Preserve objection data if this is an objection
+          const nodeData = node.data as PreviewPointNodeData;
+          const finalNodeData: any = {
+            pointId: finalId,
+            parentId: parentFinalId,
+          };
+
+          // If this is an objection, preserve the objection metadata for display
+          if (
+            nodeData.isObjection &&
+            nodeData.objectionTargetId &&
+            nodeData.objectionContextId
+          ) {
+            finalNodeData.isObjection = true;
+            // Resolve objection IDs to final point IDs for the final graph
+            if (typeof nodeData.objectionTargetId === "string") {
+              const targetFinalId = finalPointIdMap.get(
+                nodeData.objectionTargetId
+              );
+              if (targetFinalId !== undefined) {
+                finalNodeData.objectionTargetId = targetFinalId;
+              }
+            } else {
+              finalNodeData.objectionTargetId = nodeData.objectionTargetId;
+            }
+
+            if (typeof nodeData.objectionContextId === "string") {
+              const contextFinalId = finalPointIdMap.get(
+                nodeData.objectionContextId
+              );
+              if (contextFinalId !== undefined) {
+                finalNodeData.objectionContextId = contextFinalId;
+              }
+            } else {
+              finalNodeData.objectionContextId = nodeData.objectionContextId;
+            }
+          }
+
           finalNodes.push({
             id: nodeId,
             type: "point",
             position: node.position || { x: 0, y: 0 },
-            data: {
-              pointId: finalId,
-              parentId: parentFinalId,
-            },
+            data: finalNodeData,
           });
           previewToFinalIdMap.set(node.id, nodeId);
         }
@@ -242,6 +282,129 @@ export async function createRationaleFromPreview({
             space: spaceId,
           })
           .onConflictDoNothing();
+      }
+    }
+
+    for (const node of previewNodes) {
+      if (node.type === "point") {
+        const data = node.data as PreviewPointNodeData;
+
+        if (
+          data.isObjection &&
+          data.objectionTargetId &&
+          data.objectionContextId
+        ) {
+          const objectionPointId = finalPointIdMap.get(node.id);
+
+          if (objectionPointId) {
+            try {
+              // Resolve target and context IDs to actual point IDs
+              let targetPointId: number;
+              let contextPointId: number;
+
+              // If objectionTargetId is a string, it's a node ID - resolve it
+              if (typeof data.objectionTargetId === "string") {
+                const targetPointIdFromMap = finalPointIdMap.get(
+                  data.objectionTargetId
+                );
+                if (targetPointIdFromMap === undefined) {
+                  console.warn(
+                    `Could not resolve target node ID ${data.objectionTargetId} to point ID`
+                  );
+                  continue;
+                }
+                targetPointId = targetPointIdFromMap;
+              } else {
+                // It's already a point ID
+                targetPointId = data.objectionTargetId;
+              }
+
+              // If objectionContextId is a string, it's a node ID - resolve it
+              if (typeof data.objectionContextId === "string") {
+                const contextPointIdFromMap = finalPointIdMap.get(
+                  data.objectionContextId
+                );
+                if (contextPointIdFromMap === undefined) {
+                  console.warn(
+                    `Could not resolve context node ID ${data.objectionContextId} to point ID`
+                  );
+                  continue;
+                }
+                contextPointId = contextPointIdFromMap;
+              } else {
+                // It's already a point ID
+                contextPointId = data.objectionContextId;
+              }
+
+              const negationRelationship = await db
+                .select({ id: negationsTable.id })
+                .from(negationsTable)
+                .where(
+                  or(
+                    and(
+                      eq(
+                        negationsTable.olderPointId,
+                        Math.min(targetPointId, contextPointId)
+                      ),
+                      eq(
+                        negationsTable.newerPointId,
+                        Math.max(targetPointId, contextPointId)
+                      )
+                    )
+                  )
+                );
+
+              if (negationRelationship.length > 0) {
+                const parentEdgeId = negationRelationship[0].id;
+
+                const endorsement = await db
+                  .select({ id: endorsementsTable.id })
+                  .from(endorsementsTable)
+                  .where(
+                    and(
+                      eq(endorsementsTable.pointId, objectionPointId),
+                      eq(endorsementsTable.userId, userId)
+                    )
+                  )
+                  .limit(1);
+
+                let endorsementId: number;
+
+                if (endorsement.length > 0) {
+                  endorsementId = endorsement[0].id;
+                } else {
+                  const newEndorsement = await db
+                    .insert(endorsementsTable)
+                    .values({
+                      cred: 0,
+                      pointId: objectionPointId,
+                      userId,
+                      space: spaceId,
+                    })
+                    .returning({ id: endorsementsTable.id });
+
+                  endorsementId = newEndorsement[0].id;
+                }
+
+                await db.insert(objectionsTable).values({
+                  objectionPointId,
+                  targetPointId,
+                  contextPointId,
+                  parentEdgeId,
+                  endorsementId,
+                  createdBy: userId,
+                  space: spaceId,
+                });
+              } else {
+                console.warn(
+                  `[createRationaleFromPreview] No negation relationship found between target ${targetPointId} and context ${contextPointId}`
+                );
+              }
+            } catch (error) {
+              console.error("Failed to create objection relationship:", error);
+            }
+          }
+        }
       }
     }
 

@@ -10,6 +10,7 @@ import {
   pointsTable,
   spacesTable,
   negationsTable,
+  objectionsTable,
 } from "@/db/schema";
 import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
@@ -39,6 +40,8 @@ export type FeedPoint = {
   isCommand?: boolean;
   pinnedByCommandId?: number | null;
   favor: number;
+  isObjection?: boolean;
+  objectionTargetId?: number;
   doubt?: {
     id: number;
     amount: number;
@@ -169,6 +172,15 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
             ),
           }
         : sql<null>`NULL`.mapWith((x) => x as null),
+      isObjection: sql<boolean>`EXISTS (
+        SELECT 1 FROM ${objectionsTable}
+        WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
+      )`.mapWith(Boolean),
+      objectionTargetId: sql<number | null>`(
+        SELECT ${objectionsTable.targetPointId} FROM ${objectionsTable}
+        WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
+        LIMIT 1
+      )`.mapWith((v) => v),
     })
     .from(pointsWithDetailsView)
     .where(and(...conditions))

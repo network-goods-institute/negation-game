@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils/cn";
 import { Handle, Node, NodeProps, Position, useReactFlow } from "@xyflow/react";
 import { XIcon } from "lucide-react";
 import { nanoid } from "nanoid";
-import { useState } from "react";
+import React, { useState } from "react";
 import { PointEditor } from "@/components/editor/PointEditor";
 import { useCredInput } from "@/hooks/ui/useCredInput";
 import { fetchPoint } from "@/actions/points/fetchPoint";
@@ -22,6 +22,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
 import { Loader } from "@/components/ui/loader";
 import { PointStats } from "@/components/cards/pointcard/PointStats";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { PreviewPointNodeData } from './PreviewPointNode';
 
 /**
  * Simplified AddPointNode for RationaleCreator Preview
@@ -45,11 +49,13 @@ export const PreviewAddPointNode = ({
   positionAbsoluteX,
   positionAbsoluteY,
 }: PreviewAddPointNodeProps) => {
-  const { deleteElements, addEdges, addNodes, getNode } = useReactFlow();
+  const { deleteElements, addEdges, addNodes, getNode, getNodes, getEdges } = useReactFlow();
   const [content, setContent] = useState("");
   const { credInput, setCredInput, notEnoughCred } = useCredInput();
   const { user: privyUser } = usePrivy();
   const debouncedContent = useDebounce(content, 1000);
+  const [isObjection, setIsObjection] = useState(false);
+  const [selectedContextId, setSelectedContextId] = useState<string>("");
 
   const { data: similarPoints, isLoading } = useQuery({
     queryKey: ["preview-similar", debouncedContent],
@@ -65,9 +71,41 @@ export const PreviewAddPointNode = ({
   };
 
   const isParentStatement = getNode(parentId)?.type === "statement";
-  const buttonText = isParentStatement ? "Add Option" : "Add Point";
+  const buttonText = isParentStatement ? "Add Option" : isObjection ? "Add Objection" : "Add Point";
 
-  const canAddPoint = content.length >= POINT_MIN_LENGTH;
+  // Find available context points for objections
+  const availableContexts = React.useMemo(() => {
+    if (!isObjection || isParentStatement) return [];
+
+    // Get all nodes and edges to find the grandparent
+    const nodes = getNodes();
+    const edges = getEdges();
+
+    // Find the edge connecting parent to its parent (grandparent)
+    const parentEdge = edges.find(edge => edge.target === parentId);
+    if (!parentEdge) return [];
+
+    const grandparentId = parentEdge.source;
+    const grandparentNode = nodes.find(node => node.id === grandparentId);
+
+    if (!grandparentNode) return [];
+
+    // If grandparent is a point node, get its point ID
+    if (grandparentNode.type === "point") {
+      const grandparentData = grandparentNode.data as PreviewPointNodeData;
+      return [{
+        contextPointId: grandparentData.existingPointId || 0,
+        contextContent: grandparentData.content,
+        nodeId: grandparentId
+      }];
+    }
+
+    return [];
+  }, [isObjection, isParentStatement, parentId, getNodes, getEdges]);
+
+
+
+  const canAddPoint = content.length >= POINT_MIN_LENGTH && (!isObjection || selectedContextId);
 
   const handleAdd = async () => {
     let nodeContent = content;
@@ -90,13 +128,23 @@ export const PreviewAddPointNode = ({
     }
 
     const uniqueId = `previewpoint-${nanoid()}`;
+
+    const nodeData: PreviewPointNodeData = {
+      content: nodeContent,
+      cred: nodeCred > 0 ? nodeCred : undefined,
+    };
+
+    // Add objection data if this is an objection
+    if (isObjection && selectedContextId) {
+      nodeData.isObjection = true;
+      nodeData.objectionTargetId = parentId; // Use parent node ID
+      nodeData.objectionContextId = selectedContextId; // Use context node ID
+    }
+
     addNodes({
       id: uniqueId,
       type: "point",
-      data: {
-        content: nodeContent,
-        cred: nodeCred > 0 ? nodeCred : undefined,
-      },
+      data: nodeData,
       position: {
         x: positionAbsoluteX,
         y: positionAbsoluteY,
@@ -154,6 +202,55 @@ export const PreviewAddPointNode = ({
         parentNodeType={isParentStatement ? "statement" : undefined}
         allowZero={false}
       />
+
+      {/* Objection Controls - only show if not a statement child */}
+      {!isParentStatement && (
+        <div className="flex flex-col gap-2 p-2 border rounded-md bg-muted/30">
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="objection-toggle"
+              checked={isObjection}
+              onCheckedChange={(checked) => {
+                setIsObjection(checked);
+                if (!checked) {
+                  setSelectedContextId("");
+                }
+              }}
+            />
+            <Label htmlFor="objection-toggle" className="text-sm">
+              This is an objection
+            </Label>
+          </div>
+
+          {isObjection && availableContexts.length > 0 && (
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">
+                Objecting to relevance for:
+              </Label>
+              <Select value={selectedContextId} onValueChange={setSelectedContextId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select context point..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableContexts.map((context) => (
+                    <SelectItem key={context.nodeId} value={context.nodeId}>
+                      <span className="text-xs truncate max-w-[200px]">
+                        {context.contextContent}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {isObjection && availableContexts.length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              No context points available for objection
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="flex justify-between gap-2">
         <div className="flex gap-2">

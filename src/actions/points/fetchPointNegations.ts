@@ -11,6 +11,7 @@ import {
   negationsTable,
   endorsementsTable,
   pointsTable,
+  objectionsTable,
 } from "@/db/schema";
 import { addFavor } from "@/db/utils/addFavor";
 import { eq, or, and, ne, sql } from "drizzle-orm";
@@ -55,6 +56,8 @@ export type NegationResult = {
   isCommand: boolean;
   pinnedByCommandId: number | null;
   isObjection: boolean;
+  objectionTargetId: number | null;
+  objectionContextId: number | null;
 };
 
 export const fetchPointNegations = async (
@@ -75,7 +78,20 @@ export const fetchPointNegations = async (
       negationsCred: pointsWithDetailsView.negationsCred,
       space: pointsWithDetailsView.space,
       isCommand: pointsWithDetailsView.isCommand,
-      isObjection: negationsTable.isObjection,
+      isObjection: sql<boolean>`EXISTS (
+        SELECT 1 FROM ${objectionsTable}
+        WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
+      )`.mapWith(Boolean),
+      objectionTargetId: sql<number | null>`(
+        SELECT ${objectionsTable.targetPointId} FROM ${objectionsTable}
+        WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
+        LIMIT 1
+      )`.mapWith((v) => v),
+      objectionContextId: sql<number | null>`(
+        SELECT ${objectionsTable.contextPointId} FROM ${objectionsTable}
+        WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
+        LIMIT 1
+      )`.mapWith((v) => v),
       negationIds: pointsWithDetailsView.negationIds,
       viewerCred: userId
         ? sql<number>`

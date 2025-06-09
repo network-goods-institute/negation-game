@@ -1,0 +1,1 @@
+ALTER TABLE "objections" ALTER COLUMN "endorsement_id" DROP NOT NULL;
