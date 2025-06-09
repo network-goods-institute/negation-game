@@ -150,6 +150,11 @@ export const fetchPoints = async (ids: number[]) => {
         WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
         LIMIT 1
       )`.mapWith((v) => v),
+      objectionContextId: sql<number | null>`(
+        SELECT ${objectionsTable.contextPointId} FROM ${objectionsTable}
+        WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
+        LIMIT 1
+      )`.mapWith((v) => v),
     })
     .from(pointsWithDetailsView)
     .leftJoin(

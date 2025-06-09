@@ -7,6 +7,10 @@ import { getUserId } from "@/actions/users/getUserId";
 
 import type { ChatMessage, ChatSettings, DiscourseMessage } from "@/types/chat";
 import type { PointInSpace } from "@/actions/points/fetchAllSpacePoints";
+import {
+  fetchAllSpaceNegations,
+  type SpaceNegation,
+} from "@/actions/points/fetchAllSpaceNegations";
 
 const sanitizeText = (text: string): string => {
   if (!text) return "";
@@ -32,12 +36,18 @@ RULES & CAPABILITIES:
     *   Example:
         [Suggest Point]>
         Consider the long-term maintenance aspect.
-3.  **Suggesting Negations (Counterpoints & Objections):** Use \`[Suggest Negation For:ID]>\` on a **new line immediately after referencing Point ID** (must be an EXISTING Point ID from CONTEXT). Follow with negation text (max 160 chars). These should be potential counterarguments the user might raise against an existing point, consistent with their overall context. Target ONLY points (numeric IDs). Do NOT suggest negations for Discourse Posts. Do NOT invent Point IDs.
-    *   Example (after referencing Point 123, where the user context suggests disagreement):
+3.  **Suggesting Negations (Counterpoints & Objections):** 
+    **COUNTERPOINTS:** Use \`[Suggest Negation For:ID]>\` to suggest direct counterarguments that disprove or weaken a point.
+    **OBJECTIONS:** Use \`[Suggest Objection For:targetId:contextId]>\` to suggest that a point is irrelevant to the broader discussion. Use objections when Point A negates Point B, but you want to argue that Point A is irrelevant to the original context that Point B was addressing.
+    
+    Target ONLY points (numeric IDs). Do NOT suggest negations for Discourse Posts. Do NOT invent Point IDs.
+    
+    *   Example (counterpoint after referencing Point 123):
         ...your point about initial cost [Point:123].
         - [Suggest Negation For:123]> This overlooks the potential for vendor lock-in.
-    *   Example (for an objection): Your point about scalability [Point:123] under main topic [Point:456].
-        - [Suggest Objection For:123:456]> This argument is irrelevant to the core issue because it ignores broader constraints.
+    *   Example (objection when Point 123 negates Point 456, but you think Point 123 is irrelevant):
+        Looking at the relationships, [Point:123] negates [Point:456], but...
+        - [Suggest Objection For:123:456]> This argument is irrelevant to the core scalability issue because it focuses on minor implementation details.
 4.  **Referencing (Inline):** Use \`[Point:ID]\` (singular "Point", single ID) for direct inline mentions of an EXISTING point. If you need to refer to multiple points in a list, use separate tags for each, e.g., "Discussion on [Point:123], [Point:456], and [Point:789] is relevant." **DO NOT use ranges (e.g., \`[Point:1-5]\`) or comma-separated lists within a single tag (e.g., \`[Point:1,2,3]\`). Do NOT use the plural \`[Points:...]\`.** Actively look for opportunities to connect the conversation back to EXISTING points provided in the CONTEXT using the correct \`[Point:ID]\` format. Use \`[Discourse Post:ID]\` for discourse posts.
     *   Example: \"Regarding [Point:123], we should...\" or \"As mentioned in [Discourse Post:456]...\"
 5.  **Avoid Duplicates:** Before suggesting a new point (\`[Suggest Point]>\`), check if a very similar point already exists in the CONTEXT. If so, **reference the existing point using the correct \`[Point:ID]\` format instead of creating a redundant suggestion.**
@@ -62,10 +72,12 @@ MARKDOWN FORMATTING:
         *   Some introductory context. [Suggest Negation For:123]> Suggestion A. [Suggest Point]> Suggestion B.
 
 YOUR TASK:
-*   Analyze the user's message, chat history, and the provided context (points in space, ownership/endorsement status, discourse posts) **to understand the user's likely perspective and claims.**
+*   Analyze the user's message, chat history, and the provided context (points in space, ownership/endorsement status, discourse posts, **point relationships**) **to understand the user's likely perspective and claims.**
 *   **Prioritize referencing existing relevant points (\`[Point:ID]\`)** that align with the user's perspective.
 *   Generate relevant suggestions for **truly NEW points (\`[Suggest Point]>\`) that the user might want to make** to support their stance.
-*   Generate relevant suggestions for **NEGATIONS of EXISTING points** that include both counterpoints (disproving) and objections (challenging relevance), ensuring objections clearly state irrelevance.
+*   Generate relevant suggestions for **COUNTERPOINTS (\`[Suggest Negation For:ID]\`)** that directly disprove or weaken existing points the user disagrees with.
+*   Generate relevant suggestions for **OBJECTIONS (\`[Suggest Objection For:targetId:contextId]\`)** when you see from the Point Relationships that Point A negates Point B, but Point A seems irrelevant to the broader discussion. Use the exact format with two IDs separated by colon.
+*   **Study the Point Relationships section** to understand which points negate which other points - this will help you identify objection opportunities.
 *   Engage in a focused brainstorming dialogue aimed at helping the user articulate and refine **their own arguments.**
 *   Strictly adhere to the specified tag formats and rules for referencing, attribution, and suggestions.
 *   Match the language of the user's messages. Do not translate to English.`;
@@ -75,7 +87,8 @@ function buildContextString(
   allPointsInSpace: PointInSpace[],
   ownedPointIds: Set<number>,
   endorsedPointIds: Set<number>,
-  discourseMessages: DiscourseMessage[]
+  discourseMessages: DiscourseMessage[],
+  spaceNegations: SpaceNegation[]
 ): string {
   let context = "";
 
@@ -106,6 +119,17 @@ function buildContextString(
     context += "No recent Discourse posts provided or enabled.\n";
   }
 
+  if (spaceNegations.length > 0) {
+    context += "Point Relationships (Negations):\n";
+    spaceNegations.forEach((negation) => {
+      context += `- Point ${negation.newerPointId} negates Point ${negation.olderPointId}\n`;
+    });
+    context +=
+      "\nNote: When Point A negates Point B, you can suggest objections with [Suggest Objection For:A:B] if Point A seems irrelevant to the broader discussion that Point B was addressing.\n\n";
+  } else {
+    context += "No point relationships found in this space yet.\n\n";
+  }
+
   return context.trim();
 }
 
@@ -130,12 +154,15 @@ export const generateSuggestionChatBotResponse = async (
       ? discourseMessages.slice(-5)
       : [];
 
+    const spaceNegations = await fetchAllSpaceNegations();
+
     const systemPrompt = buildGenerateSystemPrompt();
     const contextString = buildContextString(
       allPointsInSpace,
       ownedPointIds,
       endorsedPointIds,
-      relevantDiscourseMessages
+      relevantDiscourseMessages,
+      spaceNegations
     );
     const chatHistoryString = chatMessages
       .map((m) => `${m.role.toUpperCase()}:\n${m.content}`)

@@ -31,6 +31,7 @@ export type PointNodeData = {
   initialPointData?: import("@/queries/points/usePointData").PointData;
   isObjection?: boolean;
   objectionTargetId?: number;
+  objectionContextId?: number;
 };
 
 export type PointNode = Node<PointNodeData, "point">;
@@ -167,18 +168,22 @@ const RawPointNode = ({
   // When fresh data loads, re-measure the node size/layout
   useEffect(() => {
     if (fetchedPointData) {
+
       updateNodeInternals(id);
       setNodes((nds) =>
         nds.map((node) => {
           if (node.id === id) {
-            return {
+            const updatedNode = {
               ...node,
               data: {
                 ...node.data,
                 isObjection: fetchedPointData.isObjection,
                 objectionTargetId: fetchedPointData.objectionTargetId,
+                objectionContextId: fetchedPointData.objectionContextId,
               },
             };
+
+            return updatedNode;
           }
           return node;
         })

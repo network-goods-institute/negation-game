@@ -2,7 +2,6 @@
 
 import {
   XIcon,
-  ArrowDownIcon,
   PencilIcon,
   SaveIcon,
 } from "lucide-react";
@@ -13,13 +12,14 @@ import { nanoid } from 'nanoid';
 import { NegateIcon } from "@/components/icons/NegateIcon";
 import { Button } from "@/components/ui/button";
 import { PreviewPointEditor } from "./PreviewPointEditor";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PointInSpace } from "@/actions/points/fetchAllSpacePoints";
-import { fetchPointById } from '@/actions/points/fetchPointById';
 import type { PointData } from '@/queries/points/usePointData';
 import { encodeId } from '@/lib/negation-game/encodeId';
 import { PreviewPointNodeEndorsement } from "./PreviewPointNodeEndorsement";
 import { PreviewPointNodeStatusIndicators } from "./PreviewPointNodeStatusIndicators";
+import { ObjectionIcon } from "@/components/icons/ObjectionIcon";
+import { fetchPointById } from "@/actions/points/fetchPointById";
 
 /**
  * Simplified PointNode for RationaleCreator Preview
@@ -31,6 +31,9 @@ export type PreviewPointNodeData = {
   allPointsInSpaceFromProps?: PointInSpace[];
   existingPointId?: number | null;
   isNew?: boolean;
+  isObjection?: boolean;
+  objectionTargetId?: number | string; // Can be node ID (string) or point ID (number)
+  objectionContextId?: number | string; // Can be node ID (string) or point ID (number)
 };
 
 export type PreviewPointNode = Node<PreviewPointNodeData, "point">;
@@ -42,7 +45,7 @@ export interface PreviewPointNodeProps extends Omit<NodeProps, "data"> {
 }
 
 export const PreviewPointNode = ({
-  data: { content, cred, allPointsInSpaceFromProps, existingPointId, isNew },
+  data: { content, cred, allPointsInSpaceFromProps, existingPointId, isNew, isObjection, objectionTargetId, objectionContextId },
   id,
   positionAbsoluteX,
   positionAbsoluteY,
@@ -57,6 +60,52 @@ export const PreviewPointNode = ({
   const [isDuplicateOnCanvas, setIsDuplicateOnCanvas] = useState(false);
   const [matchedExistingPoints, setMatchedExistingPoints] = useState<PointInSpace[]>([]);
   const [matchedDetails, setMatchedDetails] = useState<Record<number, PointData | null>>({});
+
+  // Get objection target and context points from the graph nodes
+  const getObjectionPointsFromGraph = useCallback(() => {
+    if (!isObjection || !objectionTargetId || !objectionContextId) {
+      return { targetPoint: null, contextPoint: null };
+    }
+
+    const nodes = getNodes();
+
+    // Find target point (the point being objected to)
+    const targetNode = nodes.find(node => {
+      if (node.type === 'point') {
+        const nodeData = node.data as PreviewPointNodeData;
+        // If objectionTargetId is a string, it's a node ID
+        if (typeof objectionTargetId === 'string') {
+          return node.id === objectionTargetId;
+        }
+        // If it's a number, it's a point ID
+        return nodeData.existingPointId === objectionTargetId;
+      }
+      return false;
+    });
+
+    // Find context point (the original context)  
+    const contextNode = nodes.find(node => {
+      if (node.type === 'point') {
+        const nodeData = node.data as PreviewPointNodeData;
+        // If objectionContextId is a string, it's a node ID
+        if (typeof objectionContextId === 'string') {
+          return node.id === objectionContextId;
+        }
+        // If it's a number, it's a point ID
+        return nodeData.existingPointId === objectionContextId;
+      }
+      return false;
+    });
+
+    return {
+      targetPoint: targetNode ? { content: (targetNode.data as PreviewPointNodeData).content } : null,
+      contextPoint: contextNode ? { content: (contextNode.data as PreviewPointNodeData).content } : null,
+    };
+  }, [isObjection, objectionTargetId, objectionContextId, getNodes]);
+
+  const { targetPoint: objectionTargetPoint, contextPoint: objectionContextPoint } = getObjectionPointsFromGraph();
+
+
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -287,18 +336,55 @@ export const PreviewPointNode = ({
             isConnectable={true}
           />
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-1.5 right-1.5 h-7 w-7 rounded-full hover:bg-accent"
-            onClick={handleEditToggle}
-          >
-            {isEditing ? (
-              <SaveIcon className="h-4 w-4" />
-            ) : (
-              <PencilIcon className="h-4 w-4" />
+          <div className="absolute top-1.5 right-1.5 flex gap-1">
+            {isObjection && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="h-7 w-7 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center cursor-help">
+                    <ObjectionIcon className="h-4 w-4 text-red-600 dark:text-red-400" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="left" className="max-w-xs">
+                  <div className="space-y-2">
+                    {objectionContextPoint && objectionTargetPoint ? (
+                      <>
+                        <p className="font-medium text-sm">
+                          This point argues that a counterpoint is irrelevant to the original discussion.
+                        </p>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Original point being defended:</p>
+                          <p className="text-xs italic">"{objectionContextPoint.content}"</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Counterpoint being objected to:</p>
+                          <p className="text-xs italic">"{objectionTargetPoint.content}"</p>
+                        </div>
+                        <div className="pt-1 border-t">
+                          <p className="text-xs text-muted-foreground">
+                            This objection claims the counterpoint above doesn't actually address the original point.
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs">This point objects to the relevance of another point.</p>
+                    )}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
             )}
-          </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 rounded-full hover:bg-accent"
+              onClick={handleEditToggle}
+            >
+              {isEditing ? (
+                <SaveIcon className="h-4 w-4" />
+              ) : (
+                <PencilIcon className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
 
           <button
             onClick={handleDelete}
@@ -314,7 +400,10 @@ export const PreviewPointNode = ({
             <XIcon className="size-4" />
           </button>
 
-          <div className="text-sm break-words">
+          <div className={cn(
+            "text-sm break-words",
+            isObjection && "pr-16"  // Add right padding when objection icon is present
+          )}>
             {isEditing ? (
               <PreviewPointEditor
                 content={editedContent}

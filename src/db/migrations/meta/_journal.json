@@ -379,6 +379,13 @@
       "when": 1749361425420,
       "tag": "0053_bored_bedlam",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1749384394782,
+      "tag": "0054_parched_meteorite",
+      "breakpoints": true
     }
   ]
 }

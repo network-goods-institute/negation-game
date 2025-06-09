@@ -57,6 +57,7 @@ export type NegationResult = {
   pinnedByCommandId: number | null;
   isObjection: boolean;
   objectionTargetId: number | null;
+  objectionContextId: number | null;
 };
 
 export const fetchPointNegations = async (
@@ -83,6 +84,11 @@ export const fetchPointNegations = async (
       )`.mapWith(Boolean),
       objectionTargetId: sql<number | null>`(
         SELECT ${objectionsTable.targetPointId} FROM ${objectionsTable}
+        WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
+        LIMIT 1
+      )`.mapWith((v) => v),
+      objectionContextId: sql<number | null>`(
+        SELECT ${objectionsTable.contextPointId} FROM ${objectionsTable}
         WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
         LIMIT 1
       )`.mapWith((v) => v),

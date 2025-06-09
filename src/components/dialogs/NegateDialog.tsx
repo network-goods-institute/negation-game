@@ -6,6 +6,7 @@ import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { negationContentAtom } from "@/atoms/negationContentAtom";
 import { recentlyCreatedNegationIdAtom } from "@/atoms/recentlyCreatedNegationIdAtom";
 import { makeNegationSuggestionAtom } from "@/atoms/makeNegationSuggestionAtom";
+import { makeObjectionSuggestionAtom } from "@/atoms/makeObjectionSuggestionAtom";
 import { CredInput } from "@/components/inputs/CredInput";
 import { PointEditor } from "@/components/editor/PointEditor";
 import { PointStats } from "@/components/cards/pointcard/PointStats";
@@ -62,9 +63,10 @@ export interface NegateDialogProps
 
 export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   const [negationSuggestion, setNegationSuggestion] = useAtom(makeNegationSuggestionAtom);
+  const [objectionSuggestion, setObjectionSuggestion] = useAtom(makeObjectionSuggestionAtom);
   const setSelectPointDialogOpen = useSetAtom(selectPointForNegationOpenAtom);
 
-  const initialNegatedPointId = negationSuggestion?.targetId;
+  const initialNegatedPointId = negationSuggestion?.targetId || objectionSuggestion?.targetId;
   const [negatedPointId, setNegatedPointId] = useAtom(negatedPointIdAtom);
 
   const currentNegatedPointId = initialNegatedPointId ?? negatedPointId;
@@ -221,8 +223,9 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     setSelectedContextIndex(0);
     setLoadedContextsForPointId(null);
     setNegationSuggestion(null);
+    setObjectionSuggestion(null);
     setNegatedPointId(undefined);
-  }, [resetCred, setCounterpointContent, setNegationSuggestion, setNegatedPointId]);
+  }, [resetCred, setCounterpointContent, setNegationSuggestion, setObjectionSuggestion, setNegatedPointId]);
 
   const handleExitPreview = useCallback(() => {
     handleClose();
@@ -234,15 +237,33 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
       selectCounterpointCandidate(undefined);
       setGuidanceNotes(undefined);
       setLastReviewedContent("");
+      setIsObjection(false);
     }
   }, [negationSuggestion, setCounterpointContent]);
+
+  useEffect(() => {
+    if (objectionSuggestion) {
+      setCounterpointContent(objectionSuggestion.text);
+      selectCounterpointCandidate(undefined);
+      setGuidanceNotes(undefined);
+      setLastReviewedContent("");
+      setIsObjection(true);
+      // Set the context ID if available
+      if (objectionSuggestion.contextId && availableContexts.length > 0) {
+        const contextIndex = availableContexts.findIndex(ctx => ctx.contextPointId === objectionSuggestion.contextId);
+        if (contextIndex >= 0) {
+          setSelectedContextIndex(contextIndex);
+        }
+      }
+    }
+  }, [objectionSuggestion, setCounterpointContent, availableContexts]);
 
   // Close dialog when there's no negated point ID
   // Note: We don't call handleClose here to avoid infinite loops
   // The dialog's onOpenChange will handle cleanup when it actually closes
 
   useEffect(() => {
-    const dialogIsOpen = negationSuggestion !== null || negatedPointId !== undefined;
+    const dialogIsOpen = negationSuggestion !== null || objectionSuggestion !== null || negatedPointId !== undefined;
 
     if (currentNegatedPointId && dialogIsOpen && loadedContextsForPointId !== currentNegatedPointId) {
       validateObjectionTarget(currentNegatedPointId).then((result) => {
@@ -261,7 +282,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
       setSelectedContextIndex(0);
       setLoadedContextsForPointId(null);
     }
-  }, [currentNegatedPointId, negationSuggestion, negatedPointId, loadedContextsForPointId]);
+  }, [currentNegatedPointId, negationSuggestion, objectionSuggestion, negatedPointId, loadedContextsForPointId]);
 
   useEffect(() => {
     if (needsReview) {
@@ -493,7 +514,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
     setPlatformKey(navigator?.platform?.includes('Mac') ? '⌥' : 'Alt');
   }, []);
 
-  const isOpen = negationSuggestion !== null || negatedPointId !== undefined;
+  const isOpen = negationSuggestion !== null || objectionSuggestion !== null || negatedPointId !== undefined;
 
   // Suppress Ctrl/Cmd+Enter submission when the dialog is open
   useEffect(() => {

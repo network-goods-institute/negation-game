@@ -64,6 +64,8 @@ const PointCardWrapper: FC<PointCardWrapperProps> = memo(({ pointId, rationaleId
                 linkDisabled={true}
                 disablePopover={true}
                 disableVisitedMarker={true}
+                isObjection={anyPointData.isObjection}
+                objectionTargetId={anyPointData.objectionTargetId}
                 onNegate={(e) => {
                     e.preventDefault();
                     e.stopPropagation();

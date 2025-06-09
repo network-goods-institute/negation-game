@@ -202,6 +202,7 @@ export const PointCard = ({
 
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+
   const viewerNegationsCred = viewerContext?.viewerNegationsCred ?? 0;
   const endorsedByViewer = viewerContext?.viewerCred !== undefined && viewerContext.viewerCred > 0;
   const endorsedByOp = opCred && opCred > 0;

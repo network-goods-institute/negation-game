@@ -147,7 +147,11 @@ IMPORTANT: When you propose any modifications to the graph—or even if no chang
       * Highlighting flaws or limitations (e.g., 'X is insufficient because Y')
       * Presenting consequences that weaken the argument (e.g., 'If X, then Y, which is undesirable')
       * Presenting an objection (e.g., 'B is irrelevant to A because of C', where C is the new content, and both A and B IDs must be referenced).
-    - Example structure for objections: Reference Point B under Point A, then suggest '[Suggest Objection For:BID:AID]> C content'.
+    - **OBJECTION NODES:** When creating a point node that represents an objection (challenging relevance rather than truth), set the node data fields:
+      * isObjection: true 
+      * objectionTargetId: (ID of point being objected to)
+      * objectionContextId: (ID of the original context point)
+      Use objections when Point A negates Point B, but Point A seems irrelevant to the broader discussion that Point B was addressing.
     - Example Structure:
       Statement: "TypeScript vs JavaScript"
       ├─ Point A: "TypeScript improves maintainability"

@@ -82,6 +82,7 @@ const combinedInlineRegex = new RegExp(
 
 const blockSuggestPointRegex = /\[Suggest Point\]>\s*([\s\S]*)/;
 const blockSuggestNegationRegex = /\[Suggest Negation For:(\d+)\]>\s*([\s\S]*)/;
+const blockSuggestObjectionRegex = /\[Suggest Objection For:(\d+):(\d+)\]>\s*([\s\S]*)/;
 
 type AnyDiscourseMessage = { id: number | string; raw?: string; content?: string;[key: string]: any };
 
@@ -252,6 +253,13 @@ export const MemoizedMarkdown = memo(
                     const targetPointId = parseInt(negationMatch[1], 10);
                     return <SuggestionBlock type="negation" targetId={targetPointId} text={suggestionText} space={space} />;
                 }
+                const objectionMatch = blockSuggestObjectionRegex.exec(rawText);
+                if (objectionMatch) {
+                    const suggestionText = rawText.replace(blockSuggestObjectionRegex, '$3').trim();
+                    const targetPointId = parseInt(objectionMatch[1], 10);
+                    const contextPointId = parseInt(objectionMatch[2], 10);
+                    return <SuggestionBlock type="objection" targetId={targetPointId} contextId={contextPointId} text={suggestionText} space={space} />;
+                }
                 // Inline tags and other content
                 const processedChildren = renderTextWithInlineTags(rawText, space, discourseUrl, storedMessages);
                 return <p {...props}>{processedChildren}</p>;
@@ -304,6 +312,19 @@ export const MemoizedMarkdown = memo(
                     return (
                         <li {...props}>
                             <SuggestionBlock type="negation" targetId={targetId} text={suggestionText} space={space} />
+                        </li>
+                    );
+                }
+
+                // Case 3: LI's direct content IS an Objection Suggestion block
+                const objectionMatch = blockSuggestObjectionRegex.exec(directContentOfLi);
+                if (objectionMatch && directContentOfLi.startsWith('[Suggest Objection For:')) {
+                    const suggestionText = directContentOfLi.replace(blockSuggestObjectionRegex, '$3').trim();
+                    const targetId = parseInt(objectionMatch[1], 10);
+                    const contextId = parseInt(objectionMatch[2], 10);
+                    return (
+                        <li {...props}>
+                            <SuggestionBlock type="objection" targetId={targetId} contextId={contextId} text={suggestionText} space={space} />
                         </li>
                     );
                 }
