@@ -7,6 +7,10 @@ jest.mock("@/actions/spaces/getSpace", () => ({
   getSpace: jest.fn(),
 }));
 
+jest.mock("@/lib/notifications/notificationQueue", () => ({
+  queueEndorsementNotification: jest.fn(),
+}));
+
 // Mock DB schema
 jest.mock("@/db/schema", () => ({
   usersTable: {
@@ -19,6 +23,11 @@ jest.mock("@/db/schema", () => ({
     userId: "user_id",
     pointId: "point_id",
     space: "space",
+  },
+  pointsTable: {
+    id: "id",
+    createdBy: "created_by",
+    content: "content",
   },
 }));
 
@@ -56,6 +65,7 @@ jest.mock("@/services/db", () => {
     transaction: jest.fn(),
     update: jest.fn(),
     insert: jest.fn(),
+    select: jest.fn(),
   };
   return { db: mockDb };
 });
@@ -125,6 +135,21 @@ describe("endorse", () => {
       returning: insertReturning,
     });
 
+    // Mock select chain for point data
+    const selectFrom = jest.fn().mockReturnThis();
+    const selectWhere = jest.fn().mockReturnThis();
+    const selectLimit = jest.fn().mockResolvedValue([
+      {
+        createdBy: "other-user",
+        content: "Test point content",
+      },
+    ]);
+    const select = jest.fn().mockReturnValue({
+      from: selectFrom,
+      where: selectWhere,
+      limit: selectLimit,
+    });
+
     // Setup transaction mock with proper chaining
     const txMock = {
       update,
@@ -133,6 +158,13 @@ describe("endorse", () => {
 
     (db.transaction as jest.Mock).mockImplementation(async (callback) => {
       return await callback(txMock);
+    });
+
+    // Mock the point data query
+    (db.select as jest.Mock).mockReturnValue({
+      from: selectFrom,
+      where: selectWhere,
+      limit: selectLimit,
     });
 
     // Execute
