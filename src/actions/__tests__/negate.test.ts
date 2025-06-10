@@ -18,6 +18,11 @@ jest.mock("@/db/schema", () => ({
     olderPointId: "older_point_id",
     space: "space",
   },
+  pointsTable: {
+    id: "id",
+    createdBy: "created_by",
+    content: "content",
+  },
 }));
 
 // Define mockDb directly in the mock function - no external variable
@@ -26,6 +31,7 @@ jest.mock("@/services/db", () => ({
     transaction: jest.fn(),
     update: jest.fn(),
     insert: jest.fn(),
+    select: jest.fn(),
   },
 }));
 
@@ -54,6 +60,10 @@ jest.mock("@/actions/spaces/getSpace", () => ({
   getSpace: jest.fn(),
 }));
 
+jest.mock("@/lib/notifications/notificationQueue", () => ({
+  queueNegationNotification: jest.fn(),
+}));
+
 // Import the negate action after setting up mocks
 import { negate } from "../points/negate";
 import { getUserId } from "../users/getUserId";
@@ -62,8 +72,34 @@ import { db } from "@/services/db";
 import { usersTable, endorsementsTable, negationsTable } from "@/db/schema";
 
 describe("negate", () => {
+  const mockPointQueries = () => {
+    // Mock select chain for point data
+    const selectFrom = jest.fn().mockReturnThis();
+    const selectWhere = jest.fn().mockReturnThis();
+    const selectLimit = jest
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          createdBy: "other-user",
+          content: "Test negated point content",
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          content: "Test counterpoint content",
+        },
+      ]);
+
+    (db.select as jest.Mock).mockReturnValue({
+      from: selectFrom,
+      where: selectWhere,
+      limit: selectLimit,
+    });
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPointQueries();
   });
 
   it("should throw an error if user is not authenticated", async () => {

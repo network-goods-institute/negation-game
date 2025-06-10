@@ -1,6 +1,7 @@
 "use server";
 
 import { getUserId } from "@/actions/users/getUserId";
+import { getSpace } from "@/actions/spaces/getSpace";
 import {
   doubtsTable,
   doubtHistoryTable,
@@ -8,6 +9,7 @@ import {
   slashesTable,
   restakesTable,
 } from "@/db/schema";
+import { queueDoubtNotification } from "@/lib/notifications/notificationQueue";
 import { db } from "@/services/db";
 import { eq, and, sql } from "drizzle-orm";
 
@@ -22,6 +24,8 @@ export const doubt = async ({ pointId, negationId, amount }: DoubtArgs) => {
   if (!userId) {
     throw new Error("Must be authenticated to doubt");
   }
+
+  const space = await getSpace();
 
   const existingDoubt = await db
     .select()
@@ -167,6 +171,16 @@ export const doubt = async ({ pointId, negationId, amount }: DoubtArgs) => {
     previousAmount: existingDoubt?.amount ?? null,
     newAmount: amount,
   });
+
+  // Queue notification if amount > 0 (only for active doubts)
+  if (amount > 0) {
+    queueDoubtNotification({
+      negatedPointId: pointId,
+      doubterId: userId,
+      amount,
+      space,
+    });
+  }
 
   return {
     doubtId,

@@ -5,6 +5,7 @@ import { getUserId } from "@/actions/users/getUserId";
 import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { AppNode } from "@/components/graph/nodes/AppNode";
 import { InsertViewpoint, viewpointsTable } from "@/db/tables/viewpointsTable";
+import { queueRationaleMentionNotification } from "@/lib/notifications/notificationQueue";
 import { db } from "@/services/db";
 import { nanoid } from "nanoid";
 import { pick } from "remeda";
@@ -46,6 +47,14 @@ export const publishViewpoint = async ({
     copiedFromId,
   };
   await db.insert(viewpointsTable).values(valuesToInsert);
+
+  // Queue notification for mentioned points - let the queue handle all the parsing and logic
+  queueRationaleMentionNotification({
+    rationaleId: id,
+    graph,
+    authorId: userId,
+    space,
+  });
 
   return id;
 };

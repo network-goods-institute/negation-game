@@ -20,7 +20,11 @@ import {
 } from "@/components/header/DynamicHeaderContent";
 import { getCurrentUser } from "@/lib/privy/auth";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Negation Game",
