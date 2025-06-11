@@ -32,6 +32,7 @@ import { useResetLoadingOnPathChange } from "@/hooks/ui/useResetLoadingOnPathCha
 import { SelectPointForNegationDialog } from "@/components/dialogs/SelectPointForNegationDialog";
 import { makeNegationSuggestionAtom } from "@/atoms/makeNegationSuggestionAtom";
 import { selectPointForNegationOpenAtom } from "@/atoms/selectPointForNegationOpenAtom";
+import { FilteringTabContent } from "@/components/space/FilteringTabContent";
 
 
 interface PageProps {
@@ -303,6 +304,7 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                     onSearchChange={handleSearchChange}
                     isAiLoading={isAiAssistantLoading}
                     onAiClick={handleAiAssistantClick}
+                    chatHref={`${basePath}/chat`}
                     onLoginOrMakePoint={loginOrMakePoint}
                     onNewViewpoint={handleNewViewpoint}
                     isNewRationaleLoading={isNewRationaleLoading}

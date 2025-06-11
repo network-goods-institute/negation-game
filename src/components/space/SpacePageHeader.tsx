@@ -15,6 +15,7 @@ interface SpacePageHeaderProps {
     onSearchChange: (value: string) => void;
     isAiLoading: boolean;
     onAiClick: () => void;
+    chatHref: string;
     onLoginOrMakePoint: () => void;
     onNewViewpoint: () => void;
     isNewRationaleLoading?: boolean;
@@ -33,6 +34,7 @@ export function SpacePageHeader({
     onSearchChange,
     isAiLoading,
     onAiClick,
+    chatHref,
     onLoginOrMakePoint,
     onNewViewpoint,
     isNewRationaleLoading = false,
@@ -92,6 +94,7 @@ export function SpacePageHeader({
                     space={space}
                     isLoading={isAiLoading}
                     onAiClick={onAiClick}
+                    chatHref={chatHref}
                 />
             )}
             <SpaceTabs

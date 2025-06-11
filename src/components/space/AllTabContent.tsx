@@ -7,7 +7,6 @@ import { PlusIcon } from "lucide-react";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
 import { FeedItem } from "@/components/space/FeedItem";
 import { useInfiniteScroll } from "@/hooks/ui/useInfiniteScroll";
-import { FilteringTabContent } from "./FilteringTabContent";
 
 export interface AllTabContentProps {
     points?: any[];
@@ -85,63 +84,25 @@ export const AllTabContent = memo(({
 
     if (points.length === 0 && viewpoints.length === 0) {
         return (
-            <div className="flex flex-col">
-                {/* Show filtering controls when filtersOpen is true */}
-                {filtersOpen && (
-                    <div className="border-b bg-muted/20">
-                        <FilteringTabContent
-                            space={space}
-                            points={points || []}
-                            selectedPointIds={selectedPointIds}
-                            onPointSelect={onPointSelect}
-                            onPointDeselect={onPointDeselect}
-                            onClearAll={onClearAll}
-                            matchType={matchType}
-                            onMatchTypeChange={onMatchTypeChange}
-                            topicFilters={topicFilters}
-                            onTopicFiltersChange={onTopicFiltersChange}
-                        />
-                    </div>
-                )}
-
-                <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
-                    <span className="text-muted-foreground">Nothing here yet</span>
-                    <div className="flex items-center justify-center gap-3">
-                        <Button variant="outline" onClick={loginOrMakePoint}>
-                            <PlusIcon className="mr-2 size-4" />
-                            Make a Point
-                        </Button>
-                        <span className="text-muted-foreground">or</span>
-                        <Button variant="outline" onClick={handleNewViewpoint}>
-                            <ViewpointIcon className="mr-2.5 size-4" />
-                            Create a Rationale
-                        </Button>
-                    </div>
+            <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
+                <span className="text-muted-foreground">Nothing here yet</span>
+                <div className="flex items-center justify-center gap-3">
+                    <Button variant="outline" onClick={loginOrMakePoint}>
+                        <PlusIcon className="mr-2 size-4" />
+                        Make a Point
+                    </Button>
+                    <span className="text-muted-foreground">or</span>
+                    <Button variant="outline" onClick={handleNewViewpoint}>
+                        <ViewpointIcon className="mr-2.5 size-4" />
+                        Create a Rationale
+                    </Button>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="flex flex-col">
-            {/* Show filtering controls when filtersOpen is true */}
-            {filtersOpen && (
-                <div className="border-b bg-muted/20">
-                    <FilteringTabContent
-                        space={space}
-                        points={points || []}
-                        selectedPointIds={selectedPointIds}
-                        onPointSelect={onPointSelect}
-                        onPointDeselect={onPointDeselect}
-                        onClearAll={onClearAll}
-                        matchType={matchType}
-                        onMatchTypeChange={onMatchTypeChange}
-                        topicFilters={topicFilters}
-                        onTopicFiltersChange={onTopicFiltersChange}
-                    />
-                </div>
-            )}
-
+        <>
             {hasActiveFilters && (
                 <div className="px-4 py-3 bg-muted/30 border-b">
                     <div className="text-sm text-muted-foreground">
@@ -170,7 +131,7 @@ export const AllTabContent = memo(({
                     <Loader className="h-6 w-6" />
                 </div>
             )}
-        </div>
+        </>
     );
 });
 
