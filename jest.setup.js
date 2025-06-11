@@ -62,6 +62,10 @@ if (typeof global.WritableStream === 'undefined') {
 
 global.setImmediate = (callback) => setTimeout(callback, 0);
 
+jest.mock('nanoid', () => ({
+  nanoid: jest.fn(() => 'test-id-' + Math.random().toString(36).substr(2, 9)),
+}))
+
 // Mock @privy-io/react-auth
 jest.mock('@privy-io/react-auth', () => ({
   usePrivy: () => ({

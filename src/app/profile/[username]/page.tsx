@@ -6,7 +6,7 @@ import { PointCard } from "@/components/cards/PointCard";
 import Link from "next/link";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftIcon, ArrowDownIcon, PencilIcon, ExternalLinkIcon } from "lucide-react";
+import { ArrowLeftIcon, ArrowDownIcon, PencilIcon, ExternalLinkIcon, MessageSquareIcon } from "lucide-react";
 import { useState, useMemo, useCallback, useEffect, memo } from "react";
 import { useProfilePoints } from "@/queries/points/useProfilePoints";
 import { useUserViewpoints } from "@/queries/users/useUserViewpoints";
@@ -278,17 +278,30 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                             <h2 className="text-lg font-medium">{username}</h2>
                             <p className="text-sm text-muted-foreground">{userCred} cred</p>
                         </div>
-                        {isOwnProfile && (
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setEditProfileOpen(true)}
-                                className="gap-1"
-                            >
-                                <PencilIcon className="size-3" />
-                                Edit Profile
-                            </Button>
-                        )}
+                        <div className="flex items-center gap-2">
+                            {!isOwnProfile && userData?.id && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => router.push(`/messages/${userData.id}`)}
+                                    className="gap-1"
+                                >
+                                    <MessageSquareIcon className="size-3" />
+                                    Send Message
+                                </Button>
+                            )}
+                            {isOwnProfile && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setEditProfileOpen(true)}
+                                    className="gap-1"
+                                >
+                                    <PencilIcon className="size-3" />
+                                    Edit Profile
+                                </Button>
+                            )}
+                        </div>
                     </div>
 
                     {userData?.delegationUrl && (

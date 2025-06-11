@@ -13,18 +13,20 @@ import {
 import { useUser } from "@/queries/users/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { clearPrivyCookie } from '@/actions/users/auth';
-import { LoaderCircleIcon, CoinsIcon, UserIcon, LogOutIcon, TrophyIcon, BellIcon, SettingsIcon } from "lucide-react";
+import { LoaderCircleIcon, CoinsIcon, UserIcon, LogOutIcon, TrophyIcon, BellIcon, SettingsIcon, MessageSquareIcon } from "lucide-react";
 import { useState } from "react";
 import { EarningsDialog } from "../dialogs/EarningsDialog";
 import Link from "next/link";
 import { LeaderboardDialog } from "@/components/dialogs/LeaderboardDialog";
 import { useUnreadNotificationCount } from "@/queries/notifications/useNotifications";
+import { useUnreadMessageCount } from "@/queries/messages/useUnreadMessageCount";
 import { Badge } from "@/components/ui/badge";
 
 export const ConnectButton = () => {
   const { login, logout, user: privyUser } = usePrivy();
   const { data: user, isLoading } = useUser();
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
+  const { data: unreadMessageCount = 0 } = useUnreadMessageCount();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
 
@@ -66,12 +68,12 @@ export const ConnectButton = () => {
             <Button variant={"outline"} key="connect" className="w-28 sm:w-36 text-sm relative">
               <div className="flex items-center gap-2 overflow-hidden">
                 <p className="overflow-clip max-w-full">{user.username}</p>
-                {unreadCount > 0 && (
+                {(unreadCount > 0 || unreadMessageCount > 0) && (
                   <Badge
                     variant="destructive"
                     className="h-4 min-w-4 px-1 text-xs absolute -top-1 -right-1"
                   >
-                    {unreadCount > 99 ? "99+" : unreadCount}
+                    {(unreadCount + unreadMessageCount) > 99 ? "99+" : (unreadCount + unreadMessageCount)}
                   </Badge>
                 )}
               </div>
@@ -91,6 +93,19 @@ export const ConnectButton = () => {
               <Link href={`/profile/${user.username}`} className="gap-2">
                 <UserIcon className="size-4" />
                 Profile
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/messages" className="gap-2">
+                <MessageSquareIcon className="size-4" />
+                <div className="flex items-center justify-between w-full">
+                  <span>Messages</span>
+                  {unreadMessageCount > 0 && (
+                    <Badge variant="destructive" className="h-4 min-w-4 px-1 text-xs ml-2">
+                      {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
+                    </Badge>
+                  )}
+                </div>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -119,9 +134,9 @@ export const ConnectButton = () => {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href="/settings/notifications" className="gap-2">
+              <Link href="/settings" className="gap-2">
                 <SettingsIcon className="size-4" />
-                Notification Settings
+                Settings
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={async () => { await clearPrivyCookie(); logout(); }} className="gap-2">
