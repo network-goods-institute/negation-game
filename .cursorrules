@@ -5,19 +5,15 @@ You are an expert in the tech stack used in this project: TypeScript, Node.js, N
 - Use functional and declarative programming patterns; avoid classes.
 - Prefer iteration and modularization over code duplication, but avoid premature abstractions
 
-Do not try to run pnpm build or pnpm dev, assume the user can handle it
+Do not try to run pnpm build or pnpm dev, assume the user can handle it. Do not run drizzle-kit generate or drizzle-kit migrate, assume the user can handle it.
 
-viewpoints are equivalent to rationales, rationales are the client facing name, but reffered to as viewpoints internally
+viewpoints are equivalent to rationales, rationales are the client facing name, but referred to as viewpoints internally
 
 We started adding tests lately, most features do not have them. But every new feature should have them added. We use jest.
 
 Do not propose to delete tests, do not hardcode tests. Tests should be useful and dynamic to their purpose. They are meant to validate the code is working as expected.
 
 You are not to make sql migration files directly. Simply update the schema file and I can run the migration.
-
-we use drizzle-kit, so pnpm drizzle-kit generate will generate the migration file, and pnpm drizzle-kit migrate will push the migration to the database.
-
-So do not write any sql migration files.
 
 If I tell you to do something, do it. Do not ask for confirmation.
 
@@ -30,8 +26,6 @@ Follow existing code style for the schema, views, and tables.
 When you write raw sql to be inserted into the database to see what it's in it, make sure you return all in one row.
 
 Additionally, use drizzle syntax for sql statements.
-
-Do not use the active column in the effectiveRestakesView view for anything ever. It is soon to be removed.
 
 // Restake System Rules:
 // 1. Restakes are commitments to change one's mind about a parent point IF a negation is true
@@ -47,7 +41,7 @@ Do not use the active column in the effectiveRestakesView view for anything ever
 //    - Includes both the user's own restakes and others' restakes
 //    - Reduced by slashes but not by existing doubts
 // 3. For restake visibility, check amount > 0 && slashedAmount < originalAmount
-// 4. Doubts are immutable once placed, can only be reduced by slashes
+// 4. Doubts are immutable once placed, can only be reduced by slashes. They can be increased though.
 // 5. When calculating effectiveAmount, account for both slashes and doubts
 // 6. Hide fully slashed restakes (slashedAmount >= originalAmount) from UI entirely
 
@@ -71,7 +65,7 @@ Do not use the active column in the effectiveRestakesView view for anything ever
 // 7. Restakes specifically commit to changing mind about parent point endorsement
 // 8. Favor bonus shows extra conviction by stating change conditions
 // 9. Endorsement amount limits restake amount on parent point
-// 10. Endorsement reductions can affect existing restakes
+// 10. Endorsement reductions can and should affect existing restakes
 
 // Component Detection Rules:
 // 1. PointCard:
@@ -80,11 +74,11 @@ Do not use the active column in the effectiveRestakesView view for anything ever
 //    - Uses totalRestakeAmount for doubt possibility
 //    - Delegates state changes to RestakeDialog
 //    - Never handles transitions directly
-//    - Shows restake icon when restake exists and isn't fully slashed
-//    - Shows doubt icon when doubt amount exists
+//    - Shows filled in restake icon when user's restake exists and isn't fully slashed
+//    - Shows doubt filled in con when user's doubt amount exists
 //    - Enables doubt interaction if totalRestakeAmount > 0
 //    - Checks endorsement amount for restake possibility
-//    - Hides restake option if no parent point endorsement
+//    - Hides restake option if no parent point endorsement when clicked, still shows the restake dialog
 // 2. RestakeDialog:
 //    - Handles full state lifecycle
 //    - Manages three modes: restaking, slashing, doubting
@@ -109,15 +103,15 @@ Do not use the active column in the effectiveRestakesView view for anything ever
 //    - Bonus reduced by max(slashed, doubted)
 //    - Represents commitment to change mind
 //    - Shows intellectual honesty by stating change conditions
-//    - Cannot be increased after placement
+//    - Can be increased after placement, but only by the user who placed it, and cannot be decreased after placement~
 //    - Can be slashed partially or fully
 //    - Limited by parent point endorsement
 //    - Demonstrates extra conviction in parent point
 // 2. Doubting:
 //    - Bets against restaker integrity
-//    - Wins if restaker doesn't slash
+//    - Wins if restaker doesn't slash (no real winning, just making more money than your doubt costs)
 //    - Loses proportionally if restaker slashes
-//    - Immutable after placement
+//    - Can be increased through restaking
 //    - Limited by totalRestakeAmount
 //    - Multiple doubts share proportional losses
 //    - Cannot be modified even by owner
@@ -137,7 +131,7 @@ Do not use the active column in the effectiveRestakesView view for anything ever
 // 2. Restake bonus added to parent point
 // 3. Bonus reduced by max(slashed, doubted)
 // 4. Multiple doubts don't stack
-// 5. Slashes permanently reduce favor
+// 5. Slashes permanently reduce favor of restake bonus
 // 6. Favor impact immediate on restake
 // 7. Favor reduced before slash if doubted
 // 8. Endorsement changes can affect favor calculation
@@ -147,10 +141,10 @@ Do not use the active column in the effectiveRestakesView view for anything ever
 // 1. Restakes:
 //    - Start with full amount and favor
 //    - Can only decrease through slashing
-//    - Cannot be undone or increased
+//    - Can be increased through restaking
 //    - Must respect endorsement limits
 // 2. Doubts:
-//    - Immutable after placement
+//    - Can be increased through restaking
 //    - Only reduced by slashes
 //    - Cannot be voluntarily removed
 //    - Force restaker choice between ego/integrity
@@ -196,6 +190,3 @@ Do not use the active column in the effectiveRestakesView view for anything ever
 // 3. Ownership flags must propagate through all transformations
 // 4. Transformations must preserve ownership context through the entire stack
 // 5. Data structures must include explicit ownership flags for UI consumption
-
-Current tasks:
-N/A
