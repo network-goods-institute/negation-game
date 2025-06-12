@@ -38,6 +38,7 @@ describe('TopicCard', () => {
 
     it('renders latest author username', () => {
         render(<TopicCard topic={baseTopic} spaceId="global" />);
-        expect(screen.getByText(/By alice/)).toBeInTheDocument();
+        expect(screen.getByText(/Latest by/)).toBeInTheDocument();
+        expect(screen.getByText('alice')).toBeInTheDocument();
     });
 }); 
