@@ -154,8 +154,6 @@ const renderTextWithInlineTags = (
             const sourceTypeRaw = match[12]; // Raw captured type (e.g., "Endorsed Point", "Endorsed Points")
             const sourceTitle = match[13];
             const sourceIdString = match[14]; // Raw string containing potentially multiple IDs and labels
-            console.log("[Markdown Debug] Matched Source Citation Block:", match[0]);
-            console.log("[Markdown Debug] Extracted full sourceIdString:", sourceIdString);
 
             const sourceType: 'Rationale' | 'Endorsed Point' | 'Discourse Post' =
                 sourceTypeRaw === 'Endorsed Points' ? 'Endorsed Point' : sourceTypeRaw as any;
@@ -163,11 +161,8 @@ const renderTextWithInlineTags = (
             if (sourceIdString && sourceType) {
                 // Improved ID extraction: Find all digits sequences within the raw string
                 const extractedIds = sourceIdString.match(/\d+/g) || [];
-                console.log("[Markdown Debug] Extracted numeric IDs:", extractedIds);
 
                 extractedIds.forEach((numericId, index) => {
-                    console.log(`[Markdown Debug] Processing numericId[${index}]:`, numericId);
-
                     let rawContent: string | undefined = undefined;
                     let htmlContent: string | undefined = undefined;
                     if (sourceType === 'Discourse Post') {
@@ -295,7 +290,6 @@ export const MemoizedMarkdown = memo(
                 const pointMatch = blockSuggestPointRegex.exec(directContentOfLi);
                 if (pointMatch && directContentOfLi.startsWith('[Suggest Point]>')) {
                     const suggestionText = directContentOfLi.replace(blockSuggestPointRegex, '$1').trim();
-                    console.log('[MemoizedMarkdown LI Debug] Point Matched:', { directContentOfLi, suggestionText });
                     return (
                         <li {...props}>
                             <SuggestionBlock type="point" text={suggestionText} space={space} />
@@ -308,7 +302,6 @@ export const MemoizedMarkdown = memo(
                 if (negationMatch && directContentOfLi.startsWith('[Suggest Negation For:')) {
                     const suggestionText = directContentOfLi.replace(blockSuggestNegationRegex, '$2').trim();
                     const targetId = parseInt(negationMatch[1], 10);
-                    console.log('[MemoizedMarkdown LI Debug] Negation Matched:', { directContentOfLi, targetId, suggestionText });
                     return (
                         <li {...props}>
                             <SuggestionBlock type="negation" targetId={targetId} text={suggestionText} space={space} />
@@ -335,10 +328,6 @@ export const MemoizedMarkdown = memo(
                 //   - A <p> element (which our p renderer will handle, including its inline tags)
                 //   - Plain text strings (which need inline tag processing here)
                 //   - Nested <ul>/<ol> elements (react-markdown handles nesting, eventually calling this li renderer again)
-                if (directContentOfLi.includes("[Suggest Negation For:") || directContentOfLi.includes("[Suggest Point]>")) {
-                    console.log('[MemoizedMarkdown LI Debug] Suggestion-like DIRECT text NOT Matched as primary content:', { directContentOfLi, children });
-                }
-
                 const processedChildren = React.Children.map(children, child => {
                     if (typeof child === 'string') {
                         // If a direct child of li (passed by react-markdown) is a string, process it for inline tags.

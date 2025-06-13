@@ -50,17 +50,21 @@ export function useChatFullSync({
     deletes: number;
     errors: number;
   }>({ creates: 0, updates: 0, deletes: 0, errors: 0 });
-  const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const syncChatsRef = useRef<() => Promise<void>>(async () => {});
+  const syncInProgressRef = useRef(false);
 
-  const syncChats = useCallback(async () => {
-    if (!isAuthenticated || !currentSpace) return;
-    setIsSyncing(true);
+  const attemptSync = useCallback(
+    async (retryCount: number) => {
+      if (!isAuthenticated || !currentSpace) return;
 
-    const maxRetries = 2;
-    const initialDelay = 2000;
+      // Prevent concurrent syncs
+      if (syncInProgressRef.current) {
+        console.log("[attemptSync] Sync already in progress, skipping");
+        return;
+      }
 
-    const attemptSync = async (retryCount: number) => {
+      syncInProgressRef.current = true;
+      setIsSyncing(true);
       setSyncError(null);
       setSyncActivity("checking");
 
@@ -78,11 +82,17 @@ export function useChatFullSync({
         pushedCreates: bgStats.creates,
         errors: bgStats.errors,
       };
-      let activitySet = false;
+
+      const SYNC_TIMEOUT_MS = 30000;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(
+          () => reject(new Error("Sync operation timed out")),
+          SYNC_TIMEOUT_MS
+        );
+      });
 
       try {
         setSyncActivity("pulling");
-        activitySet = true;
 
         // Refresh token before sync to handle potential token expiration
         if (typeof window !== "undefined") {
@@ -100,103 +110,60 @@ export function useChatFullSync({
           }
         }
 
-        const serverMetadata: ChatMetadata[] =
-          await fetchUserChatMetadata(currentSpace);
+        const syncOperation = async () => {
+          const serverMetadata: ChatMetadata[] =
+            await fetchUserChatMetadata(currentSpace);
 
-        let localChats: SavedChat[] = [];
-        const localDataString = localStorage.getItem(
-          `saved_chats_${currentSpace}`
-        );
-        if (localDataString) {
-          try {
-            localChats = (JSON.parse(localDataString) as SavedChat[]).map(
-              (c) => ({ ...c, state_hash: c.state_hash || "" })
-            );
-          } catch {
-            localChats = [];
+          let localChats: SavedChat[] = [];
+          const localDataString = localStorage.getItem(
+            `saved_chats_${currentSpace}`
+          );
+          if (localDataString) {
+            try {
+              localChats = (JSON.parse(localDataString) as SavedChat[]).map(
+                (c) => ({ ...c, state_hash: c.state_hash || "" })
+              );
+            } catch {
+              localChats = [];
+            }
           }
-        }
 
-        const serverMap = new Map(serverMetadata.map((m) => [m.id, m]));
-        const localMap = new Map(localChats.map((c) => [c.id, c]));
-        const promises: Promise<any>[] = [];
-        const chatsToUpdateLocally: SavedChat[] = [];
-        const chatsToDeleteLocally: string[] = [];
-        const chatsToPush: SavedChat[] = [];
+          const serverMap = new Map(serverMetadata.map((m) => [m.id, m]));
+          const localMap = new Map(localChats.map((c) => [c.id, c]));
+          const promises: Promise<any>[] = [];
+          const chatsToUpdateLocally: SavedChat[] = [];
+          const chatsToDeleteLocally: string[] = [];
+          const chatsToPush: SavedChat[] = [];
 
-        // Pull and update local
-        for (const serverChat of serverMetadata) {
-          const localChat = localMap.get(serverChat.id);
-          if (
-            generatingChats.has(serverChat.id) ||
-            pendingPushIds.has(serverChat.id)
-          )
-            continue;
-
-          if (!localChat) {
-            currentStats.pulled++;
-            promises.push(
-              (async () => {
-                try {
-                  const content = await fetchChatContent(serverChat.id);
-                  if (content) {
-                    const stateHash = await computeChatStateHash(
-                      content.title,
-                      content.messages,
-                      content.graph
-                    );
-                    chatsToUpdateLocally.push({
-                      id: serverChat.id,
-                      title: content.title,
-                      messages: content.messages,
-                      createdAt: content.createdAt.toISOString(),
-                      updatedAt: serverChat.updatedAt.toISOString(),
-                      space: currentSpace,
-                      state_hash: stateHash,
-                      ...(content.distillRationaleId != null
-                        ? { distillRationaleId: content.distillRationaleId }
-                        : {}),
-                      ...(content.graph != null
-                        ? { graph: content.graph }
-                        : {}),
-                    });
-                  } else {
-                    currentStats.errors++;
-                  }
-                } catch {
-                  currentStats.errors++;
-                  throw new Error();
-                }
-              })()
-            );
-          } else {
-            const localHash =
-              localChat.state_hash ||
-              (await computeChatStateHash(
-                localChat.title,
-                localChat.messages,
-                localChat.graph
-              ));
-            const localUpdatedAt = new Date(localChat.updatedAt).getTime();
-            const serverUpdatedAt = serverChat.updatedAt.getTime();
+          // Pull and update local
+          for (const serverChat of serverMetadata) {
+            const localChat = localMap.get(serverChat.id);
             if (
-              serverChat.state_hash !== localHash &&
-              serverUpdatedAt > localUpdatedAt
-            ) {
+              generatingChats.has(serverChat.id) ||
+              pendingPushIds.has(serverChat.id)
+            )
+              continue;
+
+            if (!localChat) {
               currentStats.pulled++;
               promises.push(
                 (async () => {
                   try {
                     const content = await fetchChatContent(serverChat.id);
                     if (content) {
+                      const stateHash = await computeChatStateHash(
+                        content.title,
+                        content.messages,
+                        content.graph
+                      );
                       chatsToUpdateLocally.push({
                         id: serverChat.id,
                         title: content.title,
                         messages: content.messages,
                         createdAt: content.createdAt.toISOString(),
-                        updatedAt: content.updatedAt.toISOString(),
+                        updatedAt: serverChat.updatedAt.toISOString(),
                         space: currentSpace,
-                        state_hash: serverChat.state_hash,
+                        state_hash: stateHash,
                         ...(content.distillRationaleId != null
                           ? { distillRationaleId: content.distillRationaleId }
                           : {}),
@@ -213,25 +180,7 @@ export function useChatFullSync({
                   }
                 })()
               );
-            }
-          }
-        }
-
-        // Determine deletions and pushes
-        for (const localChat of localChats) {
-          const serverChat = serverMap.get(localChat.id);
-          if (!serverChat) {
-            if (!pendingPushIds.has(localChat.id)) {
-              const age = Date.now() - new Date(localChat.createdAt).getTime();
-              const RECENT_THRESHOLD_MS = 30000;
-              if (age >= RECENT_THRESHOLD_MS)
-                chatsToDeleteLocally.push(localChat.id);
-            }
-          } else {
-            if (
-              !generatingChats.has(localChat.id) &&
-              !pendingPushIds.has(localChat.id)
-            ) {
+            } else {
               const localHash =
                 localChat.state_hash ||
                 (await computeChatStateHash(
@@ -243,39 +192,106 @@ export function useChatFullSync({
               const serverUpdatedAt = serverChat.updatedAt.getTime();
               if (
                 serverChat.state_hash !== localHash &&
-                localUpdatedAt > serverUpdatedAt
+                serverUpdatedAt > localUpdatedAt
               ) {
-                chatsToPush.push(localChat);
+                currentStats.pulled++;
+                promises.push(
+                  (async () => {
+                    try {
+                      const content = await fetchChatContent(serverChat.id);
+                      if (content) {
+                        chatsToUpdateLocally.push({
+                          id: serverChat.id,
+                          title: content.title,
+                          messages: content.messages,
+                          createdAt: content.createdAt.toISOString(),
+                          updatedAt: content.updatedAt.toISOString(),
+                          space: currentSpace,
+                          state_hash: serverChat.state_hash,
+                          ...(content.distillRationaleId != null
+                            ? { distillRationaleId: content.distillRationaleId }
+                            : {}),
+                          ...(content.graph != null
+                            ? { graph: content.graph }
+                            : {}),
+                        });
+                      } else {
+                        currentStats.errors++;
+                      }
+                    } catch {
+                      currentStats.errors++;
+                      throw new Error();
+                    }
+                  })()
+                );
               }
             }
           }
-        }
 
-        if (promises.length > 0 || chatsToPush.length > 0) {
-          chatsToPush.forEach((chat) => {
-            currentStats.pushedUpdates++;
-            promises.push(
-              updateDbChat(chat).catch((e) => {
-                currentStats.errors++;
-                throw e;
-              })
-            );
+          // Determine deletions and pushes
+          for (const localChat of localChats) {
+            const serverChat = serverMap.get(localChat.id);
+            if (!serverChat) {
+              if (!pendingPushIds.has(localChat.id)) {
+                const age =
+                  Date.now() - new Date(localChat.createdAt).getTime();
+                const RECENT_THRESHOLD_MS = 30000;
+                if (age >= RECENT_THRESHOLD_MS)
+                  chatsToDeleteLocally.push(localChat.id);
+              }
+            } else {
+              if (
+                !generatingChats.has(localChat.id) &&
+                !pendingPushIds.has(localChat.id)
+              ) {
+                const localHash =
+                  localChat.state_hash ||
+                  (await computeChatStateHash(
+                    localChat.title,
+                    localChat.messages,
+                    localChat.graph
+                  ));
+                const localUpdatedAt = new Date(localChat.updatedAt).getTime();
+                const serverUpdatedAt = serverChat.updatedAt.getTime();
+                if (
+                  serverChat.state_hash !== localHash &&
+                  localUpdatedAt > serverUpdatedAt
+                ) {
+                  chatsToPush.push(localChat);
+                }
+              }
+            }
+          }
+
+          if (promises.length > 0 || chatsToPush.length > 0) {
+            chatsToPush.forEach((chat) => {
+              currentStats.pushedUpdates++;
+              promises.push(
+                updateDbChat(chat).catch((e) => {
+                  currentStats.errors++;
+                  throw e;
+                })
+              );
+            });
+
+            const results = await Promise.allSettled(promises);
+            if (results.some((r) => r.status === "rejected"))
+              throw new Error("One or more sync ops failed");
+          }
+
+          // Apply updates locally
+          chatsToUpdateLocally.forEach((chat) => {
+            if (!pendingPushIds.has(chat.id) && chat.id !== currentChatId)
+              replaceChat(chat.id, chat);
           });
+          chatsToDeleteLocally.forEach((id) => {
+            if (!pendingPushIds.has(id) && id !== currentChatId)
+              deleteChatLocally(id);
+          });
+        };
 
-          const results = await Promise.allSettled(promises);
-          if (results.some((r) => r.status === "rejected"))
-            throw new Error("One or more sync ops failed");
-        }
-
-        // Apply updates locally
-        chatsToUpdateLocally.forEach((chat) => {
-          if (!pendingPushIds.has(chat.id) && chat.id !== currentChatId)
-            replaceChat(chat.id, chat);
-        });
-        chatsToDeleteLocally.forEach((id) => {
-          if (!pendingPushIds.has(id) && id !== currentChatId)
-            deleteChatLocally(id);
-        });
+        // Race sync operation against timeout
+        await Promise.race([syncOperation(), timeoutPromise]);
 
         setLastSyncTime(Date.now());
         setLastSyncStats(currentStats);
@@ -288,6 +304,7 @@ export function useChatFullSync({
         const isNetworkError =
           err instanceof TypeError &&
           (message.includes("fetch") || message.includes("network"));
+        const isTimeoutError = message.includes("timed out");
 
         const isAuthError =
           message.toLowerCase().includes("not authenticated") ||
@@ -299,13 +316,9 @@ export function useChatFullSync({
           message.toLowerCase().includes("token");
 
         // If it's an auth error and we haven't retried yet, try refreshing token and retry
-        if (
-          isAuthError &&
-          retryCount < maxRetries &&
-          typeof window !== "undefined"
-        ) {
+        if (isAuthError && retryCount < 2 && typeof window !== "undefined") {
           console.log(
-            `Chat sync failed with auth error (attempt ${retryCount + 1}/${maxRetries}), refreshing token and retrying...`
+            `Chat sync failed with auth error (attempt ${retryCount + 1}/3), refreshing token and retrying...`
           );
           try {
             const { setPrivyToken } = await import("@/lib/privy/setPrivyToken");
@@ -314,6 +327,8 @@ export function useChatFullSync({
               // Wait a moment for token to propagate
               await new Promise((resolve) => setTimeout(resolve, 500));
               // Retry the sync
+              syncInProgressRef.current = false;
+              setIsSyncing(false);
               return attemptSync(retryCount + 1);
             }
           } catch (tokenError) {
@@ -321,7 +336,11 @@ export function useChatFullSync({
           }
         }
 
-        if (isNetworkError) {
+        if (isTimeoutError) {
+          setSyncActivity("error");
+          setSyncError("Sync operation timed out. Please try again.");
+          console.warn("[syncChats] Sync operation timed out");
+        } else if (isNetworkError) {
           setSyncActivity("error");
           setSyncError("Network error. Please check connection.");
           if (!isOffline) {
@@ -330,7 +349,7 @@ export function useChatFullSync({
             });
             setIsOffline(true);
           }
-        } else if (isAuthError && retryCount >= maxRetries) {
+        } else if (isAuthError && retryCount >= 2) {
           setIsOffline(false);
           setSyncError(
             "Authentication expired. Please refresh the page or log in again."
@@ -343,56 +362,95 @@ export function useChatFullSync({
         }
       } finally {
         setIsSyncing(false);
+        syncInProgressRef.current = false;
       }
-    };
+    },
+    [
+      isAuthenticated,
+      currentSpace,
+      pendingPushIds,
+      currentChatId,
+      replaceChat,
+      deleteChatLocally,
+      generatingChats,
+      isOffline,
+    ]
+  );
 
-    attemptSync(0).catch(() => setIsSyncing(false));
-  }, [
-    isAuthenticated,
-    currentSpace,
-    pendingPushIds,
-    currentChatId,
-    replaceChat,
-    deleteChatLocally,
-    generatingChats,
-    isOffline,
-  ]);
+  const syncChats = useCallback(async () => {
+    attemptSync(0);
+  }, [attemptSync]);
 
   useEffect(() => {
     syncChatsRef.current = syncChats;
   }, [syncChats]);
 
-  useEffect(() => {
-    if (isOffline) {
-      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
+  const triggerSync = useCallback(() => {
+    if (!isAuthenticated || !currentSpace) {
+      console.log("[triggerSync] Skipping: not authenticated or no space");
       return;
     }
-    if (isAuthenticated && currentSpace) {
-      if (!generatingChats.has(currentChatId || "")) {
-        syncChatsRef.current();
-      }
-      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
-      syncIntervalRef.current = setInterval(() => {
-        if (!generatingChats.has(currentChatId || "")) {
-          syncChatsRef.current();
-        }
-      }, 60000);
-      return () => {
-        if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
-      };
-    } else {
-      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
+
+    if (syncInProgressRef.current) {
+      console.log(
+        "[triggerSync] Sync already in progress, skipping manual trigger"
+      );
+      return;
     }
+
+    console.log("[triggerSync] Manual sync triggered");
+    attemptSync(0);
+  }, [isAuthenticated, currentSpace, attemptSync]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !currentSpace) {
+      return;
+    }
+
+    if (syncInProgressRef.current) {
+      return;
+    }
+
+    if (pendingPushIds.size > 0) {
+      console.log(
+        `[useEffect] Skipping auto-sync: pending pushes exist ${pendingPushIds.size}`
+      );
+      return;
+    }
+
+    const now = Date.now();
+    if (lastSyncTime && now - lastSyncTime < 30000) {
+      console.log("[useEffect] Skipping auto-sync: recent sync detected");
+      return;
+    }
+
+    if (process.env.NODE_ENV === "development") {
+      if (lastSyncTime && now - lastSyncTime < 60000) {
+        console.log(
+          "[useEffect] Skipping auto-sync: development mode cooldown"
+        );
+        return;
+      }
+    }
+
+    console.log("[useEffect] Auto-sync triggered for space/auth change");
+    attemptSync(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isAuthenticated,
     currentSpace,
-    isOffline,
-    currentChatId,
-    generatingChats,
+    attemptSync,
+    lastSyncTime,
+    pendingPushIds.size,
   ]);
 
-  const triggerSync = useCallback(() => {
-    syncChatsRef.current();
+  useEffect(() => {
+    return () => {
+      if (syncInProgressRef.current) {
+        console.log("[useChatFullSync] Cleaning up sync on unmount");
+        syncInProgressRef.current = false;
+      }
+    };
   }, []);
 
   return {

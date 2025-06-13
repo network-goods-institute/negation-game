@@ -33,6 +33,8 @@ export function useChatState({
       return;
     }
 
+    setIsInitialized(true);
+
     const storedChats = localStorage.getItem(`saved_chats_${currentSpace}`);
     if (storedChats) {
       try {
@@ -53,7 +55,6 @@ export function useChatState({
               typeof chat.distillRationaleId === "string")
         );
 
-        // Ensure we preserve the distillRationaleId when loading from storage
         const chatsWithPreservedFields = validChats.map((chat) => ({
           ...chat,
           distillRationaleId: chat.distillRationaleId ?? null,
@@ -65,14 +66,16 @@ export function useChatState({
         setSavedChats([]);
       }
     }
-    setIsInitialized(true);
   }, [currentSpace]);
 
   useEffect(() => {
-    if (isAuthenticated && currentSpace && currentChatId) {
-      localStorage.setItem(`last_chat_id_${currentSpace}`, currentChatId);
+    if (currentSpace && savedChats.length > 0) {
+      localStorage.setItem(
+        `saved_chats_${currentSpace}`,
+        JSON.stringify(savedChats)
+      );
     }
-  }, [currentChatId, currentSpace, isAuthenticated]);
+  }, [savedChats, currentSpace]);
 
   return {
     savedChats,

@@ -16,8 +16,6 @@ export interface UseChatStateProps {
   allPointsInSpace: PointInSpace[];
   ownedPointIds: Set<number>;
   endorsedPointIds: Set<number>;
-  userRationales: ChatRationale[];
-  availableRationales: ChatRationale[];
   storedMessages: DiscourseMessage[];
   discourseUrl: string;
   savedChats: SavedChat[];
