@@ -1,8 +1,9 @@
 "use server";
 
-import { google } from "@ai-sdk/google";
-import { streamText, type Message } from "ai";
-import { withRetry } from "@/lib/utils/withRetry";
+import {
+  geminiService,
+  type Message as GeminiMessage,
+} from "@/services/ai/geminiService";
 import { getUserId } from "@/actions/users/getUserId";
 
 import type { ChatMessage, ChatSettings, DiscourseMessage } from "@/types/chat";
@@ -170,33 +171,9 @@ export const generateSuggestionChatBotResponse = async (
 
     const finalPrompt = `${systemPrompt}\n\n---\nCONTEXT FOR THIS RESPONSE:\n${contextString}\n---\n\nCHAT HISTORY:\n${chatHistoryString}\n\nA:`;
 
-    const aiResult = await withRetry(async () => {
-      try {
-        const response = await streamText({
-          model: google("gemini-2.0-flash"),
-          prompt: finalPrompt,
-        });
-        if (!response) throw new Error("Failed to get response from AI model");
-        return response;
-      } catch (error) {
-        if (error instanceof Error) {
-          if (error.message.includes("rate limit")) {
-            throw new Error("AI service is currently busy. Please try again.");
-          } else if (error.message.includes("context length")) {
-            throw new Error(
-              "Conversation context is too long. Please try shortening your message or starting a new chat."
-            );
-          }
-        }
-        throw error;
-      }
+    return await geminiService.generateStream(finalPrompt, {
+      truncateHistory: false, // We handle prompt construction ourselves
     });
-
-    const elementStream = aiResult.textStream;
-    if (!elementStream) {
-      throw new Error("Failed to initialize response stream");
-    }
-    return elementStream;
   } catch (error) {
     if (error instanceof Error) {
       if (

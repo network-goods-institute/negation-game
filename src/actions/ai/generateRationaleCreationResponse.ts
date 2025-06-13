@@ -1,8 +1,9 @@
 "use server";
 
-import { google } from "@ai-sdk/google";
-import { streamText } from "ai";
-import { withRetry } from "@/lib/utils/withRetry";
+import {
+  geminiService,
+  type Message as GeminiMessage,
+} from "@/services/ai/geminiService";
 import { getUserId } from "@/actions/users/getUserId";
 import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { PointInSpace } from "@/actions/points/fetchAllSpacePoints";
@@ -372,55 +373,11 @@ ${linkContext}
 
     const finalPrompt = `${systemPrompt}\n\nCHAT HISTORY:\n${chatHistoryString}\n\nA:`;
 
-    const aiResult = await withRetry(async () => {
-      try {
-        let response;
-        try {
-          response = await streamText({
-            model: google("gemini-2.5-flash-preview-05-20"),
-            prompt: finalPrompt,
-          });
-        } catch (err) {
-          if (
-            err instanceof Error &&
-            /rate limit|overload/i.test(err.message)
-          ) {
-            console.warn(
-              "Primary model rate limited, falling back to gemini-2.0-flash"
-            );
-            response = await streamText({
-              model: google("gemini-2.0-flash"),
-              prompt: finalPrompt,
-            });
-          } else {
-            throw err;
-          }
-        }
-        if (!response) throw new Error("Failed to get response from AI model");
-        return response;
-      } catch (error) {
-        if (error instanceof Error) {
-          if (error.message.includes("context length")) {
-            throw new Error(
-              "Conversation context is too long. Please try shortening your message or starting a new chat."
-            );
-          } else if (
-            error.message.includes("blocked") ||
-            error.message.includes("stopped")
-          ) {
-            throw new Error(
-              "AI response was blocked due to content safety reasons. Please review your input."
-            );
-          }
-        }
-        console.error("AI Call Error:", error);
-        throw new Error(
-          `AI call failed: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
+    const aiResult = await geminiService.generateStream(finalPrompt, {
+      truncateHistory: false,
     });
 
-    const fullResponseReader = aiResult.textStream.getReader();
+    const fullResponseReader = aiResult.getReader();
     let accumulatedText = "";
     while (true) {
       const { done, value } = await fullResponseReader.read();
