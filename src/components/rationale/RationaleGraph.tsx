@@ -36,6 +36,8 @@ export interface RationaleGraphProps {
     onResetContent?: () => void;
     onModifiedChange?: (isModified: boolean) => void;
     nodesDraggable?: boolean;
+    showDynamicSizingToggle?: boolean;
+    topOffsetPx?: number;
 }
 
 export default function RationaleGraph({
@@ -61,6 +63,8 @@ export default function RationaleGraph({
     onResetContent,
     onModifiedChange,
     nodesDraggable,
+    showDynamicSizingToggle,
+    topOffsetPx,
 }: RationaleGraphProps) {
     const uniquePoints = useGraphPoints();
     const pointIds = uniquePoints.map((p) => p.pointId);
@@ -147,6 +151,8 @@ export default function RationaleGraph({
                 hideSavePanel={hideSavePanel}
                 hideComments={hideComments}
                 nodesDraggable={nodesDraggable}
+                showDynamicSizingToggle={showDynamicSizingToggle ?? isNew}
+                topOffsetPx={topOffsetPx}
             />
         </GraphSizingContext.Provider>
     );

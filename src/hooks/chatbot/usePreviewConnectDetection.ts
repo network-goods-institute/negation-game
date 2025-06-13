@@ -8,7 +8,7 @@ import { PreviewPointNodeData } from "@/components/chatbot/preview/PreviewPointN
 function findOverlappingForConnect(
   allNodes: PreviewAppNode[],
   targetNodeId: string,
-  threshold = 80
+  threshold = 95
 ): string | null {
   const targetNode = allNodes.find((n) => n.id === targetNodeId);
   if (!targetNode || targetNode.type !== "point") return null;
@@ -62,7 +62,7 @@ export function usePreviewConnectDetection(nodeId: string) {
 
   const checkForConnectCandidates = useCallback(() => {
     const allNodes = getNodes();
-    const connectTargetId = findOverlappingForConnect(allNodes, nodeId, 80);
+    const connectTargetId = findOverlappingForConnect(allNodes, nodeId, 95);
 
     setConnectDialogState((state) => {
       if (connectTargetId) {

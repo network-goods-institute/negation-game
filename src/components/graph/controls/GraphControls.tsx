@@ -33,6 +33,8 @@ export interface GraphControlsProps {
     unsavedChangesModalClassName?: string;
     onClose?: () => void;
     closeButtonClassName?: string;
+    showDynamicSizingToggle?: boolean;
+    topOffsetPx?: number;
 }
 
 function DynamicSizingToggle() {
@@ -66,6 +68,8 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
     unsavedChangesModalClassName,
     onClose,
     closeButtonClassName,
+    showDynamicSizingToggle,
+    topOffsetPx = 0,
 }) => {
     const reactFlow = useReactFlow<AppNode>();
     const handleAddComment = () => {
@@ -98,10 +102,17 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
                     <Controls />
                 </div>
             </Panel>
-            <Panel position="top-right" className="z-10 mr-4 mt-2 flex flex-col items-end">
-                <DynamicSizingToggle />
+            <Panel
+                position="top-right"
+                className="z-10 mr-4 flex flex-col items-end"
+                style={{
+                    top: topOffsetPx !== undefined ? topOffsetPx : undefined,
+                }}
+            >
+                {showDynamicSizingToggle && <DynamicSizingToggle />}
             </Panel>
             <Panel position="bottom-right" className="z-10 mr-4 mb-10 flex flex-col items-end">
+                {!showDynamicSizingToggle && <DynamicSizingToggle />}
                 <SharePanel
                     isSharing={isSharing}
                     hideShareButton={hideShareButton}

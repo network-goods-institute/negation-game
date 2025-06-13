@@ -11,10 +11,11 @@ import type { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import type { AppNode } from "@/components/graph/nodes/AppNode";
 import type { AppEdge } from "@/components/graph/edges/AppEdge";
 
-interface GlobalTopicGraphProps {
+export interface GlobalTopicGraphProps {
     topicId: number;
     topicName: string;
     className?: string;
+    showDynamicSizingToggle?: boolean;
 }
 
 function createTopicViewpointGraph(points: TopicPointData[]): ViewpointGraph {
@@ -237,7 +238,7 @@ function createTopicViewpointGraph(points: TopicPointData[]): ViewpointGraph {
     return { nodes, edges };
 }
 
-const GlobalTopicGraphContent = React.memo(function GlobalTopicGraphContent({ topicId, topicName, className }: GlobalTopicGraphProps) {
+const GlobalTopicGraphContent = React.memo(function GlobalTopicGraphContent({ topicId, topicName, className, showDynamicSizingToggle }: GlobalTopicGraphProps) {
     const { data: points, isLoading, error } = useTopicPoints(topicId);
     const lastGraphRef = useRef<ViewpointGraph | null>(null);
     const lastPointsKeyRef = useRef<string>('');
@@ -330,6 +331,7 @@ const GlobalTopicGraphContent = React.memo(function GlobalTopicGraphContent({ to
                 onResetContent={() => { }} // No-op reset
                 onModifiedChange={() => { }} // No-op modified change
                 nodesDraggable={false} // Disable node movement for optimized panning
+                showDynamicSizingToggle={showDynamicSizingToggle}
                 className="h-full"
             />
         </div>

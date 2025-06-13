@@ -10,7 +10,7 @@ import { PreviewPointNodeData } from "@/components/chatbot/preview/PreviewPointN
 
 function findOverlappingPreviewNodes(
   allNodes: PreviewAppNode[],
-  threshold = 60
+  threshold = 95
 ): Map<string, string[]> {
   const overlaps = new Map<string, string[]>();
 
@@ -74,7 +74,7 @@ export function usePreviewMergeDetection(nodeId: string, content: string) {
 
   const findDuplicateNodes = useCallback((): DuplicatePointNode[] | null => {
     const allNodes = getNodes();
-    const duplicates = findOverlappingPreviewNodes(allNodes, 60);
+    const duplicates = findOverlappingPreviewNodes(allNodes, 95);
     if (!duplicates.has(nodeId)) return null;
     const nodeIds = duplicates.get(nodeId) || [];
     if (nodeIds.length === 0) return null;

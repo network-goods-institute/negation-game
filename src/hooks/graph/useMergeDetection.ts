@@ -22,7 +22,7 @@ export function useMergeDetection(pointId: number) {
 
   const findDuplicateNodes = useCallback((): DuplicatePointNode[] | null => {
     const allNodes = getNodes();
-    const duplicates = findOverlappingPoints(allNodes, 60);
+    const duplicates = findOverlappingPoints(allNodes, 95);
     if (!duplicates.has(pointId)) return null;
     const nodeIds = duplicates.get(pointId) || [];
     if (nodeIds.length <= 1) return null;

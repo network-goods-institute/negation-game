@@ -136,6 +136,7 @@ export default function TopicGraphPageClient({ topic, space }: TopicGraphPageCli
                         topicId={topic.id}
                         topicName={topic.name}
                         className="h-full"
+                        showDynamicSizingToggle={true}
                     />
                 </Dynamic>
             </div>

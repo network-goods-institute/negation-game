@@ -47,6 +47,7 @@ import { MergeNodesFrame } from "@/components/graph/overlays/MergeNodesFrame";
 import { connectNodesDialogAtom } from "@/atoms/connectNodesAtom";
 import { mergeNodesDialogAtom } from "@/atoms/mergeNodesAtom";
 import CollapseHintOverlay from "@/components/graph/overlays/CollapseHintOverlay";
+import { cn } from "@/lib/utils/cn";
 
 export interface GraphViewProps
   extends Omit<ReactFlowProps<AppNode>, "onDelete"> {
@@ -74,6 +75,8 @@ export interface GraphViewProps
   handleGenerateAndCopyShareLink?: () => void;
   originalGraphData?: ViewpointGraph;
   nodesDraggable?: boolean;
+  showDynamicSizingToggle?: boolean;
+  topOffsetPx?: number;
 }
 
 export const GraphView = ({
@@ -102,6 +105,8 @@ export const GraphView = ({
   handleGenerateAndCopyShareLink,
   originalGraphData,
   nodesDraggable,
+  showDynamicSizingToggle,
+  topOffsetPx,
   ...props
 }: GraphViewProps) => {
   const [showEndorsements] = useAtom(showEndorsementsAtom);
@@ -377,6 +382,11 @@ export const GraphView = ({
         onPaneClick={handlePaneClick}
         onNodeDragStart={handleNodeDragStart}
         nodesDraggable={nodesDraggable}
+        className={cn(
+          "w-full h-full",
+          canvasEnabled ? "" : "pointer-events-none",
+          props.className
+        )}
         {...effectiveProps}
       >
         <Background
@@ -406,6 +416,8 @@ export const GraphView = ({
           unsavedChangesModalClassName={unsavedChangesModalClassName}
           onClose={onClose}
           closeButtonClassName={closeButtonClassName}
+          showDynamicSizingToggle={showDynamicSizingToggle}
+          topOffsetPx={topOffsetPx}
         />
         <CollapseHintOverlay />
         <GlobalExpandPointDialog />
