@@ -3,7 +3,7 @@
 import { getUserId } from "@/actions/users/getUserId";
 import { usersTable } from "@/db/schema";
 import { db } from "@/services/db";
-import { and, ilike, ne } from "drizzle-orm";
+import { and, eq, ilike, ne } from "drizzle-orm";
 
 export const searchUsers = async (query: string) => {
   const currentUserId = await getUserId();
@@ -25,7 +25,8 @@ export const searchUsers = async (query: string) => {
     .where(
       and(
         ilike(usersTable.username, `%${query.trim()}%`),
-        ne(usersTable.id, currentUserId)
+        ne(usersTable.id, currentUserId),
+        eq(usersTable.isActive, true)
       )
     )
     .limit(10);

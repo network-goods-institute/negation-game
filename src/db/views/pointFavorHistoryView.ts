@@ -9,6 +9,7 @@ import {
   doubtsTable,
   doubtHistoryTable,
 } from "@/db/schema";
+import { InferSelectViewModel } from "@/db/utils/InferSelectViewModel";
 import { sql } from "drizzle-orm";
 import { pgView } from "drizzle-orm/pg-core";
 
@@ -236,3 +237,7 @@ export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
     .from(allEventsWithStats)
     .orderBy(sql`event_time, point_id`);
 });
+
+export type PointFavorHistory = InferSelectViewModel<
+  typeof pointFavorHistoryView
+>;

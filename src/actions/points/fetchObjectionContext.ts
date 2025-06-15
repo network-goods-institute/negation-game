@@ -17,7 +17,8 @@ export const fetchObjectionContext = async (
       .where(
         and(
           eq(objectionsTable.objectionPointId, objectionId),
-          eq(objectionsTable.targetPointId, targetId)
+          eq(objectionsTable.targetPointId, targetId),
+          eq(objectionsTable.isActive, true)
         )
       )
       .limit(1);

@@ -2,7 +2,7 @@ import { createNotification } from "@/actions/notifications/createNotification";
 import { generateNotificationSummary } from "@/actions/ai/generateNotificationSummary";
 import { db } from "@/services/db";
 import { pointsTable, viewpointsTable, usersTable } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, and } from "drizzle-orm";
 import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { PointNodeData } from "@/components/graph/nodes/PointNode";
 
@@ -136,7 +136,9 @@ class NotificationQueue {
         content: pointsTable.content,
       })
       .from(pointsTable)
-      .where(eq(pointsTable.id, data.pointId))
+      .where(
+        and(eq(pointsTable.id, data.pointId), eq(pointsTable.isActive, true))
+      )
       .limit(1);
 
     if (!point[0] || point[0].createdBy === data.endorserId) {
@@ -183,7 +185,10 @@ class NotificationQueue {
       })
       .from(pointsTable)
       .where(
-        inArray(pointsTable.id, [data.negatedPointId, data.counterpointId])
+        and(
+          inArray(pointsTable.id, [data.negatedPointId, data.counterpointId]),
+          eq(pointsTable.isActive, true)
+        )
       );
 
     const negatedPoint = points.find((p) => p.id === data.negatedPointId);
@@ -266,7 +271,9 @@ class NotificationQueue {
         content: pointsTable.content,
       })
       .from(pointsTable)
-      .where(inArray(pointsTable.id, pointIds));
+      .where(
+        and(inArray(pointsTable.id, pointIds), eq(pointsTable.isActive, true))
+      );
 
     // Send notification to each point creator (except the rationale author)
     for (const point of pointCreators) {
@@ -313,7 +320,12 @@ class NotificationQueue {
         content: pointsTable.content,
       })
       .from(pointsTable)
-      .where(eq(pointsTable.id, data.negatedPointId))
+      .where(
+        and(
+          eq(pointsTable.id, data.negatedPointId),
+          eq(pointsTable.isActive, true)
+        )
+      )
       .limit(1);
 
     if (!point[0] || point[0].createdBy === data.restakerId) {
@@ -358,7 +370,12 @@ class NotificationQueue {
         content: pointsTable.content,
       })
       .from(pointsTable)
-      .where(eq(pointsTable.id, data.negatedPointId))
+      .where(
+        and(
+          eq(pointsTable.id, data.negatedPointId),
+          eq(pointsTable.isActive, true)
+        )
+      )
       .limit(1);
 
     if (!point[0] || point[0].createdBy === data.slasherId) {
@@ -403,7 +420,12 @@ class NotificationQueue {
         content: pointsTable.content,
       })
       .from(pointsTable)
-      .where(eq(pointsTable.id, data.negatedPointId))
+      .where(
+        and(
+          eq(pointsTable.id, data.negatedPointId),
+          eq(pointsTable.isActive, true)
+        )
+      )
       .limit(1);
 
     if (!point[0] || point[0].createdBy === data.doubterId) {
@@ -445,7 +467,12 @@ class NotificationQueue {
     const point = await db
       .select({ content: pointsTable.content })
       .from(pointsTable)
-      .where(eq(pointsTable.id, data.negatedPointId))
+      .where(
+        and(
+          eq(pointsTable.id, data.negatedPointId),
+          eq(pointsTable.isActive, true)
+        )
+      )
       .limit(1);
 
     if (!point[0]) {

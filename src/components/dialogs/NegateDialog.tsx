@@ -374,6 +374,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
           content: counterpointContent,
           cred,
           negatedPointId: negatedPoint.pointId,
+          space: negatedPoint.space,
         }).then(newPointId => {
           finalCounterpointId = newPointId;
           return newPointId;

@@ -49,6 +49,7 @@ export const calculateViewpointStats = async (
       .where(
         and(
           inArray(pointsTable.id, pointIds),
+          eq(pointsTable.isActive, true),
           eq(endorsementsTable.userId, viewpoint.createdBy)
         )
       );

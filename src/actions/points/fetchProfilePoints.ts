@@ -87,9 +87,9 @@ export const fetchProfilePoints = async (
                 FROM ${endorsementsTable}
                 WHERE ${endorsementsTable.userId} = ${userId}
                   AND ${endorsementsTable.pointId} IN (
-                    SELECT older_point_id FROM ${negationsTable} WHERE newer_point_id = ${pointsWithDetailsView.pointId}
+                    SELECT older_point_id FROM ${negationsTable} WHERE newer_point_id = ${pointsWithDetailsView.pointId} AND ${negationsTable.isActive} = true
                     UNION
-                    SELECT newer_point_id FROM ${negationsTable} WHERE older_point_id = ${pointsWithDetailsView.pointId}
+                    SELECT newer_point_id FROM ${negationsTable} WHERE older_point_id = ${pointsWithDetailsView.pointId} AND ${negationsTable.isActive} = true
                   )
               ), 0)
             `.mapWith(Number)

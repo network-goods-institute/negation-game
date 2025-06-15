@@ -83,15 +83,18 @@ export const fetchNegationRelationship = async (
     })
     .from(negationsTable)
     .where(
-      or(
-        and(
-          eq(negationsTable.olderPointId, point1Id),
-          eq(negationsTable.newerPointId, point2Id)
+      and(
+        or(
+          and(
+            eq(negationsTable.olderPointId, point1Id),
+            eq(negationsTable.newerPointId, point2Id)
+          ),
+          and(
+            eq(negationsTable.olderPointId, point2Id),
+            eq(negationsTable.newerPointId, point1Id)
+          )
         ),
-        and(
-          eq(negationsTable.olderPointId, point2Id),
-          eq(negationsTable.newerPointId, point1Id)
-        )
+        eq(negationsTable.isActive, true)
       )
     );
 

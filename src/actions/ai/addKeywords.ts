@@ -3,7 +3,7 @@
 import { Point, pointsTable } from "@/db/tables/pointsTable";
 import { db } from "@/services/db";
 import { generateObject } from "ai";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { withRetry } from "@/lib/utils/withRetry";
 import { openai } from "@ai-sdk/openai";
@@ -26,6 +26,6 @@ export const addKeywords = async ({
   await db
     .update(pointsTable)
     .set({ keywords: keywords.map((keyword) => keyword.toLowerCase()) })
-    .where(eq(pointsTable.id, id))
+    .where(and(eq(pointsTable.id, id), eq(pointsTable.isActive, true)))
     .execute();
 };

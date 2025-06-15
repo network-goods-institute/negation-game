@@ -2,7 +2,7 @@
 
 import { db } from "@/services/db";
 import { negationsTable } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export const fetchTargetParentPoint = async (
   targetPointId: number
@@ -12,7 +12,12 @@ export const fetchTargetParentPoint = async (
     const result = await db
       .select({ olderPointId: negationsTable.olderPointId })
       .from(negationsTable)
-      .where(eq(negationsTable.newerPointId, targetPointId))
+      .where(
+        and(
+          eq(negationsTable.newerPointId, targetPointId),
+          eq(negationsTable.isActive, true)
+        )
+      )
       .limit(1);
 
     return result.length > 0 ? result[0].olderPointId : null;

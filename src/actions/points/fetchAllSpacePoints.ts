@@ -3,7 +3,7 @@
 import { getSpace } from "@/actions/spaces/getSpace";
 import { db } from "@/services/db";
 import { pointsWithDetailsView, objectionsTable } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 
 export interface PointInSpace {
   pointId: number;
@@ -49,7 +49,10 @@ export const fetchAllSpacePoints = async (): Promise<PointInSpace[]> => {
       .from(pointsWithDetailsView)
       .leftJoin(
         objectionsTable,
-        eq(objectionsTable.objectionPointId, pointsWithDetailsView.pointId)
+        and(
+          eq(objectionsTable.objectionPointId, pointsWithDetailsView.pointId),
+          eq(objectionsTable.isActive, true)
+        )
       )
       .where(eq(pointsWithDetailsView.space, space));
 

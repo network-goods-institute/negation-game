@@ -64,7 +64,8 @@ export const findObjectionCandidatesAction = async ({
         and(
           eq(objectionsTable.objectionPointId, pointsTable.id),
           eq(objectionsTable.targetPointId, targetPointId),
-          eq(objectionsTable.contextPointId, contextPointId)
+          eq(objectionsTable.contextPointId, contextPointId),
+          eq(objectionsTable.isActive, true)
         )
       )
   ).mapWith(Boolean);
@@ -81,9 +82,9 @@ export const findObjectionCandidatesAction = async ({
       COALESCE((
         SELECT COUNT(*)
         FROM (
-          SELECT older_point_id AS point_id FROM ${negationsTable}
+          SELECT older_point_id AS point_id FROM ${negationsTable} WHERE ${negationsTable.isActive} = true
           UNION ALL
-          SELECT newer_point_id AS point_id FROM ${negationsTable}
+          SELECT newer_point_id AS point_id FROM ${negationsTable} WHERE ${negationsTable.isActive} = true
         ) sub
         WHERE point_id = ${pointsTable.id}
       ), 0)
@@ -109,11 +110,11 @@ export const findObjectionCandidatesAction = async ({
         WHERE ${endorsementsTable.pointId} IN (
           SELECT newer_point_id
           FROM ${negationsTable}
-          WHERE older_point_id = ${pointsTable.id}
+          WHERE older_point_id = ${pointsTable.id} AND ${negationsTable.isActive} = true
           UNION
           SELECT older_point_id
           FROM ${negationsTable}
-          WHERE newer_point_id = ${pointsTable.id}
+          WHERE newer_point_id = ${pointsTable.id} AND ${negationsTable.isActive} = true
         )
       ), 0)
     `.mapWith(Number),
@@ -128,7 +129,8 @@ export const findObjectionCandidatesAction = async ({
         gt(similarity, 0.5),
         ne(pointsTable.id, targetPointId),
         ne(pointsTable.id, contextPointId),
-        eq(pointsTable.space, space)
+        eq(pointsTable.space, space),
+        eq(pointsTable.isActive, true)
       )
     )
     .orderBy((t) => desc(t.similarity))

@@ -5,7 +5,7 @@ import { pointsTable } from "@/db/tables/pointsTable";
 import { db } from "@/services/db";
 import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
-import { inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { withRetry } from "@/lib/utils/withRetry";
 
@@ -51,7 +51,9 @@ export async function generateRationaleSummary({
         content: pointsTable.content,
       })
       .from(pointsTable)
-      .where(inArray(pointsTable.id, pointIds))
+      .where(
+        and(inArray(pointsTable.id, pointIds), eq(pointsTable.isActive, true))
+      )
       .execute();
 
     if (points.length === 0) {

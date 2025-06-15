@@ -61,7 +61,7 @@ export async function processPinCommand(
     }
 
     const point = await db.query.pointsTable.findFirst({
-      where: eq(pointsTable.id, pointId),
+      where: and(eq(pointsTable.id, pointId), eq(pointsTable.isActive, true)),
     });
 
     if (!point) {
@@ -126,6 +126,7 @@ export async function getAllPinCommands(spaceId: string) {
     where: and(
       eq(pointsTable.space, spaceId),
       eq(pointsTable.isCommand, true),
+      eq(pointsTable.isActive, true),
       sql`${pointsTable.content} LIKE '/pin %'`
     ),
     orderBy: [sql`${pointsTable.createdAt} DESC`],

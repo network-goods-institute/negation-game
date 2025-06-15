@@ -35,8 +35,8 @@ export interface TopicPointData {
   amountNegations: number;
   createdAt: Date;
   isObjection: boolean;
-  objectionTargetId: any;
-  objectionContextId: any;
+  objectionTargetId: number | null;
+  objectionContextId: number | null;
   negations: number[];
   negationIds: number[];
   negationsCred: number;
@@ -63,6 +63,9 @@ export interface TopicPointData {
     id: number;
     amount: number;
   } | null;
+  isActive: boolean;
+  deletedAt: Date | null;
+  deletedBy: string | null;
 }
 
 export async function fetchTopicPoints(
@@ -145,15 +148,18 @@ export async function fetchTopicPoints(
         isObjection: sql<boolean>`EXISTS (
           SELECT 1 FROM ${objectionsTable}
           WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
+          AND ${objectionsTable.isActive} = true
         )`.mapWith(Boolean),
         objectionTargetId: sql<number | null>`(
           SELECT ${objectionsTable.targetPointId} FROM ${objectionsTable}
           WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
+          AND ${objectionsTable.isActive} = true
           LIMIT 1
         )`.mapWith((v) => v),
         objectionContextId: sql<number | null>`(
           SELECT ${objectionsTable.contextPointId} FROM ${objectionsTable}
           WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
+          AND ${objectionsTable.isActive} = true
           LIMIT 1
         )`.mapWith((v) => v),
         viewerCred: viewerCredSql(viewerId),
@@ -164,9 +170,9 @@ export async function fetchTopicPoints(
                 FROM ${endorsementsTable}
                 WHERE ${endorsementsTable.userId} = ${viewerId}
                   AND ${endorsementsTable.pointId} IN (
-                    SELECT older_point_id FROM ${negationsTable} WHERE newer_point_id = ${pointsWithDetailsView.pointId}
+                    SELECT older_point_id FROM ${negationsTable} WHERE newer_point_id = ${pointsWithDetailsView.pointId} AND ${negationsTable.isActive} = true
                     UNION
-                    SELECT newer_point_id FROM ${negationsTable} WHERE older_point_id = ${pointsWithDetailsView.pointId}
+                    SELECT newer_point_id FROM ${negationsTable} WHERE older_point_id = ${pointsWithDetailsView.pointId} AND ${negationsTable.isActive} = true
                   )
               ), 0)
             `.mapWith(Number)
@@ -269,6 +275,9 @@ export async function fetchTopicPoints(
       },
       restake: (point as any).restake || null,
       slash: (point as any).slash || null,
+      isActive: true,
+      deletedAt: null,
+      deletedBy: null,
     }));
 
     // Ensure unique points

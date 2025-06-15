@@ -65,7 +65,8 @@ export const negate = async ({
       .where(
         and(
           eq(negationsTable.olderPointId, olderPointId),
-          eq(negationsTable.newerPointId, newerPointId)
+          eq(negationsTable.newerPointId, newerPointId),
+          eq(negationsTable.isActive, true)
         )
       );
     return existing.id;

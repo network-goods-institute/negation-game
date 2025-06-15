@@ -1,5 +1,6 @@
 import { pointsTable } from "@/db/tables/pointsTable";
 import { usersTable } from "@/db/tables/usersTable";
+import { spacesTable } from "@/db/tables/spacesTable";
 import { InferColumnsDataTypes, sql } from "drizzle-orm";
 import {
   boolean,
@@ -25,9 +26,9 @@ export const doubtsTable = pgTable(
   "doubts",
   {
     id: serial("id").primaryKey(),
-    userId: varchar("user_id")
+    userId: varchar("user_id", { length: 255 })
       .references(() => usersTable.id, {
-        onDelete: "cascade",
+        onDelete: "set null",
       })
       .notNull(),
     pointId: integer("point_id")
@@ -41,6 +42,9 @@ export const doubtsTable = pgTable(
       })
       .notNull(),
     amount: integer("amount").notNull(),
+    space: varchar("space", { length: 100 })
+      .notNull()
+      .references(() => spacesTable.id, { onDelete: "cascade" }),
     lastEarningsAt: timestamp("last_earnings_at").notNull().defaultNow(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
@@ -57,6 +61,7 @@ export const doubtsTable = pgTable(
     userIndex: index("doubts_user_idx").on(table.userId),
     pointIndex: index("doubts_point_idx").on(table.pointId),
     negationIndex: index("doubts_negation_idx").on(table.negationId),
+    spaceIdx: index("doubts_space_idx").on(table.space),
   })
 );
 
@@ -69,9 +74,9 @@ export const doubtHistoryTable = pgTable(
         onDelete: "cascade",
       })
       .notNull(),
-    userId: varchar("user_id")
+    userId: varchar("user_id", { length: 255 })
       .references(() => usersTable.id, {
-        onDelete: "cascade",
+        onDelete: "set null",
       })
       .notNull(),
     pointId: integer("point_id")
@@ -98,11 +103,17 @@ export const doubtHistoryTable = pgTable(
 );
 
 // Export types
-export type InsertDoubt = typeof doubtsTable.$inferInsert;
+export type InsertDoubt = Omit<
+  typeof doubtsTable.$inferInsert,
+  "id" | "createdAt" | "lastEarningsAt"
+>;
 export type SelectDoubt = typeof doubtsTable.$inferSelect;
 export type Doubt = InferColumnsDataTypes<typeof doubtsTable._.columns>;
 
-export type InsertDoubtHistory = typeof doubtHistoryTable.$inferInsert;
+export type InsertDoubtHistory = Omit<
+  typeof doubtHistoryTable.$inferInsert,
+  "id" | "createdAt"
+>;
 export type SelectDoubtHistory = typeof doubtHistoryTable.$inferSelect;
 export type DoubtHistory = InferColumnsDataTypes<
   typeof doubtHistoryTable._.columns

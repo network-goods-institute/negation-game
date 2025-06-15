@@ -50,11 +50,11 @@ export const fetchPoints = async (ids: number[]) => {
           (
             SELECT SUM(e2.cred)
             FROM endorsements e2
-            JOIN points p2 ON p2.id = e2.point_id
+            JOIN points p2 ON p2.id = e2.point_id AND p2.is_active = true
             WHERE p2.id IN (
-              SELECT newer_point_id FROM negations WHERE older_point_id = p.id
+              SELECT newer_point_id FROM negations WHERE older_point_id = p.id AND is_active = true
               UNION
-              SELECT older_point_id FROM negations WHERE newer_point_id = p.id
+              SELECT older_point_id FROM negations WHERE newer_point_id = p.id AND is_active = true
             )
           ),
           0
@@ -64,6 +64,7 @@ export const fetchPoints = async (ids: number[]) => {
       WHERE p.is_command = true 
       AND p.space = ${space}
       AND p.content LIKE ${`/pin %`}
+      AND p.is_active = true
       GROUP BY p.id
     )
     SELECT 
@@ -102,9 +103,9 @@ export const fetchPoints = async (ids: number[]) => {
               FROM ${endorsementsTable}
               WHERE ${endorsementsTable.userId} = ${viewerId}
                 AND ${endorsementsTable.pointId} IN (
-                  SELECT older_point_id FROM ${negationsTable} WHERE newer_point_id = ${pointsWithDetailsView.pointId}
+                  SELECT older_point_id FROM ${negationsTable} WHERE newer_point_id = ${pointsWithDetailsView.pointId} AND ${negationsTable.isActive} = true
                   UNION
-                  SELECT newer_point_id FROM ${negationsTable} WHERE older_point_id = ${pointsWithDetailsView.pointId}
+                  SELECT newer_point_id FROM ${negationsTable} WHERE older_point_id = ${pointsWithDetailsView.pointId} AND ${negationsTable.isActive} = true
                 )
             ), 0)
           `.mapWith(Number)
@@ -144,15 +145,18 @@ export const fetchPoints = async (ids: number[]) => {
       isObjection: sql<boolean>`EXISTS (
         SELECT 1 FROM ${objectionsTable}
         WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
+        AND ${objectionsTable.isActive} = true
       )`.mapWith(Boolean),
       objectionTargetId: sql<number | null>`(
         SELECT ${objectionsTable.targetPointId} FROM ${objectionsTable}
         WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
+        AND ${objectionsTable.isActive} = true
         LIMIT 1
       )`.mapWith((v) => v),
       objectionContextId: sql<number | null>`(
         SELECT ${objectionsTable.contextPointId} FROM ${objectionsTable}
         WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
+        AND ${objectionsTable.isActive} = true
         LIMIT 1
       )`.mapWith((v) => v),
     })

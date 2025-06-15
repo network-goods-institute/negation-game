@@ -1,4 +1,5 @@
 import { restakesTable, slashesTable, doubtsTable } from "@/db/schema";
+import { InferSelectViewModel } from "@/db/utils/InferSelectViewModel";
 import { sql } from "drizzle-orm";
 import { pgView } from "drizzle-orm/pg-core";
 
@@ -10,6 +11,7 @@ export const effectiveRestakesView = pgView("effective_restakes_view").as(
         pointId: restakesTable.pointId,
         negationId: restakesTable.negationId,
         amount: restakesTable.amount,
+        space: restakesTable.space,
         createdAt: restakesTable.createdAt,
         slashedAmount: sql<number>`
         COALESCE((
@@ -53,3 +55,7 @@ export const effectiveRestakesView = pgView("effective_restakes_view").as(
       .from(restakesTable)
       .where(sql`"restakes"."amount" > 0`)
 );
+
+export type EffectiveRestake = InferSelectViewModel<
+  typeof effectiveRestakesView
+>;

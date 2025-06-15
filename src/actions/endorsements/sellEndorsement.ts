@@ -22,12 +22,6 @@ export const sellEndorsement = async ({
     throw new Error("Amount to sell must be positive");
   }
 
-  const userData = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.id, userId))
-    .limit(1);
-
   await db.transaction(async (tx) => {
     const currentEndorsements = await tx
       .select()

@@ -152,6 +152,7 @@ export const doubt = async ({ pointId, negationId, amount }: DoubtArgs) => {
         pointId,
         negationId,
         amount,
+        space,
       })
       .returning({ id: doubtsTable.id })
       .then(([{ id }]) => id);

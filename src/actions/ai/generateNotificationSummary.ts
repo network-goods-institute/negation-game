@@ -5,7 +5,7 @@ import { generateText } from "ai";
 import { withRetry } from "@/lib/utils/withRetry";
 import { db } from "@/services/db";
 import { pointsTable, viewpointsTable, usersTable } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 interface NotificationData {
   type: string;
@@ -120,7 +120,12 @@ async function fetchNotificationContext(
       const point = await db
         .select({ content: pointsTable.content, id: pointsTable.id })
         .from(pointsTable)
-        .where(eq(pointsTable.id, metadata.pointId))
+        .where(
+          and(
+            eq(pointsTable.id, metadata.pointId),
+            eq(pointsTable.isActive, true)
+          )
+        )
         .limit(1);
 
       if (point[0]) {
@@ -135,7 +140,12 @@ async function fetchNotificationContext(
       const counterpoint = await db
         .select({ content: pointsTable.content })
         .from(pointsTable)
-        .where(eq(pointsTable.id, metadata.counterpointId))
+        .where(
+          and(
+            eq(pointsTable.id, metadata.counterpointId),
+            eq(pointsTable.isActive, true)
+          )
+        )
         .limit(1);
 
       if (counterpoint[0]) {
@@ -158,7 +168,12 @@ async function fetchNotificationContext(
       const negatedPoint = await db
         .select({ content: pointsTable.content })
         .from(pointsTable)
-        .where(eq(pointsTable.id, metadata.negatedPointId))
+        .where(
+          and(
+            eq(pointsTable.id, metadata.negatedPointId),
+            eq(pointsTable.isActive, true)
+          )
+        )
         .limit(1);
 
       if (negatedPoint[0]) {

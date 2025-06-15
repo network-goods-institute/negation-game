@@ -43,11 +43,11 @@ export async function fetchPinnedPoint({ spaceId }: FetchPinnedPointParams) {
           (
             SELECT SUM(e2.cred)
             FROM endorsements e2
-            JOIN points p2 ON p2.id = e2.point_id
+            JOIN points p2 ON p2.id = e2.point_id AND p2.is_active = true
             WHERE p2.id IN (
-              SELECT newer_point_id FROM negations WHERE older_point_id = p.id
+              SELECT newer_point_id FROM negations WHERE older_point_id = p.id AND is_active = true
               UNION
-              SELECT older_point_id FROM negations WHERE newer_point_id = p.id
+              SELECT older_point_id FROM negations WHERE newer_point_id = p.id AND is_active = true
             )
           ),
           0
@@ -92,6 +92,7 @@ export async function fetchPinnedPoint({ spaceId }: FetchPinnedPointParams) {
       WHERE p.is_command = true 
       AND p.space = ${spaceId}
       AND p.content LIKE ${`/pin %`}
+      AND p.is_active = true
       GROUP BY p.id
     ),
     command_points_with_favor AS (
@@ -176,11 +177,11 @@ export async function fetchPinnedPoint({ spaceId }: FetchPinnedPointParams) {
           COALESCE((
             SELECT SUM(e2.cred)
             FROM endorsements e2
-            JOIN points p2 ON p2.id = e2.point_id
+            JOIN points p2 ON p2.id = e2.point_id AND p2.is_active = true
             WHERE p2.id IN (
-              SELECT newer_point_id FROM negations WHERE older_point_id = p.id
+              SELECT newer_point_id FROM negations WHERE older_point_id = p.id AND is_active = true
               UNION
-              SELECT older_point_id FROM negations WHERE newer_point_id = p.id
+              SELECT older_point_id FROM negations WHERE newer_point_id = p.id AND is_active = true
             )
           ), 0) as "negationsCred",
           COALESCE(CASE WHEN ${sql.raw(userId ? "true" : "false")} THEN (
@@ -196,11 +197,11 @@ export async function fetchPinnedPoint({ spaceId }: FetchPinnedPointParams) {
           COALESCE(SUM(er.effective_amount), 0) as "totalRestakeAmount"
         FROM points p
         LEFT JOIN endorsements e ON p.id = e.point_id
-        LEFT JOIN negations n ON (p.id = n.older_point_id OR p.id = n.newer_point_id)
+        LEFT JOIN negations n ON (p.id = n.older_point_id OR p.id = n.newer_point_id) AND n.is_active = true
         LEFT JOIN restakes r ON (p.id = r.negation_id)
         LEFT JOIN doubts d ON (r.point_id = d.point_id AND r.negation_id = d.negation_id)
         LEFT JOIN effective_restakes_view er ON (r.point_id = er.point_id AND r.negation_id = er.negation_id AND r.user_id = er.user_id)
-        WHERE p.id = ${space.pinnedPointId}
+        WHERE p.id = ${space.pinnedPointId} AND p.is_active = true
         GROUP BY p.id
       ),
       doubt_data AS (
@@ -211,7 +212,7 @@ export async function fetchPinnedPoint({ spaceId }: FetchPinnedPointParams) {
           CASE WHEN COUNT(CASE WHEN d.user_id = ${userId}::TEXT THEN 1 END) > 0 THEN true ELSE false END as "isUserDoubt"
         FROM doubts d
         JOIN point_data pd ON pd."pointId" = d.point_id
-        JOIN negations n ON (n.older_point_id = pd."pointId" OR n.newer_point_id = pd."pointId")
+        JOIN negations n ON (n.older_point_id = pd."pointId" OR n.newer_point_id = pd."pointId") AND n.is_active = true
         WHERE d.negation_id = n.id
         GROUP BY d.point_id, d.negation_id
       )

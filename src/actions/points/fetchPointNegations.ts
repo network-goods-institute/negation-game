@@ -81,15 +81,18 @@ export const fetchPointNegations = async (
       isObjection: sql<boolean>`EXISTS (
         SELECT 1 FROM ${objectionsTable}
         WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
+        AND ${objectionsTable.isActive} = true
       )`.mapWith(Boolean),
       objectionTargetId: sql<number | null>`(
         SELECT ${objectionsTable.targetPointId} FROM ${objectionsTable}
         WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
+        AND ${objectionsTable.isActive} = true
         LIMIT 1
       )`.mapWith((v) => v),
       objectionContextId: sql<number | null>`(
         SELECT ${objectionsTable.contextPointId} FROM ${objectionsTable}
         WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
+        AND ${objectionsTable.isActive} = true
         LIMIT 1
       )`.mapWith((v) => v),
       negationIds: pointsWithDetailsView.negationIds,

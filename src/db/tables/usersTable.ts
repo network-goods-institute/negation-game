@@ -6,7 +6,7 @@ import {
 import { InferColumnsDataTypes, sql, eq } from "drizzle-orm";
 import {
   check,
-  bigint,
+  integer,
   pgTable,
   uniqueIndex,
   varchar,
@@ -23,9 +23,7 @@ export const usersTable = pgTable(
     usernameCanonical: varchar("username_canonical", {
       length: USERNAME_MAX_LENGTH,
     }).notNull(),
-    cred: bigint("cred", { mode: "number" })
-      .notNull()
-      .default(USER_INITIAL_CRED),
+    cred: integer("cred").notNull().default(USER_INITIAL_CRED),
     bio: varchar("bio", { length: 1000 }),
     delegationUrl: varchar("delegation_url", { length: 255 }),
     discourseUsername: varchar("discourse_username", { length: 255 }),
@@ -43,7 +41,6 @@ export const usersTable = pgTable(
   },
   (table) => ({
     noNegativeCred: check("noNegativeCred", sql`${table.cred} >= 0`),
-    maxCredCheck: check("maxCredCheck", sql`${table.cred} <= 2147483647`),
     usernameUniqueIndex: uniqueIndex("usernameUniqueIndex").on(
       table.usernameCanonical
     ),

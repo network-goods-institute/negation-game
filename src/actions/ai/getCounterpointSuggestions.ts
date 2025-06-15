@@ -6,7 +6,7 @@ import { definitionsTable, pointsTable } from "@/db/schema";
 import { db } from "@/services/db";
 import { openai } from "@ai-sdk/openai";
 import { streamObject } from "ai";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withRetry } from "@/lib/utils/withRetry";
 
@@ -14,7 +14,7 @@ export const getCounterpointSuggestions = async (pointId: number) => {
   const point = await db
     .select({ content: pointsTable.content, keywords: pointsTable.keywords })
     .from(pointsTable)
-    .where(eq(pointsTable.id, pointId))
+    .where(and(eq(pointsTable.id, pointId), eq(pointsTable.isActive, true)))
     .limit(1)
     .then(([point]) => point);
 

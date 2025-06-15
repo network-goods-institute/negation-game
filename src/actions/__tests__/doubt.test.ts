@@ -18,6 +18,7 @@ jest.mock("@/db/schema", () => ({
     pointId: "point_id",
     negationId: "negation_id",
     amount: "amount",
+    space: "space",
     lastEarningsAt: "last_earnings_at",
     createdAt: "created_at",
   },
@@ -41,6 +42,7 @@ jest.mock("@/db/schema", () => ({
     pointId: "point_id",
     negationId: "negation_id",
     amount: "amount",
+    space: "space",
     createdAt: "created_at",
   },
   restakesTable: {
@@ -49,6 +51,7 @@ jest.mock("@/db/schema", () => ({
     pointId: "point_id",
     negationId: "negation_id",
     amount: "amount",
+    space: "space",
     createdAt: "created_at",
   },
   effectiveRestakesView: {},
@@ -211,6 +214,7 @@ describe("doubt", () => {
       pointId: 123,
       negationId: 456,
       amount: 10,
+      space: "test-space",
     });
 
     // Verify recording history

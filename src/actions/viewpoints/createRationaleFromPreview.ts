@@ -157,7 +157,12 @@ async function validatePointResolution(
         const pointExists = await db
           .select({ id: pointsTable.id })
           .from(pointsTable)
-          .where(eq(pointsTable.id, data.existingPointId))
+          .where(
+            and(
+              eq(pointsTable.id, data.existingPointId),
+              eq(pointsTable.isActive, true)
+            )
+          )
           .limit(1);
 
         if (pointExists.length === 0) {
@@ -188,7 +193,12 @@ async function validatePointResolution(
           const pointExists = await db
             .select({ id: pointsTable.id })
             .from(pointsTable)
-            .where(eq(pointsTable.id, resolvedId as number))
+            .where(
+              and(
+                eq(pointsTable.id, resolvedId as number),
+                eq(pointsTable.isActive, true)
+              )
+            )
             .limit(1);
 
           if (pointExists.length === 0) {
@@ -615,17 +625,20 @@ export async function createRationaleFromPreview({
                 .select({ id: negationsTable.id })
                 .from(negationsTable)
                 .where(
-                  or(
-                    and(
-                      eq(
-                        negationsTable.olderPointId,
-                        Math.min(targetPointId, contextPointId)
-                      ),
-                      eq(
-                        negationsTable.newerPointId,
-                        Math.max(targetPointId, contextPointId)
+                  and(
+                    or(
+                      and(
+                        eq(
+                          negationsTable.olderPointId,
+                          Math.min(targetPointId, contextPointId)
+                        ),
+                        eq(
+                          negationsTable.newerPointId,
+                          Math.max(targetPointId, contextPointId)
+                        )
                       )
-                    )
+                    ),
+                    eq(negationsTable.isActive, true)
                   )
                 );
 

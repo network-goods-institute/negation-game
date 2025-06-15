@@ -225,6 +225,7 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
           negationId,
           restakeId: restake.id,
           amount,
+          space,
         })
         .returning({ id: slashesTable.id })
         .then(([{ id }]) => id);

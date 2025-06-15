@@ -17,6 +17,10 @@ jest.mock("@/db/schema", () => ({
     newerPointId: "newer_point_id",
     olderPointId: "older_point_id",
     space: "space",
+    createdAt: "created_at",
+    isActive: "is_active",
+    deletedAt: "deleted_at",
+    deletedBy: "deleted_by",
   },
   pointsTable: {
     id: "id",

@@ -435,6 +435,20 @@
       "when": 1749961126082,
       "tag": "0061_soft_yellow_claw",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1749972992236,
+      "tag": "0062_mixed_zombie",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1749987375692,
+      "tag": "0063_fluffy_vin_gonzales",
+      "breakpoints": true
     }
   ]
 }

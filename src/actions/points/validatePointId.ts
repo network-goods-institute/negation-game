@@ -2,7 +2,7 @@
 
 import { db } from "@/services/db";
 import { pointsTable } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 /**
  * Server action to validate if a point exists in the database
@@ -15,7 +15,7 @@ export async function validatePointExists(pointId: number): Promise<boolean> {
     const exists = await db
       .select({ id: pointsTable.id })
       .from(pointsTable)
-      .where(eq(pointsTable.id, pointId))
+      .where(and(eq(pointsTable.id, pointId), eq(pointsTable.isActive, true)))
       .limit(1);
 
     return exists.length > 0;

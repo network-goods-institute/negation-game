@@ -34,7 +34,8 @@ export async function fetchPointsByExactContent(
       .where(
         and(
           inArray(pointsTable.content, contentStrings),
-          eq(pointsTable.space, spaceId)
+          eq(pointsTable.space, spaceId),
+          eq(pointsTable.isActive, true)
         )
       );
 

@@ -149,6 +149,7 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
         pointId,
         negationId,
         amount,
+        space,
       })
       .returning({ id: restakesTable.id })
       .then(([{ id }]) => id);

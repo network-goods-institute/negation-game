@@ -124,7 +124,12 @@ export const generateDistillRationaleChatBotResponse = async (
               content: pointsTable.content,
             })
             .from(pointsTable)
-            .where(inArray(pointsTable.id, pointIdsInGraph));
+            .where(
+              and(
+                inArray(pointsTable.id, pointIdsInGraph),
+                eq(pointsTable.isActive, true)
+              )
+            );
           pointsDataMap = new Map(
             pointsData.map((p) => [p.id, p.content || "[Content missing]"])
           );

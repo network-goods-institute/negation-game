@@ -221,7 +221,8 @@ export const searchContent = async (
             .where(
               and(
                 inArray(pointsTable.id, pointIds),
-                eq(endorsementsTable.userId, viewpoint.createdBy)
+                eq(endorsementsTable.userId, viewpoint.createdBy),
+                eq(pointsTable.isActive, true)
               )
             )
             .groupBy(pointsTable.id);

@@ -106,10 +106,10 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
           WHERE ${endorsementsTable.userId} = ${viewerId || sql`NULL`}
             AND ${endorsementsTable.pointId} IN (
               SELECT older_point_id FROM ${negationsTable}
-              WHERE newer_point_id = ${pointsWithDetailsView.pointId}
+              WHERE newer_point_id = ${pointsWithDetailsView.pointId} AND ${negationsTable.isActive} = true
               UNION
               SELECT newer_point_id FROM ${negationsTable}
-              WHERE older_point_id = ${pointsWithDetailsView.pointId}
+              WHERE older_point_id = ${pointsWithDetailsView.pointId} AND ${negationsTable.isActive} = true
             )
         ), 0)
       `.mapWith(Number),
@@ -158,6 +158,7 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
           WHERE p.is_command = true 
           AND p.space = ${space}
           AND p.content LIKE '/pin %'
+          AND p.is_active = true
           ORDER BY p.created_at DESC
           LIMIT 1
         ), NULL)
@@ -175,10 +176,12 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
       isObjection: sql<boolean>`EXISTS (
         SELECT 1 FROM ${objectionsTable}
         WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
+        AND ${objectionsTable.isActive} = true
       )`.mapWith(Boolean),
       objectionTargetId: sql<number | null>`(
         SELECT ${objectionsTable.targetPointId} FROM ${objectionsTable}
         WHERE ${objectionsTable.objectionPointId} = ${pointsWithDetailsView.pointId}
+        AND ${objectionsTable.isActive} = true
         LIMIT 1
       )`.mapWith((v) => v),
     })
@@ -206,11 +209,11 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
           (
             SELECT SUM(e2.cred)
             FROM endorsements e2
-            JOIN points p2 ON p2.id = e2.point_id
+            JOIN points p2 ON p2.id = e2.point_id AND p2.is_active = true
             WHERE p2.id IN (
-              SELECT newer_point_id FROM negations WHERE older_point_id = p.id
+              SELECT newer_point_id FROM negations WHERE older_point_id = p.id AND is_active = true
               UNION
-              SELECT older_point_id FROM negations WHERE newer_point_id = p.id
+              SELECT older_point_id FROM negations WHERE newer_point_id = p.id AND is_active = true
             )
           ),
           0
@@ -255,6 +258,7 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
       WHERE p.is_command = true 
       AND p.space = ${space}
       AND p.content LIKE ${`/pin %`}
+      AND p.is_active = true
       GROUP BY p.id
     ),
     command_points_with_favor AS (

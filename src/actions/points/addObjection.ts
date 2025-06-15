@@ -47,17 +47,20 @@ export const addObjection = async ({
     })
     .from(negationsTable)
     .where(
-      or(
-        and(
-          eq(
-            negationsTable.olderPointId,
-            Math.min(targetPointId, contextPointId)
-          ),
-          eq(
-            negationsTable.newerPointId,
-            Math.max(targetPointId, contextPointId)
+      and(
+        or(
+          and(
+            eq(
+              negationsTable.olderPointId,
+              Math.min(targetPointId, contextPointId)
+            ),
+            eq(
+              negationsTable.newerPointId,
+              Math.max(targetPointId, contextPointId)
+            )
           )
-        )
+        ),
+        eq(negationsTable.isActive, true)
       )
     );
 
@@ -110,6 +113,7 @@ export const addObjection = async ({
     await tx.insert(negationsTable).values({
       olderPointId: Math.min(objectionPointId, targetPointId),
       newerPointId: Math.max(objectionPointId, targetPointId),
+      createdBy: userId,
       space,
     });
 
@@ -162,12 +166,15 @@ export const validateObjectionTarget = async (
         END`
       )
       .where(
-        or(
-          eq(negationsTable.olderPointId, targetPointId),
-          eq(negationsTable.newerPointId, targetPointId)
+        and(
+          or(
+            eq(negationsTable.olderPointId, targetPointId),
+            eq(negationsTable.newerPointId, targetPointId)
+          ),
+          eq(negationsTable.isActive, true)
         )
       )
-      .limit(10); // Limit results to prevent excessive data
+      .limit(10);
 
     return {
       canCreateObjection: contexts.length > 0,

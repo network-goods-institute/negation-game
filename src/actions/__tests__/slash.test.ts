@@ -19,6 +19,7 @@ jest.mock("@/db/schema", () => ({
     pointId: "point_id",
     negationId: "negation_id",
     amount: "amount",
+    space: "space",
     createdAt: "created_at",
   },
   restakeHistoryTable: {
@@ -37,6 +38,7 @@ jest.mock("@/db/schema", () => ({
     pointId: "point_id",
     negationId: "negation_id",
     amount: "amount",
+    space: "space",
     createdAt: "created_at",
   },
   slashHistoryTable: {

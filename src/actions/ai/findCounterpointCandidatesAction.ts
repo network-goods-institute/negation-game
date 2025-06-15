@@ -57,9 +57,12 @@ export const findCounterpointCandidatesAction = async ({
       .select()
       .from(negationsTable)
       .where(
-        or(
-          sql`${negationsTable.olderPointId} = ${pointsTable.id} AND ${negationsTable.newerPointId} = ${negatedPointId}`,
-          sql`${negationsTable.newerPointId} = ${pointsTable.id} AND ${negationsTable.olderPointId} = ${negatedPointId}`
+        and(
+          or(
+            sql`${negationsTable.olderPointId} = ${pointsTable.id} AND ${negationsTable.newerPointId} = ${negatedPointId}`,
+            sql`${negationsTable.newerPointId} = ${pointsTable.id} AND ${negationsTable.olderPointId} = ${negatedPointId}`
+          ),
+          eq(negationsTable.isActive, true)
         )
       )
   ).mapWith(Boolean);
@@ -76,9 +79,9 @@ export const findCounterpointCandidatesAction = async ({
       COALESCE((
         SELECT COUNT(*)
         FROM (
-          SELECT older_point_id AS point_id FROM ${negationsTable}
+          SELECT older_point_id AS point_id FROM ${negationsTable} WHERE ${negationsTable.isActive} = true
           UNION ALL
-          SELECT newer_point_id AS point_id FROM ${negationsTable}
+          SELECT newer_point_id AS point_id FROM ${negationsTable} WHERE ${negationsTable.isActive} = true
         ) sub
         WHERE point_id = ${pointsTable.id}
       ), 0)
@@ -104,11 +107,11 @@ export const findCounterpointCandidatesAction = async ({
         WHERE ${endorsementsTable.pointId} IN (
           SELECT newer_point_id
           FROM ${negationsTable}
-          WHERE older_point_id = ${pointsTable.id}
+          WHERE older_point_id = ${pointsTable.id} AND ${negationsTable.isActive} = true
           UNION
           SELECT older_point_id
           FROM ${negationsTable}
-          WHERE newer_point_id = ${pointsTable.id}
+          WHERE newer_point_id = ${pointsTable.id} AND ${negationsTable.isActive} = true
         )
       ), 0)
     `.mapWith(Number),
@@ -122,7 +125,8 @@ export const findCounterpointCandidatesAction = async ({
       and(
         gt(similarity, 0.5),
         ne(pointsTable.id, negatedPointId),
-        eq(pointsTable.space, space)
+        eq(pointsTable.space, space),
+        eq(pointsTable.isActive, true)
       )
     )
     .orderBy((t) => desc(t.similarity))
