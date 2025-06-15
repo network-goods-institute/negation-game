@@ -7,8 +7,8 @@ import { addFavor } from "@/db/utils/addFavor";
 import {
   pointsTable,
   endorsementsTable,
-  pointFavorHistoryView,
   pointsWithDetailsView,
+  currentPointFavorView,
 } from "@/db/schema";
 import { getUserId } from "@/actions/users/getUserId";
 
@@ -236,13 +236,11 @@ export const searchContent = async (
           if (endorsedPointIds.length > 0) {
             const favorValues = await db
               .select({
-                pointId: pointFavorHistoryView.pointId,
-                favor: pointFavorHistoryView.favor,
-                eventTime: pointFavorHistoryView.eventTime,
+                pointId: currentPointFavorView.pointId,
+                favor: currentPointFavorView.favor,
               })
-              .from(pointFavorHistoryView)
-              .where(inArray(pointFavorHistoryView.pointId, endorsedPointIds))
-              .orderBy(desc(pointFavorHistoryView.eventTime));
+              .from(currentPointFavorView)
+              .where(inArray(currentPointFavorView.pointId, endorsedPointIds));
 
             const latestFavorByPoint = new Map();
             favorValues.forEach((row) => {

@@ -62,6 +62,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
     const [isTopicsExpanded, setIsTopicsExpanded] = useState(false);
     const [topicSearch, setTopicSearch] = useState("");
     const [loadingTopicId, setLoadingTopicId] = useState<number | null>(null);
+    const [isGlobalGraphLoading, setIsGlobalGraphLoading] = useState(false);
 
     const { data: topicsData, isLoading: topicsLoading } = useTopics(space);
 
@@ -162,8 +163,21 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                 View all {viewpoints.length} rationales from this topic in an interactive graph
                             </p>
                             <Link href={`/s/${space}/topic/${encodeId(topic.id)}/graph`}>
-                                <Button variant="default" size="lg" className="w-full sm:w-auto">
-                                    Open Global Graph
+                                <Button
+                                    variant="default"
+                                    size="lg"
+                                    className="w-full sm:w-auto"
+                                    disabled={isGlobalGraphLoading}
+                                    onClick={() => setIsGlobalGraphLoading(true)}
+                                >
+                                    {isGlobalGraphLoading ? (
+                                        <>
+                                            <Loader className="size-5 mr-2 text-white" />
+                                            Loading...
+                                        </>
+                                    ) : (
+                                        "Open Global Graph"
+                                    )}
                                 </Button>
                             </Link>
                         </div>

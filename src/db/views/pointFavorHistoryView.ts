@@ -20,8 +20,7 @@ export type PointFavorHistoryViewEventType =
   | "negation_endorsed"
   | "restake_modified"
   | "slash_modified"
-  | "doubt_modified"
-  | "favor_queried";
+  | "doubt_modified";
 
 export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
   const allEvents = qb.$with("all_events").as(
@@ -109,15 +108,6 @@ export const pointFavorHistoryView = pgView("point_favor_history").as((qb) => {
             restakesTable,
             sql`${slashesTable.restakeId} = ${restakesTable.id}`
           )
-      )
-      .union(
-        qb
-          .select({
-            point_id: sql`${pointsTable.id} as point_id`,
-            event_time: sql`NOW() as event_time`,
-            event_type: sql<PointFavorHistoryViewEventType>`'favor_queried' as event_type`,
-          })
-          .from(pointsTable)
       )
       .union(
         qb

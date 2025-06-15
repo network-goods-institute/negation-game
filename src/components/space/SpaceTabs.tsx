@@ -91,7 +91,7 @@ export function SpaceTabs({
         }
     };
 
-    const showFiltersButton = selectedTab === "rationales" || selectedTab === "all";
+    const showFiltersButton = selectedTab === "rationales";
 
     return (
         <div className="flex flex-col gap-4 px-4 sm:px-lg py-3 sm:py-sm">

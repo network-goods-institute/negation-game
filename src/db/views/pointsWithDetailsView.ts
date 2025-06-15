@@ -20,13 +20,13 @@ export const pointsWithDetailsView = pgView("point_with_details_view").as(
         COALESCE((
           SELECT COUNT(*)
           FROM (
-            SELECT older_point_id AS point_id FROM ${negationsTable}
+            SELECT ${negationsTable.olderPointId} AS point_id FROM ${negationsTable}
             WHERE ${negationsTable.isActive} = true
             UNION ALL
-            SELECT newer_point_id AS point_id FROM ${negationsTable}
+            SELECT ${negationsTable.newerPointId} AS point_id FROM ${negationsTable}
             WHERE ${negationsTable.isActive} = true
           ) sub
-          WHERE point_id = ${pointsTable}.id
+          WHERE sub.point_id = ${pointsTable.id}
         ), 0)
       `
           .mapWith(Number)
@@ -35,7 +35,7 @@ export const pointsWithDetailsView = pgView("point_with_details_view").as(
         COALESCE((
           SELECT COUNT(DISTINCT ${endorsementsTable.userId})
           FROM ${endorsementsTable}
-          WHERE ${endorsementsTable.pointId} = ${pointsTable}.id
+          WHERE ${endorsementsTable.pointId} = ${pointsTable.id}
         ), 0)
       `
           .mapWith(Number)
@@ -44,7 +44,7 @@ export const pointsWithDetailsView = pgView("point_with_details_view").as(
         COALESCE((
           SELECT SUM(${endorsementsTable.cred})
           FROM ${endorsementsTable}
-          WHERE ${endorsementsTable.pointId} = ${pointsTable}.id
+          WHERE ${endorsementsTable.pointId} = ${pointsTable.id}
         ), 0)
       `
           .mapWith(Number)
@@ -54,14 +54,14 @@ export const pointsWithDetailsView = pgView("point_with_details_view").as(
           SELECT SUM(${endorsementsTable.cred})
           FROM ${endorsementsTable}
           WHERE ${endorsementsTable.pointId} IN (
-            SELECT newer_point_id
+            SELECT ${negationsTable.newerPointId}
             FROM ${negationsTable}
-            WHERE older_point_id = ${pointsTable}.id
+            WHERE ${negationsTable.olderPointId} = ${pointsTable.id}
             AND ${negationsTable.isActive} = true
             UNION
-            SELECT older_point_id
+            SELECT ${negationsTable.olderPointId}
             FROM ${negationsTable}
-            WHERE newer_point_id = ${pointsTable}.id
+            WHERE ${negationsTable.newerPointId} = ${pointsTable.id}
             AND ${negationsTable.isActive} = true
           )
         ), 0)
@@ -69,18 +69,18 @@ export const pointsWithDetailsView = pgView("point_with_details_view").as(
           .mapWith(Number)
           .as("negations_cred"),
         negationIds: sql<number[]>`
-          ARRAY(
-            SELECT older_point_id
-            FROM ${negationsTable}
-            WHERE newer_point_id = ${pointsTable}.id
-            AND ${negationsTable.isActive} = true
-            UNION
-            SELECT newer_point_id
-            FROM ${negationsTable}
-            WHERE older_point_id = ${pointsTable}.id
-            AND ${negationsTable.isActive} = true
-          )
-        `.as("negation_ids"),
+        ARRAY(
+          SELECT ${negationsTable.olderPointId}
+          FROM ${negationsTable}
+          WHERE ${negationsTable.newerPointId} = ${pointsTable.id}
+          AND ${negationsTable.isActive} = true
+          UNION ALL
+          SELECT ${negationsTable.newerPointId}
+          FROM ${negationsTable}
+          WHERE ${negationsTable.olderPointId} = ${pointsTable.id}
+          AND ${negationsTable.isActive} = true
+        )
+      `.as("negation_ids"),
       })
       .from(pointsTable)
       .where(eq(pointsTable.isActive, true))

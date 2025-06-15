@@ -1,6 +1,6 @@
 import { spacesTable } from "@/db/schema";
 import { sql } from "drizzle-orm";
-import { uniqueIndex } from "drizzle-orm/mysql-core";
+import { uniqueIndex } from "drizzle-orm/pg-core";
 import { pgTable, text, varchar } from "drizzle-orm/pg-core";
 
 export const definitionsTable = pgTable(
@@ -14,7 +14,7 @@ export const definitionsTable = pgTable(
   },
   (table) => ({
     uniqueTermIndex: uniqueIndex("uniqueTermIndex").on(
-      sql`concat(${table.space},'-',lower(${table.term}))`
+      sql`${table.space} || '-' || lower(${table.term})`
     ),
   })
 );

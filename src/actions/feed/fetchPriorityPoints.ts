@@ -6,11 +6,10 @@ import {
   endorsementsTable,
   pointsWithDetailsView,
   doubtsTable,
-  pointFavorHistoryView,
+  currentPointFavorView,
 } from "@/db/schema";
-import { addFavor } from "@/db/utils/addFavor";
 import { db } from "@/services/db";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, sql, inArray } from "drizzle-orm";
 import { FeedPoint } from "@/actions/feed/fetchFeed";
 import {
   viewerCredSql,
@@ -23,13 +22,12 @@ import {
 
 export const fetchPriorityPoints = async (limit = 5): Promise<FeedPoint[]> => {
   const viewerId = await getUserId();
-  // Return empty array for non-logged-in users
   if (!viewerId) return [];
 
   const space = await getSpace();
 
-  // Get points endorsed by the user with their endorsement favor and current favor
-  const pointsWithFavor = await db
+  // First, get the basic endorsed points data
+  const endorsedPointsData = await db
     .select({
       pointId: pointsWithDetailsView.pointId,
       content: pointsWithDetailsView.content,
@@ -42,16 +40,7 @@ export const fetchPriorityPoints = async (limit = 5): Promise<FeedPoint[]> => {
       cred: sql<number>`"point_with_details_view"."cred"`.mapWith(Number),
       negationsCred: sql<number>`"negations_cred"`.mapWith(Number),
       negationIds: sql<number[]>`"negation_ids"`,
-      endorsementFavor: sql<number>`
-        COALESCE((
-          SELECT ${pointFavorHistoryView.favor}
-          FROM ${pointFavorHistoryView}
-          WHERE ${pointFavorHistoryView.pointId} = ${pointsWithDetailsView.pointId}
-          AND ${pointFavorHistoryView.eventTime} <= ${endorsementsTable.createdAt}
-          ORDER BY ${pointFavorHistoryView.eventTime} DESC
-          LIMIT 1
-        ), 0)
-      `.mapWith(Number),
+      endorsementCreatedAt: endorsementsTable.createdAt,
       viewerCred: viewerCredSql(viewerId),
       restakesByPoint: restakesByPointSql(pointsWithDetailsView),
       slashedAmount: slashedAmountSql(pointsWithDetailsView),
@@ -84,19 +73,59 @@ export const fetchPriorityPoints = async (limit = 5): Promise<FeedPoint[]> => {
       )
     );
 
-  const pointsWithCurrentFavor = await addFavor(pointsWithFavor);
+  if (endorsedPointsData.length === 0) return [];
+
+  // Get current favor for all points in one query (super fast)
+  const pointIds = endorsedPointsData.map((p) => p.pointId);
+  const currentFavorData = await db
+    .select({
+      pointId: currentPointFavorView.pointId,
+      favor: currentPointFavorView.favor,
+      cred: currentPointFavorView.cred,
+      negationsCred: currentPointFavorView.negationsCred,
+    })
+    .from(currentPointFavorView)
+    .where(inArray(currentPointFavorView.pointId, pointIds));
+
+  const favorMap = new Map(currentFavorData.map((f) => [f.pointId, f]));
+
+  // Calculate endorsement favor using accurate favor calculation
+  const pointsWithFavor = endorsedPointsData.map((point) => {
+    const favorData = favorMap.get(point.pointId);
+    const currentFavor = favorData?.favor ?? 0;
+
+    // Use the accurate cred and negationsCred from currentPointFavorView
+    const accurateCred = favorData?.cred ?? point.cred;
+    const accurateNegationsCred =
+      favorData?.negationsCred ?? point.negationsCred;
+
+    // Calculate endorsement favor using the same logic as currentPointFavorView
+    // but without restake bonus (since restakes didn't exist at endorsement time)
+    const endorsementFavor =
+      accurateCred === 0
+        ? 0
+        : accurateNegationsCred === 0
+          ? 100
+          : Math.floor(
+              (100 * accurateCred) / (accurateCred + accurateNegationsCred)
+            );
+
+    return {
+      ...point,
+      favor: currentFavor,
+      endorsementFavor,
+    };
+  });
 
   const uniquePoints = Array.from(
-    new Map(
-      pointsWithCurrentFavor.map((point) => [point.pointId, point])
-    ).values()
+    new Map(pointsWithFavor.map((point) => [point.pointId, point])).values()
   );
 
-  // Sort by the difference between current favor and endorsement favor
+  // Sort by favor improvement: current favor - endorsement favor
   const sortedPoints = uniquePoints
     .sort((a, b) => {
-      const aValueChange = a.favor - (a as any).endorsementFavor;
-      const bValueChange = b.favor - (b as any).endorsementFavor;
+      const aValueChange = a.favor - a.endorsementFavor;
+      const bValueChange = b.favor - b.endorsementFavor;
       return bValueChange - aValueChange;
     })
     .slice(0, limit);

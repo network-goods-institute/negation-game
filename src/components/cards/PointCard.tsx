@@ -212,15 +212,14 @@ export const PointCard = ({
     if (!disablePopover && pointId && isOpen) {
       setIsLoadingFavorHistory(true);
 
-      const cachedData = queryClient.getQueryData([pointId, "favor-history", "1W"]);
+      const cachedData = queryClient.getQueryData([pointId, "favor-history", "ALL"]);
       if (cachedData) {
         setPopoverFavorHistory(cachedData as any);
         setIsLoadingFavorHistory(false);
         return;
       }
 
-      // Fetch favor history
-      fetchFavorHistory({ pointId, scale: "1W" })
+      fetchFavorHistory({ pointId, scale: "ALL" })
         .then(data => {
           const normalizedData = Array.isArray(data) ? data.map(point => ({
             timestamp: point.timestamp instanceof Date ? point.timestamp : new Date(point.timestamp),
@@ -240,7 +239,7 @@ export const PointCard = ({
               ]
               : normalizedData;
 
-          queryClient.setQueryData([pointId, "favor-history", "1W"], finalData);
+          queryClient.setQueryData([pointId, "favor-history", "ALL"], finalData);
           setPopoverFavorHistory(finalData);
           setIsLoadingFavorHistory(false);
         })

@@ -21,27 +21,18 @@ const calculateEarnings = (userId: string) => {
       hours_since_payout: sql<number>`EXTRACT(EPOCH FROM (NOW() - ${doubtsTable.lastEarningsAt}))/3600`,
       negation_favor: sql<number>`COALESCE((
         SELECT favor 
-        FROM point_favor_history
+        FROM current_point_favor
         WHERE point_id = ${doubtsTable.negationId}
-        AND event_type = 'favor_queried'
-        ORDER BY event_time DESC 
-        LIMIT 1
       ), 0)`,
       apy: sql<number>`EXP(LN(0.05) + LN(COALESCE((
         SELECT favor 
-        FROM point_favor_history
+        FROM current_point_favor
         WHERE point_id = ${doubtsTable.negationId}
-        AND event_type = 'favor_queried'
-        ORDER BY event_time DESC 
-        LIMIT 1
       ), 0) + 0.0001))`,
       hourly_rate: sql<number>`(EXP(LN(0.05) + LN(COALESCE((
         SELECT favor 
-        FROM point_favor_history
+        FROM current_point_favor
         WHERE point_id = ${doubtsTable.negationId}
-        AND event_type = 'favor_queried'
-        ORDER BY event_time DESC 
-        LIMIT 1
       ), 0) + 0.0001)) * ${doubtsTable.amount}) / (365 * 24)`,
       available_endorsement: sql<number>`(
         SELECT SUM(e.cred)

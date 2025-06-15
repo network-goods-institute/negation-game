@@ -65,6 +65,20 @@ export const restakesTable = pgTable(
     pointIndex: index("restakes_point_idx").on(table.pointId),
     negationIndex: index("restakes_negation_idx").on(table.negationId),
     spaceIdx: index("restakes_space_idx").on(table.space),
+    // Performance indexes for epistemics calculations
+    pointNegationIdx: index("restakes_point_negation_idx").on(
+      table.pointId,
+      table.negationId
+    ),
+    negationUserIdx: index("restakes_negation_user_idx").on(
+      table.negationId,
+      table.userId
+    ),
+    pointNegationAmountIdx: index("restakes_point_negation_amount_idx").on(
+      table.pointId,
+      table.negationId,
+      table.amount
+    ),
   })
 );
 

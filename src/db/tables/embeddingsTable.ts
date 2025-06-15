@@ -1,7 +1,7 @@
 import { spacesTable } from "@/db/schema";
 import { pointsTable } from "@/db/tables/pointsTable";
 import { InferColumnsDataTypes } from "drizzle-orm";
-import { pgTable, serial, varchar, vector } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, vector, index } from "drizzle-orm/pg-core";
 
 export const embeddingsTable = pgTable(
   "embeddings",
@@ -13,13 +13,13 @@ export const embeddingsTable = pgTable(
     space: varchar("space").references(() => spacesTable.id, {
       onDelete: "cascade",
     }),
-  }
-  // (table) => ({
-  //   embeddingIndex: index("embeddingIndex").using(
-  //     "hnsw",
-  //     table.embedding.op("vector_cosine_ops")
-  //   ),
-  // })
+  },
+  (table) => ({
+    embeddingIndex: index("embeddingIndex").using(
+      "hnsw",
+      table.embedding.op("vector_cosine_ops")
+    ),
+  })
 );
 
 export type InsertEmbedding = typeof embeddingsTable.$inferInsert;

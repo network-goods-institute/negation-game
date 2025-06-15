@@ -1,7 +1,8 @@
 import {
   endorsementsTable,
-  pointFavorHistoryView,
   pointsTable,
+  currentPointFavorView,
+  pointsWithDetailsView,
 } from "@/db/schema";
 import { db } from "@/services/db";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
@@ -72,24 +73,20 @@ export const calculateViewpointStats = async (
     const endorsedPointIds = endorsements.map((e) => e.pointId);
 
     if (endorsedPointIds.length > 0) {
-      // Get the favor history for the endorsed points
+      // Get current favor for the endorsed points (much faster than history)
       const favorValues = await db
         .select({
-          pointId: pointFavorHistoryView.pointId,
-          favor: pointFavorHistoryView.favor,
-          eventTime: pointFavorHistoryView.eventTime,
+          pointId: currentPointFavorView.pointId,
+          favor: currentPointFavorView.favor,
         })
-        .from(pointFavorHistoryView)
-        .where(inArray(pointFavorHistoryView.pointId, endorsedPointIds))
-        .orderBy(desc(pointFavorHistoryView.eventTime));
+        .from(currentPointFavorView)
+        .where(inArray(currentPointFavorView.pointId, endorsedPointIds));
 
-      // Get the most recent favor value for each endorsed point
+      // Create favor map from current values
       const latestFavorByPoint = new Map<number, number>();
       favorValues.forEach((row) => {
-        if (!latestFavorByPoint.has(row.pointId)) {
-          const favorValue = row.favor ?? 0;
-          latestFavorByPoint.set(row.pointId, favorValue);
-        }
+        const favorValue = row.favor ?? 0;
+        latestFavorByPoint.set(row.pointId, favorValue);
       });
 
       // Calculate average favor from the latest values of endorsed points only
@@ -107,3 +104,58 @@ export const calculateViewpointStats = async (
 
   return { totalCred, averageFavor };
 };
+
+export async function calculateViewpointStatsForEndorsedPoints(
+  endorsedPointIds: number[]
+) {
+  if (endorsedPointIds.length === 0) {
+    return {
+      totalPoints: 0,
+      totalCred: 0,
+      totalSupporters: 0,
+      averageFavor: 0,
+      totalFavor: 0,
+    };
+  }
+
+  const pointStats = await db
+    .select({
+      pointId: pointsWithDetailsView.pointId,
+      cred: pointsWithDetailsView.cred,
+      amountSupporters: pointsWithDetailsView.amountSupporters,
+    })
+    .from(pointsWithDetailsView)
+    .where(inArray(pointsWithDetailsView.pointId, endorsedPointIds));
+
+  const totalPoints = pointStats.length;
+  const totalCred = pointStats.reduce((sum, point) => sum + point.cred, 0);
+  const totalSupporters = pointStats.reduce(
+    (sum, point) => sum + point.amountSupporters,
+    0
+  );
+
+  const favorStats = await db
+    .select({
+      pointId: currentPointFavorView.pointId,
+      favor: currentPointFavorView.favor,
+    })
+    .from(currentPointFavorView)
+    .where(inArray(currentPointFavorView.pointId, endorsedPointIds));
+
+  const favorMap = new Map(
+    favorStats.map((stat) => [stat.pointId, stat.favor])
+  );
+  const totalFavor = endorsedPointIds.reduce((sum, pointId) => {
+    return sum + (favorMap.get(pointId) ?? 0);
+  }, 0);
+
+  const averageFavor = totalPoints > 0 ? totalFavor / totalPoints : 0;
+
+  return {
+    totalPoints,
+    totalCred,
+    totalSupporters,
+    averageFavor,
+    totalFavor,
+  };
+}

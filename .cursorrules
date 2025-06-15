@@ -15,6 +15,8 @@ Do not propose to delete tests, do not hardcode tests. Tests should be useful an
 
 You are not to make sql migration files directly. Simply update the schema file and I can run the migration.
 
+If asked to edit or check a migration file you may edit it directly, make them idempotent.
+
 If I tell you to do something, do it. Do not ask for confirmation.
 
 You are never allowed to commit or push via github.

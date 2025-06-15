@@ -37,6 +37,7 @@ export {
   digestFrequencyEnum,
 } from "@/db/tables/notificationPreferencesTable";
 
+export { currentPointFavorView } from "@/db/views/currentPointFavorView";
 export { effectiveRestakesView } from "@/db/views/effectiveRestakesView";
 export { pointFavorHistoryView } from "@/db/views/pointFavorHistoryView";
 export { pointsWithDetailsView } from "@/db/views/pointsWithDetailsView";

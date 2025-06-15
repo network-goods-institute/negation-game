@@ -61,11 +61,8 @@ export const doubt = async ({ pointId, negationId, amount }: DoubtArgs) => {
           EXTRACT(EPOCH FROM (NOW() - ${doubtsTable.lastEarningsAt}))/3600 as hours_since_payout,
           EXP(LN(0.05) + LN(COALESCE((
             SELECT favor 
-            FROM point_favor_history
+            FROM current_point_favor
             WHERE point_id = ${negationId}
-            AND event_type = 'favor_queried'
-            ORDER BY event_time DESC 
-            LIMIT 1
           ), 0) + 0.0001)) * ${existingDoubt.amount} / (365 * 24) as hourly_rate,
           (
             SELECT SUM(e.cred)

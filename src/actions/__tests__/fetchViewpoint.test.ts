@@ -33,6 +33,13 @@ jest.mock("@/db/schema", () => ({
     favor: "favor",
     eventTime: "event_time",
   },
+  currentPointFavorView: {
+    pointId: "point_id",
+    favor: "favor",
+    cred: "cred",
+    negationsCred: "negations_cred",
+    restakeBonus: "restake_bonus",
+  },
   topicsTable: {
     id: "id",
     name: "name",
@@ -230,7 +237,6 @@ describe("fetchViewpoint", () => {
         return {
           from: jest.fn().mockReturnThis(),
           where: jest.fn().mockReturnThis(),
-          orderBy: jest.fn().mockReturnThis(),
           then: mockFavorThen,
         };
       }
@@ -399,7 +405,6 @@ describe("fetchViewpoint", () => {
         return {
           from: jest.fn().mockReturnThis(),
           where: jest.fn().mockReturnThis(),
-          orderBy: jest.fn().mockReturnThis(),
           then: mockNoStatsFavorThen, // Use favor mock for this test
         };
       }

@@ -35,6 +35,18 @@ export const endorsementsTable = pgTable(
     pointEndorsementsIndex: index("endorsements_point_idx").on(table.pointId),
     spaceIdx: index("endorsements_space_idx").on(table.space),
     createdAtIdx: index("endorsements_created_at_idx").on(table.createdAt),
+    pointCredIdx: index("endorsements_point_cred_idx").on(
+      table.pointId,
+      table.cred
+    ),
+    pointUserCredIdx: index("endorsements_point_user_cred_idx").on(
+      table.pointId,
+      table.userId,
+      table.cred
+    ),
+    userSpacePointCreatedIdx: index(
+      "endorsements_user_space_point_created_idx"
+    ).on(table.userId, table.space, table.pointId, table.createdAt),
     positiveCred: check("positive_cred", sql`${table.cred} > 0`),
   })
 );

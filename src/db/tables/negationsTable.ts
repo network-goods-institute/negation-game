@@ -43,6 +43,15 @@ export const negationsTable = pgTable(
       table.isActive,
       table.deletedAt
     ),
+    activeOlderIdx: index("negations_active_older_idx")
+      .on(table.olderPointId, table.isActive)
+      .where(eq(table.isActive, true)),
+    activeNewerIdx: index("negations_active_newer_idx")
+      .on(table.newerPointId, table.isActive)
+      .where(eq(table.isActive, true)),
+    activeBothIdx: index("negations_active_both_idx")
+      .on(table.olderPointId, table.newerPointId, table.isActive)
+      .where(eq(table.isActive, true)),
     uniqueNegationsConstraint: unique("uniqueNegation").on(
       table.olderPointId,
       table.newerPointId

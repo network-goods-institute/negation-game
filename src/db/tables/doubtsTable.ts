@@ -62,6 +62,12 @@ export const doubtsTable = pgTable(
     pointIndex: index("doubts_point_idx").on(table.pointId),
     negationIndex: index("doubts_negation_idx").on(table.negationId),
     spaceIdx: index("doubts_space_idx").on(table.space),
+    // Performance indexes for epistemics calculations
+    restakeAmountIdx: index("doubts_restake_amount_idx").on(
+      table.pointId,
+      table.amount
+    ),
+    userSpaceIdx: index("doubts_user_space_idx").on(table.userId, table.space),
   })
 );
 

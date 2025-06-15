@@ -68,6 +68,12 @@ export const slashesTable = pgTable(
     pointIndex: index("slashes_point_idx").on(table.pointId),
     negationIndex: index("slashes_negation_idx").on(table.negationId),
     spaceIdx: index("slashes_space_idx").on(table.space),
+    // Performance indexes for epistemics calculations
+    restakeAmountIdx: index("slashes_restake_amount_idx").on(
+      table.restakeId,
+      table.amount
+    ),
+    userSpaceIdx: index("slashes_user_space_idx").on(table.userId, table.space),
   })
 );
 

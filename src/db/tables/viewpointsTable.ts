@@ -11,7 +11,6 @@ import {
   check,
   index,
 } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 
 export const viewpointsTable = pgTable(
   "viewpoints",

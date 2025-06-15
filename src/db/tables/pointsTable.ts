@@ -40,6 +40,17 @@ export const pointsTable = pgTable(
     createdByIdx: index("points_created_by_idx").on(table.createdBy),
     spaceIdx: index("points_space_idx").on(table.space),
     activeIdx: index("points_active_idx").on(table.isActive, table.deletedAt),
+    createdAtIdx: index("points_created_at_idx").on(table.createdAt),
+    // Performance indexes for priority points queries
+    spaceActiveCreatedIdx: index("points_space_active_created_idx").on(
+      table.space,
+      table.isActive,
+      table.createdAt
+    ),
+    spaceActiveIdx: index("points_space_active_idx").on(
+      table.space,
+      table.isActive
+    ),
     contentLengthCheck: check(
       "content_length_check",
       sql`LENGTH(${table.content}) >= 1 AND LENGTH(${table.content}) <= 10000`

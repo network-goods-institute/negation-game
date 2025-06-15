@@ -4,10 +4,13 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { fetchSpace } from '@/actions/spaces/fetchSpace';
+import { useState, useEffect } from 'react';
+import { Loader } from '@/components/ui/loader';
 
 export function DynamicHeaderContent() {
     const pathname = usePathname();
     const isSpacePage = pathname.startsWith('/s/');
+    const [isNavigating, setIsNavigating] = useState(false);
     let spaceId: string | null = null;
 
     if (isSpacePage) {
@@ -27,6 +30,9 @@ export function DynamicHeaderContent() {
         enabled: isSpacePage && !!spaceId,
         staleTime: 5 * 60 * 1000,
     });
+    useEffect(() => {
+        setIsNavigating(false);
+    }, [pathname]);
 
     const renderIcon = () => {
         const showPlaceholder = isLoadingSpaceData || !spaceData || !spaceData.icon;
@@ -51,17 +57,41 @@ export function DynamicHeaderContent() {
     return (
         <>
             {isSpacePage && spaceId ? (
-                <Link href={`/s/${spaceId}`} className="flex items-center min-w-0 overflow-hidden">
-                    <span className="text-[11px] sm:text-base font-bold whitespace-nowrap">Negation Game</span> {/* Mobile: 11px, Small+: base */}
-                    <span className="text-muted-foreground text-xs mx-0.5">×</span>
-                    <div className="flex items-center">
-                        {renderIcon()}
-                        <span className="text-[11px] sm:text-base font-bold whitespace-nowrap">{`s/${spaceId}`}</span> {/* Mobile: 11px, Small+: base */}
-                    </div>
+                <Link
+                    href={`/s/${spaceId}`}
+                    className="flex items-center min-w-0 overflow-hidden"
+                    onClick={() => setIsNavigating(true)}
+                >
+                    {isNavigating ? (
+                        <div className="flex items-center">
+                            <Loader className="size-3 sm:size-4 mr-1 text-white" />
+                            <span className="text-[11px] sm:text-base font-bold whitespace-nowrap">Loading...</span>
+                        </div>
+                    ) : (
+                        <>
+                            <span className="text-[11px] sm:text-base font-bold whitespace-nowrap">Negation Game</span> {/* Mobile: 11px, Small+: base */}
+                            <span className="text-muted-foreground text-xs mx-0.5">×</span>
+                            <div className="flex items-center">
+                                {renderIcon()}
+                                <span className="text-[11px] sm:text-base font-bold whitespace-nowrap">{`s/${spaceId}`}</span> {/* Mobile: 11px, Small+: base */}
+                            </div>
+                        </>
+                    )}
                 </Link>
             ) : (
-                <Link href="/" className="text-[11px] sm:text-base font-bold whitespace-nowrap"> {/* Mobile: 11px, Small+: base */}
-                    Negation Game
+                <Link
+                    href="/"
+                    className="text-[11px] sm:text-base font-bold whitespace-nowrap"
+                    onClick={() => setIsNavigating(true)}
+                > {/* Mobile: 11px, Small+: base */}
+                    {isNavigating ? (
+                        <div className="flex items-center">
+                            <Loader className="size-3 sm:size-4 mr-1 text-white" />
+                            <span>Loading...</span>
+                        </div>
+                    ) : (
+                        "Negation Game"
+                    )}
                 </Link>
             )}
         </>

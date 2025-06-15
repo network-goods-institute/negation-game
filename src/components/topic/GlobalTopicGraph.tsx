@@ -61,13 +61,13 @@ function createTopicViewpointGraph(points: TopicPointData[]): ViewpointGraph {
 
     const rootPoints = points.filter(p => !parents.has(p.pointId));
 
-    const LEVEL_HEIGHT = 800;
-    const NODE_SPACING = 800;
-    const ROOT_SPACING = 1000;
-    const GRID_SIZE = 100;
+    const LEVEL_HEIGHT = 400;
+    const NODE_SPACING = 400;
+    const ROOT_SPACING = 500;
+    const GRID_SIZE = 50;
     const NODE_WIDTH = 300;
     const NODE_HEIGHT = 150;
-    const PADDING = 50;
+    const PADDING = 25;
 
     const positioned = new Set<number>();
     const levels = new Map<number, number>();
