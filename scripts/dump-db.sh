@@ -7,7 +7,7 @@ if [ "$#" -ne 3 ]; then
     exit 1
 fi
 
-SOURCE_DB_URL="$1"
+SOURCE_DB_URL=$(echo "$1" | sed 's/&supa=[^&]*//')
 SOURCE_DB_PASSWORD="$2"
 OUTPUT_DUMP_FILE="$3"
 
