@@ -186,10 +186,11 @@ export default function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Handle settings and notifications paths without rewriting
+  // Handle settings, notifications, and messages paths without rewriting
   if (
     url.pathname.startsWith("/settings") ||
-    url.pathname.startsWith("/notifications")
+    url.pathname.startsWith("/notifications") ||
+    url.pathname.startsWith("/messages")
   ) {
     return NextResponse.next();
   }

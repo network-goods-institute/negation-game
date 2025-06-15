@@ -1,8 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { useAuthenticatedQuery } from "@/queries/auth/useAuthenticatedQuery";
 import { getNotificationPreferences } from "@/actions/notifications/getNotificationPreferences";
 
 export const useNotificationPreferences = () => {
-  return useQuery({
+  return useAuthenticatedQuery({
     queryKey: ["notificationPreferences"],
     queryFn: getNotificationPreferences,
   });

@@ -179,7 +179,7 @@ importers:
         specifier: ^10.0.0
         version: 10.1.0
       nanoid:
-        specifier: ^5.0.6
+        specifier: ^5.1.2
         version: 5.1.2
       next:
         specifier: ^15.2.4
@@ -223,6 +223,9 @@ importers:
       remeda:
         specifier: ^2.16.0
         version: 2.21.0
+      server-only:
+        specifier: ^0.0.1
+        version: 0.0.1
       sonner:
         specifier: ^1.4.41
         version: 1.7.4(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -6372,6 +6375,9 @@ packages:
 
   serialize-javascript@6.0.2:
     resolution: {integrity: sha512-Saa1xPByTTq2gdeFZYLLo+RFE35NHZkAbqZeWNd3BpzppeVisAqpDjcp8dyf6uIvEqJRd46jemmyA4iFIeVk8g==}
+
+  server-only@0.0.1:
+    resolution: {integrity: sha512-qepMx2JxAa5jjfzxG79yPPq+8BuFToHd1hm7kI+Z4zAq1ftQiP7HcxMhDDItrbtwVeLg/cY2JnKnrcFkmiswNA==}
 
   set-blocking@2.0.0:
     resolution: {integrity: sha512-KiKBS8AnWGEyLzofFfmvKwpdPzqiy16LvQfK3yv/fVH7Bj13/wl3JSR1J+rfgRE9q7xUJK4qvgS8raSOeLUehw==}
@@ -15094,6 +15100,8 @@ snapshots:
   serialize-javascript@6.0.2:
     dependencies:
       randombytes: 2.1.0
+
+  server-only@0.0.1: {}
 
   set-blocking@2.0.0: {}
 
