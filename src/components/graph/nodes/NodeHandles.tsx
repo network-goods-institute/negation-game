@@ -1,6 +1,6 @@
 import React from 'react';
-import { Handle, Position } from '@xyflow/react';
-import { XIcon } from 'lucide-react';
+import { Handle, Position, useReactFlow } from '@xyflow/react';
+import { XIcon, TrashIcon } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
 export interface NodeHandlesProps {
@@ -12,6 +12,16 @@ export interface NodeHandlesProps {
 }
 
 export function NodeHandles({ id, collapsedCount, onExpand, onCollapse, parentId }: NodeHandlesProps) {
+    const reactFlow = useReactFlow();
+
+    const handleDeleteStandaloneNode = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        reactFlow.deleteElements({ nodes: [{ id }] });
+        if (typeof (reactFlow as any).markAsModified === 'function') {
+            (reactFlow as any).markAsModified();
+        }
+    };
+
     return (
         <>
             <Handle
@@ -32,7 +42,7 @@ export function NodeHandles({ id, collapsedCount, onExpand, onCollapse, parentId
                     </span>
                 )}
             </Handle>
-            {parentId && (
+            {parentId ? (
                 <button
                     onClick={onCollapse}
                     className={cn(
@@ -45,6 +55,21 @@ export function NodeHandles({ id, collapsedCount, onExpand, onCollapse, parentId
                     title="Collapse node"
                 >
                     <XIcon className="size-4" />
+                </button>
+            ) : (
+                <button
+                    onClick={handleDeleteStandaloneNode}
+                    className={cn(
+                        'absolute -top-2 -right-2 transform translate-x-[10px] -translate-y-1/2',
+                        'w-8 h-8 bg-background border-2 border-destructive rounded-full',
+                        'flex items-center justify-center',
+                        'pointer-events-auto z-20 cursor-pointer',
+                        'focus:outline-none focus:ring-2 focus:ring-destructive focus:ring-offset-2',
+                        'hover:bg-destructive hover:text-destructive-foreground'
+                    )}
+                    title="Remove point from graph"
+                >
+                    <TrashIcon className="size-4" />
                 </button>
             )}
             <Handle

@@ -84,7 +84,7 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
     return (
         <>
             <Panel position="top-left" className="z-10 mt-1 ml-2 flex items-center">
-                {canModify && !hideComments && (
+                {!hideComments && (
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button variant="outline" size="icon" onClick={handleAddComment}>

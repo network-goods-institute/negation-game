@@ -27,6 +27,7 @@ export function SpacePageAside({
     const { data: topics, isLoading: topicsLoading } = useTopics(spaceId);
     const isMobile = useIsMobile();
     const [topicSearch, setTopicSearch] = useState("");
+    const [loadingTopicId, setLoadingTopicId] = useState<number | null>(null);
 
     const filteredTopics = useMemo(() => {
         if (!topics) return [];
@@ -35,6 +36,11 @@ export function SpacePageAside({
             topic.name.toLowerCase().includes(topicSearch.toLowerCase())
         );
     }, [topics, topicSearch]);
+
+    const handleTopicClick = (topicId: number) => {
+        setLoadingTopicId(topicId);
+        setTimeout(() => setLoadingTopicId(null), 1000);
+    };
 
     if (isMobile && !topicsOpen) {
         return null;
@@ -91,12 +97,14 @@ export function SpacePageAside({
                                     ) : filteredTopics && filteredTopics.length > 0 ? (
                                         <div className="grid grid-cols-1 gap-4 justify-items-center">
                                             {filteredTopics.map((topic) => (
-                                                <TopicCard
-                                                    key={topic.id}
-                                                    topic={topic}
-                                                    spaceId={spaceId}
-                                                    size="md"
-                                                />
+                                                <div key={topic.id} onClick={() => handleTopicClick(topic.id)}>
+                                                    <TopicCard
+                                                        topic={topic}
+                                                        spaceId={spaceId}
+                                                        size="md"
+                                                        loading={loadingTopicId === topic.id}
+                                                    />
+                                                </div>
                                             ))}
                                         </div>
                                     ) : (
@@ -149,12 +157,14 @@ export function SpacePageAside({
                             ) : filteredTopics && filteredTopics.length > 0 ? (
                                 <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4 justify-items-center">
                                     {filteredTopics.map((topic) => (
-                                        <TopicCard
-                                            key={topic.id}
-                                            topic={topic}
-                                            spaceId={spaceId}
-                                            size="md"
-                                        />
+                                        <div key={topic.id} onClick={() => handleTopicClick(topic.id)}>
+                                            <TopicCard
+                                                topic={topic}
+                                                spaceId={spaceId}
+                                                size="md"
+                                                loading={loadingTopicId === topic.id}
+                                            />
+                                        </div>
                                     ))}
                                 </div>
                             ) : (

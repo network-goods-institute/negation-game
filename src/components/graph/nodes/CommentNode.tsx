@@ -4,7 +4,7 @@ import { NodeProps, Node, useReactFlow, useUpdateNodeInternals } from "@xyflow/r
 import { useState, useEffect, ChangeEvent, KeyboardEvent, useRef, FocusEvent } from "react";
 import { AutosizeTextarea } from "@/components/ui/autosize-textarea";
 import { Button } from "@/components/ui/button";
-import { PencilIcon, SaveIcon } from "lucide-react";
+import { PencilIcon, SaveIcon, TrashIcon } from "lucide-react";
 
 export type CommentNodeData = {
     content: string;
@@ -23,18 +23,19 @@ export const CommentNode = ({
 }: CommentNodeProps) => {
     const { content: initialContent } = data;
     const reactFlow = useReactFlow();
-    const { updateNodeData } = reactFlow;
+    const { updateNodeData, deleteElements } = reactFlow;
     const updateNodeInternals = useUpdateNodeInternals();
     const [isEditing, setIsEditing] = useState(false);
     const [editedContent, setEditedContent] = useState(initialContent);
     const saveButtonRef = useRef<HTMLButtonElement>(null);
+    const deleteButtonRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
         setEditedContent(initialContent);
     }, [initialContent, id]);
 
     const handleTextareaBlur = (event: FocusEvent<HTMLTextAreaElement>) => {
-        if (event.relatedTarget === saveButtonRef.current) {
+        if (event.relatedTarget === saveButtonRef.current || event.relatedTarget === deleteButtonRef.current) {
             return;
         }
         handleSave();
@@ -68,20 +69,40 @@ export const CommentNode = ({
         setIsEditing(true);
     };
 
+    const handleDelete = () => {
+        deleteElements({ nodes: [{ id }] });
+        if (typeof (reactFlow as any).markAsModified === 'function') {
+            (reactFlow as any).markAsModified();
+        }
+    };
+
     return (
         <div className="bg-gray-100 dark:bg-gray-700 border-l-4 border-gray-300 dark:border-gray-500 shadow-sm rounded-md p-4 min-w-[200px] min-h-[120px] max-w-xs relative">
-            <Button
-                size="icon"
-                variant="outline"
-                className="absolute top-2 right-2"
-                ref={saveButtonRef}
-                onClick={isEditing ? handleSave : startEditing}
-            >
-                {isEditing ? <SaveIcon className="size-5" /> : <PencilIcon className="size-5" />}
-            </Button>
+            <div className="absolute top-2 right-2 flex gap-1">
+                <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-8 w-8"
+                    ref={deleteButtonRef}
+                    onClick={handleDelete}
+                    title="Delete comment"
+                >
+                    <TrashIcon className="size-4 text-destructive" />
+                </Button>
+                <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-8 w-8"
+                    ref={saveButtonRef}
+                    onClick={isEditing ? handleSave : startEditing}
+                    title={isEditing ? "Save comment" : "Edit comment"}
+                >
+                    {isEditing ? <SaveIcon className="size-4" /> : <PencilIcon className="size-4" />}
+                </Button>
+            </div>
             {isEditing ? (
                 <AutosizeTextarea
-                    className="bg-transparent resize-none outline-none w-full text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 pt-8 pb-4 pr-4"
+                    className="bg-transparent resize-none outline-none w-full text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 pt-8 pb-4 pr-16"
                     value={editedContent}
                     onChange={handleChange}
                     onBlur={handleTextareaBlur}
@@ -90,7 +111,7 @@ export const CommentNode = ({
                     autoFocus
                 />
             ) : (
-                <div className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap text-base leading-relaxed pt-8 pb-1 pr-4">
+                <div className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap text-base leading-relaxed pt-8 pb-1 pr-16">
                     {initialContent || <span className="text-gray-500 dark:text-gray-400 italic">Add comment...</span>}
                 </div>
             )}

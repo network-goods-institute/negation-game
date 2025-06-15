@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { ViewpointCardWrapper } from "@/components/cards/ViewpointCardWrapper";
 import { Button } from "@/components/ui/button";
@@ -57,37 +57,32 @@ interface TopicPageClientProps {
 export default function TopicPageClient({ topic, viewpoints, space }: TopicPageClientProps) {
     const router = useRouter();
     const isMobile = useIsMobile();
-    const [sortKey, setSortKey] = useState<SortKey>("recent");
-    const [sortDirection, setSortDirection] = useState<'desc' | 'asc'>("desc");
-    const [topicsOpen, setTopicsOpen] = useState(false);
+    const [viewpointsSortKey, setSortKey] = useState<SortKey>("recent");
+    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+    const [isTopicsExpanded, setIsTopicsExpanded] = useState(false);
     const [topicSearch, setTopicSearch] = useState("");
+    const [loadingTopicId, setLoadingTopicId] = useState<number | null>(null);
 
-    useEffect(() => {
-        const handleCloseTopics = () => {
-            setTopicsOpen(false);
-        };
-
-        window.addEventListener('closeTopics', handleCloseTopics);
-        return () => {
-            window.removeEventListener('closeTopics', handleCloseTopics);
-        };
-    }, []);
-
-    const sorted = useMemo(() => {
-        const arr = [...viewpoints].sort(sortFunctions[sortKey]);
-        return sortDirection === 'desc' ? arr : arr.reverse();
-    }, [viewpoints, sortKey, sortDirection]);
-
-    const { data: allTopics, isLoading: topicsLoading } = useTopics(space);
+    const { data: topicsData, isLoading: topicsLoading } = useTopics(space);
 
     const filteredTopics = useMemo(() => {
-        if (!allTopics) return [];
-        const otherTopics = allTopics.filter(t => t.id !== topic.id);
+        if (!topicsData) return [];
+        const otherTopics = topicsData.filter(t => t.id !== topic.id);
         if (!topicSearch.trim()) return otherTopics;
         return otherTopics.filter(t =>
             t.name.toLowerCase().includes(topicSearch.toLowerCase())
         );
-    }, [allTopics, topic.id, topicSearch]);
+    }, [topicsData, topicSearch, topic.id]);
+
+    const handleTopicClick = (topicId: number) => {
+        setLoadingTopicId(topicId);
+        setTimeout(() => setLoadingTopicId(null), 1000);
+    };
+
+    const sorted = useMemo(() => {
+        const arr = [...viewpoints].sort(sortFunctions[viewpointsSortKey]);
+        return sortDirection === 'desc' ? arr : arr.reverse();
+    }, [viewpoints, viewpointsSortKey, sortDirection]);
 
     return (
         <div className="flex-1 flex flex-col bg-background min-h-0">
@@ -104,11 +99,11 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setTopicsOpen(!topicsOpen)}
+                        onClick={() => setIsTopicsExpanded(!isTopicsExpanded)}
                         className="flex items-center whitespace-nowrap"
                     >
                         <span>Topics</span>
-                        {topicsOpen ? <ChevronUpIcon className="h-4 w-4 ml-1" /> : <ChevronDownIcon className="h-4 w-4 ml-1" />}
+                        {isTopicsExpanded ? <ChevronUpIcon className="h-4 w-4 ml-1" /> : <ChevronDownIcon className="h-4 w-4 ml-1" />}
                     </Button>
                 </div>
             )}
@@ -218,12 +213,14 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                 <div className="grid grid-cols-2 gap-3">
                                     {filteredTopics.length > 0 ? (
                                         filteredTopics.map(t => (
-                                            <TopicCard
-                                                key={t.id}
-                                                topic={t}
-                                                spaceId={space}
-                                                size="sm"
-                                            />
+                                            <div key={t.id} onClick={() => handleTopicClick(t.id)}>
+                                                <TopicCard
+                                                    topic={t}
+                                                    spaceId={space}
+                                                    size="sm"
+                                                    loading={loadingTopicId === t.id}
+                                                />
+                                            </div>
                                         ))
                                     ) : (
                                         <div className="col-span-2 text-center py-4 text-muted-foreground">
@@ -240,62 +237,55 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
             </div>
 
             {/* Mobile Topics Overlay */}
-            {isMobile && topicsOpen && (
-                <div className="fixed inset-0 z-50 bg-background animate-in slide-in-from-right duration-300">
+            {isMobile && isTopicsExpanded && (
+                <div className="fixed inset-0 z-50 bg-background animate-in slide-in-from-bottom duration-300">
                     <div className="flex flex-col h-full">
-                        {/* Header with close button */}
                         <div className="flex items-center justify-between p-4 border-b">
-                            <h2 className="text-lg font-semibold text-foreground">Other Topics</h2>
-                            <button
-                                onClick={() => {
-                                    window.dispatchEvent(new CustomEvent('closeTopics'));
-                                }}
-                                className="p-2 hover:bg-accent rounded-md"
-                                aria-label="Close topics"
+                            <h2 className="text-lg font-semibold">Other Topics</h2>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setIsTopicsExpanded(false)}
                             >
                                 <X className="w-5 h-5" />
-                            </button>
+                            </Button>
                         </div>
-
-                        {/* Content */}
-                        <div className="flex-1 overflow-y-auto p-4">
-                            <div className="space-y-4">
-                                {/* Topic Search */}
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder="Search topics..."
-                                        value={topicSearch}
-                                        onChange={(e) => setTopicSearch(e.target.value)}
-                                        className="pl-10"
-                                    />
+                        <div className="flex-1 overflow-y-auto p-6">
+                            <div className="relative mb-6">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search topics..."
+                                    value={topicSearch}
+                                    onChange={(e) => setTopicSearch(e.target.value)}
+                                    className="pl-10"
+                                />
+                            </div>
+                            {topicsLoading ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <Loader className="size-8" />
                                 </div>
-
-                                {topicsLoading ? (
-                                    <div className="flex items-center justify-center py-8">
-                                        <Loader className="size-8" />
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {filteredTopics.length > 0 ? (
-                                            filteredTopics.map(t => (
+                            ) : (
+                                <div className="grid grid-cols-2 gap-3">
+                                    {filteredTopics.length > 0 ? (
+                                        filteredTopics.map(t => (
+                                            <div key={t.id} onClick={() => handleTopicClick(t.id)}>
                                                 <TopicCard
-                                                    key={t.id}
                                                     topic={t}
                                                     spaceId={space}
                                                     size="md"
+                                                    loading={loadingTopicId === t.id}
                                                 />
-                                            ))
-                                        ) : (
-                                            <div className="col-span-2 text-center py-8 text-muted-foreground">
-                                                <p className="text-sm">
-                                                    {topicSearch.trim() ? 'No topics found' : 'No other topics'}
-                                                </p>
                                             </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="col-span-2 text-center py-8 text-muted-foreground">
+                                            <p className="text-sm">
+                                                {topicSearch.trim() ? 'No topics found' : 'No other topics'}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
