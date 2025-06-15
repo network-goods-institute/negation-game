@@ -1,8 +1,9 @@
 "use server";
 
-import { google } from "@ai-sdk/google";
-import { streamText } from "ai";
-import { withRetry } from "@/lib/utils/withRetry";
+import {
+  geminiService,
+  type Message as GeminiMessage,
+} from "@/services/ai/geminiService";
 import { searchContent, SearchResult } from "@/actions/search/searchContent";
 import { getUserId } from "@/actions/users/getUserId";
 import { generateSearchQueries } from "./generateSearchQueries";
@@ -370,44 +371,9 @@ A:`;
       throw new Error("Failed during prompt construction");
     }
 
-    const aiResult = await withRetry(async () => {
-      try {
-        const response = await streamText({
-          model: google("gemini-1.5-flash"),
-          prompt: finalPromptString,
-        });
-
-        if (!response) {
-          throw new Error("Failed to get response from AI model");
-        }
-
-        return response;
-      } catch (error) {
-        if (error instanceof Error) {
-          if (error.message.includes("rate limit")) {
-            throw new Error(
-              "AI service is currently busy. Please try again in a moment."
-            );
-          } else if (error.message.includes("context length")) {
-            throw new Error(
-              "The conversation is too long. Please start a new chat."
-            );
-          } else if (error.message.includes("invalid")) {
-            throw new Error(
-              "Invalid request format. Please try again with simpler input."
-            );
-          }
-        }
-        throw error;
-      }
+    return await geminiService.generateStream(finalPromptString, {
+      truncateHistory: false, // We handle context ourselves in this function
     });
-
-    const elementStream = aiResult.textStream;
-    if (!elementStream) {
-      throw new Error("Failed to initialize response stream");
-    }
-
-    return elementStream;
   } catch (error) {
     if (error instanceof Error) {
       if (

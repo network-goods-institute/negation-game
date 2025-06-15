@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import { BrainCircuitIcon } from "lucide-react";
 import type { useSpace } from "@/queries/space/useSpace";
+import Link from "next/link";
 
 type SpaceResult = ReturnType<typeof useSpace>;
 
@@ -13,9 +14,10 @@ interface SpaceHeaderProps {
     space: SpaceResult;
     isLoading: boolean;
     onAiClick: () => void;
+    chatHref: string;
 }
 
-export function SpaceHeader({ space, isLoading, onAiClick }: SpaceHeaderProps) {
+export function SpaceHeader({ space, isLoading, onAiClick, chatHref }: SpaceHeaderProps) {
     if (!space?.data) {
         return null;
     }
@@ -34,18 +36,20 @@ export function SpaceHeader({ space, isLoading, onAiClick }: SpaceHeaderProps) {
                 </Avatar>
                 <h1 className="text-lg sm:text-xl font-semibold">s/{space.data.id}</h1>
             </div>
-            <Button onClick={onAiClick} disabled={isLoading} className="h-12 w-auto px-6">
-                {isLoading ? (
-                    <>
-                        <Loader className="size-6 mr-sm text-white" />
-                        <span>Loading...</span>
-                    </>
-                ) : (
-                    <>
-                        <BrainCircuitIcon className="size-6" />
-                        <span className="ml-sm">AI Assistant</span>
-                    </>
-                )}
+            <Button asChild disabled={isLoading} className="h-12 w-auto px-6" onClick={onAiClick}>
+                <Link href={chatHref} prefetch={false} className="flex items-center">
+                    {isLoading ? (
+                        <>
+                            <Loader className="size-6 mr-sm text-white" />
+                            <span>Loading...</span>
+                        </>
+                    ) : (
+                        <>
+                            <BrainCircuitIcon className="size-6" />
+                            <span className="ml-sm">AI Assistant</span>
+                        </>
+                    )}
+                </Link>
             </Button>
         </div>
     );

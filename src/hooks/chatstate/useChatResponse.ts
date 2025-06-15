@@ -244,9 +244,45 @@ export function useChatResponse({
             body: JSON.stringify(payload),
           });
           if (!res.ok) {
-            throw new Error(
-              `Rationale API error: ${res.status} ${res.statusText}`
-            );
+            let errorMessage = `Rationale API error: ${res.status} ${res.statusText}`;
+
+            try {
+              const errorData = await res.json();
+              if (errorData.error) {
+                switch (errorData.error) {
+                  case "AI_RATE_LIMITED":
+                    errorMessage =
+                      errorData.message ||
+                      "We've hit our rate limits for AI responses. Please wait a moment before trying again, or use the retry button to try again manually.";
+                    break;
+                  case "AI_TIMEOUT":
+                    errorMessage =
+                      errorData.message ||
+                      "AI service timed out. This often happens during high load. Please use the retry button to try again.";
+                    break;
+                  case "CONTEXT_TOO_LONG":
+                    errorMessage =
+                      errorData.message ||
+                      "The conversation is too long. Please start a new chat.";
+                    break;
+                  case "CONTENT_BLOCKED":
+                    errorMessage =
+                      errorData.message ||
+                      "AI response was blocked due to content safety reasons.";
+                    break;
+                  case "AUTHENTICATION_REQUIRED":
+                    errorMessage =
+                      "Authentication required. Please sign in again.";
+                    break;
+                  default:
+                    errorMessage = errorData.message || errorMessage;
+                }
+              }
+            } catch (parseError) {
+              // Fall back to default error message if parsing fails
+            }
+
+            throw new Error(errorMessage);
           }
           // stream the AI text response
           if (!res.body) {

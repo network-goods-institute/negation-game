@@ -14,7 +14,7 @@ import { DialogProps } from "@radix-ui/react-dialog";
 import { useSetAtom } from "jotai";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useVirtualizer } from "@tanstack/react-virtual";
+
 import { getPointUrl } from "@/lib/negation-game/getPointUrl";
 import { useQuery } from "@tanstack/react-query";
 import { pointFetcher } from "@/queries/points/usePointData";
@@ -102,65 +102,30 @@ const PointCardWrapper: FC<PointCardWrapperProps> = memo(({ pointId, rationaleId
 
 PointCardWrapper.displayName = 'PointCardWrapper';
 
-const POINT_CARD_HEIGHT = 140;
-
-const VirtualizedPointsList = memo(({ points, rationaleId, spaceId }: {
+const PointsList = memo(({ points, rationaleId, spaceId }: {
     points: number[];
     rationaleId: string | undefined;
     spaceId: string;
 }) => {
-    const parentRef = useRef<HTMLDivElement>(null);
-
-    const virtualizer = useVirtualizer({
-        count: points.length,
-        getScrollElement: () => parentRef.current,
-        estimateSize: () => POINT_CARD_HEIGHT + 48,
-        overscan: 5
-    });
-
     return (
-        <div
-            ref={parentRef}
-            className="relative pb-8 h-full overflow-y-auto"
-        >
-            <div
-                style={{
-                    height: `${virtualizer.getTotalSize()}px`,
-                    width: '100%',
-                    position: 'relative',
-                }}
-            >
-                {virtualizer.getVirtualItems().map((virtualRow) => {
-                    const pointId = points[virtualRow.index];
-                    return (
-                        <div
-                            key={pointId}
-                            style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                width: '100%',
-                                height: `${virtualRow.size}px`,
-                                transform: `translateY(${virtualRow.start}px)`,
-                            }}
-                            className={cn(
-                                "border-b last:border-b-0 p-2 transition-colors duration-200",
-                            )}
-                        >
-                            <PointCardWrapper
-                                pointId={pointId}
-                                rationaleId={rationaleId}
-                                spaceId={spaceId}
-                            />
-                        </div>
-                    );
-                })}
-            </div>
+        <div className="flex flex-col">
+            {points.map((pointId) => (
+                <div
+                    key={pointId}
+                    className="border-b last:border-b-0"
+                >
+                    <PointCardWrapper
+                        pointId={pointId}
+                        rationaleId={rationaleId}
+                        spaceId={spaceId}
+                    />
+                </div>
+            ))}
         </div>
     );
 });
 
-VirtualizedPointsList.displayName = 'VirtualizedPointsList';
+PointsList.displayName = 'PointsList';
 
 export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
     open,
@@ -334,13 +299,7 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
         }
     };
 
-    const PointsList = (
-        <VirtualizedPointsList
-            points={initialPoints}
-            rationaleId={rationaleId}
-            spaceId={spaceId}
-        />
-    );
+
 
     if (!open) return null;
 
@@ -393,9 +352,11 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
                             ))}
                         </div>
                     ) : initialPoints.length > 0 ? (
-                        <div className="relative h-full">
-                            {PointsList}
-                        </div>
+                        <PointsList
+                            points={initialPoints}
+                            rationaleId={rationaleId}
+                            spaceId={spaceId}
+                        />
                     ) : null}
                 </div>
             </div>

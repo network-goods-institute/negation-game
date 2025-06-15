@@ -113,7 +113,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                 </div>
             )}
 
-            <div className="flex-1 grid sm:grid-cols-[minmax(0,1550px)_280px] bg-background min-h-0 overflow-hidden">
+            <div className="flex-1 grid sm:grid-cols-[minmax(0,1fr)_700px] bg-background min-h-0 overflow-hidden">
                 {/* Main Content */}
                 <div className="relative w-full flex flex-col min-h-0 px-4 py-4 overflow-y-auto">
                     {/* Desktop Back button */}
@@ -215,7 +215,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                     <Loader className="size-6" />
                                 </div>
                             ) : (
-                                <div className="space-y-3">
+                                <div className="grid grid-cols-2 gap-3">
                                     {filteredTopics.length > 0 ? (
                                         filteredTopics.map(t => (
                                             <TopicCard
@@ -223,11 +223,10 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                                 topic={t}
                                                 spaceId={space}
                                                 size="sm"
-                                                className="w-full"
                                             />
                                         ))
                                     ) : (
-                                        <div className="text-center py-4 text-muted-foreground">
+                                        <div className="col-span-2 text-center py-4 text-muted-foreground">
                                             <p className="text-sm">
                                                 {topicSearch.trim() ? 'No topics found' : 'No other topics'}
                                             </p>
@@ -277,7 +276,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                         <Loader className="size-8" />
                                     </div>
                                 ) : (
-                                    <div className="space-y-3">
+                                    <div className="grid grid-cols-2 gap-3">
                                         {filteredTopics.length > 0 ? (
                                             filteredTopics.map(t => (
                                                 <TopicCard
@@ -285,11 +284,10 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                                     topic={t}
                                                     spaceId={space}
                                                     size="md"
-                                                    className="w-full"
                                                 />
                                             ))
                                         ) : (
-                                            <div className="text-center py-8 text-muted-foreground">
+                                            <div className="col-span-2 text-center py-8 text-muted-foreground">
                                                 <p className="text-sm">
                                                     {topicSearch.trim() ? 'No topics found' : 'No other topics'}
                                                 </p>

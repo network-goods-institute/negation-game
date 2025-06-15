@@ -65,6 +65,55 @@ global.setImmediate = (callback) => setTimeout(callback, 0);
 jest.mock('nanoid', () => ({
   nanoid: jest.fn(() => 'test-id-' + Math.random().toString(36).substr(2, 9)),
 }))
+global.ReadableStream = class ReadableStream {
+  constructor(options = {}) {
+    this._controller = null;
+    this._locked = false;
+    this._state = 'readable';
+    
+    if (options.start) {
+      const controller = {
+        enqueue: (chunk) => this._chunks.push(chunk),
+        close: () => { this._state = 'closed'; },
+        error: (err) => { this._error = err; this._state = 'errored'; }
+      };
+      this._controller = controller;
+      this._chunks = [];
+      try {
+        options.start(controller);
+      } catch (error) {
+        controller.error(error);
+      }
+    } else {
+      this._chunks = [];
+    }
+  }
+
+  getReader() {
+    if (this._locked) {
+      throw new TypeError('ReadableStream is locked');
+    }
+    this._locked = true;
+    
+    return {
+      read: async () => {
+        if (this._state === 'errored') {
+          throw this._error;
+        }
+        if (this._chunks.length > 0) {
+          return { done: false, value: this._chunks.shift() };
+        }
+        if (this._state === 'closed') {
+          return { done: true, value: undefined };
+        }
+        return { done: true, value: undefined };
+      },
+      releaseLock: () => {
+        this._locked = false;
+      }
+    };
+  }
+};
 
 // Mock @privy-io/react-auth
 jest.mock('@privy-io/react-auth', () => ({

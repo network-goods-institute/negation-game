@@ -34,18 +34,27 @@ export function useGraphNodeDropHandler(
       // Bounding-box intersection detection (more sensitive overlap)
       const allOverlappedNodes = flowInstance.getNodes().filter((n) => {
         if (n.id === node.id) return false;
-        // Get bounding box for moved node
-        const aw = moved.measured?.width ?? 250;
-        const ah = moved.measured?.height ?? 160;
-        // Get bounding box for target node
-        const bw = n.measured?.width ?? 250;
-        const bh = n.measured?.height ?? 160;
-        return (
-          moved.position.x < n.position.x + bw &&
-          moved.position.x + aw > n.position.x &&
-          moved.position.y < n.position.y + bh &&
-          moved.position.y + ah > n.position.y
+
+        // Calculate centers of the two nodes
+        const movedWidth = moved.measured?.width ?? 250;
+        const movedHeight = moved.measured?.height ?? 160;
+        const nWidth = n.measured?.width ?? 250;
+        const nHeight = n.measured?.height ?? 160;
+
+        const movedCenterX = moved.position.x + movedWidth / 2;
+        const movedCenterY = moved.position.y + movedHeight / 2;
+        const nCenterX = n.position.x + nWidth / 2;
+        const nCenterY = n.position.y + nHeight / 2;
+
+        const distance = Math.sqrt(
+          Math.pow(movedCenterX - nCenterX, 2) +
+            Math.pow(movedCenterY - nCenterY, 2)
         );
+
+        // Use a threshold for overlap detection
+        const OVERLAP_THRESHOLD = 95; // 95% of average dimension, adjusted from previous 80/60
+
+        return distance < OVERLAP_THRESHOLD;
       });
 
       const draggedPointId = (node.data as any)?.pointId as number | undefined;

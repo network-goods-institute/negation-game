@@ -11,7 +11,6 @@ interface UseChatImporterParams {
   isChatListInitialized: boolean;
   isAuthenticated: boolean;
   isInitializing: boolean;
-  isFetchingRationales: boolean;
   createNewChat: (initialGraph?: any) => Promise<string | null>;
   updateChat: (
     chatId: string,
@@ -28,7 +27,6 @@ export function useChatImporter({
   isChatListInitialized,
   isAuthenticated,
   isInitializing,
-  isFetchingRationales,
   createNewChat,
   updateChat,
 }: UseChatImporterParams) {
@@ -86,13 +84,7 @@ export function useChatImporter({
   useEffect(() => {
     const importId = searchParams.get("importChat");
     if (!importId || !router || !currentSpace) return;
-    if (
-      !isAuthenticated ||
-      !isChatListInitialized ||
-      isInitializing ||
-      isFetchingRationales
-    )
-      return;
+    if (!isAuthenticated || !isChatListInitialized || isInitializing) return;
     if (processedIdsRef.current.has(importId)) {
       // clean URL once
       try {
@@ -116,7 +108,6 @@ export function useChatImporter({
     isChatListInitialized,
     isAuthenticated,
     isInitializing,
-    isFetchingRationales,
     handleImport,
   ]);
 }

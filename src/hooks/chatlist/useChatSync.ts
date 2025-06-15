@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { SavedChat } from "@/types/chat";
 import { updateDbChat, createDbChat } from "@/actions/chat/chatSyncActions";
@@ -9,7 +9,7 @@ import {
 } from "@/hooks/chatlist/chatListTypes";
 import { setPrivyToken } from "@/lib/privy/setPrivyToken";
 
-const PUSH_DEBOUNCE_MS = 2500;
+const PUSH_DEBOUNCE_MS = 500;
 
 export function useChatSync({
   currentSpace,
@@ -26,6 +26,7 @@ export function useChatSync({
   const [pendingPushIds, setPendingPushIds] = useState<Set<string>>(new Set());
   const pushDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingChatUpdatesRef = useRef<Map<string, SavedChat>>(new Map());
+  const activePushesRef = useRef<Set<string>>(new Set());
 
   const executePush = useCallback(
     async (chatData: SavedChat) => {
@@ -33,26 +34,48 @@ export function useChatSync({
       if (!chatData || !chatData.id) {
         return;
       }
-      // Refresh token before sync to handle potential token expiration
-      try {
-        const tokenRefreshed = await setPrivyToken();
-        if (!tokenRefreshed) {
-          console.warn("Token refresh returned false before chat sync");
-        }
-      } catch (error) {
-        console.warn("Failed to refresh Privy token before chat sync:", error);
-      }
 
       const chatId = chatData.id;
 
-      // No need to add to pendingPushIds here if queuePushUpdate handles it before calling executePush
-      // However, if executePush can be called directly, this might still be needed.
-      // For now, assuming queuePushUpdate is the entry point that sets pendingPushIds.
+      if (activePushesRef.current.has(chatId)) {
+        console.log(
+          `[executePush] Skipping concurrent push for chat ${chatId}`
+        );
+        return;
+      }
+
+      activePushesRef.current.add(chatId);
+
+      const timeoutId = setTimeout(() => {
+        console.warn(`[executePush] Timeout for chat ${chatId}, cleaning up`);
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        activePushesRef.current.delete(chatId);
+        setPendingPushIds((prev) => {
+          const next = new Set(prev);
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
+          next.delete(chatId);
+          return next;
+        });
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        pendingChatUpdatesRef.current.delete(chatId);
+      }, 15000); // 15 second timeout
 
       let success = false;
       let op = "update";
 
       try {
+        try {
+          const tokenRefreshed = await setPrivyToken();
+          if (!tokenRefreshed) {
+            console.warn("Token refresh returned false before chat sync");
+          }
+        } catch (error) {
+          console.warn(
+            "Failed to refresh Privy token before chat sync:",
+            error
+          );
+        }
+
         const currentHash = await computeChatStateHash(
           chatData.title,
           chatData.messages,
@@ -149,6 +172,7 @@ export function useChatSync({
 
               // Retry the operation once
               let retrySuccess = false;
+              let retryOp = "update";
               try {
                 let retryResult = await updateDbChat(chatData);
                 retrySuccess = retryResult.success;
@@ -157,7 +181,7 @@ export function useChatSync({
                   const createPayload = { ...chatData, spaceId: currentSpace };
                   retryResult = await createDbChat(createPayload);
                   retrySuccess = retryResult.success;
-                  op = "create";
+                  retryOp = "create";
                 }
 
                 if (retrySuccess) {
@@ -165,10 +189,10 @@ export function useChatSync({
                     "[executePush] Retry after token refresh successful:",
                     {
                       chatId,
-                      operation: op,
+                      operation: retryOp,
                     }
                   );
-                  if (op === "create") {
+                  if (retryOp === "create") {
                     onBackgroundCreateSuccess?.(chatId);
                   } else {
                     onBackgroundUpdateSuccess?.(chatId);
@@ -202,13 +226,15 @@ export function useChatSync({
             `Error saving chat "${chatData.title.substring(0, 20)}..." to server. Check connection.`
           );
         }
-
         if (op === "create") {
           onBackgroundCreateError?.(chatId, errorMessage);
         } else {
           onBackgroundUpdateError?.(chatId, errorMessage);
         }
       } finally {
+        clearTimeout(timeoutId);
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        activePushesRef.current.delete(chatId);
         setPendingPushIds((prev) => {
           const next = new Set(prev);
           // eslint-disable-next-line drizzle/enforce-delete-with-where
@@ -217,6 +243,7 @@ export function useChatSync({
         });
         // eslint-disable-next-line drizzle/enforce-delete-with-where
         pendingChatUpdatesRef.current.delete(chatId);
+        console.log(`[executePush] Cleanup completed for chat: ${chatId}`);
       }
     },
     [
@@ -236,10 +263,23 @@ export function useChatSync({
     pushDebounceTimeoutRef.current = setTimeout(() => {
       const updatesToPush = Array.from(pendingChatUpdatesRef.current.values());
       if (updatesToPush.length > 0) {
+        console.log(
+          `[debouncedPush] Processing ${updatesToPush.length} pending updates`
+        );
+        // Process each chat sequentially to avoid race conditions
         updatesToPush.forEach((chatData) => {
-          setPendingPushIds((prev) => new Set(prev).add(chatData.id)); // Add to pending before push
-          executePush(chatData);
+          // Only start push if not already active
+          if (!activePushesRef.current.has(chatData.id)) {
+            setPendingPushIds((prev) => new Set(prev).add(chatData.id));
+            executePush(chatData);
+          } else {
+            console.log(
+              `[debouncedPush] Skipping ${chatData.id} - already pushing`
+            );
+          }
         });
+        // Clear the pending updates after starting pushes
+        pendingChatUpdatesRef.current.clear();
       }
     }, PUSH_DEBOUNCE_MS);
   }, [executePush]);
@@ -248,6 +288,16 @@ export function useChatSync({
     (chatData: SavedChat, immediate = false) => {
       if (!chatData || !chatData.id) return;
 
+      if (activePushesRef.current.has(chatData.id)) {
+        console.log(
+          `[queuePushUpdate] Skipping queue for active push: ${chatData.id}`
+        );
+        return;
+      }
+
+      console.log(
+        `[queuePushUpdate] Queuing ${immediate ? "immediate" : "debounced"} push for: ${chatData.id}`
+      );
       setPendingPushIds((prev) => new Set(prev).add(chatData.id));
 
       if (immediate) {
@@ -264,6 +314,42 @@ export function useChatSync({
     },
     [debouncedPush, executePush]
   );
+
+  useEffect(() => {
+    const currentActivePushes = activePushesRef.current;
+    const currentPendingUpdates = pendingChatUpdatesRef.current;
+
+    return () => {
+      if (pushDebounceTimeoutRef.current) {
+        clearTimeout(pushDebounceTimeoutRef.current);
+      }
+      currentActivePushes.clear();
+      currentPendingUpdates.clear();
+      setPendingPushIds(new Set());
+    };
+  }, []);
+
+  useEffect(() => {
+    const cleanupInterval = setInterval(() => {
+      setPendingPushIds((prev) => {
+        const active = new Set(activePushesRef.current);
+        const pending = new Set(pendingChatUpdatesRef.current.keys());
+        const cleaned = new Set<string>();
+
+        for (const id of prev) {
+          if (active.has(id) || pending.has(id)) {
+            cleaned.add(id);
+          } else {
+            console.log(`[cleanup] Removing stale pending push ID: ${id}`);
+          }
+        }
+
+        return cleaned;
+      });
+    }, 10000);
+
+    return () => clearInterval(cleanupInterval);
+  }, []);
 
   return {
     pendingPushIds,

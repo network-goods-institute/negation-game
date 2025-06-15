@@ -337,6 +337,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
               return false;
             }
           }}
+          topOffsetPx={64}
         />
       </Dynamic>
 

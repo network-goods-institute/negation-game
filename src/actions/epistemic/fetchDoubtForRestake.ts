@@ -92,13 +92,44 @@ export const fetchDoubtForRestake = async (
       )
     );
 
-  const userDoubts = result[0].userDoubts || [];
+  // Use the strict result first.
+  let userDoubts: { id: number; amount: number; createdAt: Date }[] =
+    (result[0].userDoubts as unknown as {
+      id: number;
+      amount: number;
+      createdAt: Date;
+    }[]) || [];
+
+  // If the strict query returned no rows for the current user, perform a
+  // fallback query that ignores the `available_for_doubts` constraint so that
+  // we still surface the user's active doubt (even if all restakes that made
+  // it valid have since been slashed).
+  if (userDoubts.length === 0 && userId) {
+    userDoubts = await db
+      .select({
+        id: doubtsTable.id,
+        amount: doubtsTable.amount,
+        createdAt: doubtsTable.createdAt,
+      })
+      .from(doubtsTable)
+      .where(
+        and(
+          eq(doubtsTable.userId, userId),
+          eq(doubtsTable.pointId, pointId),
+          eq(doubtsTable.negationId, negationId),
+          sql`${doubtsTable.amount} > 0`
+        )
+      )
+      .orderBy(sql`created_at DESC`);
+  }
+
+  const userAmount = userDoubts.reduce((sum, d) => sum + d.amount, 0);
 
   const response = {
     amount: Number(result[0].totalAmount),
     userDoubts,
-    userAmount: userDoubts.reduce((sum, d) => sum + d.amount, 0),
-    isUserDoubt: result[0].hasUserDoubt,
+    userAmount,
+    isUserDoubt: userAmount > 0,
   };
 
   return response;

@@ -28,8 +28,7 @@ import type { InitialOptionObject } from "@/types/chatbot";
 
 export function useAIAssistantController() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { user: privyUser } = usePrivy();
+  const { user: privyUser, ready } = usePrivy();
   const { data: userData } = useUser(privyUser?.id);
   const isAuthenticated = !!privyUser;
   const setInitialTab = useSetAtom(initialSpaceTabAtom);
@@ -47,7 +46,7 @@ export function useAIAssistantController() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // assistant initialization
+  // assistant initialization - pass ready state to prevent loading when not ready
   const {
     isInitializing,
     isFetchingRationales,
@@ -57,7 +56,7 @@ export function useAIAssistantController() {
     endorsedPoints,
     userRationales,
     availableRationales,
-  } = useAssistantInitializer(isAuthenticated);
+  } = useAssistantInitializer(ready ? isAuthenticated : null);
 
   const [settings, setSettings] = useState<ChatSettings>(() => {
     if (typeof window === "undefined")
@@ -83,7 +82,10 @@ export function useAIAssistantController() {
   }, [settings]);
 
   // chat list and state
-  const chatList = useChatListManagement({ currentSpace, isAuthenticated });
+  const chatList = useChatListManagement({
+    currentSpace,
+    isAuthenticated: ready ? isAuthenticated : false,
+  });
   const {
     isInitialized: isChatListInitialized,
     updateChat,
@@ -92,7 +94,7 @@ export function useAIAssistantController() {
   } = chatList;
   const discourse = useDiscourseIntegration({
     userData,
-    isAuthenticated,
+    isAuthenticated: ready ? isAuthenticated : false,
     isNonGlobalSpace: currentSpace != null && currentSpace !== "global",
     currentSpace,
     privyUserId: privyUser?.id,
@@ -108,13 +110,11 @@ export function useAIAssistantController() {
   const chatState = useChatState({
     currentChatId,
     currentSpace,
-    isAuthenticated,
+    isAuthenticated: ready ? isAuthenticated : false,
     settings,
     allPointsInSpace,
     ownedPointIds,
     endorsedPointIds,
-    userRationales,
-    availableRationales,
     storedMessages: discourse.storedMessages,
     discourseUrl: discourse.discourseUrl,
     savedChats,
@@ -126,9 +126,8 @@ export function useAIAssistantController() {
   useChatImporter({
     currentSpace,
     isChatListInitialized: isChatListInitialized,
-    isAuthenticated,
-    isInitializing,
-    isFetchingRationales,
+    isAuthenticated: ready ? isAuthenticated : false,
+    isInitializing: isInitializing || !ready,
     createNewChat: chatList.createNewChat,
     updateChat,
   });
@@ -144,7 +143,7 @@ export function useAIAssistantController() {
     triggerSync,
   } = useChatFullSync({
     currentSpace,
-    isAuthenticated,
+    isAuthenticated: ready ? isAuthenticated : false,
     pendingPushIds: chatList.pendingPushIds,
     currentChatId,
     savedChats,
@@ -202,10 +201,19 @@ export function useAIAssistantController() {
     chatList.setNewChatTitle(title);
   };
   const handleTriggerDelete = (chatId: string) => {
+    if (isSyncing && syncActivity === "pulling") {
+      toast.info("Sync in progress, please wait before deleting chat...");
+      return;
+    }
     chatList.setChatToDelete(chatId);
   };
-  const handleTriggerDeleteAll = () =>
+  const handleTriggerDeleteAll = () => {
+    if (isSyncing && syncActivity === "pulling") {
+      toast.info("Sync in progress, please wait before deleting chats...");
+      return;
+    }
     chatList.setShowDeleteAllConfirmation(true);
+  };
   const handleCreateNewChat = async () => {
     const id = await chatList.createNewChat();
     if (id) setShowMobileMenu(false);
@@ -340,10 +348,6 @@ export function useAIAssistantController() {
     e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>
   ) => {
     e.preventDefault();
-    if (isPulling) {
-      toast.info("Sync in progress...");
-      return;
-    }
     if (chatState.generatingChats.has(currentChatId || "")) return;
     // Auto-detect link in the user's message and set input field
     const detectedUrlMatch = chatState.message.match(/https?:\/\/[^\s)\"]+/i);
@@ -364,6 +368,14 @@ export function useAIAssistantController() {
   };
   const handleCloseRationale = () => setMode("chat");
 
+  const handleSwitchChat = (chatId: string) => {
+    if (isSyncing && syncActivity === "pulling") {
+      toast.info("Sync in progress, please wait before switching chats...");
+      return;
+    }
+    chatList.switchChat(chatId);
+  };
+
   // assemble props
   const sidebarProps: ChatSidebarProps = {
     isMobile,
@@ -374,7 +386,7 @@ export function useAIAssistantController() {
     currentChatId,
     currentSpace,
     generatingTitles: chatState.generatingTitles,
-    onSwitchChat: chatList.switchChat,
+    onSwitchChat: handleSwitchChat,
     onNewChat: handleCreateNewChat,
     onTriggerDeleteAll: handleTriggerDeleteAll,
     onTriggerRename: handleTriggerRename,
@@ -592,6 +604,40 @@ export function useAIAssistantController() {
     deleteAllDialogProps,
     editMessageDialogProps,
   };
+
+  if (!ready) {
+    return {
+      sidebarProps: {
+        ...sidebarProps,
+        isInitializing: true,
+        isAuthenticated: false,
+        savedChats: [],
+        currentChatId: null,
+        currentSpace: null,
+      },
+      headerProps: {
+        ...headerProps,
+        isInitializing: true,
+        isAuthenticated: false,
+        currentSpace: null,
+        mode: "chat" as const,
+      },
+      chatProps: {
+        ...chatProps,
+        isInitializing: true,
+        isAuthenticated: false,
+        currentSpace: null,
+      },
+      rationaleProps: {
+        ...rationaleProps,
+        isInitializing: true,
+        isAuthenticated: false,
+        currentSpace: null,
+      },
+      dialogsProps,
+      mode: "chat" as const,
+    };
+  }
 
   return {
     sidebarProps,
