@@ -2,11 +2,9 @@
 
 import { usersTable } from "@/db/schema";
 import { db } from "@/services/db";
-import { InferInsertModel } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
-export type User = InferInsertModel<typeof usersTable>;
-
-export const fetchAllUsers = async (): Promise<User[]> => {
+export const fetchAllUsers = async () => {
   return await db
     .select({
       id: usersTable.id,
@@ -14,5 +12,6 @@ export const fetchAllUsers = async (): Promise<User[]> => {
       cred: usersTable.cred,
       delegationUrl: usersTable.delegationUrl,
     })
-    .from(usersTable);
+    .from(usersTable)
+    .where(eq(usersTable.isActive, true));
 };

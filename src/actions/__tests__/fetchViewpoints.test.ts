@@ -57,6 +57,10 @@ jest.mock("drizzle-orm", () => ({
   inArray: jest.fn((col, vals) => `inArray(${col}, [${vals.join(", ")}])`),
 }));
 
+jest.mock("@/db/tables/viewpointsTable", () => ({
+  activeViewpointsFilter: "activeViewpointsFilter",
+}));
+
 jest.mock("../utils/calculateViewpointStats", () => ({
   calculateViewpointStats: jest.fn(),
 }));
@@ -72,6 +76,7 @@ import {
   pointFavorHistoryView,
   topicsTable,
 } from "@/db/schema";
+import { activeViewpointsFilter } from "@/db/tables/viewpointsTable";
 import { getColumns } from "@/db/utils/getColumns";
 import { eq, desc, and, inArray } from "drizzle-orm";
 import { calculateViewpointStats } from "../utils/calculateViewpointStats";
@@ -166,7 +171,7 @@ describe("fetchViewpoints", () => {
       eq(viewpointsTable.topicId, topicsTable.id)
     );
     expect(mockWhere).toHaveBeenCalledWith(
-      eq(viewpointsTable.space, spaceName)
+      and(eq(viewpointsTable.space, spaceName), activeViewpointsFilter)
     );
     expect(mockOrderBy).toHaveBeenCalledWith(desc(viewpointsTable.createdAt));
 
@@ -249,7 +254,7 @@ describe("fetchViewpoints", () => {
       expect.any(String)
     );
     expect(mockWhere).toHaveBeenCalledWith(
-      eq(viewpointsTable.space, spaceName)
+      and(eq(viewpointsTable.space, spaceName), activeViewpointsFilter)
     );
     expect(mockOrderBy).toHaveBeenCalledWith(desc(viewpointsTable.createdAt));
 
@@ -287,7 +292,7 @@ describe("fetchViewpoints", () => {
     expect(mockLeftJoinInteractions).toHaveBeenCalled();
     expect(mockLeftJoinTopics).toHaveBeenCalled();
     expect(mockWhere).toHaveBeenCalledWith(
-      eq(viewpointsTable.space, spaceName)
+      and(eq(viewpointsTable.space, spaceName), activeViewpointsFilter)
     );
     expect(mockOrderBy).toHaveBeenCalled();
 

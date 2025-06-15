@@ -165,11 +165,11 @@ const ProfileEditDialogContent = ({
                                     value={bio}
                                     onChange={(e) => setBio(e.target.value)}
                                     placeholder="Tell us about yourself"
-                                    maxLength={500}
+                                    maxLength={1000}
                                     className="resize-none min-h-24 w-full"
                                 />
                                 <p className="text-xs text-muted-foreground text-right">
-                                    {bio.length}/500
+                                    {bio.length}/1000
                                 </p>
                             </div>
 

@@ -69,6 +69,10 @@ jest.mock("drizzle-orm", () => ({
   inArray: jest.fn((col, vals) => ({ column: col, values: vals })),
 }));
 
+jest.mock("@/db/tables/viewpointsTable", () => ({
+  activeViewpointsFilter: { column: "is_active", value: true },
+}));
+
 // Mock trackViewpointView action
 jest.mock("../viewpoints/trackViewpointView", () => ({
   trackViewpointView: jest.fn(),
@@ -83,6 +87,7 @@ import {
   viewpointInteractionsTable,
   topicsTable,
 } from "@/db/schema";
+import { activeViewpointsFilter } from "@/db/tables/viewpointsTable";
 import { getColumns } from "@/db/utils/getColumns";
 import { trackViewpointView } from "../viewpoints/trackViewpointView";
 import { eq, sql, and, desc, inArray } from "drizzle-orm";
@@ -267,7 +272,7 @@ describe("fetchViewpoint", () => {
       eq(viewpointsTable.topicId, topicsTable.id)
     );
     expect(mockViewpointWhere).toHaveBeenCalledWith(
-      eq(viewpointsTable.id, "test-id")
+      and(eq(viewpointsTable.id, "test-id"), activeViewpointsFilter)
     );
     expect(mockViewpointLimit).toHaveBeenCalledWith(1);
 
@@ -434,7 +439,7 @@ describe("fetchViewpoint", () => {
       eq(viewpointsTable.topicId, topicsTable.id)
     );
     expect(mockNoStatsViewpointWhere).toHaveBeenCalledWith(
-      eq(viewpointsTable.id, "test-id-no-stats")
+      and(eq(viewpointsTable.id, "test-id-no-stats"), activeViewpointsFilter)
     );
     expect(mockNoStatsViewpointLimit).toHaveBeenCalledWith(1);
   });

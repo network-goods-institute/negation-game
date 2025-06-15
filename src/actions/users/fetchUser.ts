@@ -1,19 +1,25 @@
 "use server";
 
 import { usersTable } from "@/db/schema";
+import { normalizeUsername } from "@/db/tables/usersTable";
 import { db } from "@/services/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export const fetchUser = async (idOrUsername: string) => {
   try {
     const isLikelyUsername = !idOrUsername.startsWith("did:privy:");
 
-    let query;
+    let identifierQuery;
     if (isLikelyUsername) {
-      query = sql`LOWER(${usersTable.username}) = LOWER(${idOrUsername})`;
+      identifierQuery = eq(
+        usersTable.usernameCanonical,
+        normalizeUsername(idOrUsername)
+      );
     } else {
-      query = eq(usersTable.id, idOrUsername);
+      identifierQuery = eq(usersTable.id, idOrUsername);
     }
+
+    const whereCondition = and(identifierQuery, eq(usersTable.isActive, true));
 
     const selectQuery = db
       .select({
@@ -30,7 +36,7 @@ export const fetchUser = async (idOrUsername: string) => {
         createdAt: usersTable.createdAt,
       })
       .from(usersTable)
-      .where(query)
+      .where(whereCondition)
       .limit(1);
 
     const result = await selectQuery.execute();

@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 const updateProfileSchema = z.object({
-  bio: z.string().max(500).nullable().optional(),
+  bio: z.string().max(1000).nullable().optional(),
   delegationUrl: z.string().url().max(255).nullable().optional(),
   discourseUsername: z.string().max(255).nullable().optional(),
   discourseCommunityUrl: z.string().url().max(255).nullable().optional(),

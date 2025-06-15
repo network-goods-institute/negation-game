@@ -1,9 +1,9 @@
 "use server";
 
-import { lower } from "@/db/operators";
 import { usersTable } from "@/db/schema";
+import { normalizeUsername } from "@/db/tables/usersTable";
 import { db } from "@/services/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export const isUsernameAvailable = async (username: string) => {
   console.warn("[isUsernameAvailable] Checking username:", username);
@@ -11,7 +11,12 @@ export const isUsernameAvailable = async (username: string) => {
     const query = db
       .select()
       .from(usersTable)
-      .where(eq(lower(usersTable.username), username.toLowerCase()))
+      .where(
+        and(
+          eq(usersTable.usernameCanonical, normalizeUsername(username)),
+          eq(usersTable.isActive, true)
+        )
+      )
       .limit(1);
 
     console.warn("[isUsernameAvailable] SQL query:", query.toSQL());

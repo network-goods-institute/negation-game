@@ -2,7 +2,7 @@
 
 import { getUserId } from "@/actions/users/getUserId";
 import { usersTable } from "@/db/schema";
-import { InsertUser } from "@/db/tables/usersTable";
+import { InsertUser, createUserData } from "@/db/tables/usersTable";
 import { db } from "@/services/db";
 
 export const initUserAction = async ({
@@ -19,9 +19,10 @@ export const initUserAction = async ({
       throw new Error("Must be authenticated to initialize the user");
     }
 
+    const userData = createUserData({ username, id: userId });
     const query = db
       .insert(usersTable)
-      .values({ username, id: userId })
+      .values(userData)
       .onConflictDoNothing()
       .returning();
     console.warn("[initUserAction] SQL query:", query.toSQL());

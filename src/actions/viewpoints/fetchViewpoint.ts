@@ -6,9 +6,10 @@ import {
   viewpointInteractionsTable,
   topicsTable,
 } from "@/db/schema";
+import { activeViewpointsFilter } from "@/db/tables/viewpointsTable";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import { trackViewpointView } from "./trackViewpointView";
 import { calculateViewpointStats } from "@/actions/utils/calculateViewpointStats";
 
@@ -61,7 +62,7 @@ export const fetchViewpoint = async (id: string) => {
       eq(viewpointInteractionsTable.viewpointId, viewpointsTable.id)
     )
     .leftJoin(topicsTable, eq(viewpointsTable.topicId, topicsTable.id))
-    .where(eq(viewpointsTable.id, id))
+    .where(and(eq(viewpointsTable.id, id), activeViewpointsFilter))
     .limit(1)
     .then((results) => {
       return results[0] || null;

@@ -2,7 +2,8 @@
 
 import { db } from "@/services/db";
 import { viewpointsTable } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { activeViewpointsFilter } from "@/db/tables/viewpointsTable";
+import { eq, and } from "drizzle-orm";
 
 export const fetchSpaceViewpoints = async (space: string) => {
   return db
@@ -10,5 +11,5 @@ export const fetchSpaceViewpoints = async (space: string) => {
       createdBy: viewpointsTable.createdBy,
     })
     .from(viewpointsTable)
-    .where(eq(viewpointsTable.space, space));
+    .where(and(eq(viewpointsTable.space, space), activeViewpointsFilter));
 };

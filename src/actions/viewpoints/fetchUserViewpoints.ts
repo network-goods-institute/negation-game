@@ -6,9 +6,10 @@ import {
   viewpointInteractionsTable,
   topicsTable,
 } from "@/db/schema";
+import { activeViewpointsFilter } from "@/db/tables/viewpointsTable";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { getUserId } from "@/actions/users/getUserId";
 import { calculateViewpointStats } from "@/actions/utils/calculateViewpointStats";
 
@@ -46,7 +47,9 @@ export const fetchUserViewpoints = async (username?: string) => {
       eq(viewpointInteractionsTable.viewpointId, viewpointsTable.id)
     )
     .leftJoin(topicsTable, eq(viewpointsTable.topicId, topicsTable.id))
-    .where(eq(viewpointsTable.createdBy, targetUserId))
+    .where(
+      and(eq(viewpointsTable.createdBy, targetUserId), activeViewpointsFilter)
+    )
     .orderBy(desc(viewpointsTable.createdAt));
 
   // Calculate statistics for each viewpoint

@@ -6,6 +6,7 @@ import {
   usersTable,
   viewpointInteractionsTable,
 } from "@/db/schema";
+import { activeViewpointsFilter } from "@/db/tables/viewpointsTable";
 import { eq, desc, and } from "drizzle-orm";
 import { getColumns } from "@/db/utils/getColumns";
 import { calculateViewpointStats } from "@/actions/utils/calculateViewpointStats";
@@ -31,7 +32,8 @@ export async function fetchLatestViewpointByTopic(
     .where(
       and(
         eq(viewpointsTable.space, space),
-        eq(viewpointsTable.topicId, topicId)
+        eq(viewpointsTable.topicId, topicId),
+        activeViewpointsFilter
       )
     )
     .orderBy(desc(viewpointsTable.createdAt))

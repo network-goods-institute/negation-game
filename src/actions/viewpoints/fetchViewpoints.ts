@@ -6,9 +6,10 @@ import {
   viewpointInteractionsTable,
   topicsTable,
 } from "@/db/schema";
+import { activeViewpointsFilter } from "@/db/tables/viewpointsTable";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { calculateViewpointStats } from "@/actions/utils/calculateViewpointStats";
 
 export const fetchViewpoints = async (space: string) => {
@@ -29,7 +30,7 @@ export const fetchViewpoints = async (space: string) => {
       eq(viewpointInteractionsTable.viewpointId, viewpointsTable.id)
     )
     .leftJoin(topicsTable, eq(viewpointsTable.topicId, topicsTable.id))
-    .where(eq(viewpointsTable.space, space))
+    .where(and(eq(viewpointsTable.space, space), activeViewpointsFilter))
     .orderBy(desc(viewpointsTable.createdAt));
 
   const viewpointsWithStats = await Promise.all(
