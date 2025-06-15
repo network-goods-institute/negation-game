@@ -29,6 +29,10 @@ export const usersTable = pgTable(
     discourseConsentGiven: boolean("discourse_consent_given")
       .notNull()
       .default(false),
+    showReadReceipts: boolean("show_read_receipts").notNull().default(true),
+    receiveReadReceipts: boolean("receive_read_receipts")
+      .notNull()
+      .default(true),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({

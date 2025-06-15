@@ -26,9 +26,25 @@ export {
   doubtsTable,
 } from "@/db/tables/doubtsTable";
 
+export {
+  notificationsTable,
+  notificationTypeEnum,
+  sourceEntityTypeEnum,
+} from "@/db/tables/notificationsTable";
+
+export {
+  notificationPreferencesTable,
+  digestFrequencyEnum,
+} from "@/db/tables/notificationPreferencesTable";
+
 export { effectiveRestakesView } from "@/db/views/effectiveRestakesView";
 export { pointFavorHistoryView } from "@/db/views/pointFavorHistoryView";
 export { pointsWithDetailsView } from "@/db/views/pointsWithDetailsView";
 export { chatsTable, chatsRelations } from "@/db/tables/chatsTable";
 export { topicsTable } from "@/db/tables/topicsTable";
 export { translationsTable } from "@/db/tables/translationsTable";
+export {
+  messagesTable,
+  messagesRelations,
+  generateConversationId,
+} from "@/db/tables/messagesTable";

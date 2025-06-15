@@ -1,6 +1,7 @@
 "use server";
 
 import { getUserId } from "@/actions/users/getUserId";
+import { getSpace } from "@/actions/spaces/getSpace";
 import {
   slashesTable,
   slashHistoryTable,
@@ -9,6 +10,10 @@ import {
   doubtsTable,
   doubtHistoryTable,
 } from "@/db/schema";
+import {
+  queueSlashNotification,
+  queueDoubtReductionNotification,
+} from "@/lib/notifications/notificationQueue";
 import { db } from "@/services/db";
 import { eq, and, sql, desc } from "drizzle-orm";
 
@@ -23,6 +28,8 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
   if (!userId) {
     throw new Error("Must be authenticated to slash");
   }
+
+  const space = await getSpace();
 
   return await db.transaction(async (tx) => {
     // First get the restake - we can only slash our own restakes
@@ -90,6 +97,8 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
         AND r2.created_at < d.created_at
       )
     `);
+
+    let slashId: number;
 
     if (existingSlash) {
       // Get the last restake history BEFORE this slash attempt
@@ -191,57 +200,52 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
               previousAmount: doubt.amount,
               newAmount: newDoubtAmount,
             });
+
+            // Queue notification for doubt holder
+            queueDoubtReductionNotification({
+              negatedPointId: pointId,
+              slasherId: userId,
+              doubterId: doubt.userId,
+              reductionAmount,
+              newDoubtAmount,
+              space,
+            });
           }
         }
       }
 
-      return existingSlash.id;
+      slashId = existingSlash.id;
     } else {
       // Create new slash
-      const newSlash = await tx
+      slashId = await tx
         .insert(slashesTable)
         .values({
           userId,
-          restakeId: restake.id,
           pointId,
           negationId,
+          restakeId: restake.id,
           amount,
         })
         .returning({ id: slashesTable.id })
         .then(([{ id }]) => id);
 
-      // Record slash history
-      await tx.insert(slashHistoryTable).values({
-        slashId: newSlash,
-        userId,
-        pointId,
-        negationId,
-        action: "created",
-        newAmount: amount,
-      });
-
-      // Handle doubt reductions for new slash
+      // Handle doubt reductions
       if (amount > 0 && doubts.length > 0) {
         const slashProportion = amount / restake.amount;
 
-        // Update each doubt and record history
         for (const doubt of doubts) {
-          // Calculate reduction amount but cap it at the current doubt amount
           const reductionAmount = Math.min(
             Math.floor(doubt.amount * slashProportion),
-            doubt.amount // Never reduce more than the current doubt amount
+            doubt.amount
           );
-
           if (reductionAmount > 0) {
             const newDoubtAmount = doubt.amount - reductionAmount;
 
-            // Update doubt amount
             await tx
               .update(doubtsTable)
               .set({ amount: newDoubtAmount })
               .where(eq(doubtsTable.id, doubt.id));
 
-            // Record doubt history
             await tx.insert(doubtHistoryTable).values({
               doubtId: doubt.id,
               userId: doubt.userId,
@@ -251,11 +255,43 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
               previousAmount: doubt.amount,
               newAmount: newDoubtAmount,
             });
+
+            // Queue notification for doubt holder
+            queueDoubtReductionNotification({
+              negatedPointId: pointId,
+              slasherId: userId,
+              doubterId: doubt.userId,
+              reductionAmount,
+              newDoubtAmount,
+              space,
+            });
           }
         }
       }
-
-      return newSlash;
     }
+
+    // Record slash history for new slashes
+    if (!existingSlash) {
+      await tx.insert(slashHistoryTable).values({
+        slashId,
+        userId,
+        pointId,
+        negationId,
+        action: "created",
+        newAmount: amount,
+      });
+    }
+
+    // Queue notification if amount > 0 (only for active slashes)
+    if (amount > 0) {
+      queueSlashNotification({
+        negatedPointId: pointId,
+        slasherId: userId,
+        amount,
+        space,
+      });
+    }
+
+    return slashId;
   });
 };

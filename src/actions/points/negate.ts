@@ -4,6 +4,7 @@ import { getSpace } from "@/actions/spaces/getSpace";
 import { getUserId } from "@/actions/users/getUserId";
 import { endorsementsTable, negationsTable, usersTable } from "@/db/schema";
 import { Point } from "@/db/tables/pointsTable";
+import { queueNegationNotification } from "@/lib/notifications/notificationQueue";
 import { db } from "@/services/db";
 import { eq, sql, and } from "drizzle-orm";
 
@@ -68,6 +69,15 @@ export const negate = async ({
         )
       );
     return existing.id;
+  });
+
+  // Queue notification in background - let the queue handle all the logic
+  queueNegationNotification({
+    negatedPointId,
+    counterpointId,
+    negatorId: userId,
+    credAmount: cred,
+    space,
   });
 
   return negationId;

@@ -8,9 +8,10 @@ import {
   endorsementsTable,
   InsertEndorsement,
 } from "@/db/tables/endorsementsTable";
+import { queueEndorsementNotification } from "@/lib/notifications/notificationQueue";
 
 import { db } from "@/services/db";
-import { eq, sql, lt } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export const endorse = async ({
   pointId,
@@ -52,6 +53,14 @@ export const endorse = async ({
       .values({ cred, userId, pointId, space })
       .returning({ id: endorsementsTable.id });
     return insertResult[0].id;
+  });
+
+  // Queue notification in background - let the queue handle all the logic
+  queueEndorsementNotification({
+    pointId,
+    endorserId: userId,
+    credAmount: cred,
+    space,
   });
 
   return endorsementId;

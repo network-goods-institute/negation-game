@@ -386,6 +386,48 @@
       "when": 1749384394782,
       "tag": "0054_parched_meteorite",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1749507859857,
+      "tag": "0055_nifty_nova",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1749511085225,
+      "tag": "0056_faulty_selene",
+      "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1749529584575,
+      "tag": "0057_fast_patch",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1749614492065,
+      "tag": "0058_aspiring_patch",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1749636296805,
+      "tag": "0059_young_nick_fury",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1749639187812,
+      "tag": "0060_crazy_steve_rogers",
+      "breakpoints": true
     }
   ]
 }

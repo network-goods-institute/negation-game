@@ -3,6 +3,15 @@ jest.mock("../users/getUserId", () => ({
   getUserId: jest.fn(),
 }));
 
+jest.mock("@/actions/spaces/getSpace", () => ({
+  getSpace: jest.fn().mockResolvedValue("test-space"),
+}));
+
+jest.mock("@/lib/notifications/notificationQueue", () => ({
+  queueSlashNotification: jest.fn(),
+  queueDoubtReductionNotification: jest.fn(),
+}));
+
 jest.mock("@/db/schema", () => ({
   restakesTable: {
     id: "id",

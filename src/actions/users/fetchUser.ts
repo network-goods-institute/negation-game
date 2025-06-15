@@ -25,6 +25,8 @@ export const fetchUser = async (idOrUsername: string) => {
         discourseUsername: usersTable.discourseUsername,
         discourseCommunityUrl: usersTable.discourseCommunityUrl,
         discourseConsentGiven: usersTable.discourseConsentGiven,
+        showReadReceipts: usersTable.showReadReceipts,
+        receiveReadReceipts: usersTable.receiveReadReceipts,
         createdAt: usersTable.createdAt,
       })
       .from(usersTable)

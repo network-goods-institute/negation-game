@@ -186,6 +186,15 @@ export default function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Handle settings, notifications, and messages paths without rewriting
+  if (
+    url.pathname.startsWith("/settings") ||
+    url.pathname.startsWith("/notifications") ||
+    url.pathname.startsWith("/messages")
+  ) {
+    return NextResponse.next();
+  }
+
   // Redirect top-level '/chat' to '/s/global/chat'
   if (url.pathname === "/chat" || url.pathname.startsWith("/chat/")) {
     const redirectUrl = new URL(`/s/global${url.pathname}`, req.url);

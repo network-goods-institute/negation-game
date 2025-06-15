@@ -1,12 +1,14 @@
 "use server";
 
 import { getUserId } from "@/actions/users/getUserId";
+import { getSpace } from "@/actions/spaces/getSpace";
 import {
   restakesTable,
   restakeHistoryTable,
   slashesTable,
   slashHistoryTable,
 } from "@/db/schema";
+import { queueRestakeNotification } from "@/lib/notifications/notificationQueue";
 import { db } from "@/services/db";
 import { eq, and, sql } from "drizzle-orm";
 
@@ -21,6 +23,8 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
   if (!userId) {
     throw new Error("Must be authenticated to restake");
   }
+
+  const space = await getSpace();
 
   // Look for existing restake in EXACT direction only
   const existingRestake = await db
@@ -125,6 +129,16 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
       });
     });
 
+    // Queue notification if amount > 0 (only for active restakes)
+    if (amount > 0) {
+      queueRestakeNotification({
+        negatedPointId: pointId,
+        restakerId: userId,
+        amount,
+        space,
+      });
+    }
+
     return existingRestake.id;
   } else {
     // Create new restake
@@ -148,6 +162,16 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
       action: "created",
       newAmount: amount,
     });
+
+    // Queue notification if amount > 0 (only for active restakes)
+    if (amount > 0) {
+      queueRestakeNotification({
+        negatedPointId: pointId,
+        restakerId: userId,
+        amount,
+        space,
+      });
+    }
 
     return newRestake;
   }
