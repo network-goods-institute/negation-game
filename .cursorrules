@@ -30,27 +30,25 @@ When you write raw sql to be inserted into the database to see what it's in it, 
 Additionally, use drizzle syntax for sql statements.
 
 // Restake System Rules:
-// 1. Restakes are commitments to change one's mind about a parent point IF a negation is true
-// 2. Slashes are fulfillments of that commitment - admitting the negation changed your mind
-// 3. Doubts bet on restakers following through on their commitments
+// 1. Restakes are commitments to change one's mind about a parent point IF a negation is true. Restakes are placed on the negation, not the point. The point is called the parent point.
+// 2. Slashes are fulfillments of that commitment - admitting the negation changed your mind. You slash a restake itself
+// 3. Doubts bet on restakers following through on their commitments. You doubt all restakes on a negation that existed before you doubted it.
 
 // Implementation Rules:
-// 1. For UI visibility, check slashedAmount < originalAmount
-// 2. totalRestakeAmount Rules:
-//    - Sum of all effectiveAmounts from non-fully-slashed restakes for a point-negation pair
+// 1. totalRestakeAmount Rules:
+//    - Sum of all restakeAmounts from non-fully-slashed restakes for a point-negation pair
 //    - Used as the maximum amount that can be doubted
-//    - Excludes restakes where slashedAmount >= originalAmount
-//    - Includes both the user's own restakes and others' restakes
+//    - Excludes restakes where slashedAmount >= restakeAmount
+//    - Includes ALL RESTAKES ON A NEGATION
 //    - Reduced by slashes but not by existing doubts
-// 3. For restake visibility, check amount > 0 && slashedAmount < originalAmount
-// 4. Doubts are immutable once placed, can only be reduced by slashes. They can be increased though.
-// 5. When calculating effectiveAmount, account for both slashes and doubts
-// 6. Hide fully slashed restakes (slashedAmount >= originalAmount) from UI entirely
+// 2. For restake visibility, check amount > 0 && slashedAmount < restakeAmount
+// 3. Doubts are immutable once placed, can only be reduced by slashes. They can be increased though.
+// 4. Hide fully slashed restakes (slashedAmount >= restakeAmount) from UI entirely
 
 // Query Rules:
 // 1. When calculating totalRestakeAmount:
-//    SELECT SUM(effectiveAmount) 
-//    WHERE slashedAmount < originalAmount
+//    SELECT SUM(restakeAmount) 
+//    WHERE slashedAmount < restakeAmount
 //    AND pointId/negationId match the point-negation pair
 // 2. Viewer-specific data must be clearly separated in query structure
 // 3. Global totals must be calculated independently of viewer context
@@ -66,21 +64,21 @@ Additionally, use drizzle syntax for sql statements.
 // 6. Multiple doubts don't stack in reducing favor (uses max(slashed, doubted))
 // 7. Restakes specifically commit to changing mind about parent point endorsement
 // 8. Favor bonus shows extra conviction by stating change conditions
-// 9. Endorsement amount limits restake amount on parent point
-// 10. Endorsement reductions can and should affect existing restakes
+// 9. Endorsement amount limits restake amount on parent point, cannot restake more than the endorsement amount
+// 10. Endorsement reductions can and should affect existing restakes, i.e. as doubt earnings are collected it reduces from the endorsement amount
 
 // Component Detection Rules:
 // 1. PointCard:
-//    - Shows current states only
-//    - Displays restake/doubt icons based on amount > 0 && slashedAmount < originalAmount
-//    - Uses totalRestakeAmount for doubt possibility
+//    - Shows current states only, for the current user
+//    - Displays restake/doubt icons based on amount > 0 && slashedAmount < restakeAmount, doubtedAmount > 0
+//    - Uses totalRestakeAmount for doubt possibility, i.e. the total amount of restakes on a negation that exist currently
 //    - Delegates state changes to RestakeDialog
 //    - Never handles transitions directly
 //    - Shows filled in restake icon when user's restake exists and isn't fully slashed
-//    - Shows doubt filled in con when user's doubt amount exists
+//    - Shows doubt filled in icon when user's doubt amount exists
 //    - Enables doubt interaction if totalRestakeAmount > 0
 //    - Checks endorsement amount for restake possibility
-//    - Hides restake option if no parent point endorsement when clicked, still shows the restake dialog
+//    - Hides restake option if no parent point endorsement when clicked, still shows the restake dialog though, just that it cannot be restaked
 // 2. RestakeDialog:
 //    - Handles full state lifecycle
 //    - Manages three modes: restaking, slashing, doubting
@@ -88,7 +86,7 @@ Additionally, use drizzle syntax for sql statements.
 //    - Calculates state transitions and their impacts
 //    - Validates all state changes
 //    - Handles proportional doubt reductions on slash
-//    - Enforces doubt immutability
+//    - Enforces doubt immutability, i.e. cannot be removed, only increased
 //    - Manages favor impact calculations
 //    - Shows warnings for state-specific conditions
 //    - Tracks endorsement reductions
@@ -107,16 +105,15 @@ Additionally, use drizzle syntax for sql statements.
 //    - Shows intellectual honesty by stating change conditions
 //    - Can be increased after placement, but only by the user who placed it, and cannot be decreased after placement~
 //    - Can be slashed partially or fully
-//    - Limited by parent point endorsement
+//    - Limited by parent point endorsement, cannot restake more than the endorsement amount
 //    - Demonstrates extra conviction in parent point
 // 2. Doubting:
 //    - Bets against restaker integrity
 //    - Wins if restaker doesn't slash (no real winning, just making more money than your doubt costs)
 //    - Loses proportionally if restaker slashes
-//    - Can be increased through restaking
-//    - Limited by totalRestakeAmount
+//    - Max amount that can be doubted is totalRestakeAmount
 //    - Multiple doubts share proportional losses
-//    - Cannot be modified even by owner
+//    - Cannot be modified even by owner, i.e. cannot be removed, only increased
 //    - Forces choice between ego and integrity
 // 3. Slashing:
 //    - Costs no additional cred
@@ -146,9 +143,9 @@ Additionally, use drizzle syntax for sql statements.
 //    - Can be increased through restaking
 //    - Must respect endorsement limits
 // 2. Doubts:
-//    - Can be increased through restaking
+//    - Can be increased through doubting
 //    - Only reduced by slashes
-//    - Cannot be voluntarily removed
+//    - Cannot be voluntarily removed, i.e. cannot be decreased, only increased
 //    - Force restaker choice between ego/integrity
 // 3. Slashes:
 //    - Can be partial or complete
