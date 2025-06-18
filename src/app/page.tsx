@@ -10,7 +10,7 @@ export default async function HomePage() {
 
     return (
         <div className="flex flex-col min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900">
-            <header className="fixed w-full z-10 backdrop-blur-sm bg-white/75 dark:bg-slate-900/75 border-b border-slate-200 dark:border-slate-800">
+            <header className="sticky top-0 w-full z-50 backdrop-blur-sm bg-white/75 dark:bg-slate-900/75 border-b border-slate-200 dark:border-slate-800">
                 <div className="max-w-7xl mx-auto flex items-center justify-between p-4">
                     <Link href="/" className="flex items-center space-x-2">
                         <Zap className="w-6 h-6 text-primary" />
@@ -29,13 +29,13 @@ export default async function HomePage() {
                 </div>
             </header>
 
-            <main className="flex-grow pt-16">
+            <main className="flex-grow">
                 {/* Hero */}
                 <section className="relative py-24 overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent dark:from-primary/10" />
                     <div className="max-w-7xl mx-auto px-4 relative">
                         <div className="max-w-3xl mx-auto text-center">
-                            <h1 className="text-5xl sm:text-6xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70 mb-6">
+                            <h1 className="text-5xl sm:text-6xl font-bold tracking-tight leading-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70 mb-8 pb-2">
                                 Elevate Discourse Through Reasoned Disagreement
                             </h1>
                             <p className="text-xl text-muted-foreground dark:text-slate-400 mb-10 leading-relaxed">
