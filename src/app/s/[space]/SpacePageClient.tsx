@@ -32,7 +32,7 @@ import { useResetLoadingOnPathChange } from "@/hooks/ui/useResetLoadingOnPathCha
 import { SelectPointForNegationDialog } from "@/components/dialogs/SelectPointForNegationDialog";
 import { makeNegationSuggestionAtom } from "@/atoms/makeNegationSuggestionAtom";
 import { selectPointForNegationOpenAtom } from "@/atoms/selectPointForNegationOpenAtom";
-import { FilteringTabContent } from "@/components/space/FilteringTabContent";
+import { setPrivyToken } from "@/lib/privy/setPrivyToken";
 
 
 interface PageProps {
@@ -93,6 +93,7 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
     const [topicFilters, setTopicFilters] = useState<string[]>([]);
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [topicsOpen, setTopicsOpen] = useState(false);
+    const [isRefetchingFeed, setIsRefetchingFeed] = useState(false);
     useEffect(() => {
         if (selectedTab === null && initialTabFromAtom) {
             setSelectedTab(initialTabFromAtom);
@@ -132,7 +133,7 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
         }
     }, [queryClient, privyUser?.id, isNavigating]);
 
-    const { data: points, isLoading } = useFeed();
+    const { data: points, isLoading, refetch: refetchFeed } = useFeed();
 
     const {
         data: priorityPoints,
@@ -283,6 +284,18 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
         setMatchType(type);
     }, []);
 
+    const handleRefetchFeed = useCallback(async () => {
+        setIsRefetchingFeed(true);
+        try {
+            await setPrivyToken();
+            await refetchFeed();
+        } catch (error) {
+            console.error("Error refetching feed:", error);
+        } finally {
+            setIsRefetchingFeed(false);
+        }
+    }, [refetchFeed]);
+
     if (selectedTab === null) {
         return (
             <main className="flex-1 grid sm:grid-cols-[minmax(200px,600px)_1fr] overflow-auto bg-background min-h-0">
@@ -400,6 +413,8 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                                     handleCardClick={handleCardClick}
                                     loadingCardId={loadingCardId}
                                     onPrefetchPoint={prefetchPoint}
+                                    onRefetchFeed={handleRefetchFeed}
+                                    isRefetching={isRefetchingFeed}
                                 />
                             </Profiler>
                         )
@@ -449,6 +464,8 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                                 handleCardClick={handleCardClick}
                                 loadingCardId={loadingCardId}
                                 onPrefetchPoint={prefetchPoint}
+                                onRefetchFeed={handleRefetchFeed}
+                                isRefetching={isRefetchingFeed}
                             />
                         </Profiler>
                     ) : (

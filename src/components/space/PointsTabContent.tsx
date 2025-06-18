@@ -3,7 +3,7 @@
 import React, { memo, useMemo, useState, useCallback } from "react";
 import { Loader } from "@/components/ui/loader";
 import { Button } from "@/components/ui/button";
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, RefreshCwIcon } from "lucide-react";
 import { FeedItem } from "./FeedItem";
 import { useInfiniteScroll } from "@/hooks/ui/useInfiniteScroll";
 
@@ -21,6 +21,8 @@ export interface PointsTabContentProps {
     handleCardClick: (id: string) => void;
     loadingCardId: string | null;
     onPrefetchPoint: (id: number) => void;
+    onRefetchFeed?: () => void;
+    isRefetching?: boolean;
 }
 
 export const PointsTabContent = memo(({
@@ -36,7 +38,9 @@ export const PointsTabContent = memo(({
     loginOrMakePoint,
     handleCardClick,
     loadingCardId,
-    onPrefetchPoint
+    onPrefetchPoint,
+    onRefetchFeed,
+    isRefetching = false
 }: PointsTabContentProps) => {
     const pointItems = useMemo(
         () => combinedFeed.filter((item: any) => item.type === 'point'),
@@ -66,10 +70,22 @@ export const PointsTabContent = memo(({
         return (
             <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
                 <span className="text-muted-foreground">Nothing here yet</span>
-                <Button variant="outline" onClick={loginOrMakePoint}>
-                    <PlusIcon className="mr-2 size-4" />
-                    Make a Point
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={loginOrMakePoint}>
+                        <PlusIcon className="mr-2 size-4" />
+                        Make a Point
+                    </Button>
+                    {onRefetchFeed && (
+                        <Button
+                            variant="outline"
+                            onClick={onRefetchFeed}
+                            disabled={isRefetching}
+                        >
+                            <RefreshCwIcon className={`mr-2 size-4 ${isRefetching ? 'animate-spin' : ''}`} />
+                            {isRefetching ? 'Refreshing...' : 'Refresh Feed'}
+                        </Button>
+                    )}
+                </div>
             </div>
         );
     }

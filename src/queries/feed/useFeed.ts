@@ -2,6 +2,7 @@ import { fetchFeedPage } from "@/actions/feed/fetchFeed";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePrivy } from "@privy-io/react-auth";
 import { useFeedWorker } from "@/hooks/data/useFeedWorker";
+import { setPrivyToken } from "@/lib/privy/setPrivyToken";
 let hasLoggedServerActionError = false;
 
 const isServerActionError = (error: any): boolean => {
@@ -13,8 +14,24 @@ const isServerActionError = (error: any): boolean => {
   );
 };
 
+const isAuthError = (error: any): boolean => {
+  if (!error) return false;
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  return [
+    "Must be authenticated",
+    "Authentication required",
+    "not authenticated",
+    "error when verifying user privy token",
+    "invalid auth token",
+    "No Privy token found",
+    "Privy token expired",
+    "JWTExpired",
+    "ERR_JWT_EXPIRED",
+  ].some((msg) => errorMessage.toLowerCase().includes(msg.toLowerCase()));
+};
+
 export const useFeed = () => {
-  const { user: privyUser, ready } = usePrivy();
+  const { user: privyUser, ready, getAccessToken } = usePrivy();
   const { processPoints } = useFeedWorker();
   const queryClient = useQueryClient();
 
@@ -34,6 +51,40 @@ export const useFeed = () => {
 
         return page || [];
       } catch (error: any) {
+        if (isAuthError(error)) {
+          console.warn(
+            "Auth error detected in feed, attempting token refresh:",
+            error
+          );
+
+          try {
+            const refreshed = await setPrivyToken();
+            if (refreshed) {
+              console.log("Token refreshed successfully, retrying feed fetch");
+              const retryPage = await fetchFeedPage();
+
+              if (
+                Array.isArray(retryPage) &&
+                retryPage.length > 0 &&
+                privyUser?.id
+              ) {
+                try {
+                  processPoints(retryPage, privyUser.id);
+                } catch (workerError) {
+                  console.error(
+                    "Error processing points with worker after retry:",
+                    workerError
+                  );
+                }
+              }
+
+              return retryPage || [];
+            }
+          } catch (refreshError) {
+            console.error("Failed to refresh token:", refreshError);
+          }
+        }
+
         if (isServerActionError(error)) {
           if (!hasLoggedServerActionError) {
             console.error(
@@ -43,8 +94,6 @@ export const useFeed = () => {
             hasLoggedServerActionError = true;
           }
 
-          // For server action errors, we always want to retry with cached data
-          // because the server might be in an inconsistent state temporarily
           const cachedData = queryClient.getQueryData([
             "feed",
             privyUser?.id,
@@ -57,7 +106,6 @@ export const useFeed = () => {
           console.error("Error fetching feed:", error);
         }
 
-        // Try to use cached data if available
         const cachedData = queryClient.getQueryData([
           "feed",
           privyUser?.id,
@@ -76,9 +124,12 @@ export const useFeed = () => {
       if (isServerActionError(error) && failureCount >= 1) {
         return false;
       }
+      if (isAuthError(error) && failureCount >= 2) {
+        return false;
+      }
       return failureCount < 3;
     },
-    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30000), // Exponential backoff
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30000),
     enabled: ready,
     refetchOnWindowFocus: false,
     refetchOnMount: true,
