@@ -115,19 +115,19 @@ export function MessageBubble({
 
     return (
         <div className={cn(
-            "group flex gap-4 p-6 transition-colors hover:bg-muted/30",
+            "group flex gap-3 p-4 transition-colors hover:bg-muted/30",
             isOwn && "flex-row-reverse"
         )}>
-            <Avatar className="size-10 flex-shrink-0">
+            <Avatar className="size-8 flex-shrink-0">
                 <AvatarImage src={senderImage} />
                 <AvatarFallback className="bg-primary/10 text-primary">
                     {senderUsername?.[0]?.toUpperCase() || "?"}
                 </AvatarFallback>
             </Avatar>
 
-            <div className={cn("flex-1 min-w-0 space-y-2")}>
+            <div className={cn("flex-1 min-w-0 space-y-1")}>
                 {/* Header with username and timestamp */}
-                <div className={cn("flex items-baseline gap-3", isOwn && "flex-row-reverse")}>
+                <div className={cn("flex items-baseline gap-2", isOwn && "flex-row-reverse")}>
                     {!isOwn && (
                         <span className="text-sm font-semibold text-foreground">
                             {senderUsername || "Unknown User"}
@@ -141,13 +141,13 @@ export function MessageBubble({
 
                 {isEditing ? (
                     /* Editing mode */
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                         <Textarea
                             ref={textareaRef}
                             value={editContent}
                             onChange={(e) => setEditContent(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            className="min-h-[80px] resize-none"
+                            className="min-h-[60px] resize-none"
                             placeholder="Edit your message..."
                         />
                         <div className="flex gap-2 justify-start">
@@ -173,12 +173,12 @@ export function MessageBubble({
                     </div>
                 ) : (
                     /* Normal message display */
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                         {/* Message bubble container with proper alignment */}
                         <div className={cn("flex", isOwn ? "justify-end" : "justify-start")}>
                             <div
                                 className={cn(
-                                    "inline-block min-w-[200px] max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed",
+                                    "inline-block min-w-[200px] max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed",
                                     isOwn
                                         ? "bg-primary text-primary-foreground rounded-br-md"
                                         : "bg-muted text-foreground rounded-bl-md",
@@ -191,7 +191,7 @@ export function MessageBubble({
                                 </p>
 
                                 {!message.isDeleted && (
-                                    <div className="flex items-center gap-1 mt-2 justify-start">
+                                    <div className="flex items-center gap-1 mt-1 justify-start">
                                         {getStatusIcon()}
                                         {showReadIndicator && isOwn && message.readAt && (
                                             <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -219,7 +219,7 @@ export function MessageBubble({
                                     size="sm"
                                     variant="ghost"
                                     onClick={handleCopy}
-                                    className="h-7 px-2 text-xs"
+                                    className="h-6 px-2 text-xs"
                                     title="Copy message"
                                 >
                                     {clickedButton === 'copy' ? (
@@ -236,7 +236,7 @@ export function MessageBubble({
                                                 size="sm"
                                                 variant="ghost"
                                                 onClick={handleEdit}
-                                                className="h-7 px-2 text-xs"
+                                                className="h-6 px-2 text-xs"
                                                 title="Edit message"
                                             >
                                                 {clickedButton === 'edit' ? (
@@ -251,7 +251,7 @@ export function MessageBubble({
                                                 size="sm"
                                                 variant="ghost"
                                                 onClick={handleDelete}
-                                                className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                                                className="h-6 px-2 text-xs text-destructive hover:text-destructive"
                                                 title="Delete message"
                                             >
                                                 {clickedButton === 'delete' ? (
