@@ -108,7 +108,7 @@ export const fetchPointNegations = async (
         : sql<number>`0`.mapWith(Number),
       restakesByPoint: sql<number>`
         COALESCE((
-          SELECT SUM(er.amount)
+          SELECT SUM(er.effective_amount)
           FROM ${effectiveRestakesView} AS er
           WHERE er.point_id = ${pointsWithDetailsView.pointId}
           AND er.slashed_amount < er.amount
@@ -133,7 +133,25 @@ export const fetchPointNegations = async (
           AND er.user_id = ${userId}
           AND er.slashed_amount < er.amount
           LIMIT 1
-        ), NULL)`.as("restake"),
+        ), (
+          -- Fallback: check if user has any restake for this pair (even if fully slashed)
+          SELECT jsonb_build_object(
+            'id', r.id,
+            'amount', 0,
+            'originalAmount', r.amount,
+            'slashedAmount', COALESCE(s.amount, 0),
+            'doubtedAmount', 0,
+            'isOwner', true,
+            '_debug', 'fallback_fully_slashed'
+          )
+          FROM ${restakesTable} AS r
+          LEFT JOIN ${slashesTable} AS s ON s.restake_id = r.id
+          WHERE r.point_id = ${pointId}
+          AND r.negation_id = ${pointsWithDetailsView.pointId}
+          AND r.user_id = ${userId}
+          AND r.amount > 0
+          LIMIT 1
+        ))`.as("restake"),
       slashedAmount: sql<number>`
         COALESCE((
           SELECT SUM(er.slashed_amount)
@@ -176,13 +194,11 @@ export const fetchPointNegations = async (
         ), NULL)`,
       totalRestakeAmount: sql<number>`
         COALESCE((
-          SELECT SUM(CASE 
-            WHEN er.slashed_amount >= er.amount THEN 0
-            ELSE er.amount
-          END)
+          SELECT SUM(er.effective_amount)
           FROM ${effectiveRestakesView} AS er
           WHERE er.point_id = ${pointId}
           AND er.negation_id = ${pointsWithDetailsView.pointId}
+          AND er.slashed_amount < er.amount
         ), 0)
       `
         .mapWith(Number)

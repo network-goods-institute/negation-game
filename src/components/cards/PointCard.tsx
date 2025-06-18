@@ -256,11 +256,12 @@ export const PointCard = ({
 
   // Memoized values
   const [restakePercentage, isOverHundred] = useMemo(() => {
-    if (!isNegation || !parentPoint || !restake?.amount || !restake.isOwner)
+    if (!isNegation || !parentPoint || !restake?.amount || !restake.isOwner) {
       return [0, false];
-    const rawPercentage =
-      (restake.amount / (parentPoint.viewerCred || 1)) * 100;
-    return [Math.min(100, Math.round(rawPercentage)), rawPercentage > 100];
+    }
+    const rawPercentage = (restake.amount / (parentPoint.viewerCred || 1)) * 100;
+    const result: [number, boolean] = [Math.min(100, Math.round(rawPercentage)), rawPercentage > 100];
+    return result;
   }, [isNegation, parentPoint, restake]);
 
   const doubtPercentage = useMemo(() => {

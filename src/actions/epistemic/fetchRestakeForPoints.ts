@@ -30,15 +30,9 @@ export const fetchRestakeForPoints = async (
     })
     .from(effectiveRestakesView)
     .where(
-      or(
-        and(
-          eq(effectiveRestakesView.pointId, pointId),
-          eq(effectiveRestakesView.negationId, negationId)
-        ),
-        and(
-          eq(effectiveRestakesView.pointId, negationId),
-          eq(effectiveRestakesView.negationId, pointId)
-        )
+      and(
+        eq(effectiveRestakesView.pointId, pointId),
+        eq(effectiveRestakesView.negationId, negationId)
       )
     );
 
@@ -69,16 +63,8 @@ export const fetchRestakeForPoints = async (
     )
     .where(
       and(
-        or(
-          and(
-            eq(effectiveRestakesView.pointId, pointId),
-            eq(effectiveRestakesView.negationId, negationId)
-          ),
-          and(
-            eq(effectiveRestakesView.pointId, negationId),
-            eq(effectiveRestakesView.negationId, pointId)
-          )
-        ),
+        eq(effectiveRestakesView.pointId, pointId),
+        eq(effectiveRestakesView.negationId, negationId),
         eq(effectiveRestakesView.userId, userId),
         // Only return if not fully slashed
         sql`${effectiveRestakesView.slashedAmount} < ${effectiveRestakesView.amount}`

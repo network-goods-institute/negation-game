@@ -12,11 +12,13 @@ export const RestakeIcon = ({
   showPercentage,
   percentage,
   ...props
-}: RestakeIconProps) => (
-  <div className="flex items-center translate-y-[-0.5px]">
-    <Diamond className={cn("size-5 stroke-1", className)} {...props} />
-    {showPercentage && percentage && (
-      <span className="ml-1 translate-y-[-1px]">{percentage}%</span>
-    )}
-  </div>
-);
+}: RestakeIconProps) => {
+  return (
+    <div className="flex items-center translate-y-[-0.5px]">
+      <Diamond className={cn("size-5 stroke-1", className)} {...props} />
+      {showPercentage && percentage && (
+        <span className="ml-1 translate-y-[-1px]">{percentage}%</span>
+      )}
+    </div>
+  );
+};
