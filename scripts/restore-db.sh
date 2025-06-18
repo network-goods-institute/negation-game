@@ -11,7 +11,7 @@ DEST_DB_URL="$1"
 DEST_DB_PASSWORD="$2"
 INPUT_DUMP_FILE="$3"
 
-PGPASSWORD="$DEST_DB_PASSWORD" pg_restore --verbose --clean --if-exists --no-owner --jobs 4 "$DEST_DB_URL" < "$INPUT_DUMP_FILE"
+PGPASSWORD="$DEST_DB_PASSWORD" pg_restore --verbose --clean --if-exists --no-owner -d "$DEST_DB_URL" < "$INPUT_DUMP_FILE"
 
 if [ $? -eq 0 ]; then
     echo "Database restored successfully from $INPUT_DUMP_FILE to $DEST_DB_URL"
