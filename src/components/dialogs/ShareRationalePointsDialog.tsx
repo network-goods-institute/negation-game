@@ -8,7 +8,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { usePointData, PointData } from "@/queries/points/usePointData";
 import { PointCard } from "@/components/cards/PointCard";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { ArrowLeftIcon, ExternalLinkIcon } from "lucide-react";
+import { ArrowLeftIcon, ExternalLinkIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { DialogProps } from "@radix-ui/react-dialog";
 import { useSetAtom } from "jotai";
@@ -305,10 +305,13 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
 
     return (
         <Portal>
+            {/* Backdrop with blur */}
+            <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm" />
+
             <div
                 ref={modalRef}
                 className={cn(
-                    "fixed z-50 bg-background rounded-lg border-2 shadow-lg overflow-hidden flex flex-col",
+                    "fixed z-[60] bg-background rounded-lg border-2 shadow-lg overflow-hidden flex flex-col",
                 )}
                 style={{
                     left: `${position.x}px`,
@@ -333,7 +336,14 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
                     <h3 className="font-medium text-lg text-center">
                         {sharedBy ? `${sharedBy} thought you'd like these points` : "Someone thought you'd like these points"}
                     </h3>
-                    <div className="w-8" />
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleClose}
+                        className="h-8 w-8"
+                    >
+                        <XIcon className="h-4 w-4" />
+                    </Button>
                 </div>
 
                 {initialPoints.length === 0 && !isPointsLoading && (
