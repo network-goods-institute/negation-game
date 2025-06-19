@@ -5,6 +5,8 @@ import { eq, and, sql } from "drizzle-orm";
 import { decodeId } from "@/lib/negation-game/decodeId";
 import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
+import { truncateForSEO, extractKeywords, generateSEOTitle, cleanTextForSEO } from "@/lib/seo/utils";
+import { generatePointStructuredData } from "@/lib/seo/structuredData";
 
 interface Props {
     params: Promise<{
@@ -78,27 +80,57 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             return notFoundMetadata;
         }
 
-        const truncatedContent = point.content && typeof point.content === 'string'
-            ? (point.content.length > 200
-                ? point.content.substring(0, 197) + "..."
-                : point.content)
-            : "No content available";
+        // Use SEO utilities for optimized content
+        const cleanContent = cleanTextForSEO(point.content || "");
+        const contentKeywords = extractKeywords(cleanContent, 8);
+        const spaceDisplayName = space.charAt(0).toUpperCase() + space.slice(1);
 
-        const title = `${point.content || "Point"} | ${pointWithFavor.favor} Favor | s/${spaceParam}`;
+        // Generate SEO-optimized title
+        const baseTitle = cleanContent.length > 60
+            ? `${cleanContent.substring(0, 57)}...`
+            : cleanContent;
+        const title = generateSEOTitle(`${baseTitle} | ${pointWithFavor.favor} Favor | ${spaceDisplayName}`);
 
-        const description = `${truncatedContent}\n\n${point.amountSupporters || 0} supporters · ${point.cred || 0} cred · ${pointWithFavor.favor} favor · ${point.amountNegations || 0} negations`;
+        // Generate optimized description
+        const stats = `${point.amountSupporters || 0} supporters · ${point.cred || 0} cred · ${pointWithFavor.favor} favor · ${point.amountNegations || 0} negations`;
+        const description = truncateForSEO(`${cleanContent} ${stats}`, 160);
 
-        const ogImageUrl = `${protocol}://${domain}/api/og/point/${encodedPointId}?space=${spaceParam}`;
+        const baseUrl = `${protocol}://${domain}`;
+        const ogImageUrl = `${baseUrl}/api/og/point/${encodedPointId}?space=${spaceParam}`;
+        const canonicalUrl = new URL(`/s/${spaceParam}/${encodedPointId}`, baseUrl);
+
+        // Generate keywords combining content keywords with space-specific terms
+        const keywords = (
+            [
+                ...contentKeywords,
+                spaceDisplayName.toLowerCase(),
+                "discourse",
+                "debate",
+                "argument",
+                "epistemic",
+                "reasoning",
+                "negation game",
+            ] as const
+        ).slice(0, 8);
 
         return {
             title,
             description,
+            keywords,
+            authors: [{ name: point.author || "Unknown" }],
+            category: "discussion",
+            alternates: {
+                canonical: canonicalUrl,
+            },
             openGraph: {
                 title,
                 description,
                 type: "article",
                 authors: [point.author || "Unknown"],
-                url: `/s/${spaceParam}/${encodedPointId}`,
+                url: canonicalUrl,
+                publishedTime: point.createdAt?.toISOString(),
+                section: `${spaceDisplayName} Space`,
+                tags: keywords,
                 images: [{
                     url: ogImageUrl,
                     width: 1200,
@@ -110,9 +142,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
                 card: "summary_large_image",
                 title,
                 description,
-                creator: point.author || "Unknown",
+                creator: `@${point.author || "unknown"}`,
                 site: "@negationgame",
                 images: [ogImageUrl],
+            },
+            robots: {
+                index: true,
+                follow: true,
+                googleBot: {
+                    index: true,
+                    follow: true,
+                    "max-image-preview": "large",
+                    "max-snippet": -1,
+                },
             },
         };
     } catch (error) {
@@ -124,10 +166,71 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     }
 }
 
-export default function PointLayout({
+export default async function PointLayout({
     children,
+    params,
 }: {
     children: React.ReactNode;
+    params: Promise<{ encodedPointId: string; space: string }>;
 }) {
+    // Generate structured data for the point
+    try {
+        const resolvedParams = await params;
+        const { encodedPointId, space } = resolvedParams;
+        const pointId = decodeId(encodedPointId);
+
+        if (pointId !== null) {
+            const points = await db
+                .select({
+                    content: pointsWithDetailsView.content,
+                    createdBy: pointsWithDetailsView.createdBy,
+                    createdAt: pointsWithDetailsView.createdAt,
+                    author: usersTable.username,
+                })
+                .from(pointsWithDetailsView)
+                .innerJoin(usersTable, eq(usersTable.id, pointsWithDetailsView.createdBy))
+                .where(and(
+                    eq(pointsWithDetailsView.pointId, pointId),
+                    eq(pointsWithDetailsView.space, space)
+                ))
+                .limit(1);
+
+            const point = points[0];
+
+            if (point) {
+                const favorResults = await addFavor([{ id: pointId }]);
+                const pointWithFavor = favorResults[0];
+
+                const domain = process.env.NODE_ENV === "development"
+                    ? "http://localhost:3000"
+                    : `https://${process.env.NEXT_PUBLIC_DOMAIN || "negationgame.com"}`;
+
+                const structuredData = generatePointStructuredData({
+                    content: point.content || "",
+                    author: point.author,
+                    createdAt: point.createdAt || new Date(),
+                    pointId: encodedPointId,
+                    space,
+                    favor: pointWithFavor?.favor || 0,
+                    domain,
+                });
+
+                return (
+                    <>
+                        <script
+                            type="application/ld+json"
+                            dangerouslySetInnerHTML={{
+                                __html: JSON.stringify(structuredData),
+                            }}
+                        />
+                        {children}
+                    </>
+                );
+            }
+        }
+    } catch (error) {
+        console.error("Error generating structured data:", error);
+    }
+
     return children;
 } 

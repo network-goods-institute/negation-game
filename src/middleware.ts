@@ -192,7 +192,9 @@ export default function middleware(req: NextRequest) {
     url.pathname.startsWith("/notifications") ||
     url.pathname.startsWith("/messages")
   ) {
-    return NextResponse.next();
+    const res = NextResponse.next();
+    res.headers.set("X-Robots-Tag", "noindex, nofollow");
+    return res;
   }
 
   // Redirect top-level '/chat' to '/s/global/chat'
