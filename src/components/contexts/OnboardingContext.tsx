@@ -74,64 +74,66 @@ const OnboardingDialog = ({ isOpen, onClose, onDismissPermanently }: OnboardingD
             <KeybindsDialog open={showKeybinds} onOpenChange={setShowKeybinds} showBack />
             <VideoIntroDialog open={showVideo2} onOpenChange={setShowVideo2} showBack />
             <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-                <DialogContent className="max-w-2xl w-full">
-                    <DialogHeader>
-                        <DialogTitle>🚀 Welcome!</DialogTitle>
-                        <p className="text-sm text-muted-foreground mt-1">Get started with the Negation Game</p>
-                    </DialogHeader>
-                    <div className="mt-6 relative pb-[56.25%]">
-                        {!loaded[episode] && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-background">
-                                <Loader className="h-12 w-12 text-primary" />
-                            </div>
-                        )}
-                        <iframe
-                            src={srcMap[episode]}
-                            frameBorder="0"
-                            allow="autoplay; fullscreen; picture-in-picture"
-                            className="absolute top-0 left-0 w-full h-full"
-                            allowFullScreen
-                            onLoad={() => setLoaded(prev => ({ ...prev, [episode]: true }))}
-                        />
+                <DialogContent className="max-w-2xl w-full max-h-[90vh] flex flex-col">
+                    <div className="flex-1 overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>🚀 Welcome!</DialogTitle>
+                            <p className="text-sm text-muted-foreground mt-1">Get started with the Negation Game</p>
+                        </DialogHeader>
+                        <div className="mt-6 relative pb-[56.25%]">
+                            {!loaded[episode] && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-background">
+                                    <Loader className="h-12 w-12 text-primary" />
+                                </div>
+                            )}
+                            <iframe
+                                src={srcMap[episode]}
+                                frameBorder="0"
+                                allow="autoplay; fullscreen; picture-in-picture"
+                                className="absolute top-0 left-0 w-full h-full"
+                                allowFullScreen
+                                onLoad={() => setLoaded(prev => ({ ...prev, [episode]: true }))}
+                            />
+                        </div>
+                        <div className="flex justify-center mt-4">
+                            <button className="text-sm text-primary underline" onClick={() => setShowVideo2(true)}>
+                                Watch Episode 2
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-6">
+                            <button
+                                className="flex flex-col items-center p-4 bg-muted rounded-lg hover:bg-muted/80"
+                                onClick={() => {
+                                    onClose();
+                                    openKbDialog(true);
+                                }}
+                            >
+                                <Library className="h-6 w-6 mb-2" />
+                                <span className="font-semibold">Knowledge Base</span>
+                                <span className="text-xs text-muted-foreground text-center mt-1">Explore topics and concepts within the game</span>
+                            </button>
+                            <button
+                                className="flex flex-col items-center p-4 bg-muted rounded-lg hover:bg-muted/80"
+                                onClick={() => {
+                                    onClose();
+                                    openWriteupDialog(true);
+                                }}
+                            >
+                                <FileText className="h-6 w-6 mb-2" />
+                                <span className="font-semibold">Full Negation Game Write-up</span>
+                                <span className="text-xs text-muted-foreground text-center mt-1">The full length introduction to the Negation Game</span>
+                            </button>
+                            <button
+                                className="col-span-1 sm:col-span-2 flex justify-center flex-col items-center p-4 bg-muted rounded-lg hover:bg-muted/80"
+                                onClick={() => setShowKeybinds(true)}
+                            >
+                                <Keyboard className="h-6 w-6 mb-2" />
+                                <span className="font-semibold">Keybinds</span>
+                                <span className="text-xs text-muted-foreground text-center mt-1">Keyboard shortcuts</span>
+                            </button>
+                        </div>
                     </div>
-                    <div className="flex justify-center mt-4">
-                        <button className="text-sm text-primary underline" onClick={() => setShowVideo2(true)}>
-                            Watch Episode 2
-                        </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 p-6">
-                        <button
-                            className="flex flex-col items-center p-4 bg-muted rounded-lg hover:bg-muted/80"
-                            onClick={() => {
-                                onClose();
-                                openKbDialog(true);
-                            }}
-                        >
-                            <Library className="h-6 w-6 mb-2" />
-                            <span className="font-semibold">Knowledge Base</span>
-                            <span className="text-xs text-muted-foreground text-center mt-1">Explore topics and concepts within the game</span>
-                        </button>
-                        <button
-                            className="flex flex-col items-center p-4 bg-muted rounded-lg hover:bg-muted/80"
-                            onClick={() => {
-                                onClose();
-                                openWriteupDialog(true);
-                            }}
-                        >
-                            <FileText className="h-6 w-6 mb-2" />
-                            <span className="font-semibold">Full Negation Game Write-up</span>
-                            <span className="text-xs text-muted-foreground text-center mt-1">The full length introduction to the Negation Game</span>
-                        </button>
-                        <button
-                            className="col-span-2 flex justify-center flex-col items-center p-4 bg-muted rounded-lg hover:bg-muted/80"
-                            onClick={() => setShowKeybinds(true)}
-                        >
-                            <Keyboard className="h-6 w-6 mb-2" />
-                            <span className="font-semibold">Keybinds</span>
-                            <span className="text-xs text-muted-foreground text-center mt-1">Keyboard shortcuts</span>
-                        </button>
-                    </div>
-                    <DialogFooter className="flex justify-end space-x-2">
+                    <DialogFooter className="flex justify-end space-x-2 flex-shrink-0">
                         <Button variant="outline" onClick={onDismissPermanently}>
                             Don&apos;t show again
                         </Button>

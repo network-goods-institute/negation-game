@@ -53,17 +53,17 @@ export function SpaceTabs({
                         onClick={onNewViewpoint}
                         variant="outline"
                         size="sm"
-                        className="flex-1 text-sm"
+                        className="text-sm whitespace-nowrap"
                         loading={isNewRationaleLoading}
                     />
                 );
             case "points":
                 return (
                     <>
-                        <Button onClick={onLoginOrMakePoint} variant="outline" size="default" className="flex-1 text-sm">
+                        <Button onClick={onLoginOrMakePoint} variant="outline" size="default" className="text-sm whitespace-nowrap">
                             <PlusIcon className="h-4 w-4 mr-2" /> Make a Point
                         </Button>
-                        <Button onClick={onSelectNegation} variant="outline" size="default" className="flex-1 text-sm">
+                        <Button onClick={onSelectNegation} variant="outline" size="default" className="text-sm whitespace-nowrap">
                             <PlusIcon className="h-4 w-4 mr-2" /> Make a Negation
                         </Button>
                     </>
@@ -71,17 +71,17 @@ export function SpaceTabs({
             case "all":
                 return (
                     <>
-                        <Button onClick={onLoginOrMakePoint} variant="outline" size="default" className="flex-1 text-sm">
+                        <Button onClick={onLoginOrMakePoint} variant="outline" size="default" className="text-sm whitespace-nowrap">
                             <PlusIcon className="h-4 w-4 mr-2" /> Make a Point
                         </Button>
                         <NewRationaleButton
                             onClick={onNewViewpoint}
                             variant="outline"
                             size="sm"
-                            className="flex-1 text-sm"
+                            className="text-sm whitespace-nowrap"
                             loading={isNewRationaleLoading}
                         />
-                        <Button onClick={onSelectNegation} variant="outline" size="default" className="flex-1 text-sm">
+                        <Button onClick={onSelectNegation} variant="outline" size="default" className="text-sm whitespace-nowrap">
                             <PlusIcon className="h-4 w-4 mr-2" /> Make a Negation
                         </Button>
                     </>
@@ -96,7 +96,7 @@ export function SpaceTabs({
     return (
         <div className="flex flex-col gap-4 px-4 sm:px-lg py-3 sm:py-sm">
             {!isMobile && selectedTab !== "search" && (
-                <div className="flex justify-around items-center bg-background px-4 py-2 mb-4 sm:px-0 space-x-4">
+                <div className="flex flex-wrap justify-center items-center bg-background px-4 py-2 mb-4 sm:px-0 gap-2">
                     {getActionButtons()}
                 </div>
             )}

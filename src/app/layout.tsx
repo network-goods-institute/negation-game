@@ -3,7 +3,7 @@ import { ThemedPrivyProvider } from "@/components/providers/ThemedPrivyProvider"
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils/cn";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { GlobalDialogs } from "@/components/dialogs/GlobalDialogs";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -25,6 +25,12 @@ const inter = Inter({
   variable: "--font-sans",
   display: "swap",
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
 
 export const metadata: Metadata = {
   title: {
@@ -60,11 +66,6 @@ export const metadata: Metadata = {
   ),
   alternates: {
     canonical: "/",
-  },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 5,
   },
   other: {
     "theme-color": "#667eea",

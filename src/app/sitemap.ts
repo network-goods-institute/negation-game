@@ -11,7 +11,7 @@ import {
 } from "@/lib/seo/sitemapUtils";
 
 // Revalidate sitemap every 12 hours so crawlers receive fresh data without DDoSing the DB
-export const revalidate = 60 * 60 * 12;
+export const revalidate = 43200; // 60 * 60 * 12 = 43200 seconds (12 hours)
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const domain =

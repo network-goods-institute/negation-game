@@ -54,13 +54,21 @@ export function DynamicHeaderContent() {
         );
     };
 
+    const handleClick = (e: React.MouseEvent, targetPath: string) => {
+        if (pathname === targetPath) {
+            e.preventDefault();
+            return;
+        }
+        setIsNavigating(true);
+    };
+
     return (
         <>
             {isSpacePage && spaceId ? (
                 <Link
                     href={`/s/${spaceId}`}
                     className="flex items-center min-w-0 overflow-hidden"
-                    onClick={() => setIsNavigating(true)}
+                    onClick={(e) => handleClick(e, `/s/${spaceId}`)}
                 >
                     {isNavigating ? (
                         <div className="flex items-center">
@@ -82,7 +90,7 @@ export function DynamicHeaderContent() {
                 <Link
                     href="/"
                     className="text-[11px] sm:text-base font-bold whitespace-nowrap"
-                    onClick={() => setIsNavigating(true)}
+                    onClick={(e) => handleClick(e, "/")}
                 > {/* Mobile: 11px, Small+: base */}
                     {isNavigating ? (
                         <div className="flex items-center">
