@@ -1,3 +1,45 @@
 User-agent: *
-Disallow: 
+Allow: /
+
+# High-value pages for indexing
+Allow: /s/
+Allow: /s/global
+Allow: /s/scroll
+Allow: /s/*/rationale/
+
+# Block private/user-specific pages
+Disallow: /api/
+Disallow: /messages/
+Disallow: /notifications/
+Disallow: /settings/
+Disallow: /*?*
+
+# Allow but lower priority for user profiles
+Allow: /profile/
+
+# Special rules for search engines
+User-agent: Googlebot
+Crawl-delay: 1
+Allow: /
+
+User-agent: Bingbot
+Crawl-delay: 2
+Allow: /
+
+User-agent: Slurp
+Crawl-delay: 3
+Allow: /
+
+# Block aggressive crawlers
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+# Sitemap location
+Sitemap: https://negationgame.com/sitemap.xml
 
