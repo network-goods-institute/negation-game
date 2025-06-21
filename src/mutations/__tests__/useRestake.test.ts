@@ -65,6 +65,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { doubtForRestakeQueryKey } from "@/queries/epistemic/useDoubtForRestake";
 import { restakeForPointsQueryKey } from "@/queries/epistemic/useRestakeForPoints";
 import { useVisitedPoints } from "@/hooks/points/useVisitedPoints";
+import { pointNegationsQueryKey } from "@/queries/points/usePointNegations";
 
 describe("useRestake", () => {
   // Setup common mocks
@@ -120,10 +121,12 @@ describe("useRestake", () => {
     const result = useRestake();
 
     // Verify it was called with the correct parameters
-    expect(useAuthenticatedMutation).toHaveBeenCalledWith({
-      mutationFn: restake,
-      onSuccess: expect.any(Function),
-    });
+    expect(useAuthenticatedMutation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mutationFn: restake,
+        onSuccess: expect.any(Function),
+      })
+    );
 
     // Verify the result is the mutation object
     expect(result).toBe(mockMutation);
@@ -179,13 +182,22 @@ describe("useRestake", () => {
       exact: false,
     });
 
+    const expectedPointNegationsKeyPoint = pointNegationsQueryKey({
+      pointId: 456,
+      userId: mockUser.id,
+    });
+    const expectedPointNegationsKeyNeg = pointNegationsQueryKey({
+      pointId: 789,
+      userId: mockUser.id,
+    });
+
     expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
-      queryKey: ["point-negations", 456],
+      queryKey: expectedPointNegationsKeyPoint,
       exact: false,
     });
 
     expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
-      queryKey: ["point-negations", 789],
+      queryKey: expectedPointNegationsKeyNeg,
       exact: false,
     });
 

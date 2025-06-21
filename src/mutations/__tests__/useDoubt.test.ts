@@ -42,6 +42,7 @@ import { useDoubt } from "../epistemic/useDoubt";
 import { useAuthenticatedMutation } from "../auth/useAuthenticatedMutation";
 import { doubt } from "@/actions/epistemic/doubt";
 import { useInvalidateRelatedPoints } from "@/queries/points/usePointData";
+import { pointNegationsQueryKey } from "@/queries/points/usePointNegations";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePrivy } from "@privy-io/react-auth";
 import { useVisitedPoints } from "@/hooks/points/useVisitedPoints";
@@ -122,19 +123,29 @@ describe("useDoubt", () => {
     // Verify markPointAsRead was called
     expect(mockMarkPointAsRead).toHaveBeenCalledWith(456);
 
-    // Verify other invalidation queries
+    // Verify doubt-specific invalidation
     expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: ["doubt", 456, 789],
       exact: false,
     });
 
+    // Verify other invalidation queries
+    const expectedPointNegationsKeyPoint = pointNegationsQueryKey({
+      pointId: 456,
+      userId: mockUser.id,
+    });
+    const expectedPointNegationsKeyNeg = pointNegationsQueryKey({
+      pointId: 789,
+      userId: mockUser.id,
+    });
+
     expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
-      queryKey: ["point-negations", 456],
+      queryKey: expectedPointNegationsKeyPoint,
       exact: false,
     });
 
     expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
-      queryKey: ["point-negations", 789],
+      queryKey: expectedPointNegationsKeyNeg,
       exact: false,
     });
 

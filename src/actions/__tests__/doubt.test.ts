@@ -58,13 +58,22 @@ jest.mock("@/db/schema", () => ({
 }));
 
 jest.mock("@/services/db", () => {
-  const mockDb = {
-    transaction: jest.fn(),
+  // Create a mock DB object with the common query builder methods
+  const mockDb: any = {
     select: jest.fn(),
     insert: jest.fn(),
     update: jest.fn(),
     execute: jest.fn(),
   };
+
+  // The transaction helper should execute the provided callback immediately,
+  // passing the same mock DB so that calls inside the callback are captured by
+  // the spies defined above. This mimics Drizzle's API closely enough for unit
+  // testing.
+  mockDb.transaction = jest.fn(async (callback: (tx: typeof mockDb) => any) => {
+    return callback(mockDb);
+  });
+
   return { db: mockDb };
 });
 
