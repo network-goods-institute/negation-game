@@ -18,8 +18,7 @@ export const effectiveRestakesView = pgView("effective_restakes_view").as(
           SELECT ${slashesTable.amount}
           FROM ${slashesTable}
           WHERE ${slashesTable.restakeId} = ${restakesTable.id}
-          AND ${slashesTable.amount} > 0 
-          AND ${slashesTable.createdAt} > ${restakesTable.createdAt}
+          AND ${slashesTable.amount} > 0
         ), 0)
       `.as("slashed_amount"),
         doubtedAmount: sql<number>`
@@ -37,8 +36,7 @@ export const effectiveRestakesView = pgView("effective_restakes_view").as(
             SELECT ${slashesTable.amount}
             FROM ${slashesTable}
             WHERE ${slashesTable.restakeId} = ${restakesTable.id}
-            AND ${slashesTable.amount} > 0 
-            AND ${slashesTable.createdAt} > ${restakesTable.createdAt}
+            AND ${slashesTable.amount} > 0
           ), 0)
         )
       `.as("effective_amount"),
@@ -47,8 +45,7 @@ export const effectiveRestakesView = pgView("effective_restakes_view").as(
           SELECT ${slashesTable.amount}
           FROM ${slashesTable}
           WHERE ${slashesTable.restakeId} = ${restakesTable.id}
-          AND ${slashesTable.amount} > 0 
-          AND ${slashesTable.createdAt} > ${restakesTable.createdAt}
+          AND ${slashesTable.amount} > 0
         ), 0)
       `.as("available_for_doubts"),
       })

@@ -65,26 +65,38 @@ export const EarningsDialog: FC<EarningsDialogProps> = ({
 
   return (
     <Dialog {...props} open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex flex-col items-center text-center gap-6 p-6">
+      <DialogContent className="flex flex-col items-center text-center gap-6 p-6 max-h-[90vh] overflow-hidden">
         {!collected ? (
           <>
             <div className="rounded-full bg-endorsed/10 p-3">
               <CoinsIcon className="size-6 text-endorsed" />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 flex-shrink-0">
               <DialogTitle className="text-xl">Collect Earnings</DialogTitle>
               <div className="flex items-center justify-center gap-2 text-lg">
                 <span>
                   <span className="text-endorsed">
-                    {previewAmount.toFixed(0)}
+                    {previewAmount > 0 && previewAmount < 0.01 ? "< 0.01" : previewAmount.toFixed(0)}
                   </span>
                   <span className="text-muted-foreground ml-2">
                     cred available
                   </span>
                 </span>
               </div>
-              <div className="text-sm text-muted-foreground mt-4">
+              {previewAmount > 0 && previewAmount < 0.01 && (
+                <div className="text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 rounded-md p-2 mt-2">
+                  <p className="font-medium">⚠️ Earnings are very small</p>
+                  <p className="text-xs mt-1">
+                    This usually happens when negation points have very low favor.
+                    Try doubting restakes on higher-favor negations for better returns.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto w-full">
+              <div className="text-sm text-muted-foreground">
                 <div
                   className="flex items-center justify-between p-3 rounded-lg cursor-pointer hover:bg-muted/30 transition-colors"
                   onClick={() => setShowEarningExplanation(!showEarningExplanation)}
@@ -212,7 +224,7 @@ export const EarningsDialog: FC<EarningsDialogProps> = ({
             </div>
 
             <Button
-              className="w-full"
+              className="w-full flex-shrink-0"
               onClick={handleCollect}
               disabled={isCollecting || Math.floor(previewAmount) === 0}
             >
@@ -222,7 +234,9 @@ export const EarningsDialog: FC<EarningsDialogProps> = ({
                   Collecting...
                 </>
               ) : Math.floor(previewAmount) === 0 ? (
-                "Not enough to collect yet"
+                previewAmount > 0 && previewAmount < 0.01
+                  ? "Earnings too small to collect"
+                  : "Not enough to collect yet"
               ) : (
                 `Collect ${Math.floor(previewAmount)} cred`
               )}

@@ -1,3 +1,5 @@
+General Rules:
+
 You are an expert in the tech stack used in this project: TypeScript, Node.js, Next.js App Router, React, Shadcn UI, Radix UI, Tailwind and Postgresql.
 
 - Write concise, legible TypeScript code.
@@ -6,8 +8,6 @@ You are an expert in the tech stack used in this project: TypeScript, Node.js, N
 - Prefer iteration and modularization over code duplication, but avoid premature abstractions
 
 Do not try to run pnpm build or pnpm dev, assume the user can handle it. Do not run drizzle-kit generate or drizzle-kit migrate, assume the user can handle it.
-
-viewpoints are equivalent to rationales, rationales are the client facing name, but referred to as viewpoints internally
 
 We started adding tests lately, most features do not have them. But every new feature should have them added. We use jest.
 
@@ -30,6 +30,11 @@ When you write raw sql to be inserted into the database to see what it's in it, 
 Additionally, use drizzle syntax for sql statements.
 
 Stop fucking adding comments for everything.
+
+General Negation Game Rules:
+viewpoints are equivalent to rationales, rationales are the client facing name, but referred to as viewpoints internally
+
+Epistemic System Rules:
 
 // Restake System Rules:
 // 1. Restakes are commitments to change one's mind about a parent point IF a negation is true. Restakes are placed on the negation, not the point. The point is called the parent point.

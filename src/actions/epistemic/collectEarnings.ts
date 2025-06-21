@@ -10,8 +10,8 @@ import {
   usersTable,
 } from "@/db/schema";
 
-const calculateEarnings = (userId: string) => {
-  return db
+const calculateEarnings = async (userId: string) => {
+  const results = await db
     .select({
       doubt_id: doubtsTable.id,
       point_id: doubtsTable.pointId,
@@ -38,18 +38,25 @@ const calculateEarnings = (userId: string) => {
         SELECT SUM(e.cred)
         FROM endorsements e
         WHERE e.point_id = ${doubtsTable.pointId}
-        AND e.created_at <= ${sql.raw(`'${new Date().toISOString()}'`)}
+        AND e.created_at <= ${doubtsTable.createdAt}
         AND e.user_id IN (
           SELECT user_id 
           FROM restakes 
           WHERE point_id = ${doubtsTable.pointId}
           AND negation_id = ${doubtsTable.negationId}
-          AND created_at <= ${sql.raw(`'${new Date().toISOString()}'`)}
+          AND created_at <= ${doubtsTable.createdAt}
         )
       )`,
     })
     .from(doubtsTable)
-    .where(eq(doubtsTable.userId, userId));
+    .where(
+      and(
+        eq(doubtsTable.userId, userId),
+        sql`${doubtsTable.amount} > 0` // Only include active doubts
+      )
+    );
+
+  return results;
 };
 
 export const previewEarnings = async () => {
@@ -59,10 +66,16 @@ export const previewEarnings = async () => {
   }
 
   const earningsQuery = await calculateEarnings(userId);
+
+  if (earningsQuery.length === 0) {
+    return 0;
+  }
+
   let totalEarnings = 0;
   for (const doubt of earningsQuery) {
     const rawEarnings = doubt.hourly_rate * doubt.hours_since_payout;
     const earnings = Math.min(rawEarnings, doubt.available_endorsement);
+
     totalEarnings += earnings;
   }
 
@@ -90,7 +103,7 @@ export const collectEarnings = async (): Promise<CollectionResult> => {
       affectedPoints.add(doubt.negation_id);
 
       const rawEarnings = doubt.hourly_rate * doubt.hours_since_payout;
-      const earnings = Math.floor(
+      const earnings = Math.round(
         Math.min(rawEarnings, doubt.available_endorsement)
       );
 
@@ -126,7 +139,7 @@ export const collectEarnings = async (): Promise<CollectionResult> => {
             endorsement ===
             restakersEndorsements[restakersEndorsements.length - 1]
               ? remainingEarnings
-              : Math.floor(earnings * proportion);
+              : Math.round(earnings * proportion);
 
           if (deduction > 0) {
             const userEndorsements = await tx

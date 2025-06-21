@@ -40,7 +40,6 @@ export const doubt = async ({ pointId, negationId, amount }: DoubtArgs) => {
     .limit(1)
     .then((rows) => rows[0]);
 
-  // Only allow increasing non-zero doubts, or reusing fully slashed ones
   if (
     existingDoubt &&
     existingDoubt.amount > 0 &&
@@ -80,7 +79,7 @@ export const doubt = async ({ pointId, negationId, amount }: DoubtArgs) => {
         FROM ${doubtsTable}
         WHERE id = ${existingDoubt.id}
       )
-      SELECT FLOOR(LEAST(
+      SELECT ROUND(LEAST(
         hourly_rate * hours_since_payout,
         available_endorsement
       )) as earnings
@@ -90,98 +89,100 @@ export const doubt = async ({ pointId, negationId, amount }: DoubtArgs) => {
     earnings = earningsCalc[0]?.earnings ?? 0;
   }
 
-  // Deduct new cred from user
-  const credToDeduct =
-    existingDoubt?.amount > 0 ? amount - existingDoubt.amount : amount;
-  await db
-    .update(usersTable)
-    .set({
-      cred: sql`${usersTable.cred} - ${credToDeduct} + ${earnings}`,
-    })
-    .where(eq(usersTable.id, userId));
-
-  let doubtId: number;
-
-  if (existingDoubt) {
-    // Calculate if doubt is effectively zeroed (fully reduced by slashes)
-    const isEffectivelyZeroed = await db
-      .select({
-        slashedAmount: sql<number>`
-          COALESCE((
-            SELECT SUM(s.amount)
-            FROM ${slashesTable} s
-            JOIN ${restakesTable} r ON r.id = s.restake_id
-            WHERE r.point_id = ${pointId}
-            AND r.negation_id = ${negationId}
-            AND s.amount > 0
-            AND r.created_at <= ${sql.raw(`'${existingDoubt.createdAt.toISOString()}'`)}
-          ), 0)
-        `.as("slashed_amount"),
-      })
-      .from(doubtsTable)
-      .where(eq(doubtsTable.id, existingDoubt.id))
-      .then((rows) => rows[0]?.slashedAmount >= existingDoubt.amount);
-
-    // Update existing doubt with new values
-    await db
-      .update(doubtsTable)
+  return await db.transaction(async (tx) => {
+    // Deduct new cred from user atomically
+    const credToDeduct =
+      existingDoubt?.amount > 0 ? amount - existingDoubt.amount : amount;
+    await tx
+      .update(usersTable)
       .set({
-        amount,
-        ...(isEffectivelyZeroed
-          ? {
-              lastEarningsAt: sql`CURRENT_TIMESTAMP`,
-              createdAt: sql`CURRENT_TIMESTAMP`,
-            }
-          : {
-              lastEarningsAt: sql`CURRENT_TIMESTAMP`,
-            }),
+        cred: sql`${usersTable.cred} - ${credToDeduct} + ${earnings}`,
       })
-      .where(eq(doubtsTable.id, existingDoubt.id))
-      .returning({ id: doubtsTable.id });
+      .where(eq(usersTable.id, userId));
 
-    doubtId = existingDoubt.id;
-  } else {
-    // Create new doubt
-    doubtId = await db
-      .insert(doubtsTable)
-      .values({
-        userId,
-        pointId,
-        negationId,
+    let doubtId: number;
+
+    if (existingDoubt) {
+      // Calculate if doubt is effectively zeroed (fully reduced by slashes)
+      const isEffectivelyZeroed = await tx
+        .select({
+          slashedAmount: sql<number>`
+            COALESCE((
+              SELECT SUM(s.amount)
+              FROM ${slashesTable} s
+              JOIN ${restakesTable} r ON r.id = s.restake_id
+              WHERE r.point_id = ${pointId}
+              AND r.negation_id = ${negationId}
+              AND s.amount > 0
+              AND r.created_at <= ${sql.raw(`'${existingDoubt.createdAt.toISOString()}'`)}
+            ), 0)
+          `.as("slashed_amount"),
+        })
+        .from(doubtsTable)
+        .where(eq(doubtsTable.id, existingDoubt.id))
+        .then((rows) => rows[0]?.slashedAmount >= existingDoubt.amount);
+
+      // Update existing doubt with new values
+      await tx
+        .update(doubtsTable)
+        .set({
+          amount,
+          ...(isEffectivelyZeroed
+            ? {
+                lastEarningsAt: sql`CURRENT_TIMESTAMP`,
+                createdAt: sql`CURRENT_TIMESTAMP`,
+              }
+            : {
+                lastEarningsAt: sql`CURRENT_TIMESTAMP`,
+              }),
+        })
+        .where(eq(doubtsTable.id, existingDoubt.id))
+        .returning({ id: doubtsTable.id });
+
+      doubtId = existingDoubt.id;
+    } else {
+      // Create new doubt
+      doubtId = await tx
+        .insert(doubtsTable)
+        .values({
+          userId,
+          pointId,
+          negationId,
+          amount,
+          space,
+        })
+        .returning({ id: doubtsTable.id })
+        .then(([{ id }]) => id);
+    }
+
+    // Record history
+    await tx.insert(doubtHistoryTable).values({
+      doubtId,
+      userId,
+      pointId,
+      negationId,
+      action: existingDoubt
+        ? existingDoubt.amount === 0
+          ? "created" // Treat reuse of fully slashed doubt as new creation
+          : "increased"
+        : "created",
+      previousAmount: existingDoubt?.amount ?? null,
+      newAmount: amount,
+    });
+
+    // Queue notification if amount > 0 (only for active doubts)
+    if (amount > 0) {
+      queueDoubtNotification({
+        negatedPointId: pointId,
+        doubterId: userId,
         amount,
         space,
-      })
-      .returning({ id: doubtsTable.id })
-      .then(([{ id }]) => id);
-  }
+      });
+    }
 
-  // Record history
-  await db.insert(doubtHistoryTable).values({
-    doubtId,
-    userId,
-    pointId,
-    negationId,
-    action: existingDoubt
-      ? existingDoubt.amount === 0
-        ? "created" // Treat reuse of fully slashed doubt as new creation
-        : "increased"
-      : "created",
-    previousAmount: existingDoubt?.amount ?? null,
-    newAmount: amount,
+    return {
+      doubtId,
+      earnings,
+    };
   });
-
-  // Queue notification if amount > 0 (only for active doubts)
-  if (amount > 0) {
-    queueDoubtNotification({
-      negatedPointId: pointId,
-      doubterId: userId,
-      amount,
-      space,
-    });
-  }
-
-  return {
-    doubtId,
-    earnings,
-  };
 };

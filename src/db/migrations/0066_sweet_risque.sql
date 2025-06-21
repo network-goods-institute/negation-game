@@ -1,0 +1,87 @@
+DROP VIEW "public"."effective_restakes_view";--> statement-breakpoint
+DROP VIEW "public"."point_with_details_view";--> statement-breakpoint
+CREATE VIEW "public"."effective_restakes_view" AS (select "user_id", "point_id", "negation_id", "amount", "space", "created_at", 
+        COALESCE((
+          SELECT "amount"
+          FROM "slashes"
+          WHERE "restake_id" = "restakes"."id"
+          AND "amount" > 0
+        ), 0)
+       as "slashed_amount", 
+        COALESCE((
+          SELECT SUM("amount")
+          FROM "doubts"
+          WHERE "point_id" = "restakes"."point_id"
+          AND "negation_id" = "restakes"."negation_id"
+          AND "created_at" >= "restakes"."created_at"
+        ), 0)
+       as "doubted_amount", 
+        GREATEST(0, "amount" - 
+          COALESCE((
+            SELECT "amount"
+            FROM "slashes"
+            WHERE "restake_id" = "restakes"."id"
+            AND "amount" > 0
+          ), 0)
+        )
+       as "effective_amount", 
+        "amount" > COALESCE((
+          SELECT "amount"
+          FROM "slashes"
+          WHERE "restake_id" = "restakes"."id"
+          AND "amount" > 0
+        ), 0)
+       as "available_for_doubts" from "restakes" where "restakes"."amount" > 0);--> statement-breakpoint
+CREATE VIEW "public"."point_with_details_view" AS (select "id", "content", "created_at", "created_by", "space", "is_command", "is_active", "deleted_at", "deleted_by", 
+        COALESCE((
+          SELECT COUNT(*)
+          FROM (
+            SELECT "older_point_id" AS point_id FROM "negations"
+            WHERE "is_active" = true
+            UNION ALL
+            SELECT "newer_point_id" AS point_id FROM "negations"
+            WHERE "is_active" = true
+          ) sub
+          WHERE sub.point_id = "id"
+        ), 0)
+       as "amount_negations", 
+        COALESCE((
+          SELECT COUNT(DISTINCT "user_id")
+          FROM "endorsements"
+          WHERE "point_id" = "id"
+        ), 0)
+       as "amount_supporters", 
+        COALESCE((
+          SELECT SUM("cred")
+          FROM "endorsements"
+          WHERE "point_id" = "id"
+        ), 0)
+       as "cred", 
+        COALESCE((
+          SELECT SUM("cred")
+          FROM "endorsements"
+          WHERE "point_id" IN (
+            SELECT "newer_point_id"
+            FROM "negations"
+            WHERE "older_point_id" = "id"
+            AND "is_active" = true
+            UNION
+            SELECT "older_point_id"
+            FROM "negations"
+            WHERE "newer_point_id" = "id"
+            AND "is_active" = true
+          )
+        ), 0)
+       as "negations_cred", 
+        ARRAY(
+          SELECT "older_point_id"
+          FROM "negations"
+          WHERE "newer_point_id" = "id"
+          AND "is_active" = true
+          UNION ALL
+          SELECT "newer_point_id"
+          FROM "negations"
+          WHERE "older_point_id" = "id"
+          AND "is_active" = true
+        )
+       as "negation_ids" from "points" where "points"."is_active" = true);

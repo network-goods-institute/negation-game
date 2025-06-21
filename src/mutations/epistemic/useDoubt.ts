@@ -6,6 +6,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { pointQueryKey } from "@/queries/points/usePointData";
 import { useVisitedPoints } from "@/hooks/points/useVisitedPoints";
+import { pointNegationsQueryKey } from "@/queries/points/usePointNegations";
 
 export const useDoubt = () => {
   const queryClient = useQueryClient();
@@ -30,11 +31,14 @@ export const useDoubt = () => {
 
       // Invalidate point-negations to update relationships and icons
       queryClient.invalidateQueries({
-        queryKey: ["point-negations", pointId],
+        queryKey: pointNegationsQueryKey({ pointId, userId: user?.id }),
         exact: false,
       });
       queryClient.invalidateQueries({
-        queryKey: ["point-negations", negationId],
+        queryKey: pointNegationsQueryKey({
+          pointId: negationId,
+          userId: user?.id,
+        }),
         exact: false,
       });
 

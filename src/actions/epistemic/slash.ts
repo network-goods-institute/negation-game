@@ -51,6 +51,13 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
       throw new Error("No active restake found to slash");
     }
 
+    // Validate that we're not trying to slash more than the restake amount
+    if (amount > restake.amount) {
+      throw new Error(
+        `Cannot slash ${amount} cred - only ${restake.amount} cred was restaked`
+      );
+    }
+
     // Get existing slash
     const existingSlash = await tx
       .select()
@@ -137,6 +144,13 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
           ? amount // Replace if there was a restake since last slash
           : existingSlash.amount + amount; // Add to existing amount
 
+      // Validate that total slashed amount doesn't exceed restake amount
+      if (newAmount > restake.amount) {
+        throw new Error(
+          `Cannot slash total of ${newAmount} cred - only ${restake.amount} cred was restaked (already slashed: ${existingSlash.amount})`
+        );
+      }
+
       // Calculate the additional slash amount
       const additionalSlashAmount = newAmount - existingSlash.amount;
 
@@ -178,7 +192,7 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
         // Update each doubt and record history
         for (const doubt of doubts) {
           const reductionAmount = Math.min(
-            Math.floor(doubt.amount * slashProportion),
+            Math.round(doubt.amount * slashProportion),
             doubt.amount
           );
           if (reductionAmount > 0) {
@@ -236,7 +250,7 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
 
         for (const doubt of doubts) {
           const reductionAmount = Math.min(
-            Math.floor(doubt.amount * slashProportion),
+            Math.round(doubt.amount * slashProportion),
             doubt.amount
           );
           if (reductionAmount > 0) {

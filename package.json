@@ -14,7 +14,7 @@
     "test:coverage": "jest --coverage",
     "update-spaces": "tsx scripts/update-spaces-list.ts",
     "list-spaces": "tsx scripts/print-spaces-list.ts",
-    "clone-space": "tsx scripts/cloneSpace.ts",
+    "clone-space": "tsx scripts/clone-space.ts",
     "clone-db": "./scripts/clone-db.sh",
     "dump-db": "./scripts/dump-db.sh",
     "restore-db": "./scripts/restore-db.sh",

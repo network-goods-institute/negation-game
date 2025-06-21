@@ -8,6 +8,7 @@ import { pointQueryKey } from "@/queries/points/usePointData";
 import { doubtForRestakeQueryKey } from "@/queries/epistemic/useDoubtForRestake";
 import { restakeForPointsQueryKey } from "@/queries/epistemic/useRestakeForPoints";
 import { useVisitedPoints } from "@/hooks/points/useVisitedPoints";
+import { pointNegationsQueryKey } from "@/queries/points/usePointNegations";
 
 export const useRestake = () => {
   const queryClient = useQueryClient();
@@ -16,6 +17,85 @@ export const useRestake = () => {
   const { markPointAsRead } = useVisitedPoints();
   return useAuthenticatedMutation({
     mutationFn: restake,
+    // Optimistic update to speed up UI (PointCard icons)
+    onMutate: async ({ pointId, negationId, amount }) => {
+      await queryClient.cancelQueries({
+        predicate: (q) => {
+          const key = q.queryKey as unknown[];
+          return (
+            (key[1] === "negations" &&
+              (key[0] === pointId || key[0] === negationId)) ||
+            (Array.isArray(key) && key[0] === "restake-for-points")
+          );
+        },
+      });
+
+      // Snapshot previous data for rollback
+      const previousPointNegationsPoint = queryClient.getQueryData<any[]>(
+        pointNegationsQueryKey({ pointId, userId: user?.id })
+      );
+      const previousPointNegationsNeg = queryClient.getQueryData<any[]>(
+        pointNegationsQueryKey({ pointId: negationId, userId: user?.id })
+      );
+
+      const updateRestakeInArray = (arr: any[] | undefined) => {
+        if (!arr) return arr;
+        return arr.map((n) => {
+          if (n.pointId === negationId && n.restake && n.restake.isOwner) {
+            const newAmount = (n.restake?.amount || 0) + amount;
+            return {
+              ...n,
+              restake: {
+                ...n.restake,
+                amount: newAmount,
+                originalAmount: newAmount,
+                slashedAmount: 0,
+                effectiveAmount: newAmount,
+              },
+              totalRestakeAmount: (n.totalRestakeAmount || 0) + amount,
+            };
+          }
+          return n;
+        });
+      };
+
+      // Apply optimistic update to both point's negations lists
+      queryClient.setQueryData(
+        pointNegationsQueryKey({ pointId, userId: user?.id }),
+        updateRestakeInArray(previousPointNegationsPoint)
+      );
+      queryClient.setQueryData(
+        pointNegationsQueryKey({ pointId: negationId, userId: user?.id }),
+        updateRestakeInArray(previousPointNegationsNeg)
+      );
+
+      // Return context for rollback
+      return {
+        previousPointNegationsPoint,
+        previousPointNegationsNeg,
+      };
+    },
+    onError: (_err, _variables, context) => {
+      // Rollback optimistic updates
+      if (context?.previousPointNegationsPoint) {
+        queryClient.setQueryData(
+          pointNegationsQueryKey({
+            pointId: context.previousPointNegationsPoint?.[0]?.pointId,
+            userId: user?.id,
+          }),
+          context.previousPointNegationsPoint
+        );
+      }
+      if (context?.previousPointNegationsNeg) {
+        queryClient.setQueryData(
+          pointNegationsQueryKey({
+            pointId: context.previousPointNegationsNeg?.[0]?.pointId,
+            userId: user?.id,
+          }),
+          context.previousPointNegationsNeg
+        );
+      }
+    },
     onSuccess: async (_restakeId, { pointId, negationId }) => {
       // Invalidate both points involved
       invalidateRelatedPoints(pointId);
@@ -66,11 +146,14 @@ export const useRestake = () => {
 
       // Invalidate point-negations to update relationships and icons
       queryClient.invalidateQueries({
-        queryKey: ["point-negations", pointId],
+        queryKey: pointNegationsQueryKey({ pointId, userId: user?.id }),
         exact: false,
       });
       queryClient.invalidateQueries({
-        queryKey: ["point-negations", negationId],
+        queryKey: pointNegationsQueryKey({
+          pointId: negationId,
+          userId: user?.id,
+        }),
         exact: false,
       });
 

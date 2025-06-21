@@ -11,8 +11,8 @@ export const fetchDoubtForRestake = async (
 ) => {
   const userId = await getUserId();
 
-  // First check if there are any available restakes to doubt
-  const [availableRestakes] = await db
+  // First get basic availability and total amounts
+  const [basicData] = await db
     .select({
       hasAvailableRestakes: sql<boolean>`EXISTS (
         SELECT 1 
@@ -21,91 +21,34 @@ export const fetchDoubtForRestake = async (
         AND negation_id = ${negationId}
         AND available_for_doubts = true
       )`,
-    })
-    .from(effectiveRestakesView);
-
-  if (!availableRestakes?.hasAvailableRestakes) {
-    return null;
-  }
-
-  // Get both total amount and user's doubts in one query
-  const result = await db
-    .select({
-      totalAmount: sql<number>`COALESCE(SUM(${doubtsTable.amount}), 0)`,
-      userDoubts: sql<{ id: number; amount: number; createdAt: Date }[]>`
-      ARRAY(
-        SELECT json_build_object(
-          'id', d2.id,
-          'amount', d2.amount,
-          'createdAt', d2.created_at
-        )
-        FROM ${doubtsTable} d2 
-        WHERE d2.user_id = ${userId}
-          AND d2.point_id = ${pointId}
-          AND d2.negation_id = ${negationId}
-          AND d2.amount > 0
-          AND EXISTS (
-            SELECT 1 
-            FROM ${effectiveRestakesView} er
-            WHERE er.point_id = d2.point_id
-            AND er.negation_id = d2.negation_id
-            AND er.created_at <= d2.created_at
-            AND er.available_for_doubts = true
-          )
-        ORDER BY d2.created_at DESC
-      )
-    `,
-      hasUserDoubt: sql<boolean>`
-      EXISTS (
-        SELECT 1 
-        FROM ${doubtsTable} d2 
-        WHERE d2.user_id = ${userId}
-          AND d2.point_id = ${pointId}
-          AND d2.negation_id = ${negationId}
-          AND d2.amount > 0
-          AND EXISTS (
-            SELECT 1 
-            FROM ${effectiveRestakesView} er
-            WHERE er.point_id = d2.point_id
-            AND er.negation_id = d2.negation_id
-            AND er.created_at <= d2.created_at
-            AND er.available_for_doubts = true
-          )
-      )
-    `,
-    })
-    .from(doubtsTable)
-    .where(
-      and(
-        eq(doubtsTable.pointId, pointId),
-        eq(doubtsTable.negationId, negationId),
-        sql`${doubtsTable.amount} > 0`,
-        // Only include doubts that have corresponding available restakes
-        sql`EXISTS (
+      totalAmount: sql<number>`COALESCE((
+        SELECT SUM(${doubtsTable.amount})
+        FROM ${doubtsTable}
+        WHERE point_id = ${pointId}
+        AND negation_id = ${negationId}
+        AND ${doubtsTable.amount} > 0
+        AND EXISTS (
           SELECT 1 
           FROM ${effectiveRestakesView} er
           WHERE er.point_id = ${doubtsTable.pointId}
           AND er.negation_id = ${doubtsTable.negationId}
           AND er.created_at <= ${doubtsTable.createdAt}
           AND er.available_for_doubts = true
-        )`
-      )
-    );
+        )
+      ), 0)`,
+    })
+    .from(sql`(SELECT 1) as dummy`);
 
-  // Use the strict result first.
-  let userDoubts: { id: number; amount: number; createdAt: Date }[] =
-    (result[0].userDoubts as unknown as {
-      id: number;
-      amount: number;
-      createdAt: Date;
-    }[]) || [];
+  if (!basicData?.hasAvailableRestakes) {
+    return null;
+  }
 
-  // If the strict query returned no rows for the current user, perform a
-  // fallback query that ignores the `available_for_doubts` constraint so that
-  // we still surface the user's active doubt (even if all restakes that made
-  // it valid have since been slashed).
-  if (userDoubts.length === 0 && userId) {
-    userDoubts = await db
+  // Then get user-specific doubts if user is authenticated
+  let userDoubts: { id: number; amount: number; createdAt: Date }[] = [];
+
+  if (userId) {
+    // Get user doubts with temporal constraint
+    const userDoubtsWithConstraint = await db
       .select({
         id: doubtsTable.id,
         amount: doubtsTable.amount,
@@ -117,20 +60,50 @@ export const fetchDoubtForRestake = async (
           eq(doubtsTable.userId, userId),
           eq(doubtsTable.pointId, pointId),
           eq(doubtsTable.negationId, negationId),
-          sql`${doubtsTable.amount} > 0`
+          sql`${doubtsTable.amount} > 0`,
+          sql`EXISTS (
+            SELECT 1 
+            FROM ${effectiveRestakesView} er
+            WHERE er.point_id = ${doubtsTable.pointId}
+            AND er.negation_id = ${doubtsTable.negationId}
+            AND er.created_at <= ${doubtsTable.createdAt}
+            AND er.available_for_doubts = true
+          )`
         )
       )
-      .orderBy(sql`created_at DESC`);
+      .orderBy(sql`${doubtsTable.createdAt} DESC`);
+
+    userDoubts = userDoubtsWithConstraint;
+
+    // Fallback: if no constrained doubts found, get all user doubts
+    if (userDoubts.length === 0) {
+      const allUserDoubts = await db
+        .select({
+          id: doubtsTable.id,
+          amount: doubtsTable.amount,
+          createdAt: doubtsTable.createdAt,
+        })
+        .from(doubtsTable)
+        .where(
+          and(
+            eq(doubtsTable.userId, userId),
+            eq(doubtsTable.pointId, pointId),
+            eq(doubtsTable.negationId, negationId),
+            sql`${doubtsTable.amount} > 0`
+          )
+        )
+        .orderBy(sql`${doubtsTable.createdAt} DESC`);
+
+      userDoubts = allUserDoubts;
+    }
   }
 
   const userAmount = userDoubts.reduce((sum, d) => sum + d.amount, 0);
 
-  const response = {
-    amount: Number(result[0].totalAmount),
+  return {
+    amount: Number(basicData.totalAmount),
     userDoubts,
     userAmount,
     isUserDoubt: userAmount > 0,
   };
-
-  return response;
 };
