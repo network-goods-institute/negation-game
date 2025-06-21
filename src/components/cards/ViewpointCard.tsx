@@ -231,14 +231,19 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                         <div className="flex flex-col flex-grow w-full min-w-0">
                             <div className="flex items-start gap-2">
                                 <ViewpointIcon className="flex-shrink-0" />
-                                <h3 className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg font-semibold -mt-1 mb-sm select-text flex-1 break-words whitespace-normal overflow-hidden">
+                                <h3 className={cn(
+                                    "tracking-tight text-md @xs/point:text-md @sm/point:text-lg font-semibold -mt-1 select-text flex-1 break-words whitespace-normal overflow-hidden",
+                                    plainDescription ? "mb-sm" : "mb-1"
+                                )}>
                                     {title}
                                 </h3>
                             </div>
 
-                            <div className="text-sm text-muted-foreground select-text sm:line-clamp-2 sm:mb-2 sm:h-10 sm:overflow-hidden whitespace-normal">
-                                {plainDescription}
-                            </div>
+                            {plainDescription && (
+                                <div className="text-sm text-muted-foreground select-text sm:line-clamp-2 sm:mb-2 sm:h-10 sm:overflow-hidden whitespace-normal">
+                                    {plainDescription}
+                                </div>
+                            )}
                             {topic && (
                                 <Badge variant="secondary" className="text-xs mb-1 mt-2 w-fit block">
                                     {topic}
