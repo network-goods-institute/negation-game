@@ -10,6 +10,12 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { buildPointCluster } from "@/actions/points/buildPointCluster";
 import { stanceComputationPipeline } from "./stanceComputationPipeline";
 
+export interface DeltaResult {
+  delta: number | null;
+  noInteraction: boolean;
+  noEngagementBy?: "A" | "B" | "both";
+}
+
 export async function computeDelta({
   userAId,
   userBId,
@@ -20,7 +26,7 @@ export async function computeDelta({
   userBId: string;
   rootPointId: number;
   snapDay?: string; // YYYY-MM-DD
-}): Promise<{ delta: number | null; noInteraction: boolean }> {
+}): Promise<DeltaResult> {
   console.log("[computeDelta] params", {
     userAId,
     userBId,
@@ -168,12 +174,23 @@ export async function computeDelta({
   const nzB = bVec.filter((v) => v !== 0).length;
   console.log(`[computeDelta] non-zero counts -> A: ${nzA}, B: ${nzB}`);
 
+  const aNonZero = aVec.some((v) => v !== 0);
+  const bNonZero = bVec.some((v) => v !== 0);
+
   const result = deltaFn(aVec, bVec);
   console.log(`[computeDelta] Final delta: ${result}`);
 
   return {
     delta: result,
     noInteraction: result === null,
+    noEngagementBy:
+      result === null && aNonZero !== bNonZero
+        ? aNonZero
+          ? "B"
+          : "A"
+        : result === null && !aNonZero && !bNonZero
+          ? "both"
+          : undefined,
   };
 }
 
@@ -185,7 +202,7 @@ async function computeDeltaFallback(
   userBId: string,
   pointIds: number[],
   signMap: Record<number, 1 | -1>
-): Promise<{ delta: number | null; noInteraction: boolean }> {
+): Promise<DeltaResult> {
   console.log("[computeDeltaFallback] Using endorsement-based fallback");
 
   // Fetch endorsements for both users within these points
@@ -259,8 +276,19 @@ async function computeDeltaFallback(
   const result = deltaFn(aVec, bVec);
   console.log(`[computeDeltaFallback] Final delta: ${result}`);
 
+  const aNonZero = aVec.some((v) => v !== 0);
+  const bNonZero = bVec.some((v) => v !== 0);
+
   return {
     delta: result,
     noInteraction: result === null,
+    noEngagementBy:
+      result === null && aNonZero !== bNonZero
+        ? aNonZero
+          ? "B"
+          : "A"
+        : result === null && !aNonZero && !bNonZero
+          ? "both"
+          : undefined,
   };
 }

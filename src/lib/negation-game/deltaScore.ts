@@ -36,10 +36,24 @@ export function cosine(a: number[], b: number[]): number {
 
 export function delta(a: number[], b: number[]): number | null {
   if (a.every((v) => v === 0) && b.every((v) => v === 0)) return null;
+  const aNonZero = a.some((v) => v !== 0);
+  const bNonZero = b.some((v) => v !== 0);
+
+  // If only one user has engagement we treat it as "no meaningful comparison"
+  // and return null so the UI can display "No Data" instead of 0.5.
+  if (aNonZero !== bNonZero) return null;
+
   const sim = cosine(a, b);
   let d = (1 - sim) / 2;
+
+  // If users are perfectly opposite, always return 1
+  if (sim === -1) return 1;
+
+  // Small-cluster penalty: for clusters with fewer than 3 points we scale the delta
+  // down (never up). Each missing point reduces λ by 0.1 down to a floor of 0.7.
   if (a.length < 3) {
-    const lambda = Math.max(0.7, 1 - 0.1 * (a.length - 3));
+    const missing = 3 - a.length; // 1 → λ=0.9  | 2 → λ=0.8
+    const lambda = Math.max(0.7, 1 - 0.1 * missing);
     d *= lambda;
   }
   // Clamp to [0,1] per spec range

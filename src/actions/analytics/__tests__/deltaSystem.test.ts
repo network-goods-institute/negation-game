@@ -4,9 +4,9 @@ jest.mock("@/db/schema", () => ({
     snapDay: { name: "snapDay" },
     userId: { name: "userId" },
     pointId: { name: "pointId" },
-    endorseAmount: { name: "endorseAmount" },
-    restakeAmount: { name: "restakeAmount" },
-    doubtAmount: { name: "doubtAmount" },
+    endorse: { name: "endorse" },
+    restakeLive: { name: "restakeLive" },
+    doubt: { name: "doubt" },
   },
   credEventsTable: {
     id: { name: "id" },
@@ -18,6 +18,7 @@ jest.mock("@/db/schema", () => ({
   },
   pointClustersTable: {
     pointId: { name: "pointId" },
+    rootId: { name: "rootId" },
     ancestorId: { name: "ancestorId" },
     depth: { name: "depth" },
     sign: { name: "sign" },
@@ -30,7 +31,7 @@ jest.mock("@/db/schema", () => ({
   dailyStancesTable: {
     userId: { name: "userId" },
     pointId: { name: "pointId" },
-    stance: { name: "stance" },
+    zValue: { name: "zValue" },
     snapDay: { name: "snapDay" },
   },
   restakesTable: {
@@ -45,6 +46,10 @@ jest.mock("@/db/schema", () => ({
     pointId: { name: "pointId" },
     cred: { name: "cred" },
   },
+  usersTable: {
+    id: { name: "id" },
+    username: { name: "username" },
+  },
 }));
 
 // Mock other dependencies
@@ -56,14 +61,16 @@ jest.mock("drizzle-orm", () => {
   const actual = jest.requireActual("drizzle-orm");
   return {
     ...actual,
-    sql: jest.fn(() => ({
+    sql: jest.fn((str) => ({
       as: jest.fn().mockReturnThis(),
       mapWith: jest.fn().mockReturnThis(),
+      toString: () => str,
     })),
     lt: jest.fn(),
     eq: jest.fn(),
-    and: jest.fn(),
+    and: jest.fn((...args) => args.filter(Boolean)),
     desc: jest.fn(),
+    inArray: jest.fn(),
   };
 });
 
@@ -93,6 +100,7 @@ function stubQuery(result: any = []) {
     "set",
     "onConflictDoUpdate",
     "returning",
+    "having",
   ].forEach((m) => {
     chain[m] = passthrough;
   });
@@ -104,7 +112,32 @@ function stubQuery(result: any = []) {
 }
 
 jest.mock("@/services/db", () => {
-  const selectMock = jest.fn().mockImplementation(() => stubQuery([]));
+  const selectMock = jest.fn().mockImplementation((query) => {
+    if (query?.from?.name === "pointClustersTable") {
+      return stubQuery([{ pointId: 1, sign: 1 }]);
+    } else if (query?.from?.name === "dailyStancesTable") {
+      // For initial stance fetch
+      return stubQuery([]);
+    } else if (query?.from?.name === "snapshotsTable") {
+      // For snapshot count
+      return stubQuery([{ count: 0 }]);
+    } else if (query?.from?.name === "endorsementsTable") {
+      // For fallback endorsements
+      return stubQuery([
+        { pointId: 1, userId: "userA", cred: 100 },
+        { pointId: 1, userId: "userB", cred: 50 },
+      ]);
+    } else if (query?.from?.name === "usersTable") {
+      // For usersTable joins in bulk API route
+      return stubQuery([
+        { id: "userA", username: "UserA" },
+        { id: "userB", username: "UserB" },
+        { id: "userC", username: "UserC" },
+      ]);
+    }
+    return stubQuery([]);
+  });
+
   const insertMock = jest.fn().mockReturnValue(stubQuery([{ id: 1 }]));
   const updateMock = jest.fn().mockReturnValue(stubQuery());
 

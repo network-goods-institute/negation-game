@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { LoaderIcon, InfoIcon, AlertTriangleIcon, UsersIcon, TrendingUpIcon, TrendingDownIcon, MessageCircleIcon } from "lucide-react";
+import { LoaderIcon, InfoIcon, UsersIcon, TrendingUpIcon, TrendingDownIcon, MessageCircleIcon } from "lucide-react";
 import { UserSelector } from "@/components/delta/UserSelector";
 import { PointSelector } from "@/components/delta/PointSelector";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowLeftIcon } from "lucide-react";
+import { setPrivyToken } from "@/lib/privy/setPrivyToken";
 
 type UserDelta = {
     userId: string;
@@ -30,7 +31,7 @@ type BulkDeltaResult = {
 };
 
 export default function DeltaPage() {
-    const { user } = usePrivy();
+    const { user, login } = usePrivy();
     const currentUserId = user?.id;
 
     const pathname = usePathname();
@@ -61,11 +62,10 @@ export default function DeltaPage() {
             </div>
             <p className="text-lg text-muted-foreground max-w-2xl">Measure intellectual distance between users on controversial topics using our experimental disagreement metric.</p>
 
-            <Alert className="border-amber-200 bg-amber-50">
-                <AlertTriangleIcon className="h-4 w-4 text-amber-600" />
-                <AlertDescription className="text-amber-800">
-                    <strong>Early Alpha:</strong> This feature is experimental and will change dramatically over the coming days and weeks.
-                    Results should be interpreted with caution as we refine the algorithm.
+            <Alert className="border-border bg-muted text-foreground">
+                <InfoIcon className="h-4 w-4 text-muted-foreground" />
+                <AlertDescription className="text-foreground">
+                    <strong>Experimental Feature:</strong> This Δ-Score feature is highly experimental and subject to drastic changes. Both the underlying algorithm and its display methods are actively being developed and may evolve significantly without prior notice. Results should be interpreted with extreme caution.
                 </AlertDescription>
             </Alert>
 
@@ -127,6 +127,7 @@ export default function DeltaPage() {
 }
 
 function DiscoveryMode({ currentUserId }: { currentUserId?: string }) {
+    const { login } = usePrivy();
     const [rootPoint, setRootPoint] = useState<
         { pointId: number; content: string } | null
     >(null);
@@ -142,14 +143,31 @@ function DiscoveryMode({ currentUserId }: { currentUserId?: string }) {
             const res = await fetch("/api/delta/bulk", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
+                credentials: "include",
                 body: JSON.stringify({
                     referenceUserId: currentUserId,
                     rootPointId: rootPoint.pointId,
                     limit: 10,
                 }),
             });
+            if (res.status === 401) {
+                const refreshed = await setPrivyToken();
+                if (refreshed) {
+                    return await handleDiscover();
+                }
+                login();
+            }
+            if (!res.ok) {
+                throw new Error(`Request failed with status ${res.status}`);
+            }
             const data = await res.json();
-            setBulkResults(data);
+            setBulkResults({
+                mostSimilar: data.mostSimilar ?? [],
+                mostDifferent: data.mostDifferent ?? [],
+                totalUsers: data.totalUsers ?? 0,
+                totalEngaged: data.totalEngaged ?? 0,
+                message: data.message ?? (data.error ? data.error : undefined),
+            });
         } catch (err) {
             console.error(err);
             setBulkResults({
@@ -258,7 +276,7 @@ function DiscoveryMode({ currentUserId }: { currentUserId?: string }) {
                                     <CardDescription>Users who agree with you most</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    {bulkResults.mostSimilar.length === 0 ? (
+                                    {bulkResults?.mostSimilar?.length === 0 ? (
                                         <p className="text-sm text-muted-foreground text-center py-4">
                                             No similar users found
                                         </p>
@@ -305,7 +323,7 @@ function DiscoveryMode({ currentUserId }: { currentUserId?: string }) {
                                     <CardDescription>Users who disagree with you most</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    {bulkResults.mostDifferent.length === 0 ? (
+                                    {bulkResults?.mostDifferent?.length === 0 ? (
                                         <p className="text-sm text-muted-foreground text-center py-4">
                                             No different users found
                                         </p>
@@ -366,6 +384,7 @@ function ManualCompare({
     const [delta, setDelta] = useState<number | null | undefined>();
     const [noInteraction, setNoInteraction] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [noEngagementBy, setNoEngagementBy] = useState<"A" | "B" | "both" | undefined>();
     const ready = rootPoint && userA && userB;
 
     useEffect(() => {
@@ -391,6 +410,7 @@ function ManualCompare({
             const data = await res.json();
             setDelta(data.delta);
             setNoInteraction(Boolean(data.noInteraction));
+            setNoEngagementBy(data.noEngagementBy);
         } catch (err) {
             console.error(err);
             setDelta(null);
@@ -492,7 +512,11 @@ function ManualCompare({
                                     </div>
                                     <p className="text-sm text-muted-foreground">
                                         {noInteraction
-                                            ? "These users haven't engaged with this topic cluster yet"
+                                            ? noEngagementBy === "A"
+                                                ? "User A has no engagement with this cluster yet"
+                                                : noEngagementBy === "B"
+                                                    ? "User B has no engagement with this cluster yet"
+                                                    : "Neither user has engagement with this cluster yet"
                                             : "Unable to compute Δ-Score at this time"
                                         }
                                     </p>
