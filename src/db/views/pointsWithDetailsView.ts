@@ -3,6 +3,8 @@ import { InferSelectViewModel } from "@/db/utils/InferSelectViewModel";
 import { sql, eq } from "drizzle-orm";
 import { pgView } from "drizzle-orm/pg-core";
 
+const pointsId = sql<number>`"points"."id"`;
+
 export const pointsWithDetailsView = pgView("point_with_details_view").as(
   (qb) =>
     qb
@@ -26,7 +28,7 @@ export const pointsWithDetailsView = pgView("point_with_details_view").as(
             SELECT ${negationsTable.newerPointId} AS point_id FROM ${negationsTable}
             WHERE ${negationsTable.isActive} = true
           ) sub
-          WHERE sub.point_id = ${pointsTable.id}
+          WHERE sub.point_id = ${pointsId}
         ), 0)
       `
           .mapWith(Number)
@@ -35,7 +37,7 @@ export const pointsWithDetailsView = pgView("point_with_details_view").as(
         COALESCE((
           SELECT COUNT(DISTINCT ${endorsementsTable.userId})
           FROM ${endorsementsTable}
-          WHERE ${endorsementsTable.pointId} = ${pointsTable.id}
+          WHERE ${endorsementsTable.pointId} = ${pointsId}
         ), 0)
       `
           .mapWith(Number)
@@ -44,7 +46,7 @@ export const pointsWithDetailsView = pgView("point_with_details_view").as(
         COALESCE((
           SELECT SUM(${endorsementsTable.cred})
           FROM ${endorsementsTable}
-          WHERE ${endorsementsTable.pointId} = ${pointsTable.id}
+          WHERE ${endorsementsTable.pointId} = ${pointsId}
         ), 0)
       `
           .mapWith(Number)
@@ -56,12 +58,12 @@ export const pointsWithDetailsView = pgView("point_with_details_view").as(
           WHERE ${endorsementsTable.pointId} IN (
             SELECT ${negationsTable.newerPointId}
             FROM ${negationsTable}
-            WHERE ${negationsTable.olderPointId} = ${pointsTable.id}
+            WHERE ${negationsTable.olderPointId} = ${pointsId}
             AND ${negationsTable.isActive} = true
             UNION
             SELECT ${negationsTable.olderPointId}
             FROM ${negationsTable}
-            WHERE ${negationsTable.newerPointId} = ${pointsTable.id}
+            WHERE ${negationsTable.newerPointId} = ${pointsId}
             AND ${negationsTable.isActive} = true
           )
         ), 0)
@@ -72,12 +74,12 @@ export const pointsWithDetailsView = pgView("point_with_details_view").as(
         ARRAY(
           SELECT ${negationsTable.olderPointId}
           FROM ${negationsTable}
-          WHERE ${negationsTable.newerPointId} = ${pointsTable.id}
+          WHERE ${negationsTable.newerPointId} = ${pointsId}
           AND ${negationsTable.isActive} = true
           UNION ALL
           SELECT ${negationsTable.newerPointId}
           FROM ${negationsTable}
-          WHERE ${negationsTable.olderPointId} = ${pointsTable.id}
+          WHERE ${negationsTable.olderPointId} = ${pointsId}
           AND ${negationsTable.isActive} = true
         )
       `.as("negation_ids"),

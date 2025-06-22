@@ -40,3 +40,4 @@ certificates
 
 .glimpse
 supabase/
+*.dump

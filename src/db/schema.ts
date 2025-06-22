@@ -48,3 +48,7 @@ export {
   messagesRelations,
   generateConversationId,
 } from "@/db/tables/messagesTable";
+
+export { pointClustersTable } from "@/db/tables/pointClustersTable";
+export { snapshotsTable } from "@/db/tables/snapshotsTable";
+export { dailyStancesTable } from "@/db/tables/dailyStancesTable";

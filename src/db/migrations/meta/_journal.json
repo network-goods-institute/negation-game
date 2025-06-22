@@ -470,6 +470,20 @@
       "when": 1750504827434,
       "tag": "0066_sweet_risque",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1750571119533,
+      "tag": "0067_fresh_madripoor",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1750582725534,
+      "tag": "0068_spicy_violations",
+      "breakpoints": true
     }
   ]
 }

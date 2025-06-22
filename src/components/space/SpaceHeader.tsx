@@ -4,7 +4,7 @@ import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
-import { BrainCircuitIcon } from "lucide-react";
+import { BrainCircuitIcon, Sigma } from "lucide-react";
 import type { useSpace } from "@/queries/space/useSpace";
 import Link from "next/link";
 
@@ -36,21 +36,29 @@ export function SpaceHeader({ space, isLoading, onAiClick, chatHref }: SpaceHead
                 </Avatar>
                 <h1 className="text-lg sm:text-xl font-semibold">s/{space.data.id}</h1>
             </div>
-            <Button asChild disabled={isLoading} className="h-12 w-auto px-6" onClick={onAiClick}>
-                <Link href={chatHref} prefetch={false} className="flex items-center">
-                    {isLoading ? (
-                        <>
-                            <Loader className="size-6 mr-sm text-white" />
-                            <span>Loading...</span>
-                        </>
-                    ) : (
-                        <>
-                            <BrainCircuitIcon className="size-6" />
-                            <span className="ml-sm">AI Assistant</span>
-                        </>
-                    )}
-                </Link>
-            </Button>
+            <div className="flex gap-2">
+                <Button asChild disabled={isLoading} className="h-12 w-auto px-6" onClick={onAiClick}>
+                    <Link href={chatHref} prefetch={false} className="flex items-center">
+                        {isLoading ? (
+                            <>
+                                <Loader className="size-6 mr-sm text-white" />
+                                <span>Loading...</span>
+                            </>
+                        ) : (
+                            <>
+                                <BrainCircuitIcon className="size-6" />
+                                <span className="ml-sm">AI Assistant</span>
+                            </>
+                        )}
+                    </Link>
+                </Button>
+                <Button asChild variant="secondary" className="h-12 w-auto px-6">
+                    <Link href={`/s/${space.data.id}/delta`} prefetch={false} className="flex items-center">
+                        <Sigma className="size-6" />
+                        <span className="ml-sm">Δ Compare</span>
+                    </Link>
+                </Button>
+            </div>
         </div>
     );
 } 
