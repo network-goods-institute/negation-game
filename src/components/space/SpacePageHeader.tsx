@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { SpaceHeader } from "@/components/space/SpaceHeader";
 import { SpaceTabs, Tab } from "@/components/space/SpaceTabs";
 import { NewRationaleButton } from "@/components/rationale/NewRationaleButton";
+import Link from "next/link";
+import { BrainCircuitIcon, Sigma } from "lucide-react";
 
 interface SpacePageHeaderProps {
     space: ReturnType<typeof import("@/queries/space/useSpace").useSpace>;
@@ -85,9 +87,26 @@ export function SpacePageHeader({
     return (
         <div className="sticky top-0 z-20 bg-background">
             {isMobile && selectedTab !== "search" && (
-                <div className="flex justify-around items-center bg-background border-b px-4 py-2">
-                    {getMobileActionButtons()}
-                </div>
+                <>
+                    <div className="flex justify-around items-center bg-background border-b px-4 py-2">
+                        {getMobileActionButtons()}
+                    </div>
+                    {/* mobile nav utility buttons */}
+                    <div className="flex justify-around items-center bg-background border-b px-4 py-2 gap-4">
+                        <Button asChild variant="default" size="icon">
+                            <Link href={chatHref} prefetch={false} className="flex items-center" onClick={onAiClick}>
+                                <BrainCircuitIcon className="size-6" />
+                                <span className="sr-only">AI Assistant</span>
+                            </Link>
+                        </Button>
+                        <Button asChild variant="secondary" size="icon">
+                            <Link href={`/s/${space.data?.id ?? "global"}/delta`} prefetch={false} className="flex items-center">
+                                <Sigma className="size-6" />
+                                <span className="sr-only">Δ Compare</span>
+                            </Link>
+                        </Button>
+                    </div>
+                </>
             )}
             {!isMobile && (
                 <SpaceHeader

@@ -7,8 +7,10 @@ import {
   restakeHistoryTable,
   slashesTable,
   slashHistoryTable,
+  endorsementsTable,
 } from "@/db/schema";
 import { queueRestakeNotification } from "@/lib/notifications/notificationQueue";
+import { trackRestakeEvent } from "@/actions/analytics/trackCredEvent";
 import { db } from "@/services/db";
 import { eq, and, sql } from "drizzle-orm";
 
@@ -22,6 +24,24 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
   const userId = await getUserId();
   if (!userId) {
     throw new Error("Must be authenticated to restake");
+  }
+
+  // Validate against user's current endorsement amount on the parent point
+  const [{ cred: endorseCred } = { cred: 0 }] = await db
+    .select({ cred: endorsementsTable.cred })
+    .from(endorsementsTable)
+    .where(
+      and(
+        eq(endorsementsTable.userId, userId),
+        eq(endorsementsTable.pointId, pointId)
+      )
+    )
+    .limit(1);
+
+  if (amount > endorseCred) {
+    throw new Error(
+      `Restake amount (${amount}) cannot exceed your endorsement (${endorseCred}) on this point.`
+    );
   }
 
   const space = await getSpace();
@@ -129,6 +149,12 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
       });
     });
 
+    // Track the cred event (difference from existing amount)
+    const credChange = amount - existingRestake.amount;
+    if (credChange !== 0) {
+      await trackRestakeEvent(userId, pointId, credChange);
+    }
+
     // Queue notification if amount > 0 (only for active restakes)
     if (amount > 0) {
       queueRestakeNotification({
@@ -163,6 +189,9 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
       action: "created",
       newAmount: amount,
     });
+
+    // Track the cred event for new restakes
+    await trackRestakeEvent(userId, pointId, amount);
 
     // Queue notification if amount > 0 (only for active restakes)
     if (amount > 0) {

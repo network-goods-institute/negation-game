@@ -2,6 +2,7 @@
 import { getUserId } from "@/actions/users/getUserId";
 import { usersTable } from "@/db/schema";
 import { endorsementsTable } from "@/db/tables/endorsementsTable";
+import { trackEndorseEvent } from "@/actions/analytics/trackCredEvent";
 import { db } from "@/services/db";
 import { eq, sql, and, gt } from "drizzle-orm";
 
@@ -94,4 +95,7 @@ export const sellEndorsement = async ({
         )
       );
   });
+
+  // Track the cred event (negative amount for selling)
+  await trackEndorseEvent(userId, pointId, -amountToSell);
 };
