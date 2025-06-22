@@ -190,7 +190,8 @@ export default function middleware(req: NextRequest) {
   if (
     url.pathname.startsWith("/settings") ||
     url.pathname.startsWith("/notifications") ||
-    url.pathname.startsWith("/messages")
+    url.pathname.startsWith("/messages") ||
+    url.pathname.startsWith("/delta")
   ) {
     const res = NextResponse.next();
     res.headers.set("X-Robots-Tag", "noindex, nofollow");

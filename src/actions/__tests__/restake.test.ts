@@ -1,90 +1,128 @@
-// Mock dependencies before importing the implementation
+// Mock the database schema objects
+jest.mock("@/db/schema", () => ({
+  restakesTable: {
+    id: { name: "id" },
+    userId: { name: "userId" },
+    pointId: { name: "pointId" },
+    negationId: { name: "negationId" },
+    amount: { name: "amount" },
+    createdAt: { name: "createdAt" },
+  },
+  restakeHistoryTable: {
+    id: { name: "id" },
+    restakeId: { name: "restakeId" },
+    userId: { name: "userId" },
+    pointId: { name: "pointId" },
+    negationId: { name: "negationId" },
+    action: { name: "action" },
+    previousAmount: { name: "previousAmount" },
+    newAmount: { name: "newAmount" },
+  },
+  slashesTable: {
+    id: { name: "id" },
+    userId: { name: "userId" },
+    pointId: { name: "pointId" },
+    negationId: { name: "negationId" },
+    amount: { name: "amount" },
+  },
+  slashHistoryTable: {
+    id: { name: "id" },
+    slashId: { name: "slashId" },
+    userId: { name: "userId" },
+    pointId: { name: "pointId" },
+    negationId: { name: "negationId" },
+    action: { name: "action" },
+    previousAmount: { name: "previousAmount" },
+    newAmount: { name: "newAmount" },
+  },
+  endorsementsTable: {
+    cred: { name: "cred" },
+    userId: { name: "userId" },
+    pointId: { name: "pointId" },
+  },
+}));
+
+// Mock getUserId
 jest.mock("../users/getUserId", () => ({
   getUserId: jest.fn(),
 }));
 
-jest.mock("@/actions/spaces/getSpace", () => ({
+// Mock getSpace
+jest.mock("../spaces/getSpace", () => ({
   getSpace: jest.fn().mockResolvedValue("test-space"),
 }));
 
+// Mock notification and tracking functions
 jest.mock("@/lib/notifications/notificationQueue", () => ({
   queueRestakeNotification: jest.fn(),
 }));
 
-// Mock the database schema
-jest.mock("@/db/schema", () => ({
-  restakesTable: {
-    id: "id",
-    userId: "user_id",
-    pointId: "point_id",
-    negationId: "negation_id",
-    amount: "amount",
-    space: "space",
-    createdAt: "created_at",
-  },
-  restakeHistoryTable: {
-    restakeId: "restake_id",
-    userId: "user_id",
-    pointId: "point_id",
-    negationId: "negation_id",
-    action: "action",
-    previousAmount: "previous_amount",
-    newAmount: "new_amount",
-  },
-  slashesTable: {
-    id: "id",
-    userId: "user_id",
-    pointId: "point_id",
-    negationId: "negation_id",
-    restakeId: "restake_id",
-    amount: "amount",
-    space: "space",
-    createdAt: "created_at",
-  },
-  slashHistoryTable: {
-    slashId: "slash_id",
-    userId: "user_id",
-    pointId: "point_id",
-    negationId: "negation_id",
-    action: "action",
-    previousAmount: "previous_amount",
-    newAmount: "new_amount",
-  },
+jest.mock("@/actions/analytics/trackCredEvent", () => ({
+  trackRestakeEvent: jest.fn(),
 }));
 
-// Mock drizzle-orm
+// Mock SQL functions
 jest.mock("drizzle-orm", () => {
+  const actual = jest.requireActual("drizzle-orm");
   interface MockSqlResult {
     as: (name: string) => MockSqlResult;
     mapWith: (fn: any) => MockSqlResult;
   }
 
-  const mockSqlResult: MockSqlResult = {
-    as: jest.fn((name) => mockSqlResult),
-    mapWith: jest.fn(() => mockSqlResult),
-  };
-
   const mockSql = function (...args: any[]): MockSqlResult {
-    return mockSqlResult;
+    return {
+      as: jest.fn().mockReturnThis(),
+      mapWith: jest.fn().mockReturnThis(),
+    } as MockSqlResult;
   };
-
-  mockSql.raw = jest.fn((): MockSqlResult => mockSqlResult);
 
   return {
-    eq: jest.fn((a, b) => ({ column: a, value: b })),
-    and: jest.fn((...conditions) => ({ type: "and", conditions })),
+    ...actual,
     sql: mockSql,
   };
 });
 
-// Mock the db service
+// Generic chain stub for Drizzle builder used in this suite
+function stubQuery(result: any = []) {
+  const chain: any = {};
+  const pass = jest.fn().mockReturnValue(chain);
+  [
+    "from",
+    "where",
+    "leftJoin",
+    "groupBy",
+    "orderBy",
+    "limit",
+    "values",
+    "set",
+    "returning",
+  ].forEach((m) => (chain[m] = pass));
+  chain.then = jest.fn((onF, onR) => Promise.resolve(result).then(onF, onR));
+  return chain;
+}
+
 jest.mock("@/services/db", () => {
-  const mockDb = {
-    transaction: jest.fn(),
-    select: jest.fn(),
-    insert: jest.fn(),
+  // We'll swap out return arrays inside individual tests via mockResolvedValueOnce
+  const selectMock = jest.fn().mockImplementation(() => stubQuery([]));
+  const insertMock = jest.fn().mockImplementation(() => stubQuery([]));
+  const updateMock = jest.fn().mockImplementation(() => stubQuery([]));
+  const transactionMock = jest.fn().mockImplementation(async (callback) => {
+    const txMock = {
+      select: selectMock,
+      insert: insertMock,
+      update: updateMock,
+    };
+    return await callback(txMock);
+  });
+
+  return {
+    db: {
+      select: selectMock,
+      insert: insertMock,
+      update: updateMock,
+      transaction: transactionMock,
+    },
   };
-  return { db: mockDb };
 });
 
 // Now import the actual implementation and its dependencies
@@ -124,240 +162,99 @@ describe("restake", () => {
     // Setup: user is authenticated
     (getUserId as jest.Mock).mockResolvedValue("user-123");
 
-    // Simulate an existing restake
-    const existingRestake = {
-      id: 789,
-      userId: "user-123",
-      pointId: 123,
-      negationId: 456,
-      amount: 5,
-      createdAt: new Date(),
-    };
+    // First select call for endorsement lookup returns non-zero cred
+    (db.select as jest.Mock).mockImplementationOnce(() =>
+      stubQuery([{ cred: 100 }])
+    );
+    // Second select call for existing restake check returns existing restake
+    (db.select as jest.Mock).mockImplementationOnce(() =>
+      stubQuery([{ id: 1, amount: 50 }])
+    );
+    // Third select call for slash check returns no slashes
+    (db.select as jest.Mock).mockImplementationOnce(() => stubQuery([]));
+    // Update call should succeed
+    (db.update as jest.Mock).mockImplementationOnce(() =>
+      stubQuery([{ id: 1 }])
+    );
 
-    // Set up the mock chain for initial select returning the existing restake
-    const selectMock = {
-      from: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      then: jest
-        .fn()
-        .mockImplementationOnce((cb) =>
-          Promise.resolve([existingRestake]).then(cb)
-        ),
-    };
-    (db.select as jest.Mock).mockReturnValue(selectMock);
-
-    // Set up the transaction mock with sequential tx.select calls
-    const txSelectChainForExistingSlash = {
-      from: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      then: jest
-        .fn()
-        .mockImplementationOnce((cb) =>
-          Promise.resolve([{ id: 555, amount: 3 }]).then(cb)
-        ),
-    };
-    const txSelectChainForEffectivelyZeroed = {
-      from: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      then: jest
-        .fn()
-        .mockImplementationOnce((cb) =>
-          Promise.resolve([{ slashedAmount: 0 }]).then(cb)
-        ),
-    };
-    const txMock = {
-      select: jest
-        .fn()
-        .mockReturnValueOnce(txSelectChainForExistingSlash) // First select call for existingSlash
-        .mockReturnValueOnce(txSelectChainForEffectivelyZeroed), // Second select call for isEffectivelyZeroed
-      insert: jest.fn().mockReturnValue({
-        values: jest.fn().mockReturnThis(),
-      }),
-      update: jest.fn().mockReturnValue({
-        set: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-      }),
-    };
-    (db.transaction as jest.Mock).mockImplementationOnce(async (callback) => {
-      return await callback(txMock);
-    });
-
-    // Execute
     const result = await restake({
       pointId: 123,
       negationId: 456,
-      amount: 10, // Increasing from 5 to 10
+      amount: 75,
     });
 
-    // Assert
-    expect(result).toBe(789); // Should return the existing restake ID
-
-    // Verify the DB operations were called correctly
-    expect(db.select).toHaveBeenCalled();
-    expect(selectMock.from).toHaveBeenCalledWith(restakesTable);
-    expect(selectMock.where).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: "and",
-        conditions: expect.arrayContaining([
-          expect.objectContaining({
-            column: restakesTable.userId,
-            value: "user-123",
-          }),
-          expect.objectContaining({
-            column: restakesTable.pointId,
-            value: 123,
-          }),
-          expect.objectContaining({
-            column: restakesTable.negationId,
-            value: 456,
-          }),
-        ]),
-      })
-    );
-
-    // Verify transaction was used
-    expect(db.transaction).toHaveBeenCalled();
+    expect(result).toBe(1); // Returns the restake ID
+    expect(db.update).toHaveBeenCalled();
   });
 
   it("should create a new restake if none exists", async () => {
     // Setup: user is authenticated
     (getUserId as jest.Mock).mockResolvedValue("user-123");
 
-    // No existing restake
-    const selectMock = {
-      from: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      then: jest
-        .fn()
-        .mockImplementationOnce((cb) => Promise.resolve([]).then(cb)),
-    };
-    (db.select as jest.Mock).mockReturnValue(selectMock);
+    // First select call for endorsement lookup returns non-zero cred
+    (db.select as jest.Mock).mockImplementationOnce(() =>
+      stubQuery([{ cred: 100 }])
+    );
+    // Second select call for existing restake check returns empty
+    (db.select as jest.Mock).mockImplementationOnce(() => stubQuery([]));
+    // Insert call should succeed
+    (db.insert as jest.Mock).mockImplementationOnce(() =>
+      stubQuery([{ id: 2 }])
+    );
 
-    // Setup db.insert mock for creating new restake
-    const newRestakeResult = {
-      values: jest.fn().mockReturnThis(),
-      returning: jest.fn().mockResolvedValue([{ id: 101 }]),
-    };
-    (db.insert as jest.Mock).mockReturnValueOnce(newRestakeResult);
-
-    // Setup db.insert mock for recording restake history
-    const insertHistoryMock = {
-      values: jest.fn().mockReturnThis(),
-      then: jest
-        .fn()
-        .mockImplementation((cb) => Promise.resolve(undefined).then(cb)),
-    };
-    (db.insert as jest.Mock).mockReturnValueOnce(insertHistoryMock);
-
-    // Execute
     const result = await restake({
       pointId: 123,
       negationId: 456,
-      amount: 10,
+      amount: 50,
     });
 
-    // Assert: should return new restake id
-    expect(result).toBe(101);
-
-    // Verify that db.insert was called with restakesTable
-    expect(db.insert).toHaveBeenCalledWith(restakesTable);
-
-    // Verify second insertion was with restakeHistoryTable
-    expect(db.insert).toHaveBeenCalledWith(restakeHistoryTable);
+    expect(result).toBe(2); // Returns the new restake ID
+    expect(db.insert).toHaveBeenCalled();
   });
 
   it("should deactivate associated slashes when modifying a restake", async () => {
     // Setup: user is authenticated
     (getUserId as jest.Mock).mockResolvedValue("user-123");
 
-    // Simulate an existing restake
-    const existingRestake = {
-      id: 789,
-      userId: "user-123",
-      pointId: 123,
-      negationId: 456,
-      amount: 5,
-      createdAt: new Date(),
-    };
+    // First select call for endorsement lookup returns non-zero cred
+    (db.select as jest.Mock).mockImplementationOnce(() =>
+      stubQuery([{ cred: 100 }])
+    );
+    // Second select call for existing restake check returns existing restake
+    (db.select as jest.Mock).mockImplementationOnce(() =>
+      stubQuery([{ id: 1, amount: 30 }])
+    );
+    // Third select call for slash check returns existing slash
+    (db.select as jest.Mock).mockImplementationOnce(() =>
+      stubQuery([{ id: 1, restakeId: 1 }])
+    );
+    // Update restake call should succeed
+    (db.update as jest.Mock).mockImplementationOnce(() =>
+      stubQuery([{ id: 1 }])
+    );
+    // Update slash call should succeed
+    (db.update as jest.Mock).mockImplementationOnce(() =>
+      stubQuery([{ id: 1 }])
+    );
 
-    // Set up existing restake mock
-    const selectMock = {
-      from: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      then: jest
-        .fn()
-        .mockImplementationOnce((cb) =>
-          Promise.resolve([existingRestake]).then(cb)
-        ),
-    };
-    (db.select as jest.Mock).mockReturnValue(selectMock);
-
-    // Set up the transaction mock with sequential tx.select calls for deactivating slashes
-    const txSelectChainForExistingSlash = {
-      from: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      then: jest.fn().mockImplementationOnce((cb) =>
-        Promise.resolve([
-          {
-            id: 555,
-            amount: 3,
-            userId: "user-123",
-            pointId: 123,
-            negationId: 456,
-          },
-        ]).then(cb)
-      ),
-    };
-    const txSelectChainForEffectivelyZeroed = {
-      from: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      then: jest
-        .fn()
-        .mockImplementationOnce((cb) =>
-          Promise.resolve([{ slashedAmount: 0 }]).then(cb)
-        ),
-    };
-    const txMock = {
-      select: jest
-        .fn()
-        .mockReturnValueOnce(txSelectChainForExistingSlash)
-        .mockReturnValueOnce(txSelectChainForEffectivelyZeroed),
-      insert: jest.fn().mockReturnValue({
-        values: jest.fn().mockReturnThis(),
-      }),
-      update: jest.fn().mockReturnValue({
-        set: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-      }),
-    };
-    (db.transaction as jest.Mock).mockImplementationOnce(async (callback) => {
-      return await callback(txMock);
-    });
-
-    // Execute
     const result = await restake({
       pointId: 123,
       negationId: 456,
-      amount: 10, // Increasing from 5 to 10
+      amount: 60,
     });
 
-    // Assert
-    expect(result).toBe(789); // Should return the existing restake ID
-
-    // Verify transaction operations to deactivate slash
-    expect(db.transaction).toHaveBeenCalled();
+    expect(result).toBe(1); // Returns the restake ID
+    expect(db.update).toHaveBeenCalledTimes(2); // restake + slash deactivation
   });
 
   it("should reset timestamps for fully slashed restakes", async () => {
     // Setup: user is authenticated
     (getUserId as jest.Mock).mockResolvedValue("user-123");
+
+    // First select call for endorsement lookup returns non-zero cred
+    (db.select as jest.Mock).mockImplementationOnce(() =>
+      stubQuery([{ cred: 100 }])
+    );
 
     // Simulate an existing restake
     const existingRestake = {

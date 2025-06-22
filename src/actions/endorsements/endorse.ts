@@ -9,6 +9,7 @@ import {
   InsertEndorsement,
 } from "@/db/tables/endorsementsTable";
 import { queueEndorsementNotification } from "@/lib/notifications/notificationQueue";
+import { trackEndorseEvent } from "@/actions/analytics/trackCredEvent";
 
 import { db } from "@/services/db";
 import { eq, sql } from "drizzle-orm";
@@ -54,6 +55,9 @@ export const endorse = async ({
       .returning({ id: endorsementsTable.id });
     return insertResult[0].id;
   });
+
+  // Track the cred event for delta pipeline
+  await trackEndorseEvent(userId, pointId, cred);
 
   // Queue notification in background - let the queue handle all the logic
   queueEndorsementNotification({

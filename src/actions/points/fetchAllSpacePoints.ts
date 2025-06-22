@@ -4,6 +4,8 @@ import { getSpace } from "@/actions/spaces/getSpace";
 import { db } from "@/services/db";
 import { pointsWithDetailsView, objectionsTable } from "@/db/schema";
 import { eq, sql, and } from "drizzle-orm";
+import { headers } from "next/headers";
+import { SPACE_HEADER } from "@/constants/config";
 
 export interface PointInSpace {
   pointId: number;
@@ -23,7 +25,17 @@ export interface PointInSpace {
  * within the current user's space.
  */
 export const fetchAllSpacePoints = async (): Promise<PointInSpace[]> => {
-  const space = await getSpace();
+  let space: string | null = null;
+
+  try {
+    space = await getSpace();
+  } catch {
+    /* Middleware didn't set header, fallthrough */
+  }
+
+  if (!space) {
+    space = (await headers()).get(SPACE_HEADER) ?? "global";
+  }
 
   if (!space) {
     return [];

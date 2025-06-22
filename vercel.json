@@ -3,6 +3,10 @@
     {
       "path": "/api/notifications/detect-scroll-proposals",
       "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/delta/pipeline",
+      "schedule": "5 0 * * *"
     }
   ]
 } 

@@ -14,6 +14,7 @@ import {
   queueSlashNotification,
   queueDoubtReductionNotification,
 } from "@/lib/notifications/notificationQueue";
+import { trackSlashEvent } from "@/actions/analytics/trackCredEvent";
 import { db } from "@/services/db";
 import { eq, and, sql, desc } from "drizzle-orm";
 
@@ -306,6 +307,9 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
         space,
       });
     }
+
+    // Track cred event (no actual cred cost for slashing)
+    await trackSlashEvent(userId, pointId, 0);
 
     return slashId;
   });

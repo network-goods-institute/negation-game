@@ -10,6 +10,7 @@ import {
   restakesTable,
 } from "@/db/schema";
 import { queueDoubtNotification } from "@/lib/notifications/notificationQueue";
+import { trackDoubtEvent } from "@/actions/analytics/trackCredEvent";
 import { db } from "@/services/db";
 import { eq, and, sql } from "drizzle-orm";
 
@@ -179,6 +180,11 @@ export const doubt = async ({ pointId, negationId, amount }: DoubtArgs) => {
         space,
       });
     }
+
+    // Track cred event for the amount spent (not including earnings)
+    const credSpent =
+      existingDoubt?.amount > 0 ? amount - existingDoubt.amount : amount;
+    await trackDoubtEvent(userId, pointId, credSpent);
 
     return {
       doubtId,
