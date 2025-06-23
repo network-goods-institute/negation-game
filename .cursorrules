@@ -31,6 +31,8 @@ Additionally, use drizzle syntax for sql statements.
 
 Stop fucking adding comments for everything.
 
+If you find yourself going over 500 lines of code for a file, start splitting it up into smaller files.
+
 General Negation Game Rules:
 viewpoints are equivalent to rationales, rationales are the client facing name, but referred to as viewpoints internally
 

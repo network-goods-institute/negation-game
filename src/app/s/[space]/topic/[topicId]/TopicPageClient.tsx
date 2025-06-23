@@ -12,6 +12,8 @@ import { encodeId } from "@/lib/negation-game/encodeId";
 import { Loader } from "@/components/ui/loader";
 import { TopicCard } from "@/components/topic/TopicCard";
 import useIsMobile from "@/hooks/ui/useIsMobile";
+import { DeltaComparisonWidget } from "@/components/delta/DeltaComparisonWidget";
+import { usePrivy } from "@privy-io/react-auth";
 
 
 interface Topic {
@@ -57,6 +59,7 @@ interface TopicPageClientProps {
 export default function TopicPageClient({ topic, viewpoints, space }: TopicPageClientProps) {
     const router = useRouter();
     const isMobile = useIsMobile();
+    const { user: privyUser } = usePrivy();
     const [viewpointsSortKey, setSortKey] = useState<SortKey>("recent");
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
     const [isTopicsExpanded, setIsTopicsExpanded] = useState(false);
@@ -181,6 +184,16 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                 </Button>
                             </Link>
                         </div>
+                    </div>
+
+                    {/* Delta Comparison Widget */}
+                    <div className="mb-6">
+                        <DeltaComparisonWidget
+                            comparison={{ type: "topic", topicId: topic.id }}
+                            title="Topic Alignment Discovery"
+                            description="Find users who agree or disagree with you most on this topic"
+                            currentUserId={privyUser?.id}
+                        />
                     </div>
 
                     {/* Viewpoints List */}

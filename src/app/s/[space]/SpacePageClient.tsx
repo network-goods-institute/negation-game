@@ -34,7 +34,6 @@ import { makeNegationSuggestionAtom } from "@/atoms/makeNegationSuggestionAtom";
 import { selectPointForNegationOpenAtom } from "@/atoms/selectPointForNegationOpenAtom";
 import { setPrivyToken } from "@/lib/privy/setPrivyToken";
 
-
 interface PageProps {
     params: { space: string };
     searchParams: { [key: string]: string | string[] | undefined };
@@ -307,8 +306,8 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
     }
 
     return (
-        <main className="flex-1 grid sm:grid-cols-[minmax(200px,600px)_1fr] bg-background min-h-0 overflow-hidden">
-            <div className="relative w-full flex flex-col min-h-0 overflow-hidden">
+        <main className="flex-1 grid sm:grid-cols-[minmax(200px,600px)_1fr] bg-background min-h-0 overflow-auto">
+            <div className="relative w-full flex flex-col min-h-0">
                 <SpacePageHeader
                     space={space}
                     selectedTab={selectedTab}

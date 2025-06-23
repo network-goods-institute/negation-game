@@ -26,6 +26,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ProfilePoint } from "@/actions/points/fetchProfilePoints";
 import { ProfileBadge, RationaleRank } from "@/components/ui/ProfileBadge";
+import { DeltaComparisonWidget } from "@/components/delta/DeltaComparisonWidget";
 
 type ProfileTab = "profile" | "endorsements" | "dashboard";
 
@@ -342,6 +343,18 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                         </div>
                     )}
 
+                    {/* Delta Comparison Widget */}
+                    {userData?.id && (
+                        <div className="mb-6">
+                            <DeltaComparisonWidget
+                                comparison={{ type: "user", userId: userData.id, username: username }}
+                                title="User Alignment Discovery"
+                                description="Find users who agree or disagree with you most across all points created by this user"
+                                currentUserId={privyUser?.id}
+                            />
+                        </div>
+                    )}
+
                     <Tabs
                         defaultValue="profile"
                         value={activeTab}
@@ -381,6 +394,8 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                         </div>
                                     </div>
                                 </div>
+
+
 
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-end">

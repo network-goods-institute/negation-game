@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { computeDelta } from "@/actions/analytics/computeDelta";
 import { getUserId } from "@/actions/users/getUserId";
+import { computeRationaleDelta } from "@/actions/analytics/deltaAggregation";
 import { db } from "@/services/db";
 import {
   snapshotsTable,
   usersTable,
+  viewpointsTable,
   pointClustersTable,
   endorsementsTable,
 } from "@/db/schema";
-import { eq, and, sql, inArray } from "drizzle-orm";
-import { buildPointCluster } from "@/actions/points/buildPointCluster";
+import { eq, and, sql, inArray, ne } from "drizzle-orm";
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,9 +19,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { referenceUserId, rootPointId, snapDay, limit = 20 } = body;
+    const { referenceUserId, rationaleId, snapDay, limit = 20 } = body;
 
-    if (!referenceUserId || !rootPointId) {
+    if (!referenceUserId || !rationaleId) {
       return NextResponse.json(
         { error: "Missing required parameters" },
         { status: 400 }
@@ -31,43 +31,82 @@ export async function POST(request: NextRequest) {
     const snapDayDate = snapDay ? new Date(snapDay) : new Date();
     snapDayDate.setHours(0, 0, 0, 0);
 
-    // First, get the point cluster for this root point
-    let cluster = await db
+    const rationale = await db
+      .select({
+        id: viewpointsTable.id,
+        graph: viewpointsTable.graph,
+        topicId: viewpointsTable.topicId,
+      })
+      .from(viewpointsTable)
+      .where(eq(viewpointsTable.id, rationaleId))
+      .limit(1);
+
+    if (!rationale.length) {
+      return NextResponse.json({
+        mostSimilar: [],
+        mostDifferent: [],
+        totalUsers: 0,
+        message: "Rationale not found",
+      });
+    }
+
+    const graph = rationale[0].graph as any;
+    if (!graph?.nodes) {
+      return NextResponse.json({
+        mostSimilar: [],
+        mostDifferent: [],
+        totalUsers: 0,
+        message: "Rationale has no point data",
+      });
+    }
+
+    const pointIds: number[] = [];
+    for (const node of graph.nodes) {
+      if (node.type === "point" && node.data?.pointId) {
+        const pointId = Number(node.data.pointId);
+        if (!isNaN(pointId)) {
+          pointIds.push(pointId);
+        }
+      }
+    }
+
+    if (pointIds.length === 0) {
+      return NextResponse.json({
+        mostSimilar: [],
+        mostDifferent: [],
+        totalUsers: 0,
+        message: "No valid points found in rationale",
+      });
+    }
+
+    const rootPoints = await db
+      .select({
+        rootId: pointClustersTable.rootId,
+        pointId: pointClustersTable.pointId,
+      })
+      .from(pointClustersTable)
+      .where(inArray(pointClustersTable.pointId, pointIds));
+
+    const uniqueRootIds = [...new Set(rootPoints.map((rp) => rp.rootId))];
+
+    if (uniqueRootIds.length === 0) {
+      return NextResponse.json({
+        mostSimilar: [],
+        mostDifferent: [],
+        totalUsers: 0,
+        message: "No point clusters found for rationale points",
+      });
+    }
+
+    const clusterPointIds = await db
       .select({
         pointId: pointClustersTable.pointId,
       })
       .from(pointClustersTable)
-      .where(eq(pointClustersTable.rootId, rootPointId));
+      .where(inArray(pointClustersTable.rootId, uniqueRootIds));
 
-    if (cluster.length === 0) {
-      console.log(
-        `[/api/delta/bulk] Building cluster for root point ${rootPointId}`
-      );
-      // Try to build cluster on demand
-      await buildPointCluster(rootPointId);
-      cluster = await db
-        .select({
-          pointId: pointClustersTable.pointId,
-        })
-        .from(pointClustersTable)
-        .where(eq(pointClustersTable.rootId, rootPointId));
+    const allPointIds = clusterPointIds.map((cp) => cp.pointId);
 
-      if (cluster.length === 0) {
-        return NextResponse.json({
-          mostSimilar: [],
-          mostDifferent: [],
-          totalUsers: 0,
-          message: "Could not find or build point cluster",
-        });
-      }
-    }
-
-    const pointIds = cluster.map((c) => c.pointId);
-    console.log(
-      `[/api/delta/bulk] Found cluster with ${pointIds.length} points: ${pointIds.join(", ")}`
-    );
-
-    // Try to get users from snapshots first
     let usersWithEngagement = await db
       .select({
         userId: snapshotsTable.userId,
@@ -82,8 +121,9 @@ export async function POST(request: NextRequest) {
       .where(
         and(
           eq(snapshotsTable.snapDay, snapDayDate),
-          inArray(snapshotsTable.pointId, pointIds),
-          sql`${snapshotsTable.endorse} + ${snapshotsTable.restakeLive} + ${snapshotsTable.doubt} > 0`
+          inArray(snapshotsTable.pointId, allPointIds),
+          sql`${snapshotsTable.endorse} + ${snapshotsTable.restakeLive} + ${snapshotsTable.doubt} > 0`,
+          ne(snapshotsTable.userId, referenceUserId)
         )
       )
       .groupBy(snapshotsTable.userId, usersTable.username)
@@ -93,18 +133,9 @@ export async function POST(request: NextRequest) {
       .orderBy(
         sql`SUM(${snapshotsTable.endorse} + ${snapshotsTable.restakeLive} + ${snapshotsTable.doubt}) DESC`
       )
-      .limit(Math.min(limit * 2, 100)); // Get more users than requested to account for null deltas
+      .limit(Math.min(limit * 2, 100));
 
-    console.log(
-      `[/api/delta/bulk] Found ${usersWithEngagement.length} users in snapshots`
-    );
-
-    // If no users found in snapshots, fallback to live endorsement data
     if (usersWithEngagement.length === 0) {
-      console.log(
-        "[/api/delta/bulk] No snapshot data, falling back to live endorsements"
-      );
-
       usersWithEngagement = await db
         .select({
           userId: endorsementsTable.userId,
@@ -117,18 +148,15 @@ export async function POST(request: NextRequest) {
         .leftJoin(usersTable, eq(endorsementsTable.userId, usersTable.id))
         .where(
           and(
-            inArray(endorsementsTable.pointId, pointIds),
-            sql`${endorsementsTable.cred} > 0`
+            inArray(endorsementsTable.pointId, allPointIds),
+            sql`${endorsementsTable.cred} > 0`,
+            ne(endorsementsTable.userId, referenceUserId)
           )
         )
         .groupBy(endorsementsTable.userId, usersTable.username)
         .having(sql`SUM(${endorsementsTable.cred}) > 0`)
         .orderBy(sql`SUM(${endorsementsTable.cred}) DESC`)
         .limit(Math.min(limit * 2, 100));
-
-      console.log(
-        `[/api/delta/bulk] Found ${usersWithEngagement.length} users in live endorsements`
-      );
     }
 
     if (usersWithEngagement.length === 0) {
@@ -136,23 +164,18 @@ export async function POST(request: NextRequest) {
         mostSimilar: [],
         mostDifferent: [],
         totalUsers: 0,
-        message: "No users have engaged with this point cluster yet",
+        message:
+          "No other users have engaged with this rationale's point clusters",
       });
     }
 
-    // Filter out the reference user
-    const otherUsers = usersWithEngagement.filter(
-      (u) => u.userId !== referenceUserId
-    );
-
-    // Compute deltas for all other users
     const deltaResults = await Promise.all(
-      otherUsers.map(async (user) => {
+      usersWithEngagement.map(async (user) => {
         try {
-          const result = await computeDelta({
+          const result = await computeRationaleDelta({
             userAId: referenceUserId,
             userBId: user.userId,
-            rootPointId: Number(rootPointId),
+            rationaleId: rationaleId,
             snapDay: snapDay || new Date().toISOString().slice(0, 10),
           });
 
@@ -164,10 +187,6 @@ export async function POST(request: NextRequest) {
             totalEngagement: user.totalEngagement,
           };
         } catch (error) {
-          console.error(
-            `Error computing delta for user ${user.userId}:`,
-            error
-          );
           return {
             userId: user.userId,
             username: user.username || "Unknown",
@@ -179,7 +198,6 @@ export async function POST(request: NextRequest) {
       })
     );
 
-    // Filter out null deltas and sort
     const validDeltas = deltaResults.filter(
       (r) => r.delta !== null && !r.noInteraction
     );
@@ -188,29 +206,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         mostSimilar: [],
         mostDifferent: [],
-        totalUsers: otherUsers.length,
-        message: "No comparable users found for this point cluster",
+        totalUsers: usersWithEngagement.length,
+        message: "No comparable users found for this rationale",
       });
     }
 
-    // Sort by delta (ascending for most similar, descending for most different)
     const sortedByDelta = [...validDeltas].sort(
       (a, b) => (a.delta || 0) - (b.delta || 0)
     );
 
     const requestedLimit = Math.min(limit, validDeltas.length);
 
-    // Get most similar users (lowest delta scores)
     const mostSimilar = sortedByDelta.slice(0, requestedLimit);
 
-    // Get most different users (highest delta scores)
-    // Ensure no overlap by excluding users already in mostSimilar
     const mostSimilarUserIds = new Set(mostSimilar.map((u) => u.userId));
     const remainingUsers = sortedByDelta.filter(
       (u) => !mostSimilarUserIds.has(u.userId)
     );
 
-    // Sort remaining users by delta descending (highest first) and take the top ones
     const mostDifferent = remainingUsers
       .sort((a, b) => (b.delta || 0) - (a.delta || 0))
       .slice(0, Math.min(requestedLimit, remainingUsers.length));
@@ -222,9 +235,8 @@ export async function POST(request: NextRequest) {
       totalEngaged: usersWithEngagement.length,
     });
   } catch (error) {
-    console.error("[/api/delta/bulk] Error:", error);
     return NextResponse.json(
-      { error: "Failed to compute bulk deltas" },
+      { error: "Failed to compute rationale delta comparison" },
       { status: 500 }
     );
   }

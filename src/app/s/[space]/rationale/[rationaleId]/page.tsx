@@ -32,6 +32,7 @@ import { useCopyConfirm } from "@/hooks/viewpoints/useCopyConfirm";
 import { useShareLink } from "@/hooks/viewpoints/useShareLink";
 import { ViewpointStatsBar } from "@/components/rationale/ViewpointStatsBar";
 import { UsernameDisplay } from "@/components/ui/UsernameDisplay";
+import { DeltaComparisonWidget } from "@/components/delta/DeltaComparisonWidget";
 import useSaveViewpoint, { UseSaveViewpointParams } from '@/hooks/viewpoints/useSaveViewpoint';
 import UnsavedChangesDialog from '@/components/dialogs/UnsavedChangesDialog';
 import { useConfirmDiscard } from "@/hooks/graph/useConfirmDiscard";
@@ -337,6 +338,15 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                                         averageFavor={statistics.averageFavor}
                                         className="mt-1"
                                     />
+                                    {/* Delta Comparison Widget */}
+                                    <div className="mt-3">
+                                        <DeltaComparisonWidget
+                                            comparison={{ type: "rationale", rationaleId: viewpointId }}
+                                            title="Rationale Alignment Discovery"
+                                            description="Find users who agree or disagree with you on this rationale's topic clusters"
+                                            currentUserId={user?.id}
+                                        />
+                                    </div>
                                 </>
                             }
                         />

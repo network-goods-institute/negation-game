@@ -92,6 +92,7 @@ import { useSellEndorsement } from "@/mutations/endorsements/useSellEndorsement"
 import { AuthenticatedActionButton } from "@/components/editor/AuthenticatedActionButton";
 import { toast } from "sonner";
 import { ObjectionHeader } from '@/components/cards/pointcard/ObjectionHeader';
+import { DeltaComparisonWidget } from '@/components/delta/DeltaComparisonWidget';
 
 type Point = {
     id: number;
@@ -993,6 +994,16 @@ export function PointPageClient({
                                 amountSupporters={point.amountSupporters}
                                 cred={point.cred}
                             />
+
+                            {/* Delta Comparison Widget */}
+                            <div className="mt-6">
+                                <DeltaComparisonWidget
+                                    comparison={{ type: "point", pointId: point.pointId }}
+                                    title="Point Alignment Discovery"
+                                    description="Find users who agree or disagree with you on this point cluster"
+                                    currentUserId={privyUser?.id}
+                                />
+                            </div>
                         </div>
                         <div className="relative flex flex-col">
                             {isLoadingNegations || (forceShowNegations && (!Array.isArray(negations) || negations.length === 0)) ? (

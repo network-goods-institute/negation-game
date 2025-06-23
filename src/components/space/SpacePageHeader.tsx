@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { SpaceHeader } from "@/components/space/SpaceHeader";
 import { SpaceTabs, Tab } from "@/components/space/SpaceTabs";
 import { NewRationaleButton } from "@/components/rationale/NewRationaleButton";
+import { DeltaComparisonWidget } from "@/components/delta/DeltaComparisonWidget";
 import Link from "next/link";
 import { BrainCircuitIcon, Sigma } from "lucide-react";
+import { usePrivy } from "@privy-io/react-auth";
 
 interface SpacePageHeaderProps {
     space: ReturnType<typeof import("@/queries/space/useSpace").useSpace>;
@@ -47,6 +49,7 @@ export function SpacePageHeader({
     onTopicsToggle,
 }: SpacePageHeaderProps) {
     const isMobile = useIsMobile();
+    const { user: privyUser } = usePrivy();
 
     const getMobileActionButtons = () => {
         switch (selectedTab) {
@@ -133,6 +136,18 @@ export function SpacePageHeader({
                 topicsOpen={topicsOpen}
                 onTopicsToggle={onTopicsToggle}
             />
+
+            {/* Delta Comparison Widget - sticky with tabs on rationales tab */}
+            {selectedTab === "rationales" && (
+                <div className="border-b bg-background px-4 py-3">
+                    <DeltaComparisonWidget
+                        comparison={{ type: "space", spaceId: space.data?.id ?? "global" }}
+                        title="Space Alignment Discovery"
+                        description="Find users who align or disagree with you most across this entire space"
+                        currentUserId={privyUser?.id}
+                    />
+                </div>
+            )}
         </div>
     );
 } 
