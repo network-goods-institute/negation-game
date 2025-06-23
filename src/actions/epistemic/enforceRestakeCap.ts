@@ -14,10 +14,7 @@ export async function enforceRestakeCap(
 
   try {
     // Build where conditions
-    let whereConditions = [
-      eq(restakesTable.amount, sql`${restakesTable.amount}`),
-      gt(restakesTable.amount, 0),
-    ];
+    const whereConditions = [gt(restakesTable.amount, 0)];
     if (userId) {
       whereConditions.push(eq(restakesTable.userId, userId));
     }
@@ -25,7 +22,22 @@ export async function enforceRestakeCap(
       whereConditions.push(eq(restakesTable.pointId, pointId));
     }
 
-    // Get all active restakes with their corresponding endorsements
+    /**
+     * Aggregate all endorsements per (user, point) pair to avoid one-to-many
+     * duplication when joining with the restakes table.  A sub-query is used so
+     * the main select still returns a single row per restake.
+     */
+    const endorsementsSum = db
+      .select({
+        userId: endorsementsTable.userId,
+        pointId: endorsementsTable.pointId,
+        totalCred: sql<number>`SUM(${endorsementsTable.cred})`.mapWith(Number),
+      })
+      .from(endorsementsTable)
+      .groupBy(endorsementsTable.userId, endorsementsTable.pointId)
+      .as("endorsements_sum");
+
+    // Get all active restakes with the aggregated endorsement amount
     const restakeEndorsementPairs = await db
       .select({
         restakeId: restakesTable.id,
@@ -34,14 +46,16 @@ export async function enforceRestakeCap(
         negationId: restakesTable.negationId,
         restakeAmount: restakesTable.amount,
         endorseAmount:
-          sql<number>`COALESCE(${endorsementsTable.cred}, 0)`.mapWith(Number),
+          sql<number>`COALESCE(${endorsementsSum.totalCred}, 0)`.mapWith(
+            Number
+          ),
       })
       .from(restakesTable)
       .leftJoin(
-        endorsementsTable,
+        endorsementsSum,
         and(
-          eq(endorsementsTable.userId, restakesTable.userId),
-          eq(endorsementsTable.pointId, restakesTable.pointId)
+          eq(endorsementsSum.userId, restakesTable.userId),
+          eq(endorsementsSum.pointId, restakesTable.pointId)
         )
       )
       .where(and(...whereConditions));
