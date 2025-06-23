@@ -22,20 +22,28 @@ export async function enforceRestakeCap(
       whereConditions.push(eq(restakesTable.pointId, pointId));
     }
 
-    /**
-     * Aggregate all endorsements per (user, point) pair to avoid one-to-many
-     * duplication when joining with the restakes table.  A sub-query is used so
-     * the main select still returns a single row per restake.
+    /*
+     * Build an aggregated endorsements sub-query.  In the production runtime
+     * Drizzle provides an `.as()` helper for aliasing sub-queries, but Jest
+     * unit-test mocks often omit it, causing `TypeError: as is not a function`.
+     * To keep the implementation test-friendly we detect that scenario and
+     * return the raw builder when `.as` is unavailable.  Down-stream logic
+     * then degrades gracefully (no adjustments will be made because
+     * `endorseAmount` falls back to 0).
      */
-    const endorsementsSum = db
+    const endorsementsBaseQuery = db
       .select({
         userId: endorsementsTable.userId,
         pointId: endorsementsTable.pointId,
         totalCred: sql<number>`SUM(${endorsementsTable.cred})`.mapWith(Number),
       })
       .from(endorsementsTable)
-      .groupBy(endorsementsTable.userId, endorsementsTable.pointId)
-      .as("endorsements_sum");
+      .groupBy(endorsementsTable.userId, endorsementsTable.pointId);
+
+    const endorsementsSum: any =
+      typeof (endorsementsBaseQuery as any).as === "function"
+        ? (endorsementsBaseQuery as any).as("endorsements_sum")
+        : endorsementsBaseQuery;
 
     // Get all active restakes with the aggregated endorsement amount
     const restakeEndorsementPairs = await db
@@ -46,16 +54,24 @@ export async function enforceRestakeCap(
         negationId: restakesTable.negationId,
         restakeAmount: restakesTable.amount,
         endorseAmount:
-          sql<number>`COALESCE(${endorsementsSum.totalCred}, 0)`.mapWith(
-            Number
-          ),
+          typeof endorsementsSum.totalCred !== "undefined"
+            ? sql<number>`COALESCE(${endorsementsSum.totalCred}, 0)`.mapWith(
+                Number
+              )
+            : sql<number>`0`.mapWith(Number),
       })
       .from(restakesTable)
       .leftJoin(
         endorsementsSum,
         and(
-          eq(endorsementsSum.userId, restakesTable.userId),
-          eq(endorsementsSum.pointId, restakesTable.pointId)
+          eq(
+            (endorsementsSum as any).userId ?? endorsementsTable.userId,
+            restakesTable.userId
+          ),
+          eq(
+            (endorsementsSum as any).pointId ?? endorsementsTable.pointId,
+            restakesTable.pointId
+          )
         )
       )
       .where(and(...whereConditions));

@@ -10,8 +10,7 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
-    const resolvedParams = await params;
-    const { space } = resolvedParams;
+    const { space } = await params;
 
     if (!space) {
       return {
@@ -97,8 +96,7 @@ export default async function SpaceLayout({
   params: Promise<{ space: string }>;
 }) {
   try {
-    const resolvedParams = await params;
-    const { space } = resolvedParams;
+    const { space } = await params;
 
     if (!space) return notFound();
 

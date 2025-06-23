@@ -3,6 +3,7 @@ import { db } from "@/services/db";
 import { currentPointFavorView, pointsWithDetailsView } from "@/db/schema";
 import { addFavor } from "@/db/utils/addFavor";
 import { eq } from "drizzle-orm";
+import { fetchFavorHistory } from "@/actions/feed/fetchFavorHistory";
 
 export async function GET(request: NextRequest) {
   const pointId = request.nextUrl.searchParams.get("pointId");
@@ -47,13 +48,29 @@ export async function GET(request: NextRequest) {
     // Also get using addFavor for consistency
     const [pointWithFavor] = await addFavor([{ id: point.pointId }]);
 
-    return Response.json({
-      point: {
-        ...point,
-        favor: pointWithFavor.favor,
-      },
-      favor,
+    // Fetch favor history (default 1W scale for OG images)
+    const favorHistory = await fetchFavorHistory({
+      pointId: point.pointId,
+      scale: "1W",
     });
+
+    // Map DB snake_case fields to camelCase expected by the OG image route
+    const responsePayload = {
+      id: point.pointId,
+      content: point.content,
+      createdAt: point.createdAt,
+      favor: pointWithFavor.favor,
+      favorHistory,
+      amountSupporters:
+        (point as any).amountSupporters ??
+        (point as any).amount_supporters ??
+        0,
+      amountNegations:
+        (point as any).amountNegations ?? (point as any).amount_negations ?? 0,
+      cred: point.cred,
+    };
+
+    return Response.json(responsePayload);
   } catch (error) {
     console.error("Error fetching point data:", error);
     return Response.json({ error: "Internal server error" }, { status: 500 });
