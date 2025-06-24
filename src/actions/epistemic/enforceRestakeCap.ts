@@ -35,7 +35,9 @@ export async function enforceRestakeCap(
       .select({
         userId: endorsementsTable.userId,
         pointId: endorsementsTable.pointId,
-        totalCred: sql<number>`SUM(${endorsementsTable.cred})`.mapWith(Number),
+        totalCred: sql<number>`SUM(${endorsementsTable.cred})`
+          .mapWith(Number)
+          .as("total_cred"),
       })
       .from(endorsementsTable)
       .groupBy(endorsementsTable.userId, endorsementsTable.pointId);
