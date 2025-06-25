@@ -30,7 +30,8 @@ const isAuthError = (error: any): boolean => {
   ].some((msg) => errorMessage.toLowerCase().includes(msg.toLowerCase()));
 };
 
-export const useFeed = () => {
+export const useFeed = (options: { enabled?: boolean } = {}) => {
+  const { enabled = true } = options;
   const { user: privyUser, ready, getAccessToken } = usePrivy();
   const { processPoints } = useFeedWorker();
   const queryClient = useQueryClient();
@@ -130,7 +131,7 @@ export const useFeed = () => {
       return failureCount < 3;
     },
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30000),
-    enabled: ready,
+    enabled: ready && enabled,
     refetchOnWindowFocus: false,
     refetchOnMount: true,
     refetchOnReconnect: true,

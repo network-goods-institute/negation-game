@@ -51,7 +51,7 @@ export const LeaderboardDialog = ({
     space: string;
 }) => {
     const isMobile = useIsMobile();
-    const { data: feed } = useFeed();
+    const { data: feed } = useFeed({ enabled: open });
     const { data: allUsers } = useAllUsers();
     const { data: spaceViewpoints } = useQuery({
         queryKey: ["spaceRationales", space],
