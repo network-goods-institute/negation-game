@@ -143,7 +143,14 @@ export function SpacePageHeader({
                     <DeltaComparisonWidget
                         comparison={{ type: "space", spaceId: space.data?.id ?? "global" }}
                         title="Space Alignment Discovery"
-                        description="Find users who align or disagree with you most across this entire space"
+                        description={
+                            <>
+                                Find users who align or disagree with you most across{" "}
+                                <span className="text-yellow-500 font-medium">
+                                    s/{space.data?.id ?? "this entire space"}
+                                </span>
+                            </>
+                        }
                         currentUserId={privyUser?.id}
                     />
                 </div>

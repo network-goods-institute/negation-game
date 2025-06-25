@@ -36,7 +36,7 @@ type DeltaComparisonType =
 interface DeltaComparisonWidgetProps {
     comparison: DeltaComparisonType;
     title: string;
-    description: string;
+    description: React.ReactNode;
     currentUserId?: string;
     className?: string;
 }
