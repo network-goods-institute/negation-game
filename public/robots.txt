@@ -6,21 +6,25 @@ Allow: /s/
 Allow: /s/global
 Allow: /s/scroll
 Allow: /s/*/rationale/
+Allow: /profile/
 
-# Block private/user-specific pages
+# Block private/user-specific pages - be more specific
 Disallow: /api/
 Disallow: /messages/
 Disallow: /notifications/
 Disallow: /settings/
-Disallow: /*?*
-
-# Allow but lower priority for user profiles
-Allow: /profile/
+Disallow: /delta/
+Disallow: /*?view=*
+Disallow: /*?*debug*
+Disallow: /*?*admin*
 
 # Special rules for search engines
 User-agent: Googlebot
 Crawl-delay: 1
 Allow: /
+# Specifically allow important dynamic content
+Allow: /s/*/*
+Allow: /profile/*
 
 User-agent: Bingbot
 Crawl-delay: 2
@@ -38,6 +42,13 @@ User-agent: SemrushBot
 Disallow: /
 
 User-agent: MJ12bot
+Disallow: /
+
+# Block automated tools
+User-agent: ia_archiver
+Disallow: /
+
+User-agent: Wayback
 Disallow: /
 
 # Sitemap location

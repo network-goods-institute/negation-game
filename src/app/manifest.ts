@@ -5,33 +5,34 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Negation Game - Protocol for Reasoned Disagreement",
     short_name: "Negation Game",
     description:
-      "A protocol layer for reasoned disagreement: powered by economic incentives, governed by epistemic values, and designed for minds willing to change.",
+      "A protocol layer for reasoned disagreement: powered by economic incentives, governed by epistemic values, and designed for minds willing to change. Transform debates into structured, accountable discussions.",
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",
     theme_color: "#667eea",
+    orientation: "portrait-primary",
+    categories: ["productivity", "social", "education"],
+    lang: "en-US",
+    dir: "ltr",
+    scope: "/",
     icons: [
       {
-        src: "/icons/icon-192.png",
-        sizes: "192x192",
-        type: "image/png",
-      },
-      {
-        src: "/icons/icon-512.png",
-        sizes: "512x512",
-        type: "image/png",
-      },
-      {
-        src: "/icons/icon-512.png",
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "maskable",
-      },
-      {
         src: "/img/negation-game.png",
-        sizes: "any",
+        sizes: "1200x630",
         type: "image/png",
+        purpose: "any",
       },
     ],
+    screenshots: [
+      {
+        src: "/img/negation-game.png",
+        sizes: "1200x630",
+        type: "image/png",
+        form_factor: "wide",
+        label: "Negation Game interface showing structured debate platform",
+      },
+    ],
+    related_applications: [],
+    prefer_related_applications: false,
   };
 }

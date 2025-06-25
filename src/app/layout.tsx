@@ -149,7 +149,7 @@ export default async function RootLayout({
   return (
     <html lang="en-US" suppressHydrationWarning className="h-full">
       <head>
-        <link rel="manifest" href="/manifest.webmanifest" />
+
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

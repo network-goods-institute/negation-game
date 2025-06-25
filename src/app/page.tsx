@@ -4,7 +4,7 @@ import { ArrowRight, MessageCircle, Shield, Zap } from "lucide-react";
 import { fetchSpace } from "@/actions/spaces/fetchSpace";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Metadata } from "next";
-import { GoToSpaceButton } from "@/components/GoToSpaceButton";
+
 
 export const metadata: Metadata = {
     title: "Make better decisions. Reward quality participation",
@@ -178,7 +178,12 @@ export default async function HomePage() {
                                 <p className="mt-2 text-muted-foreground dark:text-slate-400">
                                     Browse community-wide conversations and topics across the platform.
                                 </p>
-                                <GoToSpaceButton href="/s/global" />
+                                <Button size="sm" className="mt-4 font-medium gap-2 text-base" asChild>
+                                    <Link href="/s/global">
+                                        Go to Space
+                                        <ArrowRight className="w-4 h-4" />
+                                    </Link>
+                                </Button>
                             </div>
                             <div className="p-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 hover:shadow-lg transition flex flex-col items-center text-center">
                                 <Avatar className="mb-4 h-16 w-16">
@@ -192,7 +197,12 @@ export default async function HomePage() {
                                 <p className="mt-2 text-muted-foreground dark:text-slate-400">
                                     Explore governance discussions and proposals within the Scroll DAO community.
                                 </p>
-                                <GoToSpaceButton href="/s/scroll" />
+                                <Button size="sm" className="mt-4 font-medium gap-2 text-base" asChild>
+                                    <Link href="/s/scroll">
+                                        Go to Space
+                                        <ArrowRight className="w-4 h-4" />
+                                    </Link>
+                                </Button>
                             </div>
                         </div>
                     </section>
