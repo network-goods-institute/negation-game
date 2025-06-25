@@ -14,21 +14,47 @@ import { useUser } from "@/queries/users/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { clearPrivyCookie } from '@/actions/users/auth';
 import { LoaderCircleIcon, CoinsIcon, UserIcon, LogOutIcon, TrophyIcon, BellIcon, SettingsIcon, MessageSquareIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { EarningsDialog } from "../dialogs/EarningsDialog";
 import Link from "next/link";
 import { LeaderboardDialog } from "@/components/dialogs/LeaderboardDialog";
 import { useUnreadNotificationCount } from "@/queries/notifications/useNotifications";
 import { useUnreadMessageCount } from "@/queries/messages/useUnreadMessageCount";
 import { Badge } from "@/components/ui/badge";
+import { useRouter, usePathname } from "next/navigation";
 
 export const ConnectButton = () => {
   const { login, logout, user: privyUser } = usePrivy();
   const { data: user, isLoading } = useUser();
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
   const { data: unreadMessageCount = 0 } = useUnreadMessageCount();
+  const router = useRouter();
+  const pathname = usePathname();
+  const prevPathRef = useRef(pathname);
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [loadingRoute, setLoadingRoute] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (loadingRoute && pathname !== prevPathRef.current) {
+      setMenuOpen(false);
+      setLoadingRoute(null);
+    }
+    prevPathRef.current = pathname;
+  }, [pathname, loadingRoute]);
+
+  const navigate = (target: string) => {
+    const isCurrent = pathname === target;
+    return (e: Event | React.SyntheticEvent) => {
+      e.preventDefault();
+      if (loadingRoute || isCurrent) return;
+      setMenuOpen(true);
+      setLoadingRoute(target);
+      router.push(target);
+    };
+  };
 
   if (!privyUser)
     return (
@@ -63,7 +89,7 @@ export const ConnectButton = () => {
   if (user)
     return (
       <>
-        <DropdownMenu modal={false}>
+        <DropdownMenu modal={false} open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger asChild>
             <Button variant={"outline"} key="connect" className="w-28 sm:w-36 text-sm relative">
               <div className="flex items-center gap-2 overflow-hidden">
@@ -89,15 +115,32 @@ export const ConnectButton = () => {
               {user.cred} cred
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
+            <DropdownMenuItem
+              asChild
+              onSelect={navigate(`/profile/${user.username}`)}
+              disabled={!!loadingRoute || pathname === `/profile/${user.username}`}
+            >
               <Link href={`/profile/${user.username}`} className="gap-2">
-                <UserIcon className="size-4" />
+                {loadingRoute === `/profile/${user.username}` ? (
+                  <LoaderCircleIcon className="size-4 animate-spin" />
+                ) : (
+                  <UserIcon className="size-4" />
+                )}
                 Profile
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
+
+            <DropdownMenuItem
+              asChild
+              onSelect={navigate("/messages")}
+              disabled={!!loadingRoute || pathname === "/messages"}
+            >
               <Link href="/messages" className="gap-2">
-                <MessageSquareIcon className="size-4" />
+                {loadingRoute === "/messages" ? (
+                  <LoaderCircleIcon className="size-4 animate-spin" />
+                ) : (
+                  <MessageSquareIcon className="size-4" />
+                )}
                 <div className="flex items-center justify-between w-full">
                   <span>Messages</span>
                   {unreadMessageCount > 0 && (
@@ -108,9 +151,18 @@ export const ConnectButton = () => {
                 </div>
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
+
+            <DropdownMenuItem
+              asChild
+              onSelect={navigate("/notifications")}
+              disabled={!!loadingRoute || pathname === "/notifications"}
+            >
               <Link href="/notifications" className="gap-2">
-                <BellIcon className="size-4" />
+                {loadingRoute === "/notifications" ? (
+                  <LoaderCircleIcon className="size-4 animate-spin" />
+                ) : (
+                  <BellIcon className="size-4" />
+                )}
                 <div className="flex items-center justify-between w-full">
                   <span>Notifications</span>
                   {unreadCount > 0 && (
@@ -121,6 +173,7 @@ export const ConnectButton = () => {
                 </div>
               </Link>
             </DropdownMenuItem>
+
             <DropdownMenuItem
               onClick={() => setDialogOpen(true)}
               className="gap-2"
@@ -133,9 +186,17 @@ export const ConnectButton = () => {
               Leaderboard
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
+            <DropdownMenuItem
+              asChild
+              onSelect={navigate("/settings")}
+              disabled={!!loadingRoute || pathname === "/settings"}
+            >
               <Link href="/settings" className="gap-2">
-                <SettingsIcon className="size-4" />
+                {loadingRoute === "/settings" ? (
+                  <LoaderCircleIcon className="size-4 animate-spin" />
+                ) : (
+                  <SettingsIcon className="size-4" />
+                )}
                 Settings
               </Link>
             </DropdownMenuItem>
