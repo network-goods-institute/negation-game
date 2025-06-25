@@ -3,15 +3,14 @@ import { db } from "@/services/db";
 import { spacesTable } from "@/db/tables/spacesTable";
 import { pointsTable } from "@/db/tables/pointsTable";
 import { viewpointsTable } from "@/db/tables/viewpointsTable";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { sqids } from "@/services/sqids";
 import {
   calculateDynamicPriority,
   calculateChangeFrequency,
 } from "@/lib/seo/sitemapUtils";
 
-// Revalidate sitemap every 12 hours so crawlers receive fresh data without DDoSing the DB
-export const revalidate = 43200; // 60 * 60 * 12 = 43200 seconds (12 hours)
+export const revalidate = 21600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const domain =
@@ -20,77 +19,101 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       : `https://${process.env.NEXT_PUBLIC_DOMAIN || "negationgame.com"}`;
 
   const sitemapEntries: MetadataRoute.Sitemap = [];
+  const now = new Date();
 
-  // Add home page
   sitemapEntries.push({
     url: domain,
-    lastModified: new Date(),
+    lastModified: now,
     changeFrequency: "daily",
     priority: 1,
   });
 
   try {
-    // Add spaces
+    // Add spaces with better error handling
     const spaces = await db
       .select({
         id: spacesTable.id,
         updatedAt: spacesTable.updatedAt,
+        createdAt: spacesTable.createdAt,
       })
-      .from(spacesTable);
+      .from(spacesTable)
+      .catch((err) => {
+        console.error("Error fetching spaces for sitemap:", err);
+        return [];
+      });
 
     for (const space of spaces) {
       sitemapEntries.push({
         url: `${domain}/s/${space.id}`,
-        lastModified: space.updatedAt,
+        lastModified: space.updatedAt || space.createdAt || now,
         changeFrequency: "daily",
         priority: 0.8,
       });
     }
 
-    // Add points (limit to recent active points to avoid huge sitemaps)
     const recentPoints = await db
       .select({
         id: pointsTable.id,
         space: pointsTable.space,
         createdAt: pointsTable.createdAt,
+        content: pointsTable.content,
       })
       .from(pointsTable)
-      .where(eq(pointsTable.isActive, true))
+      .where(and(eq(pointsTable.isActive, true)))
       .orderBy(desc(pointsTable.createdAt))
-      .limit(2000); // Increased limit for better coverage
+      .limit(3000)
+      .catch((err) => {
+        console.error("Error fetching points for sitemap:", err);
+        return [];
+      });
 
     for (const point of recentPoints) {
+      if (point.content && point.content.length < 10) continue;
+
       const encodedId = sqids.encode([point.id]);
+      const lastModified = point.createdAt;
       const daysSinceCreation = Math.floor(
         (Date.now() - point.createdAt.getTime()) / (1000 * 60 * 60 * 24)
       );
 
       sitemapEntries.push({
         url: `${domain}/s/${point.space}/${encodedId}`,
-        lastModified: point.createdAt,
+        lastModified: lastModified,
         changeFrequency: calculateChangeFrequency(daysSinceCreation),
         priority: calculateDynamicPriority({
           baseScore: 0.7,
           daysSinceCreation,
+          engagementScore: point.content?.length
+            ? Math.min(point.content.length / 1000, 1)
+            : 0,
         }),
       });
     }
 
-    // Add rationales (viewpoints)
     const recentRationales = await db
       .select({
         id: viewpointsTable.id,
         space: viewpointsTable.space,
         lastUpdatedAt: viewpointsTable.lastUpdatedAt,
         createdAt: viewpointsTable.createdAt,
+        title: viewpointsTable.title,
+        description: viewpointsTable.description,
       })
       .from(viewpointsTable)
       .where(eq(viewpointsTable.isActive, true))
       .orderBy(desc(viewpointsTable.lastUpdatedAt))
-      .limit(1000); // Increased limit for better coverage
+      .limit(1500)
+      .catch((err) => {
+        console.error("Error fetching rationales for sitemap:", err);
+        return [];
+      });
 
     for (const rationale of recentRationales) {
-      if (rationale.space) {
+      if (rationale.space && rationale.title) {
+        const totalContent =
+          (rationale.title || "") + (rationale.description || "");
+        if (totalContent.length < 20) continue;
+
         const lastUpdate = rationale.lastUpdatedAt || rationale.createdAt;
         const daysSinceCreation = Math.floor(
           (Date.now() - rationale.createdAt.getTime()) / (1000 * 60 * 60 * 24)
@@ -110,14 +133,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             baseScore: 0.6,
             daysSinceCreation,
             daysSinceUpdate,
+            engagementScore: totalContent.length / 1000,
           }),
         });
       }
     }
   } catch (error) {
     console.error("Error generating sitemap:", error);
-    // Return at least the home page if there's an error
   }
+
+  sitemapEntries.sort((a, b) => {
+    if (a.priority !== b.priority) {
+      return (b.priority || 0) - (a.priority || 0);
+    }
+    return (
+      new Date(b.lastModified || 0).getTime() -
+      new Date(a.lastModified || 0).getTime()
+    );
+  });
 
   // Enforce 50k URL limit
   const MAX_URLS = 49999;

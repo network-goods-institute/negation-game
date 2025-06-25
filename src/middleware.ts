@@ -131,10 +131,12 @@ export default function middleware(req: NextRequest) {
   if (SENSITIVE_PATTERNS.some((pattern) => pattern.test(pathname))) {
     console.error(`Blocked attempt to access sensitive path: ${pathname}`);
 
-    return new NextResponse(null, {
+    const response = new NextResponse(null, {
       status: 404,
       statusText: "Not Found",
     });
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+    return response;
   }
 
   // Skip middleware for static assets
@@ -194,7 +196,9 @@ export default function middleware(req: NextRequest) {
     url.pathname.startsWith("/delta")
   ) {
     const res = NextResponse.next();
-    res.headers.set("X-Robots-Tag", "noindex, nofollow");
+    if (!url.pathname.startsWith("/s/")) {
+      res.headers.set("X-Robots-Tag", "noindex, nofollow");
+    }
     return res;
   }
 

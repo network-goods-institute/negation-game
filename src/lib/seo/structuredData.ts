@@ -247,3 +247,74 @@ export function generateWebPageStructuredData({
 
   return structuredData;
 }
+
+export function generateWebsiteStructuredData({
+  domain,
+  pages = [],
+}: {
+  domain: string;
+  pages?: Array<{ url: string; name: string; description?: string }>;
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Negation Game",
+    alternateName: "Protocol for Reasoned Disagreement",
+    url: domain,
+    description:
+      "A protocol layer for reasoned disagreement: powered by economic incentives, governed by epistemic values, and designed for minds willing to change.",
+    publisher: {
+      "@type": "Organization",
+      name: "Negation Game",
+      url: domain,
+      logo: {
+        "@type": "ImageObject",
+        url: `${domain}/img/negation-game.png`,
+        width: 1200,
+        height: 630,
+      },
+      sameAs: ["https://t.me/+a0y-MpvjAchkM2Qx"],
+    },
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${domain}/s/global?q={search_term_string}`,
+      },
+      "query-input": "required name=search_term_string",
+    },
+    mainEntity: {
+      "@type": "SoftwareApplication",
+      name: "Negation Game",
+      applicationCategory: "CommunicationApplication",
+      operatingSystem: "Web Browser",
+      url: domain,
+      description:
+        "Transform debates into structured, accountable discussions with economic incentives for intellectual honesty.",
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+      },
+      featureList: [
+        "Structured argument mapping",
+        "Economic incentives for honesty",
+        "Commitment mechanisms",
+        "Epistemic discourse",
+        "Collaborative reasoning",
+      ],
+    },
+    ...(pages.length > 0 && {
+      mainEntityOfPage: pages.map((page) => ({
+        "@type": "WebPage",
+        name: page.name,
+        url: `${domain}${page.url}`,
+        description: page.description,
+        isPartOf: {
+          "@type": "WebSite",
+          url: domain,
+        },
+      })),
+    }),
+  };
+}

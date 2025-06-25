@@ -15,6 +15,18 @@ export default function Error({
         console.error('Unhandled error:', error);
     }, [error]);
 
+    useEffect(() => {
+        const metaRobots = document.querySelector('meta[name="robots"]');
+        if (metaRobots) {
+            metaRobots.setAttribute('content', 'noindex, nofollow');
+        } else {
+            const newMeta = document.createElement('meta');
+            newMeta.name = 'robots';
+            newMeta.content = 'noindex, nofollow';
+            document.head.appendChild(newMeta);
+        }
+    }, []);
+
     return (
         <div className="flex flex-col items-center justify-center min-h-[70vh] px-4 text-center">
             <h1 className="text-4xl font-bold mb-4">Something went wrong</h1>
