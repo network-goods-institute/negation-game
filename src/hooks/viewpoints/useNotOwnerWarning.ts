@@ -22,7 +22,7 @@ export function useNotOwnerWarning(
         toastIdRef.current = toast.warning(
           "Not saving, just playing. To keep your changes:",
           {
-            position: "bottom-left",
+            position: "bottom-center",
             duration: Infinity,
             action: { label: "Make a Copy", onClick: onCopy },
             actionButtonStyle: {
