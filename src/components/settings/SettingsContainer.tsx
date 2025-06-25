@@ -11,6 +11,7 @@ import { useUpdateUserSettings } from "@/mutations/user/useUpdateUserSettings";
 import { LoaderCircleIcon, MessageCircleIcon, EyeIcon, BellIcon } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const SettingsContainer = () => {
     const { data: user, isLoading } = useUser();
@@ -55,8 +56,39 @@ export const SettingsContainer = () => {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center p-16">
-                <LoaderCircleIcon className="animate-spin size-8 text-primary" />
+            <div className="space-y-6">
+                <div className="border rounded-lg bg-card">
+                    <div className="p-6 border-b">
+                        <div className="flex items-center space-x-3">
+                            <Skeleton className="h-5 w-5" />
+                            <Skeleton className="h-6 w-24" />
+                        </div>
+                    </div>
+                    <div className="p-6 space-y-6">
+                        {Array.from({ length: 2 }).map((_, i) => (
+                            <div key={i} className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <Skeleton className="h-4 w-32" />
+                                    <Skeleton className="h-3 w-64" />
+                                </div>
+                                <Skeleton className="h-6 w-11 rounded-full" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="border rounded-lg bg-card">
+                    <div className="p-6 border-b">
+                        <div className="flex items-center space-x-3">
+                            <Skeleton className="h-5 w-5" />
+                            <Skeleton className="h-6 w-32" />
+                        </div>
+                    </div>
+                    <div className="p-6">
+                        <Skeleton className="h-3 w-80 mb-4" />
+                        <Skeleton className="h-10 w-48" />
+                    </div>
+                </div>
             </div>
         );
     }

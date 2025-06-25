@@ -5,6 +5,7 @@ import { ConversationList } from "./ConversationList";
 import { EmptyMessages } from "./EmptyMessages";
 import { LoaderCircleIcon, MessageSquareXIcon } from "lucide-react";
 import { useState, useCallback } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const MessagesContainer = () => {
     const { data: conversations, isLoading, error } = useConversations();
@@ -16,11 +17,23 @@ export const MessagesContainer = () => {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center py-12">
-                <div className="flex flex-col items-center gap-3">
-                    <LoaderCircleIcon className="animate-spin size-8 text-primary" />
-                    <p className="text-muted-foreground">Loading your conversations...</p>
-                </div>
+            <div className="space-y-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="flex items-start space-x-4 p-4 border rounded-lg bg-card">
+                        <Skeleton className="h-12 w-12 rounded-full flex-shrink-0" />
+                        <div className="flex-1 space-y-2">
+                            <div className="flex items-center justify-between">
+                                <Skeleton className="h-4 w-32" />
+                                <Skeleton className="h-3 w-16" />
+                            </div>
+                            <Skeleton className="h-3 w-full" />
+                            <Skeleton className="h-3 w-3/4" />
+                        </div>
+                        <div className="flex flex-col items-end space-y-1">
+                            <Skeleton className="h-5 w-5 rounded-full" />
+                        </div>
+                    </div>
+                ))}
             </div>
         );
     }

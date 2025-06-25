@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { useNotificationPreferences } from "@/queries/notifications/useNotificationPreferences";
 import { useUpdateNotificationPreferences } from "@/mutations/notifications/useUpdateNotificationPreferences";
 import { usePrivy } from "@privy-io/react-auth";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const NotificationSettingsPage = () => {
     const router = useRouter();
@@ -49,8 +50,36 @@ export const NotificationSettingsPage = () => {
                     </div>
                 </div>
             ) : isLoading ? (
-                <div className="flex items-center justify-center py-8">
-                    <LoaderCircleIcon className="w-6 h-6 animate-spin" />
+                <div className="space-y-6">
+                    <div className="border rounded-lg bg-card">
+                        <div className="p-6 border-b">
+                            <Skeleton className="h-6 w-40" />
+                        </div>
+                        <div className="p-6 space-y-4">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                                <div key={i} className="flex items-center justify-between">
+                                    <div className="space-y-1">
+                                        <Skeleton className="h-4 w-32" />
+                                        <Skeleton className="h-3 w-64" />
+                                    </div>
+                                    <Skeleton className="h-6 w-11 rounded-full" />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="border rounded-lg bg-card">
+                        <div className="p-6 border-b">
+                            <Skeleton className="h-6 w-44" />
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div className="space-y-2">
+                                <Skeleton className="h-4 w-40" />
+                                <Skeleton className="h-10 w-48" />
+                                <Skeleton className="h-3 w-72" />
+                            </div>
+                        </div>
+                    </div>
                 </div>
             ) : (
                 <div className="space-y-6">

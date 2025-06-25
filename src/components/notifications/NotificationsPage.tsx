@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const NotificationsPage = () => {
     const { data: notifications = [], isLoading, error } = useNotifications();
@@ -63,8 +64,28 @@ export const NotificationsPage = () => {
                     <BellIcon className="w-6 h-6" />
                     <h1 className="text-2xl font-bold">Notifications</h1>
                 </div>
-                <div className="flex items-center justify-center h-64">
-                    <Loader2Icon className="w-8 h-8 animate-spin" />
+                <div className="flex flex-col space-y-4">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="p-4 border rounded-lg bg-card space-y-3">
+                            <div className="flex items-start justify-between">
+                                <div className="flex items-center space-x-3 flex-1">
+                                    <Skeleton className="h-4 w-4 rounded-full" />
+                                    <Skeleton className="h-4 w-48" />
+                                    <Skeleton className="h-2 w-2 rounded-full" />
+                                </div>
+                                <Skeleton className="h-8 w-8 rounded" />
+                            </div>
+                            <div className="space-y-2">
+                                <Skeleton className="h-3 w-full" />
+                                <Skeleton className="h-3 w-5/6" />
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Skeleton className="h-3 w-24" />
+                                <Skeleton className="h-3 w-3" />
+                                <Skeleton className="h-3 w-16" />
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </div>
         );

@@ -1,15 +1,17 @@
-import { useQuery } from "@tanstack/react-query";
+import { useAuthenticatedQuery } from "@/queries/auth/useAuthenticatedQuery";
 import { getUnreadMessageCount } from "@/actions/messages/getUnreadMessageCount";
 import { useUser } from "@/queries/users/useUser";
+import { useAppVisibility } from "@/hooks/utils/useAppVisibility";
 
 export const useUnreadMessageCount = () => {
   const { data: user } = useUser();
   const userId = user?.id;
+  const isVisible = useAppVisibility();
 
-  return useQuery({
+  return useAuthenticatedQuery({
     queryKey: ["unreadMessageCount", userId],
     queryFn: () => getUnreadMessageCount(),
     enabled: !!userId,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: isVisible ? 30000 : false, // Pause when tab hidden
   });
 };
