@@ -28,7 +28,6 @@ import { AllTabContent } from "@/components/space/AllTabContent";
 import { RationalesTabContent } from "@/components/space/RationalesTabContent";
 import { PriorityPointsSection } from "@/components/space/PriorityPointsSection";
 import { PointsTabContent } from "@/components/space/PointsTabContent";
-import { useResetLoadingOnPathChange } from "@/hooks/ui/useResetLoadingOnPathChange";
 import { SelectPointForNegationDialog } from "@/components/dialogs/SelectPointForNegationDialog";
 import { makeNegationSuggestionAtom } from "@/atoms/makeNegationSuggestionAtom";
 import { selectPointForNegationOpenAtom } from "@/atoms/selectPointForNegationOpenAtom";
@@ -121,10 +120,15 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
         setLoadingCardId(id);
     }, []);
 
-    useResetLoadingOnPathChange(pathname, () => {
-        setLoadingCardId(null);
-        setIsNewRationaleLoading(false);
-    });
+    // Keep the loading indicator visible until this component unmounts (i.e. when we fully leave
+    // the space feed). Clearing it immediately on pathname change was causing the spinner to
+    // disappear too early.
+    useEffect(() => {
+        return () => {
+            setLoadingCardId(null);
+            setIsNewRationaleLoading(false);
+        };
+    }, []);
 
     useEffect(() => {
         if (privyUser?.id && isNavigating) {
