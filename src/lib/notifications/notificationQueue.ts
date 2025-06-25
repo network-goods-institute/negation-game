@@ -146,7 +146,7 @@ class NotificationQueue {
     }
 
     const title = "Your point received an endorsement";
-    const content = `Someone endorsed your point with ${data.credAmount} cred`;
+    const content = `Someone endorsed your point with ${data.credAmount} cred: "${point[0].content.length > 50 ? point[0].content.substring(0, 50) + "..." : point[0].content}"`;
 
     const notificationData = {
       type: data.type,
@@ -203,7 +203,7 @@ class NotificationQueue {
     }
 
     const title = "Your point was challenged";
-    const content = "Someone created a counterpoint to your point";
+    const content = `Someone created a counterpoint to your point: "${negatedPoint.content.length > 50 ? negatedPoint.content.substring(0, 50) + "..." : negatedPoint.content}"`;
 
     const notificationData = {
       type: data.type,
@@ -279,7 +279,7 @@ class NotificationQueue {
     for (const point of pointCreators) {
       if (point.createdBy !== data.authorId) {
         const title = "Your point was mentioned in a rationale";
-        const content = `Your point was included in the rationale "${rationale[0].title}"`;
+        const content = `Your point "${point.content.length > 50 ? point.content.substring(0, 50) + "..." : point.content}" was included in the rationale "${rationale[0].title}"`;
 
         const notificationData = {
           type: data.type,
@@ -333,7 +333,7 @@ class NotificationQueue {
     }
 
     const title = "Someone restaked on your point";
-    const content = `Someone committed ${data.amount} cred to change their mind if your point is successfully negated`;
+    const content = `Someone committed ${data.amount} cred to change their mind if your point "${point[0].content.length > 50 ? point[0].content.substring(0, 50) + "..." : point[0].content}" is successfully negated`;
 
     const notificationData = {
       type: data.type,
@@ -383,7 +383,7 @@ class NotificationQueue {
     }
 
     const title = "Someone slashed their restake on your point";
-    const content = `Someone admitted they changed their mind about your point and slashed ${data.amount} of their restake`;
+    const content = `Someone admitted they changed their mind about your point "${point[0].content.length > 50 ? point[0].content.substring(0, 50) + "..." : point[0].content}" and slashed ${data.amount} of their restake`;
 
     const notificationData = {
       type: data.type,
@@ -433,7 +433,7 @@ class NotificationQueue {
     }
 
     const title = "Someone doubted restakes on your point";
-    const content = `Someone bet ${data.amount} cred that restakers won't follow through on your point`;
+    const content = `Someone bet ${data.amount} cred that restakers won't follow through on your point: "${point[0].content.length > 50 ? point[0].content.substring(0, 50) + "..." : point[0].content}"`;
 
     const notificationData = {
       type: data.type,
@@ -480,7 +480,7 @@ class NotificationQueue {
     }
 
     const title = "Your doubt was reduced by a slash";
-    const content = `Someone slashed their restake, reducing your doubt by ${data.reductionAmount} cred (${data.newDoubtAmount} remaining)`;
+    const content = `Someone slashed their restake on "${point[0].content.length > 50 ? point[0].content.substring(0, 50) + "..." : point[0].content}", reducing your doubt by ${data.reductionAmount} cred (${data.newDoubtAmount} remaining)`;
 
     const notificationData = {
       type: data.type,
