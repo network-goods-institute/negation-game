@@ -55,8 +55,8 @@ export const useAuthenticatedMutation: typeof useMutation = (
       throw new Error("Authentication required");
     }
 
-    // If authentication is stale (older than 5 minutes), refresh token before proceeding
-    if (Date.now() - lastAuthCheck > 5 * 60 * 1000) {
+    // If authentication is stale (older than 2 minutes), refresh token before proceeding
+    if (Date.now() - lastAuthCheck > 2 * 60 * 1000) {
       const success = await setPrivyToken();
       if (!success) {
         throw new Error("Failed to refresh authentication");

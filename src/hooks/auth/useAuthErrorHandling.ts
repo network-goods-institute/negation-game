@@ -28,7 +28,7 @@ export const useAuthErrorHandling = () => {
         setIsHandlingAuthError(true);
         handleAuthError(error, actionDescription);
 
-        // If it's an auth error, also try to trigger a login flow to refresh the session
+        // Trigger login after a small delay so the toast shows first
         setTimeout(() => {
           login();
           setIsHandlingAuthError(false);

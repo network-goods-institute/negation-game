@@ -10,7 +10,8 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
-    const { space } = await params;
+    const resolvedParams = await params;
+    const { space } = resolvedParams;
 
     if (!space) {
       return {
@@ -95,44 +96,40 @@ export default async function SpaceLayout({
   children: React.ReactNode;
   params: Promise<{ space: string }>;
 }) {
-  try {
-    const { space } = await params;
+  const resolvedParams = await params;
+  const { space } = resolvedParams;
 
-    if (!space) return notFound();
+  if (!space) return notFound();
 
-    const spaceData = await fetchSpace(space);
-    if (!spaceData) return notFound();
+  const spaceData = await fetchSpace(space);
+  if (!spaceData) return notFound();
 
-    /* Structured data */
-    const domain =
-      process.env.NODE_ENV === "development"
-        ? "http://localhost:3000"
-        : `https://${process.env.NEXT_PUBLIC_DOMAIN || "negationgame.com"}`;
+  /* Structured data */
+  const domain =
+    process.env.NODE_ENV === "development"
+      ? "http://localhost:3000"
+      : `https://${process.env.NEXT_PUBLIC_DOMAIN || "negationgame.com"}`;
 
-    const breadcrumbs = generateBreadcrumbs(`/s/${space}`);
-    const breadcrumbLd = generateBreadcrumbStructuredData({ breadcrumbs, domain });
+  const breadcrumbs = generateBreadcrumbs(`/s/${space}`);
+  const breadcrumbLd = generateBreadcrumbStructuredData({ breadcrumbs, domain });
 
-    const collectionLd = {
-      "@context": "https://schema.org",
-      "@type": "CollectionPage",
-      name: `${space} Space`,
-      description: `Discussions and rationales in the ${space} space on Negation Game`,
-      url: `${domain}/s/${space}`,
-    } as const;
+  const collectionLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: `${space} Space`,
+    description: `Discussions and rationales in the ${space} space on Negation Game`,
+    url: `${domain}/s/${space}`,
+  } as const;
 
-    return (
-      <>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify([breadcrumbLd, collectionLd]),
-          }}
-        />
-        {children}
-      </>
-    );
-  } catch (error) {
-    console.error("Error in space layout:", error);
-    return notFound();
-  }
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify([breadcrumbLd, collectionLd]),
+        }}
+      />
+      {children}
+    </>
+  );
 }
