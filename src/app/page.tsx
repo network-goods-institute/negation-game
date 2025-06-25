@@ -7,23 +7,23 @@ import { Metadata } from "next";
 import { GoToSpaceButton } from "@/components/GoToSpaceButton";
 
 export const metadata: Metadata = {
-    title: "Negation Game - Protocol for Reasoned Disagreement",
-    description: "Transform debates into structured, accountable discussions. A revolutionary protocol powered by economic incentives, governed by epistemic values, and designed for minds willing to change.",
+    title: "Make better decisions. Reward quality participation",
+    description: "The Negation Game enables DAOs to define which problems to solve, brainstorm options, debate their pros and cons, and decide. Quality participation and intellectual honesty are rewarded, transitioning DAOs from slow and political to fast and effective.",
     keywords: [
-        "debate platform",
-        "reasoned disagreement",
-        "structured arguments",
-        "epistemic discourse",
+        "DAO decision making",
+        "quality participation",
         "intellectual honesty",
-        "commitment mechanisms",
-        "discourse platform",
-        "democratic dialogue",
-        "argument mapping",
-        "collaborative reasoning"
+        "structured debates",
+        "effective DAOs",
+        "decentralized governance",
+        "problem solving",
+        "pros and cons analysis",
+        "incentivized participation",
+        "community decision making"
     ],
     openGraph: {
-        title: "Negation Game - Protocol for Reasoned Disagreement",
-        description: "Transform debates into structured, accountable discussions with economic incentives for intellectual honesty.",
+        title: "Make better decisions. Reward quality participation",
+        description: "The Negation Game enables DAOs to define which problems to solve, brainstorm options, debate their pros and cons, and decide. Quality participation and intellectual honesty are rewarded, transitioning DAOs from slow and political to fast and effective.",
         type: "website",
         url: "/",
         images: [
@@ -37,8 +37,8 @@ export const metadata: Metadata = {
     },
     twitter: {
         card: "summary_large_image",
-        title: "Negation Game - Protocol for Reasoned Disagreement",
-        description: "Transform debates into structured, accountable discussions with economic incentives for intellectual honesty.",
+        title: "Make better decisions. Reward quality participation",
+        description: "The Negation Game enables DAOs to define which problems to solve, brainstorm options, debate their pros and cons, and decide. Quality participation and intellectual honesty are rewarded, transitioning DAOs from slow and political to fast and effective.",
         images: ["/img/negation-game.png"],
     },
     alternates: {
@@ -55,11 +55,11 @@ export default async function HomePage() {
         "@context": "https://schema.org",
         "@type": "WebSite",
         "name": "Negation Game",
-        "alternateName": "Protocol for Reasoned Disagreement",
+        "alternateName": "Make better decisions. Reward quality participation",
         "url": process.env.NODE_ENV === "development"
             ? "http://localhost:3000"
             : `https://${process.env.NEXT_PUBLIC_DOMAIN || "negationgame.com"}`,
-        "description": "A protocol layer for reasoned disagreement: powered by economic incentives, governed by epistemic values, and designed for minds willing to change.",
+        "description": "The Negation Game enables DAOs to define which problems to solve, brainstorm options, debate their pros and cons, and decide. Quality participation and intellectual honesty are rewarded, transitioning DAOs from slow and political to fast and effective.",
         "potentialAction": {
             "@type": "SearchAction",
             "target": {
@@ -76,7 +76,7 @@ export default async function HomePage() {
         "@context": "https://schema.org",
         "@type": "SoftwareApplication",
         "name": "Negation Game",
-        "description": "A protocol layer for reasoned disagreement: powered by economic incentives, governed by epistemic values, and designed for minds willing to change.",
+        "description": "The Negation Game enables DAOs to define which problems to solve, brainstorm options, debate their pros and cons, and decide. Quality participation and intellectual honesty are rewarded, transitioning DAOs from slow and political to fast and effective.",
         "url": process.env.NODE_ENV === "development"
             ? "http://localhost:3000"
             : `https://${process.env.NEXT_PUBLIC_DOMAIN || "negationgame.com"}`,
@@ -137,10 +137,10 @@ export default async function HomePage() {
                         <div className="max-w-7xl mx-auto px-4 relative">
                             <div className="max-w-3xl mx-auto text-center">
                                 <h1 className="text-5xl sm:text-6xl font-bold tracking-tight leading-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70 mb-8 pb-2">
-                                    Elevate Discourse Through Reasoned Disagreement
+                                    Make Better Decisions. Reward Quality Participation.
                                 </h1>
                                 <p className="text-xl text-muted-foreground dark:text-slate-400 mb-10 leading-relaxed">
-                                    A revolutionary protocol that transforms debates into structured, accountable discussions. Drive better decision-making through incentivized intellectual honesty.
+                                    The Negation Game enables DAOs to define which problems to solve, brainstorm options, debate their pros and cons, and decide. Quality participation and intellectual honesty are rewarded, transitioning DAOs from slow and political to fast and effective.
                                 </p>
                                 <div className="flex items-center justify-center gap-4">
                                     <Button size="lg" className="font-medium gap-2 text-base" asChild>
