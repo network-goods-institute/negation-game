@@ -2,12 +2,13 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { SearchIcon, PlusIcon, Filter } from "lucide-react";
+import { SearchIcon, Filter } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { SearchInput } from "@/components/search/SearchInput";
 import useIsMobile from "@/hooks/ui/useIsMobile";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { NewRationaleButton } from "@/components/rationale/NewRationaleButton";
+import { MakePointButton, MakeNegationButton } from "@/components/space/action-buttons";
 
 export type Tab = "all" | "points" | "rationales" | "search";
 
@@ -59,52 +60,34 @@ export function SpaceTabs({
             case "points":
                 return (
                     <>
-                        <Button onClick={onLoginOrMakePoint} variant="outline" size="default" className="rounded-full flex items-center gap-2 px-6 font-bold border-green-300 bg-green-100 text-green-800 hover:bg-green-200 hover:border-green-400 dark:border-green-800 dark:bg-green-950 dark:text-green-300 dark:hover:bg-green-900 dark:hover:border-green-800">
-                            <span>Point</span>
-                            <PlusIcon className="h-4 w-4" />
-                        </Button>
-                        <Button onClick={onSelectNegation} variant="outline" size="default" className="rounded-full flex items-center gap-2 px-6 font-bold border-red-300 bg-red-100 text-red-800 hover:bg-red-200 hover:border-red-400 dark:border-red-800 dark:bg-red-950 dark:text-red-300 dark:hover:bg-red-900 dark:hover:border-red-800">
-                            <span>Negation</span>
-                            <PlusIcon className="h-4 w-4" />
-                        </Button>
+                        <MakePointButton onClick={onLoginOrMakePoint} size="default" />
+                        <MakeNegationButton onClick={onSelectNegation} size="default" />
                     </>
                 );
             case "all":
                 return (
                     <>
-                        <Button onClick={onLoginOrMakePoint} variant="outline" size="default" className="rounded-full flex items-center gap-2 px-6 font-bold border-green-300 bg-green-100 text-green-800 hover:bg-green-200 hover:border-green-400 dark:border-green-800 dark:bg-green-950 dark:text-green-300 dark:hover:bg-green-900 dark:hover:border-green-800">
-                            <span>Point</span>
-                            <PlusIcon className="h-4 w-4" />
-                        </Button>
+                        <MakePointButton onClick={onLoginOrMakePoint} size="default" />
                         <NewRationaleButton
                             onClick={onNewViewpoint}
                             variant="default"
                             size="lg"
                             loading={isNewRationaleLoading}
                         />
-                        <Button onClick={onSelectNegation} variant="outline" size="default" className="rounded-full flex items-center gap-2 px-6 font-bold border-red-300 bg-red-100 text-red-800 hover:bg-red-200 hover:border-red-400 dark:border-red-800 dark:bg-red-950 dark:text-red-300 dark:hover:bg-red-900 dark:hover:border-red-800">
-                            <span>Negation</span>
-                            <PlusIcon className="h-4 w-4" />
-                        </Button>
+                        <MakeNegationButton onClick={onSelectNegation} size="default" />
                     </>
                 );
             case "search":
                 return (
                     <>
-                        <Button onClick={onLoginOrMakePoint} variant="outline" size="default" className="rounded-full flex items-center gap-2 px-6 font-bold border-green-300 bg-green-100 text-green-800 hover:bg-green-200 hover:border-green-400 dark:border-green-800 dark:bg-green-950 dark:text-green-300 dark:hover:bg-green-900 dark:hover:border-green-800">
-                            <span>Point</span>
-                            <PlusIcon className="h-4 w-4" />
-                        </Button>
+                        <MakePointButton onClick={onLoginOrMakePoint} size="default" />
                         <NewRationaleButton
                             onClick={onNewViewpoint}
                             variant="default"
                             size="lg"
                             loading={isNewRationaleLoading}
                         />
-                        <Button onClick={onSelectNegation} variant="outline" size="default" className="rounded-full flex items-center gap-2 px-6 font-bold border-red-300 bg-red-100 text-red-800 hover:bg-red-200 hover:border-red-400 dark:border-red-800 dark:bg-red-950 dark:text-red-300 dark:hover:bg-red-900 dark:hover:border-red-800">
-                            <span>Negation</span>
-                            <PlusIcon className="h-4 w-4" />
-                        </Button>
+                        <MakeNegationButton onClick={onSelectNegation} size="default" />
                     </>
                 );
             default:
