@@ -311,8 +311,12 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
     }
 
     return (
-        <main className="flex-1 grid sm:grid-cols-[1fr_1fr] bg-background min-h-0 overflow-auto">
-            <div className="relative w-full flex flex-col min-h-0">
+        <main className="flex-1 flex bg-background min-h-0 overflow-auto">
+            {/* Left negative space (hidden on mobile) */}
+            <div className="hidden sm:block flex-[2] max-w-[400px]"></div>
+            
+            {/* Center content */}
+            <div className="relative w-full flex-[2] flex flex-col min-h-0">
                 <SpacePageHeader
                     space={space}
                     selectedTab={selectedTab}
@@ -488,6 +492,8 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                     )}
                 </div>
             </div>
+            
+            {/* Right sidebar - topics */}
             <SpacePageAside
                 spaceId={space.data?.id ?? "global"}
                 loginOrMakePoint={loginOrMakePoint}

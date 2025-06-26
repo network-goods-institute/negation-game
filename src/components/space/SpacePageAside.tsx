@@ -33,7 +33,7 @@ export function SpacePageAside({
     const [loadingTopicId, setLoadingTopicId] = useState<number | null>(null);
     
     const topicIds = useMemo(() => topics?.map(t => t.id) || [], [topics]);
-    const { data: userRationaleTopicIds } = useUserTopicRationales(privyUser?.id, topicIds);
+    const { data: userRationaleTopicIds, isLoading: userRationalesLoading } = useUserTopicRationales(privyUser?.id, topicIds);
 
     const filteredTopics = useMemo(() => {
         if (!topics) return [];
@@ -60,7 +60,15 @@ export function SpacePageAside({
                     <div className="flex flex-col h-full">
                         {/* Header with close button */}
                         <div className="flex items-center justify-between p-4 border-b">
-                            <h2 className="text-lg font-semibold text-foreground">Topics</h2>
+                            <div className="flex items-center gap-3">
+                                <h2 className="text-lg font-semibold text-foreground">Topics</h2>
+                                {userRationalesLoading && (
+                                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                        <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin"></div>
+                                        <span>Loading...</span>
+                                    </div>
+                                )}
+                            </div>
                             <button
                                 onClick={() => {
                                     // This will be handled by the parent component
@@ -76,14 +84,6 @@ export function SpacePageAside({
                         {/* Content */}
                         <div className="flex-1 overflow-y-auto p-6">
                             <div className="space-y-6">
-                                <NewRationaleButton
-                                    onClick={handleNewViewpoint}
-                                    variant="default"
-                                    size="lg"
-                                    loading={isNewRationaleLoading}
-                                    className="w-full"
-                                />
-
                                 <div className="space-y-4">
                                     {/* Topic Search */}
                                     <div className="relative">
@@ -99,7 +99,7 @@ export function SpacePageAside({
                                     {topicsLoading ? (
                                         <TopicGridSkeleton count={6} size="sm" />
                                     ) : filteredTopics && filteredTopics.length > 0 ? (
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className="flex flex-col gap-2">
                                             {filteredTopics.map((topic) => (
                                                 <div key={topic.id} onClick={() => handleTopicClick(topic.id)}>
                                                     <TopicCard
@@ -108,6 +108,7 @@ export function SpacePageAside({
                                                         size="sm"
                                                         loading={loadingTopicId === topic.id}
                                                         hasUserRationale={userRationaleTopicIds?.includes(topic.id)}
+                                                        userRationalesLoaded={!userRationalesLoading}
                                                     />
                                                 </div>
                                             ))}
@@ -133,16 +134,16 @@ export function SpacePageAside({
             {!isMobile && (
                 <aside className="hidden sm:flex flex-col p-6 gap-6 border-l overflow-y-auto">
                     <div className="space-y-6">
-                        <NewRationaleButton
-                            onClick={handleNewViewpoint}
-                            variant="default"
-                            size="lg"
-                            loading={isNewRationaleLoading}
-                            className="w-full"
-                        />
-
                         <div className="space-y-4">
-                            <h2 className="text-lg font-semibold text-foreground">Topics</h2>
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-lg font-semibold text-foreground">Topics</h2>
+                                {userRationalesLoading && (
+                                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                        <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin"></div>
+                                        <span>Loading your progress...</span>
+                                    </div>
+                                )}
+                            </div>
 
                             {/* Topic Search */}
                             <div className="relative">
@@ -158,7 +159,7 @@ export function SpacePageAside({
                             {topicsLoading ? (
                                 <TopicGridSkeleton count={6} size="sm" />
                             ) : filteredTopics && filteredTopics.length > 0 ? (
-                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                                <div className="flex flex-col gap-2">
                                     {filteredTopics.map((topic) => (
                                         <div key={topic.id} onClick={() => handleTopicClick(topic.id)}>
                                             <TopicCard
@@ -167,6 +168,7 @@ export function SpacePageAside({
                                                 size="sm"
                                                 loading={loadingTopicId === topic.id}
                                                 hasUserRationale={userRationaleTopicIds?.includes(topic.id)}
+                                                userRationalesLoaded={!userRationalesLoading}
                                             />
                                         </div>
                                     ))}

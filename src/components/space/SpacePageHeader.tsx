@@ -54,52 +54,15 @@ export function SpacePageHeader({
     const { user: privyUser } = usePrivy();
 
     const getMobileActionButtons = () => {
-        switch (selectedTab) {
-            case "rationales":
-                return (
-                    <NewRationaleButton
-                        onClick={onNewViewpoint}
-                        variant="default"
-                        size="sm"
-                        loading={isNewRationaleLoading}
-                    />
-                );
-            case "points":
-                return (
-                    <>
-                        <MakePointButton onClick={onLoginOrMakePoint} size="sm" />
-                        <MakeNegationButton onClick={onSelectNegation} size="sm" />
-                    </>
-                );
-            case "all":
-                return (
-                    <>
-                        <MakePointButton onClick={onLoginOrMakePoint} size="sm" />
-                        <NewRationaleButton
-                            onClick={onNewViewpoint}
-                            variant="default"
-                            size="sm"
-                            loading={isNewRationaleLoading}
-                        />
-                        <MakeNegationButton onClick={onSelectNegation} size="sm" />
-                    </>
-                );
-            case "search":
-                return (
-                    <>
-                        <MakePointButton onClick={onLoginOrMakePoint} size="sm" />
-                        <NewRationaleButton
-                            onClick={onNewViewpoint}
-                            variant="default"
-                            size="sm"
-                            loading={isNewRationaleLoading}
-                        />
-                        <MakeNegationButton onClick={onSelectNegation} size="sm" />
-                    </>
-                );
-            default:
-                return null;
-        }
+        return (
+            <NewRationaleButton
+                href={`/s/${space.data?.id ?? "global"}/rationale/new`}
+                onClick={onNewViewpoint}
+                variant="default"
+                size="sm"
+                loading={isNewRationaleLoading}
+            />
+        );
     };
 
     return (
@@ -166,7 +129,7 @@ export function SpacePageHeader({
 
             {/* Delta Comparison Widget and Filtering - on rationales tab */}
             {selectedTab === "rationales" && (
-                <div className="border-b bg-background px-4 py-3">
+                <div className="border-b bg-background px-4 sm:px-6 lg:px-8 py-3">
                     <div className="flex items-start gap-4">
                         {/* Filter button positioned to the left of delta */}
                         <Button

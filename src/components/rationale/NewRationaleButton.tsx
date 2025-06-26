@@ -4,9 +4,11 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { EyeIcon, PlusIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import Link from "next/link";
 
 interface NewRationaleButtonProps {
-    onClick: () => void;
+    onClick?: () => void;
+    href?: string;
     variant?: "default" | "outline" | "card";
     size?: "sm" | "md" | "lg";
     className?: string;
@@ -16,6 +18,7 @@ interface NewRationaleButtonProps {
 
 export function NewRationaleButton({
     onClick,
+    href,
     variant = "default",
     size = "md",
     className,
@@ -96,17 +99,8 @@ export function NewRationaleButton({
         lg: "h-12 px-8 text-lg"
     };
 
-    return (
-        <Button
-            onClick={onClick}
-            variant={variant}
-            disabled={isDisabled}
-            className={cn(
-                "rounded-full flex items-center gap-2 font-bold transition-all duration-200",
-                sizeClasses[size],
-                className
-            )}
-        >
+    const buttonContent = (
+        <>
             {loading ? (
                 <>
                     <Loader2 className={cn(
@@ -128,6 +122,36 @@ export function NewRationaleButton({
                     )} />
                 </>
             )}
+        </>
+    );
+
+    const buttonClassName = cn(
+        "rounded-full flex items-center gap-2 font-bold transition-all duration-200",
+        sizeClasses[size],
+        className
+    );
+
+    if (href && !isDisabled) {
+        return (
+            <Link href={href} className={buttonClassName}>
+                <div className={cn(
+                    "flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-full transition-colors",
+                    sizeClasses[size]
+                )}>
+                    {buttonContent}
+                </div>
+            </Link>
+        );
+    }
+
+    return (
+        <Button
+            onClick={onClick}
+            variant={variant}
+            disabled={isDisabled}
+            className={buttonClassName}
+        >
+            {buttonContent}
         </Button>
     );
 } 

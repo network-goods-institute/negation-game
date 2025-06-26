@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useMemo } from "react";
-import { Loader2, Check } from "lucide-react";
+import { Loader2, Check, Circle } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import Link from "next/link";
@@ -27,6 +27,7 @@ interface TopicCardProps {
     loading?: boolean;
     onLoadingChange?: (loading: boolean) => void;
     hasUserRationale?: boolean;
+    userRationalesLoaded?: boolean;
 }
 
 export function TopicCard({
@@ -36,7 +37,8 @@ export function TopicCard({
     size = "md",
     loading = false,
     onLoadingChange,
-    hasUserRationale = false
+    hasUserRationale = false,
+    userRationalesLoaded = true
 }: TopicCardProps) {
     const isLoading = loading;
     const [isOpen, setIsOpen] = useState(false);
@@ -111,7 +113,10 @@ export function TopicCard({
                 <Link href={href} className="block w-full" prefetch={false}>
                     <div
                         className={cn(
-                            "group relative w-full rounded-lg border border-border/50 bg-card hover:bg-accent/50 transition-all duration-200 hover:border-primary/50 cursor-pointer",
+                            "group relative w-full rounded-lg border transition-all duration-200 cursor-pointer",
+                            hasUserRationale 
+                                ? "border-green-500/50 bg-green-50 hover:bg-green-100 hover:border-green-500 dark:bg-green-950/30 dark:hover:bg-green-950/50 dark:border-green-400/50 dark:hover:border-green-400" 
+                                : "border-border/50 bg-card hover:bg-accent/50 hover:border-primary/50",
                             sizeClasses[size],
                             isLoading && "cursor-wait opacity-50",
                             className
@@ -128,20 +133,33 @@ export function TopicCard({
 
                             <div className="space-y-1 flex-1 min-h-0">
                                 <div className="flex items-center gap-2">
-                                    <h3 className="font-semibold text-sm sm:text-base leading-tight line-clamp-2 group-hover:text-primary transition-colors flex-1">
+                                    {/* Left aligned checkmark in circle */}
+                                    <div className="flex-shrink-0" title={hasUserRationale ? "You already published a rationale for this topic" : "No rationale published yet"}>
+                                        {hasUserRationale ? (
+                                            <div className="w-5 h-5 bg-green-600 rounded-full flex items-center justify-center">
+                                                <Check className="w-3 h-3 text-white" />
+                                            </div>
+                                        ) : (
+                                            <div className="w-5 h-5 border-2 border-muted-foreground rounded-full"></div>
+                                        )}
+                                    </div>
+                                    <h3 className={cn(
+                                        "font-semibold text-sm sm:text-base leading-tight line-clamp-2 transition-colors flex-1",
+                                        hasUserRationale ? "text-green-800 group-hover:text-green-900 dark:text-green-200 dark:group-hover:text-green-100" : "group-hover:text-primary"
+                                    )}>
                                         {topic.name}
                                     </h3>
-                                    {hasUserRationale && (
-                                        <div title="You already published a rationale for this topic">
-                                            <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
-                                        </div>
+                                </div>
+                                <div>
+                                    {typeof topic.rationalesCount === "number" && (
+                                        <p className="text-xs sm:text-sm text-muted-foreground font-medium">
+                                            {topic.rationalesCount} rationale{topic.rationalesCount === 1 ? "" : "s"}
+                                        </p>
+                                    )}
+                                    {userRationalesLoaded && !hasUserRationale && (
+                                        <p className="text-xs text-muted-foreground mt-0.5">Missing rationale</p>
                                     )}
                                 </div>
-                                {typeof topic.rationalesCount === "number" && (
-                                    <p className="text-xs sm:text-sm text-muted-foreground font-medium">
-                                        {topic.rationalesCount} rationale{topic.rationalesCount === 1 ? "" : "s"}
-                                    </p>
-                                )}
                             </div>
 
                             {topic.latestRationaleAt && (
