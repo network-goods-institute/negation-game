@@ -1,11 +1,11 @@
 "use client";
 
 import React, { memo, useMemo, useState, useCallback } from "react";
-import { Loader } from "@/components/ui/loader";
 import { Button } from "@/components/ui/button";
 import { PlusIcon, RefreshCwIcon } from "lucide-react";
 import { FeedItem } from "./FeedItem";
 import { useInfiniteScroll } from "@/hooks/ui/useInfiniteScroll";
+import { PointFeedSkeleton, InfiniteScrollSkeleton } from "./skeletons";
 
 export interface PointsTabContentProps {
     points?: any[];
@@ -59,11 +59,7 @@ export const PointsTabContent = memo(({
     const sentinelRef = useInfiniteScroll(loadMore, [pointItems.length]);
 
     if (isLoading) {
-        return (
-            <div className="flex-1 flex items-center justify-center min-h-[calc(100vh-200px)]">
-                <Loader className="h-6 w-6" />
-            </div>
-        );
+        return <PointFeedSkeleton count={10} />;
     }
 
     if (points?.length === 0 && !pinnedPoint && pointItems.length === 0) {
@@ -108,8 +104,8 @@ export const PointsTabContent = memo(({
                 />
             ))}
             {visibleCount < pointItems.length && (
-                <div className="flex justify-center my-4" ref={sentinelRef}>
-                    <Loader className="h-6 w-6" />
+                <div ref={sentinelRef}>
+                    <InfiniteScrollSkeleton type="points" count={3} />
                 </div>
             )}
         </>

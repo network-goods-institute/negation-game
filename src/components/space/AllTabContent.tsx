@@ -1,12 +1,12 @@
 "use client";
 
 import React, { memo, useState, useMemo, useCallback } from "react";
-import { Loader } from "@/components/ui/loader";
 import { Button } from "@/components/ui/button";
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, RefreshCwIcon } from "lucide-react";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
 import { FeedItem } from "@/components/space/FeedItem";
 import { useInfiniteScroll } from "@/hooks/ui/useInfiniteScroll";
+import { FeedSkeleton, InfiniteScrollSkeleton } from "./skeletons";
 
 export interface AllTabContentProps {
     points?: any[];
@@ -34,6 +34,8 @@ export interface AllTabContentProps {
     onClearAll: () => void;
     onMatchTypeChange: (type: "any" | "all") => void;
     onTopicFiltersChange: (filters: string[]) => void;
+    onRefetchFeed?: () => void;
+    isRefetching?: boolean;
 }
 
 export const AllTabContent = memo(({
@@ -62,6 +64,8 @@ export const AllTabContent = memo(({
     onClearAll,
     onMatchTypeChange,
     onTopicFiltersChange,
+    onRefetchFeed,
+    isRefetching = false,
 }: AllTabContentProps) => {
     const [visibleCount, setVisibleCount] = useState(20);
     const visibleItems = useMemo(() => combinedFeed.slice(0, visibleCount), [combinedFeed, visibleCount]);
@@ -72,17 +76,13 @@ export const AllTabContent = memo(({
 
     const sentinelRef = useInfiniteScroll(loadMore, [combinedFeed.length]);
 
-    if (!points || !viewpoints || isLoading || viewpointsLoading) {
-        return (
-            <div className="flex-1 flex items-center justify-center min-h-[calc(100vh-200px)]">
-                <Loader className="h-6 w-6" />
-            </div>
-        );
+    if (isLoading || viewpointsLoading) {
+        return <FeedSkeleton count={12} pointRatio={0.7} />;
     }
 
     const hasActiveFilters = selectedPointIds.length > 0 || topicFilters.length > 0;
 
-    if (points.length === 0 && viewpoints.length === 0) {
+    if ((!points || points.length === 0) && (!viewpoints || viewpoints.length === 0)) {
         return (
             <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
                 <span className="text-muted-foreground">Nothing here yet</span>
@@ -96,6 +96,20 @@ export const AllTabContent = memo(({
                         <span>Create Rationale</span>
                         <ViewpointIcon className="size-4" />
                     </Button>
+                    {onRefetchFeed && (
+                        <>
+                            <span className="text-muted-foreground">or</span>
+                            <Button
+                                variant="outline"
+                                onClick={onRefetchFeed}
+                                disabled={isRefetching}
+                                className="rounded-full flex items-center gap-2 px-6"
+                            >
+                                <RefreshCwIcon className={`size-4 ${isRefetching ? 'animate-spin' : ''}`} />
+                                <span>{isRefetching ? 'Refreshing...' : 'Refresh Feed'}</span>
+                            </Button>
+                        </>
+                    )}
                 </div>
             </div>
         );
@@ -127,8 +141,8 @@ export const AllTabContent = memo(({
                 />
             ))}
             {visibleCount < combinedFeed.length && (
-                <div className="flex justify-center my-4" ref={sentinelRef}>
-                    <Loader className="h-6 w-6" />
+                <div ref={sentinelRef}>
+                    <InfiniteScrollSkeleton type="mixed" count={3} />
                 </div>
             )}
         </>

@@ -32,6 +32,7 @@ import { SelectPointForNegationDialog } from "@/components/dialogs/SelectPointFo
 import { makeNegationSuggestionAtom } from "@/atoms/makeNegationSuggestionAtom";
 import { selectPointForNegationOpenAtom } from "@/atoms/selectPointForNegationOpenAtom";
 import { setPrivyToken } from "@/lib/privy/setPrivyToken";
+import { PriorityPointsSkeleton } from "@/components/space/skeletons";
 
 interface PageProps {
     params: { space: string };
@@ -353,19 +354,8 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                         )}
 
                     {selectedTab !== "search" && selectedTab !== "rationales" &&
-                        (priorityPointsLoading ? (
-                            <div className="border-b py-4 px-6 min-h-[120px] flex items-center justify-center">
-                                <div className="animate-pulse flex flex-col w-full gap-2">
-                                    <div className="h-6 bg-muted rounded w-3/4"></div>
-                                    <div className="h-4 bg-muted rounded w-1/2 mt-2"></div>
-                                    <div className="h-3 bg-muted rounded w-1/4 mt-2"></div>
-                                    <div className="flex gap-2 mt-2">
-                                        <div className="h-5 w-5 bg-muted rounded-full"></div>
-                                        <div className="h-5 w-5 bg-muted rounded-full"></div>
-                                        <div className="h-5 w-5 bg-muted rounded-full"></div>
-                                    </div>
-                                </div>
-                            </div>
+                        (priorityPointsLoading && space.data ? (
+                            <PriorityPointsSkeleton count={2} />
                         ) : filteredPriorityPoints.length > 0 ? (
                             <div className="border-b transition-opacity duration-200 ease-in-out">
                                 <PriorityPointsSection
@@ -448,6 +438,8 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                             onClearAll={handleClearAll}
                             onMatchTypeChange={handleMatchTypeChange}
                             onTopicFiltersChange={setTopicFilters}
+                            onRefetchFeed={handleRefetchFeed}
+                            isRefetching={isRefetchingFeed}
                         />
                     ) : selectedTab === "points" ? (
                         <Profiler id="PointsTabContent" onRender={(id, phase, actualDuration) => {
@@ -490,6 +482,8 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                             onClearAll={handleClearAll}
                             onMatchTypeChange={handleMatchTypeChange}
                             onTopicFiltersChange={setTopicFilters}
+                            onRefetchFeed={handleRefetchFeed}
+                            isRefetching={isRefetchingFeed}
                         />
                     )}
                 </div>

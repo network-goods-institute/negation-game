@@ -10,7 +10,7 @@ import { DeltaComparisonWidget } from "@/components/delta/DeltaComparisonWidget"
 import Link from "next/link";
 import { BrainCircuitIcon, Sigma, PlusIcon, Filter } from "lucide-react";
 import { usePrivy } from "@privy-io/react-auth";
-import { Loader } from "@/components/ui/loader";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface SpacePageHeaderProps {
     space: ReturnType<typeof import("@/queries/space/useSpace").useSpace>;
@@ -135,8 +135,8 @@ export function SpacePageHeader({
                             >
                                 {isAiLoading ? (
                                     <>
-                                        <Loader className="size-4" />
-                                        <span className="text-sm font-medium">Loading...</span>
+                                        <Skeleton className="h-4 w-4 rounded" />
+                                        <Skeleton className="h-4 w-16" />
                                     </>
                                 ) : (
                                     <>

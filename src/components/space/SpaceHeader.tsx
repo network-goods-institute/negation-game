@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader } from "@/components/ui/loader";
+import { Skeleton } from "@/components/ui/skeleton";
 import { BrainCircuitIcon, Sigma } from "lucide-react";
 import type { useSpace } from "@/queries/space/useSpace";
 import Link from "next/link";
@@ -44,8 +44,8 @@ export function SpaceHeader({ space, isLoading, onAiClick, chatHref }: SpaceHead
                 >
                     {isLoading ? (
                         <>
-                            <Loader className="size-4" />
-                            <span className="text-sm font-medium">Loading...</span>
+                            <Skeleton className="h-4 w-4 rounded" />
+                            <Skeleton className="h-4 w-16" />
                         </>
                     ) : (
                         <>

@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Loader } from "@/components/ui/loader";
 import { Input } from "@/components/ui/input";
 import { useTopics } from "@/queries/topics/useTopics";
 import { TopicCard } from "@/components/topic/TopicCard";
 import { NewRationaleButton } from "@/components/rationale/NewRationaleButton";
 import useIsMobile from "@/hooks/ui/useIsMobile";
 import { X, Search } from "lucide-react";
+import { TopicGridSkeleton } from "./skeletons";
 
 interface SpacePageAsideProps {
     spaceId: string;
@@ -91,9 +91,7 @@ export function SpacePageAside({
                                     </div>
 
                                     {topicsLoading ? (
-                                        <div className="flex items-center justify-center py-8">
-                                            <Loader className="size-8" />
-                                        </div>
+                                        <TopicGridSkeleton count={6} size="sm" />
                                     ) : filteredTopics && filteredTopics.length > 0 ? (
                                         <div className="grid grid-cols-2 gap-3">
                                             {filteredTopics.map((topic) => (
@@ -151,9 +149,7 @@ export function SpacePageAside({
                             </div>
 
                             {topicsLoading ? (
-                                <div className="flex items-center justify-center py-8">
-                                    <Loader className="size-8" />
-                                </div>
+                                <TopicGridSkeleton count={6} size="sm" />
                             ) : filteredTopics && filteredTopics.length > 0 ? (
                                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
                                     {filteredTopics.map((topic) => (

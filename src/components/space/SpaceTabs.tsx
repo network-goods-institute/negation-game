@@ -51,9 +51,8 @@ export function SpaceTabs({
                 return (
                     <NewRationaleButton
                         onClick={onNewViewpoint}
-                        variant="outline"
-                        size="md"
-                        className="border-blue-300 bg-blue-100 text-blue-800 hover:bg-blue-200 hover:border-blue-400 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+                        variant="default"
+                        size="lg"
                         loading={isNewRationaleLoading}
                     />
                 );
@@ -79,9 +78,8 @@ export function SpaceTabs({
                         </Button>
                         <NewRationaleButton
                             onClick={onNewViewpoint}
-                            variant="outline"
-                            size="md"
-                            className="border-blue-300 bg-blue-100 text-blue-800 hover:bg-blue-200 hover:border-blue-400 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+                            variant="default"
+                            size="lg"
                             loading={isNewRationaleLoading}
                         />
                         <Button onClick={onSelectNegation} variant="outline" size="default" className="rounded-full flex items-center gap-2 px-6 font-bold border-red-300 bg-red-100 text-red-800 hover:bg-red-200 hover:border-red-400 dark:border-red-800 dark:bg-red-950 dark:text-red-300 dark:hover:bg-red-900 dark:hover:border-red-800">
@@ -99,9 +97,8 @@ export function SpaceTabs({
                         </Button>
                         <NewRationaleButton
                             onClick={onNewViewpoint}
-                            variant="outline"
-                            size="md"
-                            className="border-blue-300 bg-blue-100 text-blue-800 hover:bg-blue-200 hover:border-blue-400 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+                            variant="default"
+                            size="lg"
                             loading={isNewRationaleLoading}
                         />
                         <Button onClick={onSelectNegation} variant="outline" size="default" className="rounded-full flex items-center gap-2 px-6 font-bold border-red-300 bg-red-100 text-red-800 hover:bg-red-200 hover:border-red-400 dark:border-red-800 dark:bg-red-950 dark:text-red-300 dark:hover:bg-red-900 dark:hover:border-red-800">
