@@ -58,9 +58,8 @@ export function SpacePageHeader({
                 return (
                     <NewRationaleButton
                         onClick={onNewViewpoint}
-                        variant="outline"
+                        variant="default"
                         size="sm"
-                        className="border-blue-300 bg-blue-100 text-blue-800 hover:bg-blue-200 hover:border-blue-400 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900 text-xs px-2 flex-shrink-0"
                         loading={isNewRationaleLoading}
                     />
                 );
@@ -86,9 +85,8 @@ export function SpacePageHeader({
                         </Button>
                         <NewRationaleButton
                             onClick={onNewViewpoint}
-                            variant="outline"
+                            variant="default"
                             size="sm"
-                            className="border-blue-300 bg-blue-100 text-blue-800 hover:bg-blue-200 hover:border-blue-400 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900 text-xs px-2 flex-shrink-0"
                             loading={isNewRationaleLoading}
                         />
                         <Button onClick={onSelectNegation} variant="outline" size="sm" className="rounded-full flex items-center gap-1 px-2 font-bold border-red-300 bg-red-100 text-red-800 hover:bg-red-200 hover:border-red-400 dark:border-red-800 dark:bg-red-950 dark:text-red-300 dark:hover:bg-red-900 dark:hover:border-red-800 text-xs flex-shrink-0">
@@ -106,9 +104,8 @@ export function SpacePageHeader({
                         </Button>
                         <NewRationaleButton
                             onClick={onNewViewpoint}
-                            variant="outline"
+                            variant="default"
                             size="sm"
-                            className="border-blue-300 bg-blue-100 text-blue-800 hover:bg-blue-200 hover:border-blue-400 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900 text-xs px-2 flex-shrink-0"
                             loading={isNewRationaleLoading}
                         />
                         <Button onClick={onSelectNegation} variant="outline" size="sm" className="rounded-full flex items-center gap-1 px-2 font-bold border-red-300 bg-red-100 text-red-800 hover:bg-red-200 hover:border-red-400 dark:border-red-800 dark:bg-red-950 dark:text-red-300 dark:hover:bg-red-900 dark:hover:border-red-800 text-xs flex-shrink-0">
@@ -187,7 +184,17 @@ export function SpacePageHeader({
             {/* Delta Comparison Widget and Filtering - on rationales tab */}
             {selectedTab === "rationales" && (
                 <div className="border-b bg-background px-4 py-3">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-start gap-4">
+                        {/* Filter button positioned to the left of delta */}
+                        <Button
+                            variant={filtersOpen ? "default" : "outline"}
+                            size="sm"
+                            onClick={onFiltersToggle}
+                            className="flex items-center gap-1 whitespace-nowrap flex-shrink-0"
+                        >
+                            <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            <span>Filters</span>
+                        </Button>
                         <DeltaComparisonWidget
                             comparison={{ type: "space", spaceId: space.data?.id ?? "global" }}
                             title="Space Alignment Discovery"
@@ -201,15 +208,6 @@ export function SpacePageHeader({
                             }
                             currentUserId={privyUser?.id}
                         />
-                        <Button
-                            variant={filtersOpen ? "default" : "outline"}
-                            size="sm"
-                            onClick={onFiltersToggle}
-                            className="flex items-center gap-1 whitespace-nowrap"
-                        >
-                            <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                            <span>Filters</span>
-                        </Button>
                     </div>
                 </div>
             )}

@@ -33,7 +33,7 @@ export function PointCardSkeleton({ className, isPriority, isPinned }: PointCard
                 </div>
 
                 {/* Metadata row */}
-                <div className="flex items-center justify-between pt-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-3 gap-3">
                     <div className="flex items-center gap-4">
                         {/* Author */}
                         <div className="flex items-center gap-2">
@@ -45,8 +45,8 @@ export function PointCardSkeleton({ className, isPriority, isPinned }: PointCard
                         <Skeleton className="h-3 w-12" />
                     </div>
 
-                    {/* Action buttons */}
-                    <div className="flex items-center gap-3">
+                    {/* Action buttons - reduce on mobile */}
+                    <div className="flex items-center gap-2 sm:gap-3">
                         <div className="flex items-center gap-1">
                             <Skeleton className="h-5 w-5 rounded" />
                             <Skeleton className="h-4 w-8" />
@@ -55,7 +55,7 @@ export function PointCardSkeleton({ className, isPriority, isPinned }: PointCard
                             <Skeleton className="h-5 w-5 rounded" />
                             <Skeleton className="h-4 w-8" />
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="hidden sm:flex items-center gap-1">
                             <Skeleton className="h-5 w-5 rounded" />
                             <Skeleton className="h-4 w-8" />
                         </div>

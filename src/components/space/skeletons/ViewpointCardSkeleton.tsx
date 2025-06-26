@@ -36,7 +36,7 @@ export function ViewpointCardSkeleton({ className }: ViewpointCardSkeletonProps)
                 </div>
 
                 {/* Metadata row */}
-                <div className="flex items-center justify-between pt-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-4 gap-3">
                     <div className="flex items-center gap-4">
                         {/* Author */}
                         <div className="flex items-center gap-2">
@@ -48,8 +48,8 @@ export function ViewpointCardSkeleton({ className }: ViewpointCardSkeletonProps)
                         <Skeleton className="h-3 w-16" />
                     </div>
 
-                    {/* Statistics */}
-                    <div className="flex items-center gap-4">
+                    {/* Statistics - hide some on mobile */}
+                    <div className="flex items-center gap-2 sm:gap-4">
                         <div className="flex items-center gap-1">
                             <Skeleton className="h-4 w-4 rounded" />
                             <Skeleton className="h-3 w-8" />
@@ -58,7 +58,7 @@ export function ViewpointCardSkeleton({ className }: ViewpointCardSkeletonProps)
                             <Skeleton className="h-4 w-4 rounded" />
                             <Skeleton className="h-3 w-8" />
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="hidden sm:flex items-center gap-1">
                             <Skeleton className="h-4 w-4 rounded" />
                             <Skeleton className="h-3 w-12" />
                         </div>
