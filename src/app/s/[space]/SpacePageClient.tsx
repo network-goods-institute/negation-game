@@ -301,7 +301,7 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
 
     if (selectedTab === null) {
         return (
-            <main className="flex-1 grid sm:grid-cols-[minmax(200px,600px)_1fr] overflow-auto bg-background min-h-0">
+            <main className="flex-1 grid sm:grid-cols-[1fr_1fr] overflow-auto bg-background min-h-0">
                 <div className="col-span-full flex items-center justify-center h-full">
                     <Loader className="size-8" />
                 </div>
@@ -310,7 +310,7 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
     }
 
     return (
-        <main className="flex-1 grid sm:grid-cols-[minmax(200px,600px)_1fr] bg-background min-h-0 overflow-auto">
+        <main className="flex-1 grid sm:grid-cols-[1fr_1fr] bg-background min-h-0 overflow-auto">
             <div className="relative w-full flex flex-col min-h-0">
                 <SpacePageHeader
                     space={space}

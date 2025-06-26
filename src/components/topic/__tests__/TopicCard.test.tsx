@@ -36,9 +36,8 @@ describe('TopicCard', () => {
         expect(screen.getByText(/12 rationale/)).toBeInTheDocument();
     });
 
-    it('renders latest author username', () => {
+    it('renders latest rationale header in popover', () => {
         render(<TopicCard topic={baseTopic} spaceId="global" />);
-        expect(screen.getByText(/Latest by/)).toBeInTheDocument();
-        expect(screen.getByText('alice')).toBeInTheDocument();
+        expect(screen.getByText('Latest Rationale')).toBeInTheDocument();
     });
 }); 

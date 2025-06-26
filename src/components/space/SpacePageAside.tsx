@@ -72,10 +72,10 @@ export function SpacePageAside({
                             <div className="space-y-6">
                                 <NewRationaleButton
                                     onClick={handleNewViewpoint}
-                                    variant="outline"
+                                    variant="default"
                                     size="lg"
-                                    className="w-full"
                                     loading={isNewRationaleLoading}
+                                    className="w-full"
                                 />
 
                                 <div className="space-y-4">
@@ -95,13 +95,13 @@ export function SpacePageAside({
                                             <Loader className="size-8" />
                                         </div>
                                     ) : filteredTopics && filteredTopics.length > 0 ? (
-                                        <div className="grid grid-cols-1 gap-4 justify-items-center">
+                                        <div className="grid grid-cols-2 gap-3">
                                             {filteredTopics.map((topic) => (
                                                 <div key={topic.id} onClick={() => handleTopicClick(topic.id)}>
                                                     <TopicCard
                                                         topic={topic}
                                                         spaceId={spaceId}
-                                                        size="md"
+                                                        size="sm"
                                                         loading={loadingTopicId === topic.id}
                                                     />
                                                 </div>
@@ -130,10 +130,10 @@ export function SpacePageAside({
                     <div className="space-y-6">
                         <NewRationaleButton
                             onClick={handleNewViewpoint}
-                            variant="outline"
+                            variant="default"
                             size="lg"
-                            className="w-full"
                             loading={isNewRationaleLoading}
+                            className="w-full"
                         />
 
                         <div className="space-y-4">
@@ -155,13 +155,13 @@ export function SpacePageAside({
                                     <Loader className="size-8" />
                                 </div>
                             ) : filteredTopics && filteredTopics.length > 0 ? (
-                                <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4 justify-items-center">
+                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
                                     {filteredTopics.map((topic) => (
                                         <div key={topic.id} onClick={() => handleTopicClick(topic.id)}>
                                             <TopicCard
                                                 topic={topic}
                                                 spaceId={spaceId}
-                                                size="md"
+                                                size="sm"
                                                 loading={loadingTopicId === topic.id}
                                             />
                                         </div>

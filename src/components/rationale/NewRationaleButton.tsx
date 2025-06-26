@@ -70,7 +70,7 @@ export function NewRationaleButton({
                             size === "md" && "text-base",
                             size === "lg" && "text-lg"
                         )}>
-                            {loading ? "Loading..." : "New Rationale"}
+                            {loading ? "Creating..." : "Create Rationale"}
                         </h3>
                         <p className={cn(
                             "text-muted-foreground mt-1",
@@ -78,7 +78,7 @@ export function NewRationaleButton({
                             size === "md" && "text-sm",
                             size === "lg" && "text-base"
                         )}>
-                            {loading ? "Please wait" : "Create a new rationale"}
+                            {loading ? "Please wait" : "Share your perspective"}
                         </p>
                     </div>
                 </div>
@@ -91,9 +91,9 @@ export function NewRationaleButton({
     }
 
     const sizeClasses = {
-        sm: "h-8 px-3 text-sm",
-        md: "h-10 px-4 text-base",
-        lg: "h-12 px-6 text-lg"
+        sm: "h-10 px-4 text-sm",
+        md: "h-11 px-6 text-base",
+        lg: "h-12 px-8 text-lg"
     };
 
     return (
@@ -102,27 +102,32 @@ export function NewRationaleButton({
             variant={variant}
             disabled={isDisabled}
             className={cn(
-                "group transition-colors duration-200",
+                "rounded-full flex items-center gap-2 font-bold transition-all duration-200",
                 sizeClasses[size],
                 className
             )}
         >
             {loading ? (
-                <Loader2 className={cn(
-                    "mr-2 animate-spin",
-                    size === "sm" && "h-3 w-3",
-                    size === "md" && "h-4 w-4",
-                    size === "lg" && "h-5 w-5"
-                )} />
+                <>
+                    <Loader2 className={cn(
+                        "animate-spin",
+                        size === "sm" && "h-4 w-4",
+                        size === "md" && "h-4 w-4",
+                        size === "lg" && "h-5 w-5"
+                    )} />
+                    <span>Creating...</span>
+                </>
             ) : (
-                <EyeIcon className={cn(
-                    "mr-2 transition-colors duration-200",
-                    size === "sm" && "h-3 w-3",
-                    size === "md" && "h-4 w-4",
-                    size === "lg" && "h-5 w-5"
-                )} />
+                <>
+                    <span>Create Rationale</span>
+                    <EyeIcon className={cn(
+                        "transition-colors duration-200",
+                        size === "sm" && "h-4 w-4",
+                        size === "md" && "h-4 w-4",
+                        size === "lg" && "h-5 w-5"
+                    )} />
+                </>
             )}
-            {loading ? "Loading..." : "New Rationale"}
         </Button>
     );
 } 

@@ -87,14 +87,14 @@ export const AllTabContent = memo(({
             <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
                 <span className="text-muted-foreground">Nothing here yet</span>
                 <div className="flex items-center justify-center gap-3">
-                    <Button variant="outline" onClick={loginOrMakePoint}>
-                        <PlusIcon className="mr-2 size-4" />
-                        Make a Point
+                    <Button variant="outline" onClick={loginOrMakePoint} className="rounded-full flex items-center gap-2 px-6 font-bold border-green-200 bg-green-50 text-green-700 hover:bg-green-100 hover:border-green-300 dark:border-green-800 dark:bg-green-950 dark:text-green-300 dark:hover:bg-green-900">
+                        <span>Make a Point</span>
+                        <PlusIcon className="size-4" />
                     </Button>
                     <span className="text-muted-foreground">or</span>
-                    <Button variant="outline" onClick={handleNewViewpoint}>
-                        <ViewpointIcon className="mr-2.5 size-4" />
-                        Create a Rationale
+                    <Button variant="outline" onClick={handleNewViewpoint} className="rounded-full flex items-center gap-2 px-6 font-bold border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-300 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900">
+                        <span>Create Rationale</span>
+                        <ViewpointIcon className="size-4" />
                     </Button>
                 </div>
             </div>

@@ -2,7 +2,6 @@
 
 import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import { BrainCircuitIcon, Sigma } from "lucide-react";
 import type { useSpace } from "@/queries/space/useSpace";
@@ -36,28 +35,33 @@ export function SpaceHeader({ space, isLoading, onAiClick, chatHref }: SpaceHead
                 </Avatar>
                 <h1 className="text-lg sm:text-xl font-semibold">s/{space.data.id}</h1>
             </div>
-            <div className="flex gap-2">
-                <Button asChild disabled={isLoading} className="h-12 w-auto px-6" onClick={onAiClick}>
-                    <Link href={chatHref} prefetch={false} className="flex items-center">
-                        {isLoading ? (
-                            <>
-                                <Loader className="size-6 mr-sm text-white" />
-                                <span>Loading...</span>
-                            </>
-                        ) : (
-                            <>
-                                <BrainCircuitIcon className="size-6" />
-                                <span className="ml-sm">AI Assistant</span>
-                            </>
-                        )}
-                    </Link>
-                </Button>
-                <Button asChild variant="secondary" className="h-12 w-auto px-6">
-                    <Link href={`/s/${space.data.id}/delta`} prefetch={false} className="flex items-center">
-                        <Sigma className="size-6" />
-                        <span className="ml-sm">Δ Compare</span>
-                    </Link>
-                </Button>
+            <div className="flex gap-3">
+                <Link
+                    href={chatHref}
+                    prefetch={false}
+                    onClick={onAiClick}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-md bg-muted/50 hover:bg-muted border border-border text-foreground hover:text-primary transition-colors min-w-[140px]"
+                >
+                    {isLoading ? (
+                        <>
+                            <Loader className="size-4" />
+                            <span className="text-sm font-medium">Loading...</span>
+                        </>
+                    ) : (
+                        <>
+                            <BrainCircuitIcon className="size-4" />
+                            <span className="text-sm font-medium">AI Assistant</span>
+                        </>
+                    )}
+                </Link>
+                <Link
+                    href={`/s/${space.data.id}/delta`}
+                    prefetch={false}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-md bg-muted/50 hover:bg-muted border border-border text-foreground hover:text-orange-600 transition-colors min-w-[140px]"
+                >
+                    <Sigma className="size-4" />
+                    <span className="text-sm font-medium">Delta Compare</span>
+                </Link>
             </div>
         </div>
     );

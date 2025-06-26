@@ -89,7 +89,7 @@ export const FeedItem = memo(({
                     }
                 }}
                 href={`${basePath}/${encodeId(point.pointId)}`}
-                className="flex border-b cursor-pointer hover:bg-accent"
+                className="flex border-b cursor-pointer hover:bg-accent transition-colors duration-150"
                 onMouseEnter={handleHover}
             >
                 <MemoizedPointCard
@@ -120,7 +120,7 @@ export const FeedItem = memo(({
                         e.stopPropagation();
                     }}
                     linkDisabled={true}
-                    disablePopover={true}
+                    disablePopover={false}
                     isLoading={loadingCardId === `point-${point.pointId}`}
                     isObjection={point.isObjection ?? false}
                     objectionTargetId={point.objectionTargetId ?? undefined}

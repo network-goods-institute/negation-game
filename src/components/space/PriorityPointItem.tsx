@@ -56,7 +56,7 @@ export const PriorityPointItem = memo(({
                     }
                 }}
                 href={`${basePath}/${encodeId(point.pointId)}`}
-                className="flex border-b cursor-pointer hover:bg-accent"
+                className="flex border-b cursor-pointer hover:bg-accent transition-colors duration-150"
                 onMouseEnter={handlePrefetch}
             >
                 <MemoizedPointCard
@@ -87,6 +87,7 @@ export const PriorityPointItem = memo(({
                         e.stopPropagation();
                     }}
                     linkDisabled={true}
+                    disablePopover={false}
                     isLoading={loadingCardId === `point-${point.pointId}`}
                 />
             </Link>

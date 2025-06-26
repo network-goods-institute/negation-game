@@ -153,7 +153,8 @@ export const RationalesTabContent = memo(({
                     <NewRationaleButton
                         onClick={handleNewViewpoint}
                         variant="outline"
-                        size="md"
+                        size="lg"
+                        className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-300 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
                         loading={isNewRationaleLoading}
                     />
                 </div>
