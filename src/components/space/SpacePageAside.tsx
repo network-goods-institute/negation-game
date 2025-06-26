@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { useTopics } from "@/queries/topics/useTopics";
 import { useUserTopicRationales } from "@/queries/topics/useUserTopicRationales";
 import { TopicCard } from "@/components/topic/TopicCard";
-import { NewRationaleButton } from "@/components/rationale/NewRationaleButton";
 import useIsMobile from "@/hooks/ui/useIsMobile";
 import { X, Search } from "lucide-react";
 import { TopicGridSkeleton } from "./skeletons";
@@ -31,7 +30,7 @@ export function SpacePageAside({
     const isMobile = useIsMobile();
     const [topicSearch, setTopicSearch] = useState("");
     const [loadingTopicId, setLoadingTopicId] = useState<number | null>(null);
-    
+
     const topicIds = useMemo(() => topics?.map(t => t.id) || [], [topics]);
     const { data: userRationaleTopicIds, isLoading: userRationalesLoading } = useUserTopicRationales(privyUser?.id, topicIds);
 
