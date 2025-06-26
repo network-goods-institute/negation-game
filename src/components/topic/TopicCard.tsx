@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useMemo } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Check } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import Link from "next/link";
@@ -26,6 +26,7 @@ interface TopicCardProps {
     size?: "sm" | "md" | "lg";
     loading?: boolean;
     onLoadingChange?: (loading: boolean) => void;
+    hasUserRationale?: boolean;
 }
 
 export function TopicCard({
@@ -34,7 +35,8 @@ export function TopicCard({
     className,
     size = "md",
     loading = false,
-    onLoadingChange
+    onLoadingChange,
+    hasUserRationale = false
 }: TopicCardProps) {
     const isLoading = loading;
     const [isOpen, setIsOpen] = useState(false);
@@ -125,9 +127,16 @@ export function TopicCard({
                             )}
 
                             <div className="space-y-1 flex-1 min-h-0">
-                                <h3 className="font-semibold text-sm sm:text-base leading-tight line-clamp-2 group-hover:text-primary transition-colors">
-                                    {topic.name}
-                                </h3>
+                                <div className="flex items-center gap-2">
+                                    <h3 className="font-semibold text-sm sm:text-base leading-tight line-clamp-2 group-hover:text-primary transition-colors flex-1">
+                                        {topic.name}
+                                    </h3>
+                                    {hasUserRationale && (
+                                        <div title="You already published a rationale for this topic">
+                                            <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+                                        </div>
+                                    )}
+                                </div>
                                 {typeof topic.rationalesCount === "number" && (
                                     <p className="text-xs sm:text-sm text-muted-foreground font-medium">
                                         {topic.rationalesCount} rationale{topic.rationalesCount === 1 ? "" : "s"}

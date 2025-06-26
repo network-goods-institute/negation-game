@@ -3,11 +3,13 @@
 import React, { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { useTopics } from "@/queries/topics/useTopics";
+import { useUserTopicRationales } from "@/queries/topics/useUserTopicRationales";
 import { TopicCard } from "@/components/topic/TopicCard";
 import { NewRationaleButton } from "@/components/rationale/NewRationaleButton";
 import useIsMobile from "@/hooks/ui/useIsMobile";
 import { X, Search } from "lucide-react";
 import { TopicGridSkeleton } from "./skeletons";
+import { usePrivy } from "@privy-io/react-auth";
 
 interface SpacePageAsideProps {
     spaceId: string;
@@ -25,9 +27,13 @@ export function SpacePageAside({
     topicsOpen = false,
 }: SpacePageAsideProps) {
     const { data: topics, isLoading: topicsLoading } = useTopics(spaceId);
+    const { user: privyUser } = usePrivy();
     const isMobile = useIsMobile();
     const [topicSearch, setTopicSearch] = useState("");
     const [loadingTopicId, setLoadingTopicId] = useState<number | null>(null);
+    
+    const topicIds = useMemo(() => topics?.map(t => t.id) || [], [topics]);
+    const { data: userRationaleTopicIds } = useUserTopicRationales(privyUser?.id, topicIds);
 
     const filteredTopics = useMemo(() => {
         if (!topics) return [];
@@ -101,6 +107,7 @@ export function SpacePageAside({
                                                         spaceId={spaceId}
                                                         size="sm"
                                                         loading={loadingTopicId === topic.id}
+                                                        hasUserRationale={userRationaleTopicIds?.includes(topic.id)}
                                                     />
                                                 </div>
                                             ))}
@@ -159,6 +166,7 @@ export function SpacePageAside({
                                                 spaceId={spaceId}
                                                 size="sm"
                                                 loading={loadingTopicId === topic.id}
+                                                hasUserRationale={userRationaleTopicIds?.includes(topic.id)}
                                             />
                                         </div>
                                     ))}
