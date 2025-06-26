@@ -54,14 +54,24 @@ export function SpacePageHeader({
     const { user: privyUser } = usePrivy();
 
     const getMobileActionButtons = () => {
+        const shouldShowActionButtons = selectedTab === "points" || selectedTab === "all" || selectedTab === "search";
+
         return (
-            <NewRationaleButton
-                href={`/s/${space.data?.id ?? "global"}/rationale/new`}
-                onClick={onNewViewpoint}
-                variant="default"
-                size="sm"
-                loading={isNewRationaleLoading}
-            />
+            <div className="flex items-center gap-2">
+                {shouldShowActionButtons && (
+                    <MakePointButton onClick={onLoginOrMakePoint} size="sm" />
+                )}
+                <NewRationaleButton
+                    href={`/s/${space.data?.id ?? "global"}/rationale/new`}
+                    onClick={onNewViewpoint}
+                    variant="default"
+                    size="sm"
+                    loading={isNewRationaleLoading}
+                />
+                {shouldShowActionButtons && (
+                    <MakeNegationButton onClick={onSelectNegation} size="sm" />
+                )}
+            </div>
         );
     };
 

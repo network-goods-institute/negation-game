@@ -36,7 +36,7 @@ export function MakeNegationButton({ onClick, size = "lg", className }: MakeNega
             )}
         >
             <NegateIcon className={iconSizes[size]} />
-            <span>Make Negation</span>
+            <span>New Negation</span>
         </Button>
     );
 } 

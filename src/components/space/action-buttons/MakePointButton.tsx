@@ -36,7 +36,7 @@ export function MakePointButton({ onClick, size = "lg", className }: MakePointBu
             )}
         >
             <PointIcon className={iconSizes[size]} />
-            <span>Make Point</span>
+            <span>New Point</span>
         </Button>
     );
 } 

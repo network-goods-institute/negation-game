@@ -47,41 +47,27 @@ export function SpaceTabs({
 }: SpaceTabsProps) {
     const isMobile = useIsMobile();
 
+    const shouldShowActionButtons = selectedTab === "points" || selectedTab === "all" || selectedTab === "search";
+    
     const getActionButtons = () => {
-        switch (selectedTab) {
-            case "points":
-                return (
-                    <>
-                        <MakePointButton onClick={onLoginOrMakePoint} size="default" />
-                        <MakeNegationButton onClick={onSelectNegation} size="default" />
-                    </>
-                );
-            case "all":
-                return (
-                    <>
-                        <MakePointButton onClick={onLoginOrMakePoint} size="default" />
-                        <MakeNegationButton onClick={onSelectNegation} size="default" />
-                    </>
-                );
-            case "search":
-                return (
-                    <>
-                        <MakePointButton onClick={onLoginOrMakePoint} size="default" />
-                        <MakeNegationButton onClick={onSelectNegation} size="default" />
-                    </>
-                );
-            default:
-                return null;
-        }
+        if (!shouldShowActionButtons) return null;
+        
+        const buttonSize = isMobile ? "sm" : "default";
+        
+        return (
+            <div className="flex gap-2">
+                <MakePointButton onClick={onLoginOrMakePoint} size={buttonSize} />
+                <MakeNegationButton onClick={onSelectNegation} size={buttonSize} />
+            </div>
+        );
     };
 
     const showFiltersButton = selectedTab === "rationales";
 
     return (
         <div className="flex flex-col gap-4 px-4 sm:px-6 lg:px-8 py-3 sm:py-sm">
-
             {/* Main tabs row */}
-            <div className={cn("flex items-center justify-between gap-2 sm:gap-4", isMobile && "overflow-x-auto no-scrollbar")}>
+            <div className={cn("flex items-start justify-between gap-2 sm:gap-4", isMobile && "overflow-x-auto no-scrollbar")}>
                 <div className="flex gap-2 sm:gap-4">
                     <button
                         onClick={() => onTabChange("rationales")}
@@ -156,18 +142,21 @@ export function SpaceTabs({
                     )}
                 </div>
 
+                {/* Action buttons section - shows both action buttons and rationale button */}
                 {!isMobile && (
-                    <NewRationaleButton
-                        href={`/s/${spaceId}/rationale/new`}
-                        onClick={onNewViewpoint}
-                        variant="default"
-                        size="md"
-                        loading={isNewRationaleLoading}
-                    />
+                    <div className="flex items-start gap-2">
+                        {getActionButtons()}
+                        <NewRationaleButton
+                            href={`/s/${spaceId}/rationale/new`}
+                            onClick={onNewViewpoint}
+                            variant="default"
+                            size="md"
+                            loading={isNewRationaleLoading}
+                        />
+                    </div>
                 )}
             </div>
 
-            {/* Mobile toggles row - filtering moved to delta section, no longer needed here */}
 
             {selectedTab === "search" && (
                 <div className="pb-2">

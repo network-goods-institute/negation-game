@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Loader2 } from "lucide-react";
@@ -16,7 +16,16 @@ export function GoToSpaceButton({ href }: GoToSpaceButtonProps) {
     const handleClick = () => {
         setIsLoading(true);
         router.push(href);
+
+        setTimeout(() => {
+            setIsLoading(false);
+        }, 3000);
     };
+
+    // Reset loading state when href changes (new space)
+    useEffect(() => {
+        setIsLoading(false);
+    }, [href]);
 
     return (
         <Button

@@ -144,29 +144,30 @@ export function TopicCard({
                                         )}
                                     </div>
                                     <h3 className={cn(
-                                        "font-semibold text-sm sm:text-base leading-tight line-clamp-2 transition-colors flex-1",
+                                        "font-semibold text-sm sm:text-base leading-tight line-clamp-1 transition-colors flex-1",
                                         hasUserRationale ? "text-green-800 group-hover:text-green-900 dark:text-green-200 dark:group-hover:text-green-100" : "group-hover:text-primary"
                                     )}>
                                         {topic.name}
                                     </h3>
                                 </div>
-                                <div>
-                                    {typeof topic.rationalesCount === "number" && (
-                                        <p className="text-xs sm:text-sm text-muted-foreground font-medium">
-                                            {topic.rationalesCount} rationale{topic.rationalesCount === 1 ? "" : "s"}
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        {typeof topic.rationalesCount === "number" && (
+                                            <p className="text-xs sm:text-sm text-muted-foreground font-medium">
+                                                {topic.rationalesCount} rationale{topic.rationalesCount === 1 ? "" : "s"}
+                                            </p>
+                                        )}
+                                        {userRationalesLoaded && !hasUserRationale && (
+                                            <p className="text-xs text-muted-foreground mt-0.5">Missing rationale</p>
+                                        )}
+                                    </div>
+                                    {topic.latestRationaleAt && (
+                                        <p className="text-xs text-muted-foreground/80 flex-shrink-0">
+                                            {formatDistanceToNow(new Date(topic.latestRationaleAt), { addSuffix: true })}
                                         </p>
-                                    )}
-                                    {userRationalesLoaded && !hasUserRationale && (
-                                        <p className="text-xs text-muted-foreground mt-0.5">Missing rationale</p>
                                     )}
                                 </div>
                             </div>
-
-                            {topic.latestRationaleAt && (
-                                <p className="text-xs sm:text-sm text-muted-foreground/80 mt-auto flex-shrink-0">
-                                    {formatDistanceToNow(new Date(topic.latestRationaleAt), { addSuffix: true })}
-                                </p>
-                            )}
                         </div>
                     </div>
                 </Link>
