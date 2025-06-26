@@ -7,9 +7,11 @@ import { SpaceHeader } from "@/components/space/SpaceHeader";
 import { SpaceTabs, Tab } from "@/components/space/SpaceTabs";
 import { NewRationaleButton } from "@/components/rationale/NewRationaleButton";
 import { DeltaComparisonWidget } from "@/components/delta/DeltaComparisonWidget";
+import { MakePointButton, MakeNegationButton } from "@/components/space/action-buttons";
 import Link from "next/link";
-import { BrainCircuitIcon, Sigma } from "lucide-react";
+import { BrainCircuitIcon, Sigma, Filter } from "lucide-react";
 import { usePrivy } from "@privy-io/react-auth";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface SpacePageHeaderProps {
     space: ReturnType<typeof import("@/queries/space/useSpace").useSpace>;
@@ -52,66 +54,54 @@ export function SpacePageHeader({
     const { user: privyUser } = usePrivy();
 
     const getMobileActionButtons = () => {
-        switch (selectedTab) {
-            case "rationales":
-                return (
-                    <NewRationaleButton
-                        onClick={onNewViewpoint}
-                        variant="outline"
-                        size="sm"
-                        loading={isNewRationaleLoading}
-                    />
-                );
-            case "points":
-                return (
-                    <>
-                        <Button onClick={onLoginOrMakePoint} variant="default" size="sm">Make a Point</Button>
-                        <Button onClick={onSelectNegation} variant="destructive" size="sm">Make a Negation</Button>
-                    </>
-                );
-            case "all":
-                return (
-                    <>
-                        <Button onClick={onLoginOrMakePoint} variant="default" size="sm">Make a Point</Button>
-                        <NewRationaleButton
-                            onClick={onNewViewpoint}
-                            variant="outline"
-                            size="sm"
-                            loading={isNewRationaleLoading}
-                        />
-                        <Button onClick={onSelectNegation} variant="destructive" size="sm">Make a Negation</Button>
-                    </>
-                );
-            default:
-                return null;
-        }
+        return (
+            <NewRationaleButton
+                href={`/s/${space.data?.id ?? "global"}/rationale/new`}
+                onClick={onNewViewpoint}
+                variant="default"
+                size="sm"
+                loading={isNewRationaleLoading}
+            />
+        );
     };
 
     return (
         <div className="sticky top-0 z-20 bg-background">
-            {isMobile && selectedTab !== "search" && (
+            {isMobile ? (
                 <>
-                    <div className="flex justify-around items-center bg-background border-b px-4 py-2">
+                    <div className="flex items-center justify-center px-3 py-2 border-b">
+                        <div className="flex gap-2 flex-shrink-0">
+                            <Link
+                                href={chatHref}
+                                onClick={onAiClick}
+                                className="flex items-center gap-2 px-4 py-2 rounded-md bg-muted/50 hover:bg-muted border border-border text-foreground hover:text-primary transition-colors"
+                            >
+                                {isAiLoading ? (
+                                    <>
+                                        <Skeleton className="h-4 w-4 rounded" />
+                                        <Skeleton className="h-4 w-16" />
+                                    </>
+                                ) : (
+                                    <>
+                                        <BrainCircuitIcon className="size-4" />
+                                        <span className="text-sm font-medium">AI Assistant</span>
+                                    </>
+                                )}
+                            </Link>
+                            <Link
+                                href={`/s/${space.data?.id}/delta`}
+                                className="flex items-center gap-2 px-4 py-2 rounded-md bg-muted/50 hover:bg-muted border border-border text-foreground hover:text-orange-600 transition-colors"
+                            >
+                                <Sigma className="size-4" />
+                                <span className="text-sm font-medium">Delta Compare</span>
+                            </Link>
+                        </div>
+                    </div>
+                    <div className="flex items-center justify-center gap-1 bg-gradient-to-r from-muted/30 to-muted/10 border-b px-1 py-2 overflow-x-auto">
                         {getMobileActionButtons()}
                     </div>
-                    {/* mobile nav utility buttons */}
-                    <div className="flex justify-around items-center bg-background border-b px-4 py-2 gap-4">
-                        <Button asChild variant="default" size="icon">
-                            <Link href={chatHref} prefetch={false} className="flex items-center" onClick={onAiClick}>
-                                <BrainCircuitIcon className="size-6" />
-                                <span className="sr-only">AI Assistant</span>
-                            </Link>
-                        </Button>
-                        <Button asChild variant="secondary" size="icon">
-                            <Link href={`/s/${space.data?.id ?? "global"}/delta`} prefetch={false} className="flex items-center">
-                                <Sigma className="size-6" />
-                                <span className="sr-only">Δ Compare</span>
-                            </Link>
-                        </Button>
-                    </div>
                 </>
-            )}
-            {!isMobile && (
+            ) : (
                 <SpaceHeader
                     space={space}
                     isLoading={isAiLoading}
@@ -137,22 +127,34 @@ export function SpacePageHeader({
                 onTopicsToggle={onTopicsToggle}
             />
 
-            {/* Delta Comparison Widget - sticky with tabs on rationales tab */}
+            {/* Delta Comparison Widget and Filtering - on rationales tab */}
             {selectedTab === "rationales" && (
-                <div className="border-b bg-background px-4 py-3">
-                    <DeltaComparisonWidget
-                        comparison={{ type: "space", spaceId: space.data?.id ?? "global" }}
-                        title="Space Alignment Discovery"
-                        description={
-                            <>
-                                Find users who align or disagree with you most across{" "}
-                                <span className="text-yellow-500 font-medium">
-                                    s/{space.data?.id ?? "this entire space"}
-                                </span>
-                            </>
-                        }
-                        currentUserId={privyUser?.id}
-                    />
+                <div className="border-b bg-background px-4 sm:px-6 lg:px-8 py-3">
+                    <div className="flex items-start gap-4">
+                        {/* Filter button positioned to the left of delta */}
+                        <Button
+                            variant={filtersOpen ? "default" : "outline"}
+                            size="sm"
+                            onClick={onFiltersToggle}
+                            className="flex items-center gap-1 whitespace-nowrap flex-shrink-0"
+                        >
+                            <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            <span>Filters</span>
+                        </Button>
+                        <DeltaComparisonWidget
+                            comparison={{ type: "space", spaceId: space.data?.id ?? "global" }}
+                            title="Space Alignment Discovery"
+                            description={
+                                <>
+                                    Find users who align or disagree with you most across{" "}
+                                    <span className="text-yellow-500 font-medium">
+                                        s/{space.data?.id ?? "this entire space"}
+                                    </span>
+                                </>
+                            }
+                            currentUserId={privyUser?.id}
+                        />
+                    </div>
                 </div>
             )}
         </div>

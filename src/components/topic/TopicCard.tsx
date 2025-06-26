@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useMemo } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, Check, Circle } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import Link from "next/link";
@@ -27,6 +26,8 @@ interface TopicCardProps {
     size?: "sm" | "md" | "lg";
     loading?: boolean;
     onLoadingChange?: (loading: boolean) => void;
+    hasUserRationale?: boolean;
+    userRationalesLoaded?: boolean;
 }
 
 export function TopicCard({
@@ -35,7 +36,9 @@ export function TopicCard({
     className,
     size = "md",
     loading = false,
-    onLoadingChange
+    onLoadingChange,
+    hasUserRationale = false,
+    userRationalesLoaded = true
 }: TopicCardProps) {
     const isLoading = loading;
     const [isOpen, setIsOpen] = useState(false);
@@ -49,9 +52,9 @@ export function TopicCard({
     );
 
     const sizeClasses = {
-        sm: "min-h-24 text-sm w-80",
-        md: "min-h-28 text-base w-80",
-        lg: "min-h-32 text-lg w-80"
+        sm: "h-24 text-sm",
+        md: "h-28 text-base",
+        lg: "h-32 text-lg"
     };
 
     const href = `/s/${spaceId}/topic/${encodeId(topic.id)}`;
@@ -71,10 +74,10 @@ export function TopicCard({
             clearTimeout(hoverTimeoutRef.current);
             hoverTimeoutRef.current = null;
         }
-        if (!isOpen) {
+        hoverTimeoutRef.current = setTimeout(() => {
             setIsOpen(true);
-        }
-    }, [isOpen, isMobile]);
+        }, 150);
+    }, [isMobile]);
 
     const handleHoverEnd = useCallback(() => {
         if (isMobile) return;
@@ -83,7 +86,7 @@ export function TopicCard({
         }
         hoverTimeoutRef.current = setTimeout(() => {
             setIsOpen(false);
-        }, 100);
+        }, 150);
     }, [isMobile]);
 
     const stripMarkdown = useMemo(() => {
@@ -105,64 +108,77 @@ export function TopicCard({
     }, [latestViewpoint?.description]);
 
     return (
-        <Popover open={isOpen} onOpenChange={(open) => { if (!open) setIsOpen(false); }}>
+        <Popover open={isOpen} onOpenChange={setIsOpen}>
             <PopoverTrigger asChild>
-                <Link href={href} className="block" prefetch={false}>
-                    <Card
+                <Link href={href} className="block w-full" prefetch={false}>
+                    <div
                         className={cn(
-                            "group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-primary/10 border-2 hover:border-primary/60 cursor-pointer bg-gradient-to-br from-background to-muted/20",
+                            "group relative w-full rounded-lg border transition-all duration-200 cursor-pointer",
+                            hasUserRationale 
+                                ? "border-green-500/50 bg-green-50 hover:bg-green-100 hover:border-green-500 dark:bg-green-950/30 dark:hover:bg-green-950/50 dark:border-green-400/50 dark:hover:border-green-400" 
+                                : "border-border/50 bg-card hover:bg-accent/50 hover:border-primary/50",
                             sizeClasses[size],
-                            isLoading && "cursor-wait",
+                            isLoading && "cursor-wait opacity-50",
                             className
                         )}
                         onMouseEnter={handleHoverStart}
                         onMouseLeave={handleHoverEnd}
                     >
-                        <CardContent className="p-5 h-full flex flex-col justify-center relative">
+                        <div className="p-3 h-full flex flex-col justify-between overflow-hidden">
                             {isLoading && (
-                                <div className="absolute inset-0 bg-background/90 backdrop-blur-sm flex items-center justify-center rounded-lg">
-                                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                                <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center rounded-lg">
+                                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
                                 </div>
                             )}
 
-                            <h3 className="font-bold text-xl group-hover:text-primary transition-colors duration-300 mb-3 leading-tight">
-                                {topic.name}
-                            </h3>
-
-                            <div className="text-sm text-muted-foreground/80 space-y-1.5">
-                                <div className="flex flex-wrap items-center gap-2">
-                                    {typeof topic.rationalesCount === "number" && (
-                                        <span className="font-medium text-foreground/70">{topic.rationalesCount} rationale{topic.rationalesCount === 1 ? "" : "s"}</span>
-                                    )}
-                                    {topic.latestRationaleAt && (
-                                        <>
-                                            {typeof topic.rationalesCount === "number" && <span className="text-muted-foreground/40">&middot;</span>}
-                                            <span>
-                                                Last {formatDistanceToNow(new Date(topic.latestRationaleAt), { addSuffix: true })}
-                                            </span>
-                                        </>
-                                    )}
+                            <div className="space-y-1 flex-1 min-h-0">
+                                <div className="flex items-center gap-2">
+                                    {/* Left aligned checkmark in circle */}
+                                    <div className="flex-shrink-0" title={hasUserRationale ? "You already published a rationale for this topic" : "No rationale published yet"}>
+                                        {hasUserRationale ? (
+                                            <div className="w-5 h-5 bg-green-600 rounded-full flex items-center justify-center">
+                                                <Check className="w-3 h-3 text-white" />
+                                            </div>
+                                        ) : (
+                                            <div className="w-5 h-5 border-2 border-muted-foreground rounded-full"></div>
+                                        )}
+                                    </div>
+                                    <h3 className={cn(
+                                        "font-semibold text-sm sm:text-base leading-tight line-clamp-2 transition-colors flex-1",
+                                        hasUserRationale ? "text-green-800 group-hover:text-green-900 dark:text-green-200 dark:group-hover:text-green-100" : "group-hover:text-primary"
+                                    )}>
+                                        {topic.name}
+                                    </h3>
                                 </div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    {topic.earliestRationaleAt && (
-                                        <span>
-                                            Created {formatEarliest(topic.earliestRationaleAt)}
-                                        </span>
+                                <div>
+                                    {typeof topic.rationalesCount === "number" && (
+                                        <p className="text-xs sm:text-sm text-muted-foreground font-medium">
+                                            {topic.rationalesCount} rationale{topic.rationalesCount === 1 ? "" : "s"}
+                                        </p>
                                     )}
-                                    {topic.latestAuthorUsername && (
-                                        <>
-                                            {topic.earliestRationaleAt && <span className="text-muted-foreground/40">&middot;</span>}
-                                            <span>Latest by <span className="font-medium text-foreground/70">{topic.latestAuthorUsername}</span></span>
-                                        </>
+                                    {userRationalesLoaded && !hasUserRationale && (
+                                        <p className="text-xs text-muted-foreground mt-0.5">Missing rationale</p>
                                     )}
                                 </div>
                             </div>
-                        </CardContent>
-                    </Card>
+
+                            {topic.latestRationaleAt && (
+                                <p className="text-xs sm:text-sm text-muted-foreground/80 mt-auto flex-shrink-0">
+                                    {formatDistanceToNow(new Date(topic.latestRationaleAt), { addSuffix: true })}
+                                </p>
+                            )}
+                        </div>
+                    </div>
                 </Link>
             </PopoverTrigger>
 
-            <PopoverContent className="w-80 p-0 shadow-xl border-2" side="top" align="start">
+            <PopoverContent
+                className="w-80 p-0 shadow-xl border-2"
+                side="bottom"
+                align="start"
+                onMouseEnter={handleHoverStart}
+                onMouseLeave={handleHoverEnd}
+            >
                 <div className="p-4 border-b bg-gradient-to-r from-muted/30 to-muted/10">
                     <div className="flex items-center gap-2 mb-2">
                         <ViewpointIcon className="flex-shrink-0 text-primary" />

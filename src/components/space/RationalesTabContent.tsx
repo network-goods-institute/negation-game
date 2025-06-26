@@ -1,11 +1,13 @@
 "use client";
 
 import React, { memo, useState, useMemo, useCallback, useEffect } from "react";
-import { Loader } from "@/components/ui/loader";
+import { Button } from "@/components/ui/button";
+import { RefreshCwIcon } from "lucide-react";
 import { ViewpointCardWrapper } from "@/components/cards/ViewpointCardWrapper";
 import { useInfiniteScroll } from "@/hooks/ui/useInfiniteScroll";
 import { NewRationaleButton } from "@/components/rationale/NewRationaleButton";
 import { FilteringTabContent } from "./FilteringTabContent";
+import { ViewpointFeedSkeleton, InfiniteScrollSkeleton } from "./skeletons";
 
 const MemoizedViewpointCardWrapper = memo(ViewpointCardWrapper);
 
@@ -27,6 +29,8 @@ export interface RationalesTabContentProps {
     onClearAll: () => void;
     onMatchTypeChange: (type: "any" | "all") => void;
     onTopicFiltersChange: (filters: string[]) => void;
+    onRefetchFeed?: () => void;
+    isRefetching?: boolean;
 }
 
 export const RationalesTabContent = memo(({
@@ -47,6 +51,8 @@ export const RationalesTabContent = memo(({
     onClearAll,
     onMatchTypeChange,
     onTopicFiltersChange,
+    onRefetchFeed,
+    isRefetching = false,
 }: RationalesTabContentProps) => {
 
     if (!space) {
@@ -95,12 +101,8 @@ export const RationalesTabContent = memo(({
         setVisibleCount(20);
     }, [finalFilteredViewpoints]);
 
-    if (viewpoints === undefined || viewpointsLoading) {
-        return (
-            <div className="flex-1 flex items-center justify-center min-h-[calc(100vh-200px)]">
-                <Loader className="h-6 w-6" />
-            </div>
-        );
+    if (viewpointsLoading) {
+        return <ViewpointFeedSkeleton count={8} />;
     }
 
     const hasActiveFilters = selectedPointIds.length > 0 || topicFilters.length > 0;
@@ -150,12 +152,26 @@ export const RationalesTabContent = memo(({
                             ? `No rationales found matching the current filters`
                             : "Nothing here yet"}
                     </span>
-                    <NewRationaleButton
-                        onClick={handleNewViewpoint}
-                        variant="outline"
-                        size="md"
-                        loading={isNewRationaleLoading}
-                    />
+                    <div className="flex items-center gap-3">
+                        <NewRationaleButton
+                            onClick={handleNewViewpoint}
+                            variant="default"
+                            size="lg"
+                            loading={isNewRationaleLoading}
+                        />
+                        {onRefetchFeed && !hasActiveFilters && (
+                            <Button
+                                variant="outline"
+                                size="lg"
+                                onClick={onRefetchFeed}
+                                disabled={isRefetching}
+                                className="flex items-center gap-2"
+                            >
+                                <RefreshCwIcon className={`size-4 ${isRefetching ? 'animate-spin' : ''}`} />
+                                <span>{isRefetching ? 'Refreshing...' : 'Refresh Feed'}</span>
+                            </Button>
+                        )}
+                    </div>
                 </div>
             ) : (
                 <>
@@ -181,8 +197,8 @@ export const RationalesTabContent = memo(({
                         />
                     ))}
                     {visibleCount < finalFilteredViewpoints.length && (
-                        <div className="flex justify-center my-4" ref={sentinelRef}>
-                            <Loader className="h-6 w-6" />
+                        <div ref={sentinelRef}>
+                            <InfiniteScrollSkeleton type="viewpoints" count={3} />
                         </div>
                     )}
                 </>

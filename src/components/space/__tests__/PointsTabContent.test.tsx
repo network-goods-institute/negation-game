@@ -48,7 +48,7 @@ describe('PointsTabContent', () => {
         );
 
         expect(screen.getByText('Nothing here yet')).toBeInTheDocument();
-        expect(screen.getByText('Make a Point')).toBeInTheDocument();
+        expect(screen.getByText('Make Point')).toBeInTheDocument();
         expect(screen.getByText('Refresh Feed')).toBeInTheDocument();
     });
 
@@ -86,7 +86,7 @@ describe('PointsTabContent', () => {
         render(<PointsTabContent {...mockProps} />);
 
         expect(screen.getByText('Nothing here yet')).toBeInTheDocument();
-        expect(screen.getByText('Make a Point')).toBeInTheDocument();
+        expect(screen.getByText('Make Point')).toBeInTheDocument();
         expect(screen.queryByText('Refresh Feed')).not.toBeInTheDocument();
     });
 

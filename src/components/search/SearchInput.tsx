@@ -20,8 +20,8 @@ export const SearchInput: FC<SearchInputProps> = ({
     };
 
     return (
-        <div className="relative w-full">
-            <div className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground">
+        <div className="relative w-full bg-muted/20 rounded-lg border border-border/30 p-2">
+            <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-primary">
                 <SearchIcon className="w-4 h-4" />
             </div>
             <Input
@@ -30,7 +30,7 @@ export const SearchInput: FC<SearchInputProps> = ({
                 placeholder={placeholder}
                 value={value}
                 onChange={handleChange}
-                className="pl-8 pr-2 py-2 w-full border-none focus:ring-0"
+                className="pl-8 pr-2 py-2 w-full border-none focus:ring-0 bg-transparent"
                 autoFocus={true}
                 onBlur={(e) => {
                     if (e.currentTarget.contains(e.relatedTarget as Node)) {

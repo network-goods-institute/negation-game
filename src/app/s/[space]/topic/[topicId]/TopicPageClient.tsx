@@ -3,17 +3,19 @@ import React, { useState, useMemo } from "react";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { ViewpointCardWrapper } from "@/components/cards/ViewpointCardWrapper";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ArrowLeftIcon, Search, ChevronDownIcon, ChevronUpIcon, X } from "lucide-react";
+import { ArrowLeftIcon, ChevronDownIcon, ChevronUpIcon, X, Check, ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useTopics } from "@/queries/topics/useTopics";
 import Link from "next/link";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import { Loader } from "@/components/ui/loader";
-import { TopicCard } from "@/components/topic/TopicCard";
 import useIsMobile from "@/hooks/ui/useIsMobile";
 import { DeltaComparisonWidget } from "@/components/delta/DeltaComparisonWidget";
 import { usePrivy } from "@privy-io/react-auth";
+import { useTopics } from "@/queries/topics/useTopics";
+import { useAllUsers } from "@/queries/users/useAllUsers";
+import { fetchUsersReputation } from "@/actions/users/fetchUsersReputation";
+import { useQuery } from "@tanstack/react-query";
+import { UsernameDisplay } from "@/components/ui/UsernameDisplay";
 
 
 interface Topic {
@@ -63,25 +65,47 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
     const [viewpointsSortKey, setSortKey] = useState<SortKey>("recent");
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
     const [isTopicsExpanded, setIsTopicsExpanded] = useState(false);
-    const [topicSearch, setTopicSearch] = useState("");
-    const [loadingTopicId, setLoadingTopicId] = useState<number | null>(null);
     const [isGlobalGraphLoading, setIsGlobalGraphLoading] = useState(false);
+    const [delegateSortKey, setDelegateSortKey] = useState<"alphabetic" | "cred" | "status">("alphabetic");
 
-    const { data: topicsData, isLoading: topicsLoading } = useTopics(space);
+    const { data: allUsers } = useAllUsers();
 
-    const filteredTopics = useMemo(() => {
-        if (!topicsData) return [];
-        const otherTopics = topicsData.filter(t => t.id !== topic.id);
-        if (!topicSearch.trim()) return otherTopics;
-        return otherTopics.filter(t =>
-            t.name.toLowerCase().includes(topicSearch.toLowerCase())
-        );
-    }, [topicsData, topicSearch, topic.id]);
+    const userIds = useMemo(() => allUsers?.map(u => u.id) || [], [allUsers]);
+    const { data: userReputations } = useQuery({
+        queryKey: ["userReputations", userIds],
+        queryFn: () => fetchUsersReputation(userIds),
+        enabled: userIds.length > 0,
+    });
 
-    const handleTopicClick = (topicId: number) => {
-        setLoadingTopicId(topicId);
-        setTimeout(() => setLoadingTopicId(null), 1000);
-    };
+    const sortedDelegates = useMemo(() => {
+        if (!allUsers) return [];
+
+        const delegatesWithStatus = allUsers.map(user => {
+            const hasPublished = viewpoints.some(vp => vp.authorId === user.id);
+            const reputation = userReputations?.[user.id] || user.cred || 50;
+            return { ...user, hasPublished, reputation };
+        });
+
+        switch (delegateSortKey) {
+            case "alphabetic":
+                return delegatesWithStatus.sort((a, b) => a.username.localeCompare(b.username));
+            case "cred":
+                return delegatesWithStatus.sort((a, b) => b.reputation - a.reputation);
+            case "status":
+                return delegatesWithStatus.sort((a, b) => {
+                    if (a.hasPublished === b.hasPublished) {
+                        return a.username.localeCompare(b.username);
+                    }
+                    return a.hasPublished ? -1 : 1;
+                });
+            default:
+                return delegatesWithStatus;
+        }
+    }, [allUsers, viewpoints, userReputations, delegateSortKey]);
+
+    const hasCurrentUserRationale = viewpoints.some(vp => vp.authorId === privyUser?.id);
+
+
 
     const sorted = useMemo(() => {
         const arr = [...viewpoints].sort(sortFunctions[viewpointsSortKey]);
@@ -106,13 +130,13 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                         onClick={() => setIsTopicsExpanded(!isTopicsExpanded)}
                         className="flex items-center whitespace-nowrap"
                     >
-                        <span>Topics</span>
+                        <span>Delegates</span>
                         {isTopicsExpanded ? <ChevronUpIcon className="h-4 w-4 ml-1" /> : <ChevronDownIcon className="h-4 w-4 ml-1" />}
                     </Button>
                 </div>
             )}
 
-            <div className="flex-1 grid sm:grid-cols-[minmax(0,1fr)_700px] bg-background min-h-0 overflow-hidden">
+            <div className="flex-1 grid sm:grid-cols-[3fr_1fr] bg-background min-h-0 overflow-hidden">
                 {/* Main Content */}
                 <div className="relative w-full flex flex-col min-h-0 px-4 py-4 overflow-y-auto">
                     {/* Desktop Back button */}
@@ -126,36 +150,31 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                         </div>
                     )}
 
-                    <h1 className="text-2xl font-bold mb-4">Topic: {topic.name}</h1>
-                    {topic.discourseUrl && (
-                        <a
-                            href={topic.discourseUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-500 hover:underline text-sm mb-4 block"
-                        >
-                            {topic.discourseUrl.replace(/^(https?:\/\/)?(www\.)?/i, '')}
-                        </a>
-                    )}
 
-                    <div className="flex items-center mb-6 gap-4">
-                        <span className="font-medium">Sort by:</span>
-                        <Select defaultValue="recent" onValueChange={(value) => setSortKey(value as SortKey)}>
-                            <SelectTrigger className="w-40">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="recent">Recent</SelectItem>
-                                <SelectItem value="author">Author</SelectItem>
-                                <SelectItem value="cred">Cred</SelectItem>
-                                <SelectItem value="favor">Favor</SelectItem>
-                                <SelectItem value="views">Views</SelectItem>
-                                <SelectItem value="copies">Copies</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <Button variant="outline" size="sm" className="ml-2" onClick={() => setSortDirection(d => d === 'desc' ? 'asc' : 'desc')}>
-                            {sortDirection === 'desc' ? 'Desc' : 'Asc'}
-                        </Button>
+                    {/* Topic Header */}
+                    <div className="mb-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+                            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Topic: {topic.name}</h1>
+                            {hasCurrentUserRationale && (
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 rounded-lg text-sm font-medium">
+                                    <Check className="w-4 h-4" />
+                                    <span>You already published a rationale for this topic</span>
+                                </div>
+                            )}
+                        </div>
+                        {topic.discourseUrl && (
+                            <div className="bg-muted/50 border border-border rounded-lg p-4 inline-block">
+                                <a
+                                    href={topic.discourseUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 text-foreground hover:text-primary text-sm font-medium transition-colors"
+                                >
+                                    <ExternalLink className="w-4 h-4" />
+                                    <span>View Source: {topic.discourseUrl.replace(/^(https?:\/\/)?(www\.)?/i, '')}</span>
+                                </a>
+                            </div>
+                        )}
                     </div>
 
                     {/* Global Graph View */}
@@ -186,89 +205,129 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                         </div>
                     </div>
 
-                    {/* Delta Comparison Widget */}
-                    <div className="mb-6">
-                        <DeltaComparisonWidget
-                            comparison={{ type: "topic", topicId: topic.id }}
-                            title="Topic Alignment Discovery"
-                            description="Find users who agree or disagree with you most on this topic"
-                            currentUserId={privyUser?.id}
-                        />
+                    {/* Sort Controls */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6 pb-4 border-b border-border">
+                        <h2 className="text-lg font-semibold">Rationales ({viewpoints.length})</h2>
+                        <div className="flex items-center gap-3">
+                            <span className="font-medium text-sm">Sort by:</span>
+                            <Select defaultValue="recent" onValueChange={(value) => setSortKey(value as SortKey)}>
+                                <SelectTrigger className="w-36">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="recent">Recent</SelectItem>
+                                    <SelectItem value="author">Alphabetic</SelectItem>
+                                    <SelectItem value="cred">Cred</SelectItem>
+                                    <SelectItem value="favor">Favor</SelectItem>
+                                    <SelectItem value="views">Views</SelectItem>
+                                    <SelectItem value="copies">Copies</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Button variant="outline" size="sm" onClick={() => setSortDirection(d => d === 'desc' ? 'asc' : 'desc')}>
+                                {sortDirection === 'desc' ? '↓' : '↑'}
+                            </Button>
+                        </div>
                     </div>
 
-                    {/* Viewpoints List */}
-                    <div className="flex flex-col space-y-4">
-                        {sorted.map((vp) => (
-                            <ViewpointCardWrapper
-                                key={vp.id}
-                                id={vp.id}
-                                title={vp.title}
-                                description={vp.description}
-                                authorId={vp.authorId}
-                                author={vp.authorUsername}
-                                createdAt={new Date(vp.createdAt)}
-                                space={space}
-                                statistics={vp.statistics}
-                                topic={topic.name}
-                            />
-                        ))}
+                    {/* Rationales List */}
+                    <div className="space-y-3">
+                        {sorted.length === 0 ? (
+                            <div className="text-center py-12 text-muted-foreground">
+                                <p className="text-lg mb-2">No rationales yet</p>
+                                <p className="text-sm">Be the first to create a rationale for this topic!</p>
+                            </div>
+                        ) : (
+                            sorted.map((vp) => (
+                                <ViewpointCardWrapper
+                                    key={vp.id}
+                                    id={vp.id}
+                                    title={vp.title}
+                                    description={vp.description}
+                                    authorId={vp.authorId}
+                                    author={vp.authorUsername}
+                                    createdAt={new Date(vp.createdAt)}
+                                    space={space}
+                                    statistics={vp.statistics}
+                                    topic={topic.name}
+                                />
+                            ))
+                        )}
                     </div>
                 </div>
 
-                {/* Desktop Sidebar */}
+                {/* Sidebar */}
                 {!isMobile && (
-                    <aside className="hidden sm:flex flex-col p-4 gap-4 border-l overflow-y-auto bg-muted/20">
-                        <div className="space-y-4">
-                            <h2 className="text-lg font-semibold">Other Topics</h2>
+                    <aside className="hidden sm:flex flex-col border-l bg-muted/10 overflow-y-auto w-full">
+                        <div className="p-4 space-y-4">
+                            {/* Delta Comparison Widget */}
+                            <DeltaComparisonWidget
+                                comparison={{ type: "topic", topicId: topic.id }}
+                                title="Topic Alignment"
+                                description="Find aligned users"
+                                currentUserId={privyUser?.id}
+                            />
 
-                            {/* Topic Search */}
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search topics..."
-                                    value={topicSearch}
-                                    onChange={(e) => setTopicSearch(e.target.value)}
-                                    className="pl-10"
-                                />
-                            </div>
-
-                            {topicsLoading ? (
-                                <div className="flex items-center justify-center py-8">
-                                    <Loader className="size-6" />
+                            {/* Delegate Status Section */}
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-semibold">Delegate Status</h3>
+                                    <Select defaultValue="alphabetic" onValueChange={(value) => setDelegateSortKey(value as "alphabetic" | "cred" | "status")}>
+                                        <SelectTrigger className="w-28">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="alphabetic">A-Z</SelectItem>
+                                            <SelectItem value="cred">Cred</SelectItem>
+                                            <SelectItem value="status">Status</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
-                            ) : (
-                                <div className="grid grid-cols-2 gap-3">
-                                    {filteredTopics.length > 0 ? (
-                                        filteredTopics.map(t => (
-                                            <div key={t.id} onClick={() => handleTopicClick(t.id)}>
-                                                <TopicCard
-                                                    topic={t}
-                                                    spaceId={space}
-                                                    size="sm"
-                                                    loading={loadingTopicId === t.id}
+                                <div className="space-y-2">
+                                    {sortedDelegates.map((user) => (
+                                        <div key={user.id} className="flex items-center justify-between p-3 bg-background border rounded-lg hover:bg-accent/50 transition-colors">
+                                            <div className="flex flex-col">
+                                                <UsernameDisplay
+                                                    username={user.username}
+                                                    userId={user.id}
+                                                    className="text-sm font-medium"
                                                 />
+                                                <span className="text-xs text-muted-foreground">{Math.round(user.reputation)} cred</span>
                                             </div>
-                                        ))
-                                    ) : (
-                                        <div className="col-span-2 text-center py-4 text-muted-foreground">
-                                            <p className="text-sm">
-                                                {topicSearch.trim() ? 'No topics found' : 'No other topics'}
+                                            <div className="flex items-center gap-2">
+                                                {user.hasPublished ? (
+                                                    <div className="flex items-center gap-1" title="This delegate already published a rationale for this topic">
+                                                        <Check className="w-4 h-4 text-green-600" />
+                                                        <span className="text-xs text-green-600">Published</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-1" title="This delegate has not published a rationale for this topic yet">
+                                                        <div className="w-4 h-4 border-2 border-muted-foreground/30 rounded-full" />
+                                                        <span className="text-xs text-muted-foreground">Pending</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {(!sortedDelegates || sortedDelegates.length === 0) && (
+                                        <div className="p-4 bg-muted/30 border rounded-lg text-center">
+                                            <p className="text-sm text-muted-foreground">
+                                                No delegates found in this space
                                             </p>
                                         </div>
                                     )}
                                 </div>
-                            )}
+                            </div>
                         </div>
                     </aside>
                 )}
             </div>
 
-            {/* Mobile Topics Overlay */}
+            {/* Mobile Delegates Overlay */}
             {isMobile && isTopicsExpanded && (
                 <div className="fixed inset-0 z-50 bg-background animate-in slide-in-from-bottom duration-300">
                     <div className="flex flex-col h-full">
                         <div className="flex items-center justify-between p-4 border-b">
-                            <h2 className="text-lg font-semibold">Other Topics</h2>
+                            <h2 className="text-lg font-semibold">Delegate Status</h2>
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -278,41 +337,65 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                             </Button>
                         </div>
                         <div className="flex-1 overflow-y-auto p-6">
-                            <div className="relative mb-6">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search topics..."
-                                    value={topicSearch}
-                                    onChange={(e) => setTopicSearch(e.target.value)}
-                                    className="pl-10"
+                            {/* Mobile Delta Widget - Above filtering */}
+                            <div className="mb-6">
+                                <DeltaComparisonWidget
+                                    comparison={{ type: "topic", topicId: topic.id }}
+                                    title="Topic Alignment"
+                                    description="Find aligned users"
+                                    currentUserId={privyUser?.id}
                                 />
                             </div>
-                            {topicsLoading ? (
-                                <div className="flex items-center justify-center py-8">
-                                    <Loader className="size-8" />
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-2 gap-3">
-                                    {filteredTopics.length > 0 ? (
-                                        filteredTopics.map(t => (
-                                            <div key={t.id} onClick={() => handleTopicClick(t.id)}>
-                                                <TopicCard
-                                                    topic={t}
-                                                    spaceId={space}
-                                                    size="md"
-                                                    loading={loadingTopicId === t.id}
-                                                />
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="col-span-2 text-center py-8 text-muted-foreground">
-                                            <p className="text-sm">
-                                                {topicSearch.trim() ? 'No topics found' : 'No other topics'}
-                                            </p>
+
+                            {/* Mobile Sort Controls */}
+                            <div className="mb-4">
+                                <Select defaultValue="alphabetic" onValueChange={(value) => setDelegateSortKey(value as "alphabetic" | "cred" | "status")}>
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="alphabetic">Alphabetic</SelectItem>
+                                        <SelectItem value="cred">By Cred</SelectItem>
+                                        <SelectItem value="status">By Status</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-3">
+                                {sortedDelegates.map((user) => (
+                                    <div key={user.id} className="flex items-center justify-between p-4 bg-muted/20 border rounded-lg hover:bg-muted/30 transition-colors">
+                                        <div className="flex flex-col">
+                                            <UsernameDisplay
+                                                username={user.username}
+                                                userId={user.id}
+                                                className="font-medium"
+                                            />
+                                            <span className="text-sm text-muted-foreground">{Math.round(user.reputation)} cred</span>
                                         </div>
-                                    )}
-                                </div>
-                            )}
+                                        <div className="flex items-center gap-2">
+                                            {user.hasPublished ? (
+                                                <div className="flex items-center gap-2" title="This delegate already published a rationale for this topic">
+                                                    <Check className="w-5 h-5 text-green-600" />
+                                                    <span className="text-sm text-green-600">Published</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-2" title="This delegate has not published a rationale for this topic yet">
+                                                    <div className="w-5 h-5 border-2 border-muted-foreground/30 rounded-full" />
+                                                    <span className="text-sm text-muted-foreground">Pending</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                                {(!sortedDelegates || sortedDelegates.length === 0) && (
+                                    <div className="p-6 bg-muted/30 border rounded-lg text-center">
+                                        <p className="text-muted-foreground">
+                                            No delegates found in this space
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
                         </div>
                     </div>
                 </div>

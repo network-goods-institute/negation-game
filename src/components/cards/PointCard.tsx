@@ -405,6 +405,7 @@ export const PointCard = ({
           graphNodeLevel={graphNodeLevel}
           isCommand={!!isCommand}
           isPinned={!!isPinned}
+          isPriority={!!isPriority}
           space={space}
           linkDisabled={!!linkDisabled}
           pinnedCommandPointId={pinnedCommandPointId}

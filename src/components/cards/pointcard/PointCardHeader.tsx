@@ -15,6 +15,7 @@ export interface PointCardHeaderProps {
     graphNodeLevel?: number;
     isCommand: boolean;
     isPinned: boolean;
+    isPriority?: boolean;
     space?: string;
     linkDisabled: boolean;
     pinnedCommandPointId?: number;
@@ -33,6 +34,7 @@ export const PointCardHeader = ({
     inGraphNode,
     isCommand,
     isPinned,
+    isPriority,
     space,
     linkDisabled,
     pinnedCommandPointId,

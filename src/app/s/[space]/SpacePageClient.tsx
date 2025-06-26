@@ -32,6 +32,7 @@ import { SelectPointForNegationDialog } from "@/components/dialogs/SelectPointFo
 import { makeNegationSuggestionAtom } from "@/atoms/makeNegationSuggestionAtom";
 import { selectPointForNegationOpenAtom } from "@/atoms/selectPointForNegationOpenAtom";
 import { setPrivyToken } from "@/lib/privy/setPrivyToken";
+import { PriorityPointsSkeleton } from "@/components/space/skeletons";
 
 interface PageProps {
     params: { space: string };
@@ -301,7 +302,7 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
 
     if (selectedTab === null) {
         return (
-            <main className="flex-1 grid sm:grid-cols-[minmax(200px,600px)_1fr] overflow-auto bg-background min-h-0">
+            <main className="flex-1 grid sm:grid-cols-[1fr_1fr] overflow-auto bg-background min-h-0">
                 <div className="col-span-full flex items-center justify-center h-full">
                     <Loader className="size-8" />
                 </div>
@@ -310,8 +311,12 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
     }
 
     return (
-        <main className="flex-1 grid sm:grid-cols-[minmax(200px,600px)_1fr] bg-background min-h-0 overflow-auto">
-            <div className="relative w-full flex flex-col min-h-0">
+        <main className="flex-1 flex bg-background min-h-0 overflow-auto">
+            {/* Left negative space (hidden on mobile) */}
+            <div className="hidden sm:block flex-[2] max-w-[400px]"></div>
+            
+            {/* Center content */}
+            <div className="relative w-full flex-[2] flex flex-col min-h-0">
                 <SpacePageHeader
                     space={space}
                     selectedTab={selectedTab}
@@ -353,19 +358,8 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                         )}
 
                     {selectedTab !== "search" && selectedTab !== "rationales" &&
-                        (priorityPointsLoading ? (
-                            <div className="border-b py-4 px-6 min-h-[120px] flex items-center justify-center">
-                                <div className="animate-pulse flex flex-col w-full gap-2">
-                                    <div className="h-6 bg-muted rounded w-3/4"></div>
-                                    <div className="h-4 bg-muted rounded w-1/2 mt-2"></div>
-                                    <div className="h-3 bg-muted rounded w-1/4 mt-2"></div>
-                                    <div className="flex gap-2 mt-2">
-                                        <div className="h-5 w-5 bg-muted rounded-full"></div>
-                                        <div className="h-5 w-5 bg-muted rounded-full"></div>
-                                        <div className="h-5 w-5 bg-muted rounded-full"></div>
-                                    </div>
-                                </div>
-                            </div>
+                        (priorityPointsLoading && space.data ? (
+                            <PriorityPointsSkeleton count={2} />
                         ) : filteredPriorityPoints.length > 0 ? (
                             <div className="border-b transition-opacity duration-200 ease-in-out">
                                 <PriorityPointsSection
@@ -448,6 +442,8 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                             onClearAll={handleClearAll}
                             onMatchTypeChange={handleMatchTypeChange}
                             onTopicFiltersChange={setTopicFilters}
+                            onRefetchFeed={handleRefetchFeed}
+                            isRefetching={isRefetchingFeed}
                         />
                     ) : selectedTab === "points" ? (
                         <Profiler id="PointsTabContent" onRender={(id, phase, actualDuration) => {
@@ -490,10 +486,14 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                             onClearAll={handleClearAll}
                             onMatchTypeChange={handleMatchTypeChange}
                             onTopicFiltersChange={setTopicFilters}
+                            onRefetchFeed={handleRefetchFeed}
+                            isRefetching={isRefetchingFeed}
                         />
                     )}
                 </div>
             </div>
+            
+            {/* Right sidebar - topics */}
             <SpacePageAside
                 spaceId={space.data?.id ?? "global"}
                 loginOrMakePoint={loginOrMakePoint}

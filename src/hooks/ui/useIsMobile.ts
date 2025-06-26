@@ -11,16 +11,17 @@ export default function useIsMobile(breakpoint = 768): boolean {
     [breakpoint]
   );
 
-  const [isMobile, setIsMobile] = useState(getIsMobile);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(getIsMobile());
     };
 
-    window.addEventListener("resize", handleResize);
-    // Ensure state is updated if breakpoint prop changes
+    // Set initial state on mount
     handleResize();
+    
+    window.addEventListener("resize", handleResize);
 
     return () => {
       window.removeEventListener("resize", handleResize);
