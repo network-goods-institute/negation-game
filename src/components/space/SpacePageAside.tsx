@@ -12,7 +12,6 @@ import { usePrivy } from "@privy-io/react-auth";
 
 interface SpacePageAsideProps {
     spaceId: string;
-    loginOrMakePoint: () => void;
     handleNewViewpoint: () => void;
     isNewRationaleLoading?: boolean;
     setIsSelectNegationOpen: (open: boolean) => void;

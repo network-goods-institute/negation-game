@@ -136,8 +136,11 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                 </div>
             )}
 
-            <div className="flex-1 grid sm:grid-cols-[3fr_1fr] bg-background min-h-0 overflow-hidden">
-                {/* Main Content */}
+            <div className="flex-1 grid sm:grid-cols-[1fr_2fr_1fr] bg-background min-h-0 overflow-hidden">
+                {/* Left negative space */}
+                <div className="hidden sm:block"></div>
+
+                {/* Main Content - Centered */}
                 <div className="relative w-full flex flex-col min-h-0 px-4 py-4 overflow-y-auto">
                     {/* Desktop Back button */}
                     {!isMobile && (
@@ -205,6 +208,27 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                         </div>
                     </div>
 
+                    {/* Create Rationale Section */}
+                    {!hasCurrentUserRationale && (
+                        <div className="mb-6">
+                            <div className="border-2 border-dashed border-blue-300 dark:border-blue-600 rounded-lg p-6 text-center bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
+                                <h2 className="text-lg font-semibold mb-2 text-blue-900 dark:text-blue-100">Create Your Rationale</h2>
+                                <p className="text-blue-700 dark:text-blue-200 text-sm mb-4">
+                                    Share your perspective on {topic.name}. Build connected arguments with points and evidence.
+                                </p>
+                                <Link href={`/s/${space}/rationale/new?topicId=${encodeId(topic.id)}`}>
+                                    <Button
+                                        variant="default"
+                                        size="lg"
+                                        className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600"
+                                    >
+                                        Create Rationale for {topic.name}
+                                    </Button>
+                                </Link>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Sort Controls */}
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6 pb-4 border-b border-border">
                         <h2 className="text-lg font-semibold">Rationales ({viewpoints.length})</h2>
@@ -255,13 +279,14 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                     </div>
                 </div>
 
-                {/* Sidebar */}
+                {/* Sidebar - Right column */}
                 {!isMobile && (
                     <aside className="hidden sm:flex flex-col border-l bg-muted/10 overflow-y-auto w-full">
                         <div className="p-4 space-y-4">
                             {/* Delta Comparison Widget */}
                             <DeltaComparisonWidget
-                                comparison={{ type: "topic", topicId: topic.id }}
+                                // @ts-ignore
+                                comparison={{ type: "topic", topicId: encodeId(topic.id) }}
                                 title="Topic Alignment"
                                 description="Find aligned users"
                                 currentUserId={privyUser?.id}
@@ -340,7 +365,8 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                             {/* Mobile Delta Widget - Above filtering */}
                             <div className="mb-6">
                                 <DeltaComparisonWidget
-                                    comparison={{ type: "topic", topicId: topic.id }}
+                                    // @ts-ignore
+                                    comparison={{ type: "topic", topicId: encodeId(topic.id) }}
                                     title="Topic Alignment"
                                     description="Find aligned users"
                                     currentUserId={privyUser?.id}

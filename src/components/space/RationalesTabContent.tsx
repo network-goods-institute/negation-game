@@ -2,12 +2,14 @@
 
 import React, { memo, useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { RefreshCwIcon } from "lucide-react";
+import { RefreshCwIcon, Filter } from "lucide-react";
 import { ViewpointCardWrapper } from "@/components/cards/ViewpointCardWrapper";
 import { useInfiniteScroll } from "@/hooks/ui/useInfiniteScroll";
 import { NewRationaleButton } from "@/components/rationale/NewRationaleButton";
 import { FilteringTabContent } from "./FilteringTabContent";
 import { ViewpointFeedSkeleton, InfiniteScrollSkeleton } from "./skeletons";
+import { RationalesConcernsSection } from "./RationalesConcernsSection";
+import { CreateRationaleViewpointCard } from "./CreateRationaleViewpointCard";
 
 const MemoizedViewpointCardWrapper = memo(ViewpointCardWrapper);
 
@@ -31,6 +33,7 @@ export interface RationalesTabContentProps {
     onTopicFiltersChange: (filters: string[]) => void;
     onRefetchFeed?: () => void;
     isRefetching?: boolean;
+    onFiltersToggle?: () => void;
 }
 
 export const RationalesTabContent = memo(({
@@ -53,6 +56,7 @@ export const RationalesTabContent = memo(({
     onTopicFiltersChange,
     onRefetchFeed,
     isRefetching = false,
+    onFiltersToggle,
 }: RationalesTabContentProps) => {
 
     if (!space) {
@@ -109,6 +113,25 @@ export const RationalesTabContent = memo(({
 
     return (
         <div className="flex flex-col">
+            <RationalesConcernsSection spaceId={space} />
+
+            <CreateRationaleViewpointCard
+                onClick={handleNewViewpoint}
+                isLoading={isNewRationaleLoading}
+                href={`/s/${space}/rationale/new`}
+            />
+
+            <div className="px-4 py-3 border-b">
+                <Button
+                    variant={filtersOpen ? "default" : "outline"}
+                    onClick={onFiltersToggle}
+                    className="w-full flex items-center justify-center gap-2"
+                >
+                    <Filter className="h-4 w-4" />
+                    <span>{filtersOpen ? "Hide Filters" : "Show Filters"}</span>
+                </Button>
+            </div>
+
             {/* Show filtering controls when filtersOpen is true */}
             {filtersOpen && (
                 <div className="border-b bg-muted/20">

@@ -2,9 +2,6 @@ import React from "react";
 import { Panel, MiniMap, Controls } from "@xyflow/react";
 import { SharePanel } from "./SharePanel";
 import { SaveDiscardPanel } from "./SaveDiscardPanel";
-import { useAtom } from 'jotai';
-import { dynamicNodeSizingAtom } from '@/atoms/graphSettingsAtom';
-import { Switch } from '@/components/ui/switch';
 import { useReactFlow } from "@xyflow/react";
 import { nanoid } from "nanoid";
 import { MessageSquareIcon } from "lucide-react";
@@ -33,19 +30,9 @@ export interface GraphControlsProps {
     unsavedChangesModalClassName?: string;
     onClose?: () => void;
     closeButtonClassName?: string;
-    showDynamicSizingToggle?: boolean;
     topOffsetPx?: number;
 }
 
-function DynamicSizingToggle() {
-    const [dynamicSizing, setDynamicSizing] = useAtom(dynamicNodeSizingAtom);
-    return (
-        <div className="self-start flex items-center space-x-2 mb-4 bg-gray-100 dark:bg-gray-800 p-2 rounded">
-            <Switch checked={dynamicSizing} onCheckedChange={setDynamicSizing} />
-            <span className="text-sm">Dynamic node sizing</span>
-        </div>
-    );
-}
 
 export const GraphControls: React.FC<GraphControlsProps> = ({
     isSharing = false,
@@ -68,7 +55,6 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
     unsavedChangesModalClassName,
     onClose,
     closeButtonClassName,
-    showDynamicSizingToggle,
     topOffsetPx = 0,
 }) => {
     const reactFlow = useReactFlow<AppNode>();
@@ -102,17 +88,7 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
                     <Controls />
                 </div>
             </Panel>
-            <Panel
-                position="top-right"
-                className="z-10 mr-4 flex flex-col items-end"
-                style={{
-                    top: topOffsetPx !== undefined ? topOffsetPx : undefined,
-                }}
-            >
-                {showDynamicSizingToggle && <DynamicSizingToggle />}
-            </Panel>
             <Panel position="bottom-right" className="z-10 mr-4 mb-10 flex flex-col items-end">
-                {!showDynamicSizingToggle && <DynamicSizingToggle />}
                 <SharePanel
                     isSharing={isSharing}
                     hideShareButton={hideShareButton}

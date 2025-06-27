@@ -19,9 +19,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { usePrefetchPoint } from "@/queries/points/usePointData";
 import React from "react";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
-import { makePointSuggestionAtom } from "@/atoms/makePointSuggestionAtom";
 import { SpacePageHeader } from "@/components/space/SpacePageHeader";
-import { SpacePageAside } from "@/components/space/SpacePageAside";
 import { PinnedPointWithHistory } from "@/components/space/PinnedPointWithHistory";
 import { FeedItem } from "@/components/space/FeedItem";
 import { AllTabContent } from "@/components/space/AllTabContent";
@@ -29,7 +27,6 @@ import { RationalesTabContent } from "@/components/space/RationalesTabContent";
 import { PriorityPointsSection } from "@/components/space/PriorityPointsSection";
 import { PointsTabContent } from "@/components/space/PointsTabContent";
 import { SelectPointForNegationDialog } from "@/components/dialogs/SelectPointForNegationDialog";
-import { makeNegationSuggestionAtom } from "@/atoms/makeNegationSuggestionAtom";
 import { selectPointForNegationOpenAtom } from "@/atoms/selectPointForNegationOpenAtom";
 import { setPrivyToken } from "@/lib/privy/setPrivyToken";
 import { PriorityPointsSkeleton } from "@/components/space/skeletons";
@@ -62,7 +59,6 @@ type Tab = "all" | "points" | "rationales" | "search";
 
 export function SpacePageClient({ params, searchParams: _searchParams }: PageProps) {
     const { user: privyUser, login } = usePrivy();
-    const setMakePointSuggestion = useSetAtom(makePointSuggestionAtom);
     const basePath = useBasePath();
     const space = useSpace(params.space);
     const router = useRouter();
@@ -84,7 +80,6 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
     const [isAiAssistantLoading, setIsAiAssistantLoading] = useState(false);
     const [isNewRationaleLoading, setIsNewRationaleLoading] = useState(false);
     const [isSelectNegationOpen, setIsSelectNegationOpen] = useAtom(selectPointForNegationOpenAtom);
-    const setMakeNegationSuggestion = useSetAtom(makeNegationSuggestionAtom);
 
     // Filter states
     const [selectedPointIds, setSelectedPointIds] = useState<number[]>([]);
@@ -179,13 +174,6 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
 
     const isInSpecificSpace = pathname?.includes('/s/') && !pathname.match(/^\/s\/global\//);
 
-    const loginOrMakePoint = useCallback(() => {
-        if (privyUser !== null) {
-            setMakePointSuggestion({ text: "", context: "space" });
-        } else {
-            login();
-        }
-    }, [privyUser, login, setMakePointSuggestion]);
 
     const filteredPriorityPoints = useMemo(() => {
         if (!priorityPoints || priorityPointsLoading) return [];
@@ -196,7 +184,7 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
 
         return uniquePriorityPoints.filter(point => {
             return !pinnedPoint || point.pointId !== pinnedPoint.pointId;
-        });
+        }).slice(0, 3);
     }, [priorityPoints, pinnedPoint, priorityPointsLoading]);
 
     const pinnedAndPriorityPoints = useMemo(() => {
@@ -311,12 +299,12 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
     }
 
     return (
-        <main className="flex-1 flex bg-background min-h-0 overflow-auto">
+        <div className="flex-1 flex bg-muted/30 min-h-0 overflow-auto">
             {/* Left negative space (hidden on mobile) */}
-            <div className="hidden sm:block flex-[2] max-w-[400px]"></div>
-            
+            <div className="hidden sm:block flex-[2] max-w-[400px] bg-muted/10 dark:bg-muted/5 border-r border-border/50"></div>
+
             {/* Center content */}
-            <div className="relative w-full flex-[2] flex flex-col min-h-0">
+            <main className="relative w-full flex-[2] flex flex-col min-h-0 bg-background border-x border-border/50 shadow-lg">
                 <SpacePageHeader
                     space={space}
                     selectedTab={selectedTab}
@@ -326,17 +314,14 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                     isAiLoading={isAiAssistantLoading}
                     onAiClick={handleAiAssistantClick}
                     chatHref={`${basePath}/chat`}
-                    onLoginOrMakePoint={loginOrMakePoint}
                     onNewViewpoint={handleNewViewpoint}
                     isNewRationaleLoading={isNewRationaleLoading}
-                    onSelectNegation={() => setIsSelectNegationOpen(true)}
                     filtersOpen={filtersOpen}
                     onFiltersToggle={() => setFiltersOpen(!filtersOpen)}
                     topicsOpen={topicsOpen}
                     onTopicsToggle={() => setTopicsOpen(!topicsOpen)}
                 />
-                {/* Scrollable feed content below sticky header */}
-                <div className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 min-h-0 min-w-0">
+                <div className="flex-1 px-4 sm:px-6 lg:px-8 bg-background">
                     {selectedTab === null && (
                         <div className="col-span-full flex items-center justify-center h-full">
                             <Loader className="size-8" />
@@ -406,7 +391,6 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                                     login={login}
                                     user={privyUser}
                                     pinnedPoint={pinnedPoint}
-                                    loginOrMakePoint={loginOrMakePoint}
                                     handleCardClick={handleCardClick}
                                     loadingCardId={loadingCardId}
                                     onPrefetchPoint={prefetchPoint}
@@ -428,7 +412,6 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                             login={login}
                             user={privyUser}
                             pinnedPoint={pinnedPoint}
-                            loginOrMakePoint={loginOrMakePoint}
                             handleNewViewpoint={handleNewViewpoint}
                             handleCardClick={handleCardClick}
                             loadingCardId={loadingCardId}
@@ -459,7 +442,6 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                                 login={login}
                                 user={privyUser}
                                 pinnedPoint={pinnedPoint}
-                                loginOrMakePoint={loginOrMakePoint}
                                 handleCardClick={handleCardClick}
                                 loadingCardId={loadingCardId}
                                 onPrefetchPoint={prefetchPoint}
@@ -488,27 +470,23 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                             onTopicFiltersChange={setTopicFilters}
                             onRefetchFeed={handleRefetchFeed}
                             isRefetching={isRefetchingFeed}
+                            onFiltersToggle={() => setFiltersOpen(!filtersOpen)}
                         />
                     )}
                 </div>
-            </div>
-            
-            {/* Right sidebar - topics */}
-            <SpacePageAside
-                spaceId={space.data?.id ?? "global"}
-                loginOrMakePoint={loginOrMakePoint}
-                handleNewViewpoint={handleNewViewpoint}
-                isNewRationaleLoading={isNewRationaleLoading}
-                setIsSelectNegationOpen={setIsSelectNegationOpen}
-                topicsOpen={topicsOpen}
-            />
+            </main>
+
+            {/* Right negative space (hidden on mobile) */}
+            <div className="hidden sm:block flex-[2] max-w-[400px] bg-muted/10 dark:bg-muted/5 border-l border-border/50"></div>
+
             <SelectPointForNegationDialog
                 isOpen={isSelectNegationOpen}
                 onOpenChange={setIsSelectNegationOpen}
                 onPointSelected={(id) => {
-                    setMakeNegationSuggestion({ targetId: id, text: "" });
+                    // TODO: Handle negation selection
+                    // since like do we need it anymore
                 }}
             />
-        </main>
+        </div>
     );
 } 
