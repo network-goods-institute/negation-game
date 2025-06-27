@@ -128,7 +128,7 @@ export const RationalesTabContent = memo(({
                     className="w-full flex items-center justify-center gap-2"
                 >
                     <Filter className="h-4 w-4" />
-                    <span>{filtersOpen ? "Hide Filters" : "Show Filters"}</span>
+                    <span>{filtersOpen ? "Hide Rationale Filters" : "Filter Rationales"}</span>
                 </Button>
             </div>
 

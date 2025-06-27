@@ -106,7 +106,7 @@ export const FilteringTabContent = memo(({
     return (
         <div className="flex flex-col p-4 space-y-6">
             <div className="space-y-4">
-                <h2 className="text-lg font-semibold">Filter Content</h2>
+                <h2 className="text-lg font-semibold">Filter Rationales</h2>
 
                 {/* Topic Filters */}
                 {availableTopics.length > 0 && (
