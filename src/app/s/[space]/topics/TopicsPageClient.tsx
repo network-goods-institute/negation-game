@@ -269,7 +269,7 @@ export default function TopicsPageClient({ space, topics }: TopicsPageClientProp
                             {filteredAndSortedTopics.length > 0 && (
                                 <div className="text-center py-8 mt-8 border-t border-border/30">
                                     <p className="text-sm text-muted-foreground">
-                                        That's all {filteredAndSortedTopics.length} topic{filteredAndSortedTopics.length === 1 ? '' : 's'}
+                                        That&apos;s all {filteredAndSortedTopics.length} topic{filteredAndSortedTopics.length === 1 ? '' : 's'}
                                         {filterType !== "all" && " matching your filters"}
                                     </p>
                                 </div>
