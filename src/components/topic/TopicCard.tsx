@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useMemo } from "react";
-import { Loader2, Check, Circle } from "lucide-react";
+import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { Loader2, Check } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import Link from "next/link";
@@ -42,8 +42,13 @@ export function TopicCard({
 }: TopicCardProps) {
     const isLoading = loading;
     const [isOpen, setIsOpen] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
     const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isMobile = useIsMobile();
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const { data: latestViewpoint } = useLatestViewpointByTopic(
         spaceId,
@@ -114,8 +119,8 @@ export function TopicCard({
                     <div
                         className={cn(
                             "group relative w-full rounded-lg border transition-all duration-200 cursor-pointer",
-                            hasUserRationale 
-                                ? "border-green-500/50 bg-green-50 hover:bg-green-100 hover:border-green-500 dark:bg-green-950/30 dark:hover:bg-green-950/50 dark:border-green-400/50 dark:hover:border-green-400" 
+                            hasUserRationale
+                                ? "border-green-500/50 bg-green-50 hover:bg-green-100 hover:border-green-500 dark:bg-green-950/30 dark:hover:bg-green-950/50 dark:border-green-400/50 dark:hover:border-green-400"
                                 : "border-border/50 bg-card hover:bg-accent/50 hover:border-primary/50",
                             sizeClasses[size],
                             isLoading && "cursor-wait opacity-50",
@@ -163,7 +168,7 @@ export function TopicCard({
                                     </div>
                                     {topic.latestRationaleAt && (
                                         <p className="text-xs text-muted-foreground/80 flex-shrink-0">
-                                            {formatDistanceToNow(new Date(topic.latestRationaleAt), { addSuffix: true })}
+                                            {isMounted ? formatDistanceToNow(new Date(topic.latestRationaleAt), { addSuffix: true }) : format(new Date(topic.latestRationaleAt), "MMM d, yyyy")}
                                         </p>
                                     )}
                                 </div>

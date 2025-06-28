@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useTopics } from "@/queries/topics/useTopics";
 import { useUserTopicRationales } from "@/queries/topics/useUserTopicRationales";
 import { usePrivy } from "@privy-io/react-auth";
@@ -14,43 +14,63 @@ interface RationalesConcernsSectionProps {
   spaceId: string;
 }
 
-export function RationalesConcernsSection({ spaceId }: RationalesConcernsSectionProps) {
+const RationalesConcernsSection = React.memo(function RationalesConcernsSection({ spaceId }: RationalesConcernsSectionProps) {
   const { user: privyUser } = usePrivy();
   const { data: topics, isLoading: topicsLoading } = useTopics(spaceId);
   const [isExpanded, setIsExpanded] = useState(true);
 
-  const topicIds = topics?.map(topic => topic.id) || [];
-  const { data: userTopicRationales, isLoading: userRationalesLoading } = useUserTopicRationales(privyUser?.id, topicIds);
+  const topicIds = useMemo(() => topics?.map(topic => topic.id) || [], [topics]);
 
-  const openTopics = React.useMemo(() => {
-    if (!topics || !userTopicRationales) return [];
+  // Only fetch user rationales if we have topics and user is logged in
+  const shouldFetchRationales = useMemo(() => {
+    return !!privyUser?.id && topicIds.length > 0;
+  }, [privyUser?.id, topicIds.length]);
 
-    const publishedTopicIds = new Set(userTopicRationales);
-    return topics.filter(topic => !publishedTopicIds.has(topic.id));
-  }, [topics, userTopicRationales]);
+  const { data: userTopicRationales, isLoading: userRationalesLoading } = useUserTopicRationales(
+    shouldFetchRationales ? privyUser?.id : undefined,
+    shouldFetchRationales ? topicIds : []
+  );
 
-  const displayTopics = openTopics;
-  const isLoading = topicsLoading || userRationalesLoading;
+  // Combine all computations into a single memoized value
+  const { displayTopics, isLoading, hasTopics } = useMemo(() => {
+    if (!privyUser?.id) {
+      return { displayTopics: [], isLoading: false, hasTopics: false };
+    }
 
+    if (topics && !topicsLoading) {
+      if (userRationalesLoading || userTopicRationales === undefined) {
+        return { displayTopics: topics, isLoading: true, hasTopics: true };
+      }
+
+      const publishedTopicIds = new Set(userTopicRationales || []);
+      const filtered = topics.filter(topic => !publishedTopicIds.has(topic.id));
+
+      return { displayTopics: filtered, isLoading: false, hasTopics: true };
+    }
+
+    return { displayTopics: [], isLoading: topicsLoading, hasTopics: false };
+  }, [topics, userTopicRationales, topicsLoading, userRationalesLoading, privyUser?.id]);
+
+  // Early return for unauthenticated users
   if (!privyUser) {
     return null;
   }
 
-  if (isLoading) {
+  if (isLoading && !hasTopics) {
     return (
       <div className="mb-4">
         <div className="rounded-md border border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-700/50 shadow-sm">
           <div className="p-3">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 bg-amber-500 rounded-full">
+              <div className="p-1.5 bg-amber-500 rounded-full animate-pulse">
                 <BookOpen className="h-3 w-3 text-white" />
               </div>
               <div>
                 <h2 className="text-sm font-semibold text-amber-800 dark:text-amber-200">
-                  Fetching your topics...
+                  Loading topics...
                 </h2>
                 <p className="text-xs text-amber-600 dark:text-amber-300">
-                  Loading topics that need your rationale
+                  Finding topics that need your rationale
                 </p>
               </div>
             </div>
@@ -60,7 +80,7 @@ export function RationalesConcernsSection({ spaceId }: RationalesConcernsSection
     );
   }
 
-  if (displayTopics.length === 0) {
+  if (!isLoading && displayTopics.length === 0) {
     return null;
   }
 
@@ -80,10 +100,10 @@ export function RationalesConcernsSection({ spaceId }: RationalesConcernsSection
               </div>
               <div>
                 <h2 className="text-sm font-semibold text-amber-800 dark:text-amber-200">
-                  {displayTopics.length} Topics Need Your Rationale
+                  {isLoading ? 'Loading topics...' : `${displayTopics.length} Topics Need Your Rationale`}
                 </h2>
                 <p className="text-xs text-amber-600 dark:text-amber-300">
-                  {isExpanded ? 'Click to hide' : 'Click to view topics'}
+                  {isLoading ? 'Filtering based on your existing rationales' : (isExpanded ? 'Click to hide' : 'Click to view topics')}
                 </p>
               </div>
             </div>
@@ -161,4 +181,6 @@ export function RationalesConcernsSection({ spaceId }: RationalesConcernsSection
       </div>
     </div>
   );
-}
+});
+
+export { RationalesConcernsSection };
