@@ -396,7 +396,7 @@ export const PointCard = ({
       )}
       <div className="flex flex-col flex-grow w-full min-w-0 pr-8">
         {isObjection && objectionTargetId && (
-          <div className="mb-2 flex justify-center">
+          <div className="mb-2 flex justify-start">
             <ObjectionHeader id={pointId} parentId={objectionTargetId} space={space} />
           </div>
         )}

@@ -68,8 +68,9 @@ export function useGraphNodeDropHandler(
       const differentPointOverlaps = allOverlappedNodes.filter(
         (overlapped) =>
           draggedPointId !== undefined &&
-          (overlapped.data as any)?.pointId !== undefined &&
-          (overlapped.data as any)?.pointId !== draggedPointId
+          ((overlapped.data as any)?.pointId !== undefined &&
+          (overlapped.data as any)?.pointId !== draggedPointId) ||
+          overlapped.type === "statement"
       );
 
       if (samePointOverlaps.length > 0 && draggedPointId !== undefined) {
@@ -117,10 +118,10 @@ export function useGraphNodeDropHandler(
         differentPointOverlaps.length > 0 &&
         draggedPointId !== undefined
       ) {
-        // Connect case: Overlap with a node representing a different point
-        // We only need one target for the connect dialog, so pick the first one that has a pointId
+        // Connect case: Overlap with a node representing a different point or statement
+        // We only need one target for the connect dialog, so pick the first one that has a pointId or is a statement
         const targetNode = differentPointOverlaps.find(
-          (overlapped) => (overlapped.data as any)?.pointId !== undefined
+          (overlapped) => (overlapped.data as any)?.pointId !== undefined || overlapped.type === "statement"
         );
 
         if (targetNode) {

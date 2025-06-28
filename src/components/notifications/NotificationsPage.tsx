@@ -1,51 +1,33 @@
 "use client";
 
 import { useNotifications } from "@/queries/notifications/useNotifications";
-import { markAllNotificationsRead, markNotificationRead } from "@/actions/notifications/markNotificationsRead";
+import { useMarkAllNotificationsRead, useMarkNotificationRead } from "@/mutations/notifications/useMarkNotificationsRead";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BellIcon, CheckIcon, Loader2Icon, ArrowLeftIcon } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const NotificationsPage = () => {
     const { data: notifications = [], isLoading, error } = useNotifications();
-    const [markingAllRead, setMarkingAllRead] = useState(false);
-    const queryClient = useQueryClient();
+    const markAllMutation = useMarkAllNotificationsRead();
+    const markReadMutation = useMarkNotificationRead();
     const router = useRouter();
     const { ready, authenticated } = usePrivy();
 
     const unreadNotifications = notifications.filter(n => !n.readAt);
     const readNotifications = notifications.filter(n => n.readAt);
 
-    const handleMarkAllRead = async () => {
+    const handleMarkAllRead = () => {
         if (unreadNotifications.length === 0) return;
-
-        setMarkingAllRead(true);
-        try {
-            await markAllNotificationsRead();
-            queryClient.invalidateQueries({ queryKey: ["notifications"] });
-            toast.success("All notifications marked as read");
-        } catch (error) {
-            toast.error("Failed to mark notifications as read");
-        } finally {
-            setMarkingAllRead(false);
-        }
+        markAllMutation.mutate();
     };
 
-    const handleMarkRead = async (notificationId: string) => {
-        try {
-            await markNotificationRead(notificationId);
-            queryClient.invalidateQueries({ queryKey: ["notifications"] });
-        } catch (error) {
-            toast.error("Failed to mark notification as read");
-        }
+    const handleMarkRead = (notificationId: string) => {
+        markReadMutation.mutate(notificationId);
     };
 
     // Show loading while checking authentication or loading notifications
@@ -157,11 +139,11 @@ export const NotificationsPage = () => {
                 {unreadNotifications.length > 0 && (
                     <Button
                         onClick={handleMarkAllRead}
-                        disabled={markingAllRead}
+                        disabled={markAllMutation.isPending}
                         variant="outline"
                         size="sm"
                     >
-                        {markingAllRead ? (
+                        {markAllMutation.isPending ? (
                             <Loader2Icon className="w-4 h-4 animate-spin mr-2" />
                         ) : (
                             <CheckIcon className="w-4 h-4 mr-2" />
