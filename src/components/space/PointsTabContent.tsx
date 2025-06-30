@@ -6,7 +6,7 @@ import { RefreshCwIcon } from "lucide-react";
 import { FeedItem } from "./FeedItem";
 import { useInfiniteScroll } from "@/hooks/ui/useInfiniteScroll";
 import { PointFeedSkeleton, InfiniteScrollSkeleton } from "./skeletons";
-import { MakePointButton } from "@/components/space/action-buttons";
+import { CreateRationaleViewpointCard } from "./CreateRationaleViewpointCard";
 
 export interface PointsTabContentProps {
     points?: any[];
@@ -18,7 +18,6 @@ export interface PointsTabContentProps {
     login: () => void;
     user: any;
     pinnedPoint: any;
-    loginOrMakePoint: () => void;
     handleCardClick: (id: string) => void;
     loadingCardId: string | null;
     onPrefetchPoint: (id: number) => void;
@@ -36,7 +35,6 @@ export const PointsTabContent = memo(({
     login,
     user,
     pinnedPoint,
-    loginOrMakePoint,
     handleCardClick,
     loadingCardId,
     onPrefetchPoint,
@@ -68,7 +66,6 @@ export const PointsTabContent = memo(({
             <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
                 <span className="text-muted-foreground">Nothing here yet</span>
                 <div className="flex gap-2">
-                    <MakePointButton onClick={loginOrMakePoint} />
                     {onRefetchFeed && (
                         <Button
                             variant="outline"
@@ -86,6 +83,12 @@ export const PointsTabContent = memo(({
 
     return (
         <>
+            <CreateRationaleViewpointCard
+                onClick={() => {/* TODO: Add navigation to create rationale */ }}
+                isLoading={false}
+                href="/rationale/new"
+            />
+
             {visibleItems.map((item: any) => (
                 <FeedItem
                     key={item.id}

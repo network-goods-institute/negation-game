@@ -1,14 +1,11 @@
 "use client";
 
 import React from "react";
-import { Button } from "@/components/ui/button";
-import { SearchIcon, Filter } from "lucide-react";
+import { SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { SearchInput } from "@/components/search/SearchInput";
 import useIsMobile from "@/hooks/ui/useIsMobile";
-import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
-import { NewRationaleButton } from "@/components/rationale/NewRationaleButton";
-import { MakePointButton, MakeNegationButton } from "@/components/space/action-buttons";
+import { usePrivy } from "@privy-io/react-auth";
 
 export type Tab = "all" | "points" | "rationales" | "search";
 
@@ -20,10 +17,8 @@ interface SpaceTabsProps {
     isAiLoading: boolean;
     onAiClick: () => void;
     spaceId?: string;
-    onLoginOrMakePoint: () => void;
     onNewViewpoint: () => void;
     isNewRationaleLoading?: boolean;
-    onSelectNegation: () => void;
     filtersOpen: boolean;
     onFiltersToggle: () => void;
     topicsOpen: boolean;
@@ -36,46 +31,30 @@ export function SpaceTabs({
     searchQuery,
     onSearchChange,
     spaceId,
-    onLoginOrMakePoint,
     onNewViewpoint,
     isNewRationaleLoading = false,
-    onSelectNegation,
     filtersOpen,
     onFiltersToggle,
     topicsOpen,
     onTopicsToggle,
 }: SpaceTabsProps) {
     const isMobile = useIsMobile();
+    const { user: privyUser } = usePrivy();
 
-    const shouldShowActionButtons = selectedTab === "points" || selectedTab === "all" || selectedTab === "search";
-    
-    const getActionButtons = () => {
-        if (!shouldShowActionButtons) return null;
-        
-        const buttonSize = isMobile ? "sm" : "default";
-        
-        return (
-            <div className="flex gap-2">
-                <MakePointButton onClick={onLoginOrMakePoint} size={buttonSize} />
-                <MakeNegationButton onClick={onSelectNegation} size={buttonSize} />
-            </div>
-        );
-    };
 
-    const showFiltersButton = selectedTab === "rationales";
 
     return (
-        <div className="flex flex-col gap-4 px-4 sm:px-6 lg:px-8 py-3 sm:py-sm">
+        <div className="flex flex-col gap-4 px-4 sm:px-6 lg:px-8 py-3 sm:py-sm border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
             {/* Main tabs row */}
             <div className={cn("flex items-start justify-between gap-2 sm:gap-4", isMobile && "overflow-x-auto no-scrollbar")}>
                 <div className="flex gap-2 sm:gap-4">
                     <button
                         onClick={() => onTabChange("rationales")}
                         className={cn(
-                            "relative py-1.5 sm:py-2 px-2 sm:px-4 rounded text-sm sm:text-base whitespace-normal sm:whitespace-nowrap focus:outline-none transition-all duration-200",
+                            "relative py-1.5 sm:py-2 px-2 sm:px-4 rounded-lg text-sm sm:text-base whitespace-normal sm:whitespace-nowrap focus:outline-none transition-all duration-200 border",
                             selectedTab === "rationales"
-                                ? "bg-primary text-white shadow-md"
-                                : "bg-transparent text-primary dark:text-white hover:bg-primary/10"
+                                ? "bg-primary text-white shadow-lg border-primary"
+                                : "bg-background/50 text-primary dark:text-white hover:bg-primary/10 border-border/50 hover:border-primary/50"
                         )}
                     >
                         Rationales
@@ -115,46 +94,9 @@ export function SpaceTabs({
                         <span>Search</span>
                     </button>
 
-                    {/* Topics selector - always visible on mobile */}
-                    {isMobile && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={onTopicsToggle}
-                            className="flex items-center whitespace-nowrap px-3 py-1.5 sm:py-2"
-                        >
-                            Topics
-                            {topicsOpen ? <ChevronUpIcon className="h-4 w-4 ml-1" /> : <ChevronDownIcon className="h-4 w-4 ml-1" />}
-                        </Button>
-                    )}
 
-                    {/* Desktop filter toggle - only show if not on rationales tab since it's moved to centered section */}
-                    {!isMobile && showFiltersButton && selectedTab !== "rationales" && (
-                        <Button
-                            variant={filtersOpen ? "default" : "outline"}
-                            size="sm"
-                            onClick={onFiltersToggle}
-                            className="flex items-center gap-1 whitespace-nowrap"
-                        >
-                            <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                            <span>Filters</span>
-                        </Button>
-                    )}
                 </div>
 
-                {/* Action buttons section - shows both action buttons and rationale button */}
-                {!isMobile && (
-                    <div className="flex items-start gap-2">
-                        {getActionButtons()}
-                        <NewRationaleButton
-                            href={`/s/${spaceId}/rationale/new`}
-                            onClick={onNewViewpoint}
-                            variant="default"
-                            size="md"
-                            loading={isNewRationaleLoading}
-                        />
-                    </div>
-                )}
             </div>
 
 

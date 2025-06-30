@@ -20,8 +20,7 @@ import { DisconnectDialog } from "@/components/dialogs/DisconnectDialog";
 import { NodeHandles } from "@/components/graph/nodes/NodeHandles";
 import { GraphNodeShell } from "@/components/graph/nodes/GraphNodeShell";
 import { calculateInitialLayout } from "@/components/utils/graph-utils";
-import { dynamicNodeSizingAtom, collapseHintAtom } from '@/atoms/graphSettingsAtom';
-import { useGraphSizing } from '@/components/graph/base/GraphSizingContext';
+import { collapseHintAtom } from '@/atoms/graphSettingsAtom';
 
 export type PointNodeData = {
   pointId: number;
@@ -455,35 +454,10 @@ const RawPointNode = ({
 
   }, [pointData, recentlyCreatedNegation, pointId, expandSpecificNegation, setRecentlyCreatedNegation]);
 
-  const [dynamicSizing] = useAtom(dynamicNodeSizingAtom);
-  const { minCred, maxCred } = useGraphSizing();
-  const credValue = pointData?.cred ?? 0;
-  const { widthPx, heightPx, scaleFactor } = useMemo(() => {
-    if (!dynamicSizing) return { widthPx: undefined, heightPx: undefined, scaleFactor: 1 };
-    const minSize = 256;
-    const maxSize = 350;
-    let ratio = 0;
-    if (maxCred > minCred) {
-      ratio = (credValue - minCred) / (maxCred - minCred);
-      ratio = Math.max(0, Math.min(1, ratio));
-    }
-    const w = minSize + ratio * (maxSize - minSize);
-    const h = w * 0.6;
-    const scale = 1 + ratio * 0.1;
-    return { widthPx: w, heightPx: h, scaleFactor: scale };
-  }, [credValue, dynamicSizing, minCred, maxCred]);
 
   return (
     <GraphNodeShell
-      style={
-        dynamicSizing && widthPx
-          ? {
-            width: widthPx,
-            minHeight: heightPx,
-            zoom: scaleFactor,
-          }
-          : undefined
-      }
+      style={undefined}
       id={id}
       level={level}
       endorsedByOp={endorsedByOp}

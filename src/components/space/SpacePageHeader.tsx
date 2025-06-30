@@ -2,15 +2,11 @@
 
 import React from "react";
 import useIsMobile from "@/hooks/ui/useIsMobile";
-import { Button } from "@/components/ui/button";
 import { SpaceHeader } from "@/components/space/SpaceHeader";
 import { SpaceTabs, Tab } from "@/components/space/SpaceTabs";
 import { NewRationaleButton } from "@/components/rationale/NewRationaleButton";
-import { DeltaComparisonWidget } from "@/components/delta/DeltaComparisonWidget";
-import { MakePointButton, MakeNegationButton } from "@/components/space/action-buttons";
 import Link from "next/link";
-import { BrainCircuitIcon, Sigma, Filter } from "lucide-react";
-import { usePrivy } from "@privy-io/react-auth";
+import { BrainCircuitIcon, Sigma } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface SpacePageHeaderProps {
@@ -22,10 +18,8 @@ interface SpacePageHeaderProps {
     isAiLoading: boolean;
     onAiClick: () => void;
     chatHref: string;
-    onLoginOrMakePoint: () => void;
     onNewViewpoint: () => void;
     isNewRationaleLoading?: boolean;
-    onSelectNegation: () => void;
     filtersOpen: boolean;
     onFiltersToggle: () => void;
     topicsOpen: boolean;
@@ -41,26 +35,18 @@ export function SpacePageHeader({
     isAiLoading,
     onAiClick,
     chatHref,
-    onLoginOrMakePoint,
     onNewViewpoint,
     isNewRationaleLoading = false,
-    onSelectNegation,
     filtersOpen,
     onFiltersToggle,
     topicsOpen,
     onTopicsToggle,
 }: SpacePageHeaderProps) {
     const isMobile = useIsMobile();
-    const { user: privyUser } = usePrivy();
 
     const getMobileActionButtons = () => {
-        const shouldShowActionButtons = selectedTab === "points" || selectedTab === "all" || selectedTab === "search";
-
         return (
             <div className="flex items-center gap-2">
-                {shouldShowActionButtons && (
-                    <MakePointButton onClick={onLoginOrMakePoint} size="sm" />
-                )}
                 <NewRationaleButton
                     href={`/s/${space.data?.id ?? "global"}/rationale/new`}
                     onClick={onNewViewpoint}
@@ -68,9 +54,6 @@ export function SpacePageHeader({
                     size="sm"
                     loading={isNewRationaleLoading}
                 />
-                {shouldShowActionButtons && (
-                    <MakeNegationButton onClick={onSelectNegation} size="sm" />
-                )}
             </div>
         );
     };
@@ -107,9 +90,6 @@ export function SpacePageHeader({
                             </Link>
                         </div>
                     </div>
-                    <div className="flex items-center justify-center gap-1 bg-gradient-to-r from-muted/30 to-muted/10 border-b px-1 py-2 overflow-x-auto">
-                        {getMobileActionButtons()}
-                    </div>
                 </>
             ) : (
                 <SpaceHeader
@@ -127,46 +107,14 @@ export function SpacePageHeader({
                 isAiLoading={isAiLoading}
                 onAiClick={onAiClick}
                 spaceId={space.data?.id ?? "global"}
-                onLoginOrMakePoint={onLoginOrMakePoint}
                 onNewViewpoint={onNewViewpoint}
                 isNewRationaleLoading={isNewRationaleLoading}
-                onSelectNegation={onSelectNegation}
                 filtersOpen={filtersOpen}
                 onFiltersToggle={onFiltersToggle}
                 topicsOpen={topicsOpen}
                 onTopicsToggle={onTopicsToggle}
             />
 
-            {/* Delta Comparison Widget and Filtering - on rationales tab */}
-            {selectedTab === "rationales" && (
-                <div className="border-b bg-background px-4 sm:px-6 lg:px-8 py-3">
-                    <div className="flex items-start gap-4">
-                        {/* Filter button positioned to the left of delta */}
-                        <Button
-                            variant={filtersOpen ? "default" : "outline"}
-                            size="sm"
-                            onClick={onFiltersToggle}
-                            className="flex items-center gap-1 whitespace-nowrap flex-shrink-0"
-                        >
-                            <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                            <span>Filters</span>
-                        </Button>
-                        <DeltaComparisonWidget
-                            comparison={{ type: "space", spaceId: space.data?.id ?? "global" }}
-                            title="Space Alignment Discovery"
-                            description={
-                                <>
-                                    Find users who align or disagree with you most across{" "}
-                                    <span className="text-yellow-500 font-medium">
-                                        s/{space.data?.id ?? "this entire space"}
-                                    </span>
-                                </>
-                            }
-                            currentUserId={privyUser?.id}
-                        />
-                    </div>
-                </div>
-            )}
         </div>
     );
 } 

@@ -6,13 +6,14 @@ import { useTopics } from "@/queries/topics/useTopics";
 import { useUserTopicRationales } from "@/queries/topics/useUserTopicRationales";
 import { TopicCard } from "@/components/topic/TopicCard";
 import useIsMobile from "@/hooks/ui/useIsMobile";
-import { X, Search } from "lucide-react";
+import { X, Search, ArrowRight } from "lucide-react";
 import { TopicGridSkeleton } from "./skeletons";
 import { usePrivy } from "@privy-io/react-auth";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 interface SpacePageAsideProps {
     spaceId: string;
-    loginOrMakePoint: () => void;
     handleNewViewpoint: () => void;
     isNewRationaleLoading?: boolean;
     setIsSelectNegationOpen: (open: boolean) => void;
@@ -122,6 +123,21 @@ export function SpacePageAside({
                                             </p>
                                         </div>
                                     )}
+
+                                    {/* View All Topics Link - Mobile */}
+                                    <div className="pt-4 border-t">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full"
+                                            asChild
+                                        >
+                                            <Link href={`/s/${spaceId}/topics`} className="flex items-center gap-2">
+                                                View All Topics
+                                                <ArrowRight className="h-4 w-4" />
+                                            </Link>
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -182,6 +198,21 @@ export function SpacePageAside({
                                     </p>
                                 </div>
                             )}
+
+                            {/* View All Topics Link - Desktop */}
+                            <div className="pt-4 border-t">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full"
+                                    asChild
+                                >
+                                    <Link href={`/s/${spaceId}/topics`} className="flex items-center gap-2">
+                                        View All Topics
+                                        <ArrowRight className="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </aside>

@@ -170,7 +170,7 @@ export function useVisitedPoints() {
         }
       })
       .catch(console.error);
-  }, [setVisitedPoints]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const markPointAsRead = useCallback(
     (pointId: number) => {

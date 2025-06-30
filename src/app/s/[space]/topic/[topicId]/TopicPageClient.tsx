@@ -3,7 +3,7 @@ import React, { useState, useMemo } from "react";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { ViewpointCardWrapper } from "@/components/cards/ViewpointCardWrapper";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftIcon, ChevronDownIcon, ChevronUpIcon, X, Check, ExternalLink } from "lucide-react";
+import { ArrowLeftIcon, ChevronDownIcon, ChevronUpIcon, X, Check, ExternalLink, LayoutGrid } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { encodeId } from "@/lib/negation-game/encodeId";
@@ -113,35 +113,38 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
     }, [viewpoints, viewpointsSortKey, sortDirection]);
 
     return (
-        <div className="flex-1 flex flex-col bg-background min-h-0">
-            {/* Mobile Header with Topics Toggle */}
-            {isMobile && (
-                <div className="flex items-center justify-between p-4 border-b bg-background">
-                    <div className="flex items-center gap-2">
-                        <Link href={`/s/${space}`}>
-                            <button className="flex items-center text-base text-primary hover:underline">
-                                <ArrowLeftIcon className="h-5 w-5 mr-1" /> Back
-                            </button>
-                        </Link>
-                    </div>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsTopicsExpanded(!isTopicsExpanded)}
-                        className="flex items-center whitespace-nowrap"
-                    >
-                        <span>Delegates</span>
-                        {isTopicsExpanded ? <ChevronUpIcon className="h-4 w-4 ml-1" /> : <ChevronDownIcon className="h-4 w-4 ml-1" />}
-                    </Button>
-                </div>
-            )}
+        <div className="flex-1 flex bg-muted/30 min-h-0 overflow-auto">
+            {/* Left negative space (hidden on mobile) */}
+            <div className="hidden sm:block flex-[1] max-w-[300px] bg-muted/10 dark:bg-muted/5 border-r border-border/50"></div>
 
-            <div className="flex-1 grid sm:grid-cols-[3fr_1fr] bg-background min-h-0 overflow-hidden">
-                {/* Main Content */}
-                <div className="relative w-full flex flex-col min-h-0 px-4 py-4 overflow-y-auto">
+            {/* Center content */}
+            <main className="relative w-full flex-[2] flex flex-col min-h-0 bg-background border-r border-border/50 shadow-lg">
+                {/* Mobile Header with Topics Toggle */}
+                {isMobile && (
+                    <div className="flex items-center justify-between p-4 border-b bg-background">
+                        <div className="flex items-center gap-2">
+                            <Link href={`/s/${space}`}>
+                                <button className="flex items-center text-base text-primary hover:underline">
+                                    <ArrowLeftIcon className="h-5 w-5 mr-1" /> Back
+                                </button>
+                            </Link>
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsTopicsExpanded(!isTopicsExpanded)}
+                            className="flex items-center whitespace-nowrap"
+                        >
+                            <span>Delegates</span>
+                            {isTopicsExpanded ? <ChevronUpIcon className="h-4 w-4 ml-1" /> : <ChevronDownIcon className="h-4 w-4 ml-1" />}
+                        </Button>
+                    </div>
+                )}
+
+                <div className="flex-1 px-4 sm:px-6 lg:px-8 bg-background overflow-y-auto">
                     {/* Desktop Back button */}
                     {!isMobile && (
-                        <div className="mb-4">
+                        <div className="mb-4 pt-4">
                             <Link href={`/s/${space}`}>
                                 <button className="flex items-center text-base text-primary hover:underline">
                                     <ArrowLeftIcon className="h-5 w-5 mr-1" /> Back
@@ -163,47 +166,81 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                             )}
                         </div>
                         {topic.discourseUrl && (
-                            <div className="bg-muted/50 border border-border rounded-lg p-4 inline-block">
-                                <a
-                                    href={topic.discourseUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-2 text-foreground hover:text-primary text-sm font-medium transition-colors"
-                                >
-                                    <ExternalLink className="w-4 h-4" />
-                                    <span>View Source: {topic.discourseUrl.replace(/^(https?:\/\/)?(www\.)?/i, '')}</span>
-                                </a>
-                            </div>
+                            <a
+                                href={topic.discourseUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 rounded-lg text-sm font-medium transition-colors"
+                            >
+                                <ExternalLink className="w-4 h-4" />
+                                <span>View Source Discussion</span>
+                            </a>
                         )}
                     </div>
 
-                    {/* Global Graph View */}
+                    {/* Global Graph Preview */}
                     <div className="mb-6">
-                        <div className="border rounded-lg p-6 text-center">
-                            <h2 className="text-lg font-semibold mb-2">Global Graph View</h2>
-                            <p className="text-muted-foreground text-sm mb-4">
-                                View all {viewpoints.length} rationales from this topic in an interactive graph
-                            </p>
+                        <div className="border rounded-lg overflow-hidden">
+                            <div className="flex items-center justify-between p-4 border-b bg-muted/20">
+                                <div>
+                                    <h2 className="font-semibold">Global Graph</h2>
+                                    <p className="text-sm text-muted-foreground">
+                                        {viewpoints.length} rationales connected
+                                    </p>
+                                </div>
+                                <Link href={`/s/${space}/topic/${encodeId(topic.id)}/graph`}>
+                                    <Button
+                                        variant="default"
+                                        size="sm"
+                                        disabled={isGlobalGraphLoading}
+                                        onClick={() => setIsGlobalGraphLoading(true)}
+                                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                                    >
+                                        {isGlobalGraphLoading ? (
+                                            <>
+                                                <Loader className="size-4 text-white" />
+                                                Loading...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <ExternalLink className="size-4" />
+                                                Open Graph
+                                            </>
+                                        )}
+                                    </Button>
+                                </Link>
+                            </div>
                             <Link href={`/s/${space}/topic/${encodeId(topic.id)}/graph`}>
-                                <Button
-                                    variant="default"
-                                    size="lg"
-                                    className="w-full sm:w-auto"
-                                    disabled={isGlobalGraphLoading}
-                                    onClick={() => setIsGlobalGraphLoading(true)}
-                                >
-                                    {isGlobalGraphLoading ? (
-                                        <>
-                                            <Loader className="size-5 mr-2 text-white" />
-                                            Loading...
-                                        </>
-                                    ) : (
-                                        "Open Global Graph"
-                                    )}
-                                </Button>
+                                <div className="h-32 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-950/50 dark:to-indigo-950/50 cursor-pointer hover:from-blue-100 hover:to-indigo-200 dark:hover:from-blue-900/50 dark:hover:to-indigo-900/50 transition-colors flex items-center justify-center">
+                                    <div className="text-center text-muted-foreground">
+                                        <LayoutGrid className="size-8 mx-auto mb-2" />
+                                        <p className="text-sm">See how rationales in {topic.name} interact with each other</p>
+                                    </div>
+                                </div>
                             </Link>
                         </div>
                     </div>
+
+                    {/* Create Rationale Section */}
+                    {!hasCurrentUserRationale && (
+                        <div className="mb-6">
+                            <div className="border-2 border-dashed border-blue-300 dark:border-blue-600 rounded-lg p-6 text-left bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
+                                <h2 className="text-lg font-semibold mb-2 text-blue-900 dark:text-blue-100">Create Your Rationale</h2>
+                                <p className="text-blue-700 dark:text-blue-200 text-sm mb-4">
+                                    Share your perspective on {topic.name}. Build connected arguments with points and evidence.
+                                </p>
+                                <Link href={`/s/${space}/rationale/new?topicId=${encodeId(topic.id)}`}>
+                                    <Button
+                                        variant="default"
+                                        size="lg"
+                                        className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600"
+                                    >
+                                        Create Rationale for {topic.name}
+                                    </Button>
+                                </Link>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Sort Controls */}
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6 pb-4 border-b border-border">
@@ -254,14 +291,16 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                         )}
                     </div>
                 </div>
+            </main>
 
-                {/* Sidebar */}
-                {!isMobile && (
-                    <aside className="hidden sm:flex flex-col border-l bg-muted/10 overflow-y-auto w-full">
+            {/* Right sidebar (hidden on mobile) */}
+            {!isMobile && (
+                <aside className="hidden sm:flex flex-col flex-[1] max-w-[350px] bg-background border-l border-border/50 overflow-y-auto">
                         <div className="p-4 space-y-4">
                             {/* Delta Comparison Widget */}
                             <DeltaComparisonWidget
-                                comparison={{ type: "topic", topicId: topic.id }}
+                                // @ts-ignore
+                                comparison={{ type: "topic", topicId: encodeId(topic.id) }}
                                 title="Topic Alignment"
                                 description="Find aligned users"
                                 currentUserId={privyUser?.id}
@@ -318,9 +357,8 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                 </div>
                             </div>
                         </div>
-                    </aside>
-                )}
-            </div>
+                </aside>
+            )}
 
             {/* Mobile Delegates Overlay */}
             {isMobile && isTopicsExpanded && (
@@ -340,7 +378,8 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                             {/* Mobile Delta Widget - Above filtering */}
                             <div className="mb-6">
                                 <DeltaComparisonWidget
-                                    comparison={{ type: "topic", topicId: topic.id }}
+                                    // @ts-ignore
+                                    comparison={{ type: "topic", topicId: encodeId(topic.id) }}
                                     title="Topic Alignment"
                                     description="Find aligned users"
                                     currentUserId={privyUser?.id}

@@ -75,7 +75,6 @@ export interface GraphViewProps
   handleGenerateAndCopyShareLink?: () => void;
   originalGraphData?: ViewpointGraph;
   nodesDraggable?: boolean;
-  showDynamicSizingToggle?: boolean;
   topOffsetPx?: number;
 }
 
@@ -105,7 +104,6 @@ export const GraphView = ({
   handleGenerateAndCopyShareLink,
   originalGraphData,
   nodesDraggable,
-  showDynamicSizingToggle,
   topOffsetPx,
   ...props
 }: GraphViewProps) => {
@@ -416,7 +414,6 @@ export const GraphView = ({
           unsavedChangesModalClassName={unsavedChangesModalClassName}
           onClose={onClose}
           closeButtonClassName={closeButtonClassName}
-          showDynamicSizingToggle={showDynamicSizingToggle}
           topOffsetPx={topOffsetPx}
         />
         <CollapseHintOverlay />

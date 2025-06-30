@@ -6,8 +6,8 @@ import { RefreshCwIcon } from "lucide-react";
 import { FeedItem } from "@/components/space/FeedItem";
 import { useInfiniteScroll } from "@/hooks/ui/useInfiniteScroll";
 import { FeedSkeleton, InfiniteScrollSkeleton } from "./skeletons";
-import { MakePointButton } from "@/components/space/action-buttons";
 import { NewRationaleButton } from "@/components/rationale/NewRationaleButton";
+import { CreateRationaleViewpointCard } from "./CreateRationaleViewpointCard";
 
 export interface AllTabContentProps {
     points?: any[];
@@ -21,7 +21,6 @@ export interface AllTabContentProps {
     login: () => void;
     user: any;
     pinnedPoint?: any;
-    loginOrMakePoint: () => void;
     handleNewViewpoint: () => void;
     handleCardClick: (id: string) => void;
     loadingCardId: string | null;
@@ -51,7 +50,6 @@ export const AllTabContent = memo(({
     login,
     user,
     pinnedPoint,
-    loginOrMakePoint,
     handleNewViewpoint,
     handleCardClick,
     loadingCardId,
@@ -88,8 +86,6 @@ export const AllTabContent = memo(({
             <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
                 <span className="text-muted-foreground">Nothing here yet</span>
                 <div className="flex items-center justify-center gap-3">
-                    <MakePointButton onClick={loginOrMakePoint} />
-                    <span className="text-muted-foreground">or</span>
                     <NewRationaleButton
                         onClick={handleNewViewpoint}
                         variant="outline"
@@ -116,6 +112,12 @@ export const AllTabContent = memo(({
 
     return (
         <>
+            <CreateRationaleViewpointCard
+                onClick={handleNewViewpoint}
+                isLoading={false}
+                href="/rationale/new"
+            />
+
             {hasActiveFilters && (
                 <div className="px-4 py-3 bg-muted/30 border-b">
                     <div className="text-sm text-muted-foreground">

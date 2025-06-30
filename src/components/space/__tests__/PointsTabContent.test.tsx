@@ -16,6 +16,18 @@ jest.mock('@/hooks/ui/useInfiniteScroll', () => ({
     useInfiniteScroll: () => null,
 }));
 
+// Mock the CreateRationaleViewpointCard component
+jest.mock('../CreateRationaleViewpointCard', () => ({
+    CreateRationaleViewpointCard: () => <div data-testid="create-rationale-card">Create Rationale</div>,
+}));
+
+// Mock the KnowledgeBaseContext
+jest.mock('@/components/contexts/KnowledgeBaseContext', () => ({
+    useKnowledgeBase: () => ({
+        openDialog: jest.fn(),
+    }),
+}));
+
 const mockProps = {
     points: [],
     isLoading: false,
@@ -48,7 +60,6 @@ describe('PointsTabContent', () => {
         );
 
         expect(screen.getByText('Nothing here yet')).toBeInTheDocument();
-        expect(screen.getByText('New Point')).toBeInTheDocument();
         expect(screen.getByText('Refresh Feed')).toBeInTheDocument();
     });
 
@@ -86,7 +97,6 @@ describe('PointsTabContent', () => {
         render(<PointsTabContent {...mockProps} />);
 
         expect(screen.getByText('Nothing here yet')).toBeInTheDocument();
-        expect(screen.getByText('New Point')).toBeInTheDocument();
         expect(screen.queryByText('Refresh Feed')).not.toBeInTheDocument();
     });
 
@@ -114,6 +124,7 @@ describe('PointsTabContent', () => {
 
         expect(screen.queryByText('Nothing here yet')).not.toBeInTheDocument();
         expect(screen.queryByText('Refresh Feed')).not.toBeInTheDocument();
+        expect(screen.getByTestId('create-rationale-card')).toBeInTheDocument();
         expect(screen.getByTestId('feed-item-point-1')).toBeInTheDocument();
         expect(screen.getByText('Test point content')).toBeInTheDocument();
     });

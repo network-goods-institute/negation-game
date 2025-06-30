@@ -18,6 +18,7 @@ import type { PointNode } from "@/components/graph/nodes/PointNode";
 import { OriginalPosterProvider } from "@/components/contexts/OriginalPosterContext";
 import { Separator } from "@/components/ui/separator";
 import { Dynamic } from "@/components/utils/Dynamic";
+import { decodeId } from "@/lib/negation-game/decodeId";
 import { PLACEHOLDER_STATEMENT } from "@/constants/config";
 import { useBasePath } from "@/hooks/utils/useBasePath";
 import { cn } from "@/lib/utils/cn";
@@ -176,7 +177,22 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
 
   const searchParams = useSearchParams();
   const autoPublish = searchParams.get('autoPublish') === 'true';
+  const preselectedTopicId = searchParams.get('topicId');
   const [autoPublishInvoked, setAutoPublishInvoked] = useState(false);
+  
+  // Handle topic preselection from URL parameters
+  useEffect(() => {
+    if (preselectedTopicId && topicsData && !topic) {
+      const decodedTopicId = decodeId(preselectedTopicId);
+      if (decodedTopicId) {
+        const matchingTopic = topicsData.find(t => t.id === decodedTopicId);
+        if (matchingTopic) {
+          setTopic(matchingTopic.name);
+        }
+      }
+    }
+  }, [preselectedTopicId, topicsData, topic, setTopic]);
+  
   useEffect(() => {
     if (
       isCopiedFromSessionStorage &&
