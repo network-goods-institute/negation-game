@@ -146,7 +146,7 @@ export const RationalesTabContent = memo(({
             )}
 
             {finalFilteredViewpoints.length === 0 ? (
-                <div className="flex flex-col flex-grow items-center justify-center gap-4 py-12 text-center min-h-[50vh]">
+                <div className="flex flex-col flex-grow items-center sm:items-start justify-center sm:justify-start gap-4 py-12 text-center sm:text-left min-h-[50vh]">
                     <span className="text-muted-foreground">
                         {hasActiveFilters
                             ? `No rationales found matching the current filters`
