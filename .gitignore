@@ -41,6 +41,4 @@ certificates
 .glimpse
 supabase/
 *.dump
-
-## claude
 .claude/

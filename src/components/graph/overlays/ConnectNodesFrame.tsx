@@ -83,6 +83,8 @@ export default function ConnectNodesFrame() {
     const targetNode = rf.getNode(targetId);
     const sourcePoint = (sourceNode?.data as any)?.pointId as number | undefined;
     const targetPoint = (targetNode?.data as any)?.pointId as number | undefined;
+    const isTargetStatement = targetNode?.type === "statement";
+    const isSourceStatement = sourceNode?.type === "statement";
     const { data: sourceNegations = [] } = usePointNegations(sourcePoint ?? null);
 
     const close = useCallback(() => {
@@ -91,6 +93,29 @@ export default function ConnectNodesFrame() {
     }, [setDialog, onClose]);
 
     const handleConnect = useCallback(async () => {
+        if (isTargetStatement && sourcePoint != null) {
+            const edgeId = `edge-${sourceId}-${targetId}-${Date.now()}`;
+            rf.addEdges({ id: edgeId, source: sourceId, target: targetId, type: "statement" });
+            rf.updateNodeData(sourceId, {
+                ...(sourceNode!.data as any),
+                parentId: targetId,
+                _lastModified: Date.now(),
+            });
+            return close();
+        }
+
+        if (isSourceStatement && targetPoint != null) {
+            const edgeId = `edge-${sourceId}-${targetId}-${Date.now()}`;
+            rf.addEdges({ id: edgeId, source: sourceId, target: targetId, type: "statement" });
+            rf.updateNodeData(targetId, {
+                ...(targetNode!.data as any),
+                parentId: sourceId,
+                _lastModified: Date.now(),
+            });
+            return close();
+        }
+
+        // Handle point-to-point connections
         if (sourcePoint == null || targetPoint == null) return close();
 
         const edgeId = `edge-${sourceId}-${targetId}-${Date.now()}`;
@@ -126,6 +151,9 @@ export default function ConnectNodesFrame() {
         targetPoint,
         sourceNegations,
         sourceNode,
+        targetNode,
+        isTargetStatement,
+        isSourceStatement,
         close,
     ]);
 

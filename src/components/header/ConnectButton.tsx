@@ -13,7 +13,7 @@ import {
 import { useUser } from "@/queries/users/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { clearPrivyCookie } from '@/actions/users/auth';
-import { LoaderCircleIcon, CoinsIcon, UserIcon, LogOutIcon, TrophyIcon, BellIcon, SettingsIcon, MessageSquareIcon } from "lucide-react";
+import { LoaderCircleIcon, CoinsIcon, UserIcon, LogOutIcon, TrophyIcon, BellIcon, SettingsIcon, MessageSquareIcon, BarChart3Icon, ChevronDownIcon } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { EarningsDialog } from "../dialogs/EarningsDialog";
 import Link from "next/link";
@@ -30,6 +30,8 @@ export const ConnectButton = () => {
   const { data: unreadMessageCount = 0 } = useUnreadMessageCount();
   const router = useRouter();
   const pathname = usePathname();
+
+  const currentSpace = pathname.match(/^\/s\/([^\/]+)/)?.[1];
   const prevPathRef = useRef(pathname);
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -92,8 +94,9 @@ export const ConnectButton = () => {
         <DropdownMenu modal={false} open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger asChild>
             <Button variant={"outline"} key="connect" className="w-28 sm:w-36 text-sm relative">
-              <div className="flex items-center gap-2 overflow-hidden">
+              <div className="flex items-center gap-1 overflow-hidden">
                 <p className="overflow-clip max-w-full">{user.username}</p>
+                <ChevronDownIcon className="size-4 flex-shrink-0" />
                 {(unreadCount > 0 || unreadMessageCount > 0) && (
                   <Badge
                     variant="destructive"
@@ -185,6 +188,22 @@ export const ConnectButton = () => {
               <TrophyIcon className="size-4" />
               Leaderboard
             </DropdownMenuItem>
+            {currentSpace && (
+              <DropdownMenuItem
+                asChild
+                onSelect={navigate(`/s/${currentSpace}/statistics`)}
+                disabled={!!loadingRoute || pathname === `/s/${currentSpace}/statistics`}
+              >
+                <Link href={`/s/${currentSpace}/statistics`} className="gap-2">
+                  {loadingRoute === `/s/${currentSpace}/statistics` ? (
+                    <LoaderCircleIcon className="size-4 animate-spin" />
+                  ) : (
+                    <BarChart3Icon className="size-4" />
+                  )}
+                  DAO Statistics
+                </Link>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               asChild
@@ -208,7 +227,7 @@ export const ConnectButton = () => {
         </DropdownMenu>
 
         <EarningsDialog open={dialogOpen} onOpenChange={setDialogOpen} />
-        <LeaderboardDialog open={leaderboardOpen} onOpenChange={setLeaderboardOpen} space="global" />
+        <LeaderboardDialog open={leaderboardOpen} onOpenChange={setLeaderboardOpen} space={currentSpace || "global"} />
       </>
     );
 };

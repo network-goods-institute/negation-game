@@ -815,7 +815,7 @@ export function PointPageClient({
                             className=" px-4 py-3 border-b data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
                         >
                             {point?.isObjection && point?.objectionTargetId && (
-                                <div className="mb-2 flex justify-center">
+                                <div className="mb-2 flex justify-start">
                                     <ObjectionHeader id={point.pointId} parentId={point.objectionTargetId} space={space} />
                                 </div>
                             )}
