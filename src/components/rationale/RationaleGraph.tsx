@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useMemo } from 'react';
 import { GraphView } from '../graph/base/GraphView';
 import useScrollToPoint from '@/hooks/graph/useScrollToPoint';
 import { useReactFlow } from '@xyflow/react';
@@ -65,11 +65,12 @@ export default function RationaleGraph({
     topOffsetPx,
 }: RationaleGraphProps) {
     const uniquePoints = useGraphPoints();
-    const pointIds = uniquePoints.map((p) => p.pointId);
+    const pointIds = useMemo(() => uniquePoints.map((p) => p.pointId), [uniquePoints]);
     const { data: pointsData } = useQuery<PointData[]>({
         queryKey: ['graph-creds', pointIds],
         queryFn: () => fetchPoints(pointIds),
         enabled: pointIds.length > 0,
+        staleTime: 5 * 60 * 1000,
     });
     const creds = pointsData?.map((p) => p.cred ?? 0) ?? [];
     const minCred = creds.length > 0 ? Math.min(...creds) : 0;

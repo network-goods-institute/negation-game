@@ -198,7 +198,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                     >
                                         {isGlobalGraphLoading ? (
                                             <>
-                                                <Loader className="size-4" />
+                                                <Loader className="size-4 text-white" />
                                                 Loading...
                                             </>
                                         ) : (
@@ -224,7 +224,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                     {/* Create Rationale Section */}
                     {!hasCurrentUserRationale && (
                         <div className="mb-6">
-                            <div className="border-2 border-dashed border-blue-300 dark:border-blue-600 rounded-lg p-6 text-center bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
+                            <div className="border-2 border-dashed border-blue-300 dark:border-blue-600 rounded-lg p-6 text-left bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
                                 <h2 className="text-lg font-semibold mb-2 text-blue-900 dark:text-blue-100">Create Your Rationale</h2>
                                 <p className="text-blue-700 dark:text-blue-200 text-sm mb-4">
                                     Share your perspective on {topic.name}. Build connected arguments with points and evidence.

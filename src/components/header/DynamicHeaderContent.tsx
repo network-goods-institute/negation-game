@@ -72,7 +72,7 @@ export function DynamicHeaderContent() {
                 >
                     {isNavigating ? (
                         <div className="flex items-center">
-                            <Loader className="size-3 sm:size-4 mr-1 text-white" />
+                            <Loader className="size-3 sm:size-4 mr-1 text-foreground" />
                             <span className="text-[11px] sm:text-base font-bold whitespace-nowrap">Loading...</span>
                         </div>
                     ) : (
@@ -94,7 +94,7 @@ export function DynamicHeaderContent() {
                 > {/* Mobile: 11px, Small+: base */}
                     {isNavigating ? (
                         <div className="flex items-center">
-                            <Loader className="size-3 sm:size-4 mr-1 text-white" />
+                            <Loader className="size-3 sm:size-4 mr-1 text-foreground" />
                             <span>Loading...</span>
                         </div>
                     ) : (

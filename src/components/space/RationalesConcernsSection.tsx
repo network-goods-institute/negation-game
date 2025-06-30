@@ -128,32 +128,36 @@ const RationalesConcernsSection = React.memo(function RationalesConcernsSection(
               {/* Topic list with TopicCard styling */}
               <div className="grid gap-2 mb-3">
                 {displayTopics.map((topic) => (
-                  <div
-                    key={topic.id}
-                    className={cn(
-                      "h-auto p-3 bg-white dark:bg-gray-900/50 border border-amber-200 dark:border-amber-700/50",
-                      "hover:border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/10",
-                      "transition-all duration-200 rounded-md"
-                    )}
-                  >
-                    <div className="flex items-center gap-2 w-full">
-                      {/* Status indicator */}
-                      <div className="flex-shrink-0">
-                        <div className="w-4 h-4 border border-amber-400 rounded-full flex items-center justify-center">
-                          <Circle className="w-1.5 h-1.5 text-amber-400" fill="currentColor" />
+                  <div key={topic.id}>
+                    <div
+                      className={cn(
+                        "h-auto p-3 bg-white dark:bg-gray-900/50 border border-amber-200 dark:border-amber-700/50",
+                        "hover:border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/10",
+                        "transition-all duration-200 rounded-md"
+                      )}
+                    >
+                      <div className="flex items-center gap-2 w-full">
+                        {/* Status indicator */}
+                        <div className="flex-shrink-0">
+                          <div className="w-4 h-4 border border-amber-400 rounded-full flex items-center justify-center">
+                            <Circle className="w-1.5 h-1.5 text-amber-400" fill="currentColor" />
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex-1 text-left">
-                        <Link href={`/s/${spaceId}/topic/${encodeId(topic.id)}`}>
-                          <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-slate-600 dark:hover:text-slate-200 hover:underline cursor-pointer">
-                            {topic.name}
-                          </h3>
-                        </Link>
-                        <Link href={`/s/${spaceId}/rationale/new?topicId=${encodeId(topic.id)}`}>
-                          <p className="text-xs text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 hover:underline cursor-pointer">
-                            Create rationale →
-                          </p>
-                        </Link>
+                        <div className="flex-1 text-left">
+                          <Link href={`/s/${spaceId}/topic/${encodeId(topic.id)}`}>
+                            <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-slate-600 dark:hover:text-slate-200 hover:underline cursor-pointer">
+                              {topic.name}
+                            </h3>
+                          </Link>
+                          <Link 
+                            href={`/s/${spaceId}/rationale/new?topicId=${encodeId(topic.id)}`}
+                            className="inline-block"
+                          >
+                            <p className="text-xs text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 hover:underline cursor-pointer">
+                              Create rationale →
+                            </p>
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   </div>
