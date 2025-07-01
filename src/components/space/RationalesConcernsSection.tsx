@@ -39,7 +39,7 @@ const RationalesConcernsSection = React.memo(function RationalesConcernsSection(
 
     if (topics && !topicsLoading) {
       if (userRationalesLoading || userTopicRationales === undefined) {
-        return { displayTopics: topics, isLoading: true, hasTopics: true };
+        return { displayTopics: [], isLoading: true, hasTopics: true };
       }
 
       const publishedTopicIds = new Set(userTopicRationales || []);
@@ -150,7 +150,7 @@ const RationalesConcernsSection = React.memo(function RationalesConcernsSection(
                             </h3>
                           </Link>
                           <Link 
-                            href={`/s/${spaceId}/rationale/new?topicId=${encodeId(topic.id)}`}
+                            href={`/s/${spaceId}/topic/${encodeId(topic.id)}`}
                             className="inline-block"
                           >
                             <p className="text-xs text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 hover:underline cursor-pointer">

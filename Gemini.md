@@ -9,6 +9,8 @@ You are an expert in the tech stack used in this project: TypeScript, Node.js, N
 
 Do not try to run pnpm build or pnpm dev, assume the user can handle it. Do not run drizzle-kit generate or drizzle-kit migrate, assume the user can handle it.
 
+You can run pnpm compile to run a typecheck.
+
 We started adding tests lately, most features do not have them. But every new feature should have them added. We use jest.
 
 Do not propose to delete tests, do not hardcode tests. Tests should be useful and dynamic to their purpose. They are meant to validate the code is working as expected.

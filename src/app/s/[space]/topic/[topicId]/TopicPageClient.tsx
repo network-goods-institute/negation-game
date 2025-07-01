@@ -1,6 +1,5 @@
 "use client";
-import React, { useState, useMemo } from "react";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import React, { useState, useMemo, useEffect } from "react";
 import { ViewpointCardWrapper } from "@/components/cards/ViewpointCardWrapper";
 import { Button } from "@/components/ui/button";
 import { ArrowLeftIcon, ChevronDownIcon, ChevronUpIcon, X, Check, ExternalLink, LayoutGrid } from "lucide-react";
@@ -11,11 +10,9 @@ import { Loader } from "@/components/ui/loader";
 import useIsMobile from "@/hooks/ui/useIsMobile";
 import { DeltaComparisonWidget } from "@/components/delta/DeltaComparisonWidget";
 import { usePrivy } from "@privy-io/react-auth";
-import { useTopics } from "@/queries/topics/useTopics";
 import { useAllUsers } from "@/queries/users/useAllUsers";
-import { fetchUsersReputation } from "@/actions/users/fetchUsersReputation";
-import { useQuery } from "@tanstack/react-query";
 import { UsernameDisplay } from "@/components/ui/UsernameDisplay";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
 interface Topic {
@@ -66,46 +63,32 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
     const [isTopicsExpanded, setIsTopicsExpanded] = useState(false);
     const [isGlobalGraphLoading, setIsGlobalGraphLoading] = useState(false);
-    const [delegateSortKey, setDelegateSortKey] = useState<"alphabetic" | "cred" | "status">("alphabetic");
 
     const { data: allUsers } = useAllUsers();
 
-    const userIds = useMemo(() => allUsers?.map(u => u.id) || [], [allUsers]);
-    const { data: userReputations } = useQuery({
-        queryKey: ["userReputations", userIds],
-        queryFn: () => fetchUsersReputation(userIds),
-        enabled: userIds.length > 0,
-    });
 
     const sortedDelegates = useMemo(() => {
         if (!allUsers) return [];
 
         const delegatesWithStatus = allUsers.map(user => {
             const hasPublished = viewpoints.some(vp => vp.authorId === user.id);
-            const reputation = userReputations?.[user.id] || user.cred || 50;
+            const reputation = user.cred || 50;
             return { ...user, hasPublished, reputation };
         });
 
-        switch (delegateSortKey) {
-            case "alphabetic":
-                return delegatesWithStatus.sort((a, b) => a.username.localeCompare(b.username));
-            case "cred":
-                return delegatesWithStatus.sort((a, b) => b.reputation - a.reputation);
-            case "status":
-                return delegatesWithStatus.sort((a, b) => {
-                    if (a.hasPublished === b.hasPublished) {
-                        return a.username.localeCompare(b.username);
-                    }
-                    return a.hasPublished ? -1 : 1;
-                });
-            default:
-                return delegatesWithStatus;
-        }
-    }, [allUsers, viewpoints, userReputations, delegateSortKey]);
+        return delegatesWithStatus.sort((a, b) => {
+            if (a.hasPublished === b.hasPublished) {
+                return a.username.localeCompare(b.username);
+            }
+            return a.hasPublished ? -1 : 1;
+        });
+    }, [allUsers, viewpoints]);
 
     const hasCurrentUserRationale = viewpoints.some(vp => vp.authorId === privyUser?.id);
 
-
+    useEffect(() => {
+        setIsGlobalGraphLoading(false);
+    }, [topic.id]);
 
     const sorted = useMemo(() => {
         const arr = [...viewpoints].sort(sortFunctions[viewpointsSortKey]);
@@ -173,7 +156,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                 className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 rounded-lg text-sm font-medium transition-colors"
                             >
                                 <ExternalLink className="w-4 h-4" />
-                                <span>View Source Discussion</span>
+                                <span>View Forum Discussion</span>
                             </a>
                         )}
                     </div>
@@ -211,10 +194,22 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                 </Link>
                             </div>
                             <Link href={`/s/${space}/topic/${encodeId(topic.id)}/graph`}>
-                                <div className="h-32 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-950/50 dark:to-indigo-950/50 cursor-pointer hover:from-blue-100 hover:to-indigo-200 dark:hover:from-blue-900/50 dark:hover:to-indigo-900/50 transition-colors flex items-center justify-center">
+                                <div
+                                    className={`h-32 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-950/50 dark:to-indigo-950/50 cursor-pointer hover:from-blue-100 hover:to-indigo-200 dark:hover:from-blue-900/50 dark:hover:to-indigo-900/50 transition-colors flex items-center justify-center ${isGlobalGraphLoading ? 'opacity-75' : ''}`}
+                                    onClick={() => setIsGlobalGraphLoading(true)}
+                                >
                                     <div className="text-center text-muted-foreground">
-                                        <LayoutGrid className="size-8 mx-auto mb-2" />
-                                        <p className="text-sm">See how rationales in {topic.name} interact with each other</p>
+                                        {isGlobalGraphLoading ? (
+                                            <>
+                                                <Loader className="size-8 mx-auto mb-2 text-blue-600" />
+                                                <p className="text-sm">Loading graph...</p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <LayoutGrid className="size-8 mx-auto mb-2" />
+                                                <p className="text-sm">See how rationales in {topic.name} interact with each other</p>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </Link>
@@ -296,67 +291,58 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
             {/* Right sidebar (hidden on mobile) */}
             {!isMobile && (
                 <aside className="hidden sm:flex flex-col flex-[1] max-w-[350px] bg-background border-l border-border/50 overflow-y-auto">
-                        <div className="p-4 space-y-4">
-                            {/* Delta Comparison Widget */}
-                            <DeltaComparisonWidget
-                                // @ts-ignore
-                                comparison={{ type: "topic", topicId: encodeId(topic.id) }}
-                                title="Topic Alignment"
-                                description="Find aligned users"
-                                currentUserId={privyUser?.id}
-                            />
+                    <div className="p-4 space-y-4">
+                        {/* Delta Comparison Widget */}
+                        <DeltaComparisonWidget
+                            // @ts-ignore
+                            comparison={{ type: "topic", topicId: encodeId(topic.id) }}
+                            title="Topic Alignment"
+                            description="Find aligned users"
+                            currentUserId={privyUser?.id}
+                        />
 
-                            {/* Delegate Status Section */}
-                            <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-lg font-semibold">Delegate Status</h3>
-                                    <Select defaultValue="alphabetic" onValueChange={(value) => setDelegateSortKey(value as "alphabetic" | "cred" | "status")}>
-                                        <SelectTrigger className="w-28">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="alphabetic">A-Z</SelectItem>
-                                            <SelectItem value="cred">Cred</SelectItem>
-                                            <SelectItem value="status">Status</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    {sortedDelegates.map((user) => (
-                                        <div key={user.id} className="flex items-center justify-between p-3 bg-background border rounded-lg hover:bg-accent/50 transition-colors">
-                                            <div className="flex flex-col">
-                                                <UsernameDisplay
-                                                    username={user.username}
-                                                    userId={user.id}
-                                                    className="text-sm font-medium"
-                                                />
-                                                <span className="text-xs text-muted-foreground">{Math.round(user.reputation)} cred</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                {user.hasPublished ? (
-                                                    <div className="flex items-center gap-1" title="This delegate already published a rationale for this topic">
-                                                        <Check className="w-4 h-4 text-green-600" />
-                                                        <span className="text-xs text-green-600">Published</span>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex items-center gap-1" title="This delegate has not published a rationale for this topic yet">
-                                                        <div className="w-4 h-4 border-2 border-muted-foreground/30 rounded-full" />
-                                                        <span className="text-xs text-muted-foreground">Pending</span>
-                                                    </div>
-                                                )}
-                                            </div>
+                        {/* Delegate Status Section */}
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-semibold">Delegate Status</h3>
+                                <span className="text-sm text-muted-foreground">By Status</span>
+                            </div>
+                            <div className="space-y-2">
+                                {sortedDelegates.map((user) => (
+                                    <div key={user.id} className="flex items-center justify-between p-3 bg-background border rounded-lg hover:bg-accent/50 transition-colors">
+                                        <div className="flex flex-col">
+                                            <UsernameDisplay
+                                                username={user.username}
+                                                userId={user.id}
+                                                className="text-sm font-medium"
+                                            />
+                                            <span className="text-xs text-muted-foreground">{Math.round(user.reputation)} cred</span>
                                         </div>
-                                    ))}
-                                    {(!sortedDelegates || sortedDelegates.length === 0) && (
-                                        <div className="p-4 bg-muted/30 border rounded-lg text-center">
-                                            <p className="text-sm text-muted-foreground">
-                                                No delegates found in this space
-                                            </p>
+                                        <div className="flex items-center gap-2">
+                                            {user.hasPublished ? (
+                                                <div className="flex items-center gap-1" title="This delegate already published a rationale for this topic">
+                                                    <Check className="w-4 h-4 text-green-600" />
+                                                    <span className="text-xs text-green-600">Published</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-1" title="This delegate has not published a rationale for this topic yet">
+                                                    <div className="w-4 h-4 border-2 border-muted-foreground/30 rounded-full" />
+                                                    <span className="text-xs text-muted-foreground">Pending</span>
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
+                                    </div>
+                                ))}
+                                {(!sortedDelegates || sortedDelegates.length === 0) && (
+                                    <div className="p-4 bg-muted/30 border rounded-lg text-center">
+                                        <p className="text-sm text-muted-foreground">
+                                            No delegates found in this space
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         </div>
+                    </div>
                 </aside>
             )}
 
@@ -388,16 +374,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
 
                             {/* Mobile Sort Controls */}
                             <div className="mb-4">
-                                <Select defaultValue="alphabetic" onValueChange={(value) => setDelegateSortKey(value as "alphabetic" | "cred" | "status")}>
-                                    <SelectTrigger className="w-full">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="alphabetic">Alphabetic</SelectItem>
-                                        <SelectItem value="cred">By Cred</SelectItem>
-                                        <SelectItem value="status">By Status</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <div className="text-sm text-muted-foreground font-medium mb-2">Sorted by Status</div>
                             </div>
 
                             <div className="space-y-3">

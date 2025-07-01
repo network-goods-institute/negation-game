@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { LoaderIcon, InfoIcon, UsersIcon, TrendingUpIcon, TrendingDownIcon, MessageCircleIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { usePrivy } from "@privy-io/react-auth";
 import Link from "next/link";
 import { setPrivyToken } from "@/lib/privy/setPrivyToken";
@@ -52,6 +52,18 @@ export function DeltaComparisonWidget({
     const [isOpen, setIsOpen] = useState(false);
     const [bulkResults, setBulkResults] = useState<BulkDeltaResult | null>(null);
     const [loading, setLoading] = useState(false);
+    const [position, setPosition] = useState({ top: 0, left: 0 });
+    const buttonRef = useRef<HTMLButtonElement>(null);
+
+    useEffect(() => {
+        if (isOpen && buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            setPosition({
+                top: rect.bottom + 12,
+                left: rect.left + rect.width / 2 - 192 // 192 is half of 384px (w-96)
+            });
+        }
+    }, [isOpen]);
 
     async function handleDiscover() {
         if (!currentUserId) return;
@@ -144,6 +156,7 @@ export function DeltaComparisonWidget({
                 <div className="relative flex justify-center">
                     <CollapsibleTrigger asChild>
                         <Button
+                            ref={buttonRef}
                             variant="outline"
                             size="sm"
                             className="flex items-center gap-2 h-8 text-xs"
@@ -154,162 +167,172 @@ export function DeltaComparisonWidget({
                         </Button>
                     </CollapsibleTrigger>
 
-                    <CollapsibleContent className="absolute top-full mt-3 z-10 w-96 max-w-[calc(100vw-2rem)]">
-                        <Card className="border-2">
-                            <CardHeader className="pb-3">
-                                <CardTitle className="text-base flex items-center gap-2">
-                                    <UsersIcon className="h-4 w-4" />
-                                    {title}
-                                </CardTitle>
-                                <CardDescription className="text-sm">
-                                    {description}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                {!currentUserId && (
-                                    <Alert>
-                                        <InfoIcon className="h-4 w-4" />
-                                        <AlertDescription>
-                                            Please sign in to discover user alignment
-                                        </AlertDescription>
-                                    </Alert>
-                                )}
-
-                                <Button
-                                    onClick={handleDiscover}
-                                    disabled={!currentUserId || loading}
-                                    className="w-full"
-                                    size="sm"
-                                >
-                                    {loading ? (
-                                        <>
-                                            <LoaderIcon className="animate-spin h-3 w-3 mr-2" />
-                                            Analyzing...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <UsersIcon className="h-3 w-3 mr-2" />
-                                            Discover User Alignment
-                                        </>
+                    {isOpen && (
+                        <div
+                            className="fixed z-50 w-96 max-w-[calc(100vw-2rem)]"
+                            style={{
+                                top: position.top,
+                                left: typeof window !== 'undefined'
+                                    ? Math.max(16, Math.min(position.left, window.innerWidth - 384 - 16))
+                                    : position.left
+                            }}
+                        >
+                            <Card className="border-2">
+                                <CardHeader className="pb-3">
+                                    <CardTitle className="text-base flex items-center gap-2">
+                                        <UsersIcon className="h-4 w-4" />
+                                        {title}
+                                    </CardTitle>
+                                    <CardDescription className="text-sm">
+                                        {description}
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    {!currentUserId && (
+                                        <Alert>
+                                            <InfoIcon className="h-4 w-4" />
+                                            <AlertDescription>
+                                                Please sign in to discover user alignment
+                                            </AlertDescription>
+                                        </Alert>
                                     )}
-                                </Button>
 
-                                {bulkResults && (
-                                    <div className="space-y-4">
-                                        {bulkResults.message && (
-                                            <Alert>
-                                                <InfoIcon className="h-4 w-4" />
-                                                <AlertDescription className="text-sm">{bulkResults.message}</AlertDescription>
-                                            </Alert>
+                                    <Button
+                                        onClick={handleDiscover}
+                                        disabled={!currentUserId || loading}
+                                        className="w-full"
+                                        size="sm"
+                                    >
+                                        {loading ? (
+                                            <>
+                                                <LoaderIcon className="animate-spin h-3 w-3 mr-2" />
+                                                Analyzing...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <UsersIcon className="h-3 w-3 mr-2" />
+                                                Discover User Alignment
+                                            </>
                                         )}
+                                    </Button>
 
-                                        {bulkResults.totalUsers > 0 && (
-                                            <div className="text-center text-xs text-muted-foreground">
-                                                Showing {(bulkResults.mostSimilar?.length || 0) + (bulkResults.mostDifferent?.length || 0)} of {bulkResults.totalUsers} comparable users
-                                            </div>
-                                        )}
-
-                                        {/* Score explanation */}
-                                        <div className="bg-muted/50 rounded-md p-3 text-xs">
-                                            <h5 className="font-medium mb-1">Δ-Score Guide:</h5>
-                                            <div className="space-y-0.5 text-muted-foreground">
-                                                <div>• <strong>Δ = 0:</strong> Perfect agreement</div>
-                                                <div>• <strong>Δ ≤ 0.1:</strong> Strong agreement</div>
-                                                <div>• <strong>Δ ≤ 0.3:</strong> Mild agreement</div>
-                                                <div>• <strong>Δ = 0.5:</strong> Moderate disagreement</div>
-                                                <div>• <strong>Δ ≤ 0.9:</strong> Strong disagreement</div>
-                                                <div>• <strong>Δ = 1:</strong> Maximum disagreement</div>
-                                            </div>
-                                        </div>
-
+                                    {bulkResults && (
                                         <div className="space-y-4">
-                                            {/* Most Similar Users */}
-                                            {bulkResults?.mostSimilar?.length > 0 && (
-                                                <div>
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <TrendingUpIcon className="h-4 w-4 text-green-600" />
-                                                        <h4 className="text-sm font-medium">Most Similar</h4>
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        {bulkResults.mostSimilar.map((user) => (
-                                                            <div key={user.userId} className="flex items-center gap-2 p-2 bg-muted rounded-md text-sm">
-                                                                <div className="flex-1 min-w-0">
-                                                                    <p className="font-medium truncate">{user.username}</p>
-                                                                    <p className="text-xs text-muted-foreground">
-                                                                        {user.totalEngagement} engagement
-                                                                    </p>
-                                                                </div>
-                                                                <div className="flex items-center gap-1 flex-shrink-0">
-                                                                    <Badge className={`text-xs px-1.5 py-0.5 ${getDeltaBadgeColor(user.delta)}`}>
-                                                                        {user.delta.toFixed(3)}
-                                                                    </Badge>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="ghost"
-                                                                        asChild
-                                                                        className="h-6 w-6 p-0"
-                                                                    >
-                                                                        <Link href={`/messages/${encodeURIComponent(user.username)}`}>
-                                                                            <MessageCircleIcon className="h-3 w-3" />
-                                                                            <span className="sr-only">Message {user.username}</span>
-                                                                        </Link>
-                                                                    </Button>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
+                                            {bulkResults.message && (
+                                                <Alert>
+                                                    <InfoIcon className="h-4 w-4" />
+                                                    <AlertDescription className="text-sm">{bulkResults.message}</AlertDescription>
+                                                </Alert>
+                                            )}
+
+                                            {bulkResults.totalUsers > 0 && (
+                                                <div className="text-center text-xs text-muted-foreground">
+                                                    Showing {(bulkResults.mostSimilar?.length || 0) + (bulkResults.mostDifferent?.length || 0)} of {bulkResults.totalUsers} comparable users
                                                 </div>
                                             )}
 
-                                            {/* Most Different Users */}
-                                            {bulkResults?.mostDifferent?.length > 0 && (
-                                                <div>
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <TrendingDownIcon className="h-4 w-4 text-red-600" />
-                                                        <h4 className="text-sm font-medium">Most Different</h4>
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        {bulkResults.mostDifferent.map((user) => (
-                                                            <div key={user.userId} className="flex items-center gap-2 p-2 bg-muted rounded-md text-sm">
-                                                                <div className="flex-1 min-w-0">
-                                                                    <p className="font-medium truncate">{user.username}</p>
-                                                                    <p className="text-xs text-muted-foreground">
-                                                                        {user.totalEngagement} engagement
-                                                                    </p>
-                                                                </div>
-                                                                <div className="flex items-center gap-1 flex-shrink-0">
-                                                                    <Badge className={`text-xs px-1.5 py-0.5 ${getDeltaBadgeColor(user.delta)}`}>
-                                                                        {user.delta.toFixed(3)}
-                                                                    </Badge>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="ghost"
-                                                                        asChild
-                                                                        className="h-6 w-6 p-0"
-                                                                    >
-                                                                        <Link href={`/messages/${encodeURIComponent(user.username)}`}>
-                                                                            <MessageCircleIcon className="h-3 w-3" />
-                                                                            <span className="sr-only">Message {user.username}</span>
-                                                                        </Link>
-                                                                    </Button>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
+                                            {/* Score explanation */}
+                                            <div className="bg-muted/50 rounded-md p-3 text-xs">
+                                                <h5 className="font-medium mb-1">Δ-Score Guide:</h5>
+                                                <div className="space-y-0.5 text-muted-foreground">
+                                                    <div>• <strong>Δ = 0:</strong> Perfect agreement</div>
+                                                    <div>• <strong>Δ ≤ 0.1:</strong> Strong agreement</div>
+                                                    <div>• <strong>Δ ≤ 0.3:</strong> Mild agreement</div>
+                                                    <div>• <strong>Δ = 0.5:</strong> Moderate disagreement</div>
+                                                    <div>• <strong>Δ ≤ 0.9:</strong> Strong disagreement</div>
+                                                    <div>• <strong>Δ = 1:</strong> Maximum disagreement</div>
                                                 </div>
-                                            )}
+                                            </div>
 
-                                            {bulkResults?.mostSimilar?.length === 0 && bulkResults?.mostDifferent?.length === 0 && (
-                                                <p className="text-sm text-muted-foreground text-center py-4">
-                                                    No comparable users found
-                                                </p>
-                                            )}
+                                            <div className="space-y-4">
+                                                {/* Most Similar Users */}
+                                                {bulkResults?.mostSimilar?.length > 0 && (
+                                                    <div>
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <TrendingUpIcon className="h-4 w-4 text-green-600" />
+                                                            <h4 className="text-sm font-medium">Most Similar</h4>
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            {bulkResults.mostSimilar.map((user) => (
+                                                                <div key={user.userId} className="flex items-center gap-2 p-2 bg-muted rounded-md text-sm">
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <p className="font-medium truncate">{user.username}</p>
+                                                                        <p className="text-xs text-muted-foreground">
+                                                                            {user.totalEngagement} engagement
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                                                        <Badge className={`text-xs px-1.5 py-0.5 ${getDeltaBadgeColor(user.delta)}`}>
+                                                                            {user.delta.toFixed(3)}
+                                                                        </Badge>
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            asChild
+                                                                            className="h-6 w-6 p-0"
+                                                                        >
+                                                                            <Link href={`/messages/${encodeURIComponent(user.username)}`}>
+                                                                                <MessageCircleIcon className="h-3 w-3" />
+                                                                                <span className="sr-only">Message {user.username}</span>
+                                                                            </Link>
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Most Different Users */}
+                                                {bulkResults?.mostDifferent?.length > 0 && (
+                                                    <div>
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <TrendingDownIcon className="h-4 w-4 text-red-600" />
+                                                            <h4 className="text-sm font-medium">Most Different</h4>
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            {bulkResults.mostDifferent.map((user) => (
+                                                                <div key={user.userId} className="flex items-center gap-2 p-2 bg-muted rounded-md text-sm">
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <p className="font-medium truncate">{user.username}</p>
+                                                                        <p className="text-xs text-muted-foreground">
+                                                                            {user.totalEngagement} engagement
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                                                        <Badge className={`text-xs px-1.5 py-0.5 ${getDeltaBadgeColor(user.delta)}`}>
+                                                                            {user.delta.toFixed(3)}
+                                                                        </Badge>
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            asChild
+                                                                            className="h-6 w-6 p-0"
+                                                                        >
+                                                                            <Link href={`/messages/${encodeURIComponent(user.username)}`}>
+                                                                                <MessageCircleIcon className="h-3 w-3" />
+                                                                                <span className="sr-only">Message {user.username}</span>
+                                                                            </Link>
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {bulkResults?.mostSimilar?.length === 0 && bulkResults?.mostDifferent?.length === 0 && (
+                                                    <p className="text-sm text-muted-foreground text-center py-4">
+                                                        No comparable users found
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </CollapsibleContent>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </div>
+                    )}
                 </div>
             </Collapsible>
         </div>

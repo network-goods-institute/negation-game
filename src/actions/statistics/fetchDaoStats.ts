@@ -22,6 +22,7 @@ export interface DaoStats {
   credFlow: number;
   userGrowth?: number;
   activityTrend?: number;
+  currentMonth: string;
 
   // Engagement Health
   dialecticalEngagement: number;
@@ -36,6 +37,14 @@ export interface DaoStats {
 }
 
 export async function fetchDaoStats(space: string): Promise<DaoStats> {
+  const now = new Date();
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const currentMonth = now.toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+
+  // Keep 30-day windows for some metrics that work better with rolling windows
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
@@ -48,16 +57,16 @@ export async function fetchDaoStats(space: string): Promise<DaoStats> {
         sql<number>`COUNT(DISTINCT ${credEventsTable.userId})`.mapWith(Number),
       totalTransactions: sql<number>`COUNT(*)`.mapWith(Number),
       credFlow:
-        sql<number>`COALESCE(SUM(${credEventsTable.amount}), 0)`.mapWith(
+        sql<number>`COALESCE(SUM(ABS(${credEventsTable.amount})), 0)`.mapWith(
           Number
         ),
     })
     .from(credEventsTable)
     .where(
       space === "global"
-        ? gte(credEventsTable.ts, thirtyDaysAgo)
+        ? gte(credEventsTable.ts, currentMonthStart)
         : and(
-            gte(credEventsTable.ts, thirtyDaysAgo),
+            gte(credEventsTable.ts, currentMonthStart),
             sql`EXISTS (
             SELECT 1 FROM ${pointsTable} p 
             WHERE p.id = ${credEventsTable.pointId} 
@@ -91,7 +100,7 @@ export async function fetchDaoStats(space: string): Promise<DaoStats> {
           )
     );
 
-  // Content Creation - expanded to 30 days
+  // Content Creation - current month
   const [contentMetrics] = await db
     .select({
       newPoints: sql<number>`COUNT(*)`.mapWith(Number),
@@ -99,9 +108,9 @@ export async function fetchDaoStats(space: string): Promise<DaoStats> {
     .from(pointsTable)
     .where(
       space === "global"
-        ? gte(pointsTable.createdAt, thirtyDaysAgo)
+        ? gte(pointsTable.createdAt, currentMonthStart)
         : and(
-            gte(pointsTable.createdAt, thirtyDaysAgo),
+            gte(pointsTable.createdAt, currentMonthStart),
             eq(pointsTable.space, space)
           )
     );
@@ -113,9 +122,9 @@ export async function fetchDaoStats(space: string): Promise<DaoStats> {
     .from(viewpointsTable)
     .where(
       space === "global"
-        ? gte(viewpointsTable.createdAt, thirtyDaysAgo)
+        ? gte(viewpointsTable.createdAt, currentMonthStart)
         : and(
-            gte(viewpointsTable.createdAt, thirtyDaysAgo),
+            gte(viewpointsTable.createdAt, currentMonthStart),
             eq(viewpointsTable.space, space)
           )
     );
@@ -326,6 +335,7 @@ export async function fetchDaoStats(space: string): Promise<DaoStats> {
     credFlow: activityMetrics?.credFlow || 0,
     userGrowth,
     activityTrend,
+    currentMonth,
 
     // Engagement Health
     dialecticalEngagement: dialecticalMetrics?.avgNegations || 0,

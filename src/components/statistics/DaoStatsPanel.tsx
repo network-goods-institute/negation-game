@@ -167,7 +167,7 @@ export const DaoStatsPanel = ({ space }: DaoStatsPanelProps) => {
         <StatCard
           title="Active Users"
           value={stats.activeUsers.toLocaleString()}
-          subtitle="30 days"
+          subtitle={stats.currentMonth}
           icon={<UsersIcon className="size-4 text-primary" />}
           trend={stats.userGrowth ? `${stats.userGrowth > 0 ? '+' : ''}${stats.userGrowth}%` : undefined}
         />
@@ -181,13 +181,13 @@ export const DaoStatsPanel = ({ space }: DaoStatsPanelProps) => {
         <StatCard
           title="New Content"
           value={stats.contentCreation.toLocaleString()}
-          subtitle="this month"
+          subtitle={stats.currentMonth}
           icon={<MessageCircleIcon className="size-4 text-primary" />}
         />
         <StatCard
-          title="Cred Flow"
-          value={`${stats.credFlow > 0 ? '+' : ''}${stats.credFlow.toLocaleString()}`}
-          subtitle="total moved"
+          title="Cred Activity"
+          value={stats.credFlow.toLocaleString()}
+          subtitle={stats.currentMonth}
           icon={<TrendingUpIcon className="size-4 text-primary" />}
         />
       </div>
@@ -235,14 +235,14 @@ export const DaoStatsPanel = ({ space }: DaoStatsPanelProps) => {
               icon={<MessageCircleIcon className="size-4 text-muted-foreground" />}
               label="Points Created"
               value={stats.newPoints.toLocaleString()}
-              description="New points added this month"
+              description={`New points added in ${stats.currentMonth}`}
               valueColor="neutral"
             />
             <DetailedMetric
               icon={<BarChart3Icon className="size-4 text-muted-foreground" />}
               label="Rationales Written"
               value={stats.newRationales.toLocaleString()}
-              description="Comprehensive viewpoints shared"
+              description={`Comprehensive viewpoints shared in ${stats.currentMonth}`}
               valueColor="neutral"
             />
             <DetailedMetric

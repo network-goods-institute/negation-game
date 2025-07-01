@@ -112,17 +112,24 @@ export const AddPointNode = ({
         "relative bg-background flex flex-col gap-2 rounded-md border-2 border-dashed p-2 min-h-28 w-64"
       )}
     >
+      <button
+        onClick={() => {
+          deleteElements({ nodes: [{ id }] });
+        }}
+        className="absolute -top-2 -right-2 transform translate-x-[10px] -translate-y-1/2 w-8 h-8 bg-background border-2 border-muted-foreground rounded-full flex items-center justify-center pointer-events-auto z-20 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        title="Cancel point creation"
+      >
+        <XIcon className="size-4" />
+      </button>
       <Handle
         id={`${id}-outgoing-handle`}
         type="source"
         position={Position.Top}
-        className="-z-10 pt-1 pb-0.5 px-2 translate-y-[-100%]  -translate-x-1/2  size-fit bg-muted text-center border-2 border-b-0 rounded-t-full pointer-events-auto !cursor-pointer"
-        onClick={() => {
-          deleteElements({ nodes: [{ id }] });
-        }}
-      >
-        <XIcon className="size-4" />
-      </Handle>
+        className="opacity-0 pointer-events-none"
+        isConnectable={true}
+        isConnectableStart={true}
+        isConnectableEnd={true}
+      />
 
       <PointEditor
         className="w-full h-fit"
@@ -158,7 +165,7 @@ export const AddPointNode = ({
                   id: edgeId,
                   source: uniqueId,
                   target: parentNode ? parentNode.id : parentId,
-                  type: "negation",
+                  type: parentId === 'statement' ? 'statement' : 'negation',
                 });
                 // Delayed needed to avoid race condition
                 setTimeout(() => {
@@ -228,7 +235,7 @@ export const AddPointNode = ({
                           id: nanoid(),
                           source: uniqueId,
                           target: parentId,
-                          type: "negation",
+                          type: parentId === 'statement' ? 'statement' : 'negation',
                         });
 
                         // Remove the add point node
