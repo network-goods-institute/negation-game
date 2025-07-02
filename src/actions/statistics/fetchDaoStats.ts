@@ -7,6 +7,7 @@ import {
   negationsTable,
   notificationsTable,
   viewpointsTable,
+  endorsementsTable,
 } from "@/db/schema";
 import { sql, gte, eq, and, lt } from "drizzle-orm";
 import { computeDaoAlignment } from "@/actions/analytics/computeDaoAlignment";
@@ -33,24 +34,20 @@ export interface DaoStats {
   // Participation Distribution
   activityConcentration: number;
   newContributorRatio: number;
-  crossSpaceUsers: number;
 }
 
 export async function fetchDaoStats(space: string): Promise<DaoStats> {
   const now = new Date();
-  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const currentMonth = now.toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-  });
 
-  // Keep 30-day windows for some metrics that work better with rolling windows
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
   const thirtyDaysAgoIso = thirtyDaysAgo.toISOString();
+  const ninetyDaysAgoIso = ninetyDaysAgo.toISOString();
 
-  // Activity Metrics - expanded to 30 days for more comprehensive data
+  const currentMonth = "Last 30 days";
+
+  // Activity Metrics - rolling 30-day window
   const [activityMetrics] = await db
     .select({
       activeUsers:
@@ -64,9 +61,9 @@ export async function fetchDaoStats(space: string): Promise<DaoStats> {
     .from(credEventsTable)
     .where(
       space === "global"
-        ? gte(credEventsTable.ts, currentMonthStart)
+        ? gte(credEventsTable.ts, thirtyDaysAgo)
         : and(
-            gte(credEventsTable.ts, currentMonthStart),
+            gte(credEventsTable.ts, thirtyDaysAgo),
             sql`EXISTS (
             SELECT 1 FROM ${pointsTable} p 
             WHERE p.id = ${credEventsTable.pointId} 
@@ -100,7 +97,7 @@ export async function fetchDaoStats(space: string): Promise<DaoStats> {
           )
     );
 
-  // Content Creation - current month
+  // Content Creation - rolling 30-day window
   const [contentMetrics] = await db
     .select({
       newPoints: sql<number>`COUNT(*)`.mapWith(Number),
@@ -108,9 +105,9 @@ export async function fetchDaoStats(space: string): Promise<DaoStats> {
     .from(pointsTable)
     .where(
       space === "global"
-        ? gte(pointsTable.createdAt, currentMonthStart)
+        ? gte(pointsTable.createdAt, thirtyDaysAgo)
         : and(
-            gte(pointsTable.createdAt, currentMonthStart),
+            gte(pointsTable.createdAt, thirtyDaysAgo),
             eq(pointsTable.space, space)
           )
     );
@@ -122,9 +119,9 @@ export async function fetchDaoStats(space: string): Promise<DaoStats> {
     .from(viewpointsTable)
     .where(
       space === "global"
-        ? gte(viewpointsTable.createdAt, currentMonthStart)
+        ? gte(viewpointsTable.createdAt, thirtyDaysAgo)
         : and(
-            gte(viewpointsTable.createdAt, currentMonthStart),
+            gte(viewpointsTable.createdAt, thirtyDaysAgo),
             eq(viewpointsTable.space, space)
           )
     );
@@ -199,67 +196,98 @@ export async function fetchDaoStats(space: string): Promise<DaoStats> {
     )
     .groupBy(credEventsTable.userId);
 
-  // New vs Returning Contributors - expanded to 90 days
-  const [contributorMetrics] = await db
-    .select({
-      totalContributors:
-        sql<number>`COUNT(DISTINCT ${credEventsTable.userId})`.mapWith(Number),
-      newContributors: sql<number>`COUNT(DISTINCT CASE 
-      WHEN NOT EXISTS (
-        SELECT 1 FROM ${credEventsTable} ce2 
-        WHERE ce2.user_id = ${credEventsTable.userId} 
-        AND ce2.ts < ${thirtyDaysAgoIso}
-      ) THEN ${credEventsTable.userId} 
-    END)`.mapWith(Number),
-    })
-    .from(credEventsTable)
-    .where(
-      space === "global"
-        ? gte(credEventsTable.ts, ninetyDaysAgo)
-        : and(
-            gte(credEventsTable.ts, ninetyDaysAgo),
-            sql`EXISTS (
-            SELECT 1 FROM ${pointsTable} p 
-            WHERE p.id = ${credEventsTable.pointId} 
-            AND p.space = ${space}
-          )`
-          )
-    );
+  // New vs Returning Contributors - check across points, endorsements, and viewpoints
+  const contributorMetrics = await db.execute(sql`
+    WITH user_activity AS (
+      -- Get all users active in last 90 days with their earliest activity date
+      SELECT DISTINCT
+        user_id,
+        MIN(earliest_activity) as user_earliest_activity
+      FROM (
+        -- Points created
+        SELECT 
+          ${pointsTable.createdBy} as user_id,
+          MIN(${pointsTable.createdAt}) as earliest_activity
+        FROM ${pointsTable}
+        WHERE ${pointsTable.createdAt} >= ${ninetyDaysAgoIso}
+          AND ${pointsTable.isActive} = true
+          ${space === "global" ? sql`` : sql`AND ${pointsTable.space} = ${space}`}
+        GROUP BY ${pointsTable.createdBy}
+        
+        UNION ALL
+        
+        -- Endorsements made  
+        SELECT 
+          ${endorsementsTable.userId} as user_id,
+          MIN(${endorsementsTable.createdAt}) as earliest_activity
+        FROM ${endorsementsTable}
+        WHERE ${endorsementsTable.createdAt} >= ${ninetyDaysAgoIso}
+          ${space === "global" ? sql`` : sql`AND ${endorsementsTable.space} = ${space}`}
+        GROUP BY ${endorsementsTable.userId}
+        
+        UNION ALL
+        
+        -- Viewpoints created
+        SELECT 
+          ${viewpointsTable.createdBy} as user_id,
+          MIN(${viewpointsTable.createdAt}) as earliest_activity
+        FROM ${viewpointsTable}
+        WHERE ${viewpointsTable.createdAt} >= ${ninetyDaysAgoIso}
+          AND ${viewpointsTable.isActive} = true
+          ${space === "global" ? sql`` : sql`AND ${viewpointsTable.space} = ${space}`}
+        GROUP BY ${viewpointsTable.createdBy}
+      ) combined_activity
+      GROUP BY user_id
+    ),
+    user_history AS (
+      -- Check if each user had any activity before 30 days ago
+      SELECT 
+        ua.user_id,
+        ua.user_earliest_activity,
+        CASE WHEN EXISTS (
+          -- Check points
+          SELECT 1 FROM ${pointsTable} 
+          WHERE ${pointsTable.createdBy} = ua.user_id 
+            AND ${pointsTable.createdAt} < ${thirtyDaysAgoIso}
+            AND ${pointsTable.isActive} = true
+            ${space === "global" ? sql`` : sql`AND ${pointsTable.space} = ${space}`}
+          
+          UNION ALL
+          
+          -- Check endorsements  
+          SELECT 1 FROM ${endorsementsTable}
+          WHERE ${endorsementsTable.userId} = ua.user_id 
+            AND ${endorsementsTable.createdAt} < ${thirtyDaysAgoIso}
+            ${space === "global" ? sql`` : sql`AND ${endorsementsTable.space} = ${space}`}
+          
+          UNION ALL
+          
+          -- Check viewpoints
+          SELECT 1 FROM ${viewpointsTable}
+          WHERE ${viewpointsTable.createdBy} = ua.user_id 
+            AND ${viewpointsTable.createdAt} < ${thirtyDaysAgoIso}
+            AND ${viewpointsTable.isActive} = true
+            ${space === "global" ? sql`` : sql`AND ${viewpointsTable.space} = ${space}`}
+        ) THEN false ELSE true END as is_new_contributor
+      FROM user_activity ua
+    )
+    SELECT 
+      COUNT(*) as total_contributors,
+      COUNT(CASE WHEN is_new_contributor THEN 1 END) as new_contributors
+    FROM user_history
+  `);
 
-  // Cross-Space Users (only relevant for specific spaces)
-  let crossSpaceUsers = 0;
-  if (space !== "global") {
-    const [crossSpaceMetrics] = await db
-      .select({
-        crossSpaceUsers: sql<number>`COUNT(DISTINCT ce1.user_id)`,
-      })
-      .from(sql`${credEventsTable} ce1`)
-      .where(
-        and(
-          gte(sql`ce1.ts`, thirtyDaysAgoIso),
-          sql`EXISTS (
-          SELECT 1 FROM ${credEventsTable} ce2
-          JOIN ${pointsTable} p1 ON ce2.point_id = p1.id
-          JOIN ${pointsTable} p2 ON ce1.point_id = p2.id
-          WHERE ce2.user_id = ce1.user_id
-          AND p1.space = ${space}
-          AND p2.space != ${space}
-          AND ce2.ts >= ${thirtyDaysAgoIso}
-        )`
-        )
-      );
-    crossSpaceUsers = crossSpaceMetrics?.crossSpaceUsers || 0;
-  }
+  const contributorStats = contributorMetrics[0] as {
+    total_contributors: number;
+    new_contributors: number;
+  };
 
   // Calculate derived metrics
   const dailyActivity = Math.round(
     (activityMetrics?.totalTransactions || 0) / 30
   );
-  const contentCreation = Math.round(
-    ((contentMetrics?.newPoints || 0) +
-      (rationaleMetrics?.newRationales || 0)) /
-      30
-  );
+  const contentCreation =
+    (contentMetrics?.newPoints || 0) + (rationaleMetrics?.newRationales || 0);
 
   const userGrowth =
     previousActivityMetrics?.activeUsers &&
@@ -319,10 +347,10 @@ export async function fetchDaoStats(space: string): Promise<DaoStats> {
   }
 
   const newContributorRatio =
-    contributorMetrics?.totalContributors &&
-    contributorMetrics.totalContributors > 0
-      ? (contributorMetrics.newContributors || 0) /
-        contributorMetrics.totalContributors
+    contributorStats?.total_contributors &&
+    contributorStats.total_contributors > 0
+      ? (contributorStats.new_contributors || 0) /
+        contributorStats.total_contributors
       : 0;
 
   return {
@@ -346,6 +374,5 @@ export async function fetchDaoStats(space: string): Promise<DaoStats> {
     // Participation Distribution
     activityConcentration: Math.min(100, Math.max(0, activityConcentration)),
     newContributorRatio,
-    crossSpaceUsers,
   };
 }

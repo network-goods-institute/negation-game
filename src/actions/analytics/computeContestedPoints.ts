@@ -56,7 +56,10 @@ export async function computeContestedPoints({
     )
     .groupBy(dailyStancesTable.pointId)
     .having(
-      sql`SUM(CASE WHEN ${dailyStancesTable.zValue} > 0.02 THEN 1 ELSE 0 END) > 0 AND SUM(CASE WHEN ${dailyStancesTable.zValue} < -0.02 THEN 1 ELSE 0 END) > 0`
+      sql`SUM(CASE WHEN ${dailyStancesTable.zValue} > 0.02 THEN 1 ELSE 0 END) > 1 AND 
+          SUM(CASE WHEN ${dailyStancesTable.zValue} < -0.02 THEN 1 ELSE 0 END) > 1 AND
+          (SUM(CASE WHEN ${dailyStancesTable.zValue} > 0.02 THEN 1 ELSE 0 END) + 
+           SUM(CASE WHEN ${dailyStancesTable.zValue} < -0.02 THEN 1 ELSE 0 END)) >= 5`
     )
     .orderBy(
       sql`GREATEST(SUM(CASE WHEN ${dailyStancesTable.zValue} > 0.02 THEN 1 ELSE 0 END), 1) DESC`
@@ -104,8 +107,13 @@ export async function computeContestedPoints({
           ? sql`EXISTS (SELECT 1 FROM ${pointsTable} p WHERE p.id = ${endorsementsTable.pointId} AND p.space = ${space})`
           : sql`TRUE`
       )
-      .groupBy(endorsementsTable.pointId)
-      .having(sql`SUM(${endorsementsTable.cred}) <> 0`);
+      .groupBy(endorsementsTable.pointId).having(sql`
+        SUM(${endorsementsTable.cred}) <> 0 AND
+        SUM(CASE WHEN (${endorsementsTable.cred} > 0 AND ${pointClustersTable.sign} = 1) OR (${endorsementsTable.cred} < 0 AND ${pointClustersTable.sign} = -1) THEN 1 ELSE 0 END) > 1 AND
+        SUM(CASE WHEN (${endorsementsTable.cred} > 0 AND ${pointClustersTable.sign} = -1) OR (${endorsementsTable.cred} < 0 AND ${pointClustersTable.sign} = 1) THEN 1 ELSE 0 END) > 1 AND
+        (SUM(CASE WHEN (${endorsementsTable.cred} > 0 AND ${pointClustersTable.sign} = 1) OR (${endorsementsTable.cred} < 0 AND ${pointClustersTable.sign} = -1) THEN 1 ELSE 0 END) + 
+         SUM(CASE WHEN (${endorsementsTable.cred} > 0 AND ${pointClustersTable.sign} = -1) OR (${endorsementsTable.cred} < 0 AND ${pointClustersTable.sign} = 1) THEN 1 ELSE 0 END)) >= 5
+      `);
 
     if (clusterAgg.length > 0) {
       aggRows = clusterAgg;
@@ -184,7 +192,7 @@ export async function computeContestedPoints({
         }
 
         // Only include contested points (both pos and neg > 0)
-        if (pos > 0 && neg > 0) {
+        if (pos > 1 && neg > 1 && pos + neg >= 5) {
           aggRows.push({ pointId, pos, neg });
         }
       }

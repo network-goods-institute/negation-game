@@ -271,9 +271,9 @@ export const DaoStatsPanel = ({ space }: DaoStatsPanelProps) => {
             />
             <DetailedMetric
               icon={<Users2Icon className="size-4 text-muted-foreground" />}
-              label="Cross-Space Users"
-              value={stats.crossSpaceUsers.toLocaleString()}
-              description="Active in multiple DAO spaces"
+              label="Active Contributors"
+              value={stats.activeUsers.toLocaleString()}
+              description="Users active in current period"
               valueColor="neutral"
             />
             <DetailedMetric
