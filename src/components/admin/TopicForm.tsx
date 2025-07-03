@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -121,7 +121,7 @@ export function TopicForm({
         }
     };
 
-    const handleEdit = async (topic: Topic) => {
+    const handleEdit = useCallback(async (topic: Topic) => {
         onTopicChange(topic);
 
         let accessType: "open" | "whitelist" | "blacklist" = "open";
@@ -161,13 +161,13 @@ export function TopicForm({
             access: accessType,
             selectedUsers,
         });
-    };
+    }, [onTopicChange]);
 
     useEffect(() => {
         if (selectedTopic) {
             handleEdit(selectedTopic);
         }
-    }, [selectedTopic]);
+    }, [selectedTopic, handleEdit]);
 
     return (
         <Card>

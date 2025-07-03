@@ -3,10 +3,10 @@ import { fetchDelegateStats } from "@/actions/statistics/fetchDelegateStats";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { spaceId: string } }
+  { params }: { params: Promise<{ spaceId: string }> }
 ) {
   try {
-    const spaceId = params.spaceId;
+    const { spaceId } = await params;
 
     if (!spaceId) {
       return NextResponse.json(
