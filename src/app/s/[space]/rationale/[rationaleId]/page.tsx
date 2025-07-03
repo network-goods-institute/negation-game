@@ -131,7 +131,9 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                 editableTitle,
                 editableDescription,
                 viewpoint!.id,
-                publishCopy
+                publishCopy,
+                editableTopic,
+                editableTopicId
             );
         }
     );
@@ -229,10 +231,10 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
         createdBy: viewpoint?.createdBy || '',
         isOwner,
         basePath,
-        title: editableTitle,
-        description: editableDescription,
-        topic: editableTopic,
-        topicId: editableTopicId,
+        getCurrentTitle: () => editableTitle,
+        getCurrentDescription: () => editableDescription,
+        getCurrentTopic: () => editableTopic,
+        getCurrentTopicId: () => editableTopicId,
         originalGraph: originalGraph!,
     } as UseSaveViewpointParams);
 

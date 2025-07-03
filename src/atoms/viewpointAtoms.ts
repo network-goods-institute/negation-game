@@ -157,3 +157,5 @@ export const viewpointTopicAtom = atomWithStorage<string>(
   storage,
   { getOnInit: true }
 );
+
+export const viewpointTopicIdAtom = atom<number | undefined>(undefined);

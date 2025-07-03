@@ -8,6 +8,7 @@ import {
   viewpointStatementAtom,
   viewpointReasoningAtom,
   viewpointTopicAtom,
+  viewpointTopicIdAtom,
   copiedFromIdAtom,
 } from "@/atoms/viewpointAtoms";
 
@@ -21,8 +22,9 @@ export default function useRationaleDraftLifecycle() {
   const setCopiedFromId = useSetAtom(copiedFromIdAtom);
   const [graph, setGraph] = useAtom(viewpointGraphAtom);
   const [statement, setStatement] = useAtom(viewpointStatementAtom);
-  const [reasoning, setReasoning] = useAtom(viewpointReasoningAtom);
-  const [topic, setTopic] = useAtom(viewpointTopicAtom);
+  const [, setReasoning] = useAtom(viewpointReasoningAtom);
+  const [, setTopic] = useAtom(viewpointTopicAtom);
+  const [, setTopicId] = useAtom(viewpointTopicIdAtom);
 
   const [isCopiedFromSessionStorage, setIsCopiedFromSessionStorage] =
     useState(false);
@@ -49,6 +51,9 @@ export default function useRationaleDraftLifecycle() {
     if (copyData) {
       try {
         const parsed = JSON.parse(copyData);
+        console.log("[DraftLifecycle] Found copy data:", parsed);
+        console.log("[DraftLifecycle] Topic info from storage:", { topic: parsed.topic, topicId: parsed.topicId });
+        
         if (parsed?.isCopyOperation) {
           setIsCopiedFromSessionStorage(true);
           hasCheckedInitialLoadRef.current = true;
@@ -57,9 +62,22 @@ export default function useRationaleDraftLifecycle() {
             setGraph(parsed.graph);
             hasLoadedCopyData.current = true;
           }
-          if (parsed.title) setStatement(parsed.title);
-          if (parsed.description) setReasoning(parsed.description);
-          if (parsed.topic) setTopic(parsed.topic);
+          if (parsed.title) {
+            console.log("[DraftLifecycle] Setting title:", parsed.title);
+            setStatement(parsed.title);
+          }
+          if (parsed.description) {
+            console.log("[DraftLifecycle] Setting description:", parsed.description);
+            setReasoning(parsed.description);
+          }
+          if (parsed.topic) {
+            console.log("[DraftLifecycle] Setting topic:", parsed.topic);
+            setTopic(parsed.topic);
+          }
+          if (parsed.topicId) {
+            console.log("[DraftLifecycle] Setting topicId:", parsed.topicId);
+            setTopicId(parsed.topicId);
+          }
           setGraphRevision((prev) => prev + 1);
           sessionStorage.removeItem(storageKey);
           return;
@@ -96,6 +114,7 @@ export default function useRationaleDraftLifecycle() {
     setReasoning,
     setStatement,
     setTopic,
+    setTopicId,
     statement,
   ]);
 
