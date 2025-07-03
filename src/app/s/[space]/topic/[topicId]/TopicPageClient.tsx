@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { ViewpointCardWrapper } from "@/components/cards/ViewpointCardWrapper";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftIcon, ChevronDownIcon, ChevronUpIcon, X, Check, ExternalLink, LayoutGrid } from "lucide-react";
+import { ArrowLeftIcon, ChevronDownIcon, ChevronUpIcon, X, Check, ExternalLink, LayoutGrid, Lock, Info } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { encodeId } from "@/lib/negation-game/encodeId";
@@ -13,6 +13,8 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useAllUsers } from "@/queries/users/useAllUsers";
 import { UsernameDisplay } from "@/components/ui/UsernameDisplay";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCanCreateRationale } from "@/hooks/topics/useCanCreateRationale";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 
 interface Topic {
@@ -65,6 +67,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
     const [isGlobalGraphLoading, setIsGlobalGraphLoading] = useState(false);
 
     const { data: allUsers } = useAllUsers();
+    const { data: permissionData, isLoading: isPermissionLoading } = useCanCreateRationale(topic?.id);
 
 
     const sortedDelegates = useMemo(() => {
@@ -217,23 +220,64 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                     </div>
 
                     {/* Create Rationale Section */}
-                    {!hasCurrentUserRationale && (
+                    {!hasCurrentUserRationale && privyUser && (
                         <div className="mb-6">
-                            <div className="border-2 border-dashed border-blue-300 dark:border-blue-600 rounded-lg p-6 text-left bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
-                                <h2 className="text-lg font-semibold mb-2 text-blue-900 dark:text-blue-100">Create Your Rationale</h2>
-                                <p className="text-blue-700 dark:text-blue-200 text-sm mb-4">
-                                    Share your perspective on {topic.name}. Build connected arguments with points and evidence.
-                                </p>
-                                <Link href={`/s/${space}/rationale/new?topicId=${encodeId(topic.id)}`}>
-                                    <Button
-                                        variant="default"
-                                        size="lg"
-                                        className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600"
-                                    >
-                                        Create Rationale for {topic.name}
-                                    </Button>
-                                </Link>
-                            </div>
+                            {isPermissionLoading ? (
+                                <div className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-6 text-center">
+                                    <Loader className="h-5 w-5 mx-auto mb-2" />
+                                    <p className="text-sm text-muted-foreground">Checking permissions...</p>
+                                </div>
+                            ) : permissionData?.canCreate ? (
+                                <div className="border-2 border-dashed border-blue-300 dark:border-blue-600 rounded-lg p-6 text-left bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
+                                    <h2 className="text-lg font-semibold mb-2 text-blue-900 dark:text-blue-100">Create Your Rationale</h2>
+                                    <p className="text-blue-700 dark:text-blue-200 text-sm mb-4">
+                                        Share your perspective on {topic.name}. Build connected arguments with points and evidence.
+                                    </p>
+                                    <Link href={`/s/${space}/rationale/new?topicId=${encodeId(topic.id)}`}>
+                                        <Button
+                                            variant="default"
+                                            size="lg"
+                                            className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600"
+                                        >
+                                            Create Rationale for {topic.name}
+                                        </Button>
+                                    </Link>
+                                </div>
+                            ) : permissionData?.isRestricted ? (
+                                <Alert className="border-2 border-dashed border-amber-300 dark:border-amber-600 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30">
+                                    <Lock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                                    <AlertDescription className="text-amber-800 dark:text-amber-200">
+                                        <div className="space-y-2">
+                                            <p className="font-semibold">Rationale Creation Restricted</p>
+                                            <p className="text-sm">
+                                                This topic has restricted rationale creation. You don&apos;t have permission to create rationales for &quot;{topic.name}&quot;.
+                                                Contact a space administrator if you believe this is an error.
+                                            </p>
+                                        </div>
+                                    </AlertDescription>
+                                </Alert>
+                            ) : (
+                                <Alert className="border-2 border-dashed border-blue-300 dark:border-blue-600 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
+                                    <Info className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                    <AlertDescription className="text-blue-800 dark:text-blue-200">
+                                        <div className="space-y-2">
+                                            <p className="font-semibold">Ready to Share Your Perspective?</p>
+                                            <p className="text-sm mb-3">
+                                                Create a rationale to share your thoughts on {topic.name}. Build connected arguments with points and evidence.
+                                            </p>
+                                            <Link href={`/s/${space}/rationale/new?topicId=${encodeId(topic.id)}`}>
+                                                <Button
+                                                    variant="default"
+                                                    size="lg"
+                                                    className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600"
+                                                >
+                                                    Create Rationale for {topic.name}
+                                                </Button>
+                                            </Link>
+                                        </div>
+                                    </AlertDescription>
+                                </Alert>
+                            )}
                         </div>
                     )}
 

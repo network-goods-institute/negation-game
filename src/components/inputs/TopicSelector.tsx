@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { validateAndFormatUrl } from "@/lib/validation/validateUrl";
 import { LinkIcon } from "lucide-react";
+import { useIsSpaceAdmin } from "@/hooks/admin/useAdminStatus";
 
 export interface TopicSelectorProps {
     currentSpace: string;
@@ -29,6 +30,7 @@ export const TopicSelector: React.FC<TopicSelectorProps> = ({
     showLabel = true,
 }) => {
     const { data: topics, refetch } = useTopics(currentSpace);
+    const { isAdmin: isSpaceAdmin } = useIsSpaceAdmin(currentSpace);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [newTopic, setNewTopic] = useState("");
     const [discourseUrl, setDiscourseUrl] = useState("");
@@ -86,7 +88,7 @@ export const TopicSelector: React.FC<TopicSelectorProps> = ({
                 <Select
                     value={value}
                     onValueChange={(v) => {
-                        if (v === "__new__") {
+                        if (v === "__new__" && isSpaceAdmin) {
                             setDialogOpen(true);
                         } else {
                             onChange(v);
@@ -97,7 +99,7 @@ export const TopicSelector: React.FC<TopicSelectorProps> = ({
                         <SelectValue placeholder="Select topic" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="__new__">+ Add new topic...</SelectItem>
+                        {isSpaceAdmin && <SelectItem value="__new__">+ Add new topic...</SelectItem>}
                         <TooltipProvider>
                             {topics
                                 ?.filter(t => t.name && t.name.trim() !== "")
@@ -163,6 +165,7 @@ export const TopicSelector: React.FC<TopicSelectorProps> = ({
                     </TooltipProvider>
                 )}
             </div>
+            {isSpaceAdmin && (
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
@@ -208,6 +211,7 @@ export const TopicSelector: React.FC<TopicSelectorProps> = ({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            )}
         </div>
     );
 };

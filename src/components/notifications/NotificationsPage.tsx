@@ -10,6 +10,7 @@ import { formatDistanceToNow } from "date-fns";
 import { useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import { Skeleton } from "@/components/ui/skeleton";
+import { UserAssignments } from "@/components/assignments/UserAssignments";
 
 export const NotificationsPage = () => {
     const { data: notifications = [], isLoading, error } = useNotifications();
@@ -151,6 +152,10 @@ export const NotificationsPage = () => {
                         Mark all read
                     </Button>
                 )}
+            </div>
+
+            <div className="mb-6">
+                <UserAssignments />
             </div>
 
             {notifications.length === 0 ? (

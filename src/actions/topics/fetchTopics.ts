@@ -11,7 +11,10 @@ export async function fetchTopics(space: string) {
     .select({
       id: topicsTable.id,
       name: topicsTable.name,
+      space: topicsTable.space,
       discourseUrl: topicsTable.discourseUrl,
+      restrictedRationaleCreation: topicsTable.restrictedRationaleCreation,
+      createdAt: topicsTable.createdAt,
       rationalesCount: sql<number>`COUNT(${viewpointsTable.id})`
         .mapWith(Number)
         .as("rationalesCount"),
@@ -35,6 +38,13 @@ export async function fetchTopics(space: string) {
     .from(topicsTable)
     .leftJoin(viewpointsTable, eq(viewpointsTable.topicId, topicsTable.id))
     .where(eq(topicsTable.space, space))
-    .groupBy(topicsTable.id, topicsTable.name, topicsTable.discourseUrl)
+    .groupBy(
+      topicsTable.id, 
+      topicsTable.name, 
+      topicsTable.space,
+      topicsTable.discourseUrl, 
+      topicsTable.restrictedRationaleCreation,
+      topicsTable.createdAt
+    )
     .orderBy(asc(topicsTable.name));
 }
