@@ -338,6 +338,14 @@ export const PointCard = ({
     markPointAsRead(pointId);
   }, [markPointAsRead, pointId]);
 
+  const handleCardClick = useCallback((e: React.MouseEvent) => {
+    if (isSharing) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleSelect();
+    }
+  }, [isSharing, handleSelect]);
+
   const handleEndorseOrSell = () => {
     if (isSellingMode) {
       sellEndorsement({ pointId, amountToSell: credInput }).then(() => {
@@ -361,6 +369,7 @@ export const PointCard = ({
         isPriority && !isPinned && "border-l-4 border-amber-400",
         inGraphNode && "pt-2.5",
         isSharing && !isSelected && "opacity-50 transition-opacity duration-200",
+        isSharing && "cursor-pointer",
         className
       )}
       onMouseEnter={() => {
@@ -375,6 +384,7 @@ export const PointCard = ({
           handleHoverEnd();
         }
       }}
+      onClick={handleCardClick}
       {...props}
     >
       {isLoading && (
