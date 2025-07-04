@@ -5,6 +5,7 @@ import {
   varchar,
   timestamp,
   index,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { spacesTable } from "@/db/tables/spacesTable";
 
@@ -20,6 +21,9 @@ export const topicsTable = pgTable(
     discourseUrl: varchar("discourse_url", { length: 255 })
       .notNull()
       .default(""),
+    restrictedRationaleCreation: boolean("restricted_rationale_creation")
+      .notNull()
+      .default(false),
   },
   (table) => ({
     spaceIdx: index("topics_space_idx").on(table.space),

@@ -8,6 +8,7 @@ import {
   objectionsTable,
   pointsTable,
 } from "@/db/schema";
+import { canUserCreateRationaleForTopic } from "@/actions/topics/manageTopicPermissions";
 import { or, and, eq, sql } from "drizzle-orm";
 import { makePoint } from "@/actions/points/makePoint";
 import { endorse } from "@/actions/endorsements/endorse";
@@ -21,6 +22,7 @@ import { AppEdge } from "@/components/graph/edges/AppEdge";
 import { fetchUserEndorsements } from "@/actions/endorsements/fetchUserEndorsements";
 import { sellEndorsement } from "@/actions/endorsements/sellEndorsement";
 import { fetchPointsByExactContent } from "@/actions/points/fetchPointsByExactContent";
+import { fetchUserAssignments, markAssignmentCompleted } from "@/actions/topics/manageRationaleAssignments";
 
 interface CreateRationaleParams {
   userId: string;
@@ -244,6 +246,17 @@ export async function createRationaleFromPreview({
   if (!userId) return { success: false, error: "User not authenticated" };
   if (!spaceId) return { success: false, error: "Space ID is required" };
   if (!title?.trim()) return { success: false, error: "Title is required" };
+
+  // Check topic permissions if topicId is provided
+  if (topicId) {
+    const canCreate = await canUserCreateRationaleForTopic(userId, topicId);
+    if (!canCreate) {
+      return {
+        success: false,
+        error: "You do not have permission to create rationales for this topic",
+      };
+    }
+  }
 
   // Validate graph structure upfront
   const structureErrors = validateGraphStructure(previewNodes, previewEdges);
@@ -715,6 +728,26 @@ export async function createRationaleFromPreview({
       throw new Error(
         `Failed to create rationale: ${error instanceof Error ? error.message : String(error)}`
       );
+    }
+
+    // Check for and complete any assignments for this topic
+    if (topicId) {
+      try {
+        const userAssignments = await fetchUserAssignments(userId);
+        const matchingAssignment = userAssignments.find(
+          assignment => assignment.topicId === topicId && 
+          assignment.spaceId === spaceId && 
+          !assignment.completed
+        );
+        
+        if (matchingAssignment) {
+          await markAssignmentCompleted(matchingAssignment.id);
+          console.log(`[createRationaleFromPreview] Completed assignment ${matchingAssignment.id} for topic ${topicId}`);
+        }
+      } catch (error) {
+        console.warn("[createRationaleFromPreview] Failed to check/complete assignment:", error);
+        // Don't fail the rationale creation if assignment completion fails
+      }
     }
 
     // Log any partial failures but still return success

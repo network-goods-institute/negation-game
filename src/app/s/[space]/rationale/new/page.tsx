@@ -43,6 +43,9 @@ import { useTopics } from "@/queries/topics/useTopics";
 import useIsMobile from "@/hooks/ui/useIsMobile";
 import { feedEnabledAtom } from "@/atoms/feedEnabledAtom";
 import PointsFeedContainer from "@/components/rationale/PointsFeedContainer";
+import { useCanCreateRationale } from "@/hooks/topics/useCanCreateRationale";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Lock } from "lucide-react";
 
 function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" | "rationales" | null) => void }) {
   const { updateNodeData } = useReactFlow();
@@ -64,8 +67,8 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
 
   const spaceQuery = useSpace();
   const space = spaceQuery;
-  const spaceId = space.data!.id;
-  const { data: topicsData } = useTopics(spaceId);
+  const spaceId = space.data?.id;
+  const { data: topicsData } = useTopics(spaceId || "");
 
   const [canvasEnabled, setCanvasEnabled] = useAtom(canvasEnabledAtom);
   const [feedEnabled, setFeedEnabled] = useAtom(feedEnabledAtom);
@@ -181,7 +184,16 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
   const autoPublish = searchParams.get('autoPublish') === 'true';
   const preselectedTopicId = searchParams.get('topicId');
   const [autoPublishInvoked, setAutoPublishInvoked] = useState(false);
-  
+
+  const decodedTopicId = useMemo(() => {
+    if (preselectedTopicId) {
+      return decodeId(preselectedTopicId);
+    }
+    return null;
+  }, [preselectedTopicId]);
+
+  const { data: permissionData, isLoading: isPermissionLoading } = useCanCreateRationale(decodedTopicId);
+
   // Handle topic preselection from URL parameters
   useEffect(() => {
     if (preselectedTopicId && topicsData && !topic) {
@@ -195,7 +207,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       }
     }
   }, [preselectedTopicId, topicsData, topic, setTopic, setTopicId]);
-  
+
   useEffect(() => {
     if (
       isCopiedFromSessionStorage &&
@@ -281,6 +293,78 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
     const targetPath = basePath && basePath.startsWith('/s/') ? basePath : '/';
     push(targetPath);
   }, [push, basePath]);
+
+  if (!spaceId) {
+    return (
+      <main className="relative flex-grow bg-background h-full overflow-hidden flex items-center justify-center">
+        <Loader className="size-6" />
+      </main>
+    );
+  }
+
+  if (decodedTopicId && permissionData && !permissionData.canCreate && permissionData.isRestricted) {
+    const matchingTopic = topicsData?.find(t => t.id === decodedTopicId);
+    return (
+      <main className="relative flex-grow bg-background h-full overflow-hidden">
+        <div className="flex flex-col h-full">
+          <NewRationaleHeader
+            spaceData={headerSpaceData}
+            spaceId={spaceId}
+            openConfirmDialog={openConfirmDialog}
+            isConfirmDialogOpen={isConfirmDialogOpen}
+            setIsConfirmDialogOpen={setIsConfirmDialogOpen}
+            isPending={isPending}
+            publish={handlePublish}
+            isPublishing={isPublishing}
+            canPublish={false}
+            isInitialLoadDialogOpen={isInitialLoadDialogOpen}
+            isCopiedFromSessionStorage={isCopiedFromSessionStorage}
+            setIsInitialLoadDialogOpen={setIsInitialLoadDialogOpen}
+            handleDiscardWithoutNavigation={handleDiscardWithoutNavigation}
+            isDiscardingWithoutNav={isDiscardingWithoutNav}
+            clearGraphAndState={clearGraphAndState}
+            handleBackClick={handleBackClick}
+            canvasEnabled={canvasEnabled}
+            toggleCanvas={() => setCanvasEnabled(!canvasEnabled)}
+          />
+          <Separator />
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="max-w-md w-full">
+              <Alert className="border-2 border-amber-300 dark:border-amber-600 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30">
+                <Lock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                <AlertDescription className="text-amber-800 dark:text-amber-200">
+                  <div className="space-y-3">
+                    <h3 className="font-semibold text-lg">Access Restricted</h3>
+                    <p>
+                      You don&apos;t have permission to create rationales for the topic &quot;{matchingTopic?.name || 'Unknown Topic'}&quot;.
+                      This topic has restricted rationale creation.
+                    </p>
+                    <p className="text-sm">
+                      Contact a space administrator if you believe this is an error, or create a rationale without a specific topic.
+                    </p>
+                    <div className="pt-2">
+                      <button
+                        onClick={() => {
+                          // Remove topicId from URL and reload
+                          const newUrl = new URL(window.location.href);
+                          // eslint-disable-next-line drizzle/enforce-delete-with-where
+                          newUrl.searchParams.delete('topicId');
+                          window.location.href = newUrl.toString();
+                        }}
+                        className="inline-flex items-center gap-2 px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md text-sm font-medium transition-colors"
+                      >
+                        Create General Rationale
+                      </button>
+                    </div>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className={cn(

@@ -35,6 +35,7 @@ export const usersTable = pgTable(
     receiveReadReceipts: boolean("receive_read_receipts")
       .notNull()
       .default(true),
+    siteAdmin: boolean("site_admin").notNull().default(false),
     isActive: boolean("is_active").notNull().default(true),
     deletedAt: timestamp("deleted_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),

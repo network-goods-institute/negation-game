@@ -43,6 +43,10 @@ export { pointFavorHistoryView } from "@/db/views/pointFavorHistoryView";
 export { pointsWithDetailsView } from "@/db/views/pointsWithDetailsView";
 export { chatsTable, chatsRelations } from "@/db/tables/chatsTable";
 export { topicsTable } from "@/db/tables/topicsTable";
+export { spaceAdminsTable } from "@/db/tables/spaceAdminsTable";
+export { topicAssignmentsTable } from "@/db/tables/topicAssignmentsTable";
+export { topicPermissionsTable } from "@/db/tables/topicPermissionsTable";
+export { rationaleAssignmentsTable } from "@/db/tables/rationaleAssignmentsTable";
 export {
   messagesTable,
   messagesRelations,

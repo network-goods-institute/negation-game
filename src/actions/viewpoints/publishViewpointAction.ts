@@ -6,6 +6,7 @@ import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { AppNode } from "@/components/graph/nodes/AppNode";
 import { InsertViewpoint, viewpointsTable } from "@/db/tables/viewpointsTable";
 import { queueRationaleMentionNotification } from "@/lib/notifications/notificationQueue";
+import { canUserCreateRationaleForTopic } from "@/actions/topics/manageTopicPermissions";
 import { db } from "@/services/db";
 import { nanoid } from "nanoid";
 import { pick } from "remeda";
@@ -32,6 +33,15 @@ export const publishViewpoint = async ({
 
   if (!userId) {
     throw new Error("Must be authenticated to publish a rationale");
+  }
+
+  if (topicId) {
+    const canCreate = await canUserCreateRationaleForTopic(userId, topicId);
+    if (!canCreate) {
+      throw new Error(
+        "You do not have permission to create rationales for this topic"
+      );
+    }
   }
 
   const id = nanoid();
