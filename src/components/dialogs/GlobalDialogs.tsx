@@ -13,7 +13,7 @@ export function GlobalDialogs() {
     const { isOpen: isKbOpen, closeDialog: closeKb, showBack: kbShowBack, initialTopic } = useKnowledgeBase();
     const { isOpen: isWriteupOpen, closeDialog: closeWriteup, showBack: writeupShowBack } = useWriteup();
     const { isOpen: isDelegatePromptOpen, setIsOpen: setIsDelegatePromptOpen } = useDelegateLinksPrompt();
-    
+
     return (
         <>
             <MakePointDialog />

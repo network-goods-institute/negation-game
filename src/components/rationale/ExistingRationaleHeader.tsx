@@ -110,7 +110,7 @@ export default function ExistingRationaleHeader({
                 </div>
             </RationaleHeaderBar>
 
-            <div className="hidden md:block sticky top-10 z-50 w-full bg-background/70 backdrop-blur border-b">
+            <div className="hidden md:block sticky top-10 z-40 w-full bg-background/70 backdrop-blur border-b">
                 <div className="flex items-center justify-between gap-3 px-4 py-3">
                     <div className="flex items-center gap-2">
                         <Tooltip>

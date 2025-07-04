@@ -306,12 +306,12 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
     return (
         <Portal>
             {/* Backdrop with blur */}
-            <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm" />
+            <div className="fixed inset-0 z-[49] bg-black/50 backdrop-blur-sm pointer-events-none" />
 
             <div
                 ref={modalRef}
                 className={cn(
-                    "fixed z-[60] bg-background rounded-lg border-2 shadow-lg overflow-hidden flex flex-col",
+                    "fixed z-[49] bg-background rounded-lg border-2 shadow-lg overflow-hidden flex flex-col pointer-events-auto",
                 )}
                 style={{
                     left: `${position.x}px`,
@@ -354,7 +354,7 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
                     </div>
                 )}
 
-                <div className="flex-1 overflow-auto">
+                <div className="flex-1 overflow-auto relative">
                     {isPointsLoading ? (
                         <div className="p-4 space-y-2">
                             {Array.from({ length: 3 }).map((_, i) => (
@@ -362,11 +362,13 @@ export const ShareRationaleDialog: FC<ShareRationaleDialogProps> = memo(({
                             ))}
                         </div>
                     ) : initialPoints.length > 0 ? (
-                        <PointsList
-                            points={initialPoints}
-                            rationaleId={rationaleId}
-                            spaceId={spaceId}
-                        />
+                        <div className="relative">
+                            <PointsList
+                                points={initialPoints}
+                                rationaleId={rationaleId}
+                                spaceId={spaceId}
+                            />
+                        </div>
                     ) : null}
                 </div>
             </div>
