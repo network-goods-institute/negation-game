@@ -8,6 +8,7 @@ import {
   collapsedPointIdsAtom,
   clearViewpointState,
   viewpointTopicAtom,
+  viewpointTopicIdAtom,
 } from "@/atoms/viewpointAtoms";
 import { useEffect, useState, useCallback, useTransition, useMemo } from "react";
 import { canvasEnabledAtom } from "@/atoms/canvasEnabledAtom";
@@ -92,6 +93,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
   const [statement, setStatement] = useAtom(viewpointStatementAtom);
   const [reasoning, setReasoning] = useAtom(viewpointReasoningAtom);
   const [topic, setTopic] = useAtom(viewpointTopicAtom);
+  const [topicId, setTopicId] = useAtom(viewpointTopicIdAtom);
   const setCollapsedPointIds = useSetAtom(collapsedPointIdsAtom);
 
   const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -200,10 +202,11 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
         const matchingTopic = topicsData.find(t => t.id === decodedTopicId);
         if (matchingTopic) {
           setTopic(matchingTopic.name);
+          setTopicId(matchingTopic.id);
         }
       }
     }
-  }, [preselectedTopicId, topicsData, topic, setTopic]);
+  }, [preselectedTopicId, topicsData, topic, setTopic, setTopicId]);
 
   useEffect(() => {
     if (
@@ -223,6 +226,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       setReasoning("");
       setStatement("");
       setTopic("");
+      setTopicId(undefined);
       setGraph(initialViewpointGraph);
       setCollapsedPointIds(new Set());
       setIsReactFlowReady(false);
@@ -247,7 +251,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       const targetPath = basePath && basePath.startsWith('/s/') ? basePath : '/';
       push(targetPath);
     });
-  }, [setReasoning, setStatement, setTopic, setGraph, reactFlow, setCollapsedPointIds, setIsReactFlowReady, push, currentSpace, basePath]);
+  }, [setReasoning, setStatement, setTopic, setTopicId, setGraph, reactFlow, setCollapsedPointIds, setIsReactFlowReady, push, currentSpace, basePath]);
 
   const openConfirmDialog = useCallback(() => {
     setIsConfirmDialogOpen(true);
@@ -258,6 +262,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
     setReasoning("");
     setStatement("");
     setTopic("");
+    setTopicId(undefined);
     setGraph(initialViewpointGraph);
     setCollapsedPointIds(new Set());
     if (reactFlow) {
@@ -276,6 +281,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
     setReasoning,
     setStatement,
     setTopic,
+    setTopicId,
     setGraph,
     setCollapsedPointIds,
     setIsInitialLoadDialogOpen,
@@ -399,7 +405,11 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
               description={reasoning}
               onDescriptionChange={setReasoning}
               topic={topic}
-              onTopicChange={setTopic}
+              onTopicChange={(newTopic) => {
+                setTopic(newTopic);
+                const matchingTopic = topicsData?.find(t => t.name === newTopic);
+                setTopicId(matchingTopic?.id);
+              }}
               topics={topicsData || []}
               currentSpace={spaceId}
               points={points}

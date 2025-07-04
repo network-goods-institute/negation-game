@@ -188,13 +188,17 @@ export const prepareGraphForCopy = (
  * @param title The title of the viewpoint
  * @param description The description of the viewpoint
  * @param sourceId Optional source ID for tracking copies
+ * @param topic Optional topic name
+ * @param topicId Optional topic ID
  * @returns true if successful
  */
 export const copyViewpointToStorage = (
   graphToCopy: ViewpointGraph,
   title: string = "",
   description: string = "",
-  sourceId?: string
+  sourceId?: string,
+  topic?: string,
+  topicId?: number
 ): boolean => {
   try {
     const preparedGraph = prepareGraphForCopy(graphToCopy, title);
@@ -216,6 +220,8 @@ export const copyViewpointToStorage = (
       copiedFromId: sourceId,
       isCopyOperation: true,
       timestamp: Date.now(),
+      ...(topic && { topic }),
+      ...(topicId && { topicId }),
     };
 
     sessionStorage.setItem(storageKey, JSON.stringify(viewpointDataToStore));
@@ -233,10 +239,13 @@ export const copyViewpointAndNavigate = async (
   title: string = "",
   description: string = "",
   sourceId?: string,
-  autoPublish: boolean = false
+  autoPublish: boolean = false,
+  topic?: string,
+  topicId?: number
 ): Promise<boolean> => {
   // Before storing, log the graph for debugging
   console.log("Copying graph with nodes:", graphToCopy.nodes.length);
+  console.log("[copyViewpointAndNavigate] Topic info received:", { topic, topicId });
 
   try {
     let summaryDescription = `Copy of the rationale "${title.trim()}". This is a copy of an existing rationale.`;
@@ -260,7 +269,9 @@ export const copyViewpointAndNavigate = async (
       graphToCopy,
       title,
       summaryDescription,
-      sourceId
+      sourceId,
+      topic,
+      topicId
     );
 
     if (!success) {

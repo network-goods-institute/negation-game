@@ -16,10 +16,10 @@ export interface UseSaveViewpointParams {
   createdBy: string;
   isOwner: boolean;
   basePath: string;
-  title: string;
-  description: string;
-  topic: string;
-  topicId?: number;
+  getCurrentTitle: () => string;
+  getCurrentDescription: () => string;
+  getCurrentTopic: () => string;
+  getCurrentTopicId: () => number | undefined;
   originalGraph: ViewpointGraph;
 }
 
@@ -28,10 +28,10 @@ export default function useSaveViewpoint({
   createdBy,
   isOwner,
   basePath,
-  title,
-  description,
-  topic,
-  topicId,
+  getCurrentTitle,
+  getCurrentDescription,
+  getCurrentTopic,
+  getCurrentTopicId,
   originalGraph,
 }: UseSaveViewpointParams) {
   const router = useRouter();
@@ -53,21 +53,37 @@ export default function useSaveViewpoint({
         // Fork logic for non-owner
         if (!isOwner && reactFlow) {
           const currentGraph = filteredGraph;
+          const title = getCurrentTitle();
+          const description = getCurrentDescription();
+          const topic = getCurrentTopic();
+          const topicId = getCurrentTopicId();
+          
+          const copyData = {
+            isCopyOperation: true,
+            copiedFromId: viewpointId,
+            title,
+            description,
+            topic,
+            topicId,
+            graph: currentGraph,
+          };
+          
+          console.log("[useSaveViewpoint] Storing copy data:", copyData);
+          console.log("[useSaveViewpoint] Topic info:", { topic, topicId });
+          
           sessionStorage.setItem(
             `copyingViewpoint:${basePath}`,
-            JSON.stringify({
-              isCopyOperation: true,
-              copiedFromId: viewpointId,
-              title,
-              description,
-              topic,
-              graph: currentGraph,
-            })
+            JSON.stringify(copyData)
           );
           router.push(`${basePath}/rationale/new`);
           return true;
         }
         // Update details
+        const title = getCurrentTitle();
+        const description = getCurrentDescription();
+        const topic = getCurrentTopic();
+        const topicId = getCurrentTopicId();
+        
         await updateDetails.mutateAsync({
           id: viewpointId,
           title,
@@ -101,10 +117,10 @@ export default function useSaveViewpoint({
       viewpointId,
       isOwner,
       basePath,
-      title,
-      description,
-      topic,
-      topicId,
+      getCurrentTitle,
+      getCurrentDescription,
+      getCurrentTopic,
+      getCurrentTopicId,
       originalGraph,
       reactFlow,
       router,
