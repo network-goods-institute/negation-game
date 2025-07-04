@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useReactFlow, Edge } from "@xyflow/react";
 import { nanoid } from "nanoid";
 import { usePointData } from "@/queries/points/usePointData";
+import { usePointNegations } from "@/queries/points/usePointNegations";
 import { useAtom } from "jotai";
 import {
   collapsedPointIdsAtom,
@@ -25,6 +26,7 @@ export function useExpandCollapse(
   );
   const [undoStack, setUndoStack] = useAtom(undoCollapseStackAtom);
   const { data: pointData } = usePointData(pointId);
+  const { data: pointNegations } = usePointNegations(pointId);
 
   const expand = useCallback(() => {
     if (!pointData) return;
@@ -83,6 +85,9 @@ export function useExpandCollapse(
     // Add nodes and edges
     toExpand.forEach((negId, idx) => {
       const unique = `${nanoid()}-${Date.now()}-${negId}`;
+
+      const negationData = pointNegations?.find((n) => n.pointId === negId);
+
       addNodes({
         id: unique,
         type: "point",
@@ -91,6 +96,8 @@ export function useExpandCollapse(
           parentId: pointId,
           _lastModified: Date.now(),
           isExpanding: true,
+          isObjection: negationData?.isObjection || false,
+          objectionTargetId: negationData?.isObjection ? pointId : undefined,
         },
         position: layouts[idx],
       });
@@ -99,6 +106,10 @@ export function useExpandCollapse(
         target: id,
         source: unique,
         type: parentId === "statement" ? "statement" : "negation",
+        targetHandle: negationData?.isObjection
+          ? `${id}-objection-handle`
+          : `${id}-incoming-handle`,
+        sourceHandle: `${unique}-source-handle`,
       });
     });
     // Clean up collapsed state
@@ -130,6 +141,7 @@ export function useExpandCollapse(
     setCollapsedPointIds,
     setCollapsedNodePositions,
     setUndoStack,
+    pointNegations,
   ]);
 
   const collapse = useCallback(async () => {

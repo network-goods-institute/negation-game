@@ -78,6 +78,7 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
 
     const [selectedTab, setSelectedTab] = useState<Tab | null>(null);
     const [isAiAssistantLoading, setIsAiAssistantLoading] = useState(false);
+    const [isDeltaCompareLoading, setIsDeltaCompareLoading] = useState(false);
     const [isNewRationaleLoading, setIsNewRationaleLoading] = useState(false);
     const [isSelectNegationOpen, setIsSelectNegationOpen] = useAtom(selectPointForNegationOpenAtom);
 
@@ -259,6 +260,11 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
         router.push(`${basePath}/chat`);
     };
 
+    const handleDeltaCompareClick = () => {
+        setIsDeltaCompareLoading(true);
+        router.push(`${basePath}/delta`);
+    };
+
 
     const handlePointSelect = useCallback((pointId: number) => {
         setSelectedPointIds(prev => [...prev, pointId]);
@@ -314,6 +320,9 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                     isAiLoading={isAiAssistantLoading}
                     onAiClick={handleAiAssistantClick}
                     chatHref={`${basePath}/chat`}
+                    isDeltaLoading={isDeltaCompareLoading}
+                    onDeltaClick={handleDeltaCompareClick}
+                    deltaHref={`${basePath}/delta`}
                     onNewViewpoint={handleNewViewpoint}
                     isNewRationaleLoading={isNewRationaleLoading}
                     filtersOpen={filtersOpen}

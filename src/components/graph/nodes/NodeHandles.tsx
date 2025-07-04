@@ -81,6 +81,15 @@ export function NodeHandles({ id, collapsedCount, onExpand, onCollapse, parentId
                 isConnectableStart={true}
                 isConnectableEnd={true}
             />
+            <Handle
+                id={`${id}-objection-handle`}
+                type="target"
+                position={Position.Top}
+                className="opacity-0 pointer-events-none"
+                isConnectable={true}
+                isConnectableStart={false}
+                isConnectableEnd={true}
+            />
         </>
     );
 } 

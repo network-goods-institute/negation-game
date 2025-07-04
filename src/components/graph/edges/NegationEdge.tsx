@@ -52,7 +52,11 @@ export const NegationEdge = (props: NegationEdgeProps) => {
   return (
     <BezierEdge
       {...props}
-      style={{ strokeWidth: 2 }}
+      style={{
+        strokeWidth: 2,
+        strokeDasharray: isObjectionEdge ? "8,4" : undefined,
+        stroke: isObjectionEdge ? "hsl(25 95% 53%)" : "#6b7280",
+      }}
       label={showLabel ? labelContent : undefined}
       labelShowBg={false}
       labelStyle={{
@@ -63,6 +67,10 @@ export const NegationEdge = (props: NegationEdgeProps) => {
         strokeWidth: 2,
         fontSize: isObjectionEdge ? 36 : 36,
         fontWeight: 600,
+        fill: isObjectionEdge ? "hsl(25 95% 53%)" : "#374151",
+      }}
+      pathOptions={{
+        curvature: isObjectionEdge ? 0.3 : 0.15,
       }}
     />
   );

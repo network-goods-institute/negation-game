@@ -5,6 +5,7 @@ import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { cn } from "@/lib/utils/cn";
 import { useCallback, useEffect, useMemo, useState, useRef, memo } from "react";
 import { usePointNodeData } from "@/hooks/graph/usePointNodeData";
+import { usePointNegations } from "@/queries/points/usePointNegations";
 import { useParams, usePathname } from "next/navigation";
 import { expandDialogAtom } from "../../dialogs/expandpointdialog";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
@@ -70,7 +71,8 @@ const RawPointNode = ({
     addEdges,
     getNode,
     getEdges,
-    setNodes
+    setNodes,
+    setEdges
   } = useReactFlow();
 
   const params = useParams();
@@ -80,6 +82,7 @@ const RawPointNode = ({
   const { originalPosterId } = useOriginalPoster();
 
   const { pointData: fetchedPointData, isLoading: hookLoading, endorsedByOp } = usePointNodeData(pointId, parentId);
+  const { data: pointNegations } = usePointNegations(pointId);
   const pointData = hookLoading
     ? initialPointData
     : (fetchedPointData ?? initialPointData);
@@ -164,7 +167,7 @@ const RawPointNode = ({
     hasInitializedCollapsedState.current = true;
   }, [isViewpointContext, pointData, originalViewpoint, setCollapsedPointIds, pointId, expandedNegationIds]);
 
-  // When fresh data loads, re-measure the node size/layout
+  // When fresh data loads, re-measure the node size/layout and update edges for objections
   useEffect(() => {
     if (fetchedPointData) {
 
@@ -187,8 +190,23 @@ const RawPointNode = ({
           return node;
         })
       );
+
+      if (fetchedPointData.isObjection) {
+        setEdges((edges) =>
+          edges.map((edge) => {
+            if (edge.source === id) {
+              return {
+                ...edge,
+                targetHandle: `${edge.target}-objection-handle`,
+                sourceHandle: `${edge.source}-source-handle`,
+              };
+            }
+            return edge;
+          })
+        );
+      }
     }
-  }, [fetchedPointData, updateNodeInternals, id, setNodes]);
+  }, [fetchedPointData, updateNodeInternals, id, setNodes, setEdges]);
 
   const handleSelectPoint = useCallback((point: { pointId: number, parentId?: string | number }) => {
     const uniqueId = `${nanoid()}-${Date.now()}`;
@@ -200,13 +218,17 @@ const RawPointNode = ({
       1
     );
 
+    const negationData = pointNegations?.find(n => n.pointId === point.pointId);
+
     addNodes({
       id: uniqueId,
       data: {
         pointId: point.pointId,
         parentId: pointId,
         _lastModified: Date.now(),
-        isExpanding: true
+        isExpanding: true,
+        isObjection: negationData?.isObjection || false,
+        objectionTargetId: negationData?.isObjection ? pointId : undefined,
       },
       type: "point",
       position: layouts[0],
@@ -217,6 +239,8 @@ const RawPointNode = ({
       target: id,
       source: uniqueId,
       type: parentId === 'statement' ? 'statement' : 'negation',
+      targetHandle: negationData?.isObjection ? `${id}-objection-handle` : `${id}-incoming-handle`,
+      sourceHandle: `${uniqueId}-source-handle`,
     });
 
     setCollapsedPointIds(prev => {
@@ -229,7 +253,7 @@ const RawPointNode = ({
     setCollapsedNodePositions(prev =>
       prev.filter(pos => !(pos.pointId === point.pointId && pos.parentId === pointId))
     );
-  }, [id, pointId, parentId, addNodes, addEdges, setCollapsedPointIds, setCollapsedNodePositions, getNode]);
+  }, [id, pointId, parentId, addNodes, addEdges, setCollapsedPointIds, setCollapsedNodePositions, getNode, pointNegations]);
 
   const { hasDuplicates } = useMergeDetection(pointId);
 
@@ -374,6 +398,8 @@ const RawPointNode = ({
       y: targetNode.position.y + (targetNode?.measured?.height ?? 200) + 200, // Place below
     };
 
+    const negationData = pointNegations?.find(n => n.pointId === negationIdToExpand);
+
     // Add the node to the graph
     addNodes({
       id: uniqueId,
@@ -381,7 +407,9 @@ const RawPointNode = ({
         pointId: negationIdToExpand,
         parentId: pointId,
         _lastModified: Date.now(),
-        isExpanding: true
+        isExpanding: true,
+        isObjection: negationData?.isObjection || false,
+        objectionTargetId: negationData?.isObjection ? pointId : undefined,
       },
       type: "point",
       position,
@@ -393,6 +421,8 @@ const RawPointNode = ({
       target: id,
       source: uniqueId,
       type: parentId === 'statement' ? 'statement' : 'negation',
+      targetHandle: negationData?.isObjection ? `${id}-objection-handle` : `${id}-incoming-handle`,
+      sourceHandle: `${uniqueId}-source-handle`,
     });
 
     // Remove the negation from collapsed state
@@ -429,7 +459,8 @@ const RawPointNode = ({
     pointId,
     parentId,
     setRecentlyCreatedNegation,
-    setUndoStack
+    setUndoStack,
+    pointNegations
   ]);
 
   useEffect(() => {
@@ -508,6 +539,7 @@ const RawPointNode = ({
         viewerContext={{ viewerCred: pointData?.viewerCred, viewerNegationsCred: pointData?.viewerNegationsCred ?? 0 }}
         space={pointData?.space ?? undefined}
         isCommand={pointData?.isCommand}
+        linkDisabled={true}
         className={cn(
           "border-0 shadow-none",
           level % 2 === 0 && "rounded-lg",

@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Loader } from "@/components/ui/loader";
 import { BrainCircuitIcon, Sigma } from "lucide-react";
 import type { useSpace } from "@/queries/space/useSpace";
 import Link from "next/link";
@@ -14,9 +14,12 @@ interface SpaceHeaderProps {
     isLoading: boolean;
     onAiClick: () => void;
     chatHref: string;
+    isDeltaLoading: boolean;
+    onDeltaClick: () => void;
+    deltaHref: string;
 }
 
-export function SpaceHeader({ space, isLoading, onAiClick, chatHref }: SpaceHeaderProps) {
+export function SpaceHeader({ space, isLoading, onAiClick, chatHref, isDeltaLoading, onDeltaClick, deltaHref }: SpaceHeaderProps) {
     if (!space?.data) {
         return null;
     }
@@ -44,8 +47,8 @@ export function SpaceHeader({ space, isLoading, onAiClick, chatHref }: SpaceHead
                 >
                     {isLoading ? (
                         <>
-                            <Skeleton className="h-4 w-4 rounded" />
-                            <Skeleton className="h-4 w-16" />
+                            <Loader className="size-4" />
+                            <span className="text-sm font-medium">AI Assistant</span>
                         </>
                     ) : (
                         <>
@@ -55,12 +58,22 @@ export function SpaceHeader({ space, isLoading, onAiClick, chatHref }: SpaceHead
                     )}
                 </Link>
                 <Link
-                    href={`/s/${space.data.id}/delta`}
+                    href={deltaHref}
                     prefetch={false}
+                    onClick={onDeltaClick}
                     className="flex items-center gap-2 px-6 py-2.5 rounded-md bg-muted/50 hover:bg-muted border border-border text-foreground hover:text-orange-600 transition-colors min-w-[140px]"
                 >
-                    <Sigma className="size-4" />
-                    <span className="text-sm font-medium">Delta Compare</span>
+                    {isDeltaLoading ? (
+                        <>
+                            <Loader className="size-4" />
+                            <span className="text-sm font-medium">Delta Compare</span>
+                        </>
+                    ) : (
+                        <>
+                            <Sigma className="size-4" />
+                            <span className="text-sm font-medium">Delta Compare</span>
+                        </>
+                    )}
                 </Link>
             </div>
         </div>

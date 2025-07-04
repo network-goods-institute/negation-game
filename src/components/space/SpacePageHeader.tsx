@@ -7,7 +7,7 @@ import { SpaceTabs, Tab } from "@/components/space/SpaceTabs";
 import { NewRationaleButton } from "@/components/rationale/NewRationaleButton";
 import Link from "next/link";
 import { BrainCircuitIcon, Sigma } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Loader } from "@/components/ui/loader";
 
 interface SpacePageHeaderProps {
     space: ReturnType<typeof import("@/queries/space/useSpace").useSpace>;
@@ -18,6 +18,9 @@ interface SpacePageHeaderProps {
     isAiLoading: boolean;
     onAiClick: () => void;
     chatHref: string;
+    isDeltaLoading: boolean;
+    onDeltaClick: () => void;
+    deltaHref: string;
     onNewViewpoint: () => void;
     isNewRationaleLoading?: boolean;
     filtersOpen: boolean;
@@ -35,6 +38,9 @@ export function SpacePageHeader({
     isAiLoading,
     onAiClick,
     chatHref,
+    isDeltaLoading,
+    onDeltaClick,
+    deltaHref,
     onNewViewpoint,
     isNewRationaleLoading = false,
     filtersOpen,
@@ -71,8 +77,8 @@ export function SpacePageHeader({
                             >
                                 {isAiLoading ? (
                                     <>
-                                        <Skeleton className="h-4 w-4 rounded" />
-                                        <Skeleton className="h-4 w-16" />
+                                        <Loader className="size-4" />
+                                        <span className="text-sm font-medium">AI Assistant</span>
                                     </>
                                 ) : (
                                     <>
@@ -82,11 +88,21 @@ export function SpacePageHeader({
                                 )}
                             </Link>
                             <Link
-                                href={`/s/${space.data?.id}/delta`}
+                                href={deltaHref}
+                                onClick={onDeltaClick}
                                 className="flex items-center gap-2 px-4 py-2 rounded-md bg-muted/50 hover:bg-muted border border-border text-foreground hover:text-orange-600 transition-colors"
                             >
-                                <Sigma className="size-4" />
-                                <span className="text-sm font-medium">Delta Compare</span>
+                                {isDeltaLoading ? (
+                                    <>
+                                        <Loader className="size-4" />
+                                        <span className="text-sm font-medium">Delta Compare</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Sigma className="size-4" />
+                                        <span className="text-sm font-medium">Delta Compare</span>
+                                    </>
+                                )}
                             </Link>
                         </div>
                     </div>
@@ -97,6 +113,9 @@ export function SpacePageHeader({
                     isLoading={isAiLoading}
                     onAiClick={onAiClick}
                     chatHref={chatHref}
+                    isDeltaLoading={isDeltaLoading}
+                    onDeltaClick={onDeltaClick}
+                    deltaHref={deltaHref}
                 />
             )}
             <SpaceTabs
