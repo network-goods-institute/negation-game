@@ -52,6 +52,10 @@ describe("fetchDelegateStats", () => {
         total_cred_received: 750,
         last_active: "2024-01-15T10:00:00Z",
         joined_date: "2024-01-01T00:00:00Z",
+        agora_link: null,
+        scroll_delegate_link: null,
+        delegation_url: null,
+        is_delegate: false,
       },
       {
         user_id: "delegate-2",
@@ -65,6 +69,10 @@ describe("fetchDelegateStats", () => {
         total_cred_received: 400,
         last_active: null,
         joined_date: "2024-01-02T00:00:00Z",
+        agora_link: null,
+        scroll_delegate_link: null,
+        delegation_url: null,
+        is_delegate: false,
       },
     ];
 
@@ -85,6 +93,10 @@ describe("fetchDelegateStats", () => {
         totalCredReceived: 750,
         lastActive: "2024-01-15T10:00:00.000Z",
         joinedDate: "2024-01-01T00:00:00.000Z",
+        agoraLink: null,
+        scrollDelegateLink: null,
+        delegationUrl: null,
+        isDelegate: false,
       },
       {
         userId: "delegate-2",
@@ -98,6 +110,10 @@ describe("fetchDelegateStats", () => {
         totalCredReceived: 400,
         lastActive: null,
         joinedDate: "2024-01-02T00:00:00.000Z",
+        agoraLink: null,
+        scrollDelegateLink: null,
+        delegationUrl: null,
+        isDelegate: false,
       },
     ]);
   });
@@ -120,6 +136,10 @@ describe("fetchDelegateStats", () => {
         total_cred_received: null,
         last_active: null,
         joined_date: "2024-01-01T00:00:00Z",
+        agora_link: null,
+        scroll_delegate_link: null,
+        delegation_url: null,
+        is_delegate: false,
       },
     ];
 
@@ -139,6 +159,10 @@ describe("fetchDelegateStats", () => {
       totalCredReceived: 0,
       lastActive: null,
       joinedDate: "2024-01-01T00:00:00.000Z",
+      agoraLink: null,
+      scrollDelegateLink: null,
+      delegationUrl: null,
+      isDelegate: false,
     });
   });
 

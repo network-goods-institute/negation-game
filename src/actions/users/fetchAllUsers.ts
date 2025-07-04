@@ -11,6 +11,8 @@ export const fetchAllUsers = async () => {
       username: usersTable.username,
       cred: usersTable.cred,
       delegationUrl: usersTable.delegationUrl,
+      agoraLink: usersTable.agoraLink,
+      scrollDelegateLink: usersTable.scrollDelegateLink,
     })
     .from(usersTable)
     .where(eq(usersTable.isActive, true));

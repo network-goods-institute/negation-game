@@ -20,7 +20,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Search, Users, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { Search, Users, ChevronDown, ChevronUp, Loader2, ExternalLink, Crown } from "lucide-react";
 import { DelegateStats } from "@/types/admin";
 import { fetchDelegateStats } from "@/services/admin/statisticsService";
 
@@ -126,6 +126,7 @@ export function DelegateStatsSection({ spaceId }: DelegateStatsSectionProps) {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Delegate</TableHead>
+                                        <TableHead className="text-right">Links</TableHead>
                                         <TableHead className="text-right">Cred</TableHead>
                                         <TableHead className="text-right">Points</TableHead>
                                         <TableHead className="text-right">Rationales</TableHead>
@@ -139,10 +140,52 @@ export function DelegateStatsSection({ spaceId }: DelegateStatsSectionProps) {
                                         <TableRow key={delegate.userId}>
                                             <TableCell className="font-medium">
                                                 <div className="flex flex-col">
-                                                    <span>{delegate.username}</span>
+                                                    <div className="flex items-center gap-1">
+                                                        <span>{delegate.username}</span>
+                                                        {delegate.isDelegate && (
+                                                            <Crown className="h-3 w-3 text-amber-500" />
+                                                        )}
+                                                    </div>
                                                     <span className="text-xs text-muted-foreground">
                                                         Joined {new Date(delegate.joinedDate).toLocaleDateString()}
                                                     </span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex items-center justify-end gap-1">
+                                                    {delegate.agoraLink && (
+                                                        <a
+                                                            href={delegate.agoraLink}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-primary hover:underline text-xs"
+                                                            title="Agora Profile"
+                                                        >
+                                                            Agora <ExternalLink className="h-3 w-3 inline" />
+                                                        </a>
+                                                    )}
+                                                    {delegate.scrollDelegateLink && (
+                                                        <a
+                                                            href={delegate.scrollDelegateLink}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-primary hover:underline text-xs"
+                                                            title="Scroll Delegate"
+                                                        >
+                                                            Scroll <ExternalLink className="h-3 w-3 inline" />
+                                                        </a>
+                                                    )}
+                                                    {delegate.delegationUrl && !delegate.agoraLink && !delegate.scrollDelegateLink && (
+                                                        <a
+                                                            href={delegate.delegationUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-primary hover:underline text-xs"
+                                                            title="Delegate"
+                                                        >
+                                                            Delegate <ExternalLink className="h-3 w-3 inline" />
+                                                        </a>
+                                                    )}
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-right">

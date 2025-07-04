@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeftIcon, ExternalLinkIcon } from "lucide-react";
-import DOMPurify from 'dompurify';
 import { useState, useMemo } from "react";
 import { updateUserProfile } from "@/actions/users/updateUserProfile";
 import { toast } from "sonner";
@@ -21,6 +20,8 @@ interface ProfileEditDialogProps {
     onOpenChange: (open: boolean) => void;
     currentBio?: string | null;
     currentDelegationUrl?: string | null;
+    currentAgoraLink?: string | null;
+    currentScrollDelegateLink?: string | null;
     currentDiscourseUsername?: string | null;
     currentDiscourseCommunityUrl?: string | null;
     currentDiscourseConsentGiven?: boolean;
@@ -30,12 +31,16 @@ const ProfileEditDialogContent = ({
     onOpenChange,
     currentBio,
     currentDelegationUrl,
+    currentAgoraLink,
+    currentScrollDelegateLink,
     currentDiscourseUsername,
     currentDiscourseCommunityUrl,
     currentDiscourseConsentGiven = false,
 }: Omit<ProfileEditDialogProps, 'open'>) => {
     const [bio, setBio] = useState(currentBio || "");
     const [delegationUrl, setDelegationUrl] = useState(currentDelegationUrl || "");
+    const [agoraLink, setAgoraLink] = useState(currentAgoraLink || "");
+    const [scrollDelegateLink, setScrollDelegateLink] = useState(currentScrollDelegateLink || "");
     const [discourseUsername, setDiscourseUsername] = useState(currentDiscourseUsername || "");
     const [discourseCommunityUrl, setDiscourseCommunityUrl] = useState(currentDiscourseCommunityUrl || "");
     const [discourseConsentGiven, setDiscourseConsentGiven] = useState(currentDiscourseConsentGiven);
@@ -53,6 +58,16 @@ const ProfileEditDialogContent = ({
                 processedDelegationUrl = `https://${processedDelegationUrl}`;
             }
 
+            let processedAgoraLink = agoraLink.trim();
+            if (processedAgoraLink && !processedAgoraLink.startsWith("http")) {
+                processedAgoraLink = `https://${processedAgoraLink}`;
+            }
+
+            let processedScrollDelegateLink = scrollDelegateLink.trim();
+            if (processedScrollDelegateLink && !processedScrollDelegateLink.startsWith("http")) {
+                processedScrollDelegateLink = `https://${processedScrollDelegateLink}`;
+            }
+
             let processedDiscourseCommunityUrl = discourseCommunityUrl.trim();
             if (processedDiscourseCommunityUrl && !processedDiscourseCommunityUrl.startsWith("http")) {
                 processedDiscourseCommunityUrl = `https://${processedDiscourseCommunityUrl}`;
@@ -61,6 +76,8 @@ const ProfileEditDialogContent = ({
             const result = await updateUserProfile({
                 bio: bio.trim() || null,
                 delegationUrl: processedDelegationUrl || null,
+                agoraLink: processedAgoraLink || null,
+                scrollDelegateLink: processedScrollDelegateLink || null,
                 discourseUsername: discourseUsername.trim() || null,
                 discourseCommunityUrl: processedDiscourseCommunityUrl || null,
                 discourseConsentGiven,
@@ -71,30 +88,26 @@ const ProfileEditDialogContent = ({
                 onOpenChange(false);
 
                 if (privyUser?.id) {
+                    const updateData = {
+                        bio: bio.trim() || null,
+                        delegationUrl: processedDelegationUrl || null,
+                        agoraLink: processedAgoraLink || null,
+                        scrollDelegateLink: processedScrollDelegateLink || null,
+                        discourseUsername: discourseUsername.trim() || null,
+                        discourseCommunityUrl: processedDiscourseCommunityUrl || null,
+                        discourseConsentGiven,
+                    };
+
                     queryClient.setQueryData(userQueryKey(privyUser.id), (oldData: any) => {
                         if (!oldData) return oldData;
-                        return {
-                            ...oldData,
-                            bio: bio.trim() || null,
-                            delegationUrl: processedDelegationUrl || null,
-                            discourseUsername: discourseUsername.trim() || null,
-                            discourseCommunityUrl: processedDiscourseCommunityUrl || null,
-                            discourseConsentGiven,
-                        };
+                        return { ...oldData, ...updateData };
                     });
 
                     const userData = queryClient.getQueryData(userQueryKey(privyUser.id)) as any;
                     if (userData?.username) {
                         queryClient.setQueryData(userQueryKey(userData.username), (oldData: any) => {
                             if (!oldData) return oldData;
-                            return {
-                                ...oldData,
-                                bio: bio.trim() || null,
-                                delegationUrl: processedDelegationUrl || null,
-                                discourseUsername: discourseUsername.trim() || null,
-                                discourseCommunityUrl: processedDiscourseCommunityUrl || null,
-                                discourseConsentGiven,
-                            };
+                            return { ...oldData, ...updateData };
                         });
                     }
                     queryClient.invalidateQueries({ queryKey: ["user"] });
@@ -120,20 +133,18 @@ const ProfileEditDialogContent = ({
         }
     };
 
-    const sanitizedDelegationUrl = useMemo(() => {
+    const processedDelegationUrl = useMemo(() => {
         if (!delegationUrl) return '';
-        const urlToSanitize = delegationUrl.startsWith("http") ? delegationUrl : `https://${delegationUrl}`;
-        return typeof window !== 'undefined' ? DOMPurify.sanitize(urlToSanitize) : urlToSanitize;
+        return delegationUrl.startsWith("http") ? delegationUrl : `https://${delegationUrl}`;
     }, [delegationUrl]);
 
     const displayedDelegationUrl = useMemo(() => {
         return displayUrl(delegationUrl);
     }, [delegationUrl]);
 
-    const sanitizedDiscourseUrl = useMemo(() => {
+    const processedDiscourseUrl = useMemo(() => {
         if (!discourseCommunityUrl) return '';
-        const urlToSanitize = discourseCommunityUrl.startsWith("http") ? discourseCommunityUrl : `https://${discourseCommunityUrl}`;
-        return typeof window !== 'undefined' ? DOMPurify.sanitize(urlToSanitize) : urlToSanitize;
+        return discourseCommunityUrl.startsWith("http") ? discourseCommunityUrl : `https://${discourseCommunityUrl}`;
     }, [discourseCommunityUrl]);
 
     const displayedDiscourseUrl = useMemo(() => {
@@ -173,42 +184,84 @@ const ProfileEditDialogContent = ({
                                 </p>
                             </div>
 
-                            {/* Delegation URL Section */}
-                            <div className="space-y-2">
-                                <div className="mb-1">
-                                    <Label htmlFor="delegationUrl" className="text-base font-medium">Delegation URL</Label>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        Your governance account delegation link
-                                    </p>
-                                </div>
-                                <Input
-                                    id="delegationUrl"
-                                    value={delegationUrl}
-                                    onChange={(e) => setDelegationUrl(e.target.value)}
-                                    placeholder="https://gov.scroll.io/delegates/..."
-                                    type="url"
-                                    className="w-full"
-                                />
-                                {delegationUrl && (
-                                    <div className="mt-2 p-3 bg-muted/30 rounded-md">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm font-medium">Preview:</span>
-                                            <a
-                                                href={sanitizedDelegationUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-primary flex items-center gap-1 ml-auto text-xs hover:underline"
-                                            >
-                                                Open link <ExternalLinkIcon className="size-3" />
-                                            </a>
-                                        </div>
-                                        <div className="mt-1.5 text-sm overflow-hidden text-ellipsis">
-                                            {displayedDelegationUrl}
-                                        </div>
+                            {/* Governance Links Section */}
+                            <div className="space-y-6 border-t pt-6">
+                                <h3 className="text-lg font-semibold">Governance Links</h3>
+                                
+                                {/* Agora Link */}
+                                <div className="space-y-2">
+                                    <div className="mb-1">
+                                        <Label htmlFor="agoraLink" className="text-base font-medium">Agora Profile URL</Label>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Your Agora governance profile link
+                                        </p>
                                     </div>
-                                )}
-                                <p className="text-xs text-muted-foreground mt-2">
-                                    Adding your delegation URL shows a heart icon next to your name in the leaderboard and prompts viewers to delegate to you.
+                                    <Input
+                                        id="agoraLink"
+                                        value={agoraLink}
+                                        onChange={(e) => setAgoraLink(e.target.value)}
+                                        placeholder="https://agora.xyz/delegates/..."
+                                        type="url"
+                                        className="w-full"
+                                    />
+                                </div>
+
+                                {/* Scroll Delegate Link */}
+                                <div className="space-y-2">
+                                    <div className="mb-1">
+                                        <Label htmlFor="scrollDelegateLink" className="text-base font-medium">Scroll Delegate URL</Label>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Your Scroll governance delegate link
+                                        </p>
+                                    </div>
+                                    <Input
+                                        id="scrollDelegateLink"
+                                        value={scrollDelegateLink}
+                                        onChange={(e) => setScrollDelegateLink(e.target.value)}
+                                        placeholder="https://gov.scroll.io/delegates/..."
+                                        type="url"
+                                        className="w-full"
+                                    />
+                                </div>
+
+                                {/* Other Delegation URL */}
+                                <div className="space-y-2">
+                                    <div className="mb-1">
+                                        <Label htmlFor="delegationUrl" className="text-base font-medium">Other Delegation URL</Label>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Other governance delegation link
+                                        </p>
+                                    </div>
+                                    <Input
+                                        id="delegationUrl"
+                                        value={delegationUrl}
+                                        onChange={(e) => setDelegationUrl(e.target.value)}
+                                        placeholder="https://..."
+                                        type="url"
+                                        className="w-full"
+                                    />
+                                    {delegationUrl && (
+                                        <div className="mt-2 p-3 bg-muted/30 rounded-md">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm font-medium">Preview:</span>
+                                                <a
+                                                    href={processedDelegationUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-primary flex items-center gap-1 ml-auto text-xs hover:underline"
+                                                >
+                                                    Open link <ExternalLinkIcon className="size-3" />
+                                                </a>
+                                            </div>
+                                            <div className="mt-1.5 text-sm overflow-hidden text-ellipsis">
+                                                {displayedDelegationUrl}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                <p className="text-xs text-muted-foreground">
+                                    Adding governance links helps others find and delegate to you. Priority: Scroll Delegate &gt; Agora &gt; Other.
                                 </p>
                             </div>
 
@@ -250,7 +303,7 @@ const ProfileEditDialogContent = ({
                                             <div className="flex items-center gap-2">
                                                 <span className="text-sm font-medium">Preview:</span>
                                                 <a
-                                                    href={sanitizedDiscourseUrl}
+                                                    href={processedDiscourseUrl}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="text-primary flex items-center gap-1 ml-auto text-xs hover:underline"

@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { ViewpointCardWrapper } from "@/components/cards/ViewpointCardWrapper";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftIcon, ChevronDownIcon, ChevronUpIcon, X, Check, ExternalLink, LayoutGrid, Lock, Info } from "lucide-react";
+import { ArrowLeftIcon, ChevronDownIcon, ChevronUpIcon, X, Check, ExternalLink, LayoutGrid, Lock, Info, Crown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { encodeId } from "@/lib/negation-game/encodeId";
@@ -76,14 +76,23 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
         const delegatesWithStatus = allUsers.map(user => {
             const hasPublished = viewpoints.some(vp => vp.authorId === user.id);
             const reputation = user.cred || 50;
-            return { ...user, hasPublished, reputation };
+            const isDelegate = !!(user.agoraLink || user.scrollDelegateLink || user.delegationUrl);
+            return { ...user, hasPublished, reputation, isDelegate };
         });
 
         return delegatesWithStatus.sort((a, b) => {
-            if (a.hasPublished === b.hasPublished) {
-                return a.username.localeCompare(b.username);
+            // First priority: delegates with agora/scroll links
+            if (a.isDelegate !== b.isDelegate) {
+                return a.isDelegate ? -1 : 1;
             }
-            return a.hasPublished ? -1 : 1;
+
+            // Second priority: published vs not published
+            if (a.hasPublished !== b.hasPublished) {
+                return a.hasPublished ? -1 : 1;
+            }
+
+            // Third priority: alphabetical
+            return a.username.localeCompare(b.username);
         });
     }, [allUsers, viewpoints]);
 
@@ -346,7 +355,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                         />
 
                         {/* Delegate Status Section */}
-                        <div className="space-y-3">
+                        <div className="space-y-3" data-testid="delegate-status-section">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-lg font-semibold">Delegate Status</h3>
                                 <span className="text-sm text-muted-foreground">By Status</span>
@@ -355,12 +364,52 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                 {sortedDelegates.map((user) => (
                                     <div key={user.id} className="flex items-center justify-between p-3 bg-background border rounded-lg hover:bg-accent/50 transition-colors">
                                         <div className="flex flex-col">
-                                            <UsernameDisplay
-                                                username={user.username}
-                                                userId={user.id}
-                                                className="text-sm font-medium"
-                                            />
-                                            <span className="text-xs text-muted-foreground">{Math.round(user.reputation)} cred</span>
+                                            <div className="flex items-center gap-1">
+                                                <UsernameDisplay
+                                                    username={user.username}
+                                                    userId={user.id}
+                                                    className="text-sm font-medium"
+                                                />
+                                                {user.isDelegate && (
+                                                    <Crown className="h-3 w-3 text-amber-500" />
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs text-muted-foreground">{Math.round(user.reputation)} cred</span>
+                                                {user.scrollDelegateLink && (
+                                                    <a
+                                                        href={user.scrollDelegateLink}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-primary text-xs hover:underline"
+                                                        title="Scroll Delegate"
+                                                    >
+                                                        Scroll
+                                                    </a>
+                                                )}
+                                                {user.agoraLink && (
+                                                    <a
+                                                        href={user.agoraLink}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-primary text-xs hover:underline"
+                                                        title="Agora Profile"
+                                                    >
+                                                        Agora
+                                                    </a>
+                                                )}
+                                                {user.delegationUrl && !user.scrollDelegateLink && !user.agoraLink && (
+                                                    <a
+                                                        href={user.delegationUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-primary text-xs hover:underline"
+                                                        title="Delegate"
+                                                    >
+                                                        Delegate
+                                                    </a>
+                                                )}
+                                            </div>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             {user.hasPublished ? (
@@ -425,12 +474,52 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                 {sortedDelegates.map((user) => (
                                     <div key={user.id} className="flex items-center justify-between p-4 bg-muted/20 border rounded-lg hover:bg-muted/30 transition-colors">
                                         <div className="flex flex-col">
-                                            <UsernameDisplay
-                                                username={user.username}
-                                                userId={user.id}
-                                                className="font-medium"
-                                            />
-                                            <span className="text-sm text-muted-foreground">{Math.round(user.reputation)} cred</span>
+                                            <div className="flex items-center gap-1">
+                                                <UsernameDisplay
+                                                    username={user.username}
+                                                    userId={user.id}
+                                                    className="font-medium"
+                                                />
+                                                {user.isDelegate && (
+                                                    <Crown className="h-3 w-3 text-amber-500" />
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm text-muted-foreground">{Math.round(user.reputation)} cred</span>
+                                                {user.scrollDelegateLink && (
+                                                    <a
+                                                        href={user.scrollDelegateLink}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-primary text-xs hover:underline"
+                                                        title="Scroll Delegate"
+                                                    >
+                                                        Scroll
+                                                    </a>
+                                                )}
+                                                {user.agoraLink && (
+                                                    <a
+                                                        href={user.agoraLink}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-primary text-xs hover:underline"
+                                                        title="Agora Profile"
+                                                    >
+                                                        Agora
+                                                    </a>
+                                                )}
+                                                {user.delegationUrl && !user.scrollDelegateLink && !user.agoraLink && (
+                                                    <a
+                                                        href={user.delegationUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-primary text-xs hover:underline"
+                                                        title="Delegate"
+                                                    >
+                                                        Delegate
+                                                    </a>
+                                                )}
+                                            </div>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             {user.hasPublished ? (

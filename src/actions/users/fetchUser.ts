@@ -28,6 +28,8 @@ export const fetchUser = async (idOrUsername: string) => {
         cred: usersTable.cred,
         bio: usersTable.bio,
         delegationUrl: usersTable.delegationUrl,
+        agoraLink: usersTable.agoraLink,
+        scrollDelegateLink: usersTable.scrollDelegateLink,
         discourseUsername: usersTable.discourseUsername,
         discourseCommunityUrl: usersTable.discourseCommunityUrl,
         discourseConsentGiven: usersTable.discourseConsentGiven,

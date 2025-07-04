@@ -9,9 +9,11 @@ import { z } from "zod";
 const updateProfileSchema = z.object({
   bio: z.string().max(1000).nullable().optional(),
   delegationUrl: z.string().url().max(255).nullable().optional(),
+  agoraLink: z.string().url().max(255).nullable().optional(),
+  scrollDelegateLink: z.string().url().max(255).nullable().optional(),
   discourseUsername: z.string().max(255).nullable().optional(),
   discourseCommunityUrl: z.string().url().max(255).nullable().optional(),
-  discourseConsentGiven: z.boolean(),
+  discourseConsentGiven: z.boolean().optional(),
 });
 
 export type UpdateProfileParams = z.infer<typeof updateProfileSchema>;
@@ -26,16 +28,26 @@ export const updateUserProfile = async (params: UpdateProfileParams) => {
     // Validate inputs
     const validatedData = updateProfileSchema.parse(params);
 
+    const updateData: Partial<typeof usersTable.$inferInsert> = {};
+
+    if (validatedData.bio !== undefined) updateData.bio = validatedData.bio;
+    if (validatedData.delegationUrl !== undefined)
+      updateData.delegationUrl = validatedData.delegationUrl;
+    if (validatedData.agoraLink !== undefined)
+      updateData.agoraLink = validatedData.agoraLink;
+    if (validatedData.scrollDelegateLink !== undefined)
+      updateData.scrollDelegateLink = validatedData.scrollDelegateLink;
+    if (validatedData.discourseUsername !== undefined)
+      updateData.discourseUsername = validatedData.discourseUsername;
+    if (validatedData.discourseCommunityUrl !== undefined)
+      updateData.discourseCommunityUrl = validatedData.discourseCommunityUrl;
+    if (validatedData.discourseConsentGiven !== undefined)
+      updateData.discourseConsentGiven = validatedData.discourseConsentGiven;
+
     // Update the user profile
     await db
       .update(usersTable)
-      .set({
-        bio: validatedData.bio,
-        delegationUrl: validatedData.delegationUrl,
-        discourseUsername: validatedData.discourseUsername,
-        discourseCommunityUrl: validatedData.discourseCommunityUrl,
-        discourseConsentGiven: validatedData.discourseConsentGiven,
-      })
+      .set(updateData)
       .where(eq(usersTable.id, userId));
 
     return { success: true };

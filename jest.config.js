@@ -17,7 +17,7 @@ const customJestConfig = {
     '!src/**/*.stories.{js,jsx,ts,tsx}',
   ],
   transformIgnorePatterns: [
-    '/node_modules/(?!(@privy-io|ofetch|destr|ufo|node-fetch-native|jose|@tanstack|@radix-ui|lucide-react|@radix-ui|class-variance-authority|clsx|tailwind-merge|@uidotdev|nanoid)/)',
+    '/node_modules/(?!(remark-gfm|@privy-io|ofetch|destr|ufo|node-fetch-native|jose|@tanstack|@radix-ui|lucide-react|@radix-ui|class-variance-authority|clsx|tailwind-merge|@uidotdev|nanoid|remark.*|micromark.*|mdast.*|unist.*|unified|bail|is-plain-obj|trough|vfile|rehype.*|hast.*)/)',
   ],
   moduleFileExtensions: ['js', 'jsx', 'ts', 'tsx', 'json', 'node', 'mjs'],
   globals: {

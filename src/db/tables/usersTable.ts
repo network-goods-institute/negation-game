@@ -26,6 +26,8 @@ export const usersTable = pgTable(
     cred: integer("cred").notNull().default(USER_INITIAL_CRED),
     bio: varchar("bio", { length: 1000 }),
     delegationUrl: varchar("delegation_url", { length: 255 }),
+    agoraLink: varchar("agora_link", { length: 255 }),
+    scrollDelegateLink: varchar("scroll_delegate_link", { length: 255 }),
     discourseUsername: varchar("discourse_username", { length: 255 }),
     discourseCommunityUrl: varchar("discourse_community_url", { length: 255 }),
     discourseConsentGiven: boolean("discourse_consent_given")
@@ -97,6 +99,8 @@ export function createUserData(userData: {
     cred: userData.cred ?? USER_INITIAL_CRED,
     bio: userData.bio ?? null,
     delegationUrl: null,
+    agoraLink: null,
+    scrollDelegateLink: null,
     discourseUsername: null,
     discourseCommunityUrl: null,
     discourseConsentGiven: false,
