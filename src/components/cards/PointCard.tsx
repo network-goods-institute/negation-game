@@ -426,6 +426,7 @@ export const PointCard = ({
           handleTargetPointClick={handleTargetPointClick}
           content={content}
           isObjection={isObjection}
+          isNegation={isNegation}
           parentPointId={parentPoint?.id}
           pointId={pointId}
         />

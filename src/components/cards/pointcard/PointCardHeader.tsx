@@ -9,6 +9,7 @@ import {
 import { cn } from "@/lib/utils/cn";
 import PinBadges from "./PinBadges";
 import { ObjectionIcon } from "@/components/icons/ObjectionIcon";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export interface PointCardHeaderProps {
     inGraphNode: boolean;
@@ -26,6 +27,7 @@ export interface PointCardHeaderProps {
     handleTargetPointClick: React.MouseEventHandler;
     content: string;
     isObjection?: boolean;
+    isNegation?: boolean;
     parentPointId?: number;
     pointId?: number;
 }
@@ -45,6 +47,7 @@ export const PointCardHeader = ({
     handleTargetPointClick,
     content,
     isObjection,
+    isNegation,
 }: PointCardHeaderProps) => {
     return (
         <div className={cn("flex items-start gap-2", inGraphNode && "pt-4")}>
@@ -53,9 +56,27 @@ export const PointCardHeader = ({
             ) : isPinned && space && space !== "global" ? (
                 <PinnedIcon />
             ) : isObjection ? (
-                <ObjectionIcon className="w-5 h-5 stroke-1 text-muted-foreground" />
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <div>
+                            <ObjectionIcon className="w-5 h-5 stroke-1 text-muted-foreground" />
+                        </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                        <p>Objection</p>
+                    </TooltipContent>
+                </Tooltip>
             ) : (
-                <PointIcon />
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <div>
+                            <PointIcon />
+                        </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                        <p>Counterpoint</p>
+                    </TooltipContent>
+                </Tooltip>
             )}
             <div className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg -mt-1 mb-sm select-text flex-1 break-words whitespace-normal overflow-hidden">
                 {content}
