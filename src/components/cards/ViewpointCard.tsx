@@ -235,7 +235,13 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                     "tracking-tight text-md @xs/point:text-md @sm/point:text-lg font-semibold -mt-1 select-text flex-1 break-words whitespace-normal overflow-hidden",
                                     plainDescription ? "mb-sm" : "mb-1"
                                 )}>
-                                    {title}
+                                    {topic ? (
+                                        <>
+                                            <span>{topic}</span>
+                                            <span className="text-muted-foreground mx-1">-</span>
+                                            <span className="text-yellow-600 dark:text-yellow-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded font-medium">{author}</span>
+                                        </>
+                                    ) : title}
                                 </h3>
                             </div>
 
@@ -244,19 +250,17 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                     {plainDescription}
                                 </div>
                             )}
-                            {topic && (
-                                <Badge variant="secondary" className="text-xs mb-1 mt-2 w-fit block">
-                                    {topic}
-                                </Badge>
-                            )}
                             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center text-xs text-muted-foreground mt-1 gap-1 sm:gap-0">
-                                <span className="flex items-center gap-1 text-xs text-muted-foreground min-w-0">
-                                    <UsernameDisplay
-                                        username={author}
-                                        userId={authorId}
-                                        className="font-bold text-yellow-500 text-xs truncate"
-                                    />
-                                </span>
+                                {!topic && (
+                                    <span className="flex items-center gap-1 text-xs text-muted-foreground min-w-0">
+                                        <UsernameDisplay
+                                            username={author}
+                                            userId={authorId}
+                                            className="font-bold text-yellow-500 text-xs truncate"
+                                        />
+                                    </span>
+                                )}
+                                {topic && <div></div>}
                                 <div className="flex items-center gap-2 flex-shrink-0">
                                     <ViewpointStatsBar
                                         views={statistics?.views || 0}
@@ -293,22 +297,26 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                     <div className="flex flex-col gap-3 pl-3">
                         <div className="flex items-start gap-2">
                             <ViewpointIcon />
-                            <h3 className="text-lg font-semibold -mt-0.5 flex-1">{title}</h3>
+                            <h3 className="text-lg font-semibold -mt-0.5 flex-1">
+                                {topic ? (
+                                    <>
+                                        <span>{topic}</span>
+                                        <span className="text-muted-foreground mx-1">-</span>
+                                        <span className="text-yellow-600 dark:text-yellow-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded font-medium">{author}</span>
+                                    </>
+                                ) : title}
+                            </h3>
                         </div>
 
-                        <div className="text-sm text-muted-foreground mb-1 flex items-center gap-1">
-                            By
-                            <UsernameDisplay
-                                username={author}
-                                userId={authorId}
-                                className="font-bold text-yellow-500 text-sm"
-                            />
-                        </div>
-
-                        {topic && (
-                            <Badge variant="secondary" className="text-xs mb-2 mt-1 w-fit block">
-                                {topic}
-                            </Badge>
+                        {!topic && (
+                            <div className="text-sm text-muted-foreground mb-1 flex items-center gap-1">
+                                By
+                                <UsernameDisplay
+                                    username={author}
+                                    userId={authorId}
+                                    className="font-bold text-yellow-500 text-sm"
+                                />
+                            </div>
                         )}
 
                         <ViewpointStatsBar
