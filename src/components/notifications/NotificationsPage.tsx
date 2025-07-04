@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useNotifications } from "@/queries/notifications/useNotifications";
 import { useMarkAllNotificationsRead, useMarkNotificationRead } from "@/mutations/notifications/useMarkNotificationsRead";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,12 @@ import { useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserAssignments } from "@/components/assignments/UserAssignments";
+import { CollapsibleCardDeck, CardDeckControls } from "@/components/ui/collapsible-card-deck";
+import { 
+  groupNotificationsByType, 
+  groupNotificationsByTime, 
+  groupNotificationsBySpace 
+} from "@/utils/notificationGrouping";
 
 export const NotificationsPage = () => {
     const { data: notifications = [], isLoading, error } = useNotifications();
@@ -18,9 +25,68 @@ export const NotificationsPage = () => {
     const markReadMutation = useMarkNotificationRead();
     const router = useRouter();
     const { ready, authenticated } = usePrivy();
+    
+    const [groupingMode, setGroupingMode] = useState<'type' | 'time' | 'space' | 'readStatus'>('type');
+    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
     const unreadNotifications = notifications.filter(n => !n.readAt);
     const readNotifications = notifications.filter(n => n.readAt);
+
+    const getNotificationGroups = () => {
+        switch (groupingMode) {
+            case 'type':
+                return groupNotificationsByType(notifications);
+            case 'time':
+                return groupNotificationsByTime(notifications);
+            case 'space':
+                return groupNotificationsBySpace(notifications);
+            case 'readStatus':
+            default:
+                return [
+                    ...(unreadNotifications.length > 0 ? [{
+                        id: 'unread',
+                        title: 'Unread',
+                        description: 'Notifications you haven\'t read yet',
+                        count: unreadNotifications.length,
+                        unreadCount: unreadNotifications.length,
+                        icon: '🔴',
+                        items: unreadNotifications,
+                        priority: 1,
+                    }] : []),
+                    ...(readNotifications.length > 0 ? [{
+                        id: 'read',
+                        title: 'Read',
+                        description: 'Notifications you\'ve already read',
+                        count: readNotifications.length,
+                        unreadCount: 0,
+                        icon: '✅',
+                        items: readNotifications,
+                        priority: 2,
+                    }] : []),
+                ];
+        }
+    };
+
+    const notificationGroups = getNotificationGroups();
+
+    const handleExpandAll = () => {
+        setExpandedGroups(new Set(notificationGroups.map(g => g.id)));
+    };
+
+    const handleCollapseAll = () => {
+        setExpandedGroups(new Set());
+    };
+
+    const handleGroupingChange = (grouping: string) => {
+        setGroupingMode(grouping as 'type' | 'time' | 'space' | 'readStatus');
+    };
+
+    const groupingOptions = [
+        { value: 'type', label: 'By Type' },
+        { value: 'time', label: 'By Time' },
+        { value: 'space', label: 'By Space' },
+        { value: 'readStatus', label: 'By Read Status' },
+    ];
 
     const handleMarkAllRead = () => {
         if (unreadNotifications.length === 0) return;
@@ -170,31 +236,29 @@ export const NotificationsPage = () => {
                 </Card>
             ) : (
                 <div className="space-y-4">
-                    {unreadNotifications.length > 0 && (
-                        <div className="space-y-2">
-                            <h2 className="text-lg font-semibold">Unread</h2>
-                            {unreadNotifications.map(notification => (
-                                <NotificationCard
-                                    key={notification.id}
-                                    notification={notification}
-                                    onMarkRead={handleMarkRead}
-                                />
-                            ))}
-                        </div>
-                    )}
-
-                    {readNotifications.length > 0 && (
-                        <div className="space-y-2">
-                            <h2 className="text-lg font-semibold">Read</h2>
-                            {readNotifications.map(notification => (
-                                <NotificationCard
-                                    key={notification.id}
-                                    notification={notification}
-                                    onMarkRead={handleMarkRead}
-                                />
-                            ))}
-                        </div>
-                    )}
+                    <CardDeckControls
+                        groups={notificationGroups}
+                        expandedGroups={expandedGroups}
+                        onExpandAll={handleExpandAll}
+                        onCollapseAll={handleCollapseAll}
+                        onGroupingChange={handleGroupingChange}
+                        currentGrouping={groupingMode}
+                        groupingOptions={groupingOptions}
+                    />
+                    
+                    <CollapsibleCardDeck
+                        groups={notificationGroups}
+                        renderItem={(notification) => (
+                            <NotificationCard
+                                notification={notification}
+                                onMarkRead={handleMarkRead}
+                            />
+                        )}
+                        emptyMessage="No notifications to display"
+                        showGroupStats={true}
+                        expandedGroups={expandedGroups}
+                        onExpandedChange={setExpandedGroups}
+                    />
                 </div>
             )}
         </div>
@@ -210,49 +274,49 @@ const NotificationCard = ({ notification, onMarkRead }: NotificationCardProps) =
     const isUnread = !notification.readAt;
 
     return (
-        <Card className={`transition-colors ${isUnread ? 'border-primary/50 bg-primary/5' : ''}`}>
-            <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                    <div className="flex-1 space-y-1">
-                        <div className="flex items-center gap-2">
-                            <h4 className="font-medium">{notification.title}</h4>
-                            {isUnread && (
-                                <Badge variant="destructive" className="h-2 w-2 p-0 rounded-full" />
-                            )}
-                        </div>
-
-                        {notification.content && (
-                            <p className="text-sm text-muted-foreground">{notification.content}</p>
+        <div className={`p-3 border rounded-lg transition-colors ${
+            isUnread ? 'border-primary/50 bg-primary/5' : 'border-border'
+        }`}>
+            <div className="flex items-start justify-between">
+                <div className="flex-1 space-y-1">
+                    <div className="flex items-center gap-2">
+                        <h4 className="font-medium text-sm">{notification.title}</h4>
+                        {isUnread && (
+                            <Badge variant="destructive" className="h-2 w-2 p-0 rounded-full" />
                         )}
-
-                        {notification.aiSummary && (
-                            <div className="mt-2 p-2 bg-muted/50 rounded-md border-l-2 border-primary/20">
-                                <p className="text-xs font-medium text-primary mb-1">AI Summary</p>
-                                <p className="text-xs text-muted-foreground">{notification.aiSummary}</p>
-                            </div>
-                        )}
-
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            {notification.sourceUser && (
-                                <span>by {notification.sourceUser.username}</span>
-                            )}
-                            <span>•</span>
-                            <span>{formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}</span>
-                        </div>
                     </div>
 
-                    {isUnread && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onMarkRead(notification.id)}
-                            className="ml-2"
-                        >
-                            <CheckIcon className="w-4 h-4" />
-                        </Button>
+                    {notification.content && (
+                        <p className="text-xs text-muted-foreground">{notification.content}</p>
                     )}
+
+                    {notification.aiSummary && (
+                        <div className="mt-2 p-2 bg-muted/50 rounded-md border-l-2 border-primary/20">
+                            <p className="text-xs font-medium text-primary mb-1">AI Summary</p>
+                            <p className="text-xs text-muted-foreground">{notification.aiSummary}</p>
+                        </div>
+                    )}
+
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        {notification.sourceUser && (
+                            <span>by {notification.sourceUser.username}</span>
+                        )}
+                        <span>•</span>
+                        <span>{formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}</span>
+                    </div>
                 </div>
-            </CardContent>
-        </Card>
+
+                {isUnread && (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onMarkRead(notification.id)}
+                        className="ml-2 h-6 w-6 p-0"
+                    >
+                        <CheckIcon className="w-3 h-3" />
+                    </Button>
+                )}
+            </div>
+        </div>
     );
 }; 
