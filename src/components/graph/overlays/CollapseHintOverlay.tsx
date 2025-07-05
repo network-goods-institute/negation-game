@@ -21,7 +21,7 @@ export default function CollapseHintOverlay() {
                 pointerEvents: "none",
             }}
         >
-            <div className="bg-primary text-primary-foreground px-3 py-1 rounded shadow-sm text-sm">
+            <div className="bg-primary text-primary-foreground px-3 py-1 rounded shadow-sm text-sm min-w-[110px] text-center">
                 {navigator.platform.includes("Mac") ? "⌘ + Z to undo" : "Ctrl + Z to undo"}
             </div>
         </div>,

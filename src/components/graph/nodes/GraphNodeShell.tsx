@@ -39,8 +39,8 @@ export function GraphNodeShell({
             data-loading={isLoading}
             style={style}
             className={cn(
-                'relative bg-background border-2 min-h-28 w-64 transition-all duration-200 select-none',
-                level % 2 === 0 ? ['rounded-lg', 'border-l-4'] : ['rounded-none', 'bg-background'],
+                'relative border-2 min-h-28 w-64 transition-all duration-200 select-none',
+                level % 2 === 1 ? 'node-level-stripe' : 'bg-background',
                 'border-muted-foreground/60 dark:border-muted-foreground/40',
                 endorsedByOp && 'border-yellow-500 dark:border-yellow-500',
                 hovered && 'border-primary dark:border-primary',

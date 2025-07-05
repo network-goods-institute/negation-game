@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useReactFlow, Edge } from "@xyflow/react";
 import { nanoid } from "nanoid";
+import { toast } from "sonner";
 import { usePointData } from "@/queries/points/usePointData";
 import { usePointNegations } from "@/queries/points/usePointNegations";
 import { useAtom } from "jotai";
@@ -29,7 +30,12 @@ export function useExpandCollapse(
   const { data: pointNegations } = usePointNegations(pointId);
 
   const expand = useCallback(() => {
-    if (!pointData) return;
+    if (!pointData) {
+      toast.error("Wait a second", {
+        description: "Content is still loading. Please wait for it to finish loading before expanding.",
+      });
+      return;
+    }
     // Determine already expanded negations
     const incoming = getEdges().filter((e) => e.target === id);
     const expandedIds = incoming

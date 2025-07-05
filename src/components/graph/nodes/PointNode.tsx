@@ -541,9 +541,7 @@ const RawPointNode = ({
         isCommand={pointData?.isCommand}
         linkDisabled={true}
         className={cn(
-          "border-0 shadow-none",
-          level % 2 === 0 && "rounded-lg",
-          level % 2 === 1 && "rounded-none"
+          "border-0 shadow-none"
         )}
         inGraphNode
         restake={pointData?.restake ? { ...pointData.restake, isOwner: false } : null}

@@ -251,6 +251,43 @@ export const GraphView = ({
   const handleActualCopy = useGraphCopyHandler(statement || "", description || "");
   const handleNodeDragStop = useGraphNodeDropHandler(flowInstance);
 
+  // Context menu handlers
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    node?: AppNode;
+  } | null>(null);
+
+  const handlePaneContextMenu = useCallback((event: React.MouseEvent) => {
+    event.preventDefault();
+    setContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+    });
+  }, []);
+
+  const handleNodeContextMenu = useCallback((event: React.MouseEvent, node: AppNode) => {
+    event.preventDefault();
+    setContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      node,
+    });
+  }, []);
+
+  const closeContextMenu = useCallback(() => {
+    setContextMenu(null);
+  }, []);
+
+  // Close context menu on click outside
+  useEffect(() => {
+    if (contextMenu) {
+      const handleClick = () => closeContextMenu();
+      document.addEventListener('click', handleClick);
+      return () => document.removeEventListener('click', handleClick);
+    }
+  }, [contextMenu, closeContextMenu]);
+
   const {
     isSaving: isSavingManaged,
     isSaveConfirmDialogOpen,
@@ -378,6 +415,8 @@ export const GraphView = ({
         colorMode={theme as ColorMode}
         proOptions={{ hideAttribution: true }}
         onPaneClick={handlePaneClick}
+        onPaneContextMenu={handlePaneContextMenu}
+        onNodeContextMenu={handleNodeContextMenu}
         onNodeDragStart={handleNodeDragStart}
         nodesDraggable={nodesDraggable}
         className={cn(
@@ -449,6 +488,72 @@ export const GraphView = ({
         <ConnectNodesFrame />
         <MergeNodesFrame />
       </GraphCanvas>
+      
+      {/* Custom Context Menu */}
+      {contextMenu && (
+        <div
+          className="fixed z-50 bg-popover border rounded-md shadow-md py-1 min-w-[150px]"
+          style={{
+            left: contextMenu.x,
+            top: contextMenu.y,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {contextMenu.node ? (
+            <>
+              <div
+                className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
+                onClick={() => {
+                  console.log("Expand node", contextMenu.node);
+                  closeContextMenu();
+                }}
+              >
+                Expand Node
+              </div>
+              <div
+                className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
+                onClick={() => {
+                  console.log("Collapse node", contextMenu.node);
+                  closeContextMenu();
+                }}
+              >
+                Collapse Node
+              </div>
+              <div className="h-px bg-border mx-1 my-1" />
+              <div
+                className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
+                onClick={() => {
+                  console.log("Focus node", contextMenu.node);
+                  closeContextMenu();
+                }}
+              >
+                Focus Node
+              </div>
+            </>
+          ) : (
+            <>
+              <div
+                className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
+                onClick={() => {
+                  console.log("Add point at", contextMenu.x, contextMenu.y);
+                  closeContextMenu();
+                }}
+              >
+                Add Point
+              </div>
+              <div
+                className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
+                onClick={() => {
+                  console.log("Reset view");
+                  closeContextMenu();
+                }}
+              >
+                Reset View
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </>
   );
 };

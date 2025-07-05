@@ -20,7 +20,7 @@ export function useConfirmDiscard(
       setIsDiscardDialogOpen(true);
     } else {
       const target = basePath && basePath.startsWith("/s/") ? basePath : "/";
-      router.push(target);
+      router.replace(target);
     }
   }, [isGraphModified, isContentModified, basePath, router]);
 
@@ -28,7 +28,7 @@ export function useConfirmDiscard(
     resetContent();
     setIsDiscardDialogOpen(false);
     const target = basePath && basePath.startsWith("/s/") ? basePath : "/";
-    router.push(target);
+    router.replace(target);
   }, [resetContent, basePath, router]);
 
   return {
