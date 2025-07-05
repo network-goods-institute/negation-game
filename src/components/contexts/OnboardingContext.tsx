@@ -22,6 +22,7 @@ import { KeybindsDialog } from '@/components/dialogs/KeybindsDialog';
 import { VideoIntroDialog } from '@/components/dialogs/VideoIntroDialog';
 import { Loader } from '@/components/ui/loader';
 import { Library, FileText, Keyboard } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 
 const LOCAL_STORAGE_KEY = 'onboardingDismissed';
 const LAST_SHOWN_KEY = 'onboardingLastShown';
@@ -149,8 +150,14 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isPermanentlyDismissed, setIsPermanentlyDismissed] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
+    const pathname = usePathname();
 
     useEffect(() => {
+        if (pathname === '/') {
+            setIsInitialized(true);
+            return;
+        }
+
         const dismissed = localStorage.getItem(LOCAL_STORAGE_KEY) === 'true';
         setIsPermanentlyDismissed(dismissed);
 
