@@ -258,7 +258,7 @@ export const GraphView = ({
     node?: AppNode;
   } | null>(null);
 
-  const handlePaneContextMenu = useCallback((event: React.MouseEvent) => {
+  const handlePaneContextMenu = useCallback((event: MouseEvent | React.MouseEvent<Element, MouseEvent>) => {
     event.preventDefault();
     setContextMenu({
       x: event.clientX,
@@ -488,7 +488,7 @@ export const GraphView = ({
         <ConnectNodesFrame />
         <MergeNodesFrame />
       </GraphCanvas>
-      
+
       {/* Custom Context Menu */}
       {contextMenu && (
         <div
