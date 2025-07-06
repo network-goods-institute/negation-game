@@ -15,10 +15,12 @@ import { POINT_MIN_LENGTH, POINT_MAX_LENGTH } from "@/constants/config";
 import { parse } from "node-html-parser";
 import { getDiscourseContent } from "@/actions/search/getDiscourseContent";
 import { toast } from "sonner";
+import { GraphCommand } from "@/types/graphCommands";
 
 interface RationaleCreationResponse {
   textStream: ReadableStream<string>;
   suggestedGraph: ViewpointGraph;
+  commands?: GraphCommand[];
 }
 
 interface RationaleCreationContext {
@@ -64,9 +66,9 @@ async function fetchLinkContent(url: string): Promise<string | null> {
           .replace(/\n\s*\n/g, "\n")
           .replace(/\s\s+/g, " ")
           .trim();
-        return extractedText.substring(0, 200000);
+        return extractedText.substring(0, 50000);
       } else {
-        return htmlContent.substring(0, 200000);
+        return htmlContent.substring(0, 50000);
       }
     } else {
       console.warn(`Unsupported content type for ${url}: ${contentType}`);
@@ -107,17 +109,21 @@ export const generateRationaleCreationResponse = async (
       const actualUrl = context.linkUrl;
       const fetchedContent = await fetchLinkContent(actualUrl);
       if (fetchedContent) {
-        linkContext = `\nFetched Content from Provided Link (${actualUrl}):\n${fetchedContent.substring(0, 200000)}...\n(Full content used in context but truncated for display here)`;
+        linkContext = `\nFetched Content from Provided Link (${actualUrl}):\n${fetchedContent}...\n(Content truncated to 50k chars for token limits)`;
       } else {
         linkContext = `\nProvided Source Link: ${actualUrl} (Content could not be fetched, was not text-based, or was empty).`;
       }
     }
 
-    const systemPrompt = `You are an AI assistant collaborating with a user to create a rationale graph in the Negation Game platform. Your primary role is to help the user think critically and deeply about their reasoning. You cannot read or fetch links pasted directly into the chat. Link fetching is handled by the Discourse Link input at the top of the interface. Whenever you see a URL in a user's message and do not notice the content from that link in your context, instruct them to paste it into the Discourse Link field and verify it is correctly formatted, rather than trying to process it directly. Guide them by asking probing questions, suggesting connections, and helping them explore different facets of their argument *before* directly modifying the graph, unless explicitly told to make a specific change. A rationale maps out a single user's line of reasoning about a specific topic, showing how different arguments relate to and challenge each other.
+    const systemPrompt = `You are an AI assistant collaborating with a user to create a rationale graph in the Negation Game platform. 
+
+CRITICAL: You are having a conversation with ONE USER. Never simulate dialogue exchanges or write "USER:" followed by imagined responses. Write only YOUR response to the user's actual message, then stop.
+
+Your primary role is to help the user think critically and deeply about their reasoning. You cannot read or fetch links pasted directly into the chat. Link fetching is handled by the Discourse Link input at the top of the interface. Whenever you see a URL in a user's message and do not notice the content from that link in your context, instruct them to paste it into the Discourse Link field and verify it is correctly formatted, rather than trying to process it directly. Guide them by asking probing questions, suggesting connections, and helping them explore different facets of their argument *before* directly modifying the graph, unless explicitly told to make a specific change. A rationale maps out a single user's line of reasoning about a specific topic, showing how different arguments relate to and challenge each other.
 
     Note: Always treat the graph state provided in the context as the authoritative current graph. Users may have edited it independently since any prior AI suggestions; base all modifications on the received graphData and do not assume you were the last to modify the graph.
 
-IMPORTANT: When you propose any modifications to the graph—or even if no changes are needed—always include the complete updated graph state as a JSON code block after your response text, wrapped in \`\`\`json ... \`\`\`. Make sure that the JSON block contains the full list of nodes (with all data fields) and edges.
+IMPORTANT: When you make modifications to the graph, output a list of commands as a JSON code block after your response text, wrapped in \`\`\`json ... \`\`\`. Each command specifies exactly what change to make. If no changes are needed, do not include any JSON block.
 
 **NEGATION GAME CONCEPTS:**
 *   **Rationale Purpose:** To map out how someone arrives at their position through a series of connected arguments. It shows:
@@ -204,7 +210,8 @@ IMPORTANT: When you propose any modifications to the graph—or even if no chang
 3.  **Generate Conversational & Guiding Response:**
     *   **Your response to the user should be direct and focused.** Explain any graph changes made, ask clarifying questions, or provide analysis based on the context.
     *   **DO NOT include meta-commentary** about your internal processing (e.g., \"I found these usernames...\").**
-    *   **DO NOT simulate a dialogue or use prefixes like \"USER:\" or \"A:\".** Your entire text output before the JSON block is *your single turn* responding to the user.
+    *   **NEVER SIMULATE A CONVERSATION OR DIALOGUE.** Do not write "USER:", "A:", or any simulated back-and-forth. Do not imagine what the user might say next. Write only YOUR SINGLE RESPONSE to the user's actual message.
+    *   **STOP AFTER YOUR RESPONSE.** Do not continue writing additional exchanges or responses.
     *   **Explain Changes Clearly:** If graph modifications were made, explain how new points fit into the reasoning and how points challenge/refine their targets.
     *   **Be Transparent about Point Origins:** Clearly state when you are reusing an existing point (mentioning its ID and content) versus when you are creating a new point. For example: "I found an existing point that seems to match what you're saying: Point #123 - 'Content of point 123'. Shall we use that?" or "Okay, I've added that as a new point."
     *   **Guide Deeper Thinking:**
@@ -214,15 +221,60 @@ IMPORTANT: When you propose any modifications to the graph—or even if no chang
     *   When updating cred, say "Added X cred to [point], total cred is now Y".
     *   Ask questions if the logical connection isn't clear or to encourage further exploration.
 
-4.  **Output Complete Graph (Only if changes were made):**
-    *   CRITICAL: If graph modifications were made, you MUST output the ENTIRE graph state in your JSON response, not just changes.
-    *   Include ALL nodes (statement and points) with ALL their properties.
-    *   Include ALL edges with their complete data.
-    *   Never omit any nodes or edges that existed before.
-    *   Always preserve existing node IDs and data (like cred values).
-    *   Your JSON output represents the COMPLETE state of the graph after changes.
+4.  **Output Commands (Only if changes were made):**
+    *   CRITICAL: If graph modifications were made, you MUST output a JSON array of commands that specify exactly what changes to make.
+    *   Each command should be atomic and specific (add one node, update one property, etc.).
+    *   Use existing node/edge IDs when modifying existing elements.
+    *   Generate new unique IDs for new nodes/edges that don't conflict with existing IDs. Use format like "point-new-UUID" or "edge-new-UUID" where UUID is a random string to ensure uniqueness.
     *   If no graph changes were made (e.g., you only asked clarifying questions), do not output the JSON block.
-    *  The user does see the output graph raw text, do not indicate that. Just state that the graph was updated.
+    *   Commands allow for precise, conflict-free updates without sending massive graph data.
+
+**AVAILABLE COMMANDS:**
+
+**add_point** - Create new point node:
+Format: id, type: "add_point", nodeId, content, cred
+Example: {"id": "cmd-1", "type": "add_point", "nodeId": "point-new-1", "content": "Point text", "cred": 0}
+
+**update_point** - Modify existing point:
+Format: id, type: "update_point", nodeId, content, cred
+Example: {"id": "cmd-2", "type": "update_point", "nodeId": "existing-point-id", "content": "New text", "cred": 5}
+
+**delete_point** - Remove point:
+Format: id, type: "delete_point", nodeId
+Example: {"id": "cmd-3", "type": "delete_point", "nodeId": "point-to-delete"}
+
+**add_edge** - Create new edge:
+Format: id, type: "add_edge", edgeId, source, target, edgeType
+Example: {"id": "cmd-4", "type": "add_edge", "edgeId": "edge-new-1", "source": "node1", "target": "node2", "edgeType": "statement"}
+
+**update_edge** - Modify existing edge:
+Format: id, type: "update_edge", edgeId, source, target, edgeType
+Example: {"id": "cmd-5", "type": "update_edge", "edgeId": "existing-edge", "source": "node1", "target": "node2", "edgeType": "negation"}
+
+**delete_edge** - Remove edge:
+Format: id, type: "delete_edge", edgeId
+Example: {"id": "cmd-6", "type": "delete_edge", "edgeId": "edge-to-delete"}
+
+**update_statement** - Change statement title:
+Format: id, type: "update_statement", title
+Example: {"id": "cmd-7", "type": "update_statement", "title": "New statement title"}
+
+**set_cred** - Update cred value:
+Format: id, type: "set_cred", nodeId, cred
+Example: {"id": "cmd-8", "type": "set_cred", "nodeId": "point-id", "cred": 10}
+
+**CRITICAL COMMAND RULES:**
+- ONLY use these exact type values: add_point, update_point, delete_point, add_edge, update_edge, delete_edge, update_statement, set_cred
+- NEVER use point, statement, negation as command types - these are node/edge types, NOT command types
+- For edgeType field, use statement (root to main points) or negation (point-to-point)
+- Each command must have unique id field
+
+**CRITICAL GRAPH STRUCTURE RULES:**
+1. **All points must be connected to the graph** - Every point node (except statement children) must have at least one incoming edge from another point or the statement node.
+2. **No orphaned points** - A point cannot exist without being negated by something or being a direct child of the statement.
+3. **Statement children are main positions** - Only points directly connected to the statement node represent main stances/positions.
+4. **All other points are negations** - Any point not directly connected to the statement must negate another point.
+5. **Before adding edges, ensure both nodes exist and are properly connected to the graph hierarchy.**
 
 **OUTPUT FORMAT:**
 When responding to the user, follow these rules exactly:
@@ -230,9 +282,10 @@ When responding to the user, follow these rules exactly:
 1. If you are ACTUALLY MODIFYING the graph structure (adding/removing/changing nodes or edges):
    - Your response MUST start with exactly: "Okay. I've done that for you. You should see the updated graph now."
    - Next, you must give a followup, this can be something like prompting the user with other ideas, questions, or suggestions. The goal is to keep the conversation going and help the user think of new perspectives or changes for their graph.
-   - The above two things MUST be followed by a newline and then a JSON block containing the COMPLETE updated graph
+   - The above two things MUST be followed by a newline and then a JSON block containing the array of commands
    - Only use this format if you are making CONCRETE changes to the graph structure
-   - Never say you've updated the graph unless you're including different nodes/edges or cred values in the JSON
+   - **CRITICAL: Never say you've updated the graph unless you're including commands in the JSON block**
+   - **If you claim to have made changes but don't provide commands, the user will see no changes and this creates confusion**
    
 2. If you are NOT modifying the graph (e.g., asking questions, making suggestions, analyzing):
    - Just write your response text
@@ -243,98 +296,26 @@ When responding to the user, follow these rules exactly:
 Example of a change response:
 Okay. I've done that for you. You should see the updated graph now.
 
-H
+That's a strong counterargument. What do you think about exploring potential objections to this new point?
 
 \`\`\`json
-{
-  "nodes": [
-    {
-      "id": "statement",
-      "type": "statement",
-      "data": { "statement": "DonOfDAOs | Delegate Accelerator Proposal, Pass or Not?" }
-    },
-    {
-      "id": "point_pass",
-      "type": "point",
-      "data": { "content": "The Delegate Accelerator Proposal should be Passed.", "cred": 0 }
-    },
-    {
-      "id": "point_do_not_pass",
-      "type": "point",
-      "data": { "content": "The Delegate Accelerator Proposal should not be Passed.", "cred": 0 }
-    },
-    {
-      "id": "point_financial_incentives",
-      "type": "point",
-      "data": { "content": "The financial incentives may attract participants motivated by money rather than genuine interest.", "cred": 0 }
-    },
-    {
-      "id": "point_delegates_vested_interest",
-      "type": "point",
-      "data": { "content": "Delegates should have a vested interest in Scroll's success, ensuring commitment beyond training.", "cred": 0 }
-    },
-    {
-      "id": "point_skin_in_game",
-      "type": "point",
-      "data": { "content": "Without skin-in-the-game, feedback, or direct consequences, delegates may be misaligned or irresponsible with funds.", "cred": 0 }
-    },
-    {
-      "id": "point_undefined_outcomes",
-      "type": "point",
-      "data": { "content": "The proposal's undefined outcomes obscure its value, making premature approval inadvisable.", "cred": 0 }
-    },
-    {
-      "id": "point_most_delegates_noise",
-      "type": "point",
-      "data": { "content": "Most delegates just add noise and shouldn't be rewarded", "cred": 0 }
-    },
-    {
-      "id": "point_reward_meaningful_contributions",
-      "type": "point",
-      "data": { "content": "The proposal aims to reward meaningful contributions, not just participation", "cred": 0 }
-    }
-  ],
-  "edges": [
-    { "id": "edge-statement-pass", "source": "statement", "target": "point_pass", "type": "statement" },
-    { "id": "edge-statement-do_not_pass", "source": "statement", "target": "point_do_not_pass", "type": "statement" },
-    {
-      "id": "edge-pass-financial_incentives",
-      "source": "point_pass",
-      "target": "point_financial_incentives",
-      "type": "negation"
-    },
-    {
-      "id": "edge-financial_incentives-delegates_vested_interest",
-      "source": "point_financial_incentives",
-      "target": "point_delegates_vested_interest",
-      "type": "negation"
-    },
-    {
-      "id": "edge-pass-skin_in_game",
-      "source": "point_pass",
-      "target": "point_skin_in_game",
-      "type": "negation"
-    },
-    {
-      "id": "edge-skin_in_game-undefined_outcomes",
-      "source": "point_skin_in_game",
-      "target": "point_undefined_outcomes",
-      "type": "negation"
-    },
-    {
-      "id": "edge-pass-most_delegates_noise",
-      "source": "point_pass",
-      "target": "point_most_delegates_noise",
-      "type": "negation"
-    },
-    {
-      "id": "edge-most_delegates_noise-reward_meaningful_contributions",
-      "source": "point_most_delegates_noise",
-      "target": "point_reward_meaningful_contributions",
-      "type": "negation"
-    }
-  ]
-}
+[
+  {
+    "id": "cmd-1",
+    "type": "add_point",
+    "nodeId": "point-new-1",
+    "content": "The proposal aims to reward meaningful contributions, not just participation",
+    "cred": 0
+  },
+  {
+    "id": "cmd-2",
+    "type": "add_edge",
+    "edgeId": "edge-new-1",
+    "source": "point_most_delegates_noise",
+    "target": "point-new-1",
+    "edgeType": "negation"
+  }
+]
 \`\`\`
 
 Example of a non-change response:
@@ -363,32 +344,37 @@ ${linkContext}
 - When user says "add X cred", respond with "Added X cred to [point], total cred is now Y".
 - Point content must be 10-160 characters.
 - Never include position data - positions are handled by the force layout.
-- If graph changes are made, ALWAYS output the COMPLETE graph as final JSON, including ALL existing nodes and edges.
+- If graph changes are made, ALWAYS output a JSON array of commands.
 - If no graph changes are made, DO NOT output the JSON block.
-- NEVER omit nodes or edges that existed before your changes if outputting JSON.`;
+- Each command should be specific and atomic - one change per command.`;
 
-    const chatHistoryString = chatMessages
-      .map((m) => `${m.role.toUpperCase()}:\n${m.content}`)
-      .join("\n\n");
+    const geminiMessages: GeminiMessage[] = [
+      { role: "system", content: systemPrompt },
+      ...chatMessages.map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      })),
+    ];
 
-    const finalPrompt = `${systemPrompt}\n\nCHAT HISTORY:\n${chatHistoryString}\n\nA:`;
-
-    const aiResult = await geminiService.generateStream(finalPrompt, {
-      truncateHistory: false,
+    const aiResult = await geminiService.generateStream(geminiMessages, {
+      truncateHistory: true,
     });
 
     const fullResponseReader = aiResult.getReader();
     let accumulatedText = "";
     while (true) {
       const { done, value } = await fullResponseReader.read();
-      if (done) break;
+      if (done) {
+        break;
+      }
       accumulatedText += value;
     }
 
     if (!accumulatedText) {
       throw new Error("AI response was empty.");
     }
-    const { textContent, suggestedGraph } = extractTextAndGraph(
+
+    const { textContent, suggestedGraph, commands } = extractTextAndCommands(
       accumulatedText,
       context.currentGraph
     );
@@ -403,6 +389,7 @@ ${linkContext}
     return {
       textStream: textOnlyStream,
       suggestedGraph: suggestedGraph,
+      commands: commands,
     };
   } catch (error) {
     console.error("Error in generateRationaleCreationResponse:", error);
@@ -447,18 +434,18 @@ function buildGraphContext(
     context += "    (No nodes yet)\n";
   } else {
     nodes.forEach((node) => {
-      context += `    - id: ${node.id}, type: ${node.type}, position: { x: ${Math.round(node.position.x)}, y: ${Math.round(node.position.y)} }`;
+      context += `    - id: ${node.id}, type: ${node.type}`;
       if (node.type === "statement") {
       } else if (node.type === "point") {
         const data = node.data as PointNodeData;
         const content =
           (data as any).content ||
           `[Content for Point ID: ${data.pointId || "N/A"}]`;
-        const viewerCred = (data as any).viewerCred;
-        context += `, content: "${content}"${viewerCred ? `, viewerCred: ${viewerCred}` : ""}`;
+        const cred = (data as any).cred;
+        context += `, content: "${content}"${cred ? `, cred: ${cred}` : ""}`;
       } else if (node.type === "addPoint") {
         const data = node.data as AddPointNodeData;
-        context += `, parentId: ${data.parentId}`; // Explicitly note it's an AddPoint node needing resolution
+        context += `, parentId: ${data.parentId}`;
       }
       context += "\n";
     });
@@ -477,23 +464,38 @@ function buildGraphContext(
 
 function buildPointsContext(points: PointInSpace[]): string {
   if (points.length === 0) return "\nExisting Points in Space: (None)\n";
-  return `\nExisting Points in Space:\n${points
-    .map((p) => `- ID: ${p.pointId}, Content: "${p.content}"`)
-    .join("\n")}\n`;
+
+  const maxPoints = 50;
+  const limitedPoints = points
+    .slice(-maxPoints)
+    .map(
+      (p) =>
+        `- ID: ${p.pointId}, Content: "${p.content.substring(0, 80)}${p.content.length > 80 ? "..." : ""}"`
+    )
+    .join("\n");
+
+  const totalCount = points.length;
+  const showingCount = Math.min(totalCount, maxPoints);
+
+  return `\nExisting Points in Space (showing ${showingCount} of ${totalCount}):\n${limitedPoints}\n`;
 }
 
 function buildDiscourseContext(post: DiscourseMessage): string {
   return `\nSource Discourse Post:\nID: ${post.id}\nTitle: ${post.topic_title || "[No Title]"}\nContent Preview: ${(post.raw || post.content || "").substring(0, 200)}${(post.raw || post.content || "").length > 200 ? "..." : ""}\n`;
 }
 
-function extractTextAndGraph(
+function extractTextAndCommands(
   fullResponse: string,
   fallbackGraph: ViewpointGraph
-): { textContent: string; suggestedGraph: ViewpointGraph } {
+): {
+  textContent: string;
+  suggestedGraph: ViewpointGraph;
+  commands?: GraphCommand[];
+} {
   try {
     const jsonMatch = fullResponse.match(/```json\s*([\s\S]*?)\s*```/);
 
-    // If there's no JSON block or update phrase, return original text and graph
+    // If there's no JSON block, return original text and graph with no commands
     if (!jsonMatch) {
       return {
         textContent: fullResponse,
@@ -505,72 +507,90 @@ function extractTextAndGraph(
       .substring(0, fullResponse.indexOf("```json"))
       .trim();
     const jsonContent = jsonMatch[1].trim();
-    let parsedGraph: ViewpointGraph;
 
     try {
-      parsedGraph = JSON.parse(jsonContent);
-    } catch (e) {
-      console.error("Failed to parse graph JSON:", e);
-      return { textContent, suggestedGraph: fallbackGraph };
-    }
+      const parsedContent = JSON.parse(jsonContent);
+      if (Array.isArray(parsedContent)) {
+        const commands = parsedContent as GraphCommand[];
 
-    // Process nodes with defaults
-    parsedGraph.nodes = parsedGraph.nodes.map((node) => {
-      const position = node.position || { x: 0, y: 0 };
-
-      const nodeWithDefaults = {
-        ...node,
-        position,
-        draggable: true,
-        selected: false,
-        selectable: true,
-        connectable: true,
-        deletable: true,
-      };
-
-      if (node.type === "point") {
-        const data = node.data as PointNodeData;
-        let content =
-          (data as any).content ||
-          `[Content for Point ID: ${data.pointId || "N/A"}]`;
-
-        // Pad with '[' if too short
-        if (content.length < POINT_MIN_LENGTH) {
-          content = content.padEnd(POINT_MIN_LENGTH, "[");
-          nodeWithDefaults.data = { ...data, content };
-        }
-
-        // Still validate max length
-        if (content.length > POINT_MAX_LENGTH) {
-          console.error("Point exceeds max length:", content);
-          throw new Error(
-            `AI generated point exceeding max length (${POINT_MAX_LENGTH} characters).`
-          );
-        }
-      }
-      return nodeWithDefaults;
-    });
-
-    // Process edges with defaults
-    parsedGraph.edges = parsedGraph.edges.map((edge) => ({
-      ...edge,
-      selected: false,
-      animated: false,
-      deletable: true,
-      data: {},
-      ...(edge.type === "negation"
-        ? {
-            sourceHandle: `${edge.source}-add-handle`,
-            targetHandle: `${edge.target}-target`,
+        for (const cmd of commands) {
+          if (!cmd.id || !cmd.type) {
+            console.error("Invalid command structure:", cmd);
+            throw new Error("Command missing required id or type field");
           }
-        : {}),
-    }));
-    return {
-      textContent,
-      suggestedGraph: parsedGraph,
-    };
+        }
+        return {
+          textContent,
+          suggestedGraph: fallbackGraph,
+          commands: commands,
+        };
+      } else {
+        const parsedGraph = parsedContent as ViewpointGraph;
+        if (parsedGraph.nodes) {
+          parsedGraph.nodes = parsedGraph.nodes.map((node) => {
+            const position = node.position || { x: 0, y: 0 };
+            const nodeWithDefaults = {
+              ...node,
+              position,
+              draggable: true,
+              selected: false,
+              selectable: true,
+              connectable: true,
+              deletable: true,
+            };
+
+            if (node.type === "point") {
+              const data = node.data as PointNodeData;
+              let content =
+                (data as any).content ||
+                `[Content for Point ID: ${data.pointId || "N/A"}]`;
+
+              if (content.length < POINT_MIN_LENGTH) {
+                content = content.padEnd(POINT_MIN_LENGTH, "[");
+                nodeWithDefaults.data = { ...data, content };
+              }
+
+              if (content.length > POINT_MAX_LENGTH) {
+                console.error("Point exceeds max length:", content);
+                throw new Error(
+                  `AI generated point exceeding max length (${POINT_MAX_LENGTH} characters).`
+                );
+              }
+            }
+            return nodeWithDefaults;
+          });
+        }
+
+        if (parsedGraph.edges) {
+          parsedGraph.edges = parsedGraph.edges.map((edge) => ({
+            ...edge,
+            selected: false,
+            animated: false,
+            deletable: true,
+            data: {},
+            ...(edge.type === "negation"
+              ? {
+                  sourceHandle: `${edge.source}-add-handle`,
+                  targetHandle: `${edge.target}-target`,
+                }
+              : {}),
+          }));
+        }
+
+        return {
+          textContent,
+          suggestedGraph: parsedGraph,
+        };
+      }
+    } catch (e) {
+      console.error("Failed to parse JSON:", e);
+      return {
+        textContent,
+        suggestedGraph: fallbackGraph,
+      };
+    }
   } catch (error) {
-    console.error("Error in extractTextAndGraph:", error);
+    console.error("Error in extractTextAndCommands:", error);
     return {
       textContent: fullResponse,
       suggestedGraph: fallbackGraph,

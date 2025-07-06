@@ -170,7 +170,7 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
             }
         }
         setIsInitialized(true);
-    }, []);
+    }, [pathname]);
 
     const openDialog = useCallback(() => {
         if (isInitialized) setIsOpen(true);

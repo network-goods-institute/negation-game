@@ -14,6 +14,17 @@ export async function POST(req: Request) {
       );
     }
 
+    const contentLength = req.headers.get("content-length");
+    const maxPayloadSize = 1024 * 1024;
+
+    if (contentLength && parseInt(contentLength) > maxPayloadSize) {
+      console.warn(`Request payload too large: ${contentLength} bytes`);
+      return NextResponse.json(
+        { error: "Request payload too large" },
+        { status: 413 }
+      );
+    }
+
     const { messages, context } = await req.json();
 
     if (!messages || !Array.isArray(messages)) {
@@ -23,18 +34,60 @@ export async function POST(req: Request) {
       );
     }
 
-    const { textStream, suggestedGraph } =
+    const { textStream, suggestedGraph, commands } =
       await generateRationaleCreationResponse(messages, context);
 
-    return new NextResponse(textStream, {
-      headers: {
-        "Content-Type": "text/plain",
-        "x-graph": JSON.stringify(suggestedGraph),
-        "Cache-Control": "no-cache",
-      },
-    });
+    const headers: { [key: string]: string } = {
+      "Content-Type": "text/plain",
+      "Cache-Control": "no-cache",
+    };
+
+    const maxHeaderSize = 7 * 1024; // 7KB limit
+    let graphHeaderValue = "";
+    let commandsHeaderValue = "";
+
+    try {
+      const graphJson = JSON.stringify(suggestedGraph);
+      const encodedGraph = encodeURIComponent(graphJson);
+
+      if (encodedGraph.length > maxHeaderSize) {
+        console.warn(
+          `Graph header too large: ${(encodedGraph.length / 1024).toFixed(2)} KB, skipping header`
+        );
+      } else {
+        headers["x-graph"] = encodedGraph;
+        graphHeaderValue = encodedGraph;
+      }
+
+      if (commands && commands.length > 0) {
+        const commandsJson = JSON.stringify(commands);
+
+        const encodedCommands = encodeURIComponent(commandsJson);
+
+        if (encodedCommands.length > maxHeaderSize) {
+          console.warn(
+            `Commands header too large: ${(encodedCommands.length / 1024).toFixed(2)} KB, skipping header`
+          );
+        } else {
+          headers["x-commands"] = encodedCommands;
+          commandsHeaderValue = encodedCommands;
+        }
+      }
+    } catch (error) {
+      console.error("Error encoding headers:", error);
+    }
+
+    return new NextResponse(textStream, { headers });
   } catch (error) {
     console.error("Error in rationale creation API:", error);
+    console.error("API Error details:", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : "No stack",
+      name: error instanceof Error ? error.name : "No name",
+      constructor:
+        error instanceof Error ? error.constructor.name : "No constructor",
+      cause: error instanceof Error ? error.cause : "No cause",
+    });
 
     if (error instanceof Error) {
       // Handle specific AI service errors

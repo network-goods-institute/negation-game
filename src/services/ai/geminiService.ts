@@ -117,7 +117,7 @@ class GeminiService {
 
   private truncateMessages(
     messages: Message[],
-    maxTokens: number = MAX_TOKENS * 0.8
+    maxTokens: number = MAX_TOKENS * 0.7
   ): Message[] {
     const systemMessages = messages.filter((m) => m.role === "system");
     const chatMessages = messages.filter((m) => m.role !== "system");
@@ -127,10 +127,11 @@ class GeminiService {
       0
     );
 
-    // Always keep the last user message
-    const lastUserMessage = chatMessages.filter((m) => m.role === "user").pop();
-    if (lastUserMessage) {
-      totalTokens += this.estimateTokens(lastUserMessage.content);
+    const userMessages = chatMessages.filter((m) => m.role === "user");
+    const lastUserMessages = userMessages.slice(-2);
+
+    for (const msg of lastUserMessages) {
+      totalTokens += this.estimateTokens(msg.content);
     }
 
     const truncatedChatMessages: Message[] = [];
@@ -139,8 +140,10 @@ class GeminiService {
     for (let i = chatMessages.length - 1; i >= 0; i--) {
       const message = chatMessages[i];
 
-      // Skip if this is the last user message we already counted
-      if (message === lastUserMessage && truncatedChatMessages.length === 0) {
+      if (
+        lastUserMessages.includes(message) &&
+        truncatedChatMessages.length < lastUserMessages.length
+      ) {
         truncatedChatMessages.unshift(message);
         continue;
       }

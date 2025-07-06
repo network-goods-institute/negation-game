@@ -73,7 +73,7 @@ export async function getDiscourseContent(url: string): Promise<string | null> {
         return `Username: ${username}\nContent:\n${textContent}`;
       });
 
-      const fetchedContent = texts.join("\n\n").substring(0, 200000);
+      const fetchedContent = texts.join("\n\n").substring(0, 50000);
       discourseCache.set(url, {
         content: fetchedContent,
         timestamp: Date.now(),

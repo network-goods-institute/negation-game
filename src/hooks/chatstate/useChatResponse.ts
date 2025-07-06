@@ -7,6 +7,8 @@ import { extractSourcesFromMarkdown } from "@/lib/negation-game/chatUtils";
 import type { ChatMessage, SavedChat, ViewpointGraph } from "@/types/chat";
 import type { FlowParams, FlowType } from "@/hooks/chat/useChatFlow";
 import type { Dispatch, SetStateAction, MutableRefObject } from "react";
+import { GraphCommand } from "@/types/graphCommands";
+import { applyGraphCommands } from "@/utils/graphCommandProcessor";
 
 /* eslint-disable drizzle/enforce-delete-with-where */
 
@@ -229,19 +231,72 @@ export function useChatResponse({
             }
           }
 
-          const payload = {
-            messages: messagesForApi,
+          const maxPointsInSpace = 50;
+          const limitedPoints = allPointsInSpace
+            .slice(-maxPointsInSpace)
+            .map((p) => ({
+              ...p,
+              content:
+                p.content.length > 80
+                  ? p.content.substring(0, 80) + "..."
+                  : p.content,
+            }));
+
+          let truncatedMessages = messagesForApi;
+          let payload = {
+            messages: truncatedMessages,
             context: {
               currentGraph: baseGraph,
-              allPointsInSpace,
+              allPointsInSpace: limitedPoints,
               linkUrl: contextLinkUrl,
               rationaleDescription,
             },
           };
+
+          let payloadString = JSON.stringify(payload);
+          let payloadSizeBytes = payloadString.length;
+          const maxPayloadSizeBytes = 800 * 1024;
+
+          if (
+            payloadSizeBytes > maxPayloadSizeBytes &&
+            truncatedMessages.length > 2
+          ) {
+            let messageCount = Math.max(
+              2,
+              Math.min(10, Math.floor(truncatedMessages.length / 2))
+            );
+
+            while (payloadSizeBytes > maxPayloadSizeBytes && messageCount > 1) {
+              const recentMessages = truncatedMessages.slice(-messageCount);
+              truncatedMessages = recentMessages;
+
+              payload = {
+                messages: truncatedMessages,
+                context: {
+                  currentGraph: baseGraph,
+                  allPointsInSpace: limitedPoints,
+                  linkUrl: contextLinkUrl,
+                  rationaleDescription,
+                },
+              };
+
+              payloadString = JSON.stringify(payload);
+              payloadSizeBytes = payloadString.length;
+              messageCount = Math.max(1, messageCount - 2);
+            }
+          }
+
+          const payloadSizeKB = (payloadSizeBytes / 1024).toFixed(2);
+          if (payloadSizeBytes > maxPayloadSizeBytes) {
+            throw new Error(
+              `Request too large (${payloadSizeKB} KB) even after message truncation and point reduction.`
+            );
+          }
+
           const res = await fetch("/api/rationale/create", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
+            body: payloadString,
           });
           if (!res.ok) {
             let errorMessage = `Rationale API error: ${res.status} ${res.statusText}`;
@@ -291,32 +346,157 @@ export function useChatResponse({
           responseStream = res.body as unknown as ReadableStream<
             string | Uint8Array | object
           >;
-          // extract the suggested graph from response header
+          const commandsHeader = res.headers.get("x-commands");
           const graphHeader = res.headers.get("x-graph");
-          if (!graphHeader) {
-            throw new Error("Missing suggestedGraph in API response");
-          }
-          const apiGraph: ViewpointGraph = JSON.parse(graphHeader);
-          // merge positions and preserve existing node data
-          const mergedNodes = apiGraph.nodes.map((aiNode) => {
-            const existingNode = baseGraph.nodes.find(
-              (n) => n.id === aiNode.id
-            );
-            if (existingNode) {
-              return {
-                ...aiNode,
-                position: existingNode.position,
-                data: { ...existingNode.data, ...aiNode.data },
-              };
+
+          if (commandsHeader) {
+            try {
+              let commandsJson;
+              try {
+                commandsJson = decodeURIComponent(commandsHeader);
+              } catch (decodeError) {
+                console.error("DECODE ERROR:", decodeError);
+                throw new Error(
+                  `Failed to decode commands header: ${decodeError}`
+                );
+              }
+
+              let commands: GraphCommand[];
+              try {
+                commands = JSON.parse(commandsJson);
+              } catch (parseError) {
+                console.error("JSON PARSE ERROR:", parseError);
+                console.error("Failed JSON string:", commandsJson);
+                throw new Error(`Failed to parse commands JSON: ${parseError}`);
+              }
+
+              const invalidCommands = [];
+              for (let i = 0; i < commands.length; i++) {
+                const cmd = commands[i];
+                if (!cmd || typeof cmd !== "object") {
+                  invalidCommands.push(`Command ${i}: not an object`);
+                  continue;
+                }
+                if (!cmd.id || !cmd.type) {
+                  invalidCommands.push(
+                    `Command ${i}: missing id or type (id: ${cmd.id}, type: ${cmd.type})`
+                  );
+                  continue;
+                }
+                console.log(`Command ${i}: ${cmd.type} - ${cmd.id} ✓`);
+              }
+
+              if (invalidCommands.length > 0) {
+                console.error("INVALID COMMANDS FOUND:", invalidCommands);
+                throw new Error(
+                  `Invalid commands: ${invalidCommands.join("; ")}`
+                );
+              }
+
+              let updatedGraph, errors;
+              try {
+                const result = applyGraphCommands(baseGraph, commands);
+                updatedGraph = result.updatedGraph;
+                errors = result.errors;
+              } catch (applyError) {
+                console.error("COMMAND APPLICATION ERROR:", applyError);
+                throw new Error(`Failed to apply commands: ${applyError}`);
+              }
+
+              if (errors.length > 0) {
+                console.error("Commands failed to apply:", errors);
+                console.error(
+                  "Failed commands details:",
+                  errors.map((err, i) => `${i}: ${err}`)
+                );
+
+                const errorCount = errors.length;
+                const errorMessage =
+                  errorCount === 1
+                    ? "Failed to apply graph update. Please try again."
+                    : `Failed to apply ${errorCount} graph updates. Please try again.`;
+                toast.error(errorMessage);
+              }
+
+              suggestedGraph = updatedGraph;
+            } catch (error) {
+              console.error("=== COMMAND PROCESSING FAILURE ===");
+              console.error("COMMAND PROCESSING FAILED:", error);
+              console.error("Error details:", {
+                message: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : "No stack",
+                name: error instanceof Error ? error.name : "Unknown",
+                cause: error instanceof Error ? error.cause : "No cause",
+              });
+              console.error(
+                "Commands header was:",
+                commandsHeader ? `${commandsHeader.length} chars` : "missing"
+              );
+              console.error("=== END COMMAND PROCESSING FAILURE ===");
+
+              // Show generic error to user but keep detailed logs in console
+              toast.error(
+                "Graph update encountered an issue. Check console for details."
+              );
             }
-            return aiNode;
-          }) as ViewpointGraph["nodes"];
-          suggestedGraph = {
-            ...baseGraph,
-            ...apiGraph,
-            nodes: mergedNodes,
-            edges: apiGraph.edges,
-          };
+          }
+
+          if (!commandsHeader || !suggestedGraph) {
+            // Legacy: extract the suggested graph from response header
+            if (!graphHeader) {
+              suggestedGraph = baseGraph;
+            } else {
+              try {
+                const graphJson = decodeURIComponent(graphHeader);
+                const apiGraph: ViewpointGraph = JSON.parse(graphJson);
+
+                const mergedNodes = apiGraph.nodes.map((aiNode) => {
+                  const existingNode = baseGraph.nodes.find(
+                    (n) => n.id === aiNode.id
+                  );
+                  if (existingNode) {
+                    return {
+                      ...aiNode,
+                      position: existingNode.position,
+                      data: { ...existingNode.data, ...aiNode.data },
+                    };
+                  }
+                  return aiNode;
+                }) as ViewpointGraph["nodes"];
+                suggestedGraph = {
+                  ...baseGraph,
+                  ...apiGraph,
+                  nodes: mergedNodes,
+                  edges: apiGraph.edges,
+                };
+              } catch (decodeError) {
+                try {
+                  const apiGraph: ViewpointGraph = JSON.parse(graphHeader);
+                  const mergedNodes = apiGraph.nodes.map((aiNode) => {
+                    const existingNode = baseGraph.nodes.find(
+                      (n) => n.id === aiNode.id
+                    );
+                    if (existingNode) {
+                      return {
+                        ...aiNode,
+                        position: existingNode.position,
+                        data: { ...existingNode.data, ...aiNode.data },
+                      };
+                    }
+                    return aiNode;
+                  }) as ViewpointGraph["nodes"];
+                  suggestedGraph = {
+                    ...baseGraph,
+                    ...apiGraph,
+                    nodes: mergedNodes,
+                    edges: apiGraph.edges,
+                  };
+                } catch (parseError) {
+                  suggestedGraph = baseGraph;
+                }
+              }
+            }
+          }
         } else {
           responseStream = await generateSuggestionChatBotResponse(
             messagesForApi,
