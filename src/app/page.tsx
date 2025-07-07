@@ -5,6 +5,11 @@ import { fetchSpace } from "@/actions/spaces/fetchSpace";
 import { GoToSpaceButton } from "@/components/GoToSpaceButton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Metadata } from "next";
+import { OnboardingProvider } from "@/components/contexts/OnboardingContext";
+import { KnowledgeBaseProvider } from "@/components/contexts/KnowledgeBaseContext";
+import { WriteupProvider } from "@/components/contexts/WriteupContext";
+import { OnboardingSection } from "@/components/OnboardingSection";
+import { HomePageDialogs } from "@/components/HomePageDialogs";
 
 
 export const metadata: Metadata = {
@@ -111,7 +116,11 @@ export default async function HomePage() {
                     __html: JSON.stringify(applicationStructuredData),
                 }}
             />
-            <div className="flex flex-col min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900">
+            <KnowledgeBaseProvider>
+                <WriteupProvider>
+                    <OnboardingProvider>
+                        <HomePageDialogs />
+                        <div className="flex flex-col min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900">
                 <header className="sticky top-0 w-full z-50 backdrop-blur-sm bg-white/75 dark:bg-slate-900/75 border-b border-slate-200 dark:border-slate-800">
                     <div className="max-w-7xl mx-auto flex items-center justify-between p-4">
                         <Link href="/" className="flex items-center space-x-2">
@@ -233,23 +242,7 @@ export default async function HomePage() {
                         </div>
                     </section>
 
-                    {/* CTA */}
-                    <section className="py-24 bg-slate-50 dark:bg-slate-800/25">
-                        <div className="max-w-7xl mx-auto px-4">
-                            <div className="max-w-3xl mx-auto text-center">
-                                <h2 className="text-3xl font-bold mb-4 dark:text-white">Custom Community Spaces</h2>
-                                <p className="text-lg text-muted-foreground dark:text-slate-400 mb-8">
-                                    Launch a dedicated Negation Game environment tailored for your organization!
-                                </p>
-                                <Button size="lg" className="font-medium gap-2 text-base" asChild>
-                                    <a href="https://t.me/+a0y-MpvjAchkM2Qx" target="_blank" rel="noopener noreferrer">
-                                        Contact Sales
-                                        <ArrowRight className="w-4 h-4" />
-                                    </a>
-                                </Button>
-                            </div>
-                        </div>
-                    </section>
+                    <OnboardingSection />
                 </main>
 
                 <footer className="border-t border-slate-200 dark:border-slate-800 py-8">
@@ -258,6 +251,9 @@ export default async function HomePage() {
                     </div>
                 </footer>
             </div>
+                    </OnboardingProvider>
+                </WriteupProvider>
+            </KnowledgeBaseProvider>
         </>
     );
 } 
