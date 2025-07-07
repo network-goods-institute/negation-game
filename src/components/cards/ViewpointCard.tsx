@@ -233,7 +233,7 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                 <ViewpointIcon className="flex-shrink-0" />
                                 <h3 className={cn(
                                     "tracking-tight text-md @xs/point:text-md @sm/point:text-lg font-semibold -mt-1 select-text flex-1 break-words whitespace-normal overflow-hidden",
-                                    plainDescription ? "mb-sm" : "mb-1"
+                                    (plainDescription || (topic && description)) ? "mb-sm" : "mb-1"
                                 )}>
                                     {topic ? (
                                         <>
@@ -245,7 +245,7 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                 </h3>
                             </div>
 
-                            {plainDescription && (
+                            {(plainDescription || (topic && description)) && (
                                 <div className="text-sm text-muted-foreground select-text sm:line-clamp-2 sm:mb-2 sm:h-10 sm:overflow-hidden whitespace-normal">
                                     {plainDescription}
                                 </div>
