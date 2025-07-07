@@ -30,6 +30,27 @@ export interface RationaleMetaFormProps {
     titleModified?: boolean;
     descriptionModified?: boolean;
     renderHeader?: React.ReactNode;
+    /**
+     * When true, the title field (both input for new rationales and static display for existing
+     * rationales) is completely hidden from the UI.
+     */
+    hideTitle?: boolean;
+    /**
+     * Controls whether the title can be edited. Defaults to true. When false the edit button and
+     * associated click handlers are disabled but the title text is still rendered (unless
+     * hideTitle is also true).
+     */
+    allowTitleEdit?: boolean;
+    /**
+     * When true, the TopicSelector component is not rendered. Useful for existing rationales where
+     * topics should no longer be editable/visible.
+     */
+    hideTopicSelector?: boolean;
+    /**
+     * When true the topic (or a prominent TopicSelector for new rationales) is rendered in the
+     * header position where the title used to live, making the topic visually dominant.
+     */
+    showTopicHeader?: boolean;
 }
 
 export default function RationaleMetaForm({
@@ -53,44 +74,72 @@ export default function RationaleMetaForm({
     titleModified = false,
     descriptionModified = false,
     renderHeader,
+    hideTitle = false,
+    allowTitleEdit = true,
+    hideTopicSelector = false,
+    showTopicHeader = false,
 }: RationaleMetaFormProps) {
     const displayDescription = description || (canEdit ? 'Click edit to add a description...' : 'No description');
+
+    const shouldHideTitle = hideTitle || (showTopicHeader && title === topic);
+
     return (
         <div className="flex flex-col p-2 gap-0">
-            {isTitleEditing || isNew ? (
-                <>
-                    {isNew && <label htmlFor="rationale-title" className="text-sm font-medium mb-1">Title</label>}
-                    <Input
-                        id="rationale-title"
-                        value={title}
-                        onChange={(e) => onTitleChange(e.target.value)}
-                        placeholder="Enter title"
-                        autoFocus
-                        onBlur={onTitleBlur}
-                    />
-                </>
-            ) : (
-                <div className="relative">
-                    {showEditButtons && !isTitleEditing && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-0 top-0"
-                            onClick={onTitleEdit}
-                        >
-                            Edit{titleModified ? '*' : ''}
-                        </Button>
-                    )}
-                    <div
-                        className={cn("cursor-pointer", canEdit && showEditButtons && "pt-4", isTitleEditing && "hidden")}
-                        onClick={canEdit ? onTitleEdit : undefined}
-                        onDoubleClick={canEdit ? onTitleEdit : undefined}
-                    >
-                        <h2 className="font-semibold pr-16">
-                            {title}{titleModified ? '*' : ''}
-                        </h2>
+            {showTopicHeader && (
+                isNew && canEdit ? (
+                    <div className="mb-4">
+                        <label className="text-sm font-medium mb-1 inline-block">Topic</label>
+                        <TopicSelector
+                            currentSpace={currentSpace}
+                            value={topic}
+                            onChange={onTopicChange}
+                            wrapperClassName="pt-0 pb-0"
+                            showLabel={false}
+                        />
                     </div>
-                </div>
+                ) : (
+                    <h2 className="font-semibold text-xl pr-16 mb-4 truncate">
+                        {topic || 'Untitled Topic'}
+                    </h2>
+                )
+            )}
+            {/* Title section */}
+            {!shouldHideTitle && (
+                isTitleEditing || (isNew && allowTitleEdit) ? (
+                    <>
+                        {isNew && <label htmlFor="rationale-title" className="text-sm font-medium mb-1">Title</label>}
+                        <Input
+                            id="rationale-title"
+                            value={title}
+                            onChange={(e) => onTitleChange(e.target.value)}
+                            placeholder="Enter title"
+                            autoFocus
+                            onBlur={onTitleBlur}
+                        />
+                    </>
+                ) : (
+                    <div className="relative">
+                        {allowTitleEdit && showEditButtons && !isTitleEditing && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="absolute right-0 top-0"
+                                onClick={onTitleEdit}
+                            >
+                                Edit{titleModified ? '*' : ''}
+                            </Button>
+                        )}
+                        <div
+                            className={cn("cursor-pointer", allowTitleEdit && canEdit && showEditButtons && "pt-4", isTitleEditing && "hidden")}
+                            onClick={allowTitleEdit && canEdit ? onTitleEdit : undefined}
+                            onDoubleClick={allowTitleEdit && canEdit ? onTitleEdit : undefined}
+                        >
+                            <h2 className="font-semibold pr-16">
+                                {title}{titleModified ? '*' : ''}
+                            </h2>
+                        </div>
+                    </div>
+                )
             )}
             {renderCopiedFromLink && <div className="mt-1">{renderCopiedFromLink}</div>}
             {renderHeader && <div className="mt-2">{renderHeader}</div>}
@@ -137,13 +186,15 @@ export default function RationaleMetaForm({
                 </div>
             )}
             <Separator className="my-2" />
-            <TopicSelector
-                currentSpace={currentSpace}
-                value={topic}
-                onChange={onTopicChange}
-                wrapperClassName="pt-2 pb-2"
-                showLabel={false}
-            />
+            {!hideTopicSelector && (
+                <TopicSelector
+                    currentSpace={currentSpace}
+                    value={topic}
+                    onChange={onTopicChange}
+                    wrapperClassName="pt-2 pb-2"
+                    showLabel={false}
+                />
+            )}
         </div>
     );
 } 

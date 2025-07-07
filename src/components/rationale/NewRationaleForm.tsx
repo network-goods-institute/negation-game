@@ -47,6 +47,9 @@ export default function NewRationaleForm({
                 currentSpace={currentSpace}
                 isNew
                 canEdit
+                hideTitle
+                showTopicHeader
+                hideTopicSelector
                 isDescriptionEditing={isDescriptionEditing}
                 onDescriptionEdit={onDescriptionEdit}
                 onDescriptionBlur={onDescriptionBlur}

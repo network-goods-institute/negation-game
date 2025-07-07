@@ -37,7 +37,7 @@ export default function usePublishRationale() {
   const basePath = spaceId ? `/s/${spaceId}` : "";
   const { data: topicsData } = useTopics(spaceId);
 
-  const canPublish = !!statement && graph.edges.length > 0;
+  const canPublish = !!topic && graph.edges.length > 0;
 
   const publish = useCallback(async () => {
     if (!canPublish) return;
@@ -48,7 +48,7 @@ export default function usePublishRationale() {
         if (found) topicId = found.id;
       }
       const id = await mutateAsync({
-        title: statement,
+        title: topic || statement,
         description,
         graph,
         topicId,

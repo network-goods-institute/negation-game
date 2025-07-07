@@ -318,12 +318,15 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                             onDescriptionEdit={handleDescriptionEdit}
                             onDescriptionBlur={handleEditingBlur}
                             topic={editableTopic}
-                            onTopicChange={(val) => { setEditableTopic(val); setIsContentModified(true); setIsTopicEditing(false); }}
+                            onTopicChange={(val) => { /* topic editing disabled */ }}
                             topics={topicsData || []}
                             currentSpace={space?.data?.id!}
                             isNew={false}
                             canEdit={true}
                             showEditButtons={true}
+                            allowTitleEdit={false}
+                            hideTopicSelector
+                            showTopicHeader
                             titleModified={isContentModified}
                             descriptionModified={isContentModified}
                             renderCopiedFromLink={latestViewpoint?.copiedFromId ? <CopiedFromLink sourceId={latestViewpoint.copiedFromId} /> : null}

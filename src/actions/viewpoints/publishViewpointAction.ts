@@ -10,15 +10,18 @@ import { canUserCreateRationaleForTopic } from "@/actions/topics/manageTopicPerm
 import { db } from "@/services/db";
 import { nanoid } from "nanoid";
 import { pick } from "remeda";
+import { topicsTable } from "@/db/tables/topicsTable";
+import { eq } from "drizzle-orm";
 
 export interface PublishViewpointArgs
   extends Omit<
     InsertViewpoint,
-    "id" | "space" | "createdBy" | "graph" | "copiedFromId"
+    "id" | "space" | "createdBy" | "graph" | "copiedFromId" | "title"
   > {
   graph: ViewpointGraph;
   copiedFromId?: string;
   topicId?: number | null;
+  title?: string;
 }
 
 export const publishViewpoint = async ({
@@ -43,6 +46,23 @@ export const publishViewpoint = async ({
       );
     }
   }
+  let finalTitle = title;
+
+  if (topicId) {
+    const topicRow = await db
+      .select({ name: topicsTable.name })
+      .from(topicsTable)
+      .where(eq(topicsTable.id, topicId))
+      .limit(1);
+
+    if (topicRow[0]) {
+      finalTitle = topicRow[0].name;
+    }
+  }
+
+  if (!finalTitle) {
+    finalTitle = "Untitled";
+  }
 
   const id = nanoid();
 
@@ -52,7 +72,7 @@ export const publishViewpoint = async ({
     description,
     topicId: topicId ?? null,
     graph: cleanupForPublishing(graph),
-    title,
+    title: finalTitle,
     space,
     copiedFromId,
   };

@@ -202,6 +202,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
         const matchingTopic = topicsData.find(t => t.id === decodedTopicId);
         if (matchingTopic) {
           setTopic(matchingTopic.name);
+          setStatement(matchingTopic.name);
           setTopicId(matchingTopic.id);
         }
       }
@@ -407,6 +408,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
               topic={topic}
               onTopicChange={(newTopic) => {
                 setTopic(newTopic);
+                setStatement(newTopic);
                 const matchingTopic = topicsData?.find(t => t.name === newTopic);
                 setTopicId(matchingTopic?.id);
               }}
