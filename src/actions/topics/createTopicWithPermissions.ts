@@ -17,7 +17,9 @@ export async function createTopicWithPermissions(data: {
     throw new Error("Must be authenticated to create topic");
   }
 
-  await requireSpaceAdmin(userId, data.space);
+  if (data.space !== "scroll" && data.space !== "scroll_test") {
+    await requireSpaceAdmin(userId, data.space);
+  }
 
   const [topic] = await db
     .insert(topicsTable)

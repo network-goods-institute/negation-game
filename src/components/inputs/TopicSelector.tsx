@@ -81,6 +81,8 @@ export const TopicSelector: React.FC<TopicSelectorProps> = ({
     const selectedTopic = topics?.find(t => t.name === value);
     const selectedUrl = selectedTopic?.discourseUrl ? validateAndFormatUrl(selectedTopic.discourseUrl) : null;
 
+    const canCreateTopic = isSpaceAdmin || currentSpace === "scroll" || currentSpace === "scroll_test";
+
     return (
         <div className={`${wrapperClassName} relative`}> {/* Add relative for absolute positioning of link icon */}
             {showLabel && <Label className="text-sm font-medium">Topic</Label>}
@@ -88,7 +90,7 @@ export const TopicSelector: React.FC<TopicSelectorProps> = ({
                 <Select
                     value={value}
                     onValueChange={(v) => {
-                        if (v === "__new__" && isSpaceAdmin) {
+                        if (v === "__new__" && canCreateTopic) {
                             setDialogOpen(true);
                         } else {
                             onChange(v);
@@ -99,7 +101,7 @@ export const TopicSelector: React.FC<TopicSelectorProps> = ({
                         <SelectValue placeholder="Select topic" />
                     </SelectTrigger>
                     <SelectContent>
-                        {isSpaceAdmin && <SelectItem value="__new__">+ Add new topic...</SelectItem>}
+                        {canCreateTopic && <SelectItem value="__new__">+ Add new topic...</SelectItem>}
                         <TooltipProvider>
                             {topics
                                 ?.filter(t => t.name && t.name.trim() !== "")
@@ -165,52 +167,52 @@ export const TopicSelector: React.FC<TopicSelectorProps> = ({
                     </TooltipProvider>
                 )}
             </div>
-            {isSpaceAdmin && (
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Add Topic</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                        <div className="space-y-2">
-                            <Label>Topic Name</Label>
-                            <Input
-                                ref={inputRef}
-                                value={newTopic}
-                                onChange={e => setNewTopic(e.target.value)}
-                                placeholder="Enter topic name"
-                                onKeyDown={e => {
-                                    if (e.key === "Enter" && newTopic.trim()) {
-                                        handleAddTopic();
-                                    }
-                                }}
-                                disabled={isSubmitting}
-                                autoFocus
-                            />
+            {canCreateTopic && (
+                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Add Topic</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label>Topic Name</Label>
+                                <Input
+                                    ref={inputRef}
+                                    value={newTopic}
+                                    onChange={e => setNewTopic(e.target.value)}
+                                    placeholder="Enter topic name"
+                                    onKeyDown={e => {
+                                        if (e.key === "Enter" && newTopic.trim()) {
+                                            handleAddTopic();
+                                        }
+                                    }}
+                                    disabled={isSubmitting}
+                                    autoFocus
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Discourse URL (optional)</Label>
+                                <Input
+                                    value={discourseUrl}
+                                    onChange={handleUrlChange}
+                                    placeholder="Enter discourse URL"
+                                    disabled={isSubmitting}
+                                />
+                                {urlError && (
+                                    <p className="text-sm text-destructive mt-1">{urlError}</p>
+                                )}
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label>Discourse URL (optional)</Label>
-                            <Input
-                                value={discourseUrl}
-                                onChange={handleUrlChange}
-                                placeholder="Enter discourse URL"
-                                disabled={isSubmitting}
-                            />
-                            {urlError && (
-                                <p className="text-sm text-destructive mt-1">{urlError}</p>
-                            )}
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={isSubmitting}>
-                            Cancel
-                        </Button>
-                        <Button onClick={handleAddTopic} disabled={!newTopic.trim() || isSubmitting}>
-                            Add
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={isSubmitting}>
+                                Cancel
+                            </Button>
+                            <Button onClick={handleAddTopic} disabled={!newTopic.trim() || isSubmitting}>
+                                Add
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             )}
         </div>
     );

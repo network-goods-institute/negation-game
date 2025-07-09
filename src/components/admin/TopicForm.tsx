@@ -25,6 +25,7 @@ interface TopicFormProps {
     onTopicChange: (topic: Topic | null) => void;
     allUsers: User[];
     isLoadingUsers: boolean;
+    isSpaceAdmin: boolean;
 }
 
 export function TopicForm({
@@ -32,7 +33,8 @@ export function TopicForm({
     selectedTopic,
     onTopicChange,
     allUsers,
-    isLoadingUsers
+    isLoadingUsers,
+    isSpaceAdmin
 }: TopicFormProps) {
     const [form, setForm] = useState<TopicFormData>({
         name: "",
@@ -197,111 +199,96 @@ export function TopicForm({
                     />
                 </div>
 
-                <div>
-                    <Label htmlFor="access">Access Control</Label>
-                    <Select
-                        value={form.access}
-                        onValueChange={(value: "open" | "whitelist" | "blacklist") =>
-                            setForm({ ...form, access: value, selectedUsers: [] })
-                        }
-                    >
-                        <SelectTrigger>
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="open" className="text-left">Open - Everyone can create rationales</SelectItem>
-                            <SelectItem value="whitelist" className="text-left">Whitelist - Only selected users</SelectItem>
-                            <SelectItem value="blacklist" className="text-left">Blacklist - Everyone except selected users</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
+                {isSpaceAdmin && (
+                    <>
+                        <div>
+                            <Label htmlFor="access">Access Control</Label>
+                            <Select
+                                value={form.access}
+                                onValueChange={(value: "open" | "whitelist" | "blacklist") =>
+                                    setForm({ ...form, access: value, selectedUsers: [] })
+                                }
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="open" className="text-left">Open - Everyone can create rationales</SelectItem>
+                                    <SelectItem value="whitelist" className="text-left">Whitelist - Only selected users</SelectItem>
+                                    <SelectItem value="blacklist" className="text-left">Blacklist - Everyone except selected users</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
 
-                {form.access !== "open" && (
-                    <div className="space-y-3">
-                        <Label>
-                            {form.access === "whitelist" ? "Users who CAN create rationales:" : "Users who CANNOT create rationales:"}
-                        </Label>
+                        {form.access !== "open" && (
+                            <div className="space-y-3">
+                                <Label>
+                                    {form.access === "whitelist" ? "Users who CAN create rationales:" : "Users who CANNOT create rationales:"}
+                                </Label>
 
-                        {selectedTopic && existingPermissions.length > 0 && (
-                            <div className="text-sm text-muted-foreground mb-2">
-                                <span className="font-medium">Current permissions:</span>
-                                <div className="mt-1 space-y-1">
-                                    {existingPermissions.map(permission => {
-                                        const user = allUsers.find(u => u.id === permission.userId);
-                                        return (
-                                            <div key={permission.userId} className="flex items-center space-x-2">
-                                                <div className={`w-2 h-2 rounded-full ${permission.canCreateRationale ? 'bg-green-500' : 'bg-red-500'}`} />
-                                                <span>{user?.username || permission.userId}</span>
-                                                <span className="text-xs">({permission.canCreateRationale ? 'allowed' : 'denied'})</span>
-                                            </div>
-                                        );
-                                    })}
+                                {selectedTopic && existingPermissions.length > 0 && (
+                                    <div className="text-sm text-muted-foreground mb-2">
+                                        <span className="font-medium">Current permissions:</span>
+                                        <div className="mt-1 space-y-1">
+                                            {existingPermissions.map(permission => {
+                                                const user = allUsers.find(u => u.id === permission.userId);
+                                                return (
+                                                    <div key={permission.userId} className="flex items-center space-x-2">
+                                                        <div className={`w-2 h-2 rounded-full ${permission.canCreateRationale ? 'bg-green-500' : 'bg-red-500'}`} />
+                                                        <span>{user?.username || permission.userId}</span>
+                                                        <span className="text-xs">({permission.canCreateRationale ? 'allowed' : 'denied'})</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search users..."
+                                        value={userSearch}
+                                        onChange={(e) => setUserSearch(e.target.value)}
+                                        className="pl-10"
+                                    />
+                                </div>
+                                <div className="max-h-48 overflow-y-auto rounded-md border p-2 space-y-2">
+                                    {isLoadingUsers ? (
+                                        <div className="flex items-center justify-center p-4">
+                                            <Loader2 className="h-5 w-5 animate-spin" />
+                                        </div>
+                                    ) : (
+                                        allUsers
+                                            .filter(user => user.username.toLowerCase().includes(userSearch.toLowerCase()))
+                                            .map(user => (
+                                                <div key={user.id} className="flex items-center space-x-3">
+                                                    <Checkbox
+                                                        id={`user-${user.id}`}
+                                                        checked={form.selectedUsers.includes(user.id)}
+                                                        onCheckedChange={(checked) => {
+                                                            const newSelectedUsers = checked
+                                                                ? [...form.selectedUsers, user.id]
+                                                                : form.selectedUsers.filter(id => id !== user.id);
+                                                            setForm({ ...form, selectedUsers: newSelectedUsers });
+                                                        }}
+                                                    />
+                                                    <label
+                                                        htmlFor={`user-${user.id}`}
+                                                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                                    >
+                                                        {user.username}
+                                                    </label>
+                                                </div>
+                                            ))
+                                    )}
                                 </div>
                             </div>
                         )}
-
-                        <div className="relative">
-                            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Search users..."
-                                value={userSearch}
-                                onChange={(e) => setUserSearch(e.target.value)}
-                                className="pl-10"
-                            />
-                        </div>
-
-                        <div className="h-32 border rounded-lg overflow-hidden">
-                            <div className="h-full overflow-y-auto p-2 space-y-1">
-                                {isLoadingUsers ? (
-                                    <div className="flex items-center justify-center h-full">
-                                        <div className="flex flex-col items-center space-y-2">
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                            <span className="text-xs text-muted-foreground">Loading users...</span>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    allUsers
-                                        .filter(user =>
-                                            user.username.toLowerCase().includes(userSearch.toLowerCase())
-                                        )
-                                        .map((user) => (
-                                            <div
-                                                key={user.id}
-                                                className="flex items-center space-x-2 p-1 hover:bg-muted rounded cursor-pointer"
-                                                onClick={() => {
-                                                    const isSelected = form.selectedUsers.includes(user.id);
-                                                    if (isSelected) {
-                                                        setForm({
-                                                            ...form,
-                                                            selectedUsers: form.selectedUsers.filter(id => id !== user.id),
-                                                        });
-                                                    } else {
-                                                        setForm({
-                                                            ...form,
-                                                            selectedUsers: [...form.selectedUsers, user.id],
-                                                        });
-                                                    }
-                                                }}
-                                            >
-                                                <Checkbox
-                                                    checked={form.selectedUsers.includes(user.id)}
-                                                />
-                                                <span className="text-sm">{user.username}</span>
-                                            </div>
-                                        ))
-                                )}
-                            </div>
-                        </div>
-
-                        {form.selectedUsers.length > 0 && (
-                            <div className="text-sm text-muted-foreground">
-                                {form.selectedUsers.length} user{form.selectedUsers.length !== 1 ? 's' : ''} selected
-                            </div>
-                        )}
-                    </div>
+                    </>
                 )}
 
-                <div className="flex space-x-2">
+                <div className="flex justify-end space-x-2 pt-2">
                     <Button
                         onClick={handleSubmit}
                         disabled={createMutation.isPending || updateMutation.isPending}

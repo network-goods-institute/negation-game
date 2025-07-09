@@ -89,6 +89,7 @@ export function TopicsAdminClient({ spaceId }: { spaceId: string }) {
                             onTopicChange={setSelectedTopic}
                             allUsers={allUsers}
                             isLoadingUsers={isLoadingUsers}
+                            isSpaceAdmin={isSpaceAdmin}
                         />
                     </div>
 
