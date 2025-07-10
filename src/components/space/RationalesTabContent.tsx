@@ -217,6 +217,7 @@ export const RationalesTabContent = memo(({
                             loadingCardId={loadingCardId}
                             handleCardClick={handleCardClick}
                             topic={viewpoint.topic}
+                            topicId={viewpoint.topicId}
                         />
                     ))}
                     {visibleCount < finalFilteredViewpoints.length && (

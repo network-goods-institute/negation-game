@@ -334,6 +334,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                     space={space}
                                     statistics={vp.statistics}
                                     topic={topic.name}
+                                    topicId={topic.id}
                                 />
                             ))
                         )}

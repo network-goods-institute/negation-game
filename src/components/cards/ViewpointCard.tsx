@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { ViewpointStatsBar } from "../rationale/ViewpointStatsBar";
 import { UsernameDisplay } from "@/components/ui/UsernameDisplay";
 import useIsMobile from "@/hooks/ui/useIsMobile";
+import { encodeId } from "@/lib/negation-game/encodeId";
 
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
     loading: () => <div className="animate-pulse h-32 bg-muted/30 rounded-md" />,
@@ -74,6 +75,7 @@ export interface ViewpointCardProps extends React.HTMLAttributes<HTMLDivElement>
     isUsernameError?: boolean;
     onClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
     topic?: string;
+    topicId?: number;
 }
 
 export const ViewpointCard: React.FC<ViewpointCardProps> = ({
@@ -97,6 +99,7 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
     isUsernameError = false,
     onClick,
     topic,
+    topicId,
     ...props
 }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -146,6 +149,8 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
         mouseDownRef.current = { x: e.clientX, y: e.clientY };
     }, []);
+
+
 
     const handleCardClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         // If there was no mousedown recorded, don't process the click
@@ -233,34 +238,46 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                 <ViewpointIcon className="flex-shrink-0" />
                                 <h3 className={cn(
                                     "tracking-tight text-md @xs/point:text-md @sm/point:text-lg font-semibold -mt-1 select-text flex-1 break-words whitespace-normal overflow-hidden",
-                                    (plainDescription || (topic && description)) ? "mb-sm" : "mb-1"
+                                    plainDescription ? "mb-sm" : "mb-1"
                                 )}>
-                                    {topic ? (
-                                        <>
-                                            <span>{topic}</span>
-                                            <span className="text-muted-foreground mx-1">-</span>
-                                            <span className="text-yellow-600 dark:text-yellow-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded font-medium">{author}</span>
-                                        </>
-                                    ) : title}
+                                    <>
+                                        {topic ? (
+                                            topicId ? (
+                                                <span
+                                                    className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        router.push(`/s/${space}/topic/${encodeId(topicId)}`);
+                                                    }}
+                                                    data-href={`/s/${space}/topic/${encodeId(topicId)}`}
+                                                    title={`View topic: ${topic}`}
+                                                >
+                                                    {topic}
+                                                </span>
+                                            ) : (
+                                                <span>{topic}</span>
+                                            )
+                                        ) : (
+                                            <span>{title}</span>
+                                        )}
+                                        <span className="text-muted-foreground mx-1">-</span>
+                                        <UsernameDisplay
+                                            username={author}
+                                            userId={authorId}
+                                            className="text-yellow-600 dark:text-yellow-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded font-medium"
+                                        />
+                                    </>
                                 </h3>
                             </div>
 
-                            {(plainDescription || (topic && description)) && (
+                            {plainDescription && (
                                 <div className="text-sm text-muted-foreground select-text sm:line-clamp-2 sm:mb-2 sm:h-10 sm:overflow-hidden whitespace-normal">
                                     {plainDescription}
                                 </div>
                             )}
                             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center text-xs text-muted-foreground mt-1 gap-1 sm:gap-0">
-                                {!topic && (
-                                    <span className="flex items-center gap-1 text-xs text-muted-foreground min-w-0">
-                                        <UsernameDisplay
-                                            username={author}
-                                            userId={authorId}
-                                            className="font-bold text-yellow-500 text-xs truncate"
-                                        />
-                                    </span>
-                                )}
-                                {topic && <div></div>}
+                                <div></div>
                                 <div className="flex items-center gap-2 flex-shrink-0">
                                     <ViewpointStatsBar
                                         views={statistics?.views || 0}
@@ -298,26 +315,37 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                         <div className="flex items-start gap-2">
                             <ViewpointIcon />
                             <h3 className="text-lg font-semibold -mt-0.5 flex-1">
-                                {topic ? (
-                                    <>
-                                        <span>{topic}</span>
-                                        <span className="text-muted-foreground mx-1">-</span>
-                                        <span className="text-yellow-600 dark:text-yellow-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded font-medium">{author}</span>
-                                    </>
-                                ) : title}
+                                <>
+                                    {topic ? (
+                                        topicId ? (
+                                            <span
+                                                className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    router.push(`/s/${space}/topic/${encodeId(topicId)}`);
+                                                }}
+                                                data-href={`/s/${space}/topic/${encodeId(topicId)}`}
+                                                title={`View topic: ${topic}`}
+                                            >
+                                                {topic}
+                                            </span>
+                                        ) : (
+                                            <span>{topic}</span>
+                                        )
+                                    ) : (
+                                        <span>{title}</span>
+                                    )}
+                                    <span className="text-muted-foreground mx-1">-</span>
+                                    <UsernameDisplay
+                                        username={author}
+                                        userId={authorId}
+                                        className="text-yellow-600 dark:text-yellow-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded font-medium"
+                                    />
+                                </>
                             </h3>
                         </div>
 
-                        {!topic && (
-                            <div className="text-sm text-muted-foreground mb-1 flex items-center gap-1">
-                                By
-                                <UsernameDisplay
-                                    username={author}
-                                    userId={authorId}
-                                    className="font-bold text-yellow-500 text-sm"
-                                />
-                            </div>
-                        )}
 
                         <ViewpointStatsBar
                             views={statistics?.views || 0}

@@ -156,6 +156,7 @@ describe("fetchViewpoints", () => {
       views: viewpointInteractionsTable.views,
       copies: viewpointInteractionsTable.copies,
       topic: topicsTable.name,
+      topicId: topicsTable.id,
     });
     expect(mockFrom).toHaveBeenCalledWith(viewpointsTable);
     expect(mockInnerJoin).toHaveBeenCalledWith(
@@ -242,6 +243,7 @@ describe("fetchViewpoints", () => {
       views: viewpointInteractionsTable.views,
       copies: viewpointInteractionsTable.copies,
       topic: topicsTable.name,
+      topicId: topicsTable.id,
     });
     expect(mockFrom).toHaveBeenCalledWith(viewpointsTable);
     expect(mockInnerJoin).toHaveBeenCalledWith(usersTable, expect.any(String));

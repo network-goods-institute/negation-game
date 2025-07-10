@@ -22,6 +22,7 @@ export const fetchViewpoint = async (id: string) => {
       author: "",
       description: "",
       topic: "",
+      topicId: null,
       originalPointIds: [] as number[],
       graph: { nodes: [], edges: [] },
       createdBy: "",
@@ -54,6 +55,7 @@ export const fetchViewpoint = async (id: string) => {
       views: viewpointInteractionsTable.views,
       copies: viewpointInteractionsTable.copies,
       topic: topicsTable.name,
+      topicId: topicsTable.id,
     })
     .from(viewpointsTable)
     .innerJoin(usersTable, eq(usersTable.id, viewpointsTable.createdBy))

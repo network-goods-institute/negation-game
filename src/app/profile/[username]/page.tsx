@@ -476,6 +476,8 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                             }}
                                                             loadingCardId={loadingCardId}
                                                             handleCardClick={handleCardClick}
+                                                            topic={viewpoint.topic ?? undefined}
+                                                            topicId={viewpoint.topicId ?? undefined}
                                                         />
                                                     ))}
                                                 </>
@@ -624,6 +626,8 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                             }}
                                                             loadingCardId={loadingCardId}
                                                             handleCardClick={handleCardClick}
+                                                            topic={viewpoint.topic ?? undefined}
+                                                            topicId={viewpoint.topicId ?? undefined}
                                                         />
                                                     ))}
                                                 </div>

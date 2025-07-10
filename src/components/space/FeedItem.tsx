@@ -161,6 +161,7 @@ export const FeedItem = memo(({
                 loadingCardId={loadingCardId}
                 handleCardClick={handleCardClick}
                 topic={viewpoint.topic}
+                topicId={viewpoint.topicId}
             />
         );
     }

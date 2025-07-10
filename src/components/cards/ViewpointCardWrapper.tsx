@@ -21,6 +21,7 @@ interface ViewpointCardWrapperProps {
     handleCardClick?: (id: string) => void;
     className?: string;
     topic?: string;
+    topicId?: number;
 }
 
 export function ViewpointCardWrapper({
@@ -35,7 +36,8 @@ export function ViewpointCardWrapper({
     loadingCardId,
     handleCardClick,
     className = "flex-grow",
-    topic = ''
+    topic = '',
+    topicId
 }: ViewpointCardWrapperProps) {
     // Card click handler - only triggers navigation when the ViewpointCard
     // component determines it's a valid click (not a text selection)
@@ -58,6 +60,7 @@ export function ViewpointCardWrapper({
                 className={`${className} min-w-0 w-full`}
                 id={id}
                 topic={topic}
+                topicId={topicId}
                 title={title}
                 description={description}
                 author={author}

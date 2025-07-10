@@ -119,6 +119,7 @@ describe("fetchViewpoint", () => {
       createdAt: new Date(0), // Implementation returns new Date(0)
       space: null,
       topic: "",
+      topicId: null,
       statistics: {
         views: 0,
         copies: 0,

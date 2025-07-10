@@ -207,7 +207,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
         }
       }
     }
-  }, [preselectedTopicId, topicsData, topic, setTopic, setTopicId]);
+  }, [preselectedTopicId, topicsData, topic, setTopic, setTopicId, setStatement]);
 
   useEffect(() => {
     if (
