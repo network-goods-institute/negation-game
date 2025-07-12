@@ -79,14 +79,14 @@ export const SaveDiscardPanel: React.FC<SaveDiscardPanelProps> = memo(({
                                                     ? isNew
                                                         ? "Publish Rationale"
                                                         : "Publish Changes"
-                                                    : "Save as New Rationale"}
+                                                    : "Save as Copy"}
                                             </span>
                                         </div>
                                     )}
                                 </AuthenticatedActionButton>
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p>{canModify ? 'Save changes' : 'Save your changes as a new rationale.'}</p>
+                                <p>{canModify ? 'Save changes' : 'Save your changes as a copy.'}</p>
                             </TooltipContent>
                         </Tooltip>
                         <Tooltip>

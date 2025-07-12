@@ -40,7 +40,7 @@ export default function MobileSaveFooter({
                 disabled={isSaving || (!isContentModified && !isGraphModified)}
                 rightLoading={isSaving}
             >
-                {isOwner ? 'Publish Changes' : 'Save as New Rationale'}
+                {isOwner ? 'Publish Changes' : 'Save as Copy'}
             </AuthenticatedActionButton>
             <Button
                 variant="secondary"

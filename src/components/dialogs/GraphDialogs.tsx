@@ -144,10 +144,10 @@ export const GraphDialogs: React.FC<GraphDialogsProps> = ({
             <AlertDialogContent className="sm:max-w-[425px]">
                 <AlertDialogHeader>
                     <AlertDialogTitle>
-                        Confirm Save as New Rationale
+                        Confirm Save as Copy
                     </AlertDialogTitle>
                     <AlertDialogDescription>
-                        Are you sure you want to save your changes as a new rationale? This will create a copy.
+                        Are you sure you want to save your changes as a copy? This will create a new rationale.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -157,7 +157,7 @@ export const GraphDialogs: React.FC<GraphDialogsProps> = ({
                     <AlertDialogAction onClick={async () => {
                         await handleConfirmSaveAsNew();
                     }}>
-                        Yes, save as new
+                        Yes, save as copy
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

@@ -103,7 +103,7 @@ export const SaveConfirmDialog = ({
                                 <span>Saving...</span>
                             </div>
                         ) : (
-                            "Save as New Rationale"
+                            "Save as Copy"
                         )}
                     </Button>
                     <Button
