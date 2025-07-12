@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { POINT_MIN_LENGTH } from "@/constants/config";
 import { cn } from "@/lib/utils/cn";
 import { Handle, Node, NodeProps, Position, useReactFlow } from "@xyflow/react";
-import { XIcon } from "lucide-react";
+import { XIcon, Search } from "lucide-react";
 import { nanoid } from "nanoid";
 import React, { useState } from "react";
 import { PointEditor } from "@/components/editor/PointEditor";
@@ -266,14 +266,17 @@ export const PreviewAddPointNode = ({
         {similarPoints && similarPoints.length > 0 && (
           <Dialog>
             <DialogTrigger asChild>
-              <Button size={"icon"}>{similarPoints.length}</Button>
+              <Button variant="outline" size="sm" className="flex items-center gap-1">
+                <Search className="h-3 w-3" />
+                <span className="text-xs">{similarPoints.length} existing</span>
+              </Button>
             </DialogTrigger>
             <DialogContent className="w-96 p-2  bg-muted rounded-md overflow-clip">
               <DialogTitle className="text-center mt-2">
-                Similar Points
+                Choose Existing Point
               </DialogTitle>
-              <DialogDescription className="hidden">
-                Similar points to the one you are adding
+              <DialogDescription className="text-center text-sm text-muted-foreground">
+                Select an existing point instead of creating a new one
               </DialogDescription>
               <DialogClose asChild>
                 <Button

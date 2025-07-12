@@ -25,11 +25,14 @@ import { usePrefetchPoint } from "@/queries/points/usePointData";
 import { useQuery } from "@tanstack/react-query";
 import { useDebounce } from "@uidotdev/usehooks";
 import { Handle, Node, NodeProps, Position, useReactFlow } from "@xyflow/react";
-import { XIcon } from "lucide-react";
+import { XIcon, Search } from "lucide-react";
 import { nanoid } from "nanoid";
-import { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { collapsedPointIdsAtom } from "@/atoms/viewpointAtoms";
 import { useSetAtom } from "jotai";
+import { reviewProposedPointAction, type PointReviewResults } from "@/actions/ai/reviewProposedPointAction";
+import { ReviewPointDialog } from "@/components/dialogs/ReviewPointDialog";
+import { useMutation } from "@tanstack/react-query";
 
 export type AddPointNodeData = {
   parentId: string;
@@ -60,6 +63,8 @@ export const AddPointNode = ({
   const debouncedContent = useDebounce(content, 1000);
   const { credInput, setCredInput } = useCredInput();
   const setCollapsedPointIds = useSetAtom(collapsedPointIdsAtom);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewResults, setReviewResults] = useState<PointReviewResults | null>(null);
 
   useEffect(() => {
     updateNodeData(id, { parentId, content, hasContent: content.length > 0 });
@@ -100,11 +105,107 @@ export const AddPointNode = ({
   });
 
   const { mutateAsync: makePoint, isPending: isMakingPoint } = useMakePoint();
-  const canMakePoint = content.length >= POINT_MIN_LENGTH && !isMakingPoint;
+  const canMakePoint = content.length >= POINT_MIN_LENGTH && !isMakingPoint && !isLoading;
+
+  const { mutateAsync: reviewPoint, isPending: isReviewing } = useMutation({
+    mutationFn: reviewProposedPointAction,
+    onSuccess: (results) => {
+      setReviewResults(results);
+      setReviewDialogOpen(true);
+    },
+  });
 
   const prefetchPoint = usePrefetchPoint();
 
   const similarPointsToShow = similarPoints ?? [];
+
+  const createPoint = async () => {
+    const pointId = await makePoint({ content, cred: credInput });
+    // Generate a guaranteed unique ID by combining nanoid with timestamp
+    const uniqueId = `${nanoid()}-${Date.now()}`;
+    addNodes({
+      id: uniqueId,
+      data: { pointId, parentId, content, hasContent: true },
+      type: "point",
+      position: {
+        x: positionAbsoluteX,
+        y: positionAbsoluteY,
+      },
+    });
+    const parentNode = getNode(parentId);
+    const edgeId = nanoid();
+    addEdges({
+      id: edgeId,
+      source: uniqueId,
+      target: parentNode ? parentNode.id : parentId,
+      type: parentId === 'statement' ? 'statement' : 'negation',
+    });
+    // Delayed needed to avoid race condition
+    setTimeout(() => {
+      deleteElements({ nodes: [{ id }] });
+    }, 50);
+  };
+
+  const handleButtonClick = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (event.altKey) {
+      // Alt+click bypasses review
+      await createPoint();
+    } else {
+      // Regular click goes through review
+      const parentNode = getNode(parentId);
+      const parentContent = parentNode?.data?.content as string | undefined;
+
+      await reviewPoint({
+        pointContent: content,
+        parentContent: isParentStatement ? parentContent : undefined,
+      });
+    }
+  };
+
+  const handleSelectSuggestion = (suggestion: string) => {
+    setContent(suggestion);
+    setReviewDialogOpen(false);
+  };
+
+  const handleSubmitOriginal = async () => {
+    setReviewDialogOpen(false);
+    await createPoint();
+  };
+
+  const handleSelectExisting = (pointId: number) => {
+    // Remove from collapsed set if it was there
+    setCollapsedPointIds(prev => {
+      const newSet = new Set(prev);
+      // eslint-disable-next-line drizzle/enforce-delete-with-where
+      newSet.delete(pointId);
+      return newSet;
+    });
+
+    // Generate a guaranteed unique ID by combining nanoid with timestamp
+    const uniqueId = `${nanoid()}-${Date.now()}`;
+
+    // Add the existing point in its new position
+    addNodes({
+      id: uniqueId,
+      data: { pointId, parentId, content, hasContent: true },
+      type: "point",
+      position: {
+        x: positionAbsoluteX,
+        y: positionAbsoluteY,
+      },
+    });
+
+    addEdges({
+      id: nanoid(),
+      source: uniqueId,
+      target: parentId,
+      type: parentId === 'statement' ? 'statement' : 'negation',
+    });
+
+    // Remove the add point node
+    deleteElements({ nodes: [{ id }] });
+    setReviewDialogOpen(false);
+  };
 
   return (
     <div
@@ -146,36 +247,10 @@ export const AddPointNode = ({
         <div className="flex gap-2">
           <AuthenticatedActionButton
             className="rounded-md"
-            onClick={() => {
-              makePoint({ content, cred: credInput }).then((pointId) => {
-                // Generate a guaranteed unique ID by combining nanoid with timestamp
-                const uniqueId = `${nanoid()}-${Date.now()}`;
-                addNodes({
-                  id: uniqueId,
-                  data: { pointId, parentId, content, hasContent: true },
-                  type: "point",
-                  position: {
-                    x: positionAbsoluteX,
-                    y: positionAbsoluteY,
-                  },
-                });
-                const parentNode = getNode(parentId);
-                const edgeId = nanoid();
-                addEdges({
-                  id: edgeId,
-                  source: uniqueId,
-                  target: parentNode ? parentNode.id : parentId,
-                  type: parentId === 'statement' ? 'statement' : 'negation',
-                });
-                // Delayed needed to avoid race condition
-                setTimeout(() => {
-                  deleteElements({ nodes: [{ id }] });
-                }, 50);
-              }).catch(error => {
-              });
-            }}
+            onClick={handleButtonClick}
             disabled={!canMakePoint}
-            rightLoading={isMakingPoint}
+            rightLoading={isMakingPoint || isReviewing}
+            title={isParentStatement ? "Click to review option, Alt+click to skip review" : "Click to review point, Alt+click to skip review"}
           >
             {buttonText}
           </AuthenticatedActionButton>
@@ -184,14 +259,17 @@ export const AddPointNode = ({
         {similarPointsToShow.length > 0 && (
           <Dialog>
             <DialogTrigger asChild>
-              <Button size={"icon"}>{similarPointsToShow.length}</Button>
+              <Button variant="outline" size="sm" className="flex items-center gap-1">
+                <Search className="h-3 w-3" />
+                <span className="text-xs">{similarPointsToShow.length} existing</span>
+              </Button>
             </DialogTrigger>
             <DialogContent className="w-96 p-2  bg-muted rounded-md overflow-clip">
               <DialogTitle className="text-center mt-2">
-                Similar Points
+                Choose Existing Point
               </DialogTitle>
-              <DialogDescription className="hidden">
-                Similar points to the one you are adding
+              <DialogDescription className="text-center text-sm text-muted-foreground">
+                Select an existing point instead of creating a new one
               </DialogDescription>
               <DialogClose asChild>
                 <Button
@@ -257,6 +335,18 @@ export const AddPointNode = ({
           </Dialog>
         )}
       </div>
+
+      <ReviewPointDialog
+        open={reviewDialogOpen}
+        onOpenChange={setReviewDialogOpen}
+        reviewResults={reviewResults}
+        isLoading={isReviewing}
+        onSelectSuggestion={handleSelectSuggestion}
+        onSubmitOriginal={handleSubmitOriginal}
+        onSelectExisting={handleSelectExisting}
+        pointContent={content}
+        isOption={isParentStatement}
+      />
     </div>
   );
 };
