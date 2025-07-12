@@ -4,6 +4,7 @@ export interface Topic {
   space: string;
   discourseUrl: string;
   restrictedRationaleCreation: boolean;
+  closed: boolean;
   createdAt: string;
 }
 
@@ -66,7 +67,7 @@ export interface TopicFormData {
 
 export interface AssignmentFormData {
   topicId: string;
-  userId: string;
+  userIds: string[];
   promptMessage: string;
 }
 
@@ -82,6 +83,7 @@ export interface UpdateTopicData {
   name?: string;
   discourseUrl?: string;
   restrictedRationaleCreation?: boolean;
+  closed?: boolean;
   permissions?: { userId: string; canCreateRationale: boolean }[];
 }
 

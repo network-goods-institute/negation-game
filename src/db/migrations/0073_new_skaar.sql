@@ -1,0 +1,1 @@
+ALTER TABLE "topics" ADD COLUMN "closed" boolean DEFAULT false NOT NULL;

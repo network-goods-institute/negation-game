@@ -24,6 +24,9 @@ export const topicsTable = pgTable(
     restrictedRationaleCreation: boolean("restricted_rationale_creation")
       .notNull()
       .default(false),
+    closed: boolean("closed")
+      .notNull()
+      .default(false),
   },
   (table) => ({
     spaceIdx: index("topics_space_idx").on(table.space),

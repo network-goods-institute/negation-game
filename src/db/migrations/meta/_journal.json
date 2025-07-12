@@ -512,6 +512,13 @@
       "when": 1751592799626,
       "tag": "0072_unknown_johnny_blaze",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1752346803859,
+      "tag": "0073_new_skaar",
+      "breakpoints": true
     }
   ]
 }

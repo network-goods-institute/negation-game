@@ -13,9 +13,10 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Users, ChevronDown, ChevronUp, Loader2, CheckCircle, XCircle } from "lucide-react";
+import { Search, Users, ChevronDown, ChevronUp, Loader2, CheckCircle, XCircle, Filter } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Topic } from "@/types/admin";
-import { fetchRationaleStatus } from "@/services/admin/statisticsService";
+import { fetchRationaleStatus, fetchDelegateStats } from "@/services/admin/statisticsService";
 
 interface RationaleStatusSectionProps {
     spaceId: string;
@@ -27,10 +28,18 @@ export function RationaleStatusSection({ spaceId, topics, isLoadingTopics }: Rat
     const [statusExpanded, setStatusExpanded] = useState(false);
     const [selectedStatusTopic, setSelectedStatusTopic] = useState<string>("all");
     const [statusUserSearch, setStatusUserSearch] = useState("");
+    const [showOnlyActive, setShowOnlyActive] = useState(true);
+    const [showOnlyIncomplete, setShowOnlyIncomplete] = useState(false);
 
     const { data: rationaleStatus = [], isLoading: isLoadingStatus } = useQuery({
         queryKey: ["rationale-status", spaceId, selectedStatusTopic],
         queryFn: () => fetchRationaleStatus(spaceId),
+        enabled: statusExpanded,
+    });
+
+    const { data: delegateStats = [] } = useQuery({
+        queryKey: ["delegate-stats", spaceId],
+        queryFn: () => fetchDelegateStats(spaceId),
         enabled: statusExpanded,
     });
 
@@ -40,9 +49,30 @@ export function RationaleStatusSection({ spaceId, topics, isLoadingTopics }: Rat
         )
         .map(topic => ({
             ...topic,
-            users: topic.users.filter(user =>
-                user.username.toLowerCase().includes(statusUserSearch.toLowerCase())
-            )
+            users: topic.users.filter(user => {
+                const matchesSearch = user.username.toLowerCase().includes(statusUserSearch.toLowerCase());
+                
+                if (!matchesSearch) return false;
+                
+                // Filter by overall space activity if enabled
+                if (showOnlyActive) {
+                    const userDelegate = delegateStats.find(delegate => delegate.userId === user.userId);
+                    if (userDelegate) {
+                        const hasActivity = userDelegate.pointsCreated > 0 || 
+                                           userDelegate.rationalesCreated > 0 || 
+                                           userDelegate.totalEndorsementsMade > 0;
+                        if (!hasActivity) return false;
+                    } else {
+                        // If no delegate stats available, fall back to rationale count
+                        if (user.rationaleCount === 0) return false;
+                    }
+                }
+                
+                // Filter by incomplete status if enabled (users with no published rationale)
+                if (showOnlyIncomplete && user.hasPublishedRationale) return false;
+                
+                return true;
+            })
         }));
 
     return (
@@ -66,38 +96,71 @@ export function RationaleStatusSection({ spaceId, topics, isLoadingTopics }: Rat
             {statusExpanded && (
                 <CardContent className="space-y-4">
                     {/* Filters */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <Label htmlFor="statusTopic">Filter by Topic</Label>
-                            <Select
-                                value={selectedStatusTopic}
-                                onValueChange={setSelectedStatusTopic}
-                                disabled={isLoadingTopics}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder={isLoadingTopics ? "Loading topics..." : "All topics"} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All topics</SelectItem>
-                                    {topics.map((topic) => (
-                                        <SelectItem key={topic.id} value={topic.id.toString()}>
-                                            {topic.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="statusTopic">Filter by Topic</Label>
+                                <Select
+                                    value={selectedStatusTopic}
+                                    onValueChange={setSelectedStatusTopic}
+                                    disabled={isLoadingTopics}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={isLoadingTopics ? "Loading topics..." : "All topics"} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All topics</SelectItem>
+                                        {topics.map((topic) => (
+                                            <SelectItem key={topic.id} value={topic.id.toString()}>
+                                                {topic.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <Label htmlFor="statusUserSearch">Search Users</Label>
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        id="statusUserSearch"
+                                        placeholder="Search users..."
+                                        value={statusUserSearch}
+                                        onChange={(e) => setStatusUserSearch(e.target.value)}
+                                        className="pl-10"
+                                    />
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <Label htmlFor="statusUserSearch">Search Users</Label>
-                            <div className="relative">
-                                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    id="statusUserSearch"
-                                    placeholder="Search users..."
-                                    value={statusUserSearch}
-                                    onChange={(e) => setStatusUserSearch(e.target.value)}
-                                    className="pl-10"
+                        
+                        {/* Filter Options */}
+                        <div className="flex flex-wrap gap-4 p-4 bg-muted/50 rounded-lg">
+                            <div className="flex items-center space-x-2">
+                                <Filter className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm font-medium text-muted-foreground">Filters:</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="show-active-rationale"
+                                    checked={showOnlyActive}
+                                    onCheckedChange={(checked) => setShowOnlyActive(checked as boolean)}
                                 />
+                                <Label htmlFor="show-active-rationale" className="text-sm cursor-pointer">
+                                    Show only active users
+                                </Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="show-incomplete"
+                                    checked={showOnlyIncomplete}
+                                    onCheckedChange={(checked) => setShowOnlyIncomplete(checked as boolean)}
+                                />
+                                <Label htmlFor="show-incomplete" className="text-sm cursor-pointer">
+                                    Show only incomplete assignments
+                                </Label>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                                Showing {filteredStatusData.reduce((total, topic) => total + topic.users.length, 0)} users across {filteredStatusData.length} topics
                             </div>
                         </div>
                     </div>

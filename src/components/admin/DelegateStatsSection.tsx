@@ -20,7 +20,8 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Search, Users, ChevronDown, ChevronUp, Loader2, ExternalLink, Crown } from "lucide-react";
+import { Search, Users, ChevronDown, ChevronUp, Loader2, ExternalLink, Crown, Filter } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DelegateStats } from "@/types/admin";
 import { fetchDelegateStats } from "@/services/admin/statisticsService";
 
@@ -31,7 +32,9 @@ interface DelegateStatsSectionProps {
 export function DelegateStatsSection({ spaceId }: DelegateStatsSectionProps) {
     const [delegateStatsExpanded, setDelegateStatsExpanded] = useState(false);
     const [delegateSearch, setDelegateSearch] = useState("");
-    const [delegateSortBy, setDelegateSortBy] = useState<keyof DelegateStats>("totalCred");
+    const [delegateSortBy, setDelegateSortBy] = useState<keyof DelegateStats>("rationalesCreated");
+    const [showOnlyActive, setShowOnlyActive] = useState(true);
+    const [showOnlyDelegates, setShowOnlyDelegates] = useState(false);
 
     const { data: delegateStats = [], isLoading: isLoadingDelegateStats } = useQuery({
         queryKey: ["delegate-stats", spaceId],
@@ -40,9 +43,24 @@ export function DelegateStatsSection({ spaceId }: DelegateStatsSectionProps) {
     });
 
     const filteredAndSortedDelegates = delegateStats
-        .filter(delegate =>
-            delegate.username.toLowerCase().includes(delegateSearch.toLowerCase())
-        )
+        .filter(delegate => {
+            const matchesSearch = delegate.username.toLowerCase().includes(delegateSearch.toLowerCase());
+            
+            if (!matchesSearch) return false;
+            
+            // Filter by delegate status if enabled
+            if (showOnlyDelegates && !delegate.isDelegate) return false;
+            
+            // Filter by activity if enabled  
+            if (showOnlyActive) {
+                const hasActivity = delegate.pointsCreated > 0 || 
+                                   delegate.rationalesCreated > 0 || 
+                                   delegate.totalEndorsementsMade > 0;
+                return hasActivity;
+            }
+            
+            return true;
+        })
         .sort((a, b) => {
             const aValue = a[delegateSortBy];
             const bValue = b[delegateSortBy];
@@ -77,29 +95,30 @@ export function DelegateStatsSection({ spaceId }: DelegateStatsSectionProps) {
             {delegateStatsExpanded && (
                 <CardContent className="space-y-4">
                     {/* Filters and Search */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <Label htmlFor="delegateSearch">Search Delegates</Label>
-                            <div className="relative">
-                                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    id="delegateSearch"
-                                    placeholder="Search by username..."
-                                    value={delegateSearch}
-                                    onChange={(e) => setDelegateSearch(e.target.value)}
-                                    className="pl-10"
-                                />
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="delegateSearch">Search Delegates</Label>
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        id="delegateSearch"
+                                        placeholder="Search by username..."
+                                        value={delegateSearch}
+                                        onChange={(e) => setDelegateSearch(e.target.value)}
+                                        className="pl-10"
+                                    />
+                                </div>
                             </div>
-                        </div>
-                        <div>
-                            <Label htmlFor="delegateSortBy">Sort By</Label>
-                            <Select
-                                value={delegateSortBy}
-                                onValueChange={(value: keyof DelegateStats) => setDelegateSortBy(value)}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
+                            <div>
+                                <Label htmlFor="delegateSortBy">Sort By</Label>
+                                <Select
+                                    value={delegateSortBy}
+                                    onValueChange={(value: keyof DelegateStats) => setDelegateSortBy(value)}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="totalCred">Total Cred</SelectItem>
                                     <SelectItem value="pointsCreated">Points Created</SelectItem>
@@ -111,6 +130,38 @@ export function DelegateStatsSection({ spaceId }: DelegateStatsSectionProps) {
                                     <SelectItem value="username">Username</SelectItem>
                                 </SelectContent>
                             </Select>
+                        </div>
+                        </div>
+                        
+                        {/* Filter Options */}
+                        <div className="flex flex-wrap gap-4 p-4 bg-muted/50 rounded-lg">
+                            <div className="flex items-center space-x-2">
+                                <Filter className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm font-medium text-muted-foreground">Filters:</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="show-active"
+                                    checked={showOnlyActive}
+                                    onCheckedChange={(checked) => setShowOnlyActive(checked as boolean)}
+                                />
+                                <Label htmlFor="show-active" className="text-sm cursor-pointer">
+                                    Show only active users
+                                </Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="show-delegates"
+                                    checked={showOnlyDelegates}
+                                    onCheckedChange={(checked) => setShowOnlyDelegates(checked as boolean)}
+                                />
+                                <Label htmlFor="show-delegates" className="text-sm cursor-pointer">
+                                    Show only official delegates
+                                </Label>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                                Showing {filteredAndSortedDelegates.length} of {delegateStats.length} users
+                            </div>
                         </div>
                     </div>
 
@@ -130,8 +181,8 @@ export function DelegateStatsSection({ spaceId }: DelegateStatsSectionProps) {
                                         <TableHead className="text-right">Cred</TableHead>
                                         <TableHead className="text-right">Points</TableHead>
                                         <TableHead className="text-right">Rationales</TableHead>
-                                        <TableHead className="text-right">Endorsed</TableHead>
-                                        <TableHead className="text-right">Received</TableHead>
+                                        <TableHead className="text-right">Endorsements Made</TableHead>
+                                        <TableHead className="text-right">Endorsements Received</TableHead>
                                         <TableHead className="text-right">Last Active</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -201,17 +252,17 @@ export function DelegateStatsSection({ spaceId }: DelegateStatsSectionProps) {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex flex-col items-end">
-                                                    <span className="font-medium">{delegate.totalEndorsementsMade}</span>
+                                                    <span className="font-medium">{delegate.totalEndorsementsMade} endorsements</span>
                                                     <span className="text-xs text-muted-foreground">
-                                                        {delegate.totalCredEndorsed.toLocaleString()} cred
+                                                        {delegate.totalCredEndorsed.toLocaleString()} cred given
                                                     </span>
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex flex-col items-end">
-                                                    <span className="font-medium">{delegate.pointsReceivingEndorsements}</span>
+                                                    <span className="font-medium">{delegate.pointsReceivingEndorsements} points endorsed</span>
                                                     <span className="text-xs text-muted-foreground">
-                                                        {delegate.totalCredReceived.toLocaleString()} cred
+                                                        {delegate.totalCredReceived.toLocaleString()} cred received
                                                     </span>
                                                 </div>
                                             </TableCell>

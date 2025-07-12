@@ -79,10 +79,21 @@ export function TopicsAdminClient({ spaceId }: { spaceId: string }) {
                     isLoadingTopics={isLoadingTopics}
                 />
 
+                {/* Topics List - Full Width Section */}
+                <div className="w-full">
+                    <TopicsList
+                        spaceId={spaceId}
+                        topics={topics}
+                        isLoadingTopics={isLoadingTopics}
+                        selectedTopic={selectedTopic}
+                        onEditTopic={setSelectedTopic}
+                    />
+                </div>
+
                 {/* Main Admin Interface */}
-                <div className="grid gap-8 w-full" style={{ gridTemplateColumns: "1fr 2fr 1fr" }}>
+                <div className="grid gap-6 w-full lg:grid-cols-2 md:grid-cols-2">
                     {/* Form Panel */}
-                    <div className="lg:col-span-1">
+                    <div className="order-1 lg:order-1">
                         <TopicForm
                             spaceId={spaceId}
                             selectedTopic={selectedTopic}
@@ -93,19 +104,8 @@ export function TopicsAdminClient({ spaceId }: { spaceId: string }) {
                         />
                     </div>
 
-                    {/* Topics List */}
-                    <div className="lg:col-span-1">
-                        <TopicsList
-                            spaceId={spaceId}
-                            topics={topics}
-                            isLoadingTopics={isLoadingTopics}
-                            selectedTopic={selectedTopic}
-                            onEditTopic={setSelectedTopic}
-                        />
-                    </div>
-
                     {/* Assignments Panel */}
-                    <div className="lg:col-span-1">
+                    <div className="order-2 lg:order-2">
                         <AssignmentsPanel
                             spaceId={spaceId}
                             topics={topics}

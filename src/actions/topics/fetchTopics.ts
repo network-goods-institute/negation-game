@@ -14,6 +14,7 @@ export async function fetchTopics(space: string) {
       space: topicsTable.space,
       discourseUrl: topicsTable.discourseUrl,
       restrictedRationaleCreation: topicsTable.restrictedRationaleCreation,
+      closed: topicsTable.closed,
       createdAt: topicsTable.createdAt,
       rationalesCount: sql<number>`COUNT(${viewpointsTable.id})`
         .mapWith(Number)
@@ -44,6 +45,7 @@ export async function fetchTopics(space: string) {
       topicsTable.space,
       topicsTable.discourseUrl, 
       topicsTable.restrictedRationaleCreation,
+      topicsTable.closed,
       topicsTable.createdAt
     )
     .orderBy(asc(topicsTable.name));

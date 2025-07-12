@@ -12,6 +12,7 @@ export async function updateTopicWithPermissions(
     name?: string;
     discourseUrl?: string;
     restrictedRationaleCreation?: boolean;
+    closed?: boolean;
     permissions?: { userId: string; canCreateRationale: boolean }[];
   }
 ) {
@@ -39,6 +40,7 @@ export async function updateTopicWithPermissions(
       name: data.name,
       discourseUrl: data.discourseUrl,
       restrictedRationaleCreation: data.restrictedRationaleCreation,
+      closed: data.closed,
     })
     .where(eq(topicsTable.id, topicId))
     .returning({
@@ -47,6 +49,7 @@ export async function updateTopicWithPermissions(
       space: topicsTable.space,
       discourseUrl: topicsTable.discourseUrl,
       restrictedRationaleCreation: topicsTable.restrictedRationaleCreation,
+      closed: topicsTable.closed,
     });
 
   // Clear existing permissions
