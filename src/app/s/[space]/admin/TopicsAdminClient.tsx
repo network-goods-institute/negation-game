@@ -13,6 +13,7 @@ import { RationaleStatusSection } from "@/components/admin/RationaleStatusSectio
 import { TopicForm } from "@/components/admin/TopicForm";
 import { TopicsList } from "@/components/admin/TopicsList";
 import { AssignmentsPanel } from "@/components/admin/AssignmentsPanel";
+import { SpaceSettingsSection } from "@/components/admin/SpaceSettingsSection";
 
 export function TopicsAdminClient({ spaceId }: { spaceId: string }) {
     const { isAdmin: isSpaceAdmin, isLoading: isAdminLoading } = useIsSpaceAdmin(spaceId);
@@ -69,10 +70,13 @@ export function TopicsAdminClient({ spaceId }: { spaceId: string }) {
     return (
         <div className="w-full p-6 bg-background border rounded-lg shadow-sm">
             <div className="space-y-8">
-                {/* Delegate Statistics - Top Section */}
+                {/* Space Settings - Top Section */}
+                <SpaceSettingsSection spaceId={spaceId} />
+
+                {/* Delegate Statistics - Second Section */}
                 <DelegateStatsSection spaceId={spaceId} />
 
-                {/* Rationale Status Overview - Second Section */}
+                {/* Rationale Status Overview - Third Section */}
                 <RationaleStatusSection
                     spaceId={spaceId}
                     topics={topics}

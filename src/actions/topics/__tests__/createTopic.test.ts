@@ -7,6 +7,10 @@ jest.mock("@/utils/adminUtils", () => ({
   requireSpaceAdmin: jest.fn(),
 }));
 
+jest.mock("@/actions/spaces/getSpaceTopicCreationPermission", () => ({
+  getSpaceTopicCreationPermission: jest.fn(),
+}));
+
 jest.mock("@/db/tables/topicsTable", () => ({
   topicsTable: {
     id: "id",
@@ -77,6 +81,7 @@ jest.mock("drizzle-orm", () => {
 import { createTopic } from "../createTopic";
 import { getUserId } from "@/actions/users/getUserId";
 import { requireSpaceAdmin } from "@/utils/adminUtils";
+import { getSpaceTopicCreationPermission } from "@/actions/spaces/getSpaceTopicCreationPermission";
 import { db } from "@/services/db";
 import { topicsTable } from "@/db/tables/topicsTable";
 
@@ -95,8 +100,39 @@ describe("createTopic", () => {
     expect(getUserId).toHaveBeenCalled();
   });
 
+  it("should allow topic creation when public creation is enabled", async () => {
+    (getUserId as jest.Mock).mockResolvedValue("user-123");
+    (getSpaceTopicCreationPermission as jest.Mock).mockResolvedValue(true);
+
+    const mockTopic = {
+      id: 1,
+      name: "Public Topic",
+      space: "test-space",
+      discourseUrl: "",
+      restrictedRationaleCreation: false,
+      createdAt: new Date(),
+    };
+
+    const insertMock = {
+      values: jest.fn().mockReturnValue({
+        returning: jest.fn().mockResolvedValue([mockTopic]),
+      }),
+    };
+
+    (db.insert as jest.Mock).mockReturnValue(insertMock);
+
+    const result = await createTopic("Public Topic", "test-space");
+
+    expect(getUserId).toHaveBeenCalled();
+    expect(getSpaceTopicCreationPermission).toHaveBeenCalledWith("test-space");
+    expect(requireSpaceAdmin).not.toHaveBeenCalled();
+    expect(db.insert).toHaveBeenCalledWith(topicsTable);
+    expect(result).toEqual(mockTopic);
+  });
+
   it("should throw an error if user is not admin", async () => {
     (getUserId as jest.Mock).mockResolvedValue("user-123");
+    (getSpaceTopicCreationPermission as jest.Mock).mockResolvedValue(false);
     (requireSpaceAdmin as jest.Mock).mockRejectedValue(new Error("Space admin access required"));
 
     await expect(
@@ -104,11 +140,13 @@ describe("createTopic", () => {
     ).rejects.toThrow("Space admin access required");
 
     expect(getUserId).toHaveBeenCalled();
+    expect(getSpaceTopicCreationPermission).toHaveBeenCalledWith("test-space");
     expect(requireSpaceAdmin).toHaveBeenCalledWith("user-123", "test-space");
   });
 
   it("should successfully create a topic when user is admin", async () => {
     (getUserId as jest.Mock).mockResolvedValue("user-123");
+    (getSpaceTopicCreationPermission as jest.Mock).mockResolvedValue(false);
     (requireSpaceAdmin as jest.Mock).mockResolvedValue(undefined);
 
     const mockTopic = {
@@ -131,6 +169,7 @@ describe("createTopic", () => {
     const result = await createTopic("Test Topic", "test-space", "https://example.com", false);
 
     expect(getUserId).toHaveBeenCalled();
+    expect(getSpaceTopicCreationPermission).toHaveBeenCalledWith("test-space");
     expect(requireSpaceAdmin).toHaveBeenCalledWith("user-123", "test-space");
     expect(db.insert).toHaveBeenCalledWith(topicsTable);
     expect(insertMock.values).toHaveBeenCalledWith({
@@ -144,6 +183,7 @@ describe("createTopic", () => {
 
   it("should create topic with default values", async () => {
     (getUserId as jest.Mock).mockResolvedValue("user-123");
+    (getSpaceTopicCreationPermission as jest.Mock).mockResolvedValue(false);
     (requireSpaceAdmin as jest.Mock).mockResolvedValue(undefined);
 
     const mockTopic = {
@@ -166,6 +206,7 @@ describe("createTopic", () => {
     const result = await createTopic("Test Topic", "test-space");
 
     expect(getUserId).toHaveBeenCalled();
+    expect(getSpaceTopicCreationPermission).toHaveBeenCalledWith("test-space");
     expect(requireSpaceAdmin).toHaveBeenCalledWith("user-123", "test-space");
     expect(db.insert).toHaveBeenCalledWith(topicsTable);
     expect(insertMock.values).toHaveBeenCalledWith({
@@ -179,6 +220,7 @@ describe("createTopic", () => {
 
   it("should create topic with restricted rationale creation", async () => {
     (getUserId as jest.Mock).mockResolvedValue("user-123");
+    (getSpaceTopicCreationPermission as jest.Mock).mockResolvedValue(false);
     (requireSpaceAdmin as jest.Mock).mockResolvedValue(undefined);
 
     const mockTopic = {
@@ -201,6 +243,7 @@ describe("createTopic", () => {
     const result = await createTopic("Restricted Topic", "test-space", "", true);
 
     expect(getUserId).toHaveBeenCalled();
+    expect(getSpaceTopicCreationPermission).toHaveBeenCalledWith("test-space");
     expect(requireSpaceAdmin).toHaveBeenCalledWith("user-123", "test-space");
     expect(db.insert).toHaveBeenCalledWith(topicsTable);
     expect(insertMock.values).toHaveBeenCalledWith({

@@ -5,6 +5,7 @@ import {
   integer,
   timestamp,
   index,
+  boolean,
 } from "drizzle-orm/pg-core";
 
 export const spacesTable = pgTable(
@@ -15,6 +16,7 @@ export const spacesTable = pgTable(
     // NOTE: pinnedPointId should reference pointsTable.id but this creates a circular import
     // don't fuck with it, we got it fixed in migrations via a foreign key constraint
     pinnedPointId: integer("pinned_point_id"),
+    allowPublicTopicCreation: boolean("allow_public_topic_creation").notNull().default(false),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

@@ -4,6 +4,7 @@ import { db } from "@/services/db";
 import { topicsTable } from "@/db/tables/topicsTable";
 import { getUserId } from "@/actions/users/getUserId";
 import { requireSpaceAdmin } from "@/utils/adminUtils";
+import { getSpaceTopicCreationPermission } from "@/actions/spaces/getSpaceTopicCreationPermission";
 
 export async function createTopic(
   name: string,
@@ -16,7 +17,8 @@ export async function createTopic(
     throw new Error("Must be authenticated to create topic");
   }
 
-  if (space !== "scroll" && space !== "scroll_test") {
+  const allowPublicTopicCreation = await getSpaceTopicCreationPermission(space);
+  if (!allowPublicTopicCreation) {
     await requireSpaceAdmin(userId, space);
   }
 

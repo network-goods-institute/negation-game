@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { validateAndFormatUrl } from "@/lib/validation/validateUrl";
 import { LinkIcon } from "lucide-react";
 import { useIsSpaceAdmin } from "@/hooks/admin/useAdminStatus";
+import { useSpaceTopicCreationPermission } from "@/hooks/spaces/useSpaceTopicCreationPermission";
 
 export interface TopicSelectorProps {
     currentSpace: string;
@@ -31,6 +32,7 @@ export const TopicSelector: React.FC<TopicSelectorProps> = ({
 }) => {
     const { data: topics, refetch } = useTopics(currentSpace);
     const { isAdmin: isSpaceAdmin } = useIsSpaceAdmin(currentSpace);
+    const { data: allowPublicTopicCreation, isLoading: isPermissionLoading } = useSpaceTopicCreationPermission(currentSpace);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [newTopic, setNewTopic] = useState("");
     const [discourseUrl, setDiscourseUrl] = useState("");
@@ -81,7 +83,7 @@ export const TopicSelector: React.FC<TopicSelectorProps> = ({
     const selectedTopic = topics?.find(t => t.name === value);
     const selectedUrl = selectedTopic?.discourseUrl ? validateAndFormatUrl(selectedTopic.discourseUrl) : null;
 
-    const canCreateTopic = isSpaceAdmin || currentSpace === "scroll" || currentSpace === "scroll_test";
+    const canCreateTopic = isSpaceAdmin || (allowPublicTopicCreation === true);
 
     return (
         <div className={`${wrapperClassName} relative`}> {/* Add relative for absolute positioning of link icon */}
@@ -102,6 +104,7 @@ export const TopicSelector: React.FC<TopicSelectorProps> = ({
                     </SelectTrigger>
                     <SelectContent>
                         {canCreateTopic && <SelectItem value="__new__">+ Add new topic...</SelectItem>}
+                        {!canCreateTopic && !isPermissionLoading && <SelectItem value="__disabled__" disabled>Only an Admin can create topics</SelectItem>}
                         <TooltipProvider>
                             {topics
                                 ?.filter(t => t.name && t.name.trim() !== "")
