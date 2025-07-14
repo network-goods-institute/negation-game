@@ -1,14 +1,11 @@
 "use client";
-import React from "react";
-import { AuthenticatedActionButton } from "@/components/editor/AuthenticatedActionButton";
-import { NegateIcon } from "@/components/icons/NegateIcon";
+import { NegateButton } from "@/components/buttons/NegateButton";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ExternalLinkIcon } from "lucide-react";
 import { getPointUrl } from "@/lib/negation-game/getPointUrl";
 import { EndorsementControl } from "./EndorsementControl";
 import RestakeDoubtControls from "./RestakeDoubtControls";
-import { cn } from "@/lib/utils/cn";
 
 export interface PointCardActionsProps {
     onNegate?: React.MouseEventHandler<HTMLButtonElement>;
@@ -79,22 +76,23 @@ export const PointCardActions: React.FC<PointCardActionsProps> = ({
 }) => (
     <div className="flex gap-sm w-full text-muted-foreground">
         <div className="flex gap-sm">
-            <AuthenticatedActionButton
-                variant="ghost"
-                className="p-1 -ml-3 -mb-2 rounded-full size-fit gap-sm hover:bg-negated/30"
+            <NegateButton
                 data-action-button="true"
+                userCredAmount={viewerNegationsCred > 0 ? viewerNegationsCred : undefined}
+                isActive={viewerNegationsCred > 0}
                 onClick={(e) => {
-                    e.stopPropagation();
-                    onNegate?.(e);
+                    if (e) {
+                        e.stopPropagation();
+                    }
+                    if (privyUser === null) {
+                        login();
+                        return;
+                    }
+                    if (e && onNegate) {
+                        onNegate(e);
+                    }
                 }}
-            >
-                <NegateIcon className={cn(viewerNegationsCred > 0 && "text-negated")} />
-                {viewerNegationsCred === 0 ? (
-                    <span className="ml-0">Negate</span>
-                ) : (
-                    <span className="ml-0">{viewerNegationsCred} cred</span>
-                )}
-            </AuthenticatedActionButton>
+            />
 
             <EndorsementControl
                 endorsedByViewer={endorsedByViewer}

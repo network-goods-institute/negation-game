@@ -15,7 +15,8 @@ import { PointStats } from "@/components/cards/pointcard/PointStats";
 import { RestakeDialog } from "@/components/dialogs/RestakeDialog";
 import { SelectNegationDialog } from "@/components/dialogs/SelectNegationDialog";
 import { GraphView } from "@/components/graph/base/EncodedGraphView";
-import { EndorseIcon } from "@/components/icons/EndorseIcon";
+import { EndorseButton } from "@/components/buttons/EndorseButton";
+import { NegateButton } from "@/components/buttons/NegateButton";
 import { NegateIcon } from "@/components/icons/NegateIcon";
 import { PointIcon } from "@/components/icons/AppIcons";
 import { TrashIcon } from "@/components/icons/TrashIcon";
@@ -683,86 +684,86 @@ export function PointPageClient({
                                 >
                                     <NetworkIcon className="" />
                                 </Button>
-                                <Popover
-                                    open={endorsePopoverOpen}
-                                    onOpenChange={toggleEndorsePopoverOpen}
-                                >
-                                    <PopoverTrigger asChild>
-                                        <AuthenticatedActionButton
-                                            className={cn(
-                                                "p-2 rounded-full size-fit gap-sm hover:bg-endorsed/30",
-                                                endorsedByViewer && "text-endorsed",
-                                                "@md/point:border @md/point:px-4"
-                                            )}
-                                            variant={"ghost"}
-                                            data-action-button="true"
-                                            onClick={handleEndorse}
-                                        >
-                                            <EndorseIcon className={cn(endorsedByViewer && "fill-current")} />
-                                            {point.viewerCred && point.viewerCred > 0 ? (
-                                                <span className="ml-0">{point.viewerCred} cred</span>
-                                            ) : (
-                                                <span className="ml-0">Endorse</span>
-                                            )}
-                                        </AuthenticatedActionButton>
-                                    </PopoverTrigger>
-
-                                    <PopoverContent className="flex flex-col items-start w-[calc(100vw-2rem)] sm:w-[420px] p-4">
-                                        <div className="w-full flex justify-between gap-4">
-                                            <CredInput
-                                                credInput={cred}
-                                                setCredInput={setCred}
-                                                notEnoughCred={notEnoughCred}
-                                                endorsementAmount={point.viewerCred || 0}
-                                                isSelling={isSelling}
-                                                setIsSelling={setIsSelling}
+                                <div className="flex gap-sm">
+                                    <Popover
+                                        open={endorsePopoverOpen}
+                                        onOpenChange={toggleEndorsePopoverOpen}
+                                    >
+                                        <PopoverTrigger asChild>
+                                            <EndorseButton
+                                                data-action-button="true"
+                                                userCredAmount={point.viewerCred && point.viewerCred > 0 ? point.viewerCred : undefined}
+                                                isActive={endorsedByViewer}
+                                                className="@md/point:border @md/point:px-4"
+                                                buttonSize="default"
+                                                {...{"aria-expanded": endorsePopoverOpen}}
+                                                onClick={(e) => {
+                                                    if (e) {
+                                                        e.preventDefault();
+                                                    }
+                                                    if (privyUser === null) {
+                                                        login();
+                                                        return;
+                                                    }
+                                                    toggleEndorsePopoverOpen();
+                                                }}
                                             />
-                                            <Button
-                                                disabled={cred === 0 || (!isSelling && notEnoughCred) || (isSelling && cred > (point.viewerCred || 0)) || isEndorsing || isSellingEndorsement}
-                                                onClick={handleEndorseOrSell}
-                                            >
-                                                {isEndorsing || isSellingEndorsement ? (
-                                                    <div className="flex items-center justify-center gap-2">
-                                                        <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
-                                                        <span>{isSelling ? 'Selling...' : 'Endorsing...'}</span>
-                                                    </div>
-                                                ) : (
-                                                    <span>{isSelling ? 'Sell' : 'Endorse'}</span>
-                                                )}
-                                            </Button>
-                                        </div>
-                                        {(notEnoughCred && !isSelling) && (
-                                            <span className="mt-2 text-destructive text-sm">
-                                                not enough cred
-                                            </span>
-                                        )}
-                                        {(isSelling && cred > (point.viewerCred || 0)) && (
-                                            <span className="mt-2 text-destructive text-sm">
-                                                Cannot sell more than endorsed amount
-                                            </span>
-                                        )}
-                                    </PopoverContent>
-                                </Popover>
-                                <AuthenticatedActionButton
-                                    variant="ghost"
-                                    className={cn(
-                                        "p-2 rounded-full size-fit gap-sm hover:bg-primary/30",
-                                        "@md/point:border @md/point:px-4"
-                                    )}
-                                    data-action-button="true"
-                                    onClick={() => {
-                                        if (point?.pointId) {
-                                            handleNegate(point.pointId);
-                                        }
-                                    }}
-                                >
-                                    <NegateIcon showSuccess={recentlyNegated} className={cn(point.viewerNegationsCred > 0 && "text-negated")} />
-                                    {point.viewerNegationsCred && point.viewerNegationsCred > 0 ? (
-                                        <span className="ml-0">{point.viewerNegationsCred} cred</span>
-                                    ) : (
-                                        <span className="ml-0">Negate</span>
-                                    )}
-                                </AuthenticatedActionButton>
+                                        </PopoverTrigger>
+
+                                        <PopoverContent className="flex flex-col items-start w-[calc(100vw-2rem)] sm:w-[420px] p-4">
+                                            <div className="w-full flex justify-between gap-4">
+                                                <CredInput
+                                                    credInput={cred}
+                                                    setCredInput={setCred}
+                                                    notEnoughCred={notEnoughCred}
+                                                    endorsementAmount={point.viewerCred || 0}
+                                                    isSelling={isSelling}
+                                                    setIsSelling={setIsSelling}
+                                                />
+                                                <Button
+                                                    disabled={cred === 0 || (!isSelling && notEnoughCred) || (isSelling && cred > (point.viewerCred || 0)) || isEndorsing || isSellingEndorsement}
+                                                    onClick={handleEndorseOrSell}
+                                                >
+                                                    {isEndorsing || isSellingEndorsement ? (
+                                                        <div className="flex items-center justify-center gap-2">
+                                                            <span className="size-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                                                            <span>{isSelling ? 'Selling...' : 'Endorsing...'}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <span>{isSelling ? 'Sell' : 'Endorse'}</span>
+                                                    )}
+                                                </Button>
+                                            </div>
+                                            {(notEnoughCred && !isSelling) && (
+                                                <span className="mt-2 text-destructive text-sm">
+                                                    not enough cred
+                                                </span>
+                                            )}
+                                            {(isSelling && cred > (point.viewerCred || 0)) && (
+                                                <span className="mt-2 text-destructive text-sm">
+                                                    Cannot sell more than endorsed amount
+                                                </span>
+                                            )}
+                                        </PopoverContent>
+                                    </Popover>
+                                    <NegateButton
+                                        data-action-button="true"
+                                        userCredAmount={point.viewerNegationsCred && point.viewerNegationsCred > 0 ? point.viewerNegationsCred : undefined}
+                                        isActive={point.viewerNegationsCred > 0}
+                                        showSuccess={recentlyNegated}
+                                        className="@md/point:border @md/point:px-4"
+                                        buttonSize="default"
+                                        onClick={() => {
+                                            if (privyUser === null) {
+                                                login();
+                                                return;
+                                            }
+                                            if (point?.pointId) {
+                                                handleNegate(point.pointId);
+                                            }
+                                        }}
+                                    />
+                                </div>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button
@@ -1079,7 +1080,9 @@ export function PointPageClient({
                                 ) : (
                                     <div className="flex flex-col items-center justify-center py-12 px-4 text-center animate-fade-in">
                                         <div className="mb-4 text-muted-foreground">
-                                            <NegateIcon className="size-8 mx-auto mb-2" />
+                                            <div className="size-8 mx-auto mb-2 text-muted-foreground">
+                                                <NegateIcon className="w-full h-full" />
+                                            </div>
                                             <h3 className="text-lg font-medium mb-1">No negations yet</h3>
                                             <p className="text-sm text-muted-foreground max-w-[300px]">
                                                 Challenge this point by creating a negation. It&apos;s a great way to engage in constructive debate.

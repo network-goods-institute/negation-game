@@ -65,11 +65,11 @@ export const SharePanel: React.FC<SharePanelProps> = memo(({
                             className="bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-lg px-4 py-2 flex items-center justify-center gap-2 w-[160px] text-sm"
                         >
                             <Share2Icon className="size-4" />
-                            <span>Share Points</span>
+                            <span>Present Points</span>
                         </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                        <p>Share points</p>
+                        <p>Select specific points on the graph, then click here to generate a shareable link to your curated view.</p>
                     </TooltipContent>
                 </Tooltip>
             )}

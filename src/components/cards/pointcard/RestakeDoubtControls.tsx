@@ -1,8 +1,6 @@
 import React from "react";
-import { Button } from "@/components/ui/button";
-import { RestakeIcon } from "@/components/icons/RestakeIcon";
-import { DoubtIcon } from "@/components/icons/DoubtIcon";
-import { cn } from "@/lib/utils/cn";
+import { RestakeButton } from "@/components/buttons/RestakeButton";
+import { DoubtButton } from "@/components/buttons/DoubtButton";
 
 export interface RestakeDoubtControlsProps {
     isInPointPage: boolean;
@@ -38,67 +36,41 @@ export const RestakeDoubtControls: React.FC<RestakeDoubtControlsProps> = ({
 
     return (
         <>
-            <Button
-                variant="ghost"
-                className={cn(
-                    "p-2 -mb-2 rounded-full size-fit hover:bg-purple-500/30",
-                    showRestakeAmount && "text-endorsed"
-                )}
+            <RestakeButton
+                percentage={showRestakeAmount && restakeIsOwner ? restakePercentage : undefined}
+                isActive={showRestakeAmount && restakeIsOwner}
+                showText={false}
+                className="[&_.size-7]:!w-5 [&_.size-7]:!h-5"
                 data-action-button="true"
                 onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
+                    e?.preventDefault();
+                    e?.stopPropagation();
                     onRestake({ openedFromSlashedIcon: false });
                 }}
             >
-                <RestakeIcon
-                    className={cn(
-                        showRestakeAmount && restakeIsOwner && "text-endorsed fill-current"
-                    )}
-                    showPercentage={showRestakeAmount && restakeIsOwner}
-                    percentage={restakePercentage}
-                />
                 {showRestakeAmount && isOverHundred && (
                     <span className="ml-1 translate-y-[-1px]">+</span>
                 )}
-            </Button>
-            <Button
-                variant="ghost"
-                className={cn(
-                    "p-2 -mb-2 -ml-1 rounded-full size-fit hover:bg-amber-500/30",
-                    doubtAmount !== undefined &&
-                    doubtAmount > 0 &&
-                    doubtIsUserDoubt &&
-                    "text-endorsed"
-                )}
+            </RestakeButton>
+            <DoubtButton
+                userAmount={doubtAmount !== undefined && doubtAmount > 0 && doubtIsUserDoubt ? doubtAmount : undefined}
+                isActive={doubtAmount !== undefined && doubtAmount > 0 && doubtIsUserDoubt}
+                showText={false}
+                className="[&>svg]:!w-5 [&>svg]:!h-5"
                 data-action-button="true"
                 onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
+                    e?.preventDefault();
+                    e?.stopPropagation();
                     onRestake({ openedFromSlashedIcon: true });
                 }}
             >
-                <div className="flex items-center translate-y-[-0.5px]">
-                    <DoubtIcon
-                        className={cn(
-                            "size-5",
-                            doubtAmount !== undefined &&
-                            doubtAmount > 0 &&
-                            doubtIsUserDoubt &&
-                            "text-endorsed fill-current"
-                        )}
-                        isFilled={
-                            doubtAmount !== undefined && doubtAmount > 0 && doubtIsUserDoubt
-                        }
-                    />
-                    {doubtAmount !== undefined && doubtAmount > 0 && doubtIsUserDoubt && (
-                        <span className="ml-1 translate-y-[-1px]">
-                            {doubtPercentage}
-                            {doubtPercentage > 100 && "+"}%
-                        </span>
-                    )}
-                </div>
-            </Button>
+                {doubtAmount !== undefined && doubtAmount > 0 && doubtIsUserDoubt && (
+                    <span className="ml-1 translate-y-[-1px]">
+                        {doubtPercentage}
+                        {doubtPercentage > 100 && "+"}%
+                    </span>
+                )}
+            </DoubtButton>
         </>
     );
 };

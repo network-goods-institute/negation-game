@@ -5,11 +5,11 @@ import {
   PencilIcon,
   SaveIcon,
 } from "lucide-react";
+import { NegateButton } from "@/components/buttons/NegateButton";
 import { Position, NodeProps, useReactFlow, Node, Handle } from "@xyflow/react";
 import { cn } from "@/lib/utils/cn";
 import { useCallback, useState, useEffect, KeyboardEvent, FocusEvent } from "react";
 import { nanoid } from 'nanoid';
-import { NegateIcon } from "@/components/icons/NegateIcon";
 import { Button } from "@/components/ui/button";
 import { PreviewPointEditor } from "./PreviewPointEditor";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -20,7 +20,6 @@ import { PreviewPointNodeEndorsement } from "./PreviewPointNodeEndorsement";
 import { PreviewPointNodeStatusIndicators } from "./PreviewPointNodeStatusIndicators";
 import { ObjectionIcon } from "@/components/icons/ObjectionIcon";
 import { fetchPointById } from "@/actions/points/fetchPointById";
-import { usePreviewMergeDetection } from "@/hooks/chatbot/usePreviewMergeDetection";
 import { usePreviewConnectDetection } from "@/hooks/chatbot/usePreviewConnectDetection";
 
 /**
@@ -254,8 +253,8 @@ export const PreviewPointNode = ({
     deleteElements({ nodes: nodesToDelete });
   }, [deleteElements, getEdges, id]);
 
-  const handleAddClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleAddClick = useCallback((e?: React.MouseEvent<HTMLButtonElement>) => {
+    e?.stopPropagation();
     const newNodeId = `previewaddpoint-${nanoid()}`;
     addNodes({
       id: newNodeId,
@@ -426,14 +425,14 @@ export const PreviewPointNode = ({
           </div>
 
           <div className="absolute bottom-1.5 left-1.5 flex gap-sm text-muted-foreground">
-            <Button
-              variant="ghost"
-              className="p-1 rounded-full size-fit gap-sm hover:bg-negated/30"
+            <NegateButton
               onClick={handleAddClick}
-            >
-              <NegateIcon />
-              <span className="ml-0">Negate</span>
-            </Button>
+              showText={true}
+              text="Negate"
+              variant="ghost"
+              buttonSize="default"
+              iconSize="default"
+            />
 
             <PreviewPointNodeEndorsement
               cred={cred}

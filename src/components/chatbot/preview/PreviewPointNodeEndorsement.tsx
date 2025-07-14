@@ -3,11 +3,10 @@
 import React, { useEffect, useState } from "react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { EndorseIcon } from "@/components/icons/EndorseIcon";
+import { EndorseButton } from "@/components/buttons/EndorseButton";
 import { useCredInput } from "@/hooks/ui/useCredInput";
 import { useToggle } from "@uidotdev/usehooks";
 import { usePrivy } from "@privy-io/react-auth";
-import { cn } from "@/lib/utils/cn";
 import { CredInput } from "@/components/inputs/CredInput";
 
 interface PreviewPointNodeEndorsementProps {
@@ -36,8 +35,8 @@ export const PreviewPointNodeEndorsement: React.FC<PreviewPointNodeEndorsementPr
         }
     }, [endorsePopoverOpen, setCredInput]);
 
-    const handleTriggerClick = (e: React.MouseEvent) => {
-        e.preventDefault();
+    const handleTriggerClick = (e?: React.MouseEvent<HTMLButtonElement>) => {
+        e?.preventDefault();
         if (!privyUser) {
             login();
         } else {
@@ -58,22 +57,12 @@ export const PreviewPointNodeEndorsement: React.FC<PreviewPointNodeEndorsementPr
     return (
         <Popover open={endorsePopoverOpen} onOpenChange={toggleEndorsePopoverOpen}>
             <PopoverTrigger asChild>
-                <Button
+                <EndorseButton
                     onClick={handleTriggerClick}
-                    className={cn(
-                        "p-1 rounded-full size-fit gap-sm hover:bg-endorsed/30",
-                        hasPositiveCred && "text-endorsed"
-                    )}
-                    variant="ghost"
-                >
-                    <EndorseIcon className={cn(hasPositiveCred && "fill-current")} />
-                    {!hasPositiveCred && (
-                        <span className="ml-0">Endorse</span>
-                    )}
-                    {hasPositiveCred && (
-                        <span className="translate-y-[-1px] ml-0">{cred} cred</span>
-                    )}
-                </Button>
+                    userCredAmount={hasPositiveCred ? cred : undefined}
+                    isActive={hasPositiveCred}
+                    aria-expanded={endorsePopoverOpen}
+                />
             </PopoverTrigger>
             <PopoverContent className="w-[320px] p-3" onClick={(e) => e.stopPropagation()}>
                 <div className="flex flex-col gap-3 w-full">
