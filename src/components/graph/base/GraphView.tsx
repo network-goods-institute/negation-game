@@ -48,6 +48,7 @@ import { connectNodesDialogAtom } from "@/atoms/connectNodesAtom";
 import { mergeNodesDialogAtom } from "@/atoms/mergeNodesAtom";
 import CollapseHintOverlay from "@/components/graph/overlays/CollapseHintOverlay";
 import { cn } from "@/lib/utils/cn";
+import { nanoid } from "nanoid";
 
 export interface GraphViewProps
   extends Omit<ReactFlowProps<AppNode>, "onDelete"> {
@@ -309,7 +310,7 @@ export const GraphView = ({
     const edgesToRemove = edges.filter(
       (e) => idsToRemove.includes(e.source) || idsToRemove.includes(e.target)
     );
-    
+
     // Remove descendant nodes and edges
     if (flowInstance) {
       flowInstance.deleteElements({ nodes: nodesToRemove, edges: edgesToRemove });
@@ -329,6 +330,24 @@ export const GraphView = ({
   const handleResetView = useCallback(() => {
     if (flowInstance) {
       flowInstance.setViewport({ x: 0, y: 0, zoom: 1 }, { duration: 800 });
+    }
+  }, [flowInstance]);
+
+  const handleAddComment = useCallback((x: number, y: number) => {
+    if (flowInstance) {
+      const { x: vpX, y: vpY, zoom } = flowInstance.getViewport();
+      const position = { x: (x - vpX) / zoom, y: (y - vpY) / zoom };
+      const id = `comment-${nanoid()}`;
+      flowInstance.addNodes([{
+        id,
+        type: "comment",
+        position,
+        data: { content: "", _lastModified: Date.now() }
+      }]);
+
+      if (typeof (flowInstance as any).markAsModified === 'function') {
+        (flowInstance as any).markAsModified();
+      }
     }
   }, [flowInstance]);
 
@@ -579,6 +598,18 @@ export const GraphView = ({
             </>
           ) : (
             <>
+              <div
+                className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
+                onClick={() => {
+                  if (contextMenu) {
+                    handleAddComment(contextMenu.x, contextMenu.y);
+                  }
+                  closeContextMenu();
+                }}
+              >
+                Add Comment
+              </div>
+              <div className="h-px bg-border mx-1 my-1" />
               <div
                 className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
                 onClick={() => {

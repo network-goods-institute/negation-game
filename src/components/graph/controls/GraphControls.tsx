@@ -64,7 +64,17 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
         const screenY = window.innerHeight / 2;
         const position = { x: (screenX - vpX) / zoom, y: (screenY - vpY) / zoom };
         const id = `comment-${nanoid()}`;
-        reactFlow.addNodes([{ id, type: "comment", position, data: { content: "" } }]);
+        reactFlow.addNodes([{ 
+            id, 
+            type: "comment", 
+            position, 
+            data: { content: "", _lastModified: Date.now() } 
+        }]);
+        
+        // Mark as modified since we're adding a new comment
+        if (typeof (reactFlow as any).markAsModified === 'function') {
+            (reactFlow as any).markAsModified();
+        }
     };
 
     return (
@@ -73,12 +83,18 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
                 {!hideComments && (
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button variant="outline" size="icon" onClick={handleAddComment}>
-                                <MessageSquareIcon className="size-4" />
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={handleAddComment}
+                                className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-sm"
+                            >
+                                <MessageSquareIcon className="size-4 mr-1" />
+                                Add Comment
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom">
-                            <p>Add comment</p>
+                            <p>Add a comment to annotate your graph</p>
                         </TooltipContent>
                     </Tooltip>
                 )}
