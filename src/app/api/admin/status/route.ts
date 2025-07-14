@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUserId } from "@/actions/users/getUserId";
 import { db } from "@/services/db";
-import { usersTable, spaceAdminsTable } from "@/db/schema";
+import { usersTable, spaceAdminsTable, spacesTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function GET() {
@@ -26,11 +26,19 @@ export async function GET() {
       .from(spaceAdminsTable)
       .where(eq(spaceAdminsTable.userId, userId));
 
-    const adminSpaces = spaceAdminRows.map(row => row.spaceId);
+    const adminSpaces = spaceAdminRows.map((row) => row.spaceId);
+
+    // If user is site admin, get all available spaces
+    let allSpaces: string[] = [];
+    if (siteAdmin) {
+      const spaces = await db.select({ id: spacesTable.id }).from(spacesTable);
+      allSpaces = spaces.map((space) => space.id);
+    }
 
     return NextResponse.json({
       siteAdmin,
       adminSpaces,
+      allSpaces,
     });
   } catch (error) {
     console.error("Error fetching admin status:", error);

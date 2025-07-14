@@ -9,12 +9,15 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { useUser } from "@/queries/users/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { clearPrivyCookie } from '@/actions/users/auth';
 import { LoaderCircleIcon, CoinsIcon, UserIcon, LogOutIcon, TrophyIcon, BellIcon, SettingsIcon, MessageSquareIcon, BarChart3Icon, ChevronDownIcon, ShieldIcon } from "lucide-react";
-import { useIsSpaceAdmin } from "@/hooks/admin/useAdminStatus";
+import { useAdminStatus } from "@/hooks/admin/useAdminStatus";
 import { useState, useEffect, useRef } from "react";
 import { EarningsDialog } from "../dialogs/EarningsDialog";
 import Link from "next/link";
@@ -35,13 +38,22 @@ export const ConnectButton = () => {
   const pathname = usePathname();
 
   const currentSpace = pathname.match(/^\/s\/([^\/]+)/)?.[1];
-  const { isAdmin: isSpaceAdmin } = useIsSpaceAdmin(currentSpace);
+  const { data: adminStatus } = useAdminStatus();
   const prevPathRef = useRef(pathname);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [loadingRoute, setLoadingRoute] = useState<string | null>(null);
+
+  // Check if user is admin of any space or is site admin
+  const isAnySpaceAdmin = adminStatus?.siteAdmin || (adminStatus?.adminSpaces && adminStatus.adminSpaces.length > 0);
+
+  // For site admins, use allSpaces; for space admins, use adminSpaces
+  const availableAdminSpaces = adminStatus?.siteAdmin ? (adminStatus.allSpaces || []) : (adminStatus?.adminSpaces || []);
+
+  // If user is admin of multiple spaces, show submenu; otherwise show direct link
+  const hasMultipleAdminSpaces = availableAdminSpaces.length > 1;
 
   useEffect(() => {
     if (loadingRoute && pathname !== prevPathRef.current) {
@@ -97,7 +109,7 @@ export const ConnectButton = () => {
       <>
         <DropdownMenu modal={false} open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger asChild>
-            <Button variant={"outline"} key="connect" className="w-28 sm:w-36 text-sm relative">
+            <Button variant={"outline"} key="connect" className="w-32 sm:w-36 text-sm relative">
               <div className="flex items-center gap-1 overflow-hidden">
                 <p className="overflow-clip max-w-full">{user.username}</p>
                 <ChevronDownIcon className="size-4 flex-shrink-0" />
@@ -215,21 +227,49 @@ export const ConnectButton = () => {
                 </Link>
               </DropdownMenuItem>
             )}
-            {currentSpace && isSpaceAdmin && (
-              <DropdownMenuItem
-                asChild
-                onSelect={navigate(`/s/${currentSpace}/admin`)}
-                disabled={!!loadingRoute || pathname === `/s/${currentSpace}/admin`}
-              >
-                <Link href={`/s/${currentSpace}/admin`} className="gap-2">
-                  {loadingRoute === `/s/${currentSpace}/admin` ? (
-                    <LoaderCircleIcon className="size-4 animate-spin" />
-                  ) : (
+            {isAnySpaceAdmin && (
+              hasMultipleAdminSpaces ? (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="gap-2">
                     <ShieldIcon className="size-4" />
-                  )}
-                  Admin Panel
-                </Link>
-              </DropdownMenuItem>
+                    Admin Panel
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {availableAdminSpaces?.map((space) => (
+                      <DropdownMenuItem
+                        key={space}
+                        asChild
+                        onSelect={navigate(`/s/${space}/admin`)}
+                        disabled={!!loadingRoute || pathname === `/s/${space}/admin`}
+                      >
+                        <Link href={`/s/${space}/admin`} className="gap-2">
+                          {loadingRoute === `/s/${space}/admin` ? (
+                            <LoaderCircleIcon className="size-4 animate-spin" />
+                          ) : (
+                            <ShieldIcon className="size-4" />
+                          )}
+                          {space.charAt(0).toUpperCase() + space.slice(1)}
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              ) : (
+                <DropdownMenuItem
+                  asChild
+                  onSelect={navigate(`/s/${availableAdminSpaces?.[0] || 'global'}/admin`)}
+                  disabled={!!loadingRoute || pathname === `/s/${availableAdminSpaces?.[0] || 'global'}/admin`}
+                >
+                  <Link href={`/s/${availableAdminSpaces?.[0] || 'global'}/admin`} className="gap-2">
+                    {loadingRoute === `/s/${availableAdminSpaces?.[0] || 'global'}/admin` ? (
+                      <LoaderCircleIcon className="size-4 animate-spin" />
+                    ) : (
+                      <ShieldIcon className="size-4" />
+                    )}
+                    Admin Panel
+                  </Link>
+                </DropdownMenuItem>
+              )
             )}
             <DropdownMenuSeparator />
             <DropdownMenuItem

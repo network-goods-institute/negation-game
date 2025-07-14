@@ -4,6 +4,7 @@ import { useUser } from "@/queries/users/useUser";
 interface AdminSpaces {
   siteAdmin: boolean;
   adminSpaces: string[];
+  allSpaces: string[];
 }
 
 async function fetchAdminStatus(): Promise<AdminSpaces> {
@@ -16,7 +17,7 @@ async function fetchAdminStatus(): Promise<AdminSpaces> {
 
 export function useAdminStatus() {
   const { data: user } = useUser();
-  
+
   return useQuery({
     queryKey: ["admin-status", user?.id],
     queryFn: fetchAdminStatus,
@@ -28,11 +29,12 @@ export function useAdminStatus() {
 export function useIsSpaceAdmin(spaceId: string | undefined) {
   const { data: adminStatus, isLoading: isAdminLoading } = useAdminStatus();
   const { data: user, isLoading: isUserLoading } = useUser();
-  
+
   const isLoading = isAdminLoading || isUserLoading;
-  
+
   if (!adminStatus || !spaceId) return { isAdmin: false, isLoading };
-  
-  const isAdmin = adminStatus.siteAdmin || adminStatus.adminSpaces.includes(spaceId);
+
+  const isAdmin =
+    adminStatus.siteAdmin || adminStatus.adminSpaces.includes(spaceId);
   return { isAdmin, isLoading };
 }
