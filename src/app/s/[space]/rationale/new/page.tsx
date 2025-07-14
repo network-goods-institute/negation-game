@@ -46,6 +46,7 @@ import PointsFeedContainer from "@/components/rationale/PointsFeedContainer";
 import { useCanCreateRationale } from "@/hooks/topics/useCanCreateRationale";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Lock } from "lucide-react";
+import DraftSavedIndicator from "@/components/rationale/DraftSavedIndicator";
 
 function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" | "rationales" | null) => void }) {
   const { updateNodeData } = useReactFlow();
@@ -454,6 +455,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       </Dynamic>
 
       <PointsFeedContainer />
+      <DraftSavedIndicator />
     </main>
   );
 }
