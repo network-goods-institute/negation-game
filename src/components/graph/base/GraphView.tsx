@@ -279,6 +279,59 @@ export const GraphView = ({
     setContextMenu(null);
   }, []);
 
+  // Context menu action handlers  
+  const handleCollapseNode = useCallback(async (nodeId: string) => {
+    // Find all descendant node IDs (excluding this node)
+    const descendantIds: string[] = [];
+    const queue = [nodeId];
+    const visited = new Set<string>();
+    while (queue.length) {
+      const current = queue.shift()!;
+      if (visited.has(current)) continue;
+      visited.add(current);
+      // Enqueue children
+      edges
+        .filter((e) => e.target === current)
+        .forEach((e) => {
+          const childId = e.source;
+          if (!visited.has(childId)) {
+            queue.push(childId);
+            descendantIds.push(childId);
+          }
+        });
+    }
+    // Always include this node itself
+    const idsToRemove = [nodeId, ...descendantIds];
+    // Gather nodes and edges to remove
+    const nodesToRemove = idsToRemove
+      .map((nid) => nodes.find(n => n.id === nid))
+      .filter((n): n is AppNode => Boolean(n));
+    const edgesToRemove = edges.filter(
+      (e) => idsToRemove.includes(e.source) || idsToRemove.includes(e.target)
+    );
+    
+    // Remove descendant nodes and edges
+    if (flowInstance) {
+      flowInstance.deleteElements({ nodes: nodesToRemove, edges: edgesToRemove });
+    }
+  }, [nodes, edges, flowInstance]);
+
+  const handleFocusNode = useCallback((nodeId: string) => {
+    if (flowInstance) {
+      flowInstance.fitView({
+        nodes: [{ id: nodeId }],
+        duration: 800,
+        padding: 0.3,
+      });
+    }
+  }, [flowInstance]);
+
+  const handleResetView = useCallback(() => {
+    if (flowInstance) {
+      flowInstance.setViewport({ x: 0, y: 0, zoom: 1 }, { duration: 800 });
+    }
+  }, [flowInstance]);
+
   // Close context menu on click outside
   useEffect(() => {
     if (contextMenu) {
@@ -504,26 +557,20 @@ export const GraphView = ({
               <div
                 className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
                 onClick={() => {
-                  console.log("Expand node", contextMenu.node);
-                  closeContextMenu();
-                }}
-              >
-                Expand Node
-              </div>
-              <div
-                className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
-                onClick={() => {
-                  console.log("Collapse node", contextMenu.node);
+                  if (contextMenu.node) {
+                    handleCollapseNode(contextMenu.node.id);
+                  }
                   closeContextMenu();
                 }}
               >
                 Collapse Node
               </div>
-              <div className="h-px bg-border mx-1 my-1" />
               <div
                 className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
                 onClick={() => {
-                  console.log("Focus node", contextMenu.node);
+                  if (contextMenu.node) {
+                    handleFocusNode(contextMenu.node.id);
+                  }
                   closeContextMenu();
                 }}
               >
@@ -535,16 +582,7 @@ export const GraphView = ({
               <div
                 className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
                 onClick={() => {
-                  console.log("Add point at", contextMenu.x, contextMenu.y);
-                  closeContextMenu();
-                }}
-              >
-                Add Point
-              </div>
-              <div
-                className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
-                onClick={() => {
-                  console.log("Reset view");
+                  handleResetView();
                   closeContextMenu();
                 }}
               >
