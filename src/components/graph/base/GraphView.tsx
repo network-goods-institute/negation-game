@@ -333,10 +333,20 @@ export const GraphView = ({
     }
   }, [flowInstance]);
 
-  const handleAddComment = useCallback((x: number, y: number) => {
+  const handleAddComment = useCallback((screenX: number, screenY: number) => {
     if (flowInstance) {
       const { x: vpX, y: vpY, zoom } = flowInstance.getViewport();
-      const position = { x: (x - vpX) / zoom, y: (y - vpY) / zoom };
+      const flowContainer = document.querySelector('.react-flow');
+      const containerRect = flowContainer?.getBoundingClientRect();
+
+      const adjustedX = screenX - (containerRect?.left || 0);
+      const adjustedY = screenY - (containerRect?.top || 0);
+
+      const position = {
+        x: (adjustedX - vpX) / zoom,
+        y: (adjustedY - vpY) / zoom
+      };
+
       const id = `comment-${nanoid()}`;
       flowInstance.addNodes([{
         id,

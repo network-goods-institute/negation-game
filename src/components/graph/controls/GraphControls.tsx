@@ -79,7 +79,12 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
 
     return (
         <>
-            <Panel position="top-left" className="z-10 mt-1 ml-2 flex items-center">
+            <Panel position="bottom-left" className="m-2">
+                <div className="relative bottom-[10px] md:bottom-[20px] mb-4">
+                    <Controls />
+                </div>
+            </Panel>
+            <Panel position="bottom-right" className="z-10 mr-6 mb-10 flex flex-col items-end gap-3">
                 {!hideComments && (
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -87,24 +92,17 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
                                 variant="outline" 
                                 size="sm" 
                                 onClick={handleAddComment}
-                                className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-sm"
+                                className="bg-white dark:bg-gray-800 border-blue-200 dark:border-blue-700 hover:bg-white dark:hover:bg-gray-800 text-blue-700 dark:text-blue-300 shadow-md mr-12"
                             >
                                 <MessageSquareIcon className="size-4 mr-1" />
                                 Add Comment
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent side="bottom">
+                        <TooltipContent side="left">
                             <p>Add a comment to annotate your graph</p>
                         </TooltipContent>
                     </Tooltip>
                 )}
-            </Panel>
-            <Panel position="bottom-left" className="m-2">
-                <div className="relative bottom-[10px] md:bottom-[20px] mb-4">
-                    <Controls />
-                </div>
-            </Panel>
-            <Panel position="bottom-right" className="z-10 mr-4 mb-10 flex flex-col items-end">
                 <SharePanel
                     isSharing={isSharing}
                     hideShareButton={hideShareButton}

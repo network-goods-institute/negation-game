@@ -210,7 +210,7 @@ export const AddPointNode = ({
   return (
     <div
       className={cn(
-        "relative bg-background flex flex-col gap-2 rounded-md border-2 border-dashed p-2 min-h-28 w-64"
+        "relative bg-background flex flex-col gap-2 rounded-md border-2 border-dashed p-2 min-h-28 w-80"
       )}
     >
       <button
@@ -326,6 +326,8 @@ export const AddPointNode = ({
                         amountNegations={point.amountNegations}
                         amountSupporters={point.amountSupporters}
                         cred={point.cred}
+                        showSignalBars={true}
+                        allCredValues={similarPointsToShow.map(p => p.cred)}
                       />
                     </div>
                   ))}

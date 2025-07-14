@@ -145,6 +145,16 @@
       hsl(var(--primary) / 0.04) 12px
     );
   }
+  
+  .dark .node-level-stripe {
+    background-image: repeating-linear-gradient(
+      45deg,
+      transparent 0px,
+      transparent 8px,
+      hsl(var(--primary) / 0.15) 8px,
+      hsl(var(--primary) / 0.15) 12px
+    );
+  }
 }
 
 /* Fix for GraphView background color on Rationale page desktop dark mode */

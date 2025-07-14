@@ -437,6 +437,7 @@ export const PointCard = ({
           amountSupporters={amountSupporters}
           favor={favor}
           cred={cred}
+          showSignalBars={inRationale}
         />
 
         <PointCardActions
@@ -505,45 +506,47 @@ export const PointCard = ({
       <PopoverTrigger asChild>
         {renderCardContent()}
       </PopoverTrigger>
-      <Portal>
-        <PopoverContent
-          className="w-80 sm:w-96 max-h-80 overflow-auto"
-          side="right"
-          align="start"
-          sideOffset={5}
-          onMouseEnter={handleHoverStart}
-          onMouseLeave={handleHoverEnd}
-        >
-          <div className="flex flex-col gap-3">
-            <div className="flex items-start gap-2">
-              {isCommand && space && space !== 'global' ? (
-                <FeedCommandIcon />
-              ) : isPinned && space && space !== 'global' ? (
-                <PinnedIcon />
-              ) : (
-                <PointIcon />
-              )}
-              <h3 className="text-lg font-semibold -mt-0.5 break-words">{content}</h3>
+      {!inGraphNode && (
+        <Portal>
+          <PopoverContent
+            className="w-80 sm:w-96 max-h-80 overflow-auto"
+            side="right"
+            align="start"
+            sideOffset={5}
+            onMouseEnter={handleHoverStart}
+            onMouseLeave={handleHoverEnd}
+          >
+            <div className="flex flex-col gap-3">
+              <div className="flex items-start gap-2">
+                {isCommand && space && space !== 'global' ? (
+                  <FeedCommandIcon />
+                ) : isPinned && space && space !== 'global' ? (
+                  <PinnedIcon />
+                ) : (
+                  <PointIcon />
+                )}
+                <h3 className="text-lg font-semibold -mt-0.5 break-words">{content}</h3>
+              </div>
+
+              <PointStats
+                className="mb-md"
+                amountNegations={amountNegations}
+                amountSupporters={amountSupporters}
+                favor={favor}
+                cred={cred}
+                showSignalBars={inRationale}
+              />
+
+              <FavorHistoryChart
+                popoverFavorHistory={popoverFavorHistory}
+                initialFavorHistory={initialFavorHistory ?? []}
+                favor={favor}
+                isLoadingFavorHistory={isLoadingFavorHistory}
+              />
             </div>
-
-            <PointStats
-              className="mb-md"
-              amountNegations={amountNegations}
-              amountSupporters={amountSupporters}
-              favor={favor}
-              cred={cred}
-            />
-
-            {/* Favor History Chart (lazy-loaded) */}
-            <FavorHistoryChart
-              popoverFavorHistory={popoverFavorHistory}
-              initialFavorHistory={initialFavorHistory ?? []}
-              favor={favor}
-              isLoadingFavorHistory={isLoadingFavorHistory}
-            />
-          </div>
-        </PopoverContent>
-      </Portal>
+          </PopoverContent>
+        </Portal>
+      )}
     </Popover>
   );
 };

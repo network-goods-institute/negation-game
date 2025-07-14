@@ -544,6 +544,7 @@ const RawPointNode = ({
           "border-0 shadow-none"
         )}
         inGraphNode
+        inRationale={true}
         restake={pointData?.restake ? { ...pointData.restake, isOwner: false } : null}
         totalRestakeAmount={pointData?.totalRestakeAmount}
         doubt={pointData?.doubt}
