@@ -5,6 +5,10 @@ export { negationsTable } from "@/db/tables/negationsTable";
 export { objectionsTable } from "@/db/tables/objectionsTable";
 export { pointsTable } from "@/db/tables/pointsTable";
 export {
+  pointActionEnum,
+  pointHistoryTable,
+} from "@/db/tables/pointHistoryTable";
+export {
   restakeActionEnum,
   restakeHistoryTable,
   restakesTable,

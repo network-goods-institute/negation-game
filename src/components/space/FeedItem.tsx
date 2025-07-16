@@ -124,6 +124,10 @@ export const FeedItem = memo(({
                     isLoading={loadingCardId === `point-${point.pointId}`}
                     isObjection={point.isObjection ?? false}
                     objectionTargetId={point.objectionTargetId ?? undefined}
+                    isEdited={point.isEdited ?? false}
+                    editedAt={point.editedAt}
+                    editedBy={point.editedBy}
+                    editCount={point.editCount ?? 0}
                 />
             </Link>
         );

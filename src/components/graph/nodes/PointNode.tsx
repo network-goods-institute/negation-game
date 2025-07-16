@@ -554,6 +554,10 @@ const RawPointNode = ({
         showEndorsements={showEndorsements}
         isObjection={pointData?.isObjection ?? false}
         objectionTargetId={pointData?.objectionTargetId ?? undefined}
+        isEdited={pointData?.isEdited ?? false}
+        editedAt={pointData?.editedAt || undefined}
+        editedBy={pointData?.editedBy || undefined}
+        editCount={pointData?.editCount ?? 0}
       />
       <DisconnectDialog
         open={isConfirmDialogOpen}

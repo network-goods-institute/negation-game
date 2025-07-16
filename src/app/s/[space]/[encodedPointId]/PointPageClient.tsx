@@ -14,12 +14,14 @@ import { PointCard } from "@/components/cards/PointCard";
 import { PointStats } from "@/components/cards/pointcard/PointStats";
 import { RestakeDialog } from "@/components/dialogs/RestakeDialog";
 import { SelectNegationDialog } from "@/components/dialogs/SelectNegationDialog";
+import { PointEditDialog } from "@/components/dialogs/PointEditDialog";
+import { fetchPointHistory } from "@/actions/points/fetchPointHistory";
 import { GraphView } from "@/components/graph/base/EncodedGraphView";
 import { EndorseButton } from "@/components/buttons/EndorseButton";
 import { NegateButton } from "@/components/buttons/NegateButton";
 import { NegateIcon } from "@/components/icons/NegateIcon";
-import { PointIcon } from "@/components/icons/AppIcons";
 import { TrashIcon } from "@/components/icons/TrashIcon";
+import { EditIcon, HistoryIcon } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
@@ -48,6 +50,14 @@ import { useUser } from "@/queries/users/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { AvatarImage } from "@radix-ui/react-avatar";
 import { useToggle } from "@uidotdev/usehooks";
+import { useQuery } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { ReactFlowProvider } from "@xyflow/react";
 import { useAtom, useSetAtom } from "jotai";
 import { useAtomCallback } from "jotai/utils";
@@ -304,6 +314,8 @@ export function PointPageClient({
     const [_, setVisitedPoints] = useAtom(visitedPointsAtom);
     const [recentlyNegated, setRecentlyNegated] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
     const [isRedirecting, setIsRedirecting] = useState(false);
     const [forceShowNegations, setForceShowNegations] = useState(false);
     const [negationsLoadStartTime] = useState(() => Date.now());
@@ -696,7 +708,7 @@ export function PointPageClient({
                                                 isActive={endorsedByViewer}
                                                 className="@md/point:border @md/point:px-4"
                                                 buttonSize="default"
-                                                {...{"aria-expanded": endorsePopoverOpen}}
+                                                {...{ "aria-expanded": endorsePopoverOpen }}
                                                 onClick={(e) => {
                                                     if (e) {
                                                         e.preventDefault();
@@ -785,6 +797,26 @@ export function PointPageClient({
                                             <span>Copy Markdown Link</span>
                                         </DropdownMenuItem>
 
+                                        {point?.isEdited && (
+                                            <DropdownMenuItem
+                                                onClick={() => setHistoryDialogOpen(true)}
+                                                className="cursor-pointer"
+                                            >
+                                                <HistoryIcon className="mr-2 size-4" />
+                                                <span>View history ({point?.editCount || 0} edit{(point?.editCount || 0) !== 1 ? 's' : ''})</span>
+                                            </DropdownMenuItem>
+                                        )}
+
+                                        {isPointOwner && (
+                                            <DropdownMenuItem
+                                                onClick={() => setEditDialogOpen(true)}
+                                                className="cursor-pointer"
+                                            >
+                                                <EditIcon className="mr-2 size-4" />
+                                                <span>Edit point</span>
+                                            </DropdownMenuItem>
+                                        )}
+
                                         {isPointOwner && (
                                             <DropdownMenuItem
                                                 onClick={() => setDeleteDialogOpen(true)}
@@ -824,6 +856,11 @@ export function PointPageClient({
                                 <p className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg mb-sm break-words whitespace-normal min-w-0">
                                     {point?.content}
                                 </p>
+                                {point?.isEdited && (
+                                    <Badge variant="secondary" className="text-xs shrink-0 bg-muted/50 text-muted-foreground border-muted">
+                                        Edited
+                                    </Badge>
+                                )}
 
                                 {/* Show different badges based on pin status */}
                                 {isPinned && isInSpecificSpace && point?.pinnedByCommandId && (
@@ -874,9 +911,19 @@ export function PointPageClient({
                                     </Badge>
                                 )}
                             </div>
-                            <span className="text-muted-foreground text-sm">
-                                {point?.createdAt && format(point.createdAt, "h':'mm a '·' MMM d',' yyyy")}
-                            </span>
+                            <div className="text-muted-foreground text-sm space-y-1">
+                                <div>
+                                    {point?.createdAt && format(point.createdAt, "h':'mm a '·' MMM d',' yyyy")}
+                                </div>
+                                {point?.isEdited && point?.editedAt && (
+                                    <div className="text-xs text-muted-foreground/80">
+                                        Last edited {formatDistanceToNow(point.editedAt, { addSuffix: true })}
+                                        {point?.editCount && point.editCount > 1 && (
+                                            <span> • {point.editCount} edit{point.editCount !== 1 ? 's' : ''}</span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
 
                             <>
                                 {/* Check if we're using limited fallback data */}
@@ -1194,6 +1241,140 @@ export function PointPageClient({
                     createdAt={point.createdAt}
                 />
             )}
+
+            {point && (
+                <PointEditDialog
+                    open={editDialogOpen}
+                    onOpenChange={setEditDialogOpen}
+                    pointId={point.pointId}
+                    currentContent={point.content}
+                    canEdit={isPointOwner}
+                />
+            )}
+
+            <PointHistoryDialog
+                open={historyDialogOpen}
+                onOpenChange={setHistoryDialogOpen}
+                pointId={pointId || 0}
+                isEdited={point?.isEdited || false}
+                editCount={point?.editCount || 0}
+            />
         </main>
     );
-} 
+}
+
+// Point History Dialog Component
+interface PointHistoryDialogProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    pointId: number;
+    isEdited: boolean;
+    editCount: number;
+}
+
+const PointHistoryDialog = ({
+    open,
+    onOpenChange,
+    pointId,
+    isEdited,
+    editCount
+}: PointHistoryDialogProps) => {
+    const { data: history, isLoading } = useQuery({
+        queryKey: ['point-history', pointId],
+        queryFn: () => fetchPointHistory(pointId, 10),
+        enabled: open && isEdited,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+    });
+
+    if (!isEdited || editCount === 0) {
+        return null;
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+                <DialogHeader className="flex-shrink-0 pb-4">
+                    <DialogTitle className="text-xl">Version History</DialogTitle>
+                    <p className="text-sm text-muted-foreground">
+                        {editCount} edit{editCount !== 1 ? 's' : ''} made to this point
+                    </p>
+                </DialogHeader>
+
+                <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+                    {isLoading ? (
+                        <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            <p className="text-sm text-muted-foreground">Loading version history...</p>
+                        </div>
+                    ) : history && history.length > 0 ? (
+                        <div className="space-y-4 pr-2">
+                            {history.map((entry, index) => (
+                                <div key={entry.id} className="relative">
+                                    {index < history.length - 1 && (
+                                        <div className="absolute left-6 top-12 bottom-0 w-px bg-border" />
+                                    )}
+
+                                    <div className="flex gap-4">
+                                        <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center mt-1">
+                                            <span className="text-xs font-medium text-primary">
+                                                {entry.action === 'created' ? 'C' : 'E'}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex-1 min-w-0 pb-6">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-medium capitalize">
+                                                        {entry.action}
+                                                    </span>
+                                                    {entry.user.username && (
+                                                        <span className="text-sm text-muted-foreground">
+                                                            by {entry.user.username}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                                    {formatDistanceToNow(entry.createdAt, { addSuffix: true })}
+                                                </span>
+                                            </div>
+
+                                            {entry.action === 'edited' && entry.previousContent && (
+                                                <div className="space-y-3 mb-4">
+                                                    <div>
+                                                        <div className="text-sm font-medium text-destructive mb-2">Previous content:</div>
+                                                        <div className="bg-destructive/5 border border-destructive/20 p-3 rounded-md text-sm max-h-40 overflow-y-auto whitespace-pre-wrap break-words">
+                                                            {entry.previousContent}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <div>
+                                                <div className="text-sm font-medium text-green-600 dark:text-green-400 mb-2">
+                                                    {entry.action === 'created' ? 'Initial content:' : 'Updated content:'}
+                                                </div>
+                                                <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800/30 p-3 rounded-md text-sm max-h-40 overflow-y-auto whitespace-pre-wrap break-words">
+                                                    {entry.newContent}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                            <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
+                                <HistoryIcon className="w-8 h-8 text-muted-foreground" />
+                            </div>
+                            <h3 className="font-medium mb-2">No edit history</h3>
+                            <p className="text-sm text-muted-foreground">
+                                This point hasn&apos;t been edited yet.
+                            </p>
+                        </div>
+                    )}
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}; 

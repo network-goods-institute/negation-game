@@ -61,6 +61,10 @@ const RationalePointCardWrapper: React.FC<RationalePointCardWrapperProps> = ({
             isSharing={isSharing}
             isObjection={pointData.isObjection}
             objectionTargetId={pointData.objectionTargetId}
+            isEdited={pointData.isEdited ?? false}
+            editedAt={pointData.editedAt ?? undefined}
+            editedBy={pointData.editedBy ?? undefined}
+            editCount={pointData.editCount ?? 0}
         />
     );
 };

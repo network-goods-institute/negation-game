@@ -114,6 +114,10 @@ export function SearchResultsList({ results, isLoading, query, hasSearched = fal
                                 isLoading={loadingCardId === `point-${result.id}`}
                                 isObjection={(pointData as any).isObjection ?? false}
                                 objectionTargetId={(pointData as any).objectionTargetId ?? undefined}
+                                isEdited={(pointData as any).isEdited ?? false}
+                                editedAt={(pointData as any).editedAt}
+                                editedBy={(pointData as any).editedBy}
+                                editCount={(pointData as any).editCount ?? 0}
                             />
                         </Link>
                     );

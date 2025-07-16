@@ -53,6 +53,10 @@ const ExistingPointOption: React.FC<{ pointId: number; content: string }> = ({ p
                     disablePopover={true}
                     linkDisabled={true}
                     isNegation={false}
+                    isEdited={pointData.isEdited ?? false}
+                    editedAt={pointData.editedAt ?? undefined}
+                    editedBy={pointData.editedBy ?? undefined}
+                    editCount={pointData.editCount ?? 0}
                 />
             ) : (
                 <div className="text-xs text-muted-foreground">Point ID: {pointId} (Details unavailable)</div>

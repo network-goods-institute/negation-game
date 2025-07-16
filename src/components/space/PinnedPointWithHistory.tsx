@@ -75,6 +75,10 @@ export const PinnedPointWithHistory = memo(({
                 }
                 linkDisabled={true}
                 isLoading={loadingCardId === `point-${pinnedPoint.pointId}`}
+                isEdited={pinnedPoint.isEdited ?? false}
+                editedAt={pinnedPoint.editedAt}
+                editedBy={pinnedPoint.editedBy}
+                editCount={pinnedPoint.editCount ?? 0}
             />
         </Link>
     );

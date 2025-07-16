@@ -1,6 +1,8 @@
 import { BezierEdge, Edge, EdgeProps, useReactFlow } from "@xyflow/react";
+import { useAtomValue } from "jotai";
 import { PointNodeData } from "@/components/graph/nodes/PointNode";
 import { PreviewPointNodeData } from "@/components/chatbot/preview/PreviewPointNode";
+import { isEdgeAffectedAtom } from "@/atoms/affectedRelationshipsAtom";
 
 // Define the underlying edge type for negations
 export type NegationEdgeType = Edge<any, "negation">;
@@ -12,6 +14,7 @@ export const NegationEdge = (props: NegationEdgeProps) => {
   const { getNode } = useReactFlow();
   const targetNode = getNode(props.target);
   const sourceNode = getNode(props.source);
+  const isEdgeAffected = useAtomValue(isEdgeAffectedAtom);
 
   // Check for objection in the TARGET node (the node doing the negating/objecting)
   const isObjectionEdge = targetNode?.type === 'point' && (() => {
@@ -49,13 +52,23 @@ export const NegationEdge = (props: NegationEdgeProps) => {
   const showLabel = targetNode?.type !== "statement";
   const labelContent = isObjectionEdge ? "/" : "-";
 
+  const sourcePointId = sourceNode?.data?.pointId;
+  const targetPointId = targetNode?.data?.pointId;
+  const edgeId = sourcePointId && targetPointId && typeof sourcePointId === 'number' && typeof targetPointId === 'number'
+    ? `negation-${Math.min(sourcePointId, targetPointId)}-${Math.max(sourcePointId, targetPointId)}`
+    : null;
+  const isAffected = edgeId ? isEdgeAffected(edgeId) : false;
+
   return (
     <BezierEdge
       {...props}
       style={{
-        strokeWidth: 2,
+        strokeWidth: isAffected ? 3 : 2,
         strokeDasharray: isObjectionEdge ? "8,4" : undefined,
-        stroke: isObjectionEdge ? "hsl(25 95% 53%)" : "#6b7280",
+        stroke: isAffected
+          ? "hsl(0 80% 60%)" // Red for affected edges
+          : (isObjectionEdge ? "hsl(25 95% 53%)" : "#6b7280"),
+        animation: isAffected ? "pulse 2s infinite" : undefined,
       }}
       label={showLabel ? labelContent : undefined}
       labelShowBg={false}
@@ -67,7 +80,9 @@ export const NegationEdge = (props: NegationEdgeProps) => {
         strokeWidth: 2,
         fontSize: isObjectionEdge ? 36 : 36,
         fontWeight: 600,
-        fill: isObjectionEdge ? "hsl(25 95% 53%)" : "#374151",
+        fill: isAffected
+          ? "hsl(0 80% 60%)" // Red for affected edge labels
+          : (isObjectionEdge ? "hsl(25 95% 53%)" : "#374151"),
       }}
       pathOptions={{
         curvature: isObjectionEdge ? 0.3 : 0.15,

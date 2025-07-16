@@ -89,6 +89,10 @@ export const PriorityPointItem = memo(({
                     linkDisabled={true}
                     disablePopover={false}
                     isLoading={loadingCardId === `point-${point.pointId}`}
+                    isEdited={point.isEdited ?? false}
+                    editedAt={point.editedAt}
+                    editedBy={point.editedBy}
+                    editCount={point.editCount ?? 0}
                 />
             </Link>
         </div>

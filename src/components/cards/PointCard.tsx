@@ -114,6 +114,10 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   showEndorsements?: boolean;
   isObjection?: boolean;
   objectionTargetId?: number;
+  isEdited?: boolean;
+  editedAt?: Date;
+  editedBy?: string;
+  editCount?: number;
 }
 
 // Lazy-load the favor history chart component (default export)
@@ -161,6 +165,10 @@ export const PointCard = ({
   showEndorsements = false,
   isObjection,
   objectionTargetId,
+  isEdited = false,
+  editedAt,
+  editedBy,
+  editCount = 0,
   ...props
 }: PointCardProps) => {
   const { data: endorsementDetails } = usePointEndorsementBreakdown(pointId, showEndorsements);
@@ -207,6 +215,7 @@ export const PointCard = ({
   const endorsedByViewer = viewerContext?.viewerCred !== undefined && viewerContext.viewerCred > 0;
   const endorsedByOp = opCred && opCred > 0;
   const visited = visitedPoints.has(pointId);
+
 
   useEffect(() => {
     if (!disablePopover && pointId && isOpen) {
@@ -429,16 +438,21 @@ export const PointCard = ({
           isNegation={isNegation}
           parentPointId={parentPoint?.id}
           pointId={pointId}
+          isEdited={isEdited}
+          editedAt={editedAt}
+          editCount={editCount}
         />
 
-        <PointStats
-          className="mb-md select-text"
-          amountNegations={amountNegations}
-          amountSupporters={amountSupporters}
-          favor={favor}
-          cred={cred}
-          showSignalBars={inRationale}
-        />
+        <div className="mb-md space-y-2">
+          <PointStats
+            className="select-text"
+            amountNegations={amountNegations}
+            amountSupporters={amountSupporters}
+            favor={favor}
+            cred={cred}
+            showSignalBars={inRationale}
+          />
+        </div>
 
         <PointCardActions
           onNegate={onNegate}
@@ -493,10 +507,15 @@ export const PointCard = ({
   );
 
   if (disablePopover) {
-    return renderCardContent();
+    return (
+      <>
+        {renderCardContent()}
+      </>
+    );
   }
 
   return (
+    <>
     <Popover
       open={isOpen}
       onOpenChange={(open) => {
@@ -548,5 +567,7 @@ export const PointCard = ({
         </Portal>
       )}
     </Popover>
+
+    </>
   );
 };

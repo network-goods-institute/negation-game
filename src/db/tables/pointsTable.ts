@@ -7,6 +7,7 @@ import {
   timestamp,
   varchar,
   boolean,
+  integer,
   index,
   check,
 } from "drizzle-orm/pg-core";
@@ -35,6 +36,13 @@ export const pointsTable = pgTable(
       () => usersTable.id,
       { onDelete: "set null" }
     ),
+    isEdited: boolean("is_edited").notNull().default(false),
+    editedAt: timestamp("edited_at"),
+    editedBy: varchar("edited_by", { length: 255 }).references(
+      () => usersTable.id,
+      { onDelete: "set null" }
+    ),
+    editCount: integer("edit_count").notNull().default(0),
   },
   (table) => ({
     createdByIdx: index("points_created_by_idx").on(table.createdBy),
@@ -51,6 +59,8 @@ export const pointsTable = pgTable(
       table.space,
       table.isActive
     ),
+    editedAtIdx: index("points_edited_at_idx").on(table.editedAt),
+    editedByIdx: index("points_edited_by_idx").on(table.editedBy),
     contentLengthCheck: check(
       "content_length_check",
       sql`LENGTH(${table.content}) >= 1 AND LENGTH(${table.content}) <= 10000`
@@ -64,7 +74,7 @@ export const pointsTable = pgTable(
 
 export type InsertPoint = Omit<
   typeof pointsTable.$inferInsert,
-  "id" | "createdAt" | "isActive" | "deletedAt" | "deletedBy"
+  "id" | "createdAt" | "isActive" | "deletedAt" | "deletedBy" | "isEdited" | "editedAt" | "editedBy" | "editCount"
 >;
 export type SelectPoint = typeof pointsTable.$inferSelect;
 export type Point = InferColumnsDataTypes<typeof pointsTable._.columns>;

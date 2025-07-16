@@ -66,6 +66,10 @@ export interface TopicPointData {
   isActive: boolean;
   deletedAt: Date | null;
   deletedBy: string | null;
+  isEdited: boolean;
+  editedAt: Date | null;
+  editedBy: string | null;
+  editCount: number;
 }
 
 export async function fetchTopicPoints(
@@ -278,6 +282,10 @@ export async function fetchTopicPoints(
       isActive: true,
       deletedAt: null,
       deletedBy: null,
+      isEdited: point.isEdited || false,
+      editedAt: point.editedAt || null,
+      editedBy: point.editedBy || null,
+      editCount: point.editCount || 0,
     }));
 
     // Ensure unique points
