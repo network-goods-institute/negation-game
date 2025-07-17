@@ -76,8 +76,17 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
   useEffect(() => {
     setFeedEnabled(true);
   }, [setFeedEnabled]);
+  
+  const isMobile = useIsMobile(768);
+  
+  // Disable feed toggle when in desktop mode
+  useEffect(() => {
+    if (!isMobile) {
+      setFeedEnabled(false);
+    }
+  }, [isMobile, setFeedEnabled]);
+  
   const showFeed = feedEnabled;
-  const isMobile = useIsMobile(640);
   const reactFlow = useReactFlow<AppNode>();
   const [graph, setGraph] = useAtom(viewpointGraphAtom);
   const points = useMemo(() => {

@@ -88,8 +88,17 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
     useEffect(() => {
         setFeedEnabled(false);
     }, [setFeedEnabled]);
+    
+    const isMobile = useIsMobile(768);
+    
+    // Disable feed toggle when in desktop mode
+    useEffect(() => {
+        if (!isMobile) {
+            setFeedEnabled(false);
+        }
+    }, [isMobile, setFeedEnabled]);
+    
     const showFeed = feedEnabled;
-    const isMobile = useIsMobile(640);
     const { isCopyingUrl, handleCopyUrl } = useCopyUrl();
     const { data: viewpoint } = useViewpoint(viewpointId);
 
