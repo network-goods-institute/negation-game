@@ -306,11 +306,11 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
 
     return (
         <div className="flex-1 flex bg-muted/30 min-h-0 overflow-auto">
-            {/* Left negative space (hidden on mobile) */}
-            <div className="hidden sm:block flex-[2] max-w-[400px] bg-muted/10 dark:bg-muted/5 border-r border-border/50"></div>
+            {/* Left negative space (hidden until xl) */}
+            <div className="hidden xl:block flex-[2] max-w-[400px] bg-muted/10 dark:bg-muted/5 border-r border-border/50"></div>
 
             {/* Center content */}
-            <main className="relative w-full flex-[2] flex flex-col min-h-0 bg-background border-x border-border/50 shadow-lg">
+            <main className="relative w-full flex-[2] flex flex-col min-h-0 bg-background xl:border-x border-border/50 shadow-lg">
                 <SpacePageHeader
                     space={space}
                     selectedTab={selectedTab}
@@ -485,8 +485,8 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
                 </div>
             </main>
 
-            {/* Right negative space (hidden on mobile) */}
-            <div className="hidden sm:block flex-[2] max-w-[400px] bg-muted/10 dark:bg-muted/5 border-l border-border/50"></div>
+            {/* Right negative space (hidden until xl) */}
+            <div className="hidden xl:block flex-[2] max-w-[400px] bg-muted/10 dark:bg-muted/5 border-l border-border/50"></div>
 
             <SelectPointForNegationDialog
                 isOpen={isSelectNegationOpen}
