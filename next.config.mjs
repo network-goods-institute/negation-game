@@ -37,8 +37,8 @@ const nextConfig = {
               "base-uri 'self'",
               "form-action 'self'",
 
-              // prevent others framing your page
-              "frame-ancestors 'none'",
+              // prevent others framing your page (but allow self for embeds)
+              "frame-ancestors 'self'",
 
               // iframes you embed
               "frame-src 'self' https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://privy.play.negationgame.com https://www.youtube.com",

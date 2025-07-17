@@ -144,6 +144,13 @@ export default function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  if (url.pathname.startsWith("/embed/")) {
+    const response = NextResponse.next();
+    response.headers.delete("X-Frame-Options");
+    response.headers.set("Content-Security-Policy", "frame-ancestors *");
+    return response;
+  }
+
   const host = req.headers.get("host") || "";
 
   // Check if we're dealing with a subdomain of negationgame.com
