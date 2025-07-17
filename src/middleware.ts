@@ -146,6 +146,7 @@ export default function middleware(req: NextRequest) {
 
   if (url.pathname.startsWith("/embed/")) {
     const response = NextResponse.next();
+    // eslint-disable-next-line drizzle/enforce-delete-with-where
     response.headers.delete("X-Frame-Options");
     response.headers.set("Content-Security-Policy", "frame-ancestors *");
     return response;

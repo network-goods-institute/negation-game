@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 export function EmbedTestClient() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -334,7 +334,7 @@ function EmbedTestPage() {
     return container;
   };
 
-  const createTopic = (sourceUrl: string) => {
+  const createTopic = useCallback((sourceUrl: string) => {
     log(`Creating topic for ${sourceUrl}`);
 
     // Simulate topic creation
@@ -348,7 +348,7 @@ function EmbedTestPage() {
     });
 
     log(`Topic created with ID: ${mockTopicId}`);
-  };
+  }, [baseUrl, createEmbedIframe]);
 
   const handleIframeMessage = (event: MessageEvent) => {
     if (event.data.source !== 'negation-game-embed') return;
@@ -462,7 +462,7 @@ function EmbedTestPage() {
   // Make createTopic available globally
   useEffect(() => {
     (window as any).createTopic = createTopic;
-  }, []);
+  }, [createTopic]);
 
   return (
     <div style={{
@@ -716,7 +716,7 @@ function EmbedTestPage() {
             </div>
           </div>
           <div className="post-content" style={{ lineHeight: '1.6', color: '#333' }}>
-            <p>Great proposal! I've been working on similar optimizations.</p>
+            <p>Great proposal! I&apos;ve been working on similar optimizations.</p>
             <p>Related discussion: <a href="https://forum.scroll.io/t/sequencer-improvements/458" style={{ color: '#3b82f6' }}>https://forum.scroll.io/t/sequencer-improvements/458</a></p>
           </div>
         </div>
@@ -734,7 +734,7 @@ function EmbedTestPage() {
             <p style={{ margin: '0 0 8px' }}><strong>★ Goal 2:</strong> Show existing rationales when topic exists</p>
             <p style={{ margin: '0 0 8px' }}><strong>★ Goal 3:</strong> Allow visual exploration of rationales within embed</p>
             <p style={{ margin: '0', fontSize: '12px', fontStyle: 'italic' }}>
-              Test the "Explore" buttons above to see in-embed rationale preview functionality!
+              Test the &quot;Explore&quot; buttons above to see in-embed rationale preview functionality!
             </p>
           </div>
         </div>
