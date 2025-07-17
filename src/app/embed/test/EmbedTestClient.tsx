@@ -348,7 +348,7 @@ function EmbedTestPage() {
     });
 
     log(`Topic created with ID: ${mockTopicId}`);
-  }, [baseUrl, createEmbedIframe]);
+  }, []);
 
   const handleIframeMessage = (event: MessageEvent) => {
     if (event.data.source !== 'negation-game-embed') return;
