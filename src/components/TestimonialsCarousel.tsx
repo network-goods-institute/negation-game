@@ -68,7 +68,7 @@ export function TestimonialsCarousel() {
                   </div>
                   <div className="flex-1">
                     <p className="text-2xl text-muted-foreground dark:text-slate-300 leading-relaxed italic">
-                      "{testimonial.quote}"
+                      &quot;{testimonial.quote}&quot;
                     </p>
                   </div>
                 </div>
