@@ -11,6 +11,7 @@ import {
   viewpointTopicIdAtom,
   copiedFromIdAtom,
 } from "@/atoms/viewpointAtoms";
+import { generateRationaleSummary } from "@/actions/ai/generateRationaleSummary";
 
 /**
  * Hook to manage draft lifecycle: loading from sessionStorage, draft detection, and cleanup.
@@ -22,7 +23,7 @@ export default function useRationaleDraftLifecycle() {
   const setCopiedFromId = useSetAtom(copiedFromIdAtom);
   const [graph, setGraph] = useAtom(viewpointGraphAtom);
   const [statement, setStatement] = useAtom(viewpointStatementAtom);
-  const [, setReasoning] = useAtom(viewpointReasoningAtom);
+  const [reasoning, setReasoning] = useAtom(viewpointReasoningAtom);
   const [, setTopic] = useAtom(viewpointTopicAtom);
   const [, setTopicId] = useAtom(viewpointTopicIdAtom);
 
@@ -52,8 +53,11 @@ export default function useRationaleDraftLifecycle() {
       try {
         const parsed = JSON.parse(copyData);
         console.log("[DraftLifecycle] Found copy data:", parsed);
-        console.log("[DraftLifecycle] Topic info from storage:", { topic: parsed.topic, topicId: parsed.topicId });
-        
+        console.log("[DraftLifecycle] Topic info from storage:", {
+          topic: parsed.topic,
+          topicId: parsed.topicId,
+        });
+
         if (parsed?.isCopyOperation) {
           setIsCopiedFromSessionStorage(true);
           hasCheckedInitialLoadRef.current = true;
@@ -67,7 +71,10 @@ export default function useRationaleDraftLifecycle() {
             setStatement(parsed.title);
           }
           if (parsed.description) {
-            console.log("[DraftLifecycle] Setting description:", parsed.description);
+            console.log(
+              "[DraftLifecycle] Setting description:",
+              parsed.description
+            );
             setReasoning(parsed.description);
           }
           if (parsed.topic) {
@@ -116,7 +123,47 @@ export default function useRationaleDraftLifecycle() {
     setTopic,
     setTopicId,
     statement,
+    reasoning,
   ]);
+
+  // AI description generation for copied viewpoints
+  useEffect(() => {
+    if (!isCopiedFromSessionStorage) return;
+
+    // Check if we have a basic fallback description that should be replaced
+    if (
+      !reasoning ||
+      !reasoning.includes("This is a copy of an existing rationale.")
+    ) {
+      return;
+    }
+
+    // Generate AI summary in the background
+    const generateAISummary = async () => {
+      try {
+        console.log("[DraftLifecycle] Generating AI description for copy...");
+        const aiDescription = await generateRationaleSummary({
+          title: statement,
+          description: reasoning,
+          graph: graph,
+        });
+
+        console.log(
+          "[DraftLifecycle] Generated AI description:",
+          aiDescription
+        );
+        setReasoning(aiDescription);
+      } catch (error) {
+        console.error(
+          "[DraftLifecycle] Failed to generate AI description:",
+          error
+        );
+        // Keep the fallback description if AI generation fails
+      }
+    };
+
+    generateAISummary();
+  }, [isCopiedFromSessionStorage, statement, reasoning, graph, setReasoning]);
 
   return {
     isCopiedFromSessionStorage,

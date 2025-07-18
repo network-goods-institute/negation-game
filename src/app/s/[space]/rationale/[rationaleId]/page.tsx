@@ -135,14 +135,23 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
             } else {
                 currentGraph = localGraph!;
             }
+            
+            // Use viewpointId from URL instead of waiting for viewpoint data to load
+            // This allows copying even before full data loads
+            const sourceId = viewpointId;
+            const copyTitle = viewpoint?.title || editableTitle || "Untitled Rationale";
+            const copyDescription = viewpoint?.description || editableDescription || "";
+            const copyTopic = viewpoint?.topic ?? editableTopic;
+            const copyTopicId = viewpoint?.topicId ?? editableTopicId;
+            
             await copyViewpointAndNavigate(
                 currentGraph,
-                editableTitle,
-                editableDescription,
-                viewpoint!.id,
+                copyTitle,
+                copyDescription,
+                sourceId,
                 publishCopy,
-                editableTopic,
-                editableTopicId
+                copyTopic,
+                copyTopicId
             );
         }
     );
@@ -305,6 +314,7 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                         handleBackClick={handleBackClick}
                         canvasEnabled={canvasEnabled}
                         toggleCanvas={() => setCanvasEnabled(!canvasEnabled)}
+                        isOwner={isOwner}
                     />
                     {/* --- Scrollable Content START*/}
                     <div className={cn(

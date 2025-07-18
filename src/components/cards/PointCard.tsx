@@ -405,6 +405,7 @@ export const PointCard = ({
         <CheckboxPrimitive.Root
           checked={isSelected}
           onCheckedChange={handleSelect}
+          onClick={(e) => e.stopPropagation()}
           className="absolute top-4 right-4 z-10 h-5 w-5 rounded-sm border border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
           aria-label={`Select point ${pointId}`}
         >
