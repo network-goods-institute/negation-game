@@ -90,6 +90,16 @@ export async function fetchTopicPoints(
         for (const node of graph.nodes) {
           if (node.type === "point" && node.data?.pointId) {
             initialPointIds.add(node.data.pointId);
+            
+            // Also capture objection target and context points
+            if (node.data.isObjection) {
+              if (node.data.objectionTargetId) {
+                initialPointIds.add(node.data.objectionTargetId);
+              }
+              if (node.data.objectionContextId) {
+                initialPointIds.add(node.data.objectionContextId);
+              }
+            }
           }
         }
       }

@@ -13,16 +13,22 @@ export const useSearch = () => {
     data: searchResults,
     isLoading,
     isFetching,
+    error,
   } = useQuery({
     queryKey: ["search", debouncedQuery],
     queryFn: async () => {
-      if (!debouncedQuery || debouncedQuery.trim().length < 2) {
+      if (!debouncedQuery || debouncedQuery?.trim().length < 2) {
         return [] as SearchResult[];
       }
       setHasSearched(true);
-      return searchContent([debouncedQuery]);
+      try {
+        const results = await searchContent([debouncedQuery]);
+        return results;
+      } catch (error) {
+        throw error;
+      }
     },
-    enabled: debouncedQuery.trim().length >= 2,
+    enabled: debouncedQuery?.trim().length >= 2,
     staleTime: 30000,
   });
 

@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { ArrowLeftIcon, Search, Filter } from "lucide-react";
-import Link from "next/link";
+import { Search, Filter } from "lucide-react";
 import { TopicCard } from "@/components/topic/TopicCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,12 +9,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { usePrivy } from "@privy-io/react-auth";
 import { useUserTopicRationales } from "@/queries/topics/useUserTopicRationales";
+import { SpaceLayout } from "@/components/layouts/SpaceLayout";
+import { SpaceChildHeader } from "@/components/layouts/headers/SpaceChildHeader";
 
 interface Topic {
     id: number;
     name: string;
     discourseUrl?: string | null;
     rationalesCount?: number | null;
+    pointsCount?: number | null;
     latestRationaleAt?: Date | null;
     earliestRationaleAt?: Date | null;
     latestAuthorUsername?: string | null;
@@ -29,7 +31,7 @@ interface TopicsPageClientProps {
 export default function TopicsPageClient({ space, topics }: TopicsPageClientProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [filterType, setFilterType] = useState<"all" | "missing-my-rationales" | "has-my-rationales" | "missing-any-rationales" | "has-any-rationales">("all");
-    const [sortBy, setSortBy] = useState<"name" | "rationales" | "recent">("name");
+    const [sortBy, setSortBy] = useState<"name" | "rationales" | "points" | "recent">("name");
     const [filtersOpen, setFiltersOpen] = useState(false);
 
     const { user: privyUser } = usePrivy();
@@ -62,6 +64,8 @@ export default function TopicsPageClient({ space, topics }: TopicsPageClientProp
             switch (sortBy) {
                 case "rationales":
                     return (b.rationalesCount || 0) - (a.rationalesCount || 0);
+                case "points":
+                    return (b.pointsCount || 0) - (a.pointsCount || 0);
                 case "recent":
                     if (!a.latestRationaleAt && !b.latestRationaleAt) return 0;
                     if (!a.latestRationaleAt) return 1;
@@ -89,201 +93,175 @@ export default function TopicsPageClient({ space, topics }: TopicsPageClientProp
         return { missingMyRationalesCount: missing, hasMyRationalesCount: has };
     }, [topics, userTopicRationales]);
 
-    const contentHeight = `${Math.max(filteredAndSortedTopics.length * 150 + 600, 1000)}px`;
+    const subtitle = useMemo(() => {
+        const parts: string[] = [`${topics.length} total`];
 
-    return (
-        <div
-            className="flex-1 flex bg-muted/30 min-h-0 overflow-y-auto"
-            style={{ minHeight: contentHeight }}
+        if (privyUser && !userRationalesLoading) {
+            if (missingMyRationalesCount > 0) {
+                parts.push(`${missingMyRationalesCount} need my rationale`);
+            }
+            if (hasMyRationalesCount > 0) {
+                parts.push(`${hasMyRationalesCount} have my rationale`);
+            }
+        }
+
+        return parts.join(' • ');
+    }, [topics.length, privyUser, userRationalesLoading, missingMyRationalesCount, hasMyRationalesCount]);
+
+    const rightActions = (
+        <Button
+            variant={filtersOpen ? "default" : "outline"}
+            size="sm"
+            onClick={() => setFiltersOpen(!filtersOpen)}
+            className="flex items-center gap-2"
         >
-            {/* Left negative space (hidden on mobile) */}
-            <div
-                className="hidden sm:block flex-[2] max-w-[400px] bg-muted/10 dark:bg-muted/5 border-r border-border/50"
-                style={{ minHeight: contentHeight }}
-            ></div>
+            <Filter className="h-4 w-4" />
+            <span className="hidden lg:inline">Filters</span>
+        </Button>
+    );
 
-            {/* Center content */}
-            <main
-                className="relative w-full flex-[2] flex flex-col bg-background border-x border-border/50 shadow-lg"
-                style={{ minHeight: contentHeight }}
-            >
-                {/* Sticky Header */}
-                <div className="sticky top-0 z-20 bg-background border-b">
-                    <div className="p-4 sm:p-6">
-                        <div className="flex flex-col gap-4">
-                            {/* Back button and title */}
-                            <div className="flex items-center gap-4">
-                                <Link href={`/s/${space}`}>
-                                    <Button variant="outline" size="sm" className="flex items-center gap-2">
-                                        <ArrowLeftIcon className="h-4 w-4" />
-                                        Back to {space === "global" ? "Global" : space}
-                                    </Button>
-                                </Link>
-                                <div>
-                                    <h1 className="text-2xl font-bold">Topics</h1>
-                                    <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                                        <span>{topics.length} total</span>
-                                        {privyUser && !userRationalesLoading && (
-                                            <>
-                                                {missingMyRationalesCount > 0 && (
-                                                    <Badge variant="outline" className="text-xs">
-                                                        {missingMyRationalesCount} need my rationale
-                                                    </Badge>
-                                                )}
-                                                {hasMyRationalesCount > 0 && (
-                                                    <Badge variant="secondary" className="text-xs">
-                                                        {hasMyRationalesCount} have my rationale
-                                                    </Badge>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+    const header = (
+        <div>
+            <SpaceChildHeader
+                title="Topics"
+                subtitle={subtitle}
+                backUrl={`/s/${space}`}
+                rightActions={rightActions}
+            />
 
-                            {/* Search and filters row */}
-                            <div className="flex flex-col sm:flex-row gap-3">
-                                {/* Search bar */}
-                                <div className="relative flex-1">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        type="text"
-                                        placeholder="Search topics..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="pl-10"
-                                    />
-                                </div>
-
-                                {/* Filter toggle button */}
-                                <Button
-                                    variant={filtersOpen ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => setFiltersOpen(!filtersOpen)}
-                                    className="flex items-center gap-2"
-                                >
-                                    <Filter className="h-4 w-4" />
-                                    <span className="hidden sm:inline">Filters</span>
-                                </Button>
-                            </div>
-
-                            {/* Filters panel */}
-                            {filtersOpen && (
-                                <div className="flex flex-col sm:flex-row gap-3 p-4 bg-muted/30 rounded-lg border">
-                                    <div className="flex flex-col gap-2">
-                                        <label className="text-sm font-medium">Filter by rationales:</label>
-                                        <Select value={filterType} onValueChange={(value: typeof filterType) => setFilterType(value)}>
-                                            <SelectTrigger className="w-full sm:w-[180px]">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">All topics</SelectItem>
-                                                {privyUser && !userRationalesLoading && (
-                                                    <>
-                                                        <SelectItem value="missing-my-rationales">Missing my rationales ({missingMyRationalesCount})</SelectItem>
-                                                        <SelectItem value="has-my-rationales">Has my rationales ({hasMyRationalesCount})</SelectItem>
-                                                    </>
-                                                )}
-                                                <SelectItem value="missing-any-rationales">Missing any rationales ({missingAnyRationalesCount})</SelectItem>
-                                                <SelectItem value="has-any-rationales">Has any rationales ({hasAnyRationalesCount})</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    <div className="flex flex-col gap-2">
-                                        <label className="text-sm font-medium">Sort by:</label>
-                                        <Select value={sortBy} onValueChange={(value: typeof sortBy) => setSortBy(value)}>
-                                            <SelectTrigger className="w-full sm:w-[180px]">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="name">Name (A-Z)</SelectItem>
-                                                <SelectItem value="rationales">Number of rationales</SelectItem>
-                                                <SelectItem value="recent">Most recent activity</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+            <div className="px-4 sm:px-6">
+                {/* Search bar */}
+                <div className="py-4 border-b">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            type="text"
+                            placeholder="Search topics..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10"
+                        />
                     </div>
                 </div>
 
-                {/* Topics list */}
-                <div className="p-4 sm:p-6 pb-8">
-                    {filteredAndSortedTopics.length === 0 ? (
-                        <div className="text-center py-12">
-                            {searchQuery.trim() || filterType !== "all" ? (
-                                <>
-                                    <p className="text-lg text-muted-foreground mb-2">
-                                        No topics found
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                        {searchQuery.trim() && `No results for "${searchQuery}"`}
-                                        {searchQuery.trim() && filterType !== "all" && " with "}
-                                        {filterType === "missing-my-rationales" && "missing my rationales"}
-                                        {filterType === "has-my-rationales" && "having my rationales"}
-                                        {filterType === "missing-any-rationales" && "missing any rationales"}
-                                        {filterType === "has-any-rationales" && "having any rationales"}
-                                    </p>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                            setSearchQuery("");
-                                            setFilterType("all");
-                                        }}
-                                        className="mt-3"
-                                    >
-                                        Clear filters
-                                    </Button>
-                                </>
-                            ) : (
-                                <>
-                                    <p className="text-lg text-muted-foreground mb-2">
-                                        No topics yet
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Topics will appear here when rationales are created
-                                    </p>
-                                </>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {filteredAndSortedTopics.map((topic) => {
-                                const hasUserRationale = userTopicRationales ? userTopicRationales.includes(topic.id) : false;
-                                return (
-                                    <TopicCard
-                                        key={topic.id}
-                                        topic={topic}
-                                        spaceId={space}
-                                        size="md"
-                                        hasUserRationale={hasUserRationale}
-                                        userRationalesLoaded={!userRationalesLoading}
-                                    />
-                                );
-                            })}
+                {/* Filters panel */}
+                {filtersOpen && (
+                    <div className="py-4">
+                        <div className="flex flex-col lg:flex-row gap-3 p-4 bg-muted/30 rounded-lg border">
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-medium">Filter by rationales:</label>
+                                <Select value={filterType} onValueChange={(value: typeof filterType) => setFilterType(value)}>
+                                    <SelectTrigger className="w-full lg:w-[180px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All topics</SelectItem>
+                                        {privyUser && !userRationalesLoading && (
+                                            <>
+                                                <SelectItem value="missing-my-rationales">Missing my rationales ({missingMyRationalesCount})</SelectItem>
+                                                <SelectItem value="has-my-rationales">Has my rationales ({hasMyRationalesCount})</SelectItem>
+                                            </>
+                                        )}
+                                        <SelectItem value="missing-any-rationales">Missing any rationales ({missingAnyRationalesCount})</SelectItem>
+                                        <SelectItem value="has-any-rationales">Has any rationales ({hasAnyRationalesCount})</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
 
-                            {/* End of topics indicator */}
-                            {filteredAndSortedTopics.length > 0 && (
-                                <div className="text-center py-8 mt-8 border-t border-border/30">
-                                    <p className="text-sm text-muted-foreground">
-                                        That&apos;s all {filteredAndSortedTopics.length} topic{filteredAndSortedTopics.length === 1 ? '' : 's'}
-                                        {filterType !== "all" && " matching your filters"}
-                                    </p>
-                                </div>
-                            )}
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-medium">Sort by:</label>
+                                <Select value={sortBy} onValueChange={(value: typeof sortBy) => setSortBy(value)}>
+                                    <SelectTrigger className="w-full lg:w-[180px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="name">Name (A-Z)</SelectItem>
+                                        <SelectItem value="rationales">Number of rationales</SelectItem>
+                                        <SelectItem value="points">Number of points</SelectItem>
+                                        <SelectItem value="recent">Most recent activity</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
-                    )}
-                </div>
-            </main>
-
-            {/* Right negative space (hidden on mobile) */}
-            <div
-                className="hidden sm:block flex-[2] max-w-[400px] bg-muted/10 dark:bg-muted/5 border-l border-border/50"
-                style={{ minHeight: contentHeight }}
-            ></div>
+                    </div>
+                )}
+            </div>
         </div>
+    );
+
+    return (
+        <SpaceLayout
+            space={space}
+            header={header}
+            showUserProfilePreview={true}
+        >
+            <div className="max-w-2xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+                {filteredAndSortedTopics.length === 0 ? (
+                    <div className="text-center py-12">
+                        {searchQuery.trim() || filterType !== "all" ? (
+                            <>
+                                <p className="text-lg text-muted-foreground mb-2">
+                                    No topics found
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                    {searchQuery.trim() && `No results for "${searchQuery}"`}
+                                    {searchQuery.trim() && filterType !== "all" && " with "}
+                                    {filterType === "missing-my-rationales" && "missing my rationales"}
+                                    {filterType === "has-my-rationales" && "having my rationales"}
+                                    {filterType === "missing-any-rationales" && "missing any rationales"}
+                                    {filterType === "has-any-rationales" && "having any rationales"}
+                                </p>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                        setSearchQuery("");
+                                        setFilterType("all");
+                                    }}
+                                    className="mt-3"
+                                >
+                                    Clear filters
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <p className="text-lg text-muted-foreground mb-2">
+                                    No topics yet
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                    Topics will appear here when rationales are created
+                                </p>
+                            </>
+                        )}
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {filteredAndSortedTopics.map((topic) => {
+                            const hasUserRationale = userTopicRationales ? userTopicRationales.includes(topic.id) : false;
+                            return (
+                                <TopicCard
+                                    key={topic.id}
+                                    topic={topic}
+                                    spaceId={space}
+                                    size="md"
+                                    hasUserRationale={hasUserRationale}
+                                    userRationalesLoaded={!userRationalesLoading}
+                                />
+                            );
+                        })}
+
+                        {/* End of topics indicator */}
+                        {filteredAndSortedTopics.length > 0 && (
+                            <div className="text-center py-8 mt-8 border-t border-border/30">
+                                <p className="text-sm text-muted-foreground">
+                                    That&apos;s all {filteredAndSortedTopics.length} topic{filteredAndSortedTopics.length === 1 ? '' : 's'}
+                                    {filterType !== "all" && " matching your filters"}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        </SpaceLayout>
     );
 }

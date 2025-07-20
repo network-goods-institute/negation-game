@@ -4,7 +4,7 @@ import {
   Node,
   NodeProps,
   Position,
-  useNodeConnections,
+  useHandleConnections,
   useReactFlow,
   useUpdateNodeInternals,
 } from "@xyflow/react";
@@ -89,9 +89,9 @@ export const StatementNode = ({
   positionAbsoluteX,
   positionAbsoluteY,
 }: StatementNodeProps) => {
-  const incomingConnections = useNodeConnections({
-    handleType: "target",
+  const incomingConnections = useHandleConnections({
     id: id,
+    type: "target",
   });
 
   const { addEdges, addNodes, getNodes, getEdges, getNode, updateNodeData } = useReactFlow();

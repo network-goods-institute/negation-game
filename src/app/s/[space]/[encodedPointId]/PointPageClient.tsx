@@ -59,6 +59,7 @@ import {
     SparklesIcon,
     MoreVertical,
     ClipboardCopyIcon,
+    Plus,
 } from "lucide-react";
 import { nanoid } from "nanoid";
 import { notFound, useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -94,6 +95,8 @@ import { AuthenticatedActionButton } from "@/components/editor/AuthenticatedActi
 import { toast } from "sonner";
 import { ObjectionHeader } from '@/components/cards/pointcard/ObjectionHeader';
 import { DeltaComparisonWidget } from '@/components/delta/DeltaComparisonWidget';
+import { SpaceLayout } from '@/components/layouts/SpaceLayout';
+import { PointPageHeader } from '@/components/layouts/headers/PointPageHeader';
 
 type Point = {
     id: number;
@@ -288,7 +291,8 @@ export function PointPageClient({
     const { back, push } = router;
     const searchParams = useSearchParams();
     const viewParam = searchParams?.get("view");
-    const counterpointSuggestions = useCounterpointSuggestions(point?.pointId);
+    // Pass a stable value to avoid hooks order issues - use -1 for invalid/loading states
+    const counterpointSuggestions = useCounterpointSuggestions(point?.pointId || -1);
     const [selectNegationDialogOpen, toggleSelectNegationDialog] = useToggle(false);
     const [restakePoint, setRestakePoint] = useState<{
         point: Point;
@@ -311,6 +315,18 @@ export function PointPageClient({
     const setInitialTab = useSetAtom(initialSpaceTabAtom);
     const backButtonHandler = getBackButtonHandler(router, setInitialTab);
     const [isSelling, setIsSelling] = useState(false);
+    const [isCreatingRationale, setIsCreatingRationale] = useState(false);
+    const [topicFilters, setTopicFilters] = useState<string[]>([]);
+    const [topicsOpen, setTopicsOpen] = useState(false);
+
+    const handleCreateRationale = useCallback(() => {
+        if (privyUser) {
+            setIsCreatingRationale(true);
+            router.push(`${basePath}/topics`);
+        } else {
+            login();
+        }
+    }, [privyUser, router, basePath, login]);
 
     // Load additional data after point data is loaded
     useEffect(() => {
@@ -585,106 +601,268 @@ export function PointPageClient({
         }
     }, [point, spaceData.data]);
 
+    const handleCanvasToggle = useCallback(() => {
+        const newParams = new URLSearchParams(searchParams?.toString() || "");
+        if (!canvasEnabled) {
+            newParams.set("view", "graph");
+        } else {
+            newParams.delete("view");
+        }
+        push(`?${newParams.toString()}`);
+        setCanvasEnabled(!canvasEnabled);
+    }, [canvasEnabled, searchParams, push, setCanvasEnabled]);
+
+    const header = point ? (
+        <PointPageHeader
+            backButtonHandler={backButtonHandler}
+            spaceData={spaceData}
+            canvasEnabled={canvasEnabled}
+            toggleSelectNegationDialog={toggleSelectNegationDialog}
+            handleCanvasToggle={handleCanvasToggle}
+            point={point}
+            privyUser={privyUser}
+            handleCopyMarkdownLink={handleCopyMarkdownLink}
+            isPointOwner={isPointOwner}
+            canDeletePoint={canDeletePoint}
+            setDeleteDialogOpen={setDeleteDialogOpen}
+        />
+    ) : null;
+
+    // Early returns AFTER all hooks have been called
     if (!isLoadingPoint && point === null && !isRedirecting) {
         notFound();
     }
 
-    if (isRedirecting) {
+    if (isRedirecting || !ready) {
         return (
-            <main className="flex items-center justify-center flex-grow">
-                <Loader className="size-6" />
-            </main>
-        );
-    }
-
-    // Early return for loading state
-    if (!ready) {
-        return (
-            <main className="flex items-center justify-center flex-grow">
-                <Loader className="size-6" />
-            </main>
+            <SpaceLayout
+                space={space}
+                header={null}
+                onCreateRationale={handleCreateRationale}
+                isCreatingRationale={isCreatingRationale}
+                topicFilters={topicFilters}
+                onTopicFiltersChange={setTopicFilters}
+                topicsOpen={topicsOpen}
+                onTopicsToggle={setTopicsOpen}
+            >
+                <div className="flex items-center justify-center flex-grow h-[calc(100vh-var(--header-height)-8rem)]">
+                    <Loader className="size-6" />
+                </div>
+            </SpaceLayout>
         );
     }
 
     return (
-        <main
-            data-canvas-enabled={canvasEnabled}
-            className="relative flex-grow sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] data-[canvas-enabled=true]:md:grid-cols-[0_minmax(200px,400px)_1fr] bg-background"
+        <SpaceLayout
+            space={space}
+            header={header}
+            onCreateRationale={handleCreateRationale}
+            isCreatingRationale={isCreatingRationale}
+            topicFilters={topicFilters}
+            onTopicFiltersChange={setTopicFilters}
+            topicsOpen={topicsOpen}
+            onTopicsToggle={setTopicsOpen}
         >
-            <div className="w-full sm:col-[2] flex flex-col border-x pb-10 overflow-auto">
-                {isLoadingPoint && (
-                    <Loader className="absolute self-center my-auto top-0 bottom-0" />
-                )}
+            {!canvasEnabled ? (
+                <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                    {isLoadingPoint && (
+                        <div className="flex items-center justify-center h-[calc(100vh-var(--header-height)-12rem)]">
+                            <Loader className="size-6" />
+                        </div>
+                    )}
 
-                {point && (
-                    <div className="@container/point relative flex-grow bg-background">
-                        <div className={cn(
-                            "sticky top-0 z-10 w-full flex flex-wrap items-center justify-start gap-3 gap-y-2 px-4 py-3 bg-background/70 backdrop-blur",
-                            !canvasEnabled && "sm:flex-nowrap sm:justify-between"
-                        )}>
-                            <div className={cn(
-                                "flex items-center gap-2 w-full",
-                                !canvasEnabled && "sm:w-auto"
-                            )}>
-                                <Button
-                                    variant={"link"}
-                                    size={"icon"}
-                                    className="text-foreground -ml-3"
-                                    data-action-button="true"
-                                    onClick={backButtonHandler}
-                                >
-                                    <ArrowLeftIcon />
-                                </Button>
-                                {spaceData.data ? (
-                                    <>
-                                        <Avatar className="border-4 border-background h-12 w-12">
-                                            {spaceData.data.icon && (
-                                                <AvatarImage
-                                                    src={spaceData.data.icon}
-                                                    alt={`s/${spaceData.data.id} icon`}
-                                                />
-                                            )}
-                                            <AvatarFallback className="text-xl font-bold text-muted-foreground">
-                                                {spaceData.data.id.charAt(0).toUpperCase()}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <h1 className="text-lg  font-semibold">
-                                            s/{spaceData.data.id}
-                                        </h1>
-                                    </>
-                                ) : null}
-                            </div>
-                            <div className={cn(
-                                "flex w-full gap-sm items-center justify-start text-muted-foreground",
-                                !canvasEnabled && "sm:w-auto sm:justify-end"
-                            )}>
-                                <Button
-                                    variant="ghost"
-                                    className="p-2 rounded-full size-fit hover:bg-muted/30"
-                                    data-action-button="true"
-                                    onClick={() => toggleSelectNegationDialog(true)}
-                                >
-                                    <Repeat2Icon className="size-6 stroke-1" />
-                                </Button>
-                                <Button
-                                    size={"icon"}
-                                    variant={canvasEnabled ? "default" : "outline"}
-                                    className="rounded-full p-2 size-9"
-                                    data-action-button="true"
-                                    onClick={() => {
-                                        const newParams = new URLSearchParams(searchParams?.toString() || "");
-                                        if (!canvasEnabled) {
-                                            newParams.set("view", "graph");
-                                        } else {
-                                            newParams.delete("view"); // eslint-disable-line drizzle/enforce-delete-with-where
+                    {point && (
+                        <div className="@container/point relative flex-grow bg-background">
+                            <div
+                                data-show-hover={canvasEnabled && hoveredPointId === pointId}
+                                onMouseEnter={() => setHoveredPointId(pointId)}
+                                onMouseLeave={() => setHoveredPointId(undefined)}
+                                className=" px-4 py-3 border-b data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
+                            >
+                                {point?.isObjection && point?.objectionTargetId && (
+                                    <div className="mb-2 flex justify-start">
+                                        <ObjectionHeader id={point.pointId} parentId={point.objectionTargetId} space={space} />
+                                    </div>
+                                )}
+                                <div className="flex items-start gap-2">
+                                    <p className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg mb-sm break-words whitespace-normal min-w-0">
+                                        {point?.content}
+                                    </p>
+
+                                    {/* Show different badges based on pin status */}
+                                    {isPinned && isInSpecificSpace && point?.pinnedByCommandId && (
+                                        <Badge variant="outline" className="text-xs shrink-0">
+                                            <Link
+                                                href={getPointUrl(point.pinnedByCommandId, spaceData.data?.id || 'global')}
+                                                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                                                    e.stopPropagation();
+                                                }}
+                                                className="inline-block w-full h-full"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                            >
+                                                <Button
+                                                    type="button"
+                                                    variant="link"
+                                                    className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
+                                                    data-action-button="true"
+                                                    onClick={handleCommandPointClick}
+                                                >
+                                                    Pinned by command
+                                                </Button>
+                                            </Link>
+                                        </Badge>
+                                    )}
+                                    {parsePinCommand && !isPinned && isInSpecificSpace && (
+                                        <Badge variant="outline" className="text-xs shrink-0">
+                                            <Link
+                                                href={getPointUrl(parsePinCommand, spaceData?.data?.id || 'global')}
+                                                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                                                    e.stopPropagation();
+                                                    e.preventDefault();
+                                                }}
+                                                className="inline-block w-full h-full"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                            >
+                                                <Button
+                                                    type="button"
+                                                    variant="link"
+                                                    className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
+                                                    data-action-button="true"
+                                                    onClick={handleTargetPointClick}
+                                                >
+                                                    Proposal to pin
+                                                </Button>
+                                            </Link>
+                                        </Badge>
+                                    )}
+                                </div>
+                                <span className="text-muted-foreground text-sm">
+                                    {point?.createdAt && format(point.createdAt, "h':'mm a '·' MMM d',' yyyy")}
+                                </span>
+
+                                <>
+                                    {/* Check if we're using limited fallback data */}
+                                    {favorHistory &&
+                                        favorHistory.length === 2 &&
+                                        favorHistory[0].favor === favorHistory[1].favor && (
+                                            <div className="text-sm text-muted-foreground mb-1 mt-4">
+                                                Limited history available
+                                            </div>
+                                        )}
+                                    <ResponsiveContainer
+                                        width="100%"
+                                        height={100}
+                                        className={"mt-md"}
+                                    >
+                                        <LineChart
+                                            width={300}
+                                            height={100}
+                                            data={favorHistory && Array.isArray(favorHistory) && favorHistory.length > 0
+                                                ? favorHistory
+                                                : [{ timestamp: new Date(), favor: point?.favor || 50 }]}
+                                            className="[&>.recharts-surface]:overflow-visible"
+                                        >
+                                            <XAxis dataKey="timestamp" hide />
+                                            <YAxis domain={[0, 100]} hide />
+                                            <ReferenceLine
+                                                y={50}
+                                                className="[&>line]:stroke-muted"
+                                            ></ReferenceLine>
+                                            <Line
+                                                animationDuration={300}
+                                                dataKey="favor"
+                                                type="stepAfter"
+                                                className="overflow-visible text-endorsed"
+                                                dot={({ key, ...dot }) => {
+                                                    // Safely check if we have valid data to render
+                                                    if (!favorHistory || !Array.isArray(favorHistory) || favorHistory.length === 0 || dot.index === undefined) {
+                                                        // Just render the current point as a single dot if no history
+                                                        if (dot.cx && dot.cy) {
+                                                            return (
+                                                                <Fragment key={key}>
+                                                                    <Dot
+                                                                        {...dot}
+                                                                        fill={dot.stroke || 'currentColor'}
+                                                                        className="animate-pulse"
+                                                                        style={{
+                                                                            transformOrigin: `${dot.cx}px ${dot.cy}px`,
+                                                                        }}
+                                                                    />
+                                                                </Fragment>
+                                                            );
+                                                        }
+                                                        return <Fragment key={key} />;
+                                                    }
+
+                                                    // Otherwise show the last point in the history
+                                                    return dot.index === favorHistory.length - 1 ? (
+                                                        <Fragment key={key}>
+                                                            <Dot
+                                                                {...dot}
+                                                                fill={dot.stroke || 'currentColor'}
+                                                                className="animate-ping"
+                                                                style={{
+                                                                    transformOrigin: `${dot.cx}px ${dot.cy}px`,
+                                                                }}
+                                                            />
+                                                            <Dot {...dot} fill={dot.stroke || 'currentColor'} />
+                                                        </Fragment>
+                                                    ) : (
+                                                        <Fragment key={key} />
+                                                    );
+                                                }}
+                                                stroke={"currentColor"}
+                                                strokeWidth={2}
+                                            />
+
+                                            <Tooltip
+                                                wrapperClassName="backdrop-blur-sm !bg-transparent !pb-0 rounded-sm"
+                                                labelClassName=" -top-3 text-muted-foreground text-xs"
+                                                formatter={(value: number) => value ? value.toFixed(2) : "0.00"}
+                                                labelFormatter={(timestamp: Date) => timestamp ? timestamp.toLocaleString() : new Date().toLocaleString()}
+                                            />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                    <ToggleGroup
+                                        type="single"
+                                        value={timelineScale}
+                                        onValueChange={(v) =>
+                                            v && setTimelineScale(v as TimelineScale)
                                         }
-                                        push(`?${newParams.toString()}`);
-                                        setCanvasEnabled(!canvasEnabled);
-                                    }}
-                                >
-                                    <NetworkIcon className="" />
-                                </Button>
-                                <div className="flex gap-sm">
+                                        className="flex gap-px w-fit"
+                                    >
+                                        {timelineScales.map((scale) => (
+                                            <ToggleGroupItem
+                                                value={scale}
+                                                className="w-10 h-6 text-sm text-muted-foreground"
+                                                key={scale}
+                                            >
+                                                {scale}
+                                            </ToggleGroupItem>
+                                        ))}
+                                        <Loader
+                                            className="text-muted-foreground size-4 ml-2"
+                                            style={{
+                                                display: isFetchingFavorHistory ? "block" : "none",
+                                            }}
+                                        />
+                                    </ToggleGroup>
+                                </>
+
+                                <Separator className="my-md" />
+
+
+                                <PointStats
+                                    className="justify-evenly ~@/lg:~text-xs/sm mb-sm"
+                                    favor={point.favor}
+                                    amountNegations={point.amountNegations}
+                                    amountSupporters={point.amountSupporters}
+                                    cred={point.cred}
+                                />
+                                {/* Action buttons - moved from header */}
+                                <div className="flex gap-2 justify-center my-4">
                                     <Popover
                                         open={endorsePopoverOpen}
                                         onOpenChange={toggleEndorsePopoverOpen}
@@ -696,7 +874,7 @@ export function PointPageClient({
                                                 isActive={endorsedByViewer}
                                                 className="@md/point:border @md/point:px-4"
                                                 buttonSize="default"
-                                                {...{"aria-expanded": endorsePopoverOpen}}
+                                                {...{ "aria-expanded": endorsePopoverOpen }}
                                                 onClick={(e) => {
                                                     if (e) {
                                                         e.preventDefault();
@@ -764,399 +942,160 @@ export function PointPageClient({
                                         }}
                                     />
                                 </div>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            className="p-2 rounded-full size-fit hover:bg-muted/30"
-                                            data-action-button="true"
-                                            title="More options"
-                                        >
-                                            <MoreVertical className="size-6 stroke-1" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem
-                                            onClick={handleCopyMarkdownLink}
-                                            disabled={!point?.content}
-                                            className="cursor-pointer"
-                                        >
-                                            <ClipboardCopyIcon className="mr-2 size-4" />
-                                            <span>Copy Markdown Link</span>
-                                        </DropdownMenuItem>
-
-                                        {isPointOwner && (
-                                            <DropdownMenuItem
-                                                onClick={() => setDeleteDialogOpen(true)}
-                                                disabled={!canDeletePoint}
-                                                className={cn(
-                                                    "cursor-pointer",
-                                                    !canDeletePoint ? "opacity-50 cursor-not-allowed" : "text-destructive focus:text-destructive focus:bg-destructive/10"
-                                                )}
-                                                title={!canDeletePoint ? "Points can only be deleted within 8 hours of creation" : "Delete this point"}
+                            </div>
+                            <div className="relative flex flex-col">
+                                {isLoadingNegations || (forceShowNegations && (!Array.isArray(negations) || negations.length === 0)) ? (
+                                    <div className="space-y-4">
+                                        {/* Show animated skeletons with varying widths for a more realistic appearance */}
+                                        {Array.from({ length: 5 }).map((_, i) => (
+                                            <div
+                                                key={`skeleton-${i}`}
+                                                className="animate-pulse border border-border rounded-lg p-4"
+                                                // Add staggered animation delay for each skeleton to create a wave effect
+                                                style={{ animationDelay: `${i * 100}ms` }}
                                             >
-                                                <TrashIcon disabled={!canDeletePoint} className="mr-2 size-4" />
-                                                <div className="flex flex-col">
-                                                    <span>Delete point</span>
-                                                    {!canDeletePoint && (
-                                                        <span className="text-xs text-muted-foreground">Only available within 8 hours of creation</span>
-                                                    )}
+                                                <div className="flex items-center space-x-2 mb-4">
+                                                    <div className="rounded-full bg-secondary h-8 w-8"></div>
+                                                    <div
+                                                        className="h-4 bg-secondary rounded"
+                                                        // Vary widths of username and other elements
+                                                        style={{ width: `${55 + (i % 3) * 10}%`, opacity: 1 - (i * 0.15) }}
+                                                    ></div>
                                                 </div>
-                                            </DropdownMenuItem>
-                                        )}
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
-                        </div>
-
-                        <div
-                            data-show-hover={canvasEnabled && hoveredPointId === pointId}
-                            onMouseEnter={() => setHoveredPointId(pointId)}
-                            onMouseLeave={() => setHoveredPointId(undefined)}
-                            className=" px-4 py-3 border-b data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
-                        >
-                            {point?.isObjection && point?.objectionTargetId && (
-                                <div className="mb-2 flex justify-start">
-                                    <ObjectionHeader id={point.pointId} parentId={point.objectionTargetId} space={space} />
-                                </div>
-                            )}
-                            <div className="flex items-start gap-2">
-                                <p className="tracking-tight text-md @xs/point:text-md @sm/point:text-lg mb-sm break-words whitespace-normal min-w-0">
-                                    {point?.content}
-                                </p>
-
-                                {/* Show different badges based on pin status */}
-                                {isPinned && isInSpecificSpace && point?.pinnedByCommandId && (
-                                    <Badge variant="outline" className="text-xs shrink-0">
-                                        <Link
-                                            href={getPointUrl(point.pinnedByCommandId, spaceData.data?.id || 'global')}
-                                            onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                                                e.stopPropagation();
-                                            }}
-                                            className="inline-block w-full h-full"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                        >
-                                            <Button
-                                                type="button"
-                                                variant="link"
-                                                className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
-                                                data-action-button="true"
-                                                onClick={handleCommandPointClick}
-                                            >
-                                                Pinned by command
-                                            </Button>
-                                        </Link>
-                                    </Badge>
-                                )}
-                                {parsePinCommand && !isPinned && isInSpecificSpace && (
-                                    <Badge variant="outline" className="text-xs shrink-0">
-                                        <Link
-                                            href={getPointUrl(parsePinCommand, spaceData?.data?.id || 'global')}
-                                            onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                                                e.stopPropagation();
-                                                e.preventDefault();
-                                            }}
-                                            className="inline-block w-full h-full"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                        >
-                                            <Button
-                                                type="button"
-                                                variant="link"
-                                                className="h-auto p-0 text-muted-foreground hover:text-foreground w-full"
-                                                data-action-button="true"
-                                                onClick={handleTargetPointClick}
-                                            >
-                                                Proposal to pin
-                                            </Button>
-                                        </Link>
-                                    </Badge>
-                                )}
-                            </div>
-                            <span className="text-muted-foreground text-sm">
-                                {point?.createdAt && format(point.createdAt, "h':'mm a '·' MMM d',' yyyy")}
-                            </span>
-
-                            <>
-                                {/* Check if we're using limited fallback data */}
-                                {favorHistory &&
-                                    favorHistory.length === 2 &&
-                                    favorHistory[0].favor === favorHistory[1].favor && (
-                                        <div className="text-sm text-muted-foreground mb-1 mt-4">
-                                            Limited history available
-                                        </div>
-                                    )}
-                                <ResponsiveContainer
-                                    width="100%"
-                                    height={100}
-                                    className={"mt-md"}
-                                >
-                                    <LineChart
-                                        width={300}
-                                        height={100}
-                                        data={favorHistory && Array.isArray(favorHistory) && favorHistory.length > 0
-                                            ? favorHistory
-                                            : [{ timestamp: new Date(), favor: point?.favor || 50 }]}
-                                        className="[&>.recharts-surface]:overflow-visible"
-                                    >
-                                        <XAxis dataKey="timestamp" hide />
-                                        <YAxis domain={[0, 100]} hide />
-                                        <ReferenceLine
-                                            y={50}
-                                            className="[&>line]:stroke-muted"
-                                        ></ReferenceLine>
-                                        <Line
-                                            animationDuration={300}
-                                            dataKey="favor"
-                                            type="stepAfter"
-                                            className="overflow-visible text-endorsed"
-                                            dot={({ key, ...dot }) => {
-                                                // Safely check if we have valid data to render
-                                                if (!favorHistory || !Array.isArray(favorHistory) || favorHistory.length === 0 || dot.index === undefined) {
-                                                    // Just render the current point as a single dot if no history
-                                                    if (dot.cx && dot.cy) {
-                                                        return (
-                                                            <Fragment key={key}>
-                                                                <Dot
-                                                                    {...dot}
-                                                                    fill={dot.stroke || 'currentColor'}
-                                                                    className="animate-pulse"
-                                                                    style={{
-                                                                        transformOrigin: `${dot.cx}px ${dot.cy}px`,
-                                                                    }}
-                                                                />
-                                                            </Fragment>
-                                                        );
-                                                    }
-                                                    return <Fragment key={key} />;
-                                                }
-
-                                                // Otherwise show the last point in the history
-                                                return dot.index === favorHistory.length - 1 ? (
-                                                    <Fragment key={key}>
-                                                        <Dot
-                                                            {...dot}
-                                                            fill={dot.stroke || 'currentColor'}
-                                                            className="animate-ping"
-                                                            style={{
-                                                                transformOrigin: `${dot.cx}px ${dot.cy}px`,
-                                                            }}
-                                                        />
-                                                        <Dot {...dot} fill={dot.stroke || 'currentColor'} />
-                                                    </Fragment>
-                                                ) : (
-                                                    <Fragment key={key} />
-                                                );
-                                            }}
-                                            stroke={"currentColor"}
-                                            strokeWidth={2}
-                                        />
-
-                                        <Tooltip
-                                            wrapperClassName="backdrop-blur-sm !bg-transparent !pb-0 rounded-sm"
-                                            labelClassName=" -top-3 text-muted-foreground text-xs"
-                                            formatter={(value: number) => value ? value.toFixed(2) : "0.00"}
-                                            labelFormatter={(timestamp: Date) => timestamp ? timestamp.toLocaleString() : new Date().toLocaleString()}
-                                        />
-                                    </LineChart>
-                                </ResponsiveContainer>
-                                <ToggleGroup
-                                    type="single"
-                                    value={timelineScale}
-                                    onValueChange={(v) =>
-                                        v && setTimelineScale(v as TimelineScale)
-                                    }
-                                    className="flex gap-px w-fit"
-                                >
-                                    {timelineScales.map((scale) => (
-                                        <ToggleGroupItem
-                                            value={scale}
-                                            className="w-10 h-6 text-sm text-muted-foreground"
-                                            key={scale}
-                                        >
-                                            {scale}
-                                        </ToggleGroupItem>
-                                    ))}
-                                    <Loader
-                                        className="text-muted-foreground size-4 ml-2"
-                                        style={{
-                                            display: isFetchingFavorHistory ? "block" : "none",
-                                        }}
-                                    />
-                                </ToggleGroup>
-                            </>
-
-                            <Separator className="my-md" />
-                            <PointStats
-                                className="justify-evenly ~@/lg:~text-xs/sm mb-sm"
-                                favor={point.favor}
-                                amountNegations={point.amountNegations}
-                                amountSupporters={point.amountSupporters}
-                                cred={point.cred}
-                            />
-
-                            {/* Delta Comparison Widget */}
-                            <div className="mt-6">
-                                <DeltaComparisonWidget
-                                    comparison={{ type: "point", pointId: point.pointId }}
-                                    title="Point Alignment Discovery"
-                                    description="Find users who agree or disagree with you on this point cluster"
-                                    currentUserId={privyUser?.id}
-                                />
-                            </div>
-                        </div>
-                        <div className="relative flex flex-col">
-                            {isLoadingNegations || (forceShowNegations && (!Array.isArray(negations) || negations.length === 0)) ? (
-                                <div className="space-y-4">
-                                    {/* Show animated skeletons with varying widths for a more realistic appearance */}
-                                    {Array.from({ length: 5 }).map((_, i) => (
-                                        <div
-                                            key={`skeleton-${i}`}
-                                            className="animate-pulse border border-border rounded-lg p-4"
-                                            // Add staggered animation delay for each skeleton to create a wave effect
-                                            style={{ animationDelay: `${i * 100}ms` }}
-                                        >
-                                            <div className="flex items-center space-x-2 mb-4">
-                                                <div className="rounded-full bg-secondary h-8 w-8"></div>
                                                 <div
-                                                    className="h-4 bg-secondary rounded"
-                                                    // Vary widths of username and other elements
-                                                    style={{ width: `${55 + (i % 3) * 10}%`, opacity: 1 - (i * 0.15) }}
+                                                    className="h-3 bg-secondary rounded mb-2"
+                                                    style={{ width: `${85 - (i % 4) * 10}%`, opacity: 1 - (i * 0.1) }}
                                                 ></div>
-                                            </div>
-                                            <div
-                                                className="h-3 bg-secondary rounded mb-2"
-                                                style={{ width: `${85 - (i % 4) * 10}%`, opacity: 1 - (i * 0.1) }}
-                                            ></div>
-                                            <div
-                                                className="h-3 bg-secondary rounded mb-2"
-                                                style={{ width: `${65 + (i % 3) * 15}%`, opacity: 1 - (i * 0.1) }}
-                                            ></div>
-                                            <div
-                                                className="h-3 bg-secondary rounded"
-                                                style={{ width: `${45 - (i % 2) * 15}%`, opacity: 1 - (i * 0.1) }}
-                                            ></div>
-                                            <div className="flex justify-between mt-3">
-                                                <div className="h-4 bg-secondary rounded w-16" style={{ opacity: 0.7 - (i * 0.1) }}></div>
-                                                <div className="h-4 bg-secondary rounded w-12" style={{ opacity: 0.7 - (i * 0.1) }}></div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                Array.isArray(negations) && negations.length > 0 ? (
-                                    <div className="animate-fade-in">
-                                        {negations
-                                            .filter(Boolean)
-                                            // Filter out this point's ID from the negations list
-                                            .filter(negation => negation.pointId !== pointId)
-                                            .map((negation, i) => (
                                                 <div
-                                                    key={`${negation.pointId}-${i}`}
-                                                    data-show-hover={canvasEnabled && hoveredPointId === negation.pointId}
-                                                    className="relative border-b data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
-                                                >
-                                                    <NegationCard
-                                                        negation={negation}
-                                                        viewParam={viewParam}
-                                                        basePath={basePath}
-                                                        privyUser={privyUser}
-                                                        login={login}
-                                                        handleNegate={handleNegate}
-                                                        point={point}
-                                                        prefetchRestakeData={prefetchRestakeData}
-                                                        setRestakePoint={setRestakePoint}
-                                                        handleNegationHover={handleNegationHover}
-                                                        handleNegationHoverEnd={handleNegationHoverEnd}
-                                                        prefetchPoint={prefetchPoint}
-                                                        loadingCardId={loadingCardId}
-                                                        onCardClick={handleCardClick}
-                                                    />
+                                                    className="h-3 bg-secondary rounded mb-2"
+                                                    style={{ width: `${65 + (i % 3) * 15}%`, opacity: 1 - (i * 0.1) }}
+                                                ></div>
+                                                <div
+                                                    className="h-3 bg-secondary rounded"
+                                                    style={{ width: `${45 - (i % 2) * 15}%`, opacity: 1 - (i * 0.1) }}
+                                                ></div>
+                                                <div className="flex justify-between mt-3">
+                                                    <div className="h-4 bg-secondary rounded w-16" style={{ opacity: 0.7 - (i * 0.1) }}></div>
+                                                    <div className="h-4 bg-secondary rounded w-12" style={{ opacity: 0.7 - (i * 0.1) }}></div>
                                                 </div>
-                                            ))
-                                        }
+                                            </div>
+                                        ))}
                                     </div>
                                 ) : (
-                                    <div className="flex flex-col items-center justify-center py-12 px-4 text-center animate-fade-in">
-                                        <div className="mb-4 text-muted-foreground">
-                                            <div className="size-8 mx-auto mb-2 text-muted-foreground">
-                                                <NegateIcon className="w-full h-full" />
-                                            </div>
-                                            <h3 className="text-lg font-medium mb-1">No negations yet</h3>
-                                            <p className="text-sm text-muted-foreground max-w-[300px]">
-                                                Challenge this point by creating a negation. It&apos;s a great way to engage in constructive debate.
-                                            </p>
+                                    Array.isArray(negations) && negations.length > 0 ? (
+                                        <div className="animate-fade-in">
+                                            {negations
+                                                .filter(Boolean)
+                                                // Filter out this point's ID from the negations list
+                                                .filter(negation => negation.pointId !== pointId)
+                                                .map((negation, i) => (
+                                                    <div
+                                                        key={`${negation.pointId}-${i}`}
+                                                        data-show-hover={canvasEnabled && hoveredPointId === negation.pointId}
+                                                        className="relative border-b data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
+                                                    >
+                                                        <NegationCard
+                                                            negation={negation}
+                                                            viewParam={viewParam}
+                                                            basePath={basePath}
+                                                            privyUser={privyUser}
+                                                            login={login}
+                                                            handleNegate={handleNegate}
+                                                            point={point}
+                                                            prefetchRestakeData={prefetchRestakeData}
+                                                            setRestakePoint={setRestakePoint}
+                                                            handleNegationHover={handleNegationHover}
+                                                            handleNegationHoverEnd={handleNegationHoverEnd}
+                                                            prefetchPoint={prefetchPoint}
+                                                            loadingCardId={loadingCardId}
+                                                            onCardClick={handleCardClick}
+                                                        />
+                                                    </div>
+                                                ))
+                                            }
                                         </div>
-                                        <Button
-                                            variant="outline"
-                                            className="gap-2 items-center"
-                                            onClick={() => {
-                                                if (privyUser === null) {
-                                                    login();
-                                                    return;
-                                                }
-                                                handleNegate(point.pointId);
-                                            }}
-                                        >
-                                            <NegateIcon className="size-4 flex-shrink-0" />
-                                            Create Negation
-                                        </Button>
-                                    </div>
-                                )
-                            )}
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center py-12 px-4 text-center animate-fade-in">
+                                            <div className="mb-4 text-muted-foreground">
+                                                <div className="size-8 mx-auto mb-2 text-muted-foreground">
+                                                    <NegateIcon className="w-full h-full" />
+                                                </div>
+                                                <h3 className="text-lg font-medium mb-1">No negations yet</h3>
+                                                <p className="text-sm text-muted-foreground max-w-[300px]">
+                                                    Challenge this point by creating a negation. It&apos;s a great way to engage in constructive debate.
+                                                </p>
+                                            </div>
+                                            <Button
+                                                variant="outline"
+                                                className="gap-2 items-center"
+                                                onClick={() => {
+                                                    if (privyUser === null) {
+                                                        login();
+                                                        return;
+                                                    }
+                                                    handleNegate(point.pointId);
+                                                }}
+                                            >
+                                                <NegateIcon className="size-4 flex-shrink-0" />
+                                                Create Negation
+                                            </Button>
+                                        </div>
+                                    )
+                                )}
 
-                            {counterpointSuggestions.length > 0 && (
-                                <>
-                                    <p className="w-full text-center text-muted-foreground text-xs p-4 animate-fade-in">
-                                        Want to add a negation? Try starting with one of these
-                                        AI-generated ones{" "}
-                                        <SparklesIcon className="size-3 inline-block align-baseline" />
-                                    </p>
-                                    {counterpointSuggestions.map((suggestion, i) => (
-                                        <div
-                                            key={`suggestion-${i}`}
-                                            className="flex gap-3 mt-3 mx-2 px-3 py-4 rounded-md border border-dashed hover:bg-muted cursor-pointer animate-fade-in active:scale-95 transition-transform"
-                                            onClick={() => {
-                                                if (privyUser === null) {
-                                                    login();
-                                                    return;
-                                                }
-                                                setNegationContent(pointId, suggestion);
-                                                setNegatedPointId(point.pointId);
-                                            }}
-                                        >
-                                            <div className="relative grid text-muted-foreground">
-                                                <CircleXIcon className="shrink-0 size-6 stroke-1 text-muted-foreground col-start-1 row-start-1" />
+                                {counterpointSuggestions.length > 0 && (
+                                    <>
+                                        <p className="w-full text-center text-muted-foreground text-xs p-4 animate-fade-in">
+                                            Want to add a negation? Try starting with one of these
+                                            AI-generated ones{" "}
+                                            <SparklesIcon className="size-3 inline-block align-baseline" />
+                                        </p>
+                                        {counterpointSuggestions.map((suggestion, i) => (
+                                            <div
+                                                key={`suggestion-${i}`}
+                                                className="flex gap-3 mt-3 mx-2 px-3 py-4 rounded-md border border-dashed hover:bg-muted cursor-pointer animate-fade-in active:scale-95 transition-transform"
+                                                onClick={() => {
+                                                    if (privyUser === null) {
+                                                        login();
+                                                        return;
+                                                    }
+                                                    setNegationContent(pointId, suggestion);
+                                                    setNegatedPointId(point.pointId);
+                                                }}
+                                            >
+                                                <div className="relative grid text-muted-foreground">
+                                                    <CircleXIcon className="shrink-0 size-6 stroke-1 text-muted-foreground col-start-1 row-start-1" />
+                                                </div>
+                                                <p className="tracking-tighter text-sm @sm/point:text-base -mt-0.5">
+                                                    {suggestion}
+                                                </p>
                                             </div>
-                                            <p className="tracking-tighter text-sm @sm/point:text-base -mt-0.5">
-                                                {suggestion}
-                                            </p>
-                                        </div>
-                                    ))}
-                                </>
-                            )}
+                                        ))}
+                                    </>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                )}
-            </div>
-            {canvasEnabled && (
-                <ReactFlowProvider>
-                    <GraphView
-                        onInit={(reactFlow) => {
-                            reactFlow.addNodes(initialNodes);
-                        }}
-                        closeButtonClassName="md:hidden"
-                        className="!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset]  !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md: !z-10 md:z-auto"
-                        rootPointId={pointId}
-                        onClose={() => {
-                            const newParams = new URLSearchParams(searchParams?.toString() || "");
-                            newParams.delete("view"); // eslint-disable-line drizzle/enforce-delete-with-where
-                            push(`?${newParams.toString()}`);
-                            setCanvasEnabled(false);
-                        }}
-                    />
-                </ReactFlowProvider>
+                    )}
+                </div>
+            ) : (
+                <div className="h-full w-full">
+                    <ReactFlowProvider>
+                        <GraphView
+                            onInit={(reactFlow) => {
+                                reactFlow.addNodes(initialNodes);
+                            }}
+                            closeButtonClassName="hidden"
+                            className="h-full w-full"
+                            rootPointId={pointId}
+                            onClose={() => {
+                                const newParams = new URLSearchParams(searchParams?.toString() || "");
+                                newParams.delete("view"); // eslint-disable-line drizzle/enforce-delete-with-where
+                                push(`?${newParams.toString()}`);
+                                setCanvasEnabled(false);
+                            }}
+                        />
+                    </ReactFlowProvider>
+                </div>
             )}
 
             <SelectNegationDialog
@@ -1194,6 +1133,6 @@ export function PointPageClient({
                     createdAt={point.createdAt}
                 />
             )}
-        </main>
+        </SpaceLayout>
     );
 } 

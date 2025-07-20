@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils/cn";
 import React from "react";
 import { useProfilePreviewData } from "@/queries/users/useProfilePreviewData";
 import useIsMobile from "@/hooks/ui/useIsMobile";
+import { useRouter } from "next/navigation";
 
 interface UsernameDisplayProps {
     username: string;
@@ -19,19 +20,26 @@ export function UsernameDisplay({
     className,
 }: UsernameDisplayProps) {
     const isMobile = useIsMobile();
+    const router = useRouter();
     const { data, isLoading, isError } = useProfilePreviewData(userId);
 
     const triggerClasses = cn(
-        "font-medium underline-offset-2 cursor-pointer text-yellow-500",
+        "font-medium underline-offset-2 cursor-pointer text-yellow-500 hover:underline",
         className
     );
 
-    // On mobile, just render the username without hover card to prevent overflow
-    if (isMobile) {
+    const handleClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        router.push(`/profile/${username}`);
+    };
+
+    // On mobile or when no userId is provided, just render the username without hover card
+    if (isMobile || !userId) {
         return (
             <span
                 className={triggerClasses}
-                onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                onClick={handleClick}
             >
                 {username}
             </span>
@@ -43,7 +51,7 @@ export function UsernameDisplay({
             <HoverCardPrimitive.Trigger asChild>
                 <span
                     className={triggerClasses}
-                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                    onClick={handleClick}
                 >
                     {username}
                 </span>
@@ -60,9 +68,20 @@ export function UsernameDisplay({
                     onMouseEnter={(e: React.MouseEvent) => e.stopPropagation()}
                 >
                     {isLoading ? (
-                        <div className="p-4 text-center">Loading...</div>
+                        <div className="p-4 text-center text-muted-foreground">
+                            <div className="animate-pulse">
+                                <div className="h-4 w-24 bg-muted rounded mb-2"></div>
+                                <div className="h-3 w-32 bg-muted rounded"></div>
+                            </div>
+                        </div>
                     ) : isError || !data ? (
-                        <div className="p-4 text-center text-destructive-foreground bg-destructive">Error loading profile</div>
+                        <ProfilePreviewCard
+                            username={username}
+                            bio={null}
+                            delegationUrl={null}
+                            rationalesCount={0}
+                            createdAt={undefined}
+                        />
                     ) : (
                         <ProfilePreviewCard
                             username={username}

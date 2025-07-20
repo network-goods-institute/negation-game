@@ -1,4 +1,4 @@
-import { NodeProps, useReactFlow, Node, useNodeConnections, useUpdateNodeInternals } from "@xyflow/react";
+import { NodeProps, useReactFlow, Node, useHandleConnections, useUpdateNodeInternals } from "@xyflow/react";
 import { PointCard } from "@/components/cards/PointCard";
 import { useAtom, useSetAtom } from "jotai";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
@@ -58,9 +58,9 @@ const RawPointNode = ({
   const [isExpanding, setIsExpanding] = useState(true);
   const [hasAnimationPlayed, setHasAnimationPlayed] = useState(false);
   const [isActive, setIsActive] = useState(false);
-  const incomingConnections = useNodeConnections({
-    handleType: "target",
+  const incomingConnections = useHandleConnections({
     id: id,
+    type: "target",
   });
 
   const updateNodeInternals = useUpdateNodeInternals();

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { LoaderIcon, InfoIcon, UsersIcon, TrendingUpIcon, TrendingDownIcon, MessageCircleIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -166,17 +167,16 @@ export function DeltaComparisonWidget({
                             {isOpen ? <ChevronUpIcon className="h-3 w-3" /> : <ChevronDownIcon className="h-3 w-3" />}
                         </Button>
                     </CollapsibleTrigger>
+                </div>
 
-                    {isOpen && (
-                        <div
-                            className="fixed z-50 w-96 max-w-[calc(100vw-2rem)]"
-                            style={{
-                                top: position.top,
-                                left: typeof window !== 'undefined'
-                                    ? Math.max(16, Math.min(position.left, window.innerWidth - 384 - 16))
-                                    : position.left
-                            }}
-                        >
+                {isOpen && typeof window !== 'undefined' && createPortal(
+                    <div
+                        className="fixed z-[200] w-96 max-w-[calc(100vw-2rem)]"
+                        style={{
+                            top: position.top,
+                            left: Math.max(16, Math.min(position.left, window.innerWidth - 384 - 16))
+                        }}
+                    >
                             <Card className="border-2">
                                 <CardHeader className="pb-3">
                                     <CardTitle className="text-base flex items-center gap-2">
@@ -331,9 +331,9 @@ export function DeltaComparisonWidget({
                                     )}
                                 </CardContent>
                             </Card>
-                        </div>
-                    )}
-                </div>
+                        </div>,
+                    document.body
+                )}
             </Collapsible>
         </div>
     );

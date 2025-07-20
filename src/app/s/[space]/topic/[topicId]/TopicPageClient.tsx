@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { ViewpointCardWrapper } from "@/components/cards/ViewpointCardWrapper";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftIcon, ChevronDownIcon, ChevronUpIcon, X, Check, ExternalLink, LayoutGrid, Lock, Info, Crown } from "lucide-react";
+import { ChevronDownIcon, ChevronUpIcon, X, Check, ExternalLink, LayoutGrid, Lock, Info, Crown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { encodeId } from "@/lib/negation-game/encodeId";
@@ -15,6 +15,8 @@ import { UsernameDisplay } from "@/components/ui/UsernameDisplay";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCanCreateRationale } from "@/hooks/topics/useCanCreateRationale";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { SpaceLayout } from "@/components/layouts/SpaceLayout";
+import { SpaceChildHeader } from "@/components/layouts/headers/SpaceChildHeader";
 
 
 interface Topic {
@@ -107,338 +109,351 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
         return sortDirection === 'desc' ? arr : arr.reverse();
     }, [viewpoints, viewpointsSortKey, sortDirection]);
 
-    return (
-        <div className="flex-1 flex bg-muted/30 min-h-0 overflow-auto">
-            {/* Left negative space (hidden on mobile) */}
-            <div className="hidden sm:block flex-[1] max-w-[300px] bg-muted/10 dark:bg-muted/5 border-r border-border/50"></div>
+    const subtitle = useMemo(() => {
+        const parts: string[] = [`${viewpoints.length} rationales`];
 
-            {/* Center content */}
-            <main className="relative w-full flex-[2] flex flex-col min-h-0 bg-background border-r border-border/50 shadow-lg">
-                {/* Mobile Header with Topics Toggle */}
-                {isMobile && (
-                    <div className="flex items-center justify-between p-4 border-b bg-background">
-                        <div className="flex items-center gap-2">
-                            <Link href={`/s/${space}`}>
-                                <button className="flex items-center text-base text-primary hover:underline">
-                                    <ArrowLeftIcon className="h-5 w-5 mr-1" /> Back
-                                </button>
-                            </Link>
+        if (hasCurrentUserRationale) {
+            parts.push("You published a rationale");
+        }
+
+        return parts.join(' • ');
+    }, [viewpoints.length, hasCurrentUserRationale]);
+
+    const rightActions = (
+        <div className="flex items-center gap-2">
+            {topic.discourseUrl && (
+                <a
+                    href={topic.discourseUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 rounded-lg text-sm font-medium transition-colors"
+                >
+                    <ExternalLink className="w-4 h-4" />
+                    <span>Forum</span>
+                </a>
+            )}
+            {isMobile && (
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsTopicsExpanded(!isTopicsExpanded)}
+                    className="flex items-center whitespace-nowrap"
+                >
+                    <span>Delegates</span>
+                    {isTopicsExpanded ? <ChevronUpIcon className="h-4 w-4 ml-1" /> : <ChevronDownIcon className="h-4 w-4 ml-1" />}
+                </Button>
+            )}
+        </div>
+    );
+
+    const header = (
+        <div>
+            <SpaceChildHeader
+                title={`Topic: ${topic.name}`}
+                subtitle={subtitle}
+                backUrl={`/s/${space}`}
+                rightActions={rightActions}
+            />
+
+            {/* Additional content below header */}
+            <div className="px-4 sm:px-6">
+                {hasCurrentUserRationale && (
+                    <div className="py-3 border-b">
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 rounded-lg text-sm font-medium">
+                            <Check className="w-4 h-4" />
+                            <span>You already published a rationale for this topic</span>
                         </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setIsTopicsExpanded(!isTopicsExpanded)}
-                            className="flex items-center whitespace-nowrap"
-                        >
-                            <span>Delegates</span>
-                            {isTopicsExpanded ? <ChevronUpIcon className="h-4 w-4 ml-1" /> : <ChevronDownIcon className="h-4 w-4 ml-1" />}
-                        </Button>
                     </div>
                 )}
-
-                <div className="flex-1 px-4 sm:px-6 lg:px-8 bg-background overflow-y-auto">
-                    {/* Desktop Back button */}
-                    {!isMobile && (
-                        <div className="mb-4 pt-4">
-                            <Link href={`/s/${space}`}>
-                                <button className="flex items-center text-base text-primary hover:underline">
-                                    <ArrowLeftIcon className="h-5 w-5 mr-1" /> Back
-                                </button>
-                            </Link>
-                        </div>
-                    )}
-
-
-                    {/* Topic Header */}
-                    <div className="mb-6">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-                            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Topic: {topic.name}</h1>
-                            {hasCurrentUserRationale && (
-                                <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 rounded-lg text-sm font-medium">
-                                    <Check className="w-4 h-4" />
-                                    <span>You already published a rationale for this topic</span>
-                                </div>
-                            )}
-                        </div>
-                        {topic.discourseUrl && (
-                            <a
-                                href={topic.discourseUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 rounded-lg text-sm font-medium transition-colors"
-                            >
-                                <ExternalLink className="w-4 h-4" />
-                                <span>View Forum Discussion</span>
-                            </a>
-                        )}
+                {topic.discourseUrl && (
+                    <div className="py-3 sm:hidden">
+                        <a
+                            href={topic.discourseUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 rounded-lg text-sm font-medium transition-colors"
+                        >
+                            <ExternalLink className="w-4 h-4" />
+                            <span>View Forum Discussion</span>
+                        </a>
                     </div>
+                )}
+            </div>
+        </div>
+    );
 
-                    {/* Global Graph Preview */}
-                    <div className="mb-6">
-                        <div className="border rounded-lg overflow-hidden">
-                            <div className="flex items-center justify-between p-4 border-b bg-muted/20">
-                                <div>
-                                    <h2 className="font-semibold">Global Graph</h2>
-                                    <p className="text-sm text-muted-foreground">
-                                        {viewpoints.length} rationales connected
-                                    </p>
-                                </div>
-                                <Link href={`/s/${space}/topic/${encodeId(topic.id)}/graph`}>
-                                    <Button
-                                        variant="default"
-                                        size="sm"
-                                        disabled={isGlobalGraphLoading}
-                                        onClick={() => setIsGlobalGraphLoading(true)}
-                                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
-                                    >
-                                        {isGlobalGraphLoading ? (
-                                            <>
-                                                <Loader className="size-4 text-white" />
-                                                Loading...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <ExternalLink className="size-4" />
-                                                Open Graph
-                                            </>
-                                        )}
-                                    </Button>
-                                </Link>
-                            </div>
-                            <Link href={`/s/${space}/topic/${encodeId(topic.id)}/graph`}>
-                                <div
-                                    className={`h-32 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-950/50 dark:to-indigo-950/50 cursor-pointer hover:from-blue-100 hover:to-indigo-200 dark:hover:from-blue-900/50 dark:hover:to-indigo-900/50 transition-colors flex items-center justify-center ${isGlobalGraphLoading ? 'opacity-75' : ''}`}
-                                    onClick={() => setIsGlobalGraphLoading(true)}
-                                >
-                                    <div className="text-center text-muted-foreground">
-                                        {isGlobalGraphLoading ? (
-                                            <>
-                                                <Loader className="size-8 mx-auto mb-2 text-blue-600" />
-                                                <p className="text-sm">Loading graph...</p>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <LayoutGrid className="size-8 mx-auto mb-2" />
-                                                <p className="text-sm">See how rationales in {topic.name} interact with each other</p>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            </Link>
-                        </div>
-                    </div>
-
-                    {/* Create Rationale Section */}
-                    {!hasCurrentUserRationale && privyUser && (
-                        <div className="mb-6">
-                            {isPermissionLoading ? (
-                                <div className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-6 text-center">
-                                    <Loader className="h-5 w-5 mx-auto mb-2" />
-                                    <p className="text-sm text-muted-foreground">Checking permissions...</p>
-                                </div>
-                            ) : permissionData?.canCreate ? (
-                                <div className="border-2 border-dashed border-blue-300 dark:border-blue-600 rounded-lg p-6 text-left bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
-                                    <h2 className="text-lg font-semibold mb-2 text-blue-900 dark:text-blue-100">Create Your Rationale</h2>
-                                    <p className="text-blue-700 dark:text-blue-200 text-sm mb-4">
-                                        Share your perspective on {topic.name}. Build connected arguments with points and evidence.
-                                    </p>
-                                    <Link href={`/s/${space}/rationale/new?topicId=${encodeId(topic.id)}`}>
-                                        <Button
-                                            variant="default"
-                                            size="lg"
-                                            className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600"
-                                        >
-                                            Create Rationale for {topic.name}
-                                        </Button>
-                                    </Link>
-                                </div>
-                            ) : permissionData?.isRestricted ? (
-                                <Alert className="border-2 border-dashed border-amber-300 dark:border-amber-600 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30">
-                                    <Lock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                                    <AlertDescription className="text-amber-800 dark:text-amber-200">
-                                        <div className="space-y-2">
-                                            <p className="font-semibold">Rationale Creation Restricted</p>
-                                            <p className="text-sm">
-                                                This topic has restricted rationale creation. You don&apos;t have permission to create rationales for &quot;{topic.name}&quot;.
-                                                Contact a space administrator if you believe this is an error.
-                                            </p>
-                                        </div>
-                                    </AlertDescription>
-                                </Alert>
-                            ) : (
-                                <Alert className="border-2 border-dashed border-blue-300 dark:border-blue-600 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
-                                    <Info className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                                    <AlertDescription className="text-blue-800 dark:text-blue-200">
-                                        <div className="space-y-2">
-                                            <p className="font-semibold">Ready to Share Your Perspective?</p>
-                                            <p className="text-sm mb-3">
-                                                Create a rationale to share your thoughts on {topic.name}. Build connected arguments with points and evidence.
-                                            </p>
-                                            <Link href={`/s/${space}/rationale/new?topicId=${encodeId(topic.id)}`}>
-                                                <Button
-                                                    variant="default"
-                                                    size="lg"
-                                                    className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600"
-                                                >
-                                                    Create Rationale for {topic.name}
-                                                </Button>
-                                            </Link>
-                                        </div>
-                                    </AlertDescription>
-                                </Alert>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Sort Controls */}
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6 pb-4 border-b border-border">
-                        <h2 className="text-lg font-semibold">Rationales ({viewpoints.length})</h2>
-                        <div className="flex items-center gap-3">
-                            <span className="font-medium text-sm">Sort by:</span>
-                            <Select defaultValue="recent" onValueChange={(value) => setSortKey(value as SortKey)}>
-                                <SelectTrigger className="w-36">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="recent">Recent</SelectItem>
-                                    <SelectItem value="author">Alphabetic</SelectItem>
-                                    <SelectItem value="cred">Cred</SelectItem>
-                                    <SelectItem value="favor">Favor</SelectItem>
-                                    <SelectItem value="views">Views</SelectItem>
-                                    <SelectItem value="copies">Copies</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <Button variant="outline" size="sm" onClick={() => setSortDirection(d => d === 'desc' ? 'asc' : 'desc')}>
-                                {sortDirection === 'desc' ? '↓' : '↑'}
-                            </Button>
-                        </div>
-                    </div>
-
-                    {/* Rationales List */}
-                    <div className="space-y-3">
-                        {sorted.length === 0 ? (
-                            <div className="text-center py-12 text-muted-foreground">
-                                <p className="text-lg mb-2">No rationales yet</p>
-                                <p className="text-sm">Be the first to create a rationale for this topic!</p>
-                            </div>
-                        ) : (
-                            sorted.map((vp) => (
-                                <ViewpointCardWrapper
-                                    key={vp.id}
-                                    id={vp.id}
-                                    title={vp.title}
-                                    description={vp.description}
-                                    authorId={vp.authorId}
-                                    author={vp.authorUsername}
-                                    createdAt={new Date(vp.createdAt)}
-                                    space={space}
-                                    statistics={vp.statistics}
-                                    topic={topic.name}
-                                    topicId={topic.id}
+    const delegateStatusSection = (
+        <div className="space-y-3" data-testid="delegate-status-section">
+            <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Delegate Status</h3>
+                <span className="text-sm text-muted-foreground">By Status</span>
+            </div>
+            <div className="space-y-2">
+                {sortedDelegates.map((user) => (
+                    <div key={user.id} className="flex items-center justify-between p-3 bg-background border rounded-lg hover:bg-accent/50 transition-colors">
+                        <div className="flex flex-col">
+                            <div className="flex items-center gap-1">
+                                <UsernameDisplay
+                                    username={user.username}
+                                    userId={user.id}
+                                    className="text-sm font-medium"
                                 />
-                            ))
-                        )}
-                    </div>
-                </div>
-            </main>
-
-            {/* Right sidebar (hidden on mobile) */}
-            {!isMobile && (
-                <aside className="hidden sm:flex flex-col flex-[1] max-w-[350px] bg-background border-l border-border/50 overflow-y-auto">
-                    <div className="p-4 space-y-4">
-                        {/* Delta Comparison Widget */}
-                        <DeltaComparisonWidget
-                            // @ts-ignore
-                            comparison={{ type: "topic", topicId: encodeId(topic.id) }}
-                            title="Topic Alignment"
-                            description="Find aligned users"
-                            currentUserId={privyUser?.id}
-                        />
-
-                        {/* Delegate Status Section */}
-                        <div className="space-y-3" data-testid="delegate-status-section">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-lg font-semibold">Delegate Status</h3>
-                                <span className="text-sm text-muted-foreground">By Status</span>
+                                {user.isDelegate && (
+                                    <Crown className="h-3 w-3 text-amber-500" />
+                                )}
                             </div>
-                            <div className="space-y-2">
-                                {sortedDelegates.map((user) => (
-                                    <div key={user.id} className="flex items-center justify-between p-3 bg-background border rounded-lg hover:bg-accent/50 transition-colors">
-                                        <div className="flex flex-col">
-                                            <div className="flex items-center gap-1">
-                                                <UsernameDisplay
-                                                    username={user.username}
-                                                    userId={user.id}
-                                                    className="text-sm font-medium"
-                                                />
-                                                {user.isDelegate && (
-                                                    <Crown className="h-3 w-3 text-amber-500" />
-                                                )}
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs text-muted-foreground">{Math.round(user.reputation)} cred</span>
-                                                {user.scrollDelegateLink && (
-                                                    <a
-                                                        href={user.scrollDelegateLink}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-primary text-xs hover:underline"
-                                                        title="Scroll Delegate"
-                                                    >
-                                                        Scroll
-                                                    </a>
-                                                )}
-                                                {user.agoraLink && (
-                                                    <a
-                                                        href={user.agoraLink}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-primary text-xs hover:underline"
-                                                        title="Agora Profile"
-                                                    >
-                                                        Agora
-                                                    </a>
-                                                )}
-                                                {user.delegationUrl && !user.scrollDelegateLink && !user.agoraLink && (
-                                                    <a
-                                                        href={user.delegationUrl}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-primary text-xs hover:underline"
-                                                        title="Delegate"
-                                                    >
-                                                        Delegate
-                                                    </a>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            {user.hasPublished ? (
-                                                <div className="flex items-center gap-1" title="This delegate already published a rationale for this topic">
-                                                    <Check className="w-4 h-4 text-green-600" />
-                                                    <span className="text-xs text-green-600">Published</span>
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-center gap-1" title="This delegate has not published a rationale for this topic yet">
-                                                    <div className="w-4 h-4 border-2 border-muted-foreground/30 rounded-full" />
-                                                    <span className="text-xs text-muted-foreground">Pending</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                                {(!sortedDelegates || sortedDelegates.length === 0) && (
-                                    <div className="p-4 bg-muted/30 border rounded-lg text-center">
-                                        <p className="text-sm text-muted-foreground">
-                                            No delegates found in this space
-                                        </p>
-                                    </div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">{Math.round(user.reputation)} cred</span>
+                                {user.scrollDelegateLink && (
+                                    <a
+                                        href={user.scrollDelegateLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-primary text-xs hover:underline"
+                                        title="Scroll Delegate"
+                                    >
+                                        Scroll
+                                    </a>
+                                )}
+                                {user.agoraLink && (
+                                    <a
+                                        href={user.agoraLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-primary text-xs hover:underline"
+                                        title="Agora Profile"
+                                    >
+                                        Agora
+                                    </a>
+                                )}
+                                {user.delegationUrl && !user.scrollDelegateLink && !user.agoraLink && (
+                                    <a
+                                        href={user.delegationUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-primary text-xs hover:underline"
+                                        title="Delegate"
+                                    >
+                                        Delegate
+                                    </a>
                                 )}
                             </div>
                         </div>
+                        <div className="flex items-center gap-2">
+                            {user.hasPublished ? (
+                                <div className="flex items-center gap-1" title="This delegate already published a rationale for this topic">
+                                    <Check className="w-4 h-4 text-green-600" />
+                                    <span className="text-xs text-green-600">Published</span>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-1" title="This delegate has not published a rationale for this topic yet">
+                                    <div className="w-4 h-4 border-2 border-muted-foreground/30 rounded-full" />
+                                    <span className="text-xs text-muted-foreground">Pending</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </aside>
-            )}
+                ))}
+                {(!sortedDelegates || sortedDelegates.length === 0) && (
+                    <div className="p-4 bg-muted/30 border rounded-lg text-center">
+                        <p className="text-sm text-muted-foreground">
+                            No delegates found in this space
+                        </p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+
+    const sidebarContent = (
+        <>
+            <DeltaComparisonWidget
+                // @ts-ignore
+                comparison={{ type: "topic", topicId: encodeId(topic.id) }}
+                title="Topic Alignment"
+                description="Find aligned users"
+                currentUserId={privyUser?.id}
+            />
+            {delegateStatusSection}
+        </>
+    );
+
+    return (
+        <SpaceLayout
+            space={space}
+            header={header}
+            showUserProfilePreview={true}
+            rightSidebarContent={sidebarContent}
+        >
+            <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+
+                {/* Global Graph Preview */}
+                <div className="mb-6">
+                    <div className="border rounded-lg overflow-hidden">
+                        <div className="flex items-center justify-between p-4 border-b bg-muted/20">
+                            <div>
+                                <h2 className="font-semibold">Global Graph</h2>
+                                <p className="text-sm text-muted-foreground">
+                                    {viewpoints.length} rationales connected
+                                </p>
+                            </div>
+                            <Link href={`/s/${space}/topic/${encodeId(topic.id)}/graph`}>
+                                <Button
+                                    variant="default"
+                                    size="sm"
+                                    disabled={isGlobalGraphLoading}
+                                    onClick={() => setIsGlobalGraphLoading(true)}
+                                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                                >
+                                    {isGlobalGraphLoading ? (
+                                        <>
+                                            <Loader className="size-4 text-white" />
+                                            Loading...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <ExternalLink className="size-4" />
+                                            Open Graph
+                                        </>
+                                    )}
+                                </Button>
+                            </Link>
+                        </div>
+                        <Link href={`/s/${space}/topic/${encodeId(topic.id)}/graph`}>
+                            <div
+                                className={`h-32 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-950/50 dark:to-indigo-950/50 cursor-pointer hover:from-blue-100 hover:to-indigo-200 dark:hover:from-blue-900/50 dark:hover:to-indigo-900/50 transition-colors flex items-center justify-center ${isGlobalGraphLoading ? 'opacity-75' : ''}`}
+                                onClick={() => setIsGlobalGraphLoading(true)}
+                            >
+                                <div className="text-center text-muted-foreground">
+                                    {isGlobalGraphLoading ? (
+                                        <>
+                                            <Loader className="size-8 mx-auto mb-2 text-blue-600" />
+                                            <p className="text-sm">Loading graph...</p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <LayoutGrid className="size-8 mx-auto mb-2" />
+                                            <p className="text-sm">See how rationales in {topic.name} interact with each other</p>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </Link>
+                    </div>
+                </div>
+
+                {/* Create Rationale Section */}
+                {!hasCurrentUserRationale && privyUser && (
+                    <div className="mb-6">
+                        {isPermissionLoading ? (
+                            <div className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-6 text-center">
+                                <Loader className="h-5 w-5 mx-auto mb-2" />
+                                <p className="text-sm text-muted-foreground">Checking permissions...</p>
+                            </div>
+                        ) : permissionData?.canCreate ? (
+                            <div className="border-2 border-dashed border-blue-300 dark:border-blue-600 rounded-lg p-6 text-left bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
+                                <h2 className="text-lg font-semibold mb-2 text-blue-900 dark:text-blue-100">Create Your Rationale</h2>
+                                <p className="text-blue-700 dark:text-blue-200 text-sm mb-4">
+                                    Share your perspective on {topic.name}. Build connected arguments with points and evidence.
+                                </p>
+                                <Link href={`/s/${space}/rationale/new?topicId=${encodeId(topic.id)}`}>
+                                    <Button
+                                        variant="default"
+                                        size="lg"
+                                        className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600"
+                                    >
+                                        Create Rationale for {topic.name}
+                                    </Button>
+                                </Link>
+                            </div>
+                        ) : permissionData?.isRestricted ? (
+                            <Alert className="border-2 border-dashed border-amber-300 dark:border-amber-600 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30">
+                                <Lock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                                <AlertDescription className="text-amber-800 dark:text-amber-200">
+                                    <div className="space-y-2">
+                                        <p className="font-semibold">Rationale Creation Restricted</p>
+                                        <p className="text-sm">
+                                            This topic has restricted rationale creation. You don&apos;t have permission to create rationales for &quot;{topic.name}&quot;.
+                                            Contact a space administrator if you believe this is an error.
+                                        </p>
+                                    </div>
+                                </AlertDescription>
+                            </Alert>
+                        ) : (
+                            <Alert className="border-2 border-dashed border-blue-300 dark:border-blue-600 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
+                                <Info className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                <AlertDescription className="text-blue-800 dark:text-blue-200">
+                                    <div className="space-y-2">
+                                        <p className="font-semibold">Ready to Share Your Perspective?</p>
+                                        <p className="text-sm mb-3">
+                                            Create a rationale to share your thoughts on {topic.name}. Build connected arguments with points and evidence.
+                                        </p>
+                                        <Link href={`/s/${space}/rationale/new?topicId=${encodeId(topic.id)}`}>
+                                            <Button
+                                                variant="default"
+                                                size="lg"
+                                                className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600"
+                                            >
+                                                Create Rationale for {topic.name}
+                                            </Button>
+                                        </Link>
+                                    </div>
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                    </div>
+                )}
+
+                {/* Sort Controls */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6 pb-4 border-b border-border">
+                    <h2 className="text-lg font-semibold">Rationales ({viewpoints.length})</h2>
+                    <div className="flex items-center gap-3">
+                        <span className="font-medium text-sm">Sort by:</span>
+                        <Select defaultValue="recent" onValueChange={(value) => setSortKey(value as SortKey)}>
+                            <SelectTrigger className="w-36">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="recent">Recent</SelectItem>
+                                <SelectItem value="author">Alphabetic</SelectItem>
+                                <SelectItem value="cred">Cred</SelectItem>
+                                <SelectItem value="favor">Favor</SelectItem>
+                                <SelectItem value="views">Views</SelectItem>
+                                <SelectItem value="copies">Copies</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Button variant="outline" size="sm" onClick={() => setSortDirection(d => d === 'desc' ? 'asc' : 'desc')}>
+                            {sortDirection === 'desc' ? '↓' : '↑'}
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Rationales List */}
+                <div className="space-y-3">
+                    {sorted.length === 0 ? (
+                        <div className="text-center py-12 text-muted-foreground">
+                            <p className="text-lg mb-2">No rationales yet</p>
+                            <p className="text-sm">Be the first to create a rationale for this topic!</p>
+                        </div>
+                    ) : (
+                        sorted.map((vp) => (
+                            <ViewpointCardWrapper
+                                key={vp.id}
+                                id={vp.id}
+                                title={vp.title}
+                                description={vp.description}
+                                authorId={vp.authorId}
+                                author={vp.authorUsername}
+                                createdAt={new Date(vp.createdAt)}
+                                space={space}
+                                statistics={vp.statistics}
+                                topic={topic.name}
+                                topicId={topic.id}
+                            />
+                        ))
+                    )}
+                </div>
+            </div>
 
             {/* Mobile Delegates Overlay */}
             {isMobile && isTopicsExpanded && (
@@ -550,6 +565,6 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                     </div>
                 </div>
             )}
-        </div>
+        </SpaceLayout>
     );
 } 
