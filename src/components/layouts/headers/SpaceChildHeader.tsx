@@ -37,7 +37,7 @@ export function SpaceChildHeader({
 
   return (
     <div className={cn(
-      "sticky top-0 z-50 bg-background border-b",
+      "sticky top-0 z-50 border-b border-border/50",
       className
     )}>
       <div className="flex items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
@@ -52,7 +52,7 @@ export function SpaceChildHeader({
             <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
             <span className="sr-only">Go back</span>
           </Button>
-          
+
           <div className="min-w-0 flex-1">
             <h1 className="text-lg sm:text-xl font-semibold truncate">
               {title}

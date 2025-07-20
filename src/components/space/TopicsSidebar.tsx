@@ -86,7 +86,7 @@ export const TopicsSidebar = memo(({
 
     if (isLoading) {
         return (
-            <div className="w-full h-full px-2 flex flex-col bg-background">
+            <div className="w-full h-full px-2 flex flex-col">
                 {/* Header skeleton */}
                 <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/50 p-3">
                     <div className="flex items-center justify-between">

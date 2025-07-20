@@ -42,8 +42,7 @@ export const HeaderActions = () => {
     const { theme, setTheme } = useTheme();
     const { mobileFiltersOpen } = useSpaceSearch();
 
-    // Check if we're on any space page
-    const isSpacePage = pathname.match(/^\/s\/[^\/]+/) !== null;
+    const isSpacePage = pathname.match(/^\/s\/[^\/]+$/) !== null;
 
     useEffect(() => {
         // Get the search container element
