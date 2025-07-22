@@ -25,11 +25,11 @@
     },
     "api/delta/pipeline/route.ts": {
       "runtime": "nodejs20.x",
-      "maxDuration": 900
+      "maxDuration": 800
     },
     "api/cron/build-clusters/route.ts": {
       "runtime": "nodejs20.x",
-      "maxDuration": 900
+      "maxDuration": 800
     },
     "api/admin/stance-pipeline/route.ts": {
       "runtime": "nodejs20.x",
