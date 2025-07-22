@@ -8,7 +8,7 @@ import { isUserSiteAdmin } from "@/utils/adminUtils";
 import { checkRateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
-export const maxDuration = 900;
+export const maxDuration = 799;
 
 export async function POST(request: NextRequest) {
   try {

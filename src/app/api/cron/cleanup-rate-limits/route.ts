@@ -4,7 +4,7 @@ import { getUserId } from "@/actions/users/getUserId";
 import { isUserSiteAdmin } from "@/utils/adminUtils";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 799;
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now();

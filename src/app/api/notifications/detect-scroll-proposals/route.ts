@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserId } from "@/actions/users/getUserId";
 
 export const runtime = "nodejs";
-export const maxDuration = 300;
+export const maxDuration = 799;
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();

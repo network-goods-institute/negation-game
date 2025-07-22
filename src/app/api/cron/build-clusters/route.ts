@@ -8,7 +8,7 @@ import {
 
 // Serverless runtime configuration for cron jobs
 export const runtime = "nodejs";
-export const maxDuration = 900; // 15 minutes for cluster building
+export const maxDuration = 799;
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
@@ -146,7 +146,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      console.log(`[cluster-builder] Manual POST execution by site admin ${userId}`);
+      console.log(
+        `[cluster-builder] Manual POST execution by site admin ${userId}`
+      );
     }
 
     const body = await request.json();
