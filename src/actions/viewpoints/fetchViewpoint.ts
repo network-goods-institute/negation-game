@@ -126,6 +126,89 @@ export const fetchViewpoint = async (id: string) => {
   return {
     ...viewpoint,
     description: viewpoint.description,
+    space: viewpoint.space || "scroll",
+    statistics: {
+      views: viewpoint.views || 0,
+      copies: viewpoint.copies || 0,
+      totalCred,
+      averageFavor,
+    },
+  };
+};
+export const fetchViewpointForEmbed = async (id: string) => {
+  if (id === "DISABLED") {
+    return {
+      id: "DISABLED",
+      title: "",
+      author: "",
+      description: "",
+      topic: "",
+      topicId: null,
+      originalPointIds: [] as number[],
+      graph: { nodes: [], edges: [] },
+      createdBy: "",
+      createdAt: new Date(0),
+      space: "scroll",
+      statistics: {
+        views: 0,
+        copies: 0,
+        totalCred: 0,
+        averageFavor: 0,
+      },
+      copiedFromId: null,
+    };
+  }
+
+  const viewpoint = await db
+    .select({
+      ...getColumns(viewpointsTable),
+      author: usersTable.username,
+      originalPointIds: sql<number[]>`(
+        SELECT ARRAY(
+          SELECT (data->>'pointId')::int
+          FROM jsonb_array_elements(${viewpointsTable.graph}->'nodes') n,
+               jsonb_extract_path(n, 'data') as data
+          WHERE n->>'type' = 'point'
+          ORDER BY (data->>'pointId')::int
+        )
+      )`,
+      views: viewpointInteractionsTable.views,
+      copies: viewpointInteractionsTable.copies,
+      topic: topicsTable.name,
+      topicId: topicsTable.id,
+    })
+    .from(viewpointsTable)
+    .innerJoin(usersTable, eq(usersTable.id, viewpointsTable.createdBy))
+    .leftJoin(
+      viewpointInteractionsTable,
+      eq(viewpointInteractionsTable.viewpointId, viewpointsTable.id)
+    )
+    .leftJoin(topicsTable, eq(viewpointsTable.topicId, topicsTable.id))
+    .where(and(eq(viewpointsTable.id, id), activeViewpointsFilter))
+    .limit(1)
+    .then((results) => {
+      return results[0] || null;
+    });
+
+  if (!viewpoint) {
+    return null;
+  }
+
+  await trackViewpointView(id);
+
+  // For embeds, we skip the point hydration to avoid getSpace() calls
+  // The embed doesn't need the full point data anyway
+  // not yet anyway
+
+  const { totalCred, averageFavor } = await calculateViewpointStats({
+    graph: viewpoint.graph,
+    createdBy: viewpoint.createdBy,
+  });
+
+  return {
+    ...viewpoint,
+    description: viewpoint.description,
+    space: "scroll", // Always scroll for embeds
     statistics: {
       views: viewpoint.views || 0,
       copies: viewpoint.copies || 0,

@@ -19,6 +19,7 @@ import {
   DynamicHeaderContent
 } from "@/components/header/DynamicHeaderContent";
 import { getCurrentUser } from "@/lib/privy/auth";
+import { headers } from "next/headers";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -124,6 +125,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const headersList = await headers();
+  const pathname = headersList.get("x-pathname") || "";
+  const isEmbedRoute = pathname.startsWith("/embed");
+
   const user = await getCurrentUser();
 
   // Structured data for the organization
@@ -173,14 +178,16 @@ export default async function RootLayout({
                 <WriteupProvider>
                   <OnboardingProvider>
                     <TooltipProvider>
-                      <header className="sticky top-0 z-20 border-b py-sm flex justify-between container-padding items-center w-full bg-background h-[var(--header-height)]">
-                        <div className="flex items-center min-w-0" id="header-container">
-                          <div className="flex items-center min-w-0 overflow-hidden" id="dynamic-header-content">
-                            <DynamicHeaderContent />
+                      {!isEmbedRoute && (
+                        <header className="sticky top-0 z-20 border-b py-sm flex justify-between container-padding items-center w-full bg-background h-[var(--header-height)]">
+                          <div className="flex items-center min-w-0" id="header-container">
+                            <div className="flex items-center min-w-0 overflow-hidden" id="dynamic-header-content">
+                              <DynamicHeaderContent />
+                            </div>
                           </div>
-                        </div>
-                        <HeaderActions />
-                      </header>
+                          <HeaderActions />
+                        </header>
+                      )}
 
                       {children}
 

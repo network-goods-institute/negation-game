@@ -1,34 +1,19 @@
-import { QueryClientProvider } from "@/components/providers/QueryClientProvider";
-import { ThemeProvider } from "@/components/ui/ThemeProvider";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { KnowledgeBaseProvider } from "@/components/contexts/KnowledgeBaseContext";
-import { WriteupProvider } from "@/components/contexts/WriteupContext";
-import { OnboardingProvider } from "@/components/contexts/OnboardingContext";
-import React from 'react';
-
 export default function EmbedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      disableTransitionOnChange
-    >
-      <QueryClientProvider>
-        <KnowledgeBaseProvider>
-          <WriteupProvider>
-            <OnboardingProvider>
-              <TooltipProvider>
-                {children}
-              </TooltipProvider>
-            </OnboardingProvider>
-          </WriteupProvider>
-        </KnowledgeBaseProvider>
-      </QueryClientProvider>
-    </ThemeProvider>
+    <div style={{
+      margin: 0,
+      padding: '16px',
+      background: '#fff',
+      color: '#333',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      fontSize: '14px',
+      lineHeight: '1.4'
+    }}>
+      {children}
+    </div>
   );
 }

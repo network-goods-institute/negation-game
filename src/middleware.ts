@@ -149,6 +149,26 @@ export default function middleware(req: NextRequest) {
     // eslint-disable-next-line drizzle/enforce-delete-with-where
     response.headers.delete("X-Frame-Options");
     response.headers.set("Content-Security-Policy", "frame-ancestors *");
+    response.headers.set("x-pathname", url.pathname);
+    return response;
+  }
+
+  if (url.searchParams.get("embed") === "mobile") {
+    // Treat as an embed route: allow in iframe and hide main header
+    const response = NextResponse.next();
+    // eslint-disable-next-line drizzle/enforce-delete-with-where
+    response.headers.delete("X-Frame-Options");
+    response.headers.set("Content-Security-Policy", "frame-ancestors *");
+
+    // Prefix with /embed so root layout hides header
+    response.headers.set("x-pathname", `/embed${url.pathname}`);
+
+    // If the path includes a space segment, pass it along so views/data still work
+    const space = getSpaceFromPathname(url.pathname);
+    if (space) {
+      response.headers.set(SPACE_HEADER, space);
+    }
+
     return response;
   }
 
@@ -196,13 +216,14 @@ export default function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Handle settings, notifications, messages, admin, and delta paths without rewriting
+  // Handle settings, notifications, messages, admin, delta, and embed paths without rewriting
   if (
     url.pathname.startsWith("/settings") ||
     url.pathname.startsWith("/notifications") ||
     url.pathname.startsWith("/messages") ||
     url.pathname.startsWith("/admin") ||
-    url.pathname.startsWith("/delta")
+    url.pathname.startsWith("/delta") ||
+    url.pathname.startsWith("/embed")
   ) {
     const res = NextResponse.next();
     if (!url.pathname.startsWith("/s/")) {
