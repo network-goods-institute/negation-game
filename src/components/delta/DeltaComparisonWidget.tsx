@@ -53,17 +53,75 @@ export function DeltaComparisonWidget({
     const [bulkResults, setBulkResults] = useState<BulkDeltaResult | null>(null);
     const [loading, setLoading] = useState(false);
     const [position, setPosition] = useState({ top: 0, left: 0 });
+    const [isPositioned, setIsPositioned] = useState(false);
     const buttonRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
-        if (isOpen && buttonRef.current) {
-            const rect = buttonRef.current.getBoundingClientRect();
-            setPosition({
-                top: rect.bottom + 12,
-                left: rect.left + rect.width / 2 - 192 // 192 is half of 384px (w-96)
-            });
+        function updatePosition() {
+            if (isOpen && buttonRef.current) {
+                const rect = buttonRef.current.getBoundingClientRect();
+
+                const isVisible = rect.top >= 0 && rect.left >= 0 &&
+                    rect.bottom <= window.innerHeight &&
+                    rect.right <= window.innerWidth;
+
+                if (!isVisible) {
+                    setIsOpen(false);
+                    return;
+                }
+
+                const newTop = rect.bottom + 12;
+                const newLeft = rect.left + rect.width / 2 - 192; // 192 is half of 384px (w-96)
+
+                setPosition({
+                    top: newTop,
+                    left: newLeft
+                });
+
+                // Ensure positioned state is set after a short delay to allow for DOM updates
+                if (!isPositioned) {
+                    setTimeout(() => setIsPositioned(true), 10);
+                }
+            }
         }
-    }, [isOpen]);
+
+        updatePosition();
+
+        if (isOpen) {
+            setIsPositioned(false);
+
+            const handleScroll = () => updatePosition();
+            const handleResize = () => updatePosition();
+
+            window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
+            window.addEventListener('resize', handleResize, { passive: true });
+
+            let element = buttonRef.current?.parentElement;
+            const scrollableParents: Element[] = [];
+
+            while (element && element !== document.body) {
+                const computedStyle = window.getComputedStyle(element);
+                const isScrollable = computedStyle.overflow === 'auto' ||
+                    computedStyle.overflow === 'scroll' ||
+                    computedStyle.overflowY === 'auto' ||
+                    computedStyle.overflowY === 'scroll';
+
+                if (isScrollable) {
+                    scrollableParents.push(element);
+                    element.addEventListener('scroll', handleScroll, { passive: true });
+                }
+                element = element.parentElement;
+            }
+
+            return () => {
+                window.removeEventListener('scroll', handleScroll, { capture: true });
+                window.removeEventListener('resize', handleResize);
+                scrollableParents.forEach(parent => {
+                    parent.removeEventListener('scroll', handleScroll);
+                });
+            };
+        }
+    }, [isOpen, isPositioned]);
 
     async function handleDiscover() {
         if (!currentUserId) return;
@@ -174,10 +232,10 @@ export function DeltaComparisonWidget({
                                 top: position.top,
                                 left: typeof window !== 'undefined'
                                     ? Math.max(16, Math.min(position.left, window.innerWidth - 384 - 16))
-                                    : position.left
+                                    : position.left,
                             }}
                         >
-                            <Card className="border-2">
+                            <Card className="border-2 shadow-lg max-h-[80vh] overflow-y-auto">
                                 <CardHeader className="pb-3">
                                     <CardTitle className="text-base flex items-center gap-2">
                                         <UsersIcon className="h-4 w-4" />
@@ -221,7 +279,22 @@ export function DeltaComparisonWidget({
                                             {bulkResults.message && (
                                                 <Alert>
                                                     <InfoIcon className="h-4 w-4" />
-                                                    <AlertDescription className="text-sm">{bulkResults.message}</AlertDescription>
+                                                    <AlertDescription className="text-sm">
+                                                        {bulkResults.message}
+                                                        {bulkResults.message.includes("being processed") && (
+                                                            <div className="mt-2">
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={handleDiscover}
+                                                                    disabled={loading}
+                                                                    className="text-xs h-6"
+                                                                >
+                                                                    {loading ? "Retrying..." : "Try Again"}
+                                                                </Button>
+                                                            </div>
+                                                        )}
+                                                    </AlertDescription>
                                                 </Alert>
                                             )}
 

@@ -77,6 +77,7 @@ export interface GraphViewProps
   originalGraphData?: ViewpointGraph;
   nodesDraggable?: boolean;
   topOffsetPx?: number;
+  disableNotOwnerWarning?: boolean;
 }
 
 export const GraphView = ({
@@ -106,6 +107,7 @@ export const GraphView = ({
   originalGraphData,
   nodesDraggable,
   topOffsetPx,
+  disableNotOwnerWarning,
   ...props
 }: GraphViewProps) => {
   const [showEndorsements] = useAtom(showEndorsementsAtom);
@@ -461,7 +463,11 @@ export const GraphView = ({
   } = useDeepLinkShareDialog();
 
   // Show a persistent copy warning for non-owners if graph is modified
-  useNotOwnerWarning(isModified, canModify, openCopyConfirmDialog);
+  useNotOwnerWarning(
+    disableNotOwnerWarning ? false : isModified, 
+    canModify, 
+    openCopyConfirmDialog
+  );
 
   const handleNodeDragStart = useCallback(() => {
     setConnectDialogState({
@@ -608,18 +614,22 @@ export const GraphView = ({
             </>
           ) : (
             <>
-              <div
-                className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
-                onClick={() => {
-                  if (contextMenu) {
-                    handleAddComment(contextMenu.x, contextMenu.y);
-                  }
-                  closeContextMenu();
-                }}
-              >
-                Add Comment
-              </div>
-              <div className="h-px bg-border mx-1 my-1" />
+              {!hideComments && (
+                <>
+                  <div
+                    className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
+                    onClick={() => {
+                      if (contextMenu) {
+                        handleAddComment(contextMenu.x, contextMenu.y);
+                      }
+                      closeContextMenu();
+                    }}
+                  >
+                    Add Comment
+                  </div>
+                  <div className="h-px bg-border mx-1 my-1" />
+                </>
+              )}
               <div
                 className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
                 onClick={() => {

@@ -65,6 +65,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
     const [isTopicsExpanded, setIsTopicsExpanded] = useState(false);
     const [isGlobalGraphLoading, setIsGlobalGraphLoading] = useState(false);
+    const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
 
     const { data: allUsers } = useAllUsers();
     const { data: permissionData, isLoading: isPermissionLoading } = useCanCreateRationale(topic?.id);
@@ -97,6 +98,14 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
     }, [allUsers, viewpoints]);
 
     const hasCurrentUserRationale = viewpoints.some(vp => vp.authorId === privyUser?.id);
+
+    const handleCardClick = (id: string) => {
+        setLoadingCardId(id);
+        const rationaleId = id.replace('rationale-', '');
+        if (typeof window !== 'undefined') {
+            window.location.href = `/s/${space}/rationale/${rationaleId}`;
+        }
+    };
 
     useEffect(() => {
         setIsGlobalGraphLoading(false);
@@ -335,6 +344,8 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                     statistics={vp.statistics}
                                     topic={topic.name}
                                     topicId={topic.id}
+                                    loadingCardId={loadingCardId}
+                                    handleCardClick={handleCardClick}
                                 />
                             ))
                         )}
@@ -348,8 +359,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                     <div className="p-4 space-y-4">
                         {/* Delta Comparison Widget */}
                         <DeltaComparisonWidget
-                            // @ts-ignore
-                            comparison={{ type: "topic", topicId: encodeId(topic.id) }}
+                            comparison={{ type: "topic", topicId: topic.id }}
                             title="Topic Alignment"
                             description="Find aligned users"
                             currentUserId={privyUser?.id}
@@ -458,8 +468,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                             {/* Mobile Delta Widget - Above filtering */}
                             <div className="mb-6">
                                 <DeltaComparisonWidget
-                                    // @ts-ignore
-                                    comparison={{ type: "topic", topicId: encodeId(topic.id) }}
+                                    comparison={{ type: "topic", topicId: topic.id }}
                                     title="Topic Alignment"
                                     description="Find aligned users"
                                     currentUserId={privyUser?.id}

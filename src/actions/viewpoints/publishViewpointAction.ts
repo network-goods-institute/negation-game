@@ -7,6 +7,7 @@ import { AppNode } from "@/components/graph/nodes/AppNode";
 import { InsertViewpoint, viewpointsTable } from "@/db/tables/viewpointsTable";
 import { queueRationaleMentionNotification } from "@/lib/notifications/notificationQueue";
 import { canUserCreateRationaleForTopic } from "@/actions/topics/manageTopicPermissions";
+import { updateRationalePoints } from "@/actions/viewpoints/updateRationalePoints";
 import { db } from "@/services/db";
 import { nanoid } from "nanoid";
 import { pick } from "remeda";
@@ -31,33 +32,39 @@ export const publishViewpoint = async ({
   topicId,
   copiedFromId,
 }: PublishViewpointArgs) => {
-  const userId = await getUserId();
-  const space = await getSpace();
+  const [userId, space] = await Promise.all([getUserId(), getSpace()]);
 
   if (!userId) {
     throw new Error("Must be authenticated to publish a rationale");
   }
 
+  const tasks: Promise<any>[] = [];
+
   if (topicId) {
-    const canCreate = await canUserCreateRationaleForTopic(userId, topicId);
+    tasks.push(canUserCreateRationaleForTopic(userId, topicId));
+    tasks.push(
+      db
+        .select({ name: topicsTable.name })
+        .from(topicsTable)
+        .where(eq(topicsTable.id, topicId))
+        .limit(1)
+    );
+  }
+
+  const results = tasks.length > 0 ? await Promise.all(tasks) : [];
+
+  if (topicId) {
+    const canCreate = results[0];
     if (!canCreate) {
       throw new Error(
         "You do not have permission to create rationales for this topic"
       );
     }
   }
+
   let finalTitle = title;
-
-  if (topicId) {
-    const topicRow = await db
-      .select({ name: topicsTable.name })
-      .from(topicsTable)
-      .where(eq(topicsTable.id, topicId))
-      .limit(1);
-
-    if (topicRow[0]) {
-      finalTitle = topicRow[0].name;
-    }
+  if (topicId && results[1] && results[1][0]) {
+    finalTitle = results[1][0].name;
   }
 
   if (!finalTitle) {
@@ -66,17 +73,22 @@ export const publishViewpoint = async ({
 
   const id = nanoid();
 
+  const cleanedGraph = cleanupForPublishing(graph);
+  
   const valuesToInsert = {
     id,
     createdBy: userId,
     description,
     topicId: topicId ?? null,
-    graph: cleanupForPublishing(graph),
+    graph: cleanedGraph,
     title: finalTitle,
     space,
     copiedFromId,
   };
   await db.insert(viewpointsTable).values(valuesToInsert);
+
+  // Update rationale_points bridge table
+  await updateRationalePoints(id, cleanedGraph);
 
   // Queue notification for mentioned points - let the queue handle all the parsing and logic
   queueRationaleMentionNotification({

@@ -65,7 +65,7 @@ export const SharePanel: React.FC<SharePanelProps> = memo(({
                             className="bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-lg px-4 py-2 flex items-center justify-center gap-2 w-[160px] text-sm"
                         >
                             <Share2Icon className="size-4" />
-                            <span>Present Points</span>
+                            <span>Send Points</span>
                         </Button>
                     </TooltipTrigger>
                     <TooltipContent>

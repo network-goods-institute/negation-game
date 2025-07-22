@@ -170,14 +170,20 @@ describe("Delta System Implementation", () => {
       (db.select as jest.Mock).mockImplementationOnce(() =>
         stubQuery([{ snapDay: new Date("2023-12-31") }])
       );
-      // 2. Previous snapshots for accumulation
+      // 2. Cred events aggregation
       (db.select as jest.Mock).mockImplementationOnce(() => stubQuery([]));
-      // 3. Cred events aggregation
+      // 3. Previous day result lookup
+      (db.select as jest.Mock).mockImplementationOnce(() => stubQuery([{ snapDay: new Date("2023-12-31") }]));
+      // 4. Previous snapshots for accumulation
       (db.select as jest.Mock).mockImplementationOnce(() => stubQuery([]));
-      // 4. Insert/upsert operation
-      (db.insert as jest.Mock).mockImplementationOnce(() => ({
-        values: jest.fn().mockReturnValue({
-          onConflictDoUpdate: jest.fn().mockResolvedValue([{}]),
+      // 5. Point-topic mappings
+      (db.select as jest.Mock).mockImplementationOnce(() => stubQuery([]));
+      // 6. Transaction with insert/upsert operation
+      (db.transaction as jest.Mock).mockImplementationOnce((fn: any) => fn({
+        insert: jest.fn().mockReturnValue({
+          values: jest.fn().mockReturnValue({
+            onConflictDoUpdate: jest.fn().mockResolvedValue([{}]),
+          }),
         }),
       }));
 
@@ -188,14 +194,24 @@ describe("Delta System Implementation", () => {
 
     it("should include stats in response", async () => {
       // Mock all the db queries that dailySnapshotJob needs
+      // 1. Previous day snapshots lookup
       (db.select as jest.Mock).mockImplementationOnce(() =>
         stubQuery([{ snapDay: new Date("2023-12-31") }])
       );
+      // 2. Cred events aggregation
       (db.select as jest.Mock).mockImplementationOnce(() => stubQuery([]));
+      // 3. Previous day result lookup
+      (db.select as jest.Mock).mockImplementationOnce(() => stubQuery([{ snapDay: new Date("2023-12-31") }]));
+      // 4. Previous snapshots for accumulation
       (db.select as jest.Mock).mockImplementationOnce(() => stubQuery([]));
-      (db.insert as jest.Mock).mockImplementationOnce(() => ({
-        values: jest.fn().mockReturnValue({
-          onConflictDoUpdate: jest.fn().mockResolvedValue([{}]),
+      // 5. Point-topic mappings
+      (db.select as jest.Mock).mockImplementationOnce(() => stubQuery([]));
+      // 6. Transaction with insert/upsert operation
+      (db.transaction as jest.Mock).mockImplementationOnce((fn: any) => fn({
+        insert: jest.fn().mockReturnValue({
+          values: jest.fn().mockReturnValue({
+            onConflictDoUpdate: jest.fn().mockResolvedValue([{}]),
+          }),
         }),
       }));
 
@@ -207,14 +223,24 @@ describe("Delta System Implementation", () => {
 
     it("should complete daily snapshot job successfully", async () => {
       // Mock all the db queries that dailySnapshotJob needs
+      // 1. Previous day snapshots lookup
       (db.select as jest.Mock).mockImplementationOnce(() =>
         stubQuery([{ snapDay: new Date("2023-12-31") }])
       );
+      // 2. Cred events aggregation
       (db.select as jest.Mock).mockImplementationOnce(() => stubQuery([]));
+      // 3. Previous day result lookup
+      (db.select as jest.Mock).mockImplementationOnce(() => stubQuery([{ snapDay: new Date("2023-12-31") }]));
+      // 4. Previous snapshots for accumulation
       (db.select as jest.Mock).mockImplementationOnce(() => stubQuery([]));
-      (db.insert as jest.Mock).mockImplementationOnce(() => ({
-        values: jest.fn().mockReturnValue({
-          onConflictDoUpdate: jest.fn().mockResolvedValue([{}]),
+      // 5. Point-topic mappings
+      (db.select as jest.Mock).mockImplementationOnce(() => stubQuery([]));
+      // 6. Transaction with insert/upsert operation
+      (db.transaction as jest.Mock).mockImplementationOnce((fn: any) => fn({
+        insert: jest.fn().mockReturnValue({
+          values: jest.fn().mockReturnValue({
+            onConflictDoUpdate: jest.fn().mockResolvedValue([{}]),
+          }),
         }),
       }));
 

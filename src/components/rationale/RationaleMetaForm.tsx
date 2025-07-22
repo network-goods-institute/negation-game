@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils/cn';
 import { Button } from '@/components/ui/button';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useRouter, usePathname } from 'next/navigation';
+import { encodeId } from '@/lib/negation-game/encodeId';
 
 export interface RationaleMetaFormProps {
     title: string;
@@ -51,6 +53,16 @@ export interface RationaleMetaFormProps {
      * header position where the title used to live, making the topic visually dominant.
      */
     showTopicHeader?: boolean;
+    /**
+     * The space slug for navigation. When provided along with enableTopicNavigation, 
+     * allows clicking the topic to navigate to the topic page.
+     */
+    spaceSlug?: string;
+    /**
+     * When true, makes the topic clickable to navigate to the topic page.
+     * Requires spaceSlug to be provided.
+     */
+    enableTopicNavigation?: boolean;
 }
 
 export default function RationaleMetaForm({
@@ -66,6 +78,7 @@ export default function RationaleMetaForm({
     onDescriptionBlur,
     topic,
     onTopicChange,
+    topics,
     currentSpace,
     isNew = false,
     canEdit = false,
@@ -78,10 +91,44 @@ export default function RationaleMetaForm({
     allowTitleEdit = true,
     hideTopicSelector = false,
     showTopicHeader = false,
+    spaceSlug,
+    enableTopicNavigation = false,
 }: RationaleMetaFormProps) {
-    const displayDescription = description || (canEdit ? 'Click edit to add a description...' : 'No description');
+    const router = useRouter();
+    const pathname = usePathname();
+    const [isTopicClicked, setIsTopicClicked] = useState(false);
 
     const shouldHideTitle = hideTitle || (showTopicHeader && title === topic);
+
+    const selectedTopic = topics.find((t: { id: number; name: string }) => t.name === topic);
+    const topicId = selectedTopic?.id;
+
+    const isOnTopicPage = React.useMemo(() => {
+        if (!topicId || !spaceSlug) return false;
+        const expectedPath = `/s/${spaceSlug}/topic/${encodeId(topicId)}`;
+        return pathname === expectedPath;
+    }, [pathname, spaceSlug, topicId]);
+
+    useEffect(() => {
+        if (isTopicClicked) {
+            const timer = setTimeout(() => {
+                setIsTopicClicked(false);
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [isTopicClicked]);
+
+    const handleTopicClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!enableTopicNavigation || !spaceSlug || !topicId || isOnTopicPage) {
+            return;
+        }
+
+        setIsTopicClicked(true);
+        router.push(`/s/${spaceSlug}/topic/${encodeId(topicId)}`);
+    };
 
     return (
         <div className="flex flex-col p-2 gap-0">
@@ -98,9 +145,27 @@ export default function RationaleMetaForm({
                         />
                     </div>
                 ) : (
-                    <h2 className="font-semibold text-xl pr-16 mb-4 truncate">
-                        {topic || 'Untitled Topic'}
-                    </h2>
+                    enableTopicNavigation && spaceSlug && topicId && !isOnTopicPage ? (
+                        <div className="mb-4">
+                            {isTopicClicked && (
+                                <div className="inline-block mr-2 size-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            )}
+                            <h2
+                                className={cn(
+                                    "font-semibold text-xl pr-16 truncate cursor-pointer",
+                                    "text-blue-600 dark:text-blue-400 hover:underline"
+                                )}
+                                onClick={handleTopicClick}
+                                title={`View topic: ${topic}`}
+                            >
+                                {topic || 'Untitled Topic'}
+                            </h2>
+                        </div>
+                    ) : (
+                        <h2 className="font-semibold text-xl pr-16 mb-4 truncate">
+                            {topic || 'Untitled Topic'}
+                        </h2>
+                    )
                 )
             )}
             {/* Title section */}

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/popover";
 import { Portal } from "@radix-ui/react-portal";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { ViewpointStatsBar } from "../rationale/ViewpointStatsBar";
 import { UsernameDisplay } from "@/components/ui/UsernameDisplay";
 import useIsMobile from "@/hooks/ui/useIsMobile";
@@ -104,12 +104,29 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const router = useRouter();
+    const pathname = usePathname();
     const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [isSelecting, setIsSelecting] = useState(false);
     const mouseDownRef = useRef<{ x: number, y: number } | null>(null);
     const isMobile = useIsMobile();
+    const [isTopicClicked, setIsTopicClicked] = useState(false); // New state for animation
 
     const plainDescription = useMemo(() => stripMarkdown(description), [description]);
+
+    const isOnTopicPage = useMemo(() => {
+        if (!topicId || !space) return false;
+        const expectedPath = `/s/${space}/topic/${encodeId(topicId)}`;
+        return pathname === expectedPath;
+    }, [pathname, space, topicId]);
+
+    useEffect(() => {
+        if (isTopicClicked) {
+            const timer = setTimeout(() => {
+                setIsTopicClicked(false);
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [isTopicClicked]);
 
     // Monitor selection changes
     useEffect(() => {
@@ -243,18 +260,28 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                     <>
                                         {topic ? (
                                             topicId ? (
-                                                <span
-                                                    className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        router.push(`/s/${space}/topic/${encodeId(topicId)}`);
-                                                    }}
-                                                    data-href={`/s/${space}/topic/${encodeId(topicId)}`}
-                                                    title={`View topic: ${topic}`}
-                                                >
-                                                    {topic}
-                                                </span>
+                                                <>
+                                                    {isTopicClicked && !isOnTopicPage && (
+                                                        <div className="inline-block mr-2 size-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                                    )}
+                                                    <span
+                                                        className={cn(
+                                                            "text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                                                        )}
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            if (!isOnTopicPage) {
+                                                                setIsTopicClicked(true);
+                                                                router.push(`/s/${space}/topic/${encodeId(topicId)}`);
+                                                            }
+                                                        }}
+                                                        data-href={`/s/${space}/topic/${encodeId(topicId)}`}
+                                                        title={`View topic: ${topic}`}
+                                                    >
+                                                        {topic}
+                                                    </span>
+                                                </>
                                             ) : (
                                                 <span>{topic}</span>
                                             )
@@ -318,18 +345,28 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                 <>
                                     {topic ? (
                                         topicId ? (
-                                            <span
-                                                className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    router.push(`/s/${space}/topic/${encodeId(topicId)}`);
-                                                }}
-                                                data-href={`/s/${space}/topic/${encodeId(topicId)}`}
-                                                title={`View topic: ${topic}`}
-                                            >
-                                                {topic}
-                                            </span>
+                                            <>
+                                                {isTopicClicked && !isOnTopicPage && (
+                                                    <div className="inline-block mr-2 size-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                                )}
+                                                <span
+                                                    className={cn(
+                                                        "text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                                                    )}
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        if (!isOnTopicPage) {
+                                                            setIsTopicClicked(true);
+                                                            router.push(`/s/${space}/topic/${encodeId(topicId)}`);
+                                                        }
+                                                    }}
+                                                    data-href={`/s/${space}/topic/${encodeId(topicId)}`}
+                                                    title={`View topic: ${topic}`}
+                                                >
+                                                    {topic}
+                                                </span>
+                                            </>
                                         ) : (
                                             <span>{topic}</span>
                                         )

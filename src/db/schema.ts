@@ -60,7 +60,10 @@ export {
 export { pointClustersTable } from "@/db/tables/pointClustersTable";
 export { snapshotsTable } from "@/db/tables/snapshotsTable";
 export { dailyStancesTable } from "@/db/tables/dailyStancesTable";
+export { rationalePointsTable } from "@/db/tables/rationalePointsTable";
 export {
   credEventsTable,
   credEventKindEnum,
 } from "@/db/tables/credEventsTable";
+
+export { rateLimitsTable } from "@/db/tables/rateLimitsTable";

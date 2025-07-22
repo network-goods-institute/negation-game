@@ -81,7 +81,12 @@ class NotificationQueue {
   async queueNotification(data: NotificationData) {
     this.queue.push(data);
     if (!this.processing) {
-      this.processQueue();
+      setImmediate(() => {
+        this.processQueue().catch((error) => {
+          console.error("Background notification processing failed:", error);
+          this.processing = false;
+        });
+      });
     }
   }
 
@@ -275,9 +280,10 @@ class NotificationQueue {
         and(inArray(pointsTable.id, pointIds), eq(pointsTable.isActive, true))
       );
 
-    // Send notification to each point creator (except the rationale author)
-    for (const point of pointCreators) {
-      if (point.createdBy !== data.authorId) {
+    // Prepare notification data for all point creators (except the rationale author)
+    const notificationTasks = pointCreators
+      .filter((point) => point.createdBy !== data.authorId)
+      .map(async (point) => {
         const title = "Your point was mentioned in a rationale";
         const content = `Your point "${point.content.length > 50 ? point.content.substring(0, 50) + "..." : point.content}" was included in the rationale "${rationale[0].title}"`;
 
@@ -294,20 +300,52 @@ class NotificationQueue {
           },
         };
 
-        const aiSummary = await generateNotificationSummary(notificationData);
+        // Generate AI summary in parallel
+        let aiSummary: string | null = null;
+        try {
+          aiSummary = await generateNotificationSummary(notificationData);
+        } catch (error) {
+          console.warn(
+            "Failed to generate AI summary for notification:",
+            error
+          );
+        }
 
-        await createNotification({
+        return {
           userId: point.createdBy,
           type: data.type,
           sourceUserId: data.authorId,
           sourceEntityId: data.rationaleId,
-          sourceEntityType: "rationale",
+          sourceEntityType: "rationale" as const,
           title,
           content,
           aiSummary: aiSummary || undefined,
           metadata: notificationData.metadata,
           space: data.space,
-        });
+        };
+      });
+    if (notificationTasks.length > 0) {
+      try {
+        const notificationParams = await Promise.all(notificationTasks);
+        await Promise.all(
+          notificationParams.map((params) => createNotification(params))
+        );
+      } catch (error) {
+        console.error(
+          "Error processing rationale mention notifications:",
+          error
+        );
+        for (const task of notificationTasks) {
+          try {
+            const params = await task;
+            await createNotification(params);
+          } catch (individualError) {
+            console.error(
+              "Failed to create individual notification:",
+              individualError
+            );
+          }
+        }
       }
     }
   }

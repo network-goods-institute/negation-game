@@ -147,8 +147,10 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
     useEffect(() => {
         setFeedEnabled(false);
     }, [setFeedEnabled]);
+
     const showFeed = feedEnabled && !isEmbedMode; // Disable feed in embed mode
     const isMobile = useIsMobile(640) || isEmbedMode; // Force mobile layout in embed mode
+
     const { isCopyingUrl, handleCopyUrl } = useCopyUrl();
     const { data: viewpoint } = useViewpoint(viewpointId);
 
@@ -186,14 +188,23 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
             } else {
                 currentGraph = localGraph!;
             }
+
+            // Use viewpointId from URL instead of waiting for viewpoint data to load
+            // This allows copying even before full data loads
+            const sourceId = viewpointId;
+            const copyTitle = viewpoint?.title || editableTitle || "Untitled Rationale";
+            const copyDescription = viewpoint?.description || editableDescription || "";
+            const copyTopic = viewpoint?.topic ?? editableTopic;
+            const copyTopicId = viewpoint?.topicId ?? editableTopicId;
+
             await copyViewpointAndNavigate(
                 currentGraph,
-                editableTitle,
-                editableDescription,
-                viewpoint!.id,
+                copyTitle,
+                copyDescription,
+                sourceId,
                 publishCopy,
-                editableTopic,
-                editableTopicId
+                copyTopic,
+                copyTopicId
             );
         }
     );
@@ -365,6 +376,7 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                             handleBackClick={handleBackClick}
                             canvasEnabled={canvasEnabled}
                             toggleCanvas={() => setCanvasEnabled(!canvasEnabled)}
+                            isOwner={isOwner}
                         />
                     )}
 
@@ -385,6 +397,7 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                             </button>
                         </div>
                     )}
+
                     {/* --- Scrollable Content START*/}
                     <div className={cn(
                         "flex-grow overflow-y-auto",
@@ -419,6 +432,8 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                             allowTitleEdit={false}
                             hideTopicSelector
                             showTopicHeader
+                            spaceSlug={spaceSlug}
+                            enableTopicNavigation={true}
                             titleModified={isContentModified}
                             descriptionModified={isContentModified}
                             renderCopiedFromLink={latestViewpoint?.copiedFromId ? <CopiedFromLink sourceId={latestViewpoint.copiedFromId} /> : null}

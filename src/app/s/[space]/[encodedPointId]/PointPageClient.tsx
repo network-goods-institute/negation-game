@@ -16,7 +16,7 @@ import { RestakeDialog } from "@/components/dialogs/RestakeDialog";
 import { SelectNegationDialog } from "@/components/dialogs/SelectNegationDialog";
 import { PointEditDialog } from "@/components/dialogs/PointEditDialog";
 import { fetchPointHistory } from "@/actions/points/fetchPointHistory";
-import { GraphView } from "@/components/graph/base/EncodedGraphView";
+import { GraphView } from "@/components/graph/base/GraphView";
 import { EndorseButton } from "@/components/buttons/EndorseButton";
 import { NegateButton } from "@/components/buttons/NegateButton";
 import { NegateIcon } from "@/components/icons/NegateIcon";
@@ -58,7 +58,9 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { ReactFlowProvider } from "@xyflow/react";
+import { ReactFlowProvider, useNodesState, useEdgesState } from "@xyflow/react";
+import type { ReactFlowInstance } from '@xyflow/react';
+import type { NodeChange, EdgeChange, Edge } from '@xyflow/react';
 import { useAtom, useSetAtom } from "jotai";
 import { useAtomCallback } from "jotai/utils";
 import {
@@ -129,6 +131,15 @@ type PageProps = {
     searchParams: { [key: string]: string | string[] | undefined };
 };
 import { useCounterpointSuggestions } from "@/queries/ai/useCounterpointSuggestions";
+import { useGraphPoints } from '@/hooks/graph/useGraphPoints';
+import { GraphSizingContext } from '@/components/graph/base/GraphSizingContext';
+import { fetchPoints } from '@/actions/points/fetchPoints';
+import type { PointData } from '@/queries/points/usePointData';
+import type { AppNode } from '@/components/graph/nodes/AppNode';
+import { useCollapseUndo } from '@/hooks/graph/useCollapseUndo';
+import { useChunkedPrefetchPoints } from '@/hooks/graph/useChunkedPrefetchPoints';
+import { useFilteredEdges } from '@/hooks/graph/useFilteredEdges';
+import { useGraphInitialization } from '@/hooks/graph/useGraphInitialization';
 
 const NegationCard = memo(({ negation, viewParam, basePath, privyUser, login, handleNegate, point, prefetchRestakeData, setRestakePoint, handleNegationHover, handleNegationHoverEnd, prefetchPoint, loadingCardId, onCardClick }: any) => {
     const [favorHistoryLoaded, setFavorHistoryLoaded] = useState(false);
@@ -1189,12 +1200,8 @@ export function PointPageClient({
             </div>
             {canvasEnabled && (
                 <ReactFlowProvider>
-                    <GraphView
-                        onInit={(reactFlow) => {
-                            reactFlow.addNodes(initialNodes);
-                        }}
-                        closeButtonClassName="md:hidden"
-                        className="!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset]  !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md: !z-10 md:z-auto"
+                    <PointPageGraphWrapper
+                        initialNodes={initialNodes}
                         rootPointId={pointId}
                         onClose={() => {
                             const newParams = new URLSearchParams(searchParams?.toString() || "");
@@ -1202,6 +1209,8 @@ export function PointPageClient({
                             push(`?${newParams.toString()}`);
                             setCanvasEnabled(false);
                         }}
+                        searchParams={searchParams}
+                        push={push}
                     />
                 </ReactFlowProvider>
             )}
@@ -1376,5 +1385,104 @@ const PointHistoryDialog = ({
                 </div>
             </DialogContent>
         </Dialog>
+    );
+};
+
+interface PointPageGraphWrapperProps {
+    initialNodes: any[];
+    rootPointId: number;
+    onClose: () => void;
+    searchParams: URLSearchParams | null;
+    push: (url: string) => void;
+}
+
+const PointPageGraphWrapper = ({
+    initialNodes,
+    rootPointId,
+    onClose,
+    searchParams,
+    push
+}: PointPageGraphWrapperProps) => {
+    const [flowInstance, setFlowInstance] = useState<ReactFlowInstance<AppNode> | null>(null);
+    const [nodes, setNodes, onNodesChangeDefault] = useNodesState<AppNode>(initialNodes);
+    const [edges, setEdges, onEdgesChangeDefault] = useEdgesState<Edge>([]);
+
+    const uniquePoints = useGraphPoints();
+    const pointIds = useMemo(() => uniquePoints.map((p) => p.pointId), [uniquePoints]);
+
+    useCollapseUndo();
+
+    useGraphInitialization({
+        flowInstance,
+        defaultNodes: initialNodes,
+        defaultEdges: [],
+        nodes,
+        edges,
+        setNodes,
+        setEdges,
+    });
+
+    useChunkedPrefetchPoints(flowInstance, nodes);
+
+    const { data: pointsData } = useQuery<PointData[]>({
+        queryKey: ['graph-creds', pointIds],
+        queryFn: () => fetchPoints(pointIds),
+        enabled: pointIds.length > 0,
+        staleTime: 5 * 60 * 1000,
+    });
+
+    const creds = pointsData?.map((p) => p.cred ?? 0) ?? [];
+    const minCred = creds.length > 0 ? Math.min(...creds) : 0;
+    const maxCred = creds.length > 0 ? Math.max(...creds) : 0;
+
+    const filteredEdges = useFilteredEdges(nodes, edges);
+
+
+    const onInit = (instance: ReactFlowInstance<AppNode>) => {
+        setFlowInstance(instance);
+    };
+
+    const onNodesChange = useCallback(
+        (changes: NodeChange<AppNode>[]) => {
+            onNodesChangeDefault(changes);
+        },
+        [onNodesChangeDefault]
+    );
+
+    const onEdgesChange = useCallback(
+        (changes: EdgeChange[]) => {
+            onEdgesChangeDefault(changes);
+        },
+        [onEdgesChangeDefault]
+    );
+
+
+    return (
+        <GraphSizingContext.Provider value={{ minCred, maxCred }}>
+            <GraphView
+                onInit={onInit}
+                defaultNodes={nodes}
+                defaultEdges={filteredEdges}
+                canModify={false}
+                canvasEnabled={true}
+                className="!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset] !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md: !z-10 md:z-auto"
+                isNew={true}
+                isSaving={false}
+                isContentModified={false}
+                onSaveChanges={async () => false}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                hideShareButton={true}
+                hideSavePanel={true}
+                hideComments={true}
+                nodesDraggable={true}
+                rootPointId={rootPointId}
+                onClose={onClose}
+                closeButtonClassName="md:hidden"
+                statement=""
+                description="Point exploration graph - changes are temporary and not saved"
+                disableNotOwnerWarning={true}
+            />
+        </GraphSizingContext.Provider>
     );
 }; 

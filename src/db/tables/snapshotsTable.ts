@@ -26,7 +26,7 @@ export const snapshotsTable = pgTable(
     restakeLive: integer("restake_live").notNull().default(0),
     doubt: integer("doubt").notNull().default(0),
     sign: smallint("sign").notNull(),
-    bucketId: integer("bucket_id").references(() => topicsTable.id),
+    bucketId: integer("bucket_id").references(() => topicsTable.id, { onDelete: "set null" }),
   },
   (table) => ({
     pk: primaryKey({ columns: [table.snapDay, table.userId, table.pointId] }),

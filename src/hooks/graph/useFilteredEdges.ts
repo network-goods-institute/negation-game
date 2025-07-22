@@ -16,12 +16,12 @@ export function useFilteredEdges(nodes: AppNode[], edges: Edge[]): Edge[] {
         nodes.some((n) => n.id === e.target)
     );
 
-    // Remove duplicate edges based on source-target
+    // Remove duplicate edges based on source-target *and* edge type
     const edgeMap = new Map<string, Edge>();
     const uniqueEdges: Edge[] = [];
 
     for (const edge of visibleEdges) {
-      const key = `${edge.source}->${edge.target}`;
+      const key = `${edge.source}->${edge.target}:${edge.type ?? "default"}`;
       if (!edgeMap.has(key)) {
         edgeMap.set(key, edge);
         uniqueEdges.push(edge);

@@ -533,6 +533,27 @@
       "when": 1752541365917,
       "tag": "0075_tricky_blue_marvel",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1752971223566,
+      "tag": "0076_wealthy_nitro",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1752971992543,
+      "tag": "0077_eminent_roland_deschain",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1753086096569,
+      "tag": "0078_chief_moondragon",
+      "breakpoints": true
     }
   ]
 }

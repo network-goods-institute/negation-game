@@ -2,6 +2,7 @@
 
 import { getUserId } from "@/actions/users/getUserId";
 import { viewpointsTable } from "@/db/tables/viewpointsTable";
+import { updateRationalePoints } from "@/actions/viewpoints/updateRationalePoints";
 import { db } from "@/services/db";
 import { eq } from "drizzle-orm";
 import { viewpointInteractionsTable } from "@/db/tables/viewpointInteractionsTable";
@@ -25,7 +26,10 @@ export const updateViewpointDetails = async ({
   }
 
   const viewpoint = await db
-    .select({ createdBy: viewpointsTable.createdBy })
+    .select({
+      createdBy: viewpointsTable.createdBy,
+      graph: viewpointsTable.graph,
+    })
     .from(viewpointsTable)
     .where(eq(viewpointsTable.id, id))
     .limit(1)
@@ -56,6 +60,10 @@ export const updateViewpointDetails = async ({
         viewsAtLastUpdate: currentViewCount,
       })
       .where(eq(viewpointsTable.id, id));
+
+    if (topicId !== undefined && viewpoint.graph) {
+      await updateRationalePoints(id, viewpoint.graph as any);
+    }
 
     await db
       .update(viewpointInteractionsTable)

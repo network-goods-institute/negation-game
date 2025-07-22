@@ -71,10 +71,7 @@ export const SaveDiscardPanel: React.FC<SaveDiscardPanelProps> = memo(({
                                         </div>
                                     ) : (
                                         <div className="flex items-center">
-                                            <span className={cn(
-                                                "text-xs font-medium",
-                                                canModify === false && "text-[11px] leading-none"
-                                            )}>
+                                            <span className="text-sm font-medium">
                                                 {canModify
                                                     ? isNew
                                                         ? "Publish Rationale"

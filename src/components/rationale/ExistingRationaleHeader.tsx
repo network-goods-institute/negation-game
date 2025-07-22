@@ -23,6 +23,7 @@ export interface ExistingRationaleHeaderProps {
     handleBackClick: () => void;
     canvasEnabled: boolean;
     toggleCanvas: () => void;
+    isOwner: boolean;
 }
 
 export default function ExistingRationaleHeader({
@@ -37,6 +38,7 @@ export default function ExistingRationaleHeader({
     handleBackClick,
     canvasEnabled,
     toggleCanvas,
+    isOwner,
 }: ExistingRationaleHeaderProps) {
     const [showEndorsements, setShowEndorsements] = useAtom(showEndorsementsAtom);
     return (
@@ -94,7 +96,7 @@ export default function ExistingRationaleHeader({
                     </Button>
                     <AuthenticatedActionButton
                         size="icon"
-                        variant="default"
+                        variant={isOwner ? "outline" : "default"}
                         className="rounded-full p-1 size-7"
                         onClick={() => setIsPageCopyConfirmOpen(true)}
                         disabled={isCopying}
@@ -147,7 +149,7 @@ export default function ExistingRationaleHeader({
                             )}
                         </Button>
                         <AuthenticatedActionButton
-                            variant="default"
+                            variant={isOwner ? "outline" : "default"}
                             className="rounded-full flex items-center gap-2 px-4"
                             onClick={() => setIsPageCopyConfirmOpen(true)}
                             disabled={isCopying}
