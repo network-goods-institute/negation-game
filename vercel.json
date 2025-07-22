@@ -19,31 +19,31 @@
     }
   ],
   "functions": {
-    "api/notifications/detect-scroll-proposals/route.ts": {
+    "src/app/api/notifications/detect-scroll-proposals/route.ts": {
       "runtime": "vercel-nodejs@20.0.0",
       "maxDuration": 300
     },
-    "api/delta/pipeline/route.ts": {
+    "src/app/api/delta/pipeline/route.ts": {
       "runtime": "vercel-nodejs@20.0.0",
       "maxDuration": 800
     },
-    "api/cron/build-clusters/route.ts": {
+    "src/app/api/cron/build-clusters/route.ts": {
       "runtime": "vercel-nodejs@20.0.0",
       "maxDuration": 800
     },
-    "api/admin/stance-pipeline/route.ts": {
+    "src/app/api/admin/stance-pipeline/route.ts": {
       "runtime": "vercel-nodejs@20.0.0",
       "maxDuration": 600
     },
-    "api/admin/build-clusters/route.ts": {
+    "src/app/api/admin/build-clusters/route.ts": {
       "runtime": "vercel-nodejs@20.0.0",
       "maxDuration": 600
     },
-    "api/admin/delta-cache/route.ts": {
+    "src/app/api/admin/delta-cache/route.ts": {
       "runtime": "vercel-nodejs@20.0.0",
       "maxDuration": 60
     },
-    "api/cron/cleanup-rate-limits/route.ts": {
+    "src/app/api/cron/cleanup-rate-limits/route.ts": {
       "runtime": "vercel-nodejs@20.0.0",
       "maxDuration": 60
     }
