@@ -172,7 +172,7 @@ export function TopicForm({
     }, [selectedTopic, handleEdit]);
 
     return (
-        <Card>
+        <Card data-topic-form>
             <CardHeader>
                 <CardTitle>
                     {selectedTopic ? "Edit Topic" : "Create Topic"}

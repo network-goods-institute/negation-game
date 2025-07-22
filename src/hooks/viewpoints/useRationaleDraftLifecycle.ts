@@ -36,6 +36,7 @@ export default function useRationaleDraftLifecycle() {
   const [isDiscardingWithoutNav, setIsDiscardingWithoutNav] = useState(false);
   const hasLoadedCopyData = useRef(false);
   const [graphRevision, setGraphRevision] = useState(0);
+  const hasGeneratedAIDescription = useRef(false);
 
   // Draft and copy data detection with detailed logging
   useEffect(() => {
@@ -61,6 +62,7 @@ export default function useRationaleDraftLifecycle() {
         if (parsed?.isCopyOperation) {
           setIsCopiedFromSessionStorage(true);
           hasCheckedInitialLoadRef.current = true;
+          hasGeneratedAIDescription.current = false;
           setCopiedFromId(parsed.copiedFromId);
           if (parsed.graph) {
             setGraph(parsed.graph);
@@ -128,7 +130,8 @@ export default function useRationaleDraftLifecycle() {
 
   // AI description generation for copied viewpoints
   useEffect(() => {
-    if (!isCopiedFromSessionStorage) return;
+    if (!isCopiedFromSessionStorage || hasGeneratedAIDescription.current)
+      return;
 
     // Check if we have a basic fallback description that should be replaced
     if (
@@ -142,6 +145,7 @@ export default function useRationaleDraftLifecycle() {
     const generateAISummary = async () => {
       try {
         console.log("[DraftLifecycle] Generating AI description for copy...");
+        hasGeneratedAIDescription.current = true;
         const aiDescription = await generateRationaleSummary({
           title: statement,
           description: reasoning,
@@ -158,12 +162,13 @@ export default function useRationaleDraftLifecycle() {
           "[DraftLifecycle] Failed to generate AI description:",
           error
         );
-        // Keep the fallback description if AI generation fails
+        hasGeneratedAIDescription.current = false;
       }
     };
 
     generateAISummary();
-  }, [isCopiedFromSessionStorage, statement, reasoning, graph, setReasoning]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCopiedFromSessionStorage, statement, graph]);
 
   return {
     isCopiedFromSessionStorage,

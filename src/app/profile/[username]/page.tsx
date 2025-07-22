@@ -374,14 +374,14 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                         </div>
                     )}
 
-                    {/* Delta Comparison Widget */}
-                    {userData?.id && (
+                    {/* Delta Comparison Widget - Only show if viewing your own profile or you're authenticated */}
+                    {userData?.id && privyUser?.id && (
                         <div className="mb-6">
                             <DeltaComparisonWidget
                                 comparison={{ type: "user", userId: userData.id, username: username }}
                                 title="User Alignment Discovery"
                                 description="Find users who agree or disagree with you most across all points created by this user"
-                                currentUserId={privyUser?.id}
+                                currentUserId={privyUser.id}
                             />
                         </div>
                     )}

@@ -7,6 +7,7 @@ import { AppNode } from "@/components/graph/nodes/AppNode";
 import { InsertViewpoint, viewpointsTable } from "@/db/tables/viewpointsTable";
 import { queueRationaleMentionNotification } from "@/lib/notifications/notificationQueue";
 import { canUserCreateRationaleForTopic } from "@/actions/topics/manageTopicPermissions";
+import { updateRationalePoints } from "@/actions/viewpoints/updateRationalePoints";
 import { db } from "@/services/db";
 import { nanoid } from "nanoid";
 import { pick } from "remeda";
@@ -72,17 +73,22 @@ export const publishViewpoint = async ({
 
   const id = nanoid();
 
+  const cleanedGraph = cleanupForPublishing(graph);
+  
   const valuesToInsert = {
     id,
     createdBy: userId,
     description,
     topicId: topicId ?? null,
-    graph: cleanupForPublishing(graph),
+    graph: cleanedGraph,
     title: finalTitle,
     space,
     copiedFromId,
   };
   await db.insert(viewpointsTable).values(valuesToInsert);
+
+  // Update rationale_points bridge table
+  await updateRationalePoints(id, cleanedGraph);
 
   // Queue notification for mentioned points - let the queue handle all the parsing and logic
   queueRationaleMentionNotification({

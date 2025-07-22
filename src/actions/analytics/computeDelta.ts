@@ -3,12 +3,12 @@ import {
   pointClustersTable,
   dailyStancesTable,
   endorsementsTable,
-  snapshotsTable,
+  effectiveRestakesView,
+  doubtsTable,
 } from "@/db/schema";
-import { delta as deltaFn } from "@/lib/negation-game/deltaScore";
-import { and, eq, inArray, sql } from "drizzle-orm";
-import { buildPointCluster } from "@/actions/points/buildPointCluster";
-import { stanceComputationPipeline } from "./stanceComputationPipeline";
+import { delta as deltaFn, stance } from "@/lib/negation-game/deltaScore";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
+import { getCachedDelta, setCachedDelta } from "@/lib/deltaCache";
 
 export interface DeltaResult {
   delta: number | null;
@@ -34,6 +34,16 @@ export async function computeDelta({
     snapDay,
   });
 
+  const cacheKey = { userAId, userBId, rootPointId, snapDay };
+  const cached = getCachedDelta(cacheKey);
+  if (cached) {
+    return {
+      delta: cached.delta,
+      noInteraction: cached.noInteraction,
+      noEngagementBy: cached.noEngagementBy,
+    };
+  }
+
   // Fetch cluster
   let cluster = await db
     .select({
@@ -44,27 +54,7 @@ export async function computeDelta({
     .where(eq(pointClustersTable.rootId, rootPointId));
 
   if (!cluster.length) {
-    console.warn(
-      `[computeDelta] Cluster missing for ${rootPointId}; building on-demand.`
-    );
-    await buildPointCluster(rootPointId);
-
-    const refreshed = await db
-      .select({
-        pointId: pointClustersTable.pointId,
-        sign: pointClustersTable.sign,
-      })
-      .from(pointClustersTable)
-      .where(eq(pointClustersTable.rootId, rootPointId));
-
-    if (!refreshed.length) {
-      console.error(
-        `[computeDelta] Failed to build cluster for ${rootPointId}.`
-      );
-      return { delta: null, noInteraction: false };
-    }
-
-    cluster = refreshed;
+    return { delta: null, noInteraction: false };
   }
 
   const pointIds = cluster.map((c) => c.pointId);
@@ -95,49 +85,9 @@ export async function computeDelta({
     `[computeDelta] Found ${stancesRows.length} stance rows from pipeline`
   );
 
-  // If no stances from pipeline, check if we have snapshots and try to compute them
+  // If no stances from pipeline, skip snapshot check and go directly to fallback
+  // Pipeline computation should be handled offline to avoid blocking user requests
   if (stancesRows.length === 0) {
-    console.log("[computeDelta] No stances from pipeline, checking snapshots");
-
-    const snapshotCount = await db
-      .select({ count: sql<number>`COUNT(*)`.mapWith(Number) })
-      .from(snapshotsTable)
-      .where(
-        and(
-          eq(snapshotsTable.snapDay, new Date(snapDay)),
-          inArray(snapshotsTable.userId, [userAId, userBId]),
-          inArray(snapshotsTable.pointId, pointIds)
-        )
-      );
-
-    if (snapshotCount[0]?.count > 0) {
-      console.log(
-        "[computeDelta] Found snapshots, running stance computation pipeline"
-      );
-      const pipelineResult = await stanceComputationPipeline(snapDay);
-
-      if (pipelineResult.success) {
-        // Retry getting stances after pipeline run
-        stancesRows = await db
-          .select({
-            userId: dailyStancesTable.userId,
-            pointId: dailyStancesTable.pointId,
-            z: dailyStancesTable.zValue,
-          })
-          .from(dailyStancesTable)
-          .where(
-            and(
-              eq(dailyStancesTable.snapDay, new Date(snapDay)),
-              inArray(dailyStancesTable.userId, [userAId, userBId]),
-              inArray(dailyStancesTable.pointId, pointIds)
-            )
-          );
-
-        console.log(
-          `[computeDelta] After pipeline: ${stancesRows.length} stance rows`
-        );
-      }
-    }
   }
 
   // If still no stances, use fallback computation with current endorsements
@@ -145,7 +95,17 @@ export async function computeDelta({
     console.log(
       "[computeDelta] No stance data available after pipeline – trying fallback"
     );
-    return await computeDeltaFallback(userAId, userBId, pointIds, signMap);
+    const fallbackResult = await computeDeltaFallback(
+      userAId,
+      userBId,
+      pointIds,
+      signMap
+    );
+
+    // Cache the fallback result with shorter TTL since it uses live data
+    setCachedDelta(cacheKey, fallbackResult, 2 * 60 * 1000); // 2 minutes for live data
+
+    return fallbackResult;
   }
 
   // Build stance maps and vectors from proper pipeline data
@@ -180,7 +140,7 @@ export async function computeDelta({
   const result = deltaFn(aVec, bVec);
   console.log(`[computeDelta] Final delta: ${result}`);
 
-  return {
+  const deltaResult: DeltaResult = {
     delta: result,
     noInteraction: result === null,
     noEngagementBy:
@@ -192,10 +152,14 @@ export async function computeDelta({
           ? "both"
           : undefined,
   };
+
+  setCachedDelta(cacheKey, deltaResult);
+
+  return deltaResult;
 }
 
 /**
- * Fallback computation using endorsements (backwards compatibility)
+ * Fallback computation
  */
 async function computeDeltaFallback(
   userAId: string,
@@ -203,69 +167,177 @@ async function computeDeltaFallback(
   pointIds: number[],
   signMap: Record<number, 1 | -1>
 ): Promise<DeltaResult> {
-  console.log("[computeDeltaFallback] Using endorsement-based fallback");
+  const [endorsementRows, restakeRows, doubtRows] = await Promise.all([
+    db
+      .select({
+        pointId: endorsementsTable.pointId,
+        userId: endorsementsTable.userId,
+        cred: endorsementsTable.cred,
+      })
+      .from(endorsementsTable)
+      .where(
+        and(
+          inArray(endorsementsTable.userId, [userAId, userBId]),
+          inArray(endorsementsTable.pointId, pointIds)
+        )
+      ),
 
-  // Fetch endorsements for both users within these points
-  const endorsementRows = await db
-    .select({
-      pointId: endorsementsTable.pointId,
-      userId: endorsementsTable.userId,
-      cred: endorsementsTable.cred,
-    })
-    .from(endorsementsTable)
-    .where(
-      and(
-        inArray(endorsementsTable.userId, [userAId, userBId]),
-        inArray(endorsementsTable.pointId, pointIds)
-      )
-    );
+    // Get current restakes (using effectiveRestakesView for live amounts)
+    db
+      .select({
+        pointId:
+          sql<number>`COALESCE(${effectiveRestakesView.pointId}, ${effectiveRestakesView.negationId})`.mapWith(
+            Number
+          ),
+        userId: effectiveRestakesView.userId,
+        amount: effectiveRestakesView.effectiveAmount,
+      })
+      .from(effectiveRestakesView)
+      .where(
+        and(
+          inArray(effectiveRestakesView.userId, [userAId, userBId]),
+          or(
+            inArray(effectiveRestakesView.pointId, pointIds),
+            inArray(effectiveRestakesView.negationId, pointIds)
+          ),
+          sql`${effectiveRestakesView.effectiveAmount} > 0`
+        )
+      ),
 
-  console.log(
-    `[computeDeltaFallback] Found ${endorsementRows.length} endorsement rows`
-  );
+    // Get current doubts
+    db
+      .select({
+        pointId:
+          sql<number>`COALESCE(${doubtsTable.pointId}, ${doubtsTable.negationId})`.mapWith(
+            Number
+          ),
+        userId: doubtsTable.userId,
+        amount: doubtsTable.amount,
+      })
+      .from(doubtsTable)
+      .where(
+        and(
+          inArray(doubtsTable.userId, [userAId, userBId]),
+          or(
+            inArray(doubtsTable.pointId, pointIds),
+            inArray(doubtsTable.negationId, pointIds)
+          ),
+          sql`${doubtsTable.amount} > 0`
+        )
+      ),
+  ]);
 
-  if (endorsementRows.length === 0) {
-    return { delta: null, noInteraction: true };
-  }
-
-  // Build simple stance vectors: sign if endorsed, 0 if not
-  const mapA: Record<number, number> = {};
-  const mapB: Record<number, number> = {};
-
-  // Get total endorsement cred per user to normalise magnitude (approximation of Tᵤ)
+  // Get total cred per user across ALL their points (spec-compliant Tᵤ calculation)
   const totalCredRows = await db
     .select({
       userId: endorsementsTable.userId,
-      total: sql<number>`SUM(${endorsementsTable.cred})`.mapWith(Number),
+      totalEndorse:
+        sql<number>`COALESCE(SUM(${endorsementsTable.cred}), 0)`.mapWith(
+          Number
+        ),
     })
     .from(endorsementsTable)
     .where(inArray(endorsementsTable.userId, [userAId, userBId]))
     .groupBy(endorsementsTable.userId);
 
+  const totalRestakeRows = await db
+    .select({
+      userId: effectiveRestakesView.userId,
+      totalRestake:
+        sql<number>`COALESCE(SUM(${effectiveRestakesView.effectiveAmount}), 0)`.mapWith(
+          Number
+        ),
+    })
+    .from(effectiveRestakesView)
+    .where(
+      and(
+        inArray(effectiveRestakesView.userId, [userAId, userBId]),
+        sql`${effectiveRestakesView.effectiveAmount} > 0`
+      )
+    )
+    .groupBy(effectiveRestakesView.userId);
+
   const totalCredMap: Record<string, number> = {};
   for (const row of totalCredRows) {
-    totalCredMap[row.userId] = row.total;
+    totalCredMap[row.userId] = row.totalEndorse;
+  }
+  for (const row of totalRestakeRows) {
+    totalCredMap[row.userId] =
+      (totalCredMap[row.userId] || 0) + row.totalRestake;
+  }
+
+  if (!totalCredMap[userAId]) totalCredMap[userAId] = 1;
+  if (!totalCredMap[userBId]) totalCredMap[userBId] = 1;
+
+  const engagementA: Record<
+    number,
+    { endorse: number; restake: number; doubt: number }
+  > = {};
+  const engagementB: Record<
+    number,
+    { endorse: number; restake: number; doubt: number }
+  > = {};
+
+  for (const pointId of pointIds) {
+    engagementA[pointId] = { endorse: 0, restake: 0, doubt: 0 };
+    engagementB[pointId] = { endorse: 0, restake: 0, doubt: 0 };
   }
 
   for (const row of endorsementRows) {
-    if (row.cred === 0) continue;
-    const total = totalCredMap[row.userId] || row.cred; // avoid div0
-    const value = (signMap[row.pointId] * row.cred) / total;
-    if (row.userId === userAId) mapA[row.pointId] = value;
-    else if (row.userId === userBId) mapB[row.pointId] = value;
+    if (row.userId === userAId) {
+      engagementA[row.pointId].endorse = row.cred;
+    } else if (row.userId === userBId) {
+      engagementB[row.pointId].endorse = row.cred;
+    }
+  }
+
+  for (const row of restakeRows) {
+    if (row.userId === userAId) {
+      engagementA[row.pointId].restake = row.amount;
+    } else if (row.userId === userBId) {
+      engagementB[row.pointId].restake = row.amount;
+    }
+  }
+
+  for (const row of doubtRows) {
+    if (row.userId === userAId) {
+      engagementA[row.pointId].doubt = row.amount;
+    } else if (row.userId === userBId) {
+      engagementB[row.pointId].doubt = row.amount;
+    }
   }
 
   const aVec: number[] = [];
   const bVec: number[] = [];
   for (const pid of pointIds) {
-    aVec.push(mapA[pid] ?? 0);
-    bVec.push(mapB[pid] ?? 0);
+    const engA = engagementA[pid];
+    const engB = engagementB[pid];
+    const stanceA = stance(
+      engA.endorse,
+      engA.restake,
+      engA.doubt,
+      signMap[pid],
+      totalCredMap[userAId]
+    );
+    const stanceB = stance(
+      engB.endorse,
+      engB.restake,
+      engB.doubt,
+      signMap[pid],
+      totalCredMap[userBId]
+    );
+    aVec.push(stanceA);
+    bVec.push(stanceB);
   }
 
   console.log("[computeDeltaFallback] per-point stance comparison (fallback):");
   pointIds.forEach((pid, idx) => {
+    const engA = engagementA[pid];
+    const engB = engagementB[pid];
+    const stanceA = aVec[idx];
+    const stanceB = bVec[idx];
     console.log(
-      `  #${idx.toString().padStart(3, "0")} point ${pid}: sign=${signMap[pid]}, A=${mapA[pid] ?? 0}, B=${mapB[pid] ?? 0}`
+      `  #${idx.toString().padStart(3, "0")} point ${pid}: sign=${signMap[pid]}, E_A=${engA.endorse}, R_A=${engA.restake}, D_A=${engA.doubt}, stance_A=${stanceA.toFixed(4)}, E_B=${engB.endorse}, R_B=${engB.restake}, D_B=${engB.doubt}, stance_B=${stanceB.toFixed(4)}`
     );
   });
 
@@ -279,7 +351,7 @@ async function computeDeltaFallback(
   const aNonZero = aVec.some((v) => v !== 0);
   const bNonZero = bVec.some((v) => v !== 0);
 
-  return {
+  const deltaResult: DeltaResult = {
     delta: result,
     noInteraction: result === null,
     noEngagementBy:
@@ -291,4 +363,6 @@ async function computeDeltaFallback(
           ? "both"
           : undefined,
   };
+
+  return deltaResult;
 }

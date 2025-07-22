@@ -56,6 +56,22 @@ export const makePoint = async ({
     waitUntil(addEmbedding({ content, id: newPointId }));
     waitUntil(addKeywords({ content, id: newPointId }));
 
+    waitUntil(
+      (async () => {
+        try {
+          const { buildPointCluster } = await import(
+            "@/actions/points/buildPointCluster"
+          );
+          await buildPointCluster(newPointId);
+        } catch (error) {
+          console.error(
+            `Failed to build cluster for point ${newPointId}:`,
+            error
+          );
+        }
+      })()
+    );
+
     // If this is a command, execute it after the transaction
     if (isCommand) {
       waitUntil(

@@ -88,16 +88,16 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
     useEffect(() => {
         setFeedEnabled(false);
     }, [setFeedEnabled]);
-    
+
     const isMobile = useIsMobile(768);
-    
+
     // Disable feed toggle when in desktop mode
     useEffect(() => {
         if (!isMobile) {
             setFeedEnabled(false);
         }
     }, [isMobile, setFeedEnabled]);
-    
+
     const showFeed = feedEnabled;
     const { isCopyingUrl, handleCopyUrl } = useCopyUrl();
     const { data: viewpoint } = useViewpoint(viewpointId);
@@ -135,7 +135,7 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
             } else {
                 currentGraph = localGraph!;
             }
-            
+
             // Use viewpointId from URL instead of waiting for viewpoint data to load
             // This allows copying even before full data loads
             const sourceId = viewpointId;
@@ -143,7 +143,7 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
             const copyDescription = viewpoint?.description || editableDescription || "";
             const copyTopic = viewpoint?.topic ?? editableTopic;
             const copyTopicId = viewpoint?.topicId ?? editableTopicId;
-            
+
             await copyViewpointAndNavigate(
                 currentGraph,
                 copyTitle,
@@ -346,6 +346,8 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                             allowTitleEdit={false}
                             hideTopicSelector
                             showTopicHeader
+                            spaceSlug={spaceSlug}
+                            enableTopicNavigation={true}
                             titleModified={isContentModified}
                             descriptionModified={isContentModified}
                             renderCopiedFromLink={latestViewpoint?.copiedFromId ? <CopiedFromLink sourceId={latestViewpoint.copiedFromId} /> : null}

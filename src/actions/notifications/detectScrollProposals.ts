@@ -74,22 +74,21 @@ export const detectScrollProposals = async (): Promise<void> => {
         eq(notificationPreferencesTable.scrollProposalNotifications, true)
       );
 
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-
     for (const topic of governanceTopics) {
+      // Check if we've EVER notified about this proposal (no time limit)
       const existingNotifications = await db
         .select()
         .from(notificationsTable)
         .where(
           and(
             eq(notificationsTable.type, "scroll_proposal"),
-            eq(notificationsTable.sourceEntityId, topic.id.toString()),
-            gte(notificationsTable.createdAt, sevenDaysAgo)
+            eq(notificationsTable.sourceEntityId, topic.id.toString())
           )
         )
         .limit(1);
 
       if (existingNotifications.length > 0) {
+        // Skip this topic - we've already notified users about it
         continue;
       }
 
@@ -106,6 +105,7 @@ export const detectScrollProposals = async (): Promise<void> => {
           content:
             topic.excerpt ||
             "A new governance-related post has been detected on the Scroll forum.",
+          space: "scroll",
           metadata: {
             discourseUrl: topicUrl,
             forumTitle: topic.title,

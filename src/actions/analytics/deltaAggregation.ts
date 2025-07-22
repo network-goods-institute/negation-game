@@ -1,31 +1,52 @@
 "use server";
 
 import { db } from "@/services/db";
-import { viewpointsTable, pointsTable, pointClustersTable } from "@/db/schema";
-import { sql, eq, inArray } from "drizzle-orm";
-import { computeDelta } from "./computeDelta";
+import {
+  viewpointsTable,
+  pointClustersTable,
+  rationalePointsTable,
+} from "@/db/schema";
+import { eq, inArray } from "drizzle-orm";
+import {
+  computeDeltaBatch,
+  computeRationaleDeltaBatch,
+} from "./computeDeltaBatch";
+import { getCachedDelta, setCachedDelta } from "@/lib/deltaCache";
 
 export async function computeRationaleDelta({
   userAId,
   userBId,
   rationaleId,
   snapDay = new Date().toISOString().slice(0, 10),
+  requestingUserId,
 }: {
   userAId: string;
   userBId: string;
   rationaleId: string;
   snapDay?: string;
+  requestingUserId?: string;
 }): Promise<{ delta: number | null; noInteraction: boolean; stats?: any }> {
-  console.log(
-    `[computeRationaleDelta] Computing rationale delta for ${rationaleId}`
-  );
+  const cacheKey = { userAId, userBId, rationaleId, snapDay };
+  const cached = getCachedDelta(cacheKey);
+  if (cached) {
+    return {
+      delta: cached.delta,
+      noInteraction: cached.noInteraction,
+    };
+  }
+
+  if (
+    requestingUserId &&
+    requestingUserId !== userAId &&
+    requestingUserId !== userBId
+  ) {
+    return { delta: null, noInteraction: false };
+  }
 
   try {
-    // Get the rationale
     const rationale = await db
       .select({
         id: viewpointsTable.id,
-        graph: viewpointsTable.graph,
         topicId: viewpointsTable.topicId,
       })
       .from(viewpointsTable)
@@ -36,27 +57,19 @@ export async function computeRationaleDelta({
       return { delta: null, noInteraction: false };
     }
 
-    const graph = rationale[0].graph as any;
-    if (!graph?.nodes) {
-      return { delta: null, noInteraction: false };
-    }
+    const rationalePoints = await db
+      .select({
+        pointId: rationalePointsTable.pointId,
+      })
+      .from(rationalePointsTable)
+      .where(eq(rationalePointsTable.rationaleId, rationaleId));
 
-    // Extract point IDs from the graph
-    const pointIds: number[] = [];
-    for (const node of graph.nodes) {
-      if (node.type === "point" && node.data?.pointId) {
-        const pointId = Number(node.data.pointId);
-        if (!isNaN(pointId)) {
-          pointIds.push(pointId);
-        }
-      }
-    }
-
-    if (pointIds.length === 0) {
+    if (rationalePoints.length === 0) {
       return { delta: null, noInteraction: true };
     }
 
-    // Find all root points (points that are roots of clusters containing our points)
+    const pointIds = rationalePoints.map((rp) => rp.pointId);
+
     const rootPoints = await db
       .select({
         rootId: pointClustersTable.rootId,
@@ -75,24 +88,18 @@ export async function computeRationaleDelta({
       `[computeRationaleDelta] Found ${uniqueRootIds.length} clusters for rationale ${rationaleId}`
     );
 
-    // Compute delta for each cluster
-    const clusterDeltas: Array<{ rootId: number; delta: number | null }> = [];
+    const batchResults = await computeDeltaBatch({
+      userAId,
+      userBId,
+      rootPointIds: uniqueRootIds,
+      snapDay,
+    });
 
-    for (const rootId of uniqueRootIds) {
-      const result = await computeDelta({
-        userAId,
-        userBId,
-        rootPointId: rootId,
-        snapDay,
-      });
+    const clusterDeltas = batchResults.map((result) => ({
+      rootId: result.rootPointId,
+      delta: result.delta,
+    }));
 
-      clusterDeltas.push({
-        rootId,
-        delta: result.delta,
-      });
-    }
-
-    // Calculate mean of non-null cluster deltas (per spec)
     const validDeltas = clusterDeltas
       .map((cd) => cd.delta)
       .filter((delta): delta is number => delta !== null);
@@ -104,11 +111,7 @@ export async function computeRationaleDelta({
     const rationaleDelta =
       validDeltas.reduce((sum, delta) => sum + delta, 0) / validDeltas.length;
 
-    console.log(
-      `[computeRationaleDelta] Rationale delta: ${rationaleDelta} (from ${validDeltas.length}/${clusterDeltas.length} clusters)`
-    );
-
-    return {
+    const result = {
       delta: rationaleDelta,
       noInteraction: false,
       stats: {
@@ -118,6 +121,12 @@ export async function computeRationaleDelta({
         pointIds: pointIds,
       },
     };
+
+    setCachedDelta(cacheKey, {
+      delta: result.delta,
+      noInteraction: result.noInteraction,
+    });
+    return result;
   } catch (error) {
     console.error("[computeRationaleDelta] Error:", error);
     return { delta: null, noInteraction: false };
@@ -129,13 +138,29 @@ export async function computeTopicDelta({
   userBId,
   topicId,
   snapDay = new Date().toISOString().slice(0, 10),
+  requestingUserId,
 }: {
   userAId: string;
   userBId: string;
   topicId: number;
   snapDay?: string;
+  requestingUserId?: string;
 }): Promise<{ delta: number | null; noInteraction: boolean; stats?: any }> {
-  console.log(`[computeTopicDelta] Computing topic delta for topic ${topicId}`);
+  const cacheKey = { userAId, userBId, topicId, snapDay };
+  const cached = getCachedDelta(cacheKey);
+  if (cached) {
+    return {
+      delta: cached.delta,
+      noInteraction: cached.noInteraction,
+    };
+  }
+  if (
+    requestingUserId &&
+    requestingUserId !== userAId &&
+    requestingUserId !== userBId
+  ) {
+    return { delta: null, noInteraction: false };
+  }
 
   try {
     // Get all rationales for this topic
@@ -150,29 +175,19 @@ export async function computeTopicDelta({
       return { delta: null, noInteraction: true };
     }
 
-    console.log(
-      `[computeTopicDelta] Found ${rationales.length} rationales for topic ${topicId}`
-    );
+    const rationaleIds = rationales.map((r) => r.id);
+    const batchResults = await computeRationaleDeltaBatch({
+      userAId,
+      userBId,
+      rationaleIds,
+      snapDay,
+      requestingUserId,
+    });
 
-    // Compute delta for each rationale
-    const rationaleDeltas: Array<{
-      rationaleId: string;
-      delta: number | null;
-    }> = [];
-
-    for (const rationale of rationales) {
-      const result = await computeRationaleDelta({
-        userAId,
-        userBId,
-        rationaleId: rationale.id,
-        snapDay,
-      });
-
-      rationaleDeltas.push({
-        rationaleId: rationale.id,
-        delta: result.delta,
-      });
-    }
+    const rationaleDeltas = batchResults.map((result) => ({
+      rationaleId: result.rationaleId,
+      delta: result.delta,
+    }));
 
     // Calculate mean of non-null rationale deltas (per spec)
     const validDeltas = rationaleDeltas
@@ -190,7 +205,7 @@ export async function computeTopicDelta({
       `[computeTopicDelta] Topic delta: ${topicDelta} (from ${validDeltas.length}/${rationaleDeltas.length} rationales)`
     );
 
-    return {
+    const result = {
       delta: topicDelta,
       noInteraction: false,
       stats: {
@@ -199,6 +214,14 @@ export async function computeTopicDelta({
         rationaleDeltas: rationaleDeltas,
       },
     };
+
+    setCachedDelta(cacheKey, {
+      delta: result.delta,
+      noInteraction: result.noInteraction,
+    });
+    console.log("[computeTopicDelta] Cached result for", cacheKey);
+
+    return result;
   } catch (error) {
     console.error("[computeTopicDelta] Error:", error);
     return { delta: null, noInteraction: false };

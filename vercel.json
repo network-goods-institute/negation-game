@@ -1,4 +1,5 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
       "path": "/api/notifications/detect-scroll-proposals",
@@ -7,6 +8,44 @@
     {
       "path": "/api/delta/pipeline",
       "schedule": "5 0 * * *"
+    },
+    {
+      "path": "/api/cron/build-clusters",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-rate-limits",
+      "schedule": "0 */4 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/notifications/detect-scroll-proposals/route.ts": {
+      "runtime": "nodejs20.x",
+      "maxDuration": 300
+    },
+    "api/delta/pipeline/route.ts": {
+      "runtime": "nodejs20.x",
+      "maxDuration": 900
+    },
+    "api/cron/build-clusters/route.ts": {
+      "runtime": "nodejs20.x",
+      "maxDuration": 900
+    },
+    "api/admin/stance-pipeline/route.ts": {
+      "runtime": "nodejs20.x",
+      "maxDuration": 600
+    },
+    "api/admin/build-clusters/route.ts": {
+      "runtime": "nodejs20.x",
+      "maxDuration": 600
+    },
+    "api/admin/delta-cache/route.ts": {
+      "runtime": "nodejs20.x",
+      "maxDuration": 60
+    },
+    "api/cron/cleanup-rate-limits/route.ts": {
+      "runtime": "nodejs20.x",
+      "maxDuration": 60
+    }
+  }
 } 
