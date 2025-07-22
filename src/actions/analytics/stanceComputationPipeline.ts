@@ -2,7 +2,7 @@
 
 import { db } from "@/services/db";
 import { snapshotsTable, dailyStancesTable, usersTable } from "@/db/schema";
-import { sql, eq, and } from "drizzle-orm";
+import { sql, eq, and, inArray } from "drizzle-orm";
 import {
   stance,
   toZScores,
@@ -48,24 +48,33 @@ export async function stanceComputationPipeline(
       `[stanceComputationPipeline] Processing ${snapshots.length} snapshots`
     );
 
-    // Compute total cred per user for normalization
+    // Compute total cred per user for normalization across ALL user points (not just snapshot subset)
     const userTotalCredMap = new Map<string, number>();
 
-    // Group snapshots by user to calculate total cred
-    const userSnapshots = new Map<string, typeof snapshots>();
-    for (const snap of snapshots) {
-      if (!userSnapshots.has(snap.userId)) {
-        userSnapshots.set(snap.userId, []);
-      }
-      userSnapshots.get(snap.userId)!.push(snap);
-    }
+    const uniqueUserIds = Array.from(new Set(snapshots.map((s) => s.userId)));
 
-    // Calculate total cred per user (Tu = sum of endorse + live restake across all points)
-    for (const [userId, userSnaps] of userSnapshots.entries()) {
-      const totalCred = userSnaps.reduce((sum, snap) => {
-        return sum + snap.endorse + snap.restakeLive;
-      }, 0);
-      userTotalCredMap.set(userId, totalCred);
+    // Calculate total cred per user across ALL their points on this day
+    if (uniqueUserIds.length > 0) {
+      const userTotalCredRows = await db
+        .select({
+          userId: snapshotsTable.userId,
+          totalCred:
+            sql<number>`SUM(${snapshotsTable.endorse} + ${snapshotsTable.restakeLive})`.mapWith(
+              Number
+            ),
+        })
+        .from(snapshotsTable)
+        .where(
+          and(
+            eq(snapshotsTable.snapDay, snapDayDate),
+            inArray(snapshotsTable.userId, uniqueUserIds)
+          )
+        )
+        .groupBy(snapshotsTable.userId);
+
+      for (const row of userTotalCredRows) {
+        userTotalCredMap.set(row.userId, row.totalCred || 1); // Avoid division by zero
+      }
     }
 
     // Apply stance formula to get raw stance values
@@ -121,38 +130,48 @@ export async function stanceComputationPipeline(
     for (const [bucketKey, bucketStances] of bucketGroups.entries()) {
       const zScores = toZScores(bucketStances);
 
-      // Map z-scores back to their corresponding user-point pairs
-      let stanceIndex = 0;
-      for (const rawStance of rawStances) {
-        const stanceBucketKey =
-          rawStance.bucketId?.toString() || "__UNTAGGED__";
-        if (stanceBucketKey === bucketKey) {
-          finalStances.push({
-            snapDay: snapDayDate,
-            userId: rawStance.userId,
-            pointId: rawStance.pointId,
-            zValue: zScores[stanceIndex],
-          });
-          stanceIndex++;
-        }
+      // Map z-scores back to their corresponding user-point pairs with proper indexing
+      const bucketRawStances = rawStances.filter(
+        (rs) => (rs.bucketId?.toString() || "__UNTAGGED__") === bucketKey
+      );
+
+      // Ensure we have matching counts to prevent index misalignment
+      if (bucketRawStances.length !== zScores.length) {
+        console.error(
+          `[stanceComputationPipeline] Index mismatch in bucket ${bucketKey}: ` +
+            `${bucketRawStances.length} raw stances vs ${zScores.length} z-scores`
+        );
+        continue;
+      }
+
+      for (let i = 0; i < bucketRawStances.length; i++) {
+        const rawStance = bucketRawStances[i];
+        finalStances.push({
+          snapDay: snapDayDate,
+          userId: rawStance.userId,
+          pointId: rawStance.pointId,
+          zValue: zScores[i],
+        });
       }
     }
 
-    // Insert z-values into daily_stances table
+    // Insert z-values into daily_stances table with transaction boundary
     if (finalStances.length > 0) {
-      await db
-        .insert(dailyStancesTable)
-        .values(finalStances)
-        .onConflictDoUpdate({
-          target: [
-            dailyStancesTable.snapDay,
-            dailyStancesTable.userId,
-            dailyStancesTable.pointId,
-          ],
-          set: {
-            zValue: sql`EXCLUDED.z_value`,
-          },
-        });
+      await db.transaction(async (tx) => {
+        await tx
+          .insert(dailyStancesTable)
+          .values(finalStances)
+          .onConflictDoUpdate({
+            target: [
+              dailyStancesTable.snapDay,
+              dailyStancesTable.userId,
+              dailyStancesTable.pointId,
+            ],
+            set: {
+              zValue: sql`EXCLUDED.z_value`,
+            },
+          });
+      });
     }
 
     console.log(

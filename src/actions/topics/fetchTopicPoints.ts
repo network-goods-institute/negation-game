@@ -10,6 +10,7 @@ import {
   negationsTable,
   effectiveRestakesView,
   slashesTable,
+  rationalePointsTable,
 } from "@/db/schema";
 import { eq, and, inArray, sql } from "drizzle-orm";
 import { addFavor } from "@/db/utils/addFavor";
@@ -82,22 +83,22 @@ export async function fetchTopicPoints(
     const viewpoints = await db
       .select({
         id: viewpointsTable.id,
-        graph: viewpointsTable.graph,
       })
       .from(viewpointsTable)
       .where(eq(viewpointsTable.topicId, topicId));
 
-    const initialPointIds = new Set<number>();
-    for (const viewpoint of viewpoints) {
-      const graph = viewpoint.graph as ViewpointGraph;
-      if (graph?.nodes) {
-        for (const node of graph.nodes) {
-          if (node.type === "point" && node.data?.pointId) {
-            initialPointIds.add(node.data.pointId);
-          }
-        }
-      }
-    }
+    const viewpointIds = viewpoints.map((v) => v.id);
+    const pointMappings =
+      viewpointIds.length > 0
+        ? await db
+            .select({
+              pointId: rationalePointsTable.pointId,
+            })
+            .from(rationalePointsTable)
+            .where(inArray(rationalePointsTable.rationaleId, viewpointIds))
+        : [];
+
+    const initialPointIds = new Set(pointMappings.map((pm) => pm.pointId));
 
     if (initialPointIds.size === 0) {
       return [];

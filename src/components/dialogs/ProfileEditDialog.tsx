@@ -53,25 +53,10 @@ const ProfileEditDialogContent = ({
         setIsSubmitting(true);
 
         try {
-            let processedDelegationUrl = delegationUrl.trim();
-            if (processedDelegationUrl && !processedDelegationUrl.startsWith("http")) {
-                processedDelegationUrl = `https://${processedDelegationUrl}`;
-            }
-
-            let processedAgoraLink = agoraLink.trim();
-            if (processedAgoraLink && !processedAgoraLink.startsWith("http")) {
-                processedAgoraLink = `https://${processedAgoraLink}`;
-            }
-
-            let processedScrollDelegateLink = scrollDelegateLink.trim();
-            if (processedScrollDelegateLink && !processedScrollDelegateLink.startsWith("http")) {
-                processedScrollDelegateLink = `https://${processedScrollDelegateLink}`;
-            }
-
-            let processedDiscourseCommunityUrl = discourseCommunityUrl.trim();
-            if (processedDiscourseCommunityUrl && !processedDiscourseCommunityUrl.startsWith("http")) {
-                processedDiscourseCommunityUrl = `https://${processedDiscourseCommunityUrl}`;
-            }
+            const processedDelegationUrl = safeUrl(delegationUrl);
+            const processedAgoraLink = safeUrl(agoraLink);
+            const processedScrollDelegateLink = safeUrl(scrollDelegateLink);
+            const processedDiscourseCommunityUrl = safeUrl(discourseCommunityUrl);
 
             const result = await updateUserProfile({
                 bio: bio.trim() || null,
@@ -133,9 +118,30 @@ const ProfileEditDialogContent = ({
         }
     };
 
+    const safeUrl = (url: string): string => {
+        if (!url) return '';
+        try {
+            const cleanUrl = url.trim();
+            if (!cleanUrl) return '';
+
+            const finalUrl = cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")
+                ? cleanUrl
+                : `https://${cleanUrl}`;
+
+            const urlObj = new URL(finalUrl);
+
+            if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
+                return '';
+            }
+
+            return urlObj.toString();
+        } catch {
+            return '';
+        }
+    };
+
     const processedDelegationUrl = useMemo(() => {
-        if (!delegationUrl) return '';
-        return delegationUrl.startsWith("http") ? delegationUrl : `https://${delegationUrl}`;
+        return safeUrl(delegationUrl);
     }, [delegationUrl]);
 
     const displayedDelegationUrl = useMemo(() => {
@@ -143,8 +149,7 @@ const ProfileEditDialogContent = ({
     }, [delegationUrl]);
 
     const processedDiscourseUrl = useMemo(() => {
-        if (!discourseCommunityUrl) return '';
-        return discourseCommunityUrl.startsWith("http") ? discourseCommunityUrl : `https://${discourseCommunityUrl}`;
+        return safeUrl(discourseCommunityUrl);
     }, [discourseCommunityUrl]);
 
     const displayedDiscourseUrl = useMemo(() => {
@@ -187,7 +192,7 @@ const ProfileEditDialogContent = ({
                             {/* Governance Links Section */}
                             <div className="space-y-6 border-t pt-6">
                                 <h3 className="text-lg font-semibold">Governance Links</h3>
-                                
+
                                 {/* Agora Link */}
                                 <div className="space-y-2">
                                     <div className="mb-1">
@@ -244,14 +249,16 @@ const ProfileEditDialogContent = ({
                                         <div className="mt-2 p-3 bg-muted/30 rounded-md">
                                             <div className="flex items-center gap-2">
                                                 <span className="text-sm font-medium">Preview:</span>
-                                                <a
-                                                    href={processedDelegationUrl}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-primary flex items-center gap-1 ml-auto text-xs hover:underline"
-                                                >
-                                                    Open link <ExternalLinkIcon className="size-3" />
-                                                </a>
+                                                {processedDelegationUrl && (
+                                                    <a
+                                                        href={processedDelegationUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-primary flex items-center gap-1 ml-auto text-xs hover:underline"
+                                                    >
+                                                        Open link <ExternalLinkIcon className="size-3" />
+                                                    </a>
+                                                )}
                                             </div>
                                             <div className="mt-1.5 text-sm overflow-hidden text-ellipsis">
                                                 {displayedDelegationUrl}
@@ -259,7 +266,7 @@ const ProfileEditDialogContent = ({
                                         </div>
                                     )}
                                 </div>
-                                
+
                                 <p className="text-xs text-muted-foreground">
                                     Adding governance links helps others find and delegate to you. Priority: Scroll Delegate &gt; Agora &gt; Other.
                                 </p>
@@ -302,14 +309,16 @@ const ProfileEditDialogContent = ({
                                         <div className="mt-2 p-3 bg-muted/30 rounded-md">
                                             <div className="flex items-center gap-2">
                                                 <span className="text-sm font-medium">Preview:</span>
-                                                <a
-                                                    href={processedDiscourseUrl}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-primary flex items-center gap-1 ml-auto text-xs hover:underline"
-                                                >
-                                                    Open link <ExternalLinkIcon className="size-3" />
-                                                </a>
+                                                {processedDiscourseUrl && (
+                                                    <a
+                                                        href={processedDiscourseUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-primary flex items-center gap-1 ml-auto text-xs hover:underline"
+                                                    >
+                                                        Open link <ExternalLinkIcon className="size-3" />
+                                                    </a>
+                                                )}
                                             </div>
                                             <div className="mt-1.5 text-sm overflow-hidden text-ellipsis">
                                                 {displayedDiscourseUrl}

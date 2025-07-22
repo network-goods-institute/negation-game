@@ -6,6 +6,7 @@ import {
   snapshotsTable,
   pointClustersTable,
   viewpointsTable,
+  rationalePointsTable,
 } from "@/db/schema";
 import { sql, and, gte, lt, eq } from "drizzle-orm";
 import { buildPointCluster } from "@/actions/points/buildPointCluster";
@@ -118,25 +119,49 @@ export async function dailySnapshotJob(
       });
     }
 
-    // Build point-to-topic mapping by searching viewpoint graphs
     const pointToTopicMap = new Map<number, number | null>();
-    const viewpoints = await db
-      .select({
-        topicId: viewpointsTable.topicId,
-        graph: viewpointsTable.graph,
-      })
-      .from(viewpointsTable)
-      .where(sql`${viewpointsTable.topicId} IS NOT NULL`);
 
-    for (const vp of viewpoints) {
-      if (vp.graph && typeof vp.graph === "object" && "nodes" in vp.graph) {
-        const graph = vp.graph as any;
-        if (Array.isArray(graph.nodes)) {
-          for (const node of graph.nodes) {
-            if (node.type === "point" && node.data?.pointId) {
-              const pointId = Number(node.data.pointId);
-              if (!isNaN(pointId)) {
-                pointToTopicMap.set(pointId, vp.topicId);
+    try {
+      const pointTopicMappings = await db
+        .select({
+          pointId: rationalePointsTable.pointId,
+          topicId: viewpointsTable.topicId,
+        })
+        .from(rationalePointsTable)
+        .leftJoin(
+          viewpointsTable,
+          eq(rationalePointsTable.rationaleId, viewpointsTable.id)
+        )
+        .where(sql`${viewpointsTable.topicId} IS NOT NULL`);
+
+      for (const mapping of pointTopicMappings) {
+        pointToTopicMap.set(mapping.pointId, mapping.topicId);
+      }
+    } catch (error) {
+      console.warn(
+        "[dailySnapshotJob] Could not fetch point-topic mappings, using fallback approach:",
+        error instanceof Error ? error.message : String(error)
+      );
+      // Fallback: extract point-topic mappings from viewpoint graphs
+      const viewpoints = await db
+        .select({
+          id: viewpointsTable.id,
+          graph: viewpointsTable.graph,
+          topicId: viewpointsTable.topicId,
+        })
+        .from(viewpointsTable)
+        .where(sql`${viewpointsTable.topicId} IS NOT NULL`);
+
+      for (const viewpoint of viewpoints) {
+        if (viewpoint.graph && viewpoint.topicId) {
+          const graph = viewpoint.graph as any;
+          if (graph?.nodes) {
+            for (const node of graph.nodes) {
+              if (node.type === "point" && node.data?.pointId) {
+                const pointId = Number(node.data.pointId);
+                if (!isNaN(pointId)) {
+                  pointToTopicMap.set(pointId, viewpoint.topicId);
+                }
               }
             }
           }
@@ -204,25 +229,27 @@ export async function dailySnapshotJob(
     // Convert accumMap to array
     const snapshotRows = Array.from(accumMap.values());
 
-    // Insert/update snapshots
+    // Insert/update snapshots with transaction boundary
     if (snapshotRows.length > 0) {
-      await db
-        .insert(snapshotsTable)
-        .values(snapshotRows)
-        .onConflictDoUpdate({
-          target: [
-            snapshotsTable.snapDay,
-            snapshotsTable.userId,
-            snapshotsTable.pointId,
-          ],
-          set: {
-            endorse: sql`EXCLUDED.endorse`,
-            restakeLive: sql`EXCLUDED.restake_live`,
-            doubt: sql`EXCLUDED.doubt`,
-            sign: sql`EXCLUDED.sign`,
-            bucketId: sql`EXCLUDED.bucket_id`,
-          },
-        });
+      await db.transaction(async (tx) => {
+        await tx
+          .insert(snapshotsTable)
+          .values(snapshotRows)
+          .onConflictDoUpdate({
+            target: [
+              snapshotsTable.snapDay,
+              snapshotsTable.userId,
+              snapshotsTable.pointId,
+            ],
+            set: {
+              endorse: sql`EXCLUDED.endorse`,
+              restakeLive: sql`EXCLUDED.restake_live`,
+              doubt: sql`EXCLUDED.doubt`,
+              sign: sql`EXCLUDED.sign`,
+              bucketId: sql`EXCLUDED.bucket_id`,
+            },
+          });
+      });
     }
 
     console.log(

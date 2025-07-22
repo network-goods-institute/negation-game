@@ -93,6 +93,29 @@ export function TopicsList({
         });
     };
 
+    const handleEditClick = (topic: Topic) => {
+        onEditTopic(topic);
+
+        setTimeout(() => {
+            const formElement = document.querySelector('[data-topic-form]');
+            if (formElement) {
+                formElement.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+
+                formElement.classList.add('ring-2', 'ring-primary', 'ring-opacity-50');
+                setTimeout(() => {
+                    formElement.classList.remove('ring-2', 'ring-primary', 'ring-opacity-50');
+                }, 2000);
+            }
+        }, 100);
+
+        toast.info(`Editing "${topic.name}" - check the form below`, {
+            description: "The edit form has been populated and highlighted."
+        });
+    };
+
     const confirmDelete = () => {
         if (topicToDelete) {
             deleteMutation.mutate(topicToDelete.id);
@@ -165,7 +188,7 @@ export function TopicsList({
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
-                                                        onClick={() => onEditTopic(topic)}
+                                                        onClick={() => handleEditClick(topic)}
                                                         title="Edit topic"
                                                     >
                                                         <Edit className="h-4 w-4" />
@@ -228,9 +251,8 @@ export function TopicsList({
                             {topics.map((topic) => (
                                 <div
                                     key={topic.id}
-                                    className={`p-4 border rounded-lg space-y-3 ${
-                                        selectedTopic?.id === topic.id ? "bg-muted" : ""
-                                    }`}
+                                    className={`p-4 border rounded-lg space-y-3 ${selectedTopic?.id === topic.id ? "bg-muted" : ""
+                                        }`}
                                 >
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
@@ -272,7 +294,7 @@ export function TopicsList({
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            onClick={() => onEditTopic(topic)}
+                                            onClick={() => handleEditClick(topic)}
                                             className="flex-1"
                                         >
                                             <Edit className="h-4 w-4 mr-2" />

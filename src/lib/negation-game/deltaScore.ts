@@ -23,6 +23,12 @@ export function stance(
 }
 
 export function cosine(a: number[], b: number[]): number {
+  if (a.length !== b.length) {
+    throw new Error(
+      `Vector length mismatch: a.length=${a.length}, b.length=${b.length}`
+    );
+  }
+
   let dot = 0;
   let na = 0;
   let nb = 0;

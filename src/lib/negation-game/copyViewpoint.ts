@@ -44,20 +44,38 @@ export const regenerateGraphIds = (graph: ViewpointGraph): ViewpointGraph => {
     // Simplified edge ID generation
     const newId = `edge_${timestamp}_${index}_${Math.random().toString(36).substring(2, 6)}`;
 
+    // Update sourceHandle and targetHandle to use new node IDs
+    let newSourceHandle = edge.sourceHandle;
+    let newTargetHandle = edge.targetHandle;
+
+    if (edge.sourceHandle) {
+      const oldSourceId = edge.source;
+      const newSourceId = newSource;
+      newSourceHandle = edge.sourceHandle.replace(oldSourceId, newSourceId);
+    }
+
+    if (edge.targetHandle) {
+      const oldTargetId = edge.target;
+      const newTargetId = newTarget;
+      newTargetHandle = edge.targetHandle.replace(oldTargetId, newTargetId);
+    }
+
     return {
       ...edge,
       id: newId,
       source: newSource,
       target: newTarget,
+      sourceHandle: newSourceHandle,
+      targetHandle: newTargetHandle,
     } as Edge;
   });
 
-  // Check for and remove duplicate edges based on source-target pairs
+  // Check for and remove duplicate edges based on source-target pairs AND edge type
   const edgeMap = new Map<string, Edge>();
   const duplicateEdges: string[] = [];
 
   newEdges.forEach((edge) => {
-    const key = `${edge.source}->${edge.target}`;
+    const key = `${edge.source}->${edge.target}:${edge.type ?? "default"}`;
     if (edgeMap.has(key)) {
       duplicateEdges.push(edge.id);
     } else {

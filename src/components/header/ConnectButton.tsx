@@ -16,7 +16,7 @@ import {
 import { useUser } from "@/queries/users/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { clearPrivyCookie } from '@/actions/users/auth';
-import { LoaderCircleIcon, CoinsIcon, UserIcon, LogOutIcon, TrophyIcon, BellIcon, SettingsIcon, MessageSquareIcon, BarChart3Icon, ChevronDownIcon, ShieldIcon } from "lucide-react";
+import { LoaderCircleIcon, CoinsIcon, UserIcon, LogOutIcon, TrophyIcon, BellIcon, SettingsIcon, MessageSquareIcon, BarChart3Icon, ChevronDownIcon, ShieldIcon, ShieldCheckIcon } from "lucide-react";
 import { useAdminStatus } from "@/hooks/admin/useAdminStatus";
 import { useState, useEffect, useRef } from "react";
 import { EarningsDialog } from "../dialogs/EarningsDialog";
@@ -270,6 +270,22 @@ export const ConnectButton = () => {
                   </Link>
                 </DropdownMenuItem>
               )
+            )}
+            {adminStatus?.siteAdmin && (
+              <DropdownMenuItem
+                asChild
+                onSelect={navigate("/admin")}
+                disabled={!!loadingRoute || pathname === "/admin"}
+              >
+                <Link href="/admin" className="gap-2">
+                  {loadingRoute === "/admin" ? (
+                    <LoaderCircleIcon className="size-4 animate-spin" />
+                  ) : (
+                    <ShieldCheckIcon className="size-4" />
+                  )}
+                  Site Admin
+                </Link>
+              </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
             <DropdownMenuItem

@@ -3,13 +3,16 @@ jest.mock("../auth/useAuthenticatedMutation", () => ({
   useAuthenticatedMutation: jest.fn(),
 }));
 
-// Instead of mocking the action itself, mock its dependencies
-// This way we're testing the real hook with the real action
+// Mock the action and its dependencies
 jest.mock("@/actions/viewpoints/updateViewpointDetails", () => {
-  // Create a mock function that can be spied on
   const updateViewpointDetails = jest.fn(async ({ id }) => id);
   return { updateViewpointDetails };
 });
+
+// Mock the updateRationalePoints function
+jest.mock("@/actions/viewpoints/updateRationalePoints", () => ({
+  updateRationalePoints: jest.fn(),
+}));
 
 // Import after mocking
 import { useUpdateViewpointDetails } from "../viewpoints/useUpdateViewpointDetails";

@@ -23,9 +23,11 @@ export function PointSelector({ onSelect, className }: Props) {
     const [open, setOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const { data: points = [], isLoading } = useQuery<Point[]>({
+    const { data: points = [], isLoading, error } = useQuery<Point[]>({
         queryKey: ["all-space-points"],
         queryFn: () => fetchAllSpacePoints().then((pts) => pts.map((p) => ({ pointId: p.pointId, content: p.content }))),
+        retry: false,
+        staleTime: 5 * 60 * 1000, // 5 minutes
     });
 
     const filtered = useMemo(() => {
@@ -60,7 +62,9 @@ export function PointSelector({ onSelect, className }: Props) {
             </div>
             {open && (
                 <div className="absolute top-full mt-2 w-full z-50 rounded-md border bg-popover shadow-lg max-h-72 overflow-y-auto">
-                    {filtered.length === 0 ? (
+                    {error ? (
+                        <div className="p-4 text-red-500 text-sm">Error loading points</div>
+                    ) : filtered.length === 0 ? (
                         <div className="p-4 text-muted-foreground">No matches</div>
                     ) : (
                         filtered.map((p) => (

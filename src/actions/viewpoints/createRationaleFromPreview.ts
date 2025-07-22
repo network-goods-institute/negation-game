@@ -23,6 +23,7 @@ import { fetchUserEndorsements } from "@/actions/endorsements/fetchUserEndorseme
 import { sellEndorsement } from "@/actions/endorsements/sellEndorsement";
 import { fetchPointsByExactContent } from "@/actions/points/fetchPointsByExactContent";
 import { fetchUserAssignments, markAssignmentCompleted } from "@/actions/topics/manageRationaleAssignments";
+import { updateRationalePoints } from "@/actions/viewpoints/updateRationalePoints";
 
 interface CreateRationaleParams {
   userId: string;
@@ -720,6 +721,9 @@ export async function createRationaleFromPreview({
         createdBy: userId,
         space: spaceId,
       });
+
+      // Update rationale_points bridge table
+      await updateRationalePoints(newViewpointId, finalGraph);
     } catch (error) {
       console.error(
         "[createRationaleFromPreview] Failed to create rationale:",

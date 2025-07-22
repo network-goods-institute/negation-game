@@ -23,6 +23,18 @@ jest.mock("@/db/schema", () => ({
     userId: { name: "userId" },
     cred: { name: "cred" },
   },
+  effectiveRestakesView: {
+    pointId: { name: "pointId" },
+    negationId: { name: "negationId" },
+    userId: { name: "userId" },
+    effectiveAmount: { name: "effectiveAmount" },
+  },
+  doubtsTable: {
+    pointId: { name: "pointId" },
+    negationId: { name: "negationId" },
+    userId: { name: "userId" },
+    amount: { name: "amount" },
+  },
   usersTable: {
     id: { name: "id" },
     username: { name: "username" },
@@ -74,7 +86,13 @@ jest.mock("@/services/db", () => {
     .mockImplementationOnce(() => stubQuery([{ count: 0 }]))
     // 4. Endorsement rows (none)
     .mockImplementationOnce(() => stubQuery([]))
-    // 5. Total cred rows (none)
+    // 5. Restake rows (none)
+    .mockImplementationOnce(() => stubQuery([]))
+    // 6. Doubt rows (none)
+    .mockImplementationOnce(() => stubQuery([]))
+    // 7. Total cred rows (none)
+    .mockImplementationOnce(() => stubQuery([]))
+    // 8. Total restake rows (none)
     .mockImplementationOnce(() => stubQuery([]));
 
   return { db: { select: selectMock } };

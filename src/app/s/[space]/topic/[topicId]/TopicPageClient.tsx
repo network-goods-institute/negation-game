@@ -359,8 +359,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                     <div className="p-4 space-y-4">
                         {/* Delta Comparison Widget */}
                         <DeltaComparisonWidget
-                            // @ts-ignore
-                            comparison={{ type: "topic", topicId: encodeId(topic.id) }}
+                            comparison={{ type: "topic", topicId: topic.id }}
                             title="Topic Alignment"
                             description="Find aligned users"
                             currentUserId={privyUser?.id}
@@ -469,8 +468,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                             {/* Mobile Delta Widget - Above filtering */}
                             <div className="mb-6">
                                 <DeltaComparisonWidget
-                                    // @ts-ignore
-                                    comparison={{ type: "topic", topicId: encodeId(topic.id) }}
+                                    comparison={{ type: "topic", topicId: topic.id }}
                                     title="Topic Alignment"
                                     description="Find aligned users"
                                     currentUserId={privyUser?.id}
