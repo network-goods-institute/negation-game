@@ -213,7 +213,18 @@ function EmbedTestPage() {
   return (
     <div style={{ fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif', maxWidth: 900, margin: '0 auto', padding: 20, background: '#f8fafc', minHeight: '100vh' }}>
       <h1 style={{ fontSize: 32, marginBottom: 8, color: '#0f172a' }}>Scroll Forum Embed Tester</h1>
-      <p style={{ marginBottom: 24, color: '#64748b', fontSize: 16 }}>Paste a Scroll forum topic URL and load the Negation Game embed iframe.</p>
+      <p style={{ marginBottom: 16, color: '#64748b', fontSize: 16 }}>Paste a Scroll forum topic URL and load the Negation Game embed iframe.</p>
+
+      <div style={{ marginBottom: 24, padding: 16, background: '#e0f2fe', borderRadius: 8, border: '1px solid #0891b2' }}>
+        <h3 style={{ margin: '0 0 8px', fontSize: 16, color: '#0c4a6e' }}>Production Usage</h3>
+        <p style={{ margin: '0 0 8px', fontSize: 14, color: '#164e63' }}>
+          For production, just embed this URL directly - it will auto-detect the page URL:
+        </p>
+        <code style={{ background: '#f8fafc', padding: 4, borderRadius: 4, fontSize: 12, color: '#0c4a6e' }}>
+          {baseUrl}/embed/source
+        </code>
+      </div>
+
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://forum.scroll.io/t/..." style={{ flex: 1, padding: '8px 12px', border: '1px solid #ddd', borderRadius: 4, fontSize: 14 }} />
         <button onClick={() => setIframeUrl(`${baseUrl}/embed/source?source=${encodeURIComponent(url)}`)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 4, cursor: 'pointer', fontSize: 14 }}>Load</button>

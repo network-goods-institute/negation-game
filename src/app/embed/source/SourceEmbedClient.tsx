@@ -56,7 +56,12 @@ export default function SourceEmbedClient({ sourceUrl }: Props) {
         }
     };
 
-    if (status === 'loading') return <div style={{ fontFamily: 'sans-serif', padding: 20, textAlign: 'center' }}>Loading...</div>;
+    if (status === 'loading') return (
+        <div style={{ fontFamily: 'sans-serif', padding: 20, textAlign: 'center', color: '#64748b' }}>
+            <div style={{ marginBottom: 12 }}>🔍</div>
+            <div style={{ fontSize: 14, fontWeight: 500 }}>Checking for existing topic...</div>
+        </div>
+    );
     if (status === 'error') return <div style={{ fontFamily: 'sans-serif', padding: 20, textAlign: 'center', color: 'red' }}>{errorMsg}</div>;
     return (
         <div style={{ fontFamily: 'sans-serif', maxWidth: 500, margin: '40px auto', border: '1px solid #e5e7eb', borderRadius: 8, padding: 24, background: '#f8fafc', textAlign: 'center' }}>

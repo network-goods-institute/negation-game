@@ -24,7 +24,14 @@ function isValidOrigin(origin: string | null): boolean {
 }
 
 function isValidScrollUrl(url: string): boolean {
-  return Boolean(url && url.includes("forum.scroll.io"));
+  if (!url) return false;
+
+  if (url.includes("forum.scroll.io")) return true;
+
+  if (process.env.NODE_ENV !== "production" && url.includes("localhost"))
+    return true;
+
+  return false;
 }
 
 export async function GET(request: NextRequest) {

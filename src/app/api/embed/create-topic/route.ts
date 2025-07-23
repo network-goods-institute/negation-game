@@ -25,11 +25,15 @@ export async function POST(request: NextRequest) {
 
   try {
     const { sourceUrl, title } = await request.json();
-    if (
-      !sourceUrl ||
-      typeof sourceUrl !== "string" ||
-      !sourceUrl.includes("forum.scroll.io")
-    ) {
+
+    const isValidUrl =
+      sourceUrl &&
+      typeof sourceUrl === "string" &&
+      (sourceUrl.includes("forum.scroll.io") ||
+        (process.env.NODE_ENV !== "production" &&
+          sourceUrl.includes("localhost")));
+
+    if (!isValidUrl) {
       return new NextResponse(JSON.stringify({ error: "Invalid source URL" }), {
         status: 400,
         headers: {
