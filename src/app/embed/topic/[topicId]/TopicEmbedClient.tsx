@@ -97,11 +97,7 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
 
   const handleLinkClick = (e: React.MouseEvent, url: string) => {
     e.preventDefault();
-    window.parent.postMessage({
-      source: 'negation-game-embed',
-      type: 'navigate',
-      url
-    }, '*');
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const handleViewRationale = (rationale: Rationale, e: React.MouseEvent) => {
@@ -387,7 +383,7 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
               Loading rationale...
             </div>
             <iframe
-              src={getFullUrl(`/s/scroll/rationale/${selectedRationale.id}?embed=mobile`)}
+              src={getFullUrl(`/s/scroll/rationale/${selectedRationale.id}?embed=embed`)}
               style={{
                 width: '100%',
                 height: '400px',
