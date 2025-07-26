@@ -168,8 +168,9 @@ export default async function RootLayout({
       <body className={cn("font-sans", inter.variable, "h-full flex flex-col")}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme={isEmbedRoute ? "light" : "system"}
+          forcedTheme={isEmbedRoute ? "light" : undefined}
+          enableSystem={!isEmbedRoute}
           disableTransitionOnChange
         >
           <ThemedPrivyProvider>

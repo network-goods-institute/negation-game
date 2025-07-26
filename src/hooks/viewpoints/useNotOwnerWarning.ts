@@ -1,11 +1,15 @@
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { useSearchParams } from "next/navigation";
 
 export function useNotOwnerWarning(
   isModified: boolean,
   canModify: boolean | undefined,
   onCopy: () => void
 ) {
+  const searchParams = useSearchParams();
+  const embedParam = searchParams.get('embed');
+  const isEmbedMode = embedParam === 'mobile' || embedParam === 'embed' || embedParam === 'desktop';
   const hasShownRef = useRef(false);
   const toastIdRef = useRef<string | number | null>(null);
   const mountTimeRef = useRef<number>(Date.now());
@@ -17,7 +21,7 @@ export function useNotOwnerWarning(
       delayTimeoutRef.current = null;
     }
 
-    if (isModified && canModify === false && !hasShownRef.current) {
+    if (isModified && canModify === false && !hasShownRef.current && !isEmbedMode) {
       const showWarning = () => {
         toastIdRef.current = toast.warning(
           "Not saving, just playing. To keep your changes:",

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/services/db";
 import { topicsTable } from "@/db/tables/topicsTable";
 import { encodeId } from "@/lib/negation-game/encodeId";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 const ALLOWED_ORIGINS = [
   "https://forum.scroll.io",
@@ -25,6 +26,32 @@ export async function POST(request: NextRequest) {
 
   try {
     const { sourceUrl, title } = await request.json();
+
+    const rateLimitResult = await checkRateLimit(
+      `scroll-${sourceUrl}`,
+      50,
+      24 * 60 * 60 * 1000,
+      "scroll-topic-creation"
+    );
+
+    if (!rateLimitResult.allowed) {
+      return new NextResponse(
+        JSON.stringify({
+          error: "Rate limit exceeded. Maximum 50 topics per day.",
+          resetTime: rateLimitResult.resetTime,
+        }),
+        {
+          status: 429,
+          headers: {
+            "Access-Control-Allow-Origin": corsOrigin,
+            "Content-Type": "application/json",
+            "X-RateLimit-Limit": "50",
+            "X-RateLimit-Remaining": rateLimitResult.remaining.toString(),
+            "X-RateLimit-Reset": rateLimitResult.resetTime.toString(),
+          },
+        }
+      );
+    }
 
     const isValidUrl =
       sourceUrl &&
@@ -62,6 +89,9 @@ export async function POST(request: NextRequest) {
       headers: {
         "Access-Control-Allow-Origin": corsOrigin,
         "Content-Type": "application/json",
+        "X-RateLimit-Limit": "50",
+        "X-RateLimit-Remaining": rateLimitResult.remaining.toString(),
+        "X-RateLimit-Reset": rateLimitResult.resetTime.toString(),
       },
     });
   } catch (error) {

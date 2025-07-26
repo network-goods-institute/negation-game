@@ -57,9 +57,42 @@ export default function SourceEmbedClient({ sourceUrl }: Props) {
     };
 
     if (status === 'loading') return (
-        <div style={{ fontFamily: 'sans-serif', padding: 20, textAlign: 'center', color: '#64748b' }}>
-            <div style={{ marginBottom: 12 }}>🔍</div>
-            <div style={{ fontSize: 14, fontWeight: 500 }}>Checking for existing topic...</div>
+        <div style={{ 
+            fontFamily: 'sans-serif', 
+            padding: 20, 
+            textAlign: 'center', 
+            color: '#1e293b',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '150px'
+        }}>
+            <div
+                style={{
+                    width: '32px',
+                    height: '32px',
+                    border: '3px solid #e2e8f0',
+                    borderTop: '3px solid #0088cc',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite',
+                    marginBottom: '16px'
+                }}
+            />
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: '4px' }}>
+                Detecting Topic
+            </div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>
+                Scanning for existing discussions
+            </div>
+            <style>
+                {`
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                `}
+            </style>
         </div>
     );
     if (status === 'error') return <div style={{ fontFamily: 'sans-serif', padding: 20, textAlign: 'center', color: 'red' }}>{errorMsg}</div>;

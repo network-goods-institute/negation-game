@@ -373,14 +373,40 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
                 right: '0',
                 bottom: '0',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
                 backgroundColor: '#f8fafc',
-                color: '#64748b',
-                fontSize: '13px'
+                color: '#1e293b',
+                fontSize: '14px',
+                fontWeight: '600'
               }}
             >
-              Loading rationale...
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  border: '3px solid #e2e8f0',
+                  borderTop: '3px solid #0088cc',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  marginBottom: '12px'
+                }}
+              />
+              <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '4px' }}>
+                Loading Rationale...
+              </div>
+              <div style={{ fontSize: '12px', color: '#64748b', textAlign: 'center' }}>
+                Fetching structured arguments and viewpoints
+              </div>
+              <style>
+                {`
+                  @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                  }
+                `}
+              </style>
             </div>
             <iframe
               src={getFullUrl(`/s/scroll/rationale/${selectedRationale.id}?embed=embed`)}

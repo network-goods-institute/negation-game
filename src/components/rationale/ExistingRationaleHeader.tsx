@@ -112,7 +112,7 @@ export default function ExistingRationaleHeader({
                 </div>
             </RationaleHeaderBar>
 
-            <div className="hidden md:block sticky top-10 z-40 w-full bg-background/70 backdrop-blur border-b">
+            <div className="hidden md:block sticky top-12 z-40 w-full bg-background/70 backdrop-blur border-b">
                 <div className="flex items-center justify-between gap-3 px-4 py-3">
                     <div className="flex items-center gap-2">
                         <Tooltip>
@@ -182,7 +182,7 @@ export default function ExistingRationaleHeader({
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <Button
                             variant="outline"
-                            className="mt-2 sm:mt-0"
+                            className="mt-2 md:mt-0"
                             onClick={() => {
                                 setIsPageCopyConfirmOpen(false);
                                 handleCopy(false);

@@ -153,7 +153,8 @@ export default function middleware(req: NextRequest) {
     return response;
   }
 
-  if (url.searchParams.get("embed") === "mobile") {
+  const embedParam = url.searchParams.get("embed");
+  if (embedParam === "mobile" || embedParam === "embed" || embedParam === "desktop") {
     // Treat as an embed route: allow in iframe and hide main header
     const response = NextResponse.next();
     // eslint-disable-next-line drizzle/enforce-delete-with-where

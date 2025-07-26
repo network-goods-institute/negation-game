@@ -64,11 +64,15 @@ function CopiedFromLink({ sourceId }: { sourceId: string }) {
 function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string; spaceSlug: string }) {
     const searchParams = useSearchParams();
     const justPublished = searchParams.get('published') === 'true';
-    const isEmbedMode = searchParams.get('embed') === 'mobile';
+    const embedParam = searchParams.get('embed');
+    const isEmbedMode = embedParam === 'mobile' || embedParam === 'embed';
+    const isMobileEmbed = embedParam === 'mobile';
+    const isEmbedEmbed = embedParam === 'embed';
+    const isDesktopEmbed = embedParam === 'desktop';
 
     // Send height updates to parent when in embed mode
     useEffect(() => {
-        if (isEmbedMode) {
+        if (isEmbedMode || isDesktopEmbed) {
             const sendHeight = () => {
                 const height = document.documentElement.scrollHeight;
                 console.log('Rationale page sending height:', height);
@@ -97,7 +101,7 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                 resizeObserver.disconnect();
             };
         }
-    }, [isEmbedMode]);
+    }, [isEmbedMode, isDesktopEmbed]);
 
     const [showPublishDialog, setShowPublishDialog] = useState(justPublished);
     const { data: currentUser } = useUser();
@@ -121,7 +125,7 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
     const [canvasEnabled, setCanvasEnabled] = useAtom(canvasEnabledAtom);
 
     useEffect(() => {
-        if (isEmbedMode) {
+        if (isEmbedMode || isDesktopEmbed) {
             console.log('Canvas state changed in embed mode:', canvasEnabled);
             const timer = setTimeout(() => {
                 const height = document.documentElement.scrollHeight;
@@ -135,21 +139,21 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
 
             return () => clearTimeout(timer);
         }
-    }, [canvasEnabled, isEmbedMode]);
+    }, [canvasEnabled, isEmbedMode, isDesktopEmbed]);
 
     // Enable canvas by default in embed mode (mobile view shows graph)
     useEffect(() => {
-        if (isEmbedMode) {
+        if (isEmbedMode || isDesktopEmbed) {
             setCanvasEnabled(true);
         }
-    }, [isEmbedMode, setCanvasEnabled]);
+    }, [isEmbedMode, isDesktopEmbed, setCanvasEnabled]);
     const [feedEnabled, setFeedEnabled] = useAtom(feedEnabledAtom);
     useEffect(() => {
         setFeedEnabled(false);
     }, [setFeedEnabled]);
 
-    const showFeed = feedEnabled && !isEmbedMode; // Disable feed in embed mode
-    const isMobile = useIsMobile(640) || isEmbedMode; // Force mobile layout in embed mode
+    const showFeed = feedEnabled && !isEmbedMode && !isDesktopEmbed; // Disable feed in embed mode
+    const isMobile = useIsMobile(768) || isEmbedMode; // Force mobile layout in embed mode (but not desktop embed)
 
     const { isCopyingUrl, handleCopyUrl } = useCopyUrl();
     const { data: viewpoint } = useViewpoint(viewpointId);
@@ -165,7 +169,7 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
 
     const { data: user } = useUser();
     const isOwner = viewpoint && user ? user.id === viewpoint.createdBy : false;
-    const canEdit = isOwner && !isEmbedMode; // Disable editing in embed mode
+    const canEdit = isOwner && !isEmbedMode && !isDesktopEmbed; // Disable editing in embed mode
     const { isSharing, selectedPointIds, toggleSharingMode, handleGenerateAndCopyShareLink } = useShareLink(user?.username);
 
     const reactFlow = useReactFlow<AppNode>();
@@ -341,7 +345,7 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
 
     return (
         <>
-            {!isEmbedMode && (
+            {!isEmbedMode && !isDesktopEmbed && (
                 <PublishAcknowledgementDialog
                     open={showPublishDialog}
                     onOpenChange={setShowPublishDialog}
@@ -350,20 +354,20 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
             )}
             <main className={cn(
                 "relative flex-grow bg-background h-full overflow-hidden",
-                isEmbedMode
+                (isEmbedMode || isDesktopEmbed)
                     ? "flex flex-col"
                     : "md:grid",
-                !isEmbedMode && showFeed
+                !isEmbedMode && !isDesktopEmbed && showFeed
                     ? "md:grid-cols-[0_minmax(200px,400px)_1fr_minmax(200px,400px)]"
-                    : !isEmbedMode && "md:grid-cols-[0_minmax(200px,400px)_1fr]"
+                    : (!isEmbedMode && !isDesktopEmbed) && "md:grid-cols-[0_minmax(200px,400px)_1fr]"
             )}>
-                {!isEmbedMode && <div className="hidden md:block"></div>}
+                {!isEmbedMode && !isDesktopEmbed && <div className="hidden md:block"></div>}
                 <div className={cn(
                     "flex flex-col h-full overflow-hidden",
-                    !isEmbedMode && "md:col-start-2 border-x",
-                    isEmbedMode && "border-0 max-w-full"
+                    !isEmbedMode && !isDesktopEmbed && "md:col-start-2 border-x",
+                    (isEmbedMode || isDesktopEmbed) && "border-0 max-w-full"
                 )}>
-                    {!isEmbedMode && (
+                    {!isEmbedMode && !isDesktopEmbed && (
                         <ExistingRationaleHeader
                             isSharing={isSharing}
                             isCopying={isCopying}
@@ -381,7 +385,7 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                     )}
 
                     {/* Simple toggle for embed mode */}
-                    {isEmbedMode && (
+                    {(isEmbedMode || isDesktopEmbed) && (
                         <div className="flex justify-between items-center p-3 border-b bg-gray-50">
                             <h3 className="text-sm font-medium text-gray-700">Rationale View</h3>
                             <button
@@ -401,14 +405,14 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                     {/* --- Scrollable Content START*/}
                     <div className={cn(
                         "flex-grow overflow-y-auto",
-                        isEmbedMode ? "pb-4 px-4" : "pb-10",
-                        !isEmbedMode && showFeed && isMobile && "hidden",
-                        !isEmbedMode && canvasEnabled && "hidden md:block",
-                        !isEmbedMode && !canvasEnabled && (isGraphModified || isContentModified) && isOwner && "pb-24 md:pb-10",
-                        !isEmbedMode && isSharing && "pb-24 md:pb-24",
+                        (isEmbedMode || isDesktopEmbed) ? "pb-4 px-4" : "pb-10",
+                        !isEmbedMode && !isDesktopEmbed && showFeed && isMobile && "hidden",
+                        !isEmbedMode && !isDesktopEmbed && canvasEnabled && "hidden md:block",
+                        !isEmbedMode && !isDesktopEmbed && !canvasEnabled && (isGraphModified || isContentModified) && isOwner && "pb-24 md:pb-10",
+                        !isEmbedMode && !isDesktopEmbed && isSharing && "pb-24 md:pb-24",
                         // In embed mode, show/hide based on canvas state
-                        isEmbedMode && canvasEnabled && "hidden",
-                        isEmbedMode && !canvasEnabled && "flex flex-col"
+                        (isEmbedMode || isDesktopEmbed) && canvasEnabled && "hidden",
+                        (isEmbedMode || isDesktopEmbed) && !canvasEnabled && "flex flex-col"
                     )}>
                         {/* Content: Title, Meta, Description, Points */}
                         <RationaleMetaForm
@@ -474,7 +478,7 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                         />
                     </div>
                     {/* --- Scrollable Content END --- */}
-                    {!isEmbedMode && (!showFeed || !isMobile) ? (
+                    {!isEmbedMode && !isDesktopEmbed && (!showFeed || !isMobile) ? (
                         <MobileSaveFooter
                             isOwner={canEdit}
                             isGraphModified={isGraphModified}
@@ -489,7 +493,7 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                 </div>
 
                 {/* Embed Mode Graph View */}
-                {isEmbedMode && canvasEnabled && (
+                {(isEmbedMode || isDesktopEmbed) && canvasEnabled && (
                     <div className="flex-grow h-full min-h-[600px] bg-white">
                         <Dynamic>
                             <RationaleGraph
@@ -516,7 +520,7 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                 )}
 
                 {/* Column 3 (Graph View) using shared RationaleGraph - Hidden in embed mode */}
-                {!isEmbedMode && (
+                {!isEmbedMode && !isDesktopEmbed && (
                     <Dynamic>
                         <RationaleGraph
                             graph={localGraph!}
@@ -546,11 +550,11 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                 )}
 
                 {/* Column 4 (Points Feed) - Hidden in embed mode */}
-                {!isEmbedMode && <PointsFeedContainer />}
+                {!isEmbedMode && !isDesktopEmbed && <PointsFeedContainer />}
 
-                {!isEmbedMode && <NegateDialog />}
+                {!isEmbedMode && !isDesktopEmbed && <NegateDialog />}
 
-                {!isEmbedMode && (
+                {!isEmbedMode && !isDesktopEmbed && (
                     <UnsavedChangesDialog
                         open={isDiscardDialogOpen}
                         onOpenChange={setIsDiscardDialogOpen}
