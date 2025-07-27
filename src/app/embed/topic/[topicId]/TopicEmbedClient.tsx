@@ -29,68 +29,64 @@ interface Props {
 }
 
 export function TopicEmbedClient({ topic, rationales }: Props) {
-  const [selectedRationale, setSelectedRationale] = useState<Rationale | null>(null);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [selectedRationaleId, setSelectedRationaleId] = useState<string | null>(null);
+  const [isRationaleLoading, setIsRationaleLoading] = useState<boolean>(false);
+  const [spinnerRotation, setSpinnerRotation] = useState<number>(0);
+  const [postNumber, setPostNumber] = useState<number>(1);
 
   useEffect(() => {
-    // Send height once after mount, that's it
-    const timer = setTimeout(() => {
-      const height = document.documentElement.scrollHeight;
-      window.parent.postMessage({
-        source: 'negation-game-embed',
-        type: 'resize',
-        height: Math.min(height, 600) // Cap at 600px
-      }, '*');
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    // Recalculate height when expanded state changes
-    if (isExpanded || selectedRationale) {
-      const timer = setTimeout(() => {
-        const height = document.documentElement.scrollHeight;
-        window.parent.postMessage({
-          source: 'negation-game-embed',
-          type: 'resize',
-          height: Math.min(height, 1200) // Allow more height for full rationale embed
-        }, '*');
-      }, 300); // Longer delay to account for iframe loading
-      return () => clearTimeout(timer);
+    // Try to get post number from URL parameters or parent frame
+    const urlParams = new URLSearchParams(window.location.search);
+    const postParam = urlParams.get('post');
+    if (postParam) {
+      setPostNumber(parseInt(postParam) || 1);
     }
-  }, [isExpanded, selectedRationale]);
 
-  useEffect(() => {
-    // Listen for messages from embedded rationale iframes
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data.source === 'negation-game-rationale') {
-        const embeddedHeight = event.data.height;
-        console.log('Received height from rationale:', embeddedHeight);
-
-        // Update the iframe height first
-        const iframe = document.querySelector('iframe[title*="Rationale:"]') as HTMLIFrameElement;
-        if (iframe) {
-          iframe.style.height = `${embeddedHeight}px`;
-          console.log('Updated iframe height to:', embeddedHeight);
-        }
-
-        // Then calculate and send total container height
-        setTimeout(() => {
-          const totalHeight = document.documentElement.scrollHeight;
-          console.log('Sending total height to parent:', totalHeight);
-          window.parent.postMessage({
-            source: 'negation-game-embed',
-            type: 'resize',
-            height: Math.min(totalHeight, 1500) // Increased limit for larger content
-          }, '*');
-        }, 200); // Longer delay to ensure DOM updates
+    // Alternative: listen for post number from parent frame
+    const handlePostNumber = (event: MessageEvent) => {
+      if (event.data?.type === 'post-number' && typeof event.data.postNumber === 'number') {
+        setPostNumber(event.data.postNumber);
       }
     };
 
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    window.addEventListener('message', handlePostNumber);
+    return () => window.removeEventListener('message', handlePostNumber);
   }, []);
+
+  useEffect(() => {
+    const sendHeight = () => {
+      const height = document.documentElement.scrollHeight;
+      const finalHeight = selectedRationaleId ? height : height;
+      window.parent.postMessage({
+        source: 'negation-game-embed',
+        type: 'resize',
+        height: finalHeight
+      }, '*');
+    };
+
+    // Send immediately and after a delay to ensure proper measurement
+    sendHeight();
+    const timer = setTimeout(sendHeight, 500);
+
+    return () => clearTimeout(timer);
+  }, [selectedRationaleId, isRationaleLoading]);
+
+  // Spinner animation
+  useEffect(() => {
+    let animationFrame: number;
+    if (isRationaleLoading) {
+      const animate = () => {
+        setSpinnerRotation(prev => (prev + 8) % 360);
+        animationFrame = requestAnimationFrame(animate);
+      };
+      animationFrame = requestAnimationFrame(animate);
+    }
+    return () => {
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+      }
+    };
+  }, [isRationaleLoading]);
 
   // Always use relative URLs to avoid hydration mismatch
   const getFullUrl = (path: string) => path;
@@ -102,23 +98,18 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
 
   const handleViewRationale = (rationale: Rationale, e: React.MouseEvent) => {
     e.preventDefault();
-    setSelectedRationale(rationale);
-    setIsExpanded(true);
+    setIsRationaleLoading(true);
+    setSelectedRationaleId(rationale.id);
   };
 
-  const handleCloseRationale = () => {
-    setSelectedRationale(null);
-    setIsExpanded(false);
-
+  const handleBackToList = () => {
+    setIsRationaleLoading(true);
     setTimeout(() => {
-      const height = Math.min(document.documentElement.scrollHeight, 600);
-      window.parent.postMessage({
-        source: 'negation-game-embed',
-        type: 'resize',
-        height
-      }, '*');
+      setSelectedRationaleId(null);
+      setIsRationaleLoading(false);
     }, 300);
   };
+
 
   const containerStyle = {
     padding: '16px',
@@ -128,6 +119,111 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
     color: '#222',
     backgroundColor: '#fff'
   };
+
+  // Only show topic list embed on post 1 (first post in frame)
+  if (postNumber !== 1 && !selectedRationaleId) {
+    return (
+      <div style={containerStyle}>
+        <div style={{
+          border: '1px solid #ddd',
+          borderRadius: '4px',
+          padding: '12px',
+          textAlign: 'center',
+          backgroundColor: '#f8f8f8',
+          fontSize: '12px',
+          color: '#666'
+        }}>
+          Topic embeds only available on the first post
+        </div>
+      </div>
+    );
+  }
+
+  // If a rationale is selected, show the inline preview  
+  if (selectedRationaleId) {
+    return (
+      <div style={containerStyle}>
+        <div style={{ marginBottom: '12px', borderBottom: '1px solid #eee', paddingBottom: '8px' }}>
+          <button
+            onClick={handleBackToList}
+            style={{
+              backgroundColor: 'transparent',
+              border: '1px solid #ddd',
+              padding: '4px 8px',
+              borderRadius: '3px',
+              fontSize: '12px',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              color: '#666'
+            }}
+          >
+            ← Back to {topic.name}
+          </button>
+        </div>
+
+        {/* Loading state */}
+        {isRationaleLoading && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '200px',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            backgroundColor: '#f9f9f9',
+            marginBottom: '8px'
+          }}>
+            <div style={{
+              width: '16px',
+              height: '16px',
+              border: '2px solid #ddd',
+              borderTop: '2px solid #0088cc',
+              borderRadius: '50%',
+              transform: `rotate(${spinnerRotation}deg)`,
+              transition: 'transform 0.1s linear'
+            }} />
+            <span style={{ marginLeft: '8px', fontSize: '13px', color: '#666' }}>
+              Loading rationale...
+            </span>
+          </div>
+        )}
+
+        <iframe
+          src={`/embed/rationale/${selectedRationaleId}`}
+          style={{
+            width: '100%',
+            height: isRationaleLoading ? '0px' : '450px',
+            border: 'none',
+            borderRadius: '4px',
+            display: isRationaleLoading ? 'none' : 'block'
+          }}
+          title="Rationale Preview"
+          onLoad={(e) => {
+            setIsRationaleLoading(false);
+
+            const handleNestedHeight = (event: MessageEvent) => {
+              if (event.data?.source === 'negation-game-embed' && event.data?.type === 'resize') {
+                const iframe = e.target as HTMLIFrameElement;
+                iframe.style.height = `${event.data.height}px`;
+
+                setTimeout(() => {
+                  const totalHeight = document.documentElement.scrollHeight;
+                  window.parent.postMessage({
+                    source: 'negation-game-embed',
+                    type: 'resize',
+                    height: totalHeight + 20
+                  }, '*');
+                }, 100);
+              }
+            };
+
+            window.addEventListener('message', handleNestedHeight);
+            return () => window.removeEventListener('message', handleNestedHeight);
+          }}
+        />
+      </div>
+    );
+  }
 
   if (rationales.length === 0) {
     return (
@@ -206,7 +302,7 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
       </div>
 
       <div style={{ marginBottom: '12px' }}>
-        {rationales.slice(0, 3).map((rationale) => (
+        {rationales.slice(0, 6).map((rationale) => (
           <div key={rationale.id} style={{
             border: '1px solid #ddd',
             borderRadius: '3px',
@@ -249,8 +345,9 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
                   View
                 </button>
                 <a
-                  href={getFullUrl(`/s/${topic.space}/rationale/${rationale.id}`)}
-                  onClick={(e) => handleLinkClick(e, `/s/${topic.space}/rationale/${rationale.id}`)}
+                  href={`/s/${topic.space}/rationale/${rationale.id}`}
+                  target="_blank"
+                  rel="noopener,noreferrer"
                   style={{
                     display: 'inline-block',
                     backgroundColor: '#f0f0f0',
@@ -271,7 +368,7 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
         ))}
       </div>
 
-      {rationales.length > 3 && (
+      {rationales.length > 6 && (
         <div style={{ textAlign: 'center', marginBottom: '12px' }}>
           <a
             href={getFullUrl(`/s/${topic.space}/topic/${encodeId(topic.id)}`)}
@@ -288,151 +385,6 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
       )}
 
 
-      {selectedRationale && isExpanded && (
-        <div style={{
-          marginTop: '12px',
-          border: '1px solid #ddd',
-          borderRadius: '3px',
-          backgroundColor: '#fff',
-          overflow: 'hidden'
-        }}>
-          <div style={{
-            backgroundColor: '#f8f8f8',
-            padding: '8px 12px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            borderBottom: '1px solid #eee'
-          }}>
-            <h4 style={{ margin: '0', fontSize: '13px', fontWeight: '500', color: '#333' }}>
-              {selectedRationale.title}
-            </h4>
-            <button
-              onClick={handleCloseRationale}
-              style={{
-                backgroundColor: 'transparent',
-                border: 'none',
-                color: '#666',
-                padding: '2px',
-                fontSize: '16px',
-                cursor: 'pointer'
-              }}
-            >
-              ×
-            </button>
-          </div>
-
-          <div style={{
-            backgroundColor: '#fafafa',
-            padding: '8px 12px',
-            borderBottom: '1px solid #eee',
-            display: 'flex',
-            gap: '8px'
-          }}>
-            <a
-              href={getFullUrl(`/s/${topic.space}/rationale/${selectedRationale.id}`)}
-              onClick={(e) => handleLinkClick(e, `/s/${topic.space}/rationale/${selectedRationale.id}`)}
-              style={{
-                display: 'inline-block',
-                backgroundColor: '#0088cc',
-                color: 'white',
-                border: 'none',
-                padding: '4px 8px',
-                borderRadius: '2px',
-                fontSize: '11px',
-                textDecoration: 'none',
-                fontWeight: '500'
-              }}
-            >
-              Open Full
-            </a>
-            <a
-              href={getFullUrl(`/s/${topic.space}/topic/${encodeId(topic.id)}`)}
-              onClick={(e) => handleLinkClick(e, `/s/${topic.space}/topic/${encodeId(topic.id)}`)}
-              style={{
-                display: 'inline-block',
-                backgroundColor: '#f0f0f0',
-                color: '#555',
-                border: '1px solid #ccc',
-                padding: '4px 8px',
-                borderRadius: '2px',
-                fontSize: '11px',
-                textDecoration: 'none'
-              }}
-            >
-              Browse Topic
-            </a>
-          </div>
-
-          <div style={{ position: 'relative', minHeight: '200px' }}>
-            <div
-              id={`loading-${selectedRationale.id}`}
-              style={{
-                position: 'absolute',
-                top: '0',
-                left: '0',
-                right: '0',
-                bottom: '0',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: '#f8fafc',
-                color: '#1e293b',
-                fontSize: '14px',
-                fontWeight: '600'
-              }}
-            >
-              <div
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  border: '3px solid #e2e8f0',
-                  borderTop: '3px solid #0088cc',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite',
-                  marginBottom: '12px'
-                }}
-              />
-              <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '4px' }}>
-                Loading Rationale...
-              </div>
-              <div style={{ fontSize: '12px', color: '#64748b', textAlign: 'center' }}>
-                Fetching structured arguments and viewpoints
-              </div>
-              <style>
-                {`
-                  @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                  }
-                `}
-              </style>
-            </div>
-            <iframe
-              src={getFullUrl(`/s/scroll/rationale/${selectedRationale.id}?embed=embed`)}
-              style={{
-                width: '100%',
-                height: '400px',
-                border: 'none',
-                backgroundColor: 'white',
-                opacity: '0',
-                transition: 'opacity 0.3s ease'
-              }}
-              title={`Rationale: ${selectedRationale.title}`}
-              onLoad={(e) => {
-                console.log('Rationale iframe loaded, waiting for height messages...');
-                const iframe = e.target as HTMLIFrameElement;
-                const loadingDiv = document.getElementById(`loading-${selectedRationale.id}`);
-                if (loadingDiv) {
-                  loadingDiv.style.display = 'none';
-                }
-                iframe.style.opacity = '1';
-              }}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

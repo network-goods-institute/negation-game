@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     }
 
     const rationaleMatch = sourceUrl.match(
-      /(?:localhost:\d+|negationgame\.com).*\/rationale\/([a-zA-Z0-9_-]+)/
+      /\/rationale\/([a-zA-Z0-9_-]+)/
     );
     if (rationaleMatch) {
       const rationaleId = rationaleMatch[1];

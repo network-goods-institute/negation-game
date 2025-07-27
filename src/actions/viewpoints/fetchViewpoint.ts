@@ -5,11 +5,13 @@ import {
   viewpointsTable,
   viewpointInteractionsTable,
   topicsTable,
+  rationalePointsTable,
+  endorsementsTable,
 } from "@/db/schema";
 import { activeViewpointsFilter } from "@/db/tables/viewpointsTable";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
-import { eq, sql, and } from "drizzle-orm";
+import { eq, sql, and, count, sum } from "drizzle-orm";
 import { trackViewpointView } from "./trackViewpointView";
 import { calculateViewpointStats } from "@/actions/utils/calculateViewpointStats";
 
@@ -141,6 +143,7 @@ export const fetchViewpointForEmbed = async (id: string) => {
       id: "DISABLED",
       title: "",
       author: "",
+      authorUsername: "",
       description: "",
       topic: "",
       topicId: null,
@@ -154,6 +157,8 @@ export const fetchViewpointForEmbed = async (id: string) => {
         copies: 0,
         totalCred: 0,
         averageFavor: 0,
+        endorsements: 0,
+        pointsCount: 0,
       },
       copiedFromId: null,
     };
@@ -196,11 +201,13 @@ export const fetchViewpointForEmbed = async (id: string) => {
 
   await trackViewpointView(id);
 
+  // Server-side hydrate point data for each graph node (skipped during Jest tests)
   if (
     !process.env.JEST_WORKER_ID &&
     viewpoint.graph &&
     Array.isArray(viewpoint.graph.nodes)
   ) {
+    // Collect unique pointIds from graph nodes
     const pointIds = Array.from(
       new Set(
         viewpoint.graph.nodes
@@ -211,11 +218,19 @@ export const fetchViewpointForEmbed = async (id: string) => {
       )
     );
     if (pointIds.length > 0) {
-      const { fetchPoints } = await import("@/actions/points/fetchPoints");
-      const pointsData: any[] = await fetchPoints(pointIds);
+      // For embeds, pass the space explicitly since they don't have route context
+      const { fetchPointsWithSpace } = await import(
+        "@/actions/points/fetchPoints"
+      );
+      const pointsData: any[] = await fetchPointsWithSpace(
+        pointIds,
+        viewpoint.space ?? "scroll",
+        null
+      );
       const pdMap = new Map<number, any>(
         pointsData.map((p: any) => [p.pointId, p])
       );
+      // Embed initial data into each point node
       const hydratedNodes = viewpoint.graph.nodes.map((node: any) => {
         if (node.type === "point" && node.data?.pointId != null) {
           const initial = pdMap.get(node.data.pointId);
@@ -238,15 +253,32 @@ export const fetchViewpointForEmbed = async (id: string) => {
     createdBy: viewpoint.createdBy,
   });
 
+  const pointsCount = await db
+    .select({ count: count() })
+    .from(rationalePointsTable)
+    .where(eq(rationalePointsTable.rationaleId, id));
+
+  const endorsements = await db
+    .select({ total: sum(endorsementsTable.cred) })
+    .from(endorsementsTable)
+    .innerJoin(
+      rationalePointsTable,
+      eq(endorsementsTable.pointId, rationalePointsTable.pointId)
+    )
+    .where(eq(rationalePointsTable.rationaleId, id));
+
   return {
     ...viewpoint,
+    authorUsername: viewpoint.author,
     description: viewpoint.description,
-    space: "scroll", // Always scroll for embeds
+    space: viewpoint.space,
     statistics: {
       views: viewpoint.views || 0,
       copies: viewpoint.copies || 0,
       totalCred,
       averageFavor,
+      endorsements: Number(endorsements[0]?.total || 0),
+      pointsCount: pointsCount[0]?.count || 0,
     },
   };
 };

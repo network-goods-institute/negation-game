@@ -24,7 +24,17 @@ export default function SourceEmbedClient({ sourceUrl }: Props) {
                 const data = await res.json();
                 if (data.found) {
                     if (data.type === 'rationale') {
-                        router.replace(`/s/scroll/rationale/${data.rationaleId}?embed=embed`);
+                        let rationaleId = data.rationaleId;
+
+                        let match = rationaleId.match(/\/rationale\/([a-zA-Z0-9_-]+)/);
+                        if (match) {
+                            rationaleId = match[1];
+                        } else if (rationaleId.includes('http')) {
+                            const parts = rationaleId.split('/');
+                            rationaleId = parts[parts.length - 1];
+                        }
+
+                        router.replace(`/embed/rationale/${rationaleId}`);
                     } else if (data.type === 'topic' && data.topicId) {
                         const tid = data.topicId as string;
                         const encoded = /^\d+$/.test(tid) ? encodeId(Number(tid)) : tid;

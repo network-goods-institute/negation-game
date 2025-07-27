@@ -192,15 +192,18 @@ export function EmbedTestClient() {
 }
 
 function EmbedTestPage() {
-  const [url, setUrl] = useState('https://forum.scroll.io/t/proposal-scroll-dao-delegate-accelerator-proposal/571');
+  const [url, setUrl] = useState('');
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
+  const [testType, setTestType] = useState<'auto' | 'rationale' | 'topic'>('auto');
+  const [isLoading, setIsLoading] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     const listener = (event: MessageEvent) => {
       if (event.data?.source === 'negation-game-embed' && event.data?.type === 'resize') {
         if (iframeRef.current && iframeRef.current.contentWindow === event.source) {
-          iframeRef.current.style.height = `${Math.min(event.data.height, 1500)}px`;
+          iframeRef.current.style.height = `${event.data.height}px`;
+          setIsLoading(false); // iframe has loaded and sent height
         }
       }
     };
@@ -225,13 +228,145 @@ function EmbedTestPage() {
         </code>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://forum.scroll.io/t/..." style={{ flex: 1, padding: '8px 12px', border: '1px solid #ddd', borderRadius: 4, fontSize: 14 }} />
-        <button onClick={() => setIframeUrl(`${baseUrl}/embed/source?source=${encodeURIComponent(url)}`)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 4, cursor: 'pointer', fontSize: 14 }}>Load</button>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 14 }}>
+            <input
+              type="radio"
+              name="testType"
+              value="auto"
+              checked={testType === 'auto'}
+              onChange={(e) => setTestType(e.target.value as any)}
+            />
+            Auto-detect
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 14 }}>
+            <input
+              type="radio"
+              name="testType"
+              value="rationale"
+              checked={testType === 'rationale'}
+              onChange={(e) => setTestType(e.target.value as any)}
+            />
+            Rationale Thumbnail
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 14 }}>
+            <input
+              type="radio"
+              name="testType"
+              value="topic"
+              checked={testType === 'topic'}
+              onChange={(e) => setTestType(e.target.value as any)}
+            />
+            Topic List
+          </label>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder={testType === 'rationale' ? 'Rationale URL or ID (e.g., http://localhost:3001/s/scroll/rationale/w3nVMzXByBlBwQJyLe7ze)' : 'https://forum.scroll.io/t/...'}
+            style={{ flex: 1, padding: '8px 12px', border: '1px solid #ddd', borderRadius: 4, fontSize: 14 }}
+          />
+          <button
+            onClick={() => {
+              setIsLoading(true);
+              if (testType === 'rationale') {
+                // Extract ID from URL if it's a full URL
+                let rationaleId = url;
+                const match = url.match(/\/rationale\/([a-zA-Z0-9_-]+)/);
+                if (match) {
+                  rationaleId = match[1];
+                } else if (url.includes('http')) {
+                  // If it's still a full URL, try extracting from end
+                  const parts = url.split('/');
+                  rationaleId = parts[parts.length - 1];
+                }
+                setIframeUrl(`${baseUrl}/embed/rationale/${rationaleId}`);
+              } else {
+                // Both topic and auto modes use the same URL as Discourse production
+                setIframeUrl(`${baseUrl}/embed/source?source=${encodeURIComponent(url)}`);
+              }
+            }}
+            style={{
+              background: isLoading ? '#9ca3af' : '#3b82f6',
+              color: '#fff',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: 4,
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              fontSize: 14,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+            disabled={isLoading}
+          >
+            {isLoading && (
+              <div style={{
+                width: '16px',
+                height: '16px',
+                border: '2px solid #ffffff',
+                borderTop: '2px solid transparent',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }}></div>
+            )}
+            {isLoading ? 'Loading...' : 'Load'}
+          </button>
+        </div>
       </div>
       {iframeUrl && (
-        <iframe ref={iframeRef} src={iframeUrl} scrolling="no" style={{ width: '100%', border: 'none', minHeight: 200 }} title="Negation Game Embed" />
+        <div style={{ position: 'relative' }}>
+          {isLoading && (
+            <div style={{
+              position: 'absolute',
+              top: '0',
+              left: '0',
+              right: '0',
+              bottom: '0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'rgba(248, 250, 252, 0.9)',
+              zIndex: 10,
+              minHeight: '200px'
+            }}>
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  border: '3px solid #e2e8f0',
+                  borderTop: '3px solid #3b82f6',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }}></div>
+                <div style={{ fontSize: '14px', color: '#64748b' }}>Loading embed...</div>
+              </div>
+            </div>
+          )}
+          <iframe
+            ref={iframeRef}
+            src={iframeUrl}
+            scrolling="no"
+            style={{ width: '100%', border: 'none', minHeight: 200 }}
+            title="Negation Game Embed"
+          />
+        </div>
       )}
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
     </div>
   );
 }
