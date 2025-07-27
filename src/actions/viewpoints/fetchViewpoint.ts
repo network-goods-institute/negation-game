@@ -196,9 +196,42 @@ export const fetchViewpointForEmbed = async (id: string) => {
 
   await trackViewpointView(id);
 
-  // For embeds, we skip the point hydration to avoid getSpace() calls
-  // The embed doesn't need the full point data anyway
-  // not yet anyway
+  if (
+    !process.env.JEST_WORKER_ID &&
+    viewpoint.graph &&
+    Array.isArray(viewpoint.graph.nodes)
+  ) {
+    const pointIds = Array.from(
+      new Set(
+        viewpoint.graph.nodes
+          .filter(
+            (node: any) => node.type === "point" && node.data?.pointId != null
+          )
+          .map((node: any) => node.data.pointId as number)
+      )
+    );
+    if (pointIds.length > 0) {
+      const { fetchPoints } = await import("@/actions/points/fetchPoints");
+      const pointsData: any[] = await fetchPoints(pointIds);
+      const pdMap = new Map<number, any>(
+        pointsData.map((p: any) => [p.pointId, p])
+      );
+      const hydratedNodes = viewpoint.graph.nodes.map((node: any) => {
+        if (node.type === "point" && node.data?.pointId != null) {
+          const initial = pdMap.get(node.data.pointId);
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              initialPointData: initial ?? null,
+            },
+          };
+        }
+        return node;
+      });
+      viewpoint.graph = { nodes: hydratedNodes, edges: viewpoint.graph.edges };
+    }
+  }
 
   const { totalCred, averageFavor } = await calculateViewpointStats({
     graph: viewpoint.graph,

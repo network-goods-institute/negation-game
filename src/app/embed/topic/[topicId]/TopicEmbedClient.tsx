@@ -179,9 +179,10 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
         <div style={{ fontSize: '14px', fontWeight: '600', color: '#111' }}>
           {topic.name}
         </div>
-        <span style={{ fontSize: '12px', color: '#888' }}>
-          {rationales.length} rationale{rationales.length !== 1 ? 's' : ''}
-        </span>
+        <div style={{ fontSize: '12px', color: '#888', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span>{rationales.length} rationale{rationales.length !== 1 ? 's' : ''}</span>
+          <span style={{ color: '#bbb', fontSize: '10px' }}>via Negation Game</span>
+        </div>
       </div>
 
       <div style={{ marginBottom: '12px' }}>
@@ -227,7 +228,7 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
                   {rationale.title}
                 </h4>
                 <div style={{ fontSize: '11px', color: '#888' }}>
-                  by {rationale.authorUsername} • {rationale.statistics.views} views
+                  by {rationale.authorUsername} • {rationale.statistics.views} views • {rationale.statistics.copies} copies • {rationale.statistics.totalCred} cred • {rationale.statistics.averageFavor.toFixed(0)} favor
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '6px', marginLeft: '12px' }}>
