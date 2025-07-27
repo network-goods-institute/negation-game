@@ -24,6 +24,13 @@ import { DeletePointDialog } from '@/components/dialogs/DeletePointDialog';
 import { useDeletePoint } from '@/mutations/points/useDeletePoint';
 import { isWithinDeletionTimelock } from '@/lib/negation-game/deleteTimelock';
 import { useRouter, usePathname } from 'next/navigation';
+import { validatePointDeletion } from '@/actions/points/validatePointDeletion';
+import { 
+    generateConfirmationRequirement, 
+    validateConfirmation, 
+    getConfirmationPreview 
+} from '@/lib/negation-game/deletionConfirmation';
+import { useQuery } from '@tanstack/react-query';
 
 // Enable fake timers
 jest.useFakeTimers();
@@ -31,6 +38,9 @@ jest.useFakeTimers();
 // Mock all the dependencies
 jest.mock('@/mutations/points/useDeletePoint');
 jest.mock('@/lib/negation-game/deleteTimelock');
+jest.mock('@/actions/points/validatePointDeletion');
+jest.mock('@/lib/negation-game/deletionConfirmation');
+jest.mock('@tanstack/react-query');
 jest.mock('next/navigation', () => ({
     useRouter: jest.fn(),
     usePathname: jest.fn(),
@@ -89,12 +99,30 @@ describe('DeletePointDialog', () => {
     const mockIsPending = jest.fn();
     const mockReplace = jest.fn();
     let mockPathname = '/p/123';
+    
+    // Mock data
+    const mockValidationData = {
+        canDelete: true,
+        errors: [],
+        warnings: [],
+        point: {
+            id: 123,
+            content: "Test point content for deletion",
+            createdAt: new Date(),
+            createdBy: 'test-user'
+        }
+    };
+    
+    const mockConfirmationRequirement = {
+        type: 'first-words' as const,
+        description: 'Type the first 3 words of this point',
+        requirement: 'Test point content'
+    };
 
     // Set up useState and other hooks mocks
     const originalUseState = React.useState;
     const mockSetConfirmText = jest.fn();
-    const mockSetHasDeleted = jest.fn();
-    const mockSetHoursLeft = jest.fn();
+    const mockSetConfirmationRequirement = jest.fn();
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -103,10 +131,26 @@ describe('DeletePointDialog', () => {
         (useDeletePoint as jest.Mock).mockReturnValue({
             mutate: mockDeletePoint,
             isPending: false,
+            isSuccess: false,
         });
 
         // Mock isWithinDeletionTimelock
         (isWithinDeletionTimelock as jest.Mock).mockReturnValue(true);
+
+        // Mock validation function
+        (validatePointDeletion as jest.Mock).mockResolvedValue(mockValidationData);
+        
+        // Mock confirmation functions
+        (generateConfirmationRequirement as jest.Mock).mockReturnValue(mockConfirmationRequirement);
+        (validateConfirmation as jest.Mock).mockReturnValue(false);
+        (getConfirmationPreview as jest.Mock).mockReturnValue('Test point content');
+        
+        // Mock useQuery
+        (useQuery as jest.Mock).mockReturnValue({
+            data: mockValidationData,
+            isLoading: false,
+            error: null,
+        });
 
         // Mock router
         (useRouter as jest.Mock).mockReturnValue({
@@ -120,7 +164,7 @@ describe('DeletePointDialog', () => {
         // @ts-ignore - Mocking useState
         React.useState = jest.fn()
             .mockImplementationOnce(() => ['', mockSetConfirmText]) // confirmText state
-            .mockImplementationOnce(() => [false, mockSetHasDeleted]); // hasDeleted state
+            .mockImplementationOnce(() => [mockConfirmationRequirement, mockSetConfirmationRequirement]); // confirmationRequirement state
 
         // Mock window.location
         Object.defineProperty(window, 'location', {
@@ -156,11 +200,19 @@ describe('DeletePointDialog', () => {
         const dialog = screen.getByRole('dialog');
         expect(dialog).toBeInTheDocument();
 
-        // Check title
-        expect(screen.getByText('Delete Point')).toBeInTheDocument();
+        // Check title - using role to be more specific
+        expect(screen.getByRole('heading', { name: /Delete Point/ })).toBeInTheDocument();
 
         // Check hours left message - using partial text match
         expect(screen.getByText(/You have 2 hours left to delete this point/)).toBeInTheDocument();
+
+        // Check that validation was called
+        expect(useQuery).toHaveBeenCalledWith({
+            queryKey: ['validate-deletion', 123],
+            queryFn: expect.any(Function),
+            enabled: true,
+            staleTime: 30000,
+        });
 
         // Check confirmation field exists
         const input = screen.getByRole('textbox');
@@ -173,8 +225,19 @@ describe('DeletePointDialog', () => {
     });
 
     it('renders properly when outside deletion window', () => {
-        // Mock isWithinDeletionTimelock to return false
-        (isWithinDeletionTimelock as jest.Mock).mockReturnValue(false);
+        // Mock validation to return error
+        const mockValidationWithError = {
+            canDelete: false,
+            errors: ['Points can only be deleted within 8 hours of creation'],
+            warnings: [],
+            point: mockValidationData.point
+        };
+        
+        (useQuery as jest.Mock).mockReturnValue({
+            data: mockValidationWithError,
+            isLoading: false,
+            error: null,
+        });
 
         render(
             <DeletePointDialog
@@ -187,14 +250,23 @@ describe('DeletePointDialog', () => {
 
         // Should show message about not being able to delete - using partial text match
         expect(screen.getByText(/This point can no longer be deleted/)).toBeInTheDocument();
+        
+        // Should show the error message
+        expect(screen.getByText(/Points can only be deleted within 8 hours of creation/)).toBeInTheDocument();
 
         // Delete button should not exist
         const deleteButton = screen.queryByTestId('delete-button');
         expect(deleteButton).toBeNull();
     });
 
-    it('enables the delete button when "delete" is typed', () => {
+    it('enables the delete button when correct confirmation is typed', () => {
         const onOpenChange = jest.fn();
+        
+        // Mock useState to include confirmationRequirement state
+        // @ts-ignore - Mocking useState
+        React.useState = jest.fn()
+            .mockImplementationOnce(() => ['', mockSetConfirmText]) // confirmText state
+            .mockImplementationOnce(() => [mockConfirmationRequirement, mockSetConfirmationRequirement]); // confirmationRequirement state
 
         const { rerender } = render(
             <DeletePointDialog
@@ -209,19 +281,21 @@ describe('DeletePointDialog', () => {
         const deleteButton = screen.getByTestId('delete-button');
         expect(deleteButton).toBeDisabled();
 
-        // Type "delete" into the confirmation input
+        // Type the required confirmation into the input
         const input = screen.getByRole('textbox');
-        fireEvent.change(input, { target: { value: 'delete' } });
+        fireEvent.change(input, { target: { value: 'Test point content' } });
 
         // The setState mock should have been called
-        expect(mockSetConfirmText).toHaveBeenCalledWith('delete');
+        expect(mockSetConfirmText).toHaveBeenCalledWith('Test point content');
+
+        // Mock validation to return true for correct input
+        (validateConfirmation as jest.Mock).mockReturnValue(true);
 
         // Re-render with the state updated
-        // Reset the useState mock for the next render
         // @ts-ignore - Mocking useState
         React.useState = jest.fn()
-            .mockImplementationOnce(() => ['delete', mockSetConfirmText]) // confirmation state now "delete"
-            .mockImplementationOnce(() => [false, mockSetHasDeleted]); // hasDeleted state
+            .mockImplementationOnce(() => ['Test point content', mockSetConfirmText]) // confirmation state with correct text
+            .mockImplementationOnce(() => [mockConfirmationRequirement, mockSetConfirmationRequirement]); // confirmationRequirement state
 
         rerender(
             <DeletePointDialog
@@ -238,11 +312,14 @@ describe('DeletePointDialog', () => {
     });
 
     it('calls deletePoint when delete button is clicked', () => {
-        // Mock the confirmation being "delete" already
+        // Mock the confirmation being correct already
         // @ts-ignore - Mocking useState
         React.useState = jest.fn()
-            .mockImplementationOnce(() => ['delete', mockSetConfirmText]) // confirmation already "delete"
-            .mockImplementationOnce(() => [false, mockSetHasDeleted]); // hasDeleted state
+            .mockImplementationOnce(() => ['Test point content', mockSetConfirmText]) // confirmation already correct
+            .mockImplementationOnce(() => [mockConfirmationRequirement, mockSetConfirmationRequirement]); // confirmationRequirement state
+            
+        // Mock validation to return true
+        (validateConfirmation as jest.Mock).mockReturnValue(true);
 
         const onOpenChange = jest.fn();
 
@@ -255,18 +332,12 @@ describe('DeletePointDialog', () => {
             />
         );
 
-        // Find the delete button - should be enabled with 'delete' typed
+        // Find the delete button - should be enabled with correct confirmation typed
         const deleteButton = screen.getByTestId('delete-button');
         expect(deleteButton).not.toBeDisabled();
 
         // Click the delete button
         fireEvent.click(deleteButton);
-
-        // Should close the dialog
-        expect(onOpenChange).toHaveBeenCalledWith(false);
-
-        // Should set hasDeleted to true
-        expect(mockSetHasDeleted).toHaveBeenCalledWith(true);
 
         // Verify deletePoint was called with correct argument
         expect(mockDeletePoint).toHaveBeenCalledWith(
@@ -274,53 +345,45 @@ describe('DeletePointDialog', () => {
         );
     });
 
-    it('should extract correct space URL from different pathnames', () => {
-        // Test cases for path extraction
-        const testCases = [
-            { path: '/s/test-space/p/123', expected: '/s/test-space' },
-            { path: '/s/another-space/p/456/thread/789', expected: '/s/another-space' },
-            { path: '/p/123', expected: '/' },
-        ];
+    it('should handle redirect after successful deletion', () => {
+        // Mock successful deletion
+        (useDeletePoint as jest.Mock).mockReturnValue({
+            mutate: mockDeletePoint,
+            isPending: false,
+            isSuccess: true,
+        });
+        
+        // Mock useState with correct confirmation
+        // @ts-ignore - Mocking useState
+        React.useState = jest.fn()
+            .mockImplementationOnce(() => ['Test point content', mockSetConfirmText])
+            .mockImplementationOnce(() => [mockConfirmationRequirement, mockSetConfirmationRequirement]);
+            
+        // Mock validation to return true
+        (validateConfirmation as jest.Mock).mockReturnValue(true);
+        
+        // Set the current pathname to a space path
+        (usePathname as jest.Mock).mockReturnValue('/s/test-space/p/123');
 
-        for (const { path, expected } of testCases) {
-            jest.clearAllMocks();
+        const onOpenChange = jest.fn();
 
-            // Set the current pathname
-            (usePathname as jest.Mock).mockReturnValue(path);
+        render(
+            <DeletePointDialog
+                open={true}
+                onOpenChange={onOpenChange}
+                pointId={123}
+                createdAt={new Date(Date.now() - 6 * 60 * 60 * 1000)}
+            />
+        );
 
-            // Mock useState for this iteration
-            // @ts-ignore - Mocking useState
-            React.useState = jest.fn()
-                .mockImplementationOnce(() => ['delete', mockSetConfirmText])
-                .mockImplementationOnce(() => [false, mockSetHasDeleted]);
+        // Should close the dialog due to isSuccess
+        expect(onOpenChange).toHaveBeenCalledWith(false);
 
-            // Mock router with a replace function
-            (useRouter as jest.Mock).mockReturnValue({
-                replace: mockReplace,
-            });
+        // Advance timers to trigger setTimeout callback for redirect
+        jest.advanceTimersByTime(1000);
 
-            const { unmount } = render(
-                <DeletePointDialog
-                    open={true}
-                    onOpenChange={jest.fn()}
-                    pointId={123}
-                    createdAt={new Date(Date.now() - 6 * 60 * 60 * 1000)}
-                />
-            );
-
-            // Click the delete button to trigger the navigation
-            const deleteButton = screen.getByTestId('delete-button');
-            fireEvent.click(deleteButton);
-
-            // Check that setHasDeleted was called (which triggers redirect)
-            expect(mockSetHasDeleted).toHaveBeenCalledWith(true);
-
-            // Advance timers to trigger setTimeout callback
-            jest.advanceTimersByTime(1000);
-
-            // Clean up after each test case
-            unmount();
-        }
+        // Should redirect to space root
+        expect(mockReplace).toHaveBeenCalledWith('/s/test-space');
     });
 
     it('handles deletion when pending and successful', async () => {
@@ -328,7 +391,17 @@ describe('DeletePointDialog', () => {
         (useDeletePoint as jest.Mock).mockReturnValue({
             mutate: mockDeletePoint,
             isPending: true,
+            isSuccess: false,
         });
+        
+        // Mock useState with correct confirmation
+        // @ts-ignore - Mocking useState
+        React.useState = jest.fn()
+            .mockImplementationOnce(() => ['Test point content', mockSetConfirmText])
+            .mockImplementationOnce(() => [mockConfirmationRequirement, mockSetConfirmationRequirement]);
+            
+        // Mock validation to return true
+        (validateConfirmation as jest.Mock).mockReturnValue(true);
 
         const { rerender } = render(
             <DeletePointDialog
@@ -348,13 +421,14 @@ describe('DeletePointDialog', () => {
         (useDeletePoint as jest.Mock).mockReturnValue({
             mutate: mockDeletePoint,
             isPending: false,
+            isSuccess: false,
         });
 
         // Reset useState mock for rerender
         // @ts-ignore - Mocking useState
         React.useState = jest.fn()
-            .mockImplementationOnce(() => ['delete', mockSetConfirmText])
-            .mockImplementationOnce(() => [false, mockSetHasDeleted]);
+            .mockImplementationOnce(() => ['Test point content', mockSetConfirmText])
+            .mockImplementationOnce(() => [mockConfirmationRequirement, mockSetConfirmationRequirement]);
 
         rerender(
             <DeletePointDialog
@@ -368,7 +442,7 @@ describe('DeletePointDialog', () => {
         // Button should now be enabled
         const updatedDeleteButton = screen.getByTestId('delete-button');
         expect(updatedDeleteButton).not.toBeDisabled();
-        expect(updatedDeleteButton.textContent).toBe('Delete');
+        expect(updatedDeleteButton.textContent).toBe('Delete Point');
     });
 
     it('should close dialog when cancel is clicked', () => {

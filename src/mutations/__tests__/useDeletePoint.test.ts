@@ -29,26 +29,12 @@ jest.mock("@privy-io/react-auth", () => ({
   usePrivy: jest.fn(),
 }));
 
-jest.mock("next/navigation", () => ({
-  useRouter: jest.fn(),
-  usePathname: jest.fn(),
-}));
-
 jest.mock("sonner", () => ({
   toast: {
     success: jest.fn(),
     error: jest.fn(),
   },
 }));
-
-// Mock React hooks manually
-jest.mock("react", () => {
-  const originalReact = jest.requireActual("react");
-  return {
-    ...originalReact,
-    useCallback: jest.fn((callback, deps) => callback),
-  };
-});
 
 // Instead of mocking the action itself, mock its dependencies
 jest.mock("@/actions/points/deletePoint", () => {
@@ -69,9 +55,7 @@ import { deletePoint } from "@/actions/points/deletePoint";
 import { useInvalidateRelatedPoints } from "@/queries/points/usePointData";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePrivy } from "@privy-io/react-auth";
-import { useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
-import { useCallback } from "react";
 
 describe("useDeletePoint", () => {
   // Setup common mocks
@@ -80,13 +64,6 @@ describe("useDeletePoint", () => {
     invalidateQueries: jest.fn(),
   };
   const mockUser = { id: "user-123" };
-  const mockRouter = {
-    replace: jest.fn(),
-    back: jest.fn(),
-    push: jest.fn(),
-  };
-  const mockPathname = "/s/test-space/p/123";
-
   // For storing callback references in tests
   type SuccessCallbackType = (data: any, variables: any) => void;
   type ErrorCallbackType = (error: Error) => void;
@@ -106,9 +83,6 @@ describe("useDeletePoint", () => {
     );
     (useQueryClient as jest.Mock).mockReturnValue(mockQueryClient);
     (usePrivy as jest.Mock).mockReturnValue({ user: mockUser });
-    (useRouter as jest.Mock).mockReturnValue(mockRouter);
-    (usePathname as jest.Mock).mockReturnValue(mockPathname);
-    (useCallback as jest.Mock).mockImplementation((fn) => fn);
   });
 
   afterEach(() => {
@@ -205,149 +179,15 @@ describe("useDeletePoint", () => {
       refetchType: "all",
     });
 
-    // Check router redirect
-    expect(mockRouter.replace).toHaveBeenCalledWith("/s/test-space");
+    // Check deletion validation cache invalidation
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["validate-deletion", 123],
+    });
+
+    // Note: Redirect logic is now handled in DeletePointDialog component
   });
 
-  it("should redirect to /s/test-space when pathname is /s/test-space/p/123", async () => {
-    jest.clearAllMocks();
-    (usePathname as jest.Mock).mockReturnValue("/s/test-space/p/123");
-
-    // For storing the success callback
-    let capturedOnSuccess: SuccessCallbackType | undefined;
-
-    // Mock useAuthenticatedMutation to capture the onSuccess callback
-    (useAuthenticatedMutation as jest.Mock).mockImplementation(
-      ({ mutationFn, onSuccess, onError }) => {
-        capturedOnSuccess = onSuccess;
-        return {
-          mutate: jest.fn(),
-          isPending: false,
-          isSuccess: false,
-        };
-      }
-    );
-
-    // Call the hook
-    useDeletePoint();
-
-    // Execute the onSuccess callback
-    expect(capturedOnSuccess).toBeDefined();
-    if (capturedOnSuccess) {
-      capturedOnSuccess(
-        { success: true, message: "Point deleted successfully" },
-        { pointId: 123 }
-      );
-    }
-
-    // Check router redirect to the correct space URL
-    expect(mockRouter.replace).toHaveBeenCalledWith("/s/test-space");
-  });
-
-  it("should redirect to /s/another-space when pathname is /s/another-space", async () => {
-    jest.clearAllMocks();
-    (usePathname as jest.Mock).mockReturnValue("/s/another-space");
-
-    // For storing the success callback
-    let capturedOnSuccess: SuccessCallbackType | undefined;
-
-    // Mock useAuthenticatedMutation to capture the onSuccess callback
-    (useAuthenticatedMutation as jest.Mock).mockImplementation(
-      ({ mutationFn, onSuccess, onError }) => {
-        capturedOnSuccess = onSuccess;
-        return {
-          mutate: jest.fn(),
-          isPending: false,
-          isSuccess: false,
-        };
-      }
-    );
-
-    // Call the hook
-    useDeletePoint();
-
-    // Execute the onSuccess callback
-    expect(capturedOnSuccess).toBeDefined();
-    if (capturedOnSuccess) {
-      capturedOnSuccess(
-        { success: true, message: "Point deleted successfully" },
-        { pointId: 123 }
-      );
-    }
-
-    // Check router redirect to the correct space URL
-    expect(mockRouter.replace).toHaveBeenCalledWith("/s/another-space");
-  });
-
-  it("should redirect to / when pathname is /p/456", async () => {
-    jest.clearAllMocks();
-    (usePathname as jest.Mock).mockReturnValue("/p/456");
-
-    // For storing the success callback
-    let capturedOnSuccess: SuccessCallbackType | undefined;
-
-    // Mock useAuthenticatedMutation to capture the onSuccess callback
-    (useAuthenticatedMutation as jest.Mock).mockImplementation(
-      ({ mutationFn, onSuccess, onError }) => {
-        capturedOnSuccess = onSuccess;
-        return {
-          mutate: jest.fn(),
-          isPending: false,
-          isSuccess: false,
-        };
-      }
-    );
-
-    // Call the hook
-    useDeletePoint();
-
-    // Execute the onSuccess callback
-    expect(capturedOnSuccess).toBeDefined();
-    if (capturedOnSuccess) {
-      capturedOnSuccess(
-        { success: true, message: "Point deleted successfully" },
-        { pointId: 123 }
-      );
-    }
-
-    // Check router redirect to the correct space URL
-    expect(mockRouter.replace).toHaveBeenCalledWith("/");
-  });
-
-  it("should redirect to / when pathname is /", async () => {
-    jest.clearAllMocks();
-    (usePathname as jest.Mock).mockReturnValue("/");
-
-    // For storing the success callback
-    let capturedOnSuccess: SuccessCallbackType | undefined;
-
-    // Mock useAuthenticatedMutation to capture the onSuccess callback
-    (useAuthenticatedMutation as jest.Mock).mockImplementation(
-      ({ mutationFn, onSuccess, onError }) => {
-        capturedOnSuccess = onSuccess;
-        return {
-          mutate: jest.fn(),
-          isPending: false,
-          isSuccess: false,
-        };
-      }
-    );
-
-    // Call the hook
-    useDeletePoint();
-
-    // Execute the onSuccess callback
-    expect(capturedOnSuccess).toBeDefined();
-    if (capturedOnSuccess) {
-      capturedOnSuccess(
-        { success: true, message: "Point deleted successfully" },
-        { pointId: 123 }
-      );
-    }
-
-    // Check router redirect to the correct space URL
-    expect(mockRouter.replace).toHaveBeenCalledWith("/");
-  });
+  // Redirect tests removed - redirect logic is now handled in DeletePointDialog component
 
   it("should handle failed point deletion", async () => {
     // For storing the success callback
@@ -382,9 +222,8 @@ describe("useDeletePoint", () => {
       "You can only delete your own points"
     );
 
-    // Verify no invalidations or redirects occurred
+    // Verify no invalidations occurred
     expect(mockInvalidateRelatedPoints).not.toHaveBeenCalled();
-    expect(mockRouter.replace).not.toHaveBeenCalled();
   });
 
   it("should handle errors", async () => {
@@ -416,59 +255,5 @@ describe("useDeletePoint", () => {
     expect(toast.error).toHaveBeenCalledWith("Failed to delete point");
   });
 
-  it("should use fallback redirection if router.replace fails", async () => {
-    const mockConsoleError = jest.spyOn(console, "error").mockImplementation();
-
-    // Instead of having the mock throw directly, we'll just have it do nothing
-    // so we can test the actual logic in the component/hook
-    mockRouter.replace.mockReturnValue(undefined);
-
-    // For storing the success callback
-    let capturedOnSuccess: SuccessCallbackType | undefined;
-
-    // Mock useAuthenticatedMutation to capture the onSuccess callback
-    (useAuthenticatedMutation as jest.Mock).mockImplementation(
-      ({ mutationFn, onSuccess, onError }) => {
-        capturedOnSuccess = onSuccess;
-        return {
-          mutate: jest.fn(),
-          isPending: false,
-          isSuccess: false,
-        };
-      }
-    );
-
-    // Call the hook
-    useDeletePoint();
-
-    // Execute the onSuccess callback with our own try/catch to simulate
-    // what would happen if router.replace fails internally
-    expect(capturedOnSuccess).toBeDefined();
-    if (capturedOnSuccess) {
-      // Try to run the captured callback and simulate a router failure
-      try {
-        capturedOnSuccess(
-          { success: true, message: "Point deleted successfully" },
-          { pointId: 123 }
-        );
-
-        // After callback runs, manually trigger the window.location fallback
-        // that should happen in the implementation after router failure
-        window.location.href = "/s/test-space";
-      } catch (error) {
-        console.error("Router failed:", error);
-      }
-    }
-
-    // Check router.replace was called
-    expect(mockRouter.replace).toHaveBeenCalled();
-
-    // Fast-forward timers to trigger any setTimeout fallback
-    jest.runAllTimers();
-
-    // Check window.location fallback was used
-    expect(window.location.href).toBe("/s/test-space");
-
-    mockConsoleError.mockRestore();
-  });
+  // Fallback redirection test removed - redirect logic is now handled in DeletePointDialog component
 });

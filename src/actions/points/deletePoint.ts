@@ -68,7 +68,7 @@ export const deletePoint = async ({
         .select({ id: viewpointsTable.id })
         .from(viewpointsTable)
         .where(
-          sql`${viewpointsTable.graph}::text LIKE '%"pointId":${pointId}%'`
+          sql`${viewpointsTable.graph}::text LIKE ${'%"pointId":' + pointId + '%'}`
         );
 
       if (viewpointsWithPoint.length > 0) {
