@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { GraphView } from '../graph/base/GraphView';
 import useScrollToPoint from '@/hooks/graph/useScrollToPoint';
 import { useReactFlow } from '@xyflow/react';
@@ -6,7 +6,6 @@ import type { ReactFlowInstance } from '@xyflow/react';
 import type { AppNode } from '../graph/nodes/AppNode';
 import type { ViewpointGraph } from '@/atoms/viewpointAtoms';
 import type { NodeChange, EdgeChange } from '@xyflow/react';
-import { toast } from 'sonner';
 import { useGraphPoints } from '@/hooks/graph/useGraphPoints';
 import { useQuery } from '@tanstack/react-query';
 import type { PointData } from '@/queries/points/usePointData';
@@ -76,29 +75,6 @@ export default function RationaleGraph({
     const minCred = creds.length > 0 ? Math.min(...creds) : 0;
     const maxCred = creds.length > 0 ? Math.max(...creds) : 0;
 
-    const toastIdRef = useRef<string | number | null>(null);
-    useEffect(() => {
-        if (toastIdRef.current) {
-            toast.dismiss(toastIdRef.current);
-        }
-        const id = toast(
-            "Node expansions, sharing, and other features may take a few seconds to become available as detailed node data loads.",
-            {
-                position: 'bottom-left',
-                duration: 30000,
-                action: {
-                    label: 'Dismiss',
-                    onClick: () => toast.dismiss(id),
-                },
-            }
-        );
-        toastIdRef.current = id;
-        return () => {
-            if (toastIdRef.current) {
-                toast.dismiss(toastIdRef.current);
-            }
-        };
-    }, []);
     const scrollHandler = useScrollToPoint();
     const reactFlow = useReactFlow<AppNode>();
     const onInit = (instance: ReactFlowInstance<AppNode>) => {
