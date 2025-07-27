@@ -55,6 +55,25 @@ export async function GET(request: NextRequest) {
       return response;
     }
 
+    const rationaleMatch = sourceUrl.match(
+      /(?:localhost:\d+|negationgame\.com).*\/rationale\/([a-zA-Z0-9_-]+)/
+    );
+    if (rationaleMatch) {
+      const rationaleId = rationaleMatch[1];
+
+      const response = NextResponse.json({
+        found: true,
+        type: "rationale",
+        rationaleId: rationaleId,
+        hasRationales: true,
+      });
+
+      response.headers.set("Access-Control-Allow-Origin", corsOrigin);
+      response.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+      response.headers.set("Access-Control-Allow-Headers", "Content-Type");
+      return response;
+    }
+
     if (!isValidScrollUrl(sourceUrl)) {
       const response = NextResponse.json(
         { error: "Invalid source URL. Only forum.scroll.io URLs are allowed." },
@@ -79,6 +98,7 @@ export async function GET(request: NextRequest) {
     if (topic.length === 0) {
       const response = NextResponse.json({
         found: false,
+        type: "topic",
         topicId: null,
         hasRationales: false,
       });
@@ -102,6 +122,7 @@ export async function GET(request: NextRequest) {
 
     const response = NextResponse.json({
       found: true,
+      type: "topic",
       topicId: topicData.id,
       title: topicData.name,
       spaceId: topicData.space,

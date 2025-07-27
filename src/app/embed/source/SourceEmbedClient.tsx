@@ -22,10 +22,14 @@ export default function SourceEmbedClient({ sourceUrl }: Props) {
                 const res = await fetch(`/api/embed/topic-detector?source=${encodeURIComponent(sourceUrl)}`);
                 if (!res.ok) throw new Error(`Detector failed ${res.status}`);
                 const data = await res.json();
-                if (data.found && data.topicId) {
-                    const tid = data.topicId as string;
-                    const encoded = /^\d+$/.test(tid) ? encodeId(Number(tid)) : tid;
-                    router.replace(`/embed/topic/${encoded}`);
+                if (data.found) {
+                    if (data.type === 'rationale') {
+                        router.replace(`/s/scroll/rationale/${data.rationaleId}?embed=embed`);
+                    } else if (data.type === 'topic' && data.topicId) {
+                        const tid = data.topicId as string;
+                        const encoded = /^\d+$/.test(tid) ? encodeId(Number(tid)) : tid;
+                        router.replace(`/embed/topic/${encoded}`);
+                    }
                 } else {
                     setStatus('prompt');
                 }
@@ -57,10 +61,10 @@ export default function SourceEmbedClient({ sourceUrl }: Props) {
     };
 
     if (status === 'loading') return (
-        <div style={{ 
-            fontFamily: 'sans-serif', 
-            padding: 20, 
-            textAlign: 'center', 
+        <div style={{
+            fontFamily: 'sans-serif',
+            padding: 20,
+            textAlign: 'center',
             color: '#1e293b',
             display: 'flex',
             flexDirection: 'column',
@@ -80,10 +84,10 @@ export default function SourceEmbedClient({ sourceUrl }: Props) {
                 }}
             />
             <div style={{ fontSize: 15, fontWeight: 600, marginBottom: '4px' }}>
-                Detecting Topic
+                Analyzing Post
             </div>
             <div style={{ fontSize: 12, color: '#64748b' }}>
-                Scanning for existing discussions
+                Detecting topics and rationales
             </div>
             <style>
                 {`
