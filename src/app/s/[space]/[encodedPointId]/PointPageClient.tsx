@@ -856,7 +856,7 @@ export function PointPageClient({
                             data-show-hover={canvasEnabled && hoveredPointId === pointId}
                             onMouseEnter={() => setHoveredPointId(pointId)}
                             onMouseLeave={() => setHoveredPointId(undefined)}
-                            className=" px-4 py-3 border-b data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
+                            className=" px-4 py-3 border-b data-[show-hover=true]:border-l-4 data-[show-hover=true]:border-l-blue-500 data-[show-hover=true]:dark:border-l-blue-400"
                         >
                             {point?.isObjection && point?.objectionTargetId && (
                                 <div className="mb-2 flex justify-start">
@@ -1113,7 +1113,7 @@ export function PointPageClient({
                                                 <div
                                                     key={`${negation.pointId}-${i}`}
                                                     data-show-hover={canvasEnabled && hoveredPointId === negation.pointId}
-                                                    className="relative border-b data-[show-hover=true]:shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
+                                                    className="relative border-b data-[show-hover=true]:border-l-4 data-[show-hover=true]:border-l-blue-500 data-[show-hover=true]:dark:border-l-blue-400"
                                                 >
                                                     <NegationCard
                                                         negation={negation}

@@ -44,7 +44,7 @@ const RationalePointCardWrapper: React.FC<RationalePointCardWrapperProps> = ({
         <PointCard
             className={cn(
                 className,
-                hoveredPointId === point.pointId && "shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
+                hoveredPointId === point.pointId && "border-l-4 border-l-blue-500 dark:border-l-blue-400"
             )}
             pointId={point.pointId}
             content={pointData.content}
