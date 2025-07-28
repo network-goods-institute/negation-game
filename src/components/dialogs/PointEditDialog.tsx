@@ -8,6 +8,8 @@ import { editPoint } from "@/actions/points/editPoint";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSetAtom } from "jotai";
+import { usePrivy } from "@privy-io/react-auth";
+import { useInvalidateRelatedPoints } from "@/queries/points/usePointData";
 import { AutosizeTextarea } from "@/components/ui/autosize-textarea";
 import { POINT_MAX_LENGTH, POINT_MIN_LENGTH } from "@/constants/config";
 import { addAffectedEdgeAtom } from "@/atoms/affectedRelationshipsAtom";
@@ -37,6 +39,8 @@ export const PointEditDialog = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const queryClient = useQueryClient();
     const addAffectedEdge = useSetAtom(addAffectedEdgeAtom);
+    const { user } = usePrivy();
+    const invalidateRelatedPoints = useInvalidateRelatedPoints();
 
     const isContentChanged = content.trim() !== currentContent.trim();
     const isContentValid = content.trim().length >= POINT_MIN_LENGTH && 
@@ -82,10 +86,30 @@ export const PointEditDialog = ({
                 toast.success("Point updated successfully!");
             }
             
-            // Invalidate point-related queries to refetch updated data
-            queryClient.invalidateQueries({ queryKey: ['point', pointId] });
+            // Comprehensive cache invalidation to update all views
+            
+            // Invalidate point and all related points (handles negations, favor history, etc.)
+            invalidateRelatedPoints(pointId);
+            
+            // Additional specific point queries
+            queryClient.invalidateQueries({ queryKey: ['pointById', pointId] });
             queryClient.invalidateQueries({ queryKey: ['points'] });
             queryClient.invalidateQueries({ queryKey: ['point-data'] });
+            queryClient.invalidateQueries({ queryKey: ['point', pointId, 'endorsementBreakdown'] });
+            
+            // Feed queries (all variants)
+            queryClient.invalidateQueries({ queryKey: ['feed'] });
+            if (user?.id) {
+                queryClient.invalidateQueries({ queryKey: ['feed', user.id] });
+            }
+            
+            // Profile and priority points
+            queryClient.invalidateQueries({ queryKey: ['profile-points'] });
+            queryClient.invalidateQueries({ queryKey: ['priority-points'] });
+            
+            // Graph and rationale views
+            queryClient.invalidateQueries({ queryKey: ['viewpoints'] });
+            queryClient.invalidateQueries({ queryKey: ['rationales'] });
             
             onOpenChange(false);
             setContent(currentContent); // Reset to original if dialog reopens
