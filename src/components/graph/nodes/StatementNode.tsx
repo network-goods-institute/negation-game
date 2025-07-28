@@ -240,7 +240,7 @@ export const StatementNode = ({
         )}
         isConnectableStart={false}
         position={Position.Bottom}
-        style={{ left: "85%" }}
+        style={{ left: "50%" }}
         onClick={() => {
           const answerId = nanoid();
           addNodes({
