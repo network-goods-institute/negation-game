@@ -7,6 +7,7 @@ import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { PointCard } from "@/components/cards/PointCard";
 import { cn } from "@/lib/utils/cn";
+import useFocusNode from "@/hooks/graph/useFocusNode";
 
 export interface RationalePointCardWrapperProps {
     point: { pointId: number; parentId?: number | string };
@@ -31,10 +32,20 @@ const RationalePointCardWrapper: React.FC<RationalePointCardWrapperProps> = ({
     const { originalPosterId } = useOriginalPoster();
     const setNegatedPointId = useSetAtom(negatedPointIdAtom);
     const [hoveredPointId] = useAtom(hoveredPointIdAtom);
+    const focusNode = useFocusNode();
+
     const { data: favorHistory } = useFavorHistory({
         pointId: point.pointId,
         timelineScale: "1W",
     });
+
+    const handleClick = React.useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        if ((e.metaKey || e.ctrlKey) && point.pointId != null) {
+            e.preventDefault();
+            e.stopPropagation();
+            focusNode(point.pointId);
+        }
+    }, [focusNode, point.pointId]);
 
     if (isLoading || !pointData) {
         return <div className={cn("h-32 w-full bg-muted animate-pulse", className)} />;
@@ -42,9 +53,10 @@ const RationalePointCardWrapper: React.FC<RationalePointCardWrapperProps> = ({
 
     return (
         <PointCard
+            onClick={handleClick}
             className={cn(
                 className,
-                hoveredPointId === point.pointId && "border-l-4 border-l-blue-500 dark:border-l-blue-400"
+                hoveredPointId === point.pointId && "border-4 border-blue-500 dark:border-blue-400"
             )}
             pointId={point.pointId}
             content={pointData.content}

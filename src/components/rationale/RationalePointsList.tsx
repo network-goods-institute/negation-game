@@ -40,7 +40,7 @@ export default function RationalePointsList({
                             initialPointData={point.initialPointData}
                             className={cn(
                                 'border-b',
-                                hoveredPointId === point.pointId && 'border-l-4 border-l-blue-500 dark:border-l-blue-400',
+                                hoveredPointId === point.pointId && 'border-4 border-blue-500 dark:border-blue-400',
                                 editMode && 'pr-10',
                                 isSharing && selectedPointIds.has(point.pointId) && 'bg-primary/10'
                             )}
