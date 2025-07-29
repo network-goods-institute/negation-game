@@ -14,41 +14,63 @@ export default async function SpaceMessagesPage({ params }: SpaceMessagesPagePro
   const spaceId = decodeURIComponent(space);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-6xl py-8">
-        <div className="mb-8 space-y-3">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" asChild className="shrink-0">
-              <Link href={`/s/${space}`} className="flex items-center gap-2">
-                <ArrowLeftIcon className="size-4" />
-                <span className="hidden sm:inline">Back to Space</span>
-              </Link>
-            </Button>
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold tracking-tight">Messages</h1>
-              <p className="text-muted-foreground text-lg">
-                Your conversations in this space
-              </p>
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
+      {/* Fixed Top Navigation Bar */}
+      <div className="flex-shrink-0 bg-card border-b border-border shadow-sm">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-4">
+              <Button variant="ghost" size="sm" asChild>
+                <Link href={`/s/${space}`} className="flex items-center space-x-2 text-muted-foreground hover:text-foreground">
+                  <ArrowLeftIcon className="h-4 w-4" />
+                  <span>Back to {spaceId}</span>
+                </Link>
+              </Button>
             </div>
+            <div className="text-center">
+              <h1 className="text-xl font-bold text-foreground">Messages</h1>
+            </div>
+            <div className="w-24"></div>
           </div>
         </div>
+      </div>
 
-        <div className="mb-8">
-          <UserSearch spaceId={spaceId} />
-        </div>
+      {/* Main Content Area */}
+      <div className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+          
+          {/* Left Sidebar - New Conversation */}
+          <div className="lg:col-span-1 flex flex-col">
+            <div className="bg-card rounded-xl shadow-sm border border-border p-4 flex-shrink-0">
+              <h2 className="text-base font-semibold text-card-foreground mb-3">Start New Conversation</h2>
+              <UserSearch spaceId={spaceId} />
+            </div>
+          </div>
 
-        <Suspense
-          fallback={
-            <div className="flex items-center justify-center p-16">
-              <div className="flex flex-col items-center gap-3">
-                <LoaderCircleIcon className="animate-spin size-8 text-primary" />
-                <p className="text-muted-foreground">Loading conversations...</p>
+          {/* Right Content - Conversations List */}
+          <div className="lg:col-span-2 flex flex-col">
+            <div className="bg-card rounded-xl shadow-sm border border-border h-full flex flex-col">
+              <div className="p-4 border-b border-border flex-shrink-0">
+                <h2 className="text-base font-semibold text-card-foreground">Your Conversations</h2>
+              </div>
+              <div className="flex-1 overflow-hidden p-6">
+                <Suspense
+                  fallback={
+                    <div className="flex items-center justify-center h-full">
+                      <div className="flex flex-col items-center space-y-4">
+                        <LoaderCircleIcon className="animate-spin h-8 w-8 text-primary" />
+                        <p className="text-muted-foreground">Loading conversations...</p>
+                      </div>
+                    </div>
+                  }
+                >
+                  <MessagesContainer spaceId={spaceId} />
+                </Suspense>
               </div>
             </div>
-          }
-        >
-          <MessagesContainer spaceId={spaceId} />
-        </Suspense>
+          </div>
+
+        </div>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import {
   timestamp,
   varchar,
   index,
+  bigserial,
 } from "drizzle-orm/pg-core";
 import { usersTable } from "./usersTable";
 import { spacesTable } from "./spacesTable";
@@ -18,6 +19,7 @@ export const messagesTable = pgTable(
       .primaryKey()
       .$defaultFn(() => nanoid()),
     conversationId: varchar("conversation_id", { length: 42 }).notNull(),
+    sequenceNumber: bigserial("sequence_number", { mode: "bigint" }).notNull(),
     content: text("content").notNull(),
     senderId: varchar("sender_id", { length: 255 })
       .notNull()
@@ -40,6 +42,7 @@ export const messagesTable = pgTable(
     conversationIdIdx: index("messages_conversation_id_idx").on(
       table.conversationId
     ),
+    sequenceIdx: index("messages_sequence_idx").on(table.sequenceNumber),
     senderIdIdx: index("messages_sender_id_idx").on(table.senderId),
     recipientIdIdx: index("messages_recipient_id_idx").on(table.recipientId),
     spaceIdx: index("messages_space_idx").on(table.space),

@@ -70,9 +70,14 @@ export const useSendMessage = () => {
         );
       });
 
-      // Invalidate to get fresh data
-      queryClient.invalidateQueries({ queryKey: ["conversations", user.id, variables.spaceId] });
-      queryClient.invalidateQueries({ queryKey: ["unreadMessageCount", variables.spaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["conversations", user.id, variables.spaceId],
+        refetchType: "none",
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["unreadMessageCount", variables.spaceId],
+        refetchType: "none",
+      });
     },
     onError: (error, variables, context) => {
       if (!context || !user) return;

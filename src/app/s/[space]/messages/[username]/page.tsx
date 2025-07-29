@@ -17,39 +17,44 @@ export default async function SpaceConversationPage({ params }: SpaceConversatio
   const username = decodeURIComponent(rawUsername);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-4xl py-8">
-        <div className="mb-8 space-y-3">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" asChild className="shrink-0">
-              <Link href={`/s/${space}/messages`} className="flex items-center gap-2">
-                <ArrowLeftIcon className="size-4" />
-                <span className="hidden sm:inline">Back</span>
-              </Link>
-            </Button>
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold tracking-tight">
-                Conversation with @{username}
-              </h1>
-              <p className="text-muted-foreground text-lg">
-                In space: {spaceId}
-              </p>
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
+      {/* Fixed Top Navigation Bar */}
+      <div className="flex-shrink-0 bg-card border-b border-border shadow-sm">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-4">
+              <Button variant="ghost" size="sm" asChild>
+                <Link href={`/s/${space}/messages`} className="flex items-center space-x-2 text-muted-foreground hover:text-foreground">
+                  <ArrowLeftIcon className="h-4 w-4" />
+                  <span>Back to Messages</span>
+                </Link>
+              </Button>
             </div>
+            <div className="text-center">
+              <h1 className="text-xl font-bold text-foreground">@{username}</h1>
+              <p className="text-sm text-muted-foreground">{spaceId}</p>
+            </div>
+            <div className="w-32"></div>
           </div>
         </div>
+      </div>
 
-        <Suspense
-          fallback={
-            <div className="flex items-center justify-center p-16">
-              <div className="flex flex-col items-center gap-3">
-                <LoaderCircleIcon className="animate-spin size-8 text-primary" />
-                <p className="text-muted-foreground">Loading conversation...</p>
+      {/* Chat Interface - Full Width */}
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full max-w-4xl mx-auto bg-card shadow-sm border-l border-r border-border">
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center h-full">
+                <div className="flex flex-col items-center space-y-4">
+                  <LoaderCircleIcon className="animate-spin h-8 w-8 text-primary" />
+                  <p className="text-muted-foreground">Loading conversation...</p>
+                </div>
               </div>
-            </div>
-          }
-        >
-          <ConversationView username={username} spaceId={spaceId} />
-        </Suspense>
+            }
+          >
+            <ConversationView username={username} spaceId={spaceId} />
+          </Suspense>
+        </div>
       </div>
     </div>
   );

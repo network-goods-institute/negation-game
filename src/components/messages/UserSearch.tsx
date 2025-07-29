@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchUsers } from "@/queries/users/useSearchUsers";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SearchIcon, UserIcon, LoaderIcon, MessageSquareIcon } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
@@ -46,15 +45,15 @@ export function UserSearch({ spaceId, className }: UserSearchProps) {
     const shouldShowDropdown = searchQuery.trim().length > 0 && isOpen;
 
     return (
-        <div className={cn("relative max-w-2xl mx-auto", className)} ref={containerRef}>
+        <div className={cn("relative w-full", className)} ref={containerRef}>
             <div className="relative">
                 <SearchIcon className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                    placeholder="Search users to start a conversation..."
+                    placeholder="Search users..."
                     value={searchQuery}
                     onChange={handleInputChange}
                     onFocus={() => setIsOpen(true)}
-                    className="pl-12 pr-12 h-12 text-base border-2 focus:border-primary/50 transition-colors"
+                    className="pl-12 pr-12 h-10 text-sm rounded-lg"
                 />
                 {isLoading && (
                     <LoaderIcon className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 animate-spin text-muted-foreground" />
@@ -62,14 +61,14 @@ export function UserSearch({ spaceId, className }: UserSearchProps) {
             </div>
 
             {shouldShowDropdown && (
-                <div className="absolute top-full z-50 mt-2 w-full rounded-xl border-2 bg-popover shadow-xl">
+                <div className="absolute top-full z-50 mt-2 w-full rounded-lg border border-border bg-popover shadow-xl">
                     {isLoading ? (
-                        <div className="flex items-center gap-3 p-4 text-muted-foreground">
-                            <LoaderIcon className="h-5 w-5 animate-spin" />
-                            <span>Searching users...</span>
+                        <div className="flex items-center gap-4 p-4 text-muted-foreground">
+                            <LoaderIcon className="h-5 w-5 animate-spin text-primary" />
+                            <span className="font-medium">Searching users...</span>
                         </div>
                     ) : error ? (
-                        <div className="p-4 text-red-500 font-medium">
+                        <div className="p-4 text-destructive font-medium">
                             Error searching users. Please try again.
                         </div>
                     ) : users.length > 0 ? (
@@ -80,21 +79,20 @@ export function UserSearch({ spaceId, className }: UserSearchProps) {
                                     onClick={() => handleUserSelect(user.username)}
                                     className={cn(
                                         "flex w-full items-center gap-4 p-4 text-left transition-colors hover:bg-accent focus:bg-accent focus:outline-none",
-                                        index !== users.length - 1 && "border-b border-border/50"
+                                        index === 0 && "rounded-t-lg",
+                                        index === users.length - 1 && "rounded-b-lg",
+                                        index !== users.length - 1 && "border-b border-border"
                                     )}
                                 >
-                                    <Avatar className="h-12 w-12 border-2 border-border/20">
-                                        <AvatarImage src={undefined} />
-                                        <AvatarFallback className="bg-primary/10 text-primary">
-                                            {user.username[0]?.toUpperCase() || <UserIcon className="h-5 w-5" />}
-                                        </AvatarFallback>
-                                    </Avatar>
+                                    <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold">
+                                        {user.username[0]?.toUpperCase() || 'U'}
+                                    </div>
                                     <div className="flex-1 min-w-0">
-                                        <div className="font-semibold text-lg truncate">
+                                        <div className="font-semibold text-popover-foreground truncate">
                                             {user.username}
                                         </div>
                                         <div className="text-sm text-muted-foreground">
-                                            Tap to start messaging
+                                            Start a conversation
                                         </div>
                                     </div>
                                     <MessageSquareIcon className="h-5 w-5 text-muted-foreground" />
@@ -102,10 +100,10 @@ export function UserSearch({ spaceId, className }: UserSearchProps) {
                             ))}
                         </div>
                     ) : (
-                        <div className="p-6 text-center space-y-2">
-                            <UserIcon className="h-12 w-12 mx-auto text-muted-foreground/50" />
-                            <p className="text-muted-foreground font-medium">No users found</p>
-                            <p className="text-sm text-muted-foreground/60">
+                        <div className="p-8 text-center space-y-3">
+                            <UserIcon className="h-12 w-12 mx-auto text-muted-foreground/40" />
+                            <p className="text-popover-foreground font-semibold">No users found</p>
+                            <p className="text-sm text-muted-foreground">
                                 Try searching for a different username
                             </p>
                         </div>

@@ -25,12 +25,17 @@ export const getConversation = async ({
     throw new Error("Must be authenticated to view messages");
   }
 
-  const conversationId = generateConversationId(userId, decodedOtherUserId, spaceId);
+  const conversationId = generateConversationId(
+    userId,
+    decodedOtherUserId,
+    spaceId
+  );
 
   try {
     const messages = await db
       .select({
         id: messagesTable.id,
+        sequenceNumber: messagesTable.sequenceNumber,
         content: messagesTable.content,
         senderId: messagesTable.senderId,
         recipientId: messagesTable.recipientId,
@@ -55,11 +60,11 @@ export const getConversation = async ({
           )
         )
       )
-      .orderBy(desc(messagesTable.createdAt))
+      .orderBy(desc(messagesTable.sequenceNumber))
       .limit(limit)
       .offset(offset);
 
-    return messages.reverse(); // Return in chronological order
+    return messages.reverse();
   } catch (error) {
     throw error;
   }
