@@ -13,6 +13,7 @@ import { nanoid } from "nanoid";
 import { pick } from "remeda";
 import { topicsTable } from "@/db/tables/topicsTable";
 import { eq } from "drizzle-orm";
+import { validatePointsExistence } from "@/actions/points/validatePointsExistence";
 
 export interface PublishViewpointArgs
   extends Omit<
@@ -73,8 +74,30 @@ export const publishViewpoint = async ({
 
   const id = nanoid();
 
+  const pointIds = graph.nodes
+    .filter(
+      (node) =>
+        node.type === "point" &&
+        node.data &&
+        typeof node.data === "object" &&
+        "pointId" in node.data &&
+        typeof node.data.pointId === "number"
+    )
+    .map((node) => (node.data as any).pointId as number);
+
+  if (pointIds.length > 0) {
+    const existingPointIds = await validatePointsExistence(pointIds);
+    const deletedPointIds = pointIds.filter((id) => !existingPointIds.has(id));
+
+    if (deletedPointIds.length > 0) {
+      throw new Error(
+        `Cannot publish rationale: ${deletedPointIds.length} point${deletedPointIds.length === 1 ? "" : "s"} no longer exist${deletedPointIds.length === 1 ? "s" : ""}. Please remove any empty or deleted nodes from your rationale and try again.`
+      );
+    }
+  }
+
   const cleanedGraph = cleanupForPublishing(graph);
-  
+
   const valuesToInsert = {
     id,
     createdBy: userId,
