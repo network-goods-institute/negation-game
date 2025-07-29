@@ -9,10 +9,11 @@ import { toast } from "sonner";
 
 interface MessageInputProps {
     recipientId: string;
+    spaceId: string;
     onMessageSent?: () => void;
 }
 
-export const MessageInput = ({ recipientId, onMessageSent }: MessageInputProps) => {
+export const MessageInput = ({ recipientId, spaceId, onMessageSent }: MessageInputProps) => {
     const [content, setContent] = useState("");
     const sendMutation = useSendMessage();
 
@@ -22,6 +23,7 @@ export const MessageInput = ({ recipientId, onMessageSent }: MessageInputProps) 
         try {
             await sendMutation.mutateAsync({
                 recipientId,
+                spaceId,
                 content: content.trim(),
             });
             setContent("");

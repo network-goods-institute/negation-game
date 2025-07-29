@@ -70,11 +70,11 @@ export type InsertMessage = typeof messagesTable.$inferInsert;
 
 export function generateConversationId(
   userId1: string,
-  userId2: string
+  userId2: string,
+  spaceId: string
 ): string {
   const [user1, user2] = [userId1, userId2].sort();
-  // Use a hash to keep it under 42 chars
-  const combined = `${user1}_${user2}`;
+  const combined = `${user1}_${user2}_${spaceId}`;
   const hash = combined.split("").reduce((a, b) => {
     a = (a << 5) - a + b.charCodeAt(0);
     return a & a;

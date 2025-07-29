@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@/queries/users/useUser";
+import { usePrivy } from "@privy-io/react-auth";
 
 interface ConversationStatus {
   messageCount: number;
@@ -14,17 +15,20 @@ interface ConversationStatus {
 
 interface UseConversationPollingProps {
   otherUserId: string;
+  spaceId: string;
   enabled?: boolean;
   interval?: number;
 }
 
 export const useConversationPolling = ({
   otherUserId,
+  spaceId,
   enabled = true,
-  interval = 2000, // 2 seconds
+  interval = 2000,
 }: UseConversationPollingProps) => {
   const queryClient = useQueryClient();
   const { data: user } = useUser();
+  const { login } = usePrivy();
   const [status, setStatus] = useState<ConversationStatus | null>(null);
   const [hasNewMessages, setHasNewMessages] = useState(false);
   const lastKnownCountRef = useRef<number>(0);
@@ -36,22 +40,20 @@ export const useConversationPolling = ({
 
   // Memoize the invalidation function to avoid recreating fetchStatus
   const invalidateQueries = useCallback(() => {
-    // Invalidate conversation queries with the correct pattern: ["conversation", userId, otherUserId, ...]
     queryClient.invalidateQueries({
-      queryKey: ["conversation", user?.id, otherUserId],
+      queryKey: ["conversation", user?.id, otherUserId, spaceId],
     });
-    // Also invalidate the conversations list
     queryClient.invalidateQueries({
-      queryKey: ["conversations"],
+      queryKey: ["conversations", user?.id, spaceId],
     });
-  }, [queryClient, user?.id, otherUserId]);
+  }, [queryClient, user?.id, otherUserId, spaceId]);
 
   const fetchStatus = useCallback(async () => {
-    if (!enabled || !otherUserId) return;
+    if (!enabled || !otherUserId || !user?.id) return;
 
     try {
       const response = await fetch(
-        `/api/messages/conversation-status?otherUserId=${encodeURIComponent(otherUserId)}`,
+        `/api/spaces/${encodeURIComponent(spaceId)}/messages/conversation-status?otherUserId=${encodeURIComponent(otherUserId)}`,
         {
           method: "GET",
           headers: {
@@ -61,6 +63,11 @@ export const useConversationPolling = ({
       );
 
       if (!response.ok) {
+        if (response.status === 401) {
+          console.warn("Authentication failed, triggering re-auth");
+          login();
+          return;
+        }
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
@@ -109,6 +116,13 @@ export const useConversationPolling = ({
         error
       );
 
+      // Check if it's an auth error and trigger re-auth
+      if (error instanceof Error && error.message.includes("401")) {
+        console.warn("Authentication error detected, triggering re-auth");
+        login();
+        return;
+      }
+
       // Stop polling after too many consecutive errors to prevent infinite loops
       if (errorCountRef.current >= maxErrorsRef.current) {
         console.error("Too many consecutive polling errors, stopping polling");
@@ -123,14 +137,14 @@ export const useConversationPolling = ({
 
   // Initialize on mount
   useEffect(() => {
-    if (enabled && otherUserId) {
+    if (enabled && otherUserId && user?.id) {
       fetchStatus();
     }
-  }, [enabled, otherUserId, fetchStatus]);
+  }, [enabled, otherUserId, user?.id, fetchStatus]);
 
   // Set up polling
   useEffect(() => {
-    if (!enabled || !otherUserId) {
+    if (!enabled || !otherUserId || !user?.id) {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = undefined;
@@ -149,7 +163,7 @@ export const useConversationPolling = ({
         intervalRef.current = undefined;
       }
     };
-  }, [enabled, otherUserId, interval, fetchStatus]);
+  }, [enabled, otherUserId, user?.id, interval, fetchStatus]);
 
   // Reset hasNewMessages when messages are read
   const markAsViewed = useCallback(() => {
@@ -159,10 +173,10 @@ export const useConversationPolling = ({
   // Function to restart polling if it was stopped due to errors
   const restartPolling = useCallback(() => {
     errorCountRef.current = 0;
-    if (enabled && otherUserId && !intervalRef.current) {
+    if (enabled && otherUserId && user?.id && !intervalRef.current) {
       intervalRef.current = setInterval(fetchStatus, interval);
     }
-  }, [enabled, otherUserId, interval, fetchStatus]);
+  }, [enabled, otherUserId, user?.id, interval, fetchStatus]);
 
   return {
     status,

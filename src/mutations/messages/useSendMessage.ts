@@ -17,6 +17,7 @@ export const useSendMessage = () => {
         "conversation",
         user.id,
         variables.recipientId,
+        variables.spaceId,
         undefined,
         undefined,
       ];
@@ -34,7 +35,7 @@ export const useSendMessage = () => {
         content: variables.content,
         senderId: user.id,
         recipientId: variables.recipientId,
-        space: "global",
+        space: variables.spaceId,
         isRead: false,
         isDeleted: false,
         isEdited: false,
@@ -70,8 +71,8 @@ export const useSendMessage = () => {
       });
 
       // Invalidate to get fresh data
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
-      queryClient.invalidateQueries({ queryKey: ["unreadMessageCount"] });
+      queryClient.invalidateQueries({ queryKey: ["conversations", user.id, variables.spaceId] });
+      queryClient.invalidateQueries({ queryKey: ["unreadMessageCount", variables.spaceId] });
     },
     onError: (error, variables, context) => {
       if (!context || !user) return;

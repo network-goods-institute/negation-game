@@ -2,13 +2,13 @@ import { useAuthenticatedQuery } from "@/queries/auth/useAuthenticatedQuery";
 import { getConversations } from "@/actions/messages/getConversations";
 import { useUser } from "@/queries/users/useUser";
 
-export const useConversations = () => {
+export const useConversations = (spaceId: string) => {
   const { data: user } = useUser();
   const userId = user?.id;
 
   return useAuthenticatedQuery({
-    queryKey: ["conversations", userId],
-    queryFn: () => getConversations(),
+    queryKey: ["conversations", userId, spaceId],
+    queryFn: () => getConversations(spaceId),
     enabled: !!userId,
     refetchInterval: 5000, // Refetch every 5 seconds for better real-time updates
     refetchIntervalInBackground: true, // Continue refetching even when tab is not active

@@ -280,17 +280,6 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                             <p className="text-sm text-muted-foreground">{userCred} cred</p>
                         </div>
                         <div className="flex items-center gap-2">
-                            {!isOwnProfile && userData?.id && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => router.push(`/messages/${userData.id}`)}
-                                    className="gap-1"
-                                >
-                                    <MessageSquareIcon className="size-3" />
-                                    Send Message
-                                </Button>
-                            )}
                             {isOwnProfile && (
                                 <Button
                                     variant="outline"

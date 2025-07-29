@@ -188,11 +188,10 @@ export default function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Handle settings, notifications, messages, admin, and delta paths without rewriting
+  // Handle settings, notifications, admin, and delta paths without rewriting
   if (
     url.pathname.startsWith("/settings") ||
     url.pathname.startsWith("/notifications") ||
-    url.pathname.startsWith("/messages") ||
     url.pathname.startsWith("/admin") ||
     url.pathname.startsWith("/delta")
   ) {

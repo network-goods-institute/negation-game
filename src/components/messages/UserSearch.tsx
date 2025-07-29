@@ -8,7 +8,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SearchIcon, UserIcon, LoaderIcon, MessageSquareIcon } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
-export function UserSearch({ className }: { className?: string }) {
+interface UserSearchProps {
+    spaceId: string;
+    className?: string;
+}
+
+export function UserSearch({ spaceId, className }: UserSearchProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [isOpen, setIsOpen] = useState(false);
     const router = useRouter();
@@ -28,7 +33,7 @@ export function UserSearch({ className }: { className?: string }) {
     }, []);
 
     const handleUserSelect = (username: string) => {
-        router.push(`/messages/${encodeURIComponent(username)}`);
+        router.push(`/s/${encodeURIComponent(spaceId)}/messages/${encodeURIComponent(username)}`);
         setSearchQuery("");
         setIsOpen(false);
     };

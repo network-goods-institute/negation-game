@@ -4,7 +4,7 @@ import { editMessage, EditMessageArgs } from "@/actions/messages/editMessage";
 import { useAuthenticatedMutation } from "../auth/useAuthenticatedMutation";
 import { Message } from "@/types/messages";
 
-export const useEditMessage = () => {
+export const useEditMessage = (spaceId?: string) => {
   const queryClient = useQueryClient();
 
   return useAuthenticatedMutation({
@@ -44,8 +44,13 @@ export const useEditMessage = () => {
     },
     onSettled: () => {
       // Always refetch after error or success to ensure server state
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
-      queryClient.invalidateQueries({ queryKey: ["conversation"] });
+      if (spaceId) {
+        queryClient.invalidateQueries({ queryKey: ["conversations", undefined, spaceId] });
+        queryClient.invalidateQueries({ queryKey: ["conversation", undefined, undefined, spaceId] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["conversations"] });
+        queryClient.invalidateQueries({ queryKey: ["conversation"] });
+      }
     },
   });
 };

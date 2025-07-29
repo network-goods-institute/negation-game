@@ -3,12 +3,16 @@
 import { useConversations } from "@/queries/messages/useConversations";
 import { ConversationList } from "./ConversationList";
 import { EmptyMessages } from "./EmptyMessages";
-import { LoaderCircleIcon, MessageSquareXIcon } from "lucide-react";
+import { MessageSquareXIcon } from "lucide-react";
 import { useState, useCallback } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export const MessagesContainer = () => {
-    const { data: conversations, isLoading, error } = useConversations();
+interface MessagesContainerProps {
+    spaceId: string;
+}
+
+export const MessagesContainer = ({ spaceId }: MessagesContainerProps) => {
+    const { data: conversations, isLoading, error } = useConversations(spaceId);
     const [visibleConversationCount, setVisibleConversationCount] = useState(0);
 
     const handleConversationCountChange = useCallback((count: number) => {
@@ -71,6 +75,7 @@ export const MessagesContainer = () => {
 
             <ConversationList
                 conversations={conversations}
+                spaceId={spaceId}
                 onConversationCountChange={handleConversationCountChange}
             />
         </div>

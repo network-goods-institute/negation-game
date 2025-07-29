@@ -4,10 +4,14 @@ import { db } from "@/services/db";
 import { and, eq, desc, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ spaceId: string }> }
+) {
   try {
     const { searchParams } = new URL(request.url);
     const otherUserId = searchParams.get("otherUserId");
+    const { spaceId } = await params;
 
     if (!otherUserId) {
       return NextResponse.json(
@@ -21,13 +25,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const conversationId = generateConversationId(userId, otherUserId);
+    const conversationId = generateConversationId(userId, otherUserId, spaceId);
     const [{ count }] = await db
       .select({ count: sql<number>`count(*)` })
       .from(messagesTable)
       .where(
         and(
           eq(messagesTable.conversationId, conversationId),
+          eq(messagesTable.space, spaceId),
           eq(messagesTable.isDeleted, false)
         )
       );
@@ -43,13 +48,13 @@ export async function GET(request: NextRequest) {
       .where(
         and(
           eq(messagesTable.conversationId, conversationId),
+          eq(messagesTable.space, spaceId),
           eq(messagesTable.isDeleted, false)
         )
       )
       .orderBy(desc(messagesTable.createdAt))
       .limit(1);
 
-    // Get the most recently updated message to detect edits
     const lastUpdatedMessage = await db
       .select({
         id: messagesTable.id,
@@ -59,6 +64,7 @@ export async function GET(request: NextRequest) {
       .where(
         and(
           eq(messagesTable.conversationId, conversationId),
+          eq(messagesTable.space, spaceId),
           eq(messagesTable.isDeleted, false)
         )
       )
@@ -72,6 +78,7 @@ export async function GET(request: NextRequest) {
         and(
           eq(messagesTable.conversationId, conversationId),
           eq(messagesTable.recipientId, userId),
+          eq(messagesTable.space, spaceId),
           eq(messagesTable.isRead, false),
           eq(messagesTable.isDeleted, false)
         )

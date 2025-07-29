@@ -13,10 +13,11 @@ import { useUser } from "@/queries/users/useUser";
 
 interface ConversationListProps {
     conversations: Conversation[];
+    spaceId: string;
     onConversationCountChange?: (count: number) => void;
 }
 
-export const ConversationList = ({ conversations, onConversationCountChange }: ConversationListProps) => {
+export const ConversationList = ({ conversations, spaceId, onConversationCountChange }: ConversationListProps) => {
     const { data: user } = useUser();
     const { isConversationClosed, reopenConversation, closeConversation, shouldShowClosedConversation, getClosedConversations } = useClosedConversations();
 
@@ -68,7 +69,7 @@ export const ConversationList = ({ conversations, onConversationCountChange }: C
         e.stopPropagation(); // Prevent card click
 
         if (user?.id) {
-            const conversationId = generateConversationId(user.id, otherUserId);
+            const conversationId = generateConversationId(user.id, otherUserId, spaceId);
             console.log('User manually closing conversation:', conversationId);
             closeConversation(conversationId);
         }
@@ -83,7 +84,7 @@ export const ConversationList = ({ conversations, onConversationCountChange }: C
                 return (
                     <div key={conversation.conversationId} className="relative group">
                         <Link
-                            href={`/messages/${encodeURIComponent(conversation.otherUsername || conversation.otherUserId)}`}
+                            href={`/s/${encodeURIComponent(spaceId)}/messages/${encodeURIComponent(conversation.otherUsername || conversation.otherUserId)}`}
                             className="block"
                             onClick={() => handleConversationClick(conversation.conversationId)}
                         >

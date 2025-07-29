@@ -13,28 +13,33 @@ import { useClosedConversations } from "@/hooks/messages/useClosedConversations"
 import { generateConversationId } from "@/db/schema";
 
 interface ConversationViewProps {
-    otherUsername: string;
+    username: string;
+    spaceId: string;
 }
 
-export const ConversationView = ({ otherUsername }: ConversationViewProps) => {
+export const ConversationView = ({ username: otherUsername, spaceId }: ConversationViewProps) => {
     const { data: user } = useUser();
     const { data: otherUser, isLoading: isLoadingOtherUser } = useUser(otherUsername);
-    const { data: messages, isLoading: isLoadingMessages, error } = useConversation(otherUser?.id || "");
+    const { data: messages, isLoading: isLoadingMessages, error } = useConversation({
+        otherUserId: otherUser?.id || "",
+        spaceId
+    });
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const markAsReadMutation = useMarkMessagesAsRead();
     const { reopenConversation } = useClosedConversations();
 
     const { status: pollStatus, hasNewMessages, markAsViewed, restartPolling, isPollingActive, errorCount } = useConversationPolling({
         otherUserId: otherUser?.id || "",
+        spaceId,
         enabled: !!otherUser?.id,
     });
 
     useEffect(() => {
         if (user?.id && otherUser?.id) {
-            const conversationId = generateConversationId(user.id, otherUser.id);
+            const conversationId = generateConversationId(user.id, otherUser.id, spaceId);
             reopenConversation(conversationId);
         }
-    }, [user?.id, otherUser?.id, reopenConversation]);
+    }, [user?.id, otherUser?.id, spaceId, reopenConversation]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -42,11 +47,11 @@ export const ConversationView = ({ otherUsername }: ConversationViewProps) => {
 
     const markAsRead = useCallback(() => {
         if (messages && messages.length > 0 && otherUser?.id) {
-            markAsReadMutation.mutate({ otherUserId: otherUser.id });
-            markAsViewed(); // Reset polling flag
+            markAsReadMutation.mutate({ otherUserId: otherUser.id, spaceId });
+            markAsViewed();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [messages, otherUser?.id, markAsViewed]);
+    }, [messages, otherUser?.id, spaceId, markAsViewed]);
 
     useEffect(() => {
         scrollToBottom();
@@ -108,6 +113,7 @@ export const ConversationView = ({ otherUsername }: ConversationViewProps) => {
             <ConversationHeader
                 otherUserId={otherUser.id}
                 otherUsername={otherUser.username}
+                spaceId={spaceId}
             />
 
             {/* Show polling status if needed */}
@@ -130,12 +136,13 @@ export const ConversationView = ({ otherUsername }: ConversationViewProps) => {
             )}
 
             <div className="flex-1 overflow-y-auto">
-                <MessageList messages={messages || []} currentUserId={user.id} />
+                <MessageList messages={messages || []} currentUserId={user.id} spaceId={spaceId} />
                 <div ref={messagesEndRef} />
             </div>
 
             <MessageInput
                 recipientId={otherUser.id}
+                spaceId={spaceId}
                 onMessageSent={scrollToBottom}
             />
         </div>
