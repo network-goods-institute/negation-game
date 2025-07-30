@@ -470,8 +470,8 @@ export const GraphView = ({
 
   // Show a persistent copy warning for non-owners if graph is modified
   useNotOwnerWarning(
-    disableNotOwnerWarning ? false : isModified, 
-    canModify, 
+    disableNotOwnerWarning ? false : isModified,
+    canModify,
     openCopyConfirmDialog
   );
 
@@ -602,23 +602,23 @@ export const GraphView = ({
                 className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
                 onClick={() => {
                   if (contextMenu.node) {
-                    handleCollapseNode(contextMenu.node.id);
-                  }
-                  closeContextMenu();
-                }}
-              >
-                Collapse Node
-              </div>
-              <div
-                className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
-                onClick={() => {
-                  if (contextMenu.node) {
                     handleFocusNode(contextMenu.node.id);
                   }
                   closeContextMenu();
                 }}
               >
                 Focus Node
+              </div>
+              <div
+                className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
+                onClick={() => {
+                  if (contextMenu.node) {
+                    handleCollapseNode(contextMenu.node.id);
+                  }
+                  closeContextMenu();
+                }}
+              >
+                Collapse Node
               </div>
             </>
           ) : (
