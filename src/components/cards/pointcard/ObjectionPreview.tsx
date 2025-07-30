@@ -26,8 +26,10 @@ export const ObjectionPreview: React.FC<ObjectionPreviewProps> = ({
     targetId,
     space = 'global'
 }) => {
+    const { data: objectionPoint, isLoading: isLoadingObjection } = usePointDataById(objectionId);
     const { data: targetPoint, isLoading: isLoadingTarget } = usePointDataById(targetId);
     const setNegatedPointId = useSetAtom(negatedPointIdAtom);
+    const [hoveredPoint, setHoveredPoint] = useState<{ content: string; position: { x: number; y: number } } | null>(null);
 
     const { data: contextPointId } = useQuery({
         queryKey: ['objection-context', objectionId, targetId],
@@ -50,6 +52,18 @@ export const ObjectionPreview: React.FC<ObjectionPreviewProps> = ({
         timeoutRef.current = setTimeout(() => {
             setIsOpen(false);
         }, 100);
+    }, []);
+
+    const handlePointHover = useCallback((content: string, event: React.MouseEvent) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        setHoveredPoint({
+            content,
+            position: { x: rect.left, y: rect.bottom + 5 }
+        });
+    }, []);
+
+    const handlePointLeave = useCallback(() => {
+        setHoveredPoint(null);
     }, []);
 
     // Show the relationship: target counterpoint negating context point
@@ -78,28 +92,35 @@ export const ObjectionPreview: React.FC<ObjectionPreviewProps> = ({
                 <div className="flex flex-col gap-4">
                     <div className="flex items-center justify-between">
                         <h3 className="text-sm font-medium">
-                            Point{" "}
                             <Link
                                 href={getPointUrl(objectionId, space)}
-                                className="text-blue-500 hover:underline"
+                                className="text-blue-500 hover:underline underline"
+                                onMouseEnter={(e) => objectionPoint?.content && handlePointHover(objectionPoint.content, e)}
+                                onMouseLeave={handlePointLeave}
                             >
-                                {encodeId(objectionId)}
+                                {objectionPoint?.content ? objectionPoint.content.substring(0, 40) + (objectionPoint.content.length > 40 ? '...' : '') : 'Loading...'}
                             </Link>
-                            {" "}objects to{" "}
+                            {" "}argues that{" "}
                             <Link
                                 href={getPointUrl(targetId, space)}
-                                className="text-blue-500 hover:underline"
+                                className="text-blue-500 hover:underline underline"
+                                onMouseEnter={(e) => leftPoint?.content && handlePointHover(leftPoint.content, e)}
+                                onMouseLeave={handlePointLeave}
                             >
-                                {encodeId(targetId)}
+                                {leftPoint?.content ? leftPoint.content.substring(0, 40) + (leftPoint.content.length > 40 ? '...' : '') : 'Loading...'}
                             </Link>
-                            {rightPoint ? " being relevant to " : " being relevant"}
-                            {rightPoint && (
+                            {" "}is not relevant to{" "}
+                            {rightPoint ? (
                                 <Link
                                     href={getPointUrl(rightPoint.pointId, space)}
-                                    className="text-blue-500 hover:underline"
+                                    className="text-blue-500 hover:underline underline"
+                                    onMouseEnter={(e) => handlePointHover(rightPoint.content, e)}
+                                    onMouseLeave={handlePointLeave}
                                 >
-                                    {encodeId(rightPoint.pointId)}
+                                    {rightPoint.content.substring(0, 40) + (rightPoint.content.length > 40 ? '...' : '')}
                                 </Link>
+                            ) : (
+                                "the topic"
                             )}
                         </h3>
                         <ObjectionIcon className="w-5 h-5 stroke-1 text-muted-foreground" />
@@ -167,6 +188,18 @@ export const ObjectionPreview: React.FC<ObjectionPreviewProps> = ({
                     </div>
                 </div>
             </PopoverContent>
+            {hoveredPoint && (
+                <div
+                    className="fixed z-50 max-w-sm p-3 bg-popover border rounded-md shadow-md text-sm pointer-events-none"
+                    style={{
+                        left: hoveredPoint.position.x,
+                        top: hoveredPoint.position.y,
+                        transform: 'translateX(-50%)'
+                    }}
+                >
+                    {hoveredPoint.content}
+                </div>
+            )}
         </Popover>
     );
 }; 
