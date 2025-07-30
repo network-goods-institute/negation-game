@@ -78,6 +78,9 @@ export interface GraphViewProps
   nodesDraggable?: boolean;
   topOffsetPx?: number;
   disableNotOwnerWarning?: boolean;
+  onPublish?: () => void;
+  canPublish?: boolean;
+  isPublishing?: boolean;
 }
 
 export const GraphView = ({
@@ -108,6 +111,9 @@ export const GraphView = ({
   nodesDraggable,
   topOffsetPx,
   disableNotOwnerWarning,
+  onPublish,
+  canPublish = false,
+  isPublishing = false,
   ...props
 }: GraphViewProps) => {
   const [showEndorsements] = useAtom(showEndorsementsAtom);
@@ -542,6 +548,9 @@ export const GraphView = ({
           onClose={onClose}
           closeButtonClassName={closeButtonClassName}
           topOffsetPx={topOffsetPx}
+          onPublish={onPublish}
+          canPublish={canPublish}
+          isPublishing={isPublishing}
         />
         <CollapseHintOverlay />
         <GlobalExpandPointDialog />

@@ -449,7 +449,20 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
           canModify={true}
           isNew={true}
           isSaving={isPublishing}
-          hideShareButton={true}
+          hideShareButton={false}
+          isSharing={false}
+          toggleSharingMode={() => {}}
+          handleGenerateAndCopyShareLink={() => {}}
+          hideComments={false}
+          onPublish={async () => {
+            try {
+              await publish();
+            } catch (error) {
+              console.error('Failed to publish:', error);
+            }
+          }}
+          canPublish={canPublish}
+          isPublishing={isPublishing}
           onSave={async () => {
             try {
               const id = await publish();

@@ -36,6 +36,9 @@ export interface RationaleGraphProps {
     onModifiedChange?: (isModified: boolean) => void;
     nodesDraggable?: boolean;
     topOffsetPx?: number;
+    onPublish?: () => void;
+    canPublish?: boolean;
+    isPublishing?: boolean;
 }
 
 export default function RationaleGraph({
@@ -62,6 +65,9 @@ export default function RationaleGraph({
     onModifiedChange,
     nodesDraggable,
     topOffsetPx,
+    onPublish,
+    canPublish = false,
+    isPublishing = false,
 }: RationaleGraphProps) {
     const uniquePoints = useGraphPoints();
     const pointIds = useMemo(() => uniquePoints.map((p) => p.pointId), [uniquePoints]);
@@ -127,6 +133,9 @@ export default function RationaleGraph({
                 hideComments={hideComments}
                 nodesDraggable={nodesDraggable}
                 topOffsetPx={topOffsetPx}
+                onPublish={onPublish}
+                canPublish={canPublish}
+                isPublishing={isPublishing}
             />
         </GraphSizingContext.Provider>
     );
