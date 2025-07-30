@@ -34,22 +34,40 @@ function isValidExternalUrl(url: string): boolean {
   try {
     const parsedUrl = new URL(url);
 
+    // Only allow HTTPS
     if (parsedUrl.protocol !== "https:") {
       return false;
     }
 
-    if (!ALLOWED_DOMAINS.includes(parsedUrl.hostname)) {
-      return false;
-    }
-
+    // Block private IP ranges and localhost (comprehensive check)
     const hostname = parsedUrl.hostname;
     if (
       hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1" ||
       hostname.startsWith("127.") ||
       hostname.startsWith("10.") ||
       hostname.startsWith("192.168.") ||
-      hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)
+      hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./) ||
+      hostname.match(/^169\.254\./) || // Link-local
+      hostname.match(/^224\./) || // Multicast
+      hostname.match(/^f[cd][0-9a-f]{2}:/i) // IPv6 private
     ) {
+      return false;
+    }
+
+    // Only allow specific trusted domains (exact match)
+    if (!ALLOWED_DOMAINS.includes(hostname)) {
+      return false;
+    }
+
+    // Block suspicious query parameters
+    if (parsedUrl.search && parsedUrl.search.includes("redirect")) {
+      return false;
+    }
+
+    // Block data URLs and other protocols
+    if (parsedUrl.protocol !== "https:") {
       return false;
     }
 
@@ -85,8 +103,20 @@ async function fetchLinkContent(url: string): Promise<string | null> {
   }
 
   try {
+    // Re-validate URL before making request
+    if (!isValidExternalUrl(url)) {
+      console.warn("URL validation failed before fetch:", url);
+      return null;
+    }
+
     const response = await fetch(url, {
-      headers: { "User-Agent": "NegationGameBot/1.0" },
+      method: 'GET',
+      headers: { 
+        "User-Agent": "NegationGameBot/1.0",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+      },
+      redirect: 'error', // Prevent redirects that could bypass validation
+      signal: AbortSignal.timeout(10000), // 10 second timeout
     });
     if (!response.ok) {
       console.warn(
@@ -100,6 +130,13 @@ async function fetchLinkContent(url: string): Promise<string | null> {
       );
       return null;
     }
+    // Check content length
+    const contentLength = response.headers.get("content-length");
+    if (contentLength && parseInt(contentLength) > 5000000) { // 5MB limit
+      console.warn("Response too large:", url, "Size:", contentLength);
+      return null;
+    }
+
     const contentType = response.headers.get("content-type");
     if (
       contentType &&
