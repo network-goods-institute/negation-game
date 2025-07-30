@@ -32,12 +32,12 @@ export const ConnectButton = () => {
   const { login, logout, user: privyUser } = usePrivy();
   const { data: user, isLoading } = useUser();
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
-  const { data: unreadMessageCount = 0 } = useUnreadMessageCount();
   const incompleteAssignmentCount = useIncompleteAssignmentCount();
   const router = useRouter();
   const pathname = usePathname();
 
   const currentSpace = pathname.match(/^\/s\/([^\/]+)/)?.[1];
+  const { data: unreadMessageCount = 0 } = useUnreadMessageCount(currentSpace || "global");
   const { data: adminStatus } = useAdminStatus();
   const prevPathRef = useRef(pathname);
 
@@ -149,27 +149,29 @@ export const ConnectButton = () => {
               </Link>
             </DropdownMenuItem>
 
-            <DropdownMenuItem
-              asChild
-              onSelect={navigate("/messages")}
-              disabled={!!loadingRoute || pathname === "/messages"}
-            >
-              <Link href="/messages" className="gap-2">
-                {loadingRoute === "/messages" ? (
-                  <LoaderCircleIcon className="size-4 animate-spin" />
-                ) : (
-                  <MessageSquareIcon className="size-4" />
-                )}
-                <div className="flex items-center justify-between w-full">
-                  <span>Messages</span>
-                  {unreadMessageCount > 0 && (
-                    <Badge variant="destructive" className="h-4 min-w-4 px-1 text-xs ml-2">
-                      {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
-                    </Badge>
+            {currentSpace && (
+              <DropdownMenuItem
+                asChild
+                onSelect={navigate(`/s/${currentSpace}/messages`)}
+                disabled={!!loadingRoute || pathname === `/s/${currentSpace}/messages`}
+              >
+                <Link href={`/s/${currentSpace}/messages`} className="gap-2">
+                  {loadingRoute === `/s/${currentSpace}/messages` ? (
+                    <LoaderCircleIcon className="size-4 animate-spin" />
+                  ) : (
+                    <MessageSquareIcon className="size-4" />
                   )}
-                </div>
-              </Link>
-            </DropdownMenuItem>
+                  <div className="flex items-center justify-between w-full">
+                    <span>Messages</span>
+                    {unreadMessageCount > 0 && (
+                      <Badge variant="destructive" className="h-4 min-w-4 px-1 text-xs ml-2">
+                        {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
+                      </Badge>
+                    )}
+                  </div>
+                </Link>
+              </DropdownMenuItem>
+            )}
 
             <DropdownMenuItem
               asChild

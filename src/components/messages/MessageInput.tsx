@@ -9,10 +9,11 @@ import { toast } from "sonner";
 
 interface MessageInputProps {
     recipientId: string;
+    spaceId: string;
     onMessageSent?: () => void;
 }
 
-export const MessageInput = ({ recipientId, onMessageSent }: MessageInputProps) => {
+export const MessageInput = ({ recipientId, spaceId, onMessageSent }: MessageInputProps) => {
     const [content, setContent] = useState("");
     const sendMutation = useSendMessage();
 
@@ -22,6 +23,7 @@ export const MessageInput = ({ recipientId, onMessageSent }: MessageInputProps) 
         try {
             await sendMutation.mutateAsync({
                 recipientId,
+                spaceId,
                 content: content.trim(),
             });
             setContent("");
@@ -41,18 +43,18 @@ export const MessageInput = ({ recipientId, onMessageSent }: MessageInputProps) 
     };
 
     return (
-        <div className="sticky bottom-0 bg-background border-t border-border/80 p-6 shadow-lg">
-            <div className="flex gap-4 items-end max-w-4xl mx-auto">
+        <div className="w-full">
+            <div className="flex gap-4 items-end">
                 <div className="flex-1 space-y-2">
                     <Textarea
                         value={content}
                         onChange={(e) => setContent(e.target.value)}
                         onKeyDown={handleKeyPress}
                         placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
-                        className="min-h-[60px] max-h-[160px] resize-none text-base leading-relaxed border-2 focus:border-primary/50 transition-colors"
+                        className="min-h-[80px] max-h-[200px] resize-none text-base leading-relaxed rounded-lg border-2 border-border focus:border-primary transition-colors bg-background"
                         disabled={sendMutation.isPending}
                     />
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
                         <span>Enter to send • Shift+Enter for new line</span>
                         <span>{content.length} characters</span>
                     </div>
@@ -61,7 +63,7 @@ export const MessageInput = ({ recipientId, onMessageSent }: MessageInputProps) 
                     onClick={handleSend}
                     disabled={!content.trim() || sendMutation.isPending}
                     size="lg"
-                    className="h-[60px] px-6 font-medium self-start"
+                    className="h-[80px] px-8 font-medium self-start rounded-lg"
                 >
                     {sendMutation.isPending ? (
                         <>

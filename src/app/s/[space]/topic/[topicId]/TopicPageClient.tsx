@@ -363,6 +363,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                             title="Topic Alignment"
                             description="Find aligned users"
                             currentUserId={privyUser?.id}
+                            spaceId={space}
                         />
 
                         {/* Delegate Status Section */}

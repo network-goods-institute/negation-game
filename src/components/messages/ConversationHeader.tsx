@@ -7,12 +7,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface ConversationHeaderProps {
     otherUserId: string;
+    spaceId: string;
     otherUsername?: string;
     otherUserImage?: string;
 }
 
 export const ConversationHeader = ({
     otherUserId,
+    spaceId,
     otherUsername,
     otherUserImage
 }: ConversationHeaderProps) => {
@@ -22,7 +24,7 @@ export const ConversationHeader = ({
         <div className="sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/80 p-6 shadow-sm z-10">
             <div className="flex items-center gap-4 max-w-4xl mx-auto">
                 <Button variant="ghost" size="sm" asChild className="shrink-0">
-                    <Link href="/messages" className="flex items-center gap-2">
+                    <Link href={`/s/${encodeURIComponent(spaceId)}/messages`} className="flex items-center gap-2">
                         <ArrowLeftIcon className="size-4" />
                         <span className="hidden sm:inline">Back</span>
                     </Link>

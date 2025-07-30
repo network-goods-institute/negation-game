@@ -5,7 +5,7 @@ import { messagesTable, usersTable } from "@/db/schema";
 import { db } from "@/services/db";
 import { and, eq, or, sql, desc } from "drizzle-orm";
 
-export const getConversations = async () => {
+export const getConversations = async (spaceId: string) => {
   const userId = await getUserId();
 
   if (!userId) {
@@ -34,6 +34,7 @@ export const getConversations = async () => {
           WHERE m2.conversation_id = ${messagesTable.conversationId}
             AND m2.recipient_id = ${userId}
             AND m2.is_read = false
+            AND m2.space = ${spaceId}
         ), 0)
       `.mapWith(Number),
     })
@@ -47,6 +48,7 @@ export const getConversations = async () => {
     )
     .where(
       and(
+        eq(messagesTable.space, spaceId),
         or(
           eq(messagesTable.senderId, userId),
           eq(messagesTable.recipientId, userId)
@@ -56,6 +58,7 @@ export const getConversations = async () => {
           FROM ${messagesTable} m2
           WHERE m2.conversation_id = ${messagesTable.conversationId}
             AND m2.is_deleted = false
+            AND m2.space = ${spaceId}
         )`
       )
     )

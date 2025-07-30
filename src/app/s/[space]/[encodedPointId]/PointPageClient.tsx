@@ -1061,6 +1061,7 @@ export function PointPageClient({
                                     title="Point Alignment Discovery"
                                     description="Find users who agree or disagree with you on this point cluster"
                                     currentUserId={privyUser?.id}
+                                    spaceId={space}
                                 />
                             </div>
                         </div>

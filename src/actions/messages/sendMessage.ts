@@ -3,16 +3,19 @@
 import { getUserId } from "@/actions/users/getUserId";
 import { messagesTable, generateConversationId } from "@/db/schema";
 import { db } from "@/services/db";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { nanoid } from "nanoid";
 
 export interface SendMessageArgs {
   recipientId: string;
   content: string;
+  spaceId: string;
 }
 
 export const sendMessage = async ({
   recipientId,
   content,
+  spaceId,
 }: SendMessageArgs) => {
   const decodedRecipientId = decodeURIComponent(recipientId);
 
@@ -20,6 +23,18 @@ export const sendMessage = async ({
 
   if (!userId) {
     throw new Error("Must be authenticated to send messages");
+  }
+
+  const rateLimitResult = await checkRateLimit(
+    userId,
+    30,
+    60000,
+    "messages_send"
+  );
+  if (!rateLimitResult.allowed) {
+    throw new Error(
+      "Rate limit exceeded. Please wait before sending more messages."
+    );
   }
 
   if (!content.trim()) {
@@ -30,7 +45,11 @@ export const sendMessage = async ({
     throw new Error("Cannot send message to yourself");
   }
 
-  const conversationId = generateConversationId(userId, decodedRecipientId);
+  const conversationId = generateConversationId(
+    userId,
+    decodedRecipientId,
+    spaceId
+  );
   const messageId = nanoid();
 
   const insertData = {
@@ -39,7 +58,7 @@ export const sendMessage = async ({
     content: content.trim(),
     senderId: userId,
     recipientId: decodedRecipientId,
-    space: "global",
+    space: spaceId,
   };
 
   try {

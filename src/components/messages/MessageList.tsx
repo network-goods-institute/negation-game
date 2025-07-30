@@ -9,12 +9,13 @@ import { toast } from "sonner";
 interface MessageListProps {
     messages: Message[];
     currentUserId: string;
+    spaceId: string;
 }
 
-export const MessageList = ({ messages, currentUserId }: MessageListProps) => {
+export const MessageList = ({ messages, currentUserId, spaceId }: MessageListProps) => {
     const { data: user } = useUser();
-    const editMutation = useEditMessage();
-    const deleteMutation = useDeleteMessage();
+    const editMutation = useEditMessage(spaceId);
+    const deleteMutation = useDeleteMessage(spaceId);
     const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
 
     const handleEdit = async (messageId: string, newContent: string) => {
