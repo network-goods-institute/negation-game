@@ -46,7 +46,9 @@ export const fetchUser = async (idOrUsername: string) => {
     return result.length === 1 ? result[0] : null;
   } catch (error) {
     console.error(
-      `[fetchUser] Error during database query for ${idOrUsername}:`,
+      "[fetchUser] Error during database query for:",
+      idOrUsername,
+      "Error:",
       error
     );
     return null;

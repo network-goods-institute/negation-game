@@ -17,6 +17,48 @@ import { getDiscourseContent } from "@/actions/search/getDiscourseContent";
 import { toast } from "sonner";
 import { GraphCommand } from "@/types/graphCommands";
 
+const ALLOWED_DOMAINS = [
+  "forum.ethereum.org",
+  "gov.gitcoin.co",
+  "commonwealth.im",
+  "discourse.sourcecred.io",
+  "forum.scroll.io",
+  "github.com",
+  "docs.google.com",
+  "medium.com",
+  "blog.ethereum.org",
+  "ethereum.org",
+];
+
+function isValidExternalUrl(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url);
+
+    if (parsedUrl.protocol !== "https:") {
+      return false;
+    }
+
+    if (!ALLOWED_DOMAINS.includes(parsedUrl.hostname)) {
+      return false;
+    }
+
+    const hostname = parsedUrl.hostname;
+    if (
+      hostname === "localhost" ||
+      hostname.startsWith("127.") ||
+      hostname.startsWith("10.") ||
+      hostname.startsWith("192.168.") ||
+      hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)
+    ) {
+      return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 interface RationaleCreationResponse {
   textStream: ReadableStream<string>;
   suggestedGraph: ViewpointGraph;
@@ -36,13 +78,22 @@ async function fetchLinkContent(url: string): Promise<string | null> {
   if (discourseText) {
     return discourseText;
   }
+
+  if (!isValidExternalUrl(url)) {
+    console.warn("Blocked request to invalid URL:", url);
+    return null;
+  }
+
   try {
     const response = await fetch(url, {
       headers: { "User-Agent": "NegationGameBot/1.0" },
     });
     if (!response.ok) {
       console.warn(
-        `Failed to fetch link content from ${url}. Status: ${response.status}`
+        "Failed to fetch link content from URL:",
+        url,
+        "Status:",
+        response.status
       );
       toast.error(
         `Failed to fetch link content from ${url}. Status: ${response.status} This may because it's not a discourse link or the link is private.`
@@ -71,11 +122,21 @@ async function fetchLinkContent(url: string): Promise<string | null> {
         return htmlContent.substring(0, 50000);
       }
     } else {
-      console.warn(`Unsupported content type for ${url}: ${contentType}`);
+      console.warn(
+        "Unsupported content type for URL:",
+        url,
+        "Type:",
+        contentType
+      );
       return null;
     }
   } catch (error) {
-    console.error(`Error fetching link content from ${url}:`, error);
+    console.error(
+      "Error fetching link content from URL:",
+      url,
+      "Error:",
+      error
+    );
     return null;
   }
 }

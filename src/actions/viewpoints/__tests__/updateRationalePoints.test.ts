@@ -50,14 +50,14 @@ describe("updateRationalePoints", () => {
         data: { pointId: 123, parentId: "statement" },
       },
       {
-        id: "node2", 
+        id: "node2",
         type: "point",
         position: { x: 200, y: 200 },
         data: { pointId: 456, parentId: "node1" },
       },
       {
         id: "node3",
-        type: "point", 
+        type: "point",
         position: { x: 300, y: 300 },
         data: { pointId: 789, parentId: "statement" },
       },
@@ -82,7 +82,7 @@ describe("updateRationalePoints", () => {
     expect(mockDb.transaction).toHaveBeenCalledTimes(1);
     expect(mockDelete).toHaveBeenCalledWith(rationalePointsTable);
     expect(mockInsert).toHaveBeenCalledWith(rationalePointsTable);
-    
+
     // Verify the values passed to insert
     expect(mockValues).toHaveBeenCalledWith([
       { rationaleId: "rationale123", pointId: 123 },
@@ -100,7 +100,7 @@ describe("updateRationalePoints", () => {
       nodes: [
         {
           id: "statement",
-          type: "statement", 
+          type: "statement",
           position: { x: 0, y: 0 },
           data: { statement: "Test statement" },
         },
@@ -122,7 +122,7 @@ describe("updateRationalePoints", () => {
 
     expect(mockDb.transaction).toHaveBeenCalledTimes(1);
     expect(mockDelete).toHaveBeenCalledWith(rationalePointsTable);
-    
+
     expect(console.log).toHaveBeenCalledWith(
       "[updateRationalePoints] Updated 0 point mappings for rationale rationale123"
     );
@@ -139,7 +139,7 @@ describe("updateRationalePoints", () => {
         },
         {
           id: "node2",
-          type: "point", 
+          type: "point",
           position: { x: 200, y: 200 },
           data: { pointId: 0, parentId: "statement" },
         },
@@ -208,10 +208,12 @@ describe("updateRationalePoints", () => {
     await updateRationalePoints("rationale123", mockGraph);
 
     expect(console.error).toHaveBeenCalledWith(
-      "[updateRationalePoints] Failed to update rationale points for rationale123:",
-      errorMessage
+      "[updateRationalePoints] Failed to update rationale points for rationaleId:",
+      "rationale123",
+      "Error:",
+      "Database connection failed"
     );
-    
+
     // Should not throw error
     expect(true).toBe(true);
   });
@@ -232,7 +234,7 @@ describe("updateRationalePoints", () => {
           data: { pointId: 123, parentId: "statement" }, // Duplicate
         },
         {
-          id: "node3", 
+          id: "node3",
           type: "point",
           position: { x: 300, y: 300 },
           data: { pointId: 456, parentId: "statement" },
