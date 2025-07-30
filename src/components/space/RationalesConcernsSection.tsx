@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { useTopics } from "@/queries/topics/useTopics";
+import { useTopicSuggestions } from "@/queries/topics/useTopicSuggestions";
 import { useUserTopicRationales } from "@/queries/topics/useUserTopicRationales";
 import { usePrivy } from "@privy-io/react-auth";
 import { Button } from "@/components/ui/button";
@@ -16,39 +16,37 @@ interface RationalesConcernsSectionProps {
 
 const RationalesConcernsSection = React.memo(function RationalesConcernsSection({ spaceId }: RationalesConcernsSectionProps) {
   const { user: privyUser } = usePrivy();
-  const { data: topics, isLoading: topicsLoading } = useTopics(spaceId);
+  const { data: topics, isLoading: topicsLoading } = useTopicSuggestions(spaceId);
   const [isExpanded, setIsExpanded] = useState(true);
 
   const topicIds = useMemo(() => topics?.map(topic => topic.id) || [], [topics]);
 
-  // Only fetch user rationales if we have topics and user is logged in
-  const shouldFetchRationales = useMemo(() => {
-    return !!privyUser?.id && topicIds.length > 0;
-  }, [privyUser?.id, topicIds.length]);
-
   const { data: userTopicRationales, isLoading: userRationalesLoading } = useUserTopicRationales(
-    shouldFetchRationales ? privyUser?.id : undefined,
-    shouldFetchRationales ? topicIds : []
+    privyUser?.id,
+    topicIds
   );
 
-  // Combine all computations into a single memoized value
   const { displayTopics, isLoading, hasTopics } = useMemo(() => {
     if (!privyUser?.id) {
       return { displayTopics: [], isLoading: false, hasTopics: false };
     }
 
-    if (topics && !topicsLoading) {
-      if (userRationalesLoading || userTopicRationales === undefined) {
-        return { displayTopics: [], isLoading: true, hasTopics: true };
-      }
-
-      const publishedTopicIds = new Set(userTopicRationales || []);
-      const filtered = topics.filter(topic => !publishedTopicIds.has(topic.id));
-
-      return { displayTopics: filtered, isLoading: false, hasTopics: true };
+    if (topicsLoading) {
+      return { displayTopics: [], isLoading: true, hasTopics: false };
     }
 
-    return { displayTopics: [], isLoading: topicsLoading, hasTopics: false };
+    if (!topics || topics.length === 0) {
+      return { displayTopics: [], isLoading: false, hasTopics: false };
+    }
+
+    if (userRationalesLoading || userTopicRationales === undefined) {
+      return { displayTopics: topics, isLoading: false, hasTopics: true };
+    }
+
+    const publishedTopicIds = new Set(userTopicRationales || []);
+    const filtered = topics.filter(topic => !publishedTopicIds.has(topic.id));
+
+    return { displayTopics: filtered, isLoading: false, hasTopics: true };
   }, [topics, userTopicRationales, topicsLoading, userRationalesLoading, privyUser?.id]);
 
   // Early return for unauthenticated users
