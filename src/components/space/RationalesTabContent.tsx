@@ -91,18 +91,18 @@ export const RationalesTabContent = memo(({
         });
     }, [pointFilteredViewpoints, topicFilters]);
 
-    const [visibleCount, setVisibleCount] = useState(20);
+    const [visibleCount, setVisibleCount] = useState(10);
     const visibleViewpoints = useMemo(() => finalFilteredViewpoints.slice(0, visibleCount), [finalFilteredViewpoints, visibleCount]);
 
     const loadMore = useCallback(() => {
-        setVisibleCount(c => Math.min(c + 20, finalFilteredViewpoints.length));
+        setVisibleCount(c => Math.min(c + 10, finalFilteredViewpoints.length));
     }, [finalFilteredViewpoints.length]);
 
     const sentinelRef = useInfiniteScroll(loadMore, [finalFilteredViewpoints.length]);
 
     // Reset visibleCount when filtered viewpoints change
     useEffect(() => {
-        setVisibleCount(20);
+        setVisibleCount(10);
     }, [finalFilteredViewpoints]);
 
     if (viewpointsLoading) {
