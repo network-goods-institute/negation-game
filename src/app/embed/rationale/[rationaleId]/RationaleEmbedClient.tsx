@@ -90,17 +90,22 @@ export function RationaleEmbedClient({ rationale }: Props) {
   };
 
   const containerStyle = {
-    padding: '8px 10px',
+    padding: '10px 12px',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     fontSize: '12px',
     lineHeight: '1.3',
-    color: '#222',
-    backgroundColor: '#fff',
-    border: '1px solid #e5e7eb',
+    color: '#1a202c',
+    backgroundColor: '#ffffff',
+    border: '1px solid #e2e8f0',
     borderRadius: '6px',
     margin: '0',
     cursor: 'pointer',
-    transition: 'background-color 0.2s ease'
+    transition: 'all 0.2s ease',
+    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+    height: '420px',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    overflow: 'hidden'
   };
 
   const minimapHeight = 200;
@@ -109,12 +114,14 @@ export function RationaleEmbedClient({ rationale }: Props) {
   const minimapStyle = {
     width: '100%',
     height: `${minimapHeight}px`,
-    backgroundColor: 'rgba(31, 41, 55, 0.05)',
-    border: '1px solid rgba(75, 85, 99, 0.2)',
-    borderRadius: '6px',
-    marginBottom: '6px',
+    backgroundColor: 'rgba(31, 41, 55, 0.03)',
+    border: '1px solid rgba(226, 232, 240, 0.8)',
+    borderRadius: '8px',
+    marginBottom: '8px',
+    flex: '0 0 auto',
     position: 'relative' as const,
-    overflow: 'hidden'
+    overflow: 'hidden',
+    boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.05)'
   };
 
   const renderNodes = () => {
@@ -356,25 +363,69 @@ export function RationaleEmbedClient({ rationale }: Props) {
       })()}
 
       {/* Content Section */}
-      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: '10px', flex: '1 1 auto' }}>
         <div style={{ flex: 1 }}>
           {/* Title and Author */}
           <div style={{ marginBottom: '4px' }}>
-            <h3 style={{
-              margin: '0 0 2px',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#1e293b',
-              lineHeight: '1.3'
-            }}>
-              {rationale.title}
-            </h3>
-            <div style={{ fontSize: '11px', color: '#64748b' }}>
-              by {rationale.authorUsername}
+            <div style={{ fontSize: '13px', color: '#3b82f6', fontWeight: '600', marginBottom: '2px' }}>
+              {rationale.authorUsername}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
+              <h3 style={{
+                margin: '0 0 3px',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#1e293b',
+                lineHeight: '1.3',
+                letterSpacing: '-0.025em',
+                flex: 1
+              }}>
+                {rationale.title}
+              </h3>
+
+              <a
+                href={`/s/${rationale.space || 'scroll'}/rationale/${rationale.id}`}
+                target="_blank"
+                rel="noopener,noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  padding: '6px 10px',
+                  borderRadius: '4px',
+                  fontSize: '10px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  textDecoration: 'none',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 4px rgba(59, 130, 246, 0.3)',
+                  minWidth: '56px',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = '#2563eb';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 3px 6px rgba(59, 130, 246, 0.4)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = '#3b82f6';
+                  e.currentTarget.style.transform = 'translateY(0px)';
+                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(59, 130, 246, 0.3)';
+                }}
+              >
+                Open
+              </a>
             </div>
           </div>
 
-          {/* Description */}
+          {/* Description - show if exists */}
           {rationale.description && (
             <p style={{
               margin: '0 0 6px',
@@ -398,46 +449,16 @@ export function RationaleEmbedClient({ rationale }: Props) {
             display: 'flex',
             gap: '8px',
             fontSize: '10px',
-            color: '#64748b'
+            color: '#64748b',
+            fontWeight: '500'
           }}>
-            <span><strong>{Math.floor(rationale.statistics.totalCred)}</strong> cred</span>
-            <span><strong>{rationale.statistics.endorsements || 0}</strong> endorsements</span>
-            <span><strong>{rationale.statistics.pointsCount || 0}</strong> points</span>
-            <span><strong>{rationale.statistics.copies}</strong> copies</span>
+            <span style={{ color: '#059669' }}><strong>{Math.floor(rationale.statistics.totalCred)}</strong> cred</span>
+            <span style={{ color: '#f59e0b' }}><strong>{rationale.statistics.averageFavor?.toFixed(1) || '0.0'}</strong> favor</span>
+            <span style={{ color: '#0369a1' }}><strong>{rationale.statistics.endorsements || 0}</strong> endorsements</span>
+            <span style={{ color: '#7c3aed' }}><strong>{rationale.statistics.pointsCount || 0}</strong> points</span>
+            <span style={{ color: '#dc2626' }}><strong>{rationale.statistics.copies}</strong> copies</span>
           </div>
         </div>
-
-        {/* Open Button */}
-        <a
-          href={`/s/${rationale.space || 'scroll'}/rationale/${rationale.id}`}
-          target="_blank"
-          rel="noopener,noreferrer"
-          style={{
-            display: 'inline-block',
-            backgroundColor: '#0088cc',
-            color: 'white',
-            border: 'none',
-            padding: '4px 10px',
-            borderRadius: '3px',
-            fontSize: '11px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            textDecoration: 'none',
-            transition: 'background-color 0.2s'
-          }}
-          onClick={(e) => {
-            e.stopPropagation();
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.backgroundColor = '#0066aa';
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.backgroundColor = '#0088cc';
-          }}
-        >
-          Open
-        </a>
       </div>
     </div>
   );

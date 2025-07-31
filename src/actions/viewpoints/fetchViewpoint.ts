@@ -11,7 +11,7 @@ import {
 import { activeViewpointsFilter } from "@/db/tables/viewpointsTable";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
-import { eq, sql, and, count, sum } from "drizzle-orm";
+import { eq, sql, and, count, sum, gt, inArray } from "drizzle-orm";
 import { trackViewpointView } from "./trackViewpointView";
 import { calculateViewpointStats } from "@/actions/utils/calculateViewpointStats";
 
@@ -253,19 +253,28 @@ export const fetchViewpointForEmbed = async (id: string) => {
     createdBy: viewpoint.createdBy,
   });
 
-  const pointsCount = await db
-    .select({ count: count() })
-    .from(rationalePointsTable)
-    .where(eq(rationalePointsTable.rationaleId, id));
+  const graphPointIds =
+    viewpoint.graph?.nodes
+      ?.filter((node: any) => node.type === "point" && node.data?.pointId)
+      ?.map((node: any) => Number(node.data.pointId))
+      ?.filter((id: number) => !isNaN(id)) || [];
 
-  const endorsements = await db
-    .select({ total: sum(endorsementsTable.cred) })
-    .from(endorsementsTable)
-    .innerJoin(
-      rationalePointsTable,
-      eq(endorsementsTable.pointId, rationalePointsTable.pointId)
-    )
-    .where(eq(rationalePointsTable.rationaleId, id));
+  const pointsCountFromGraph = graphPointIds.length;
+
+  let endorsementsTotal = 0;
+  if (graphPointIds.length > 0) {
+    const endorsements = await db
+      .select({ total: sum(endorsementsTable.cred).mapWith(Number) })
+      .from(endorsementsTable)
+      .where(
+        and(
+          inArray(endorsementsTable.pointId, graphPointIds),
+          eq(endorsementsTable.space, viewpoint.space ?? "scroll"),
+          gt(endorsementsTable.cred, 0)
+        )
+      );
+    endorsementsTotal = endorsements[0]?.total || 0;
+  }
 
   return {
     ...viewpoint,
@@ -277,8 +286,8 @@ export const fetchViewpointForEmbed = async (id: string) => {
       copies: viewpoint.copies || 0,
       totalCred,
       averageFavor,
-      endorsements: Number(endorsements[0]?.total || 0),
-      pointsCount: pointsCount[0]?.count || 0,
+      endorsements: endorsementsTotal,
+      pointsCount: pointsCountFromGraph,
     },
   };
 };

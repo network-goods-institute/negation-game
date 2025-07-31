@@ -92,31 +92,35 @@ export default function SourceEmbedClient({ sourceUrl }: Props) {
 
     if (status === 'loading') return (
         <div style={{
-            fontFamily: 'sans-serif',
-            padding: 20,
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            padding: '24px 20px',
             textAlign: 'center',
             color: '#1e293b',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            minHeight: '150px'
+            minHeight: '180px',
+            backgroundColor: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '8px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
         }}>
             <div
                 style={{
-                    width: '32px',
-                    height: '32px',
+                    width: '40px',
+                    height: '40px',
                     border: '3px solid #e2e8f0',
-                    borderTop: '3px solid #0088cc',
+                    borderTop: '3px solid #3b82f6',
                     borderRadius: '50%',
                     animation: 'spin 1s linear infinite',
-                    marginBottom: '16px'
+                    marginBottom: '20px'
                 }}
             />
-            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: '4px' }}>
+            <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '6px', letterSpacing: '-0.025em' }}>
                 Analyzing Post
             </div>
-            <div style={{ fontSize: 12, color: '#64748b' }}>
+            <div style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.5' }}>
                 Detecting topics and rationales
             </div>
             <style>
@@ -129,12 +133,76 @@ export default function SourceEmbedClient({ sourceUrl }: Props) {
             </style>
         </div>
     );
-    if (status === 'error') return <div style={{ fontFamily: 'sans-serif', padding: 20, textAlign: 'center', color: 'red' }}>{errorMsg}</div>;
+    if (status === 'error') return (
+        <div style={{
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            padding: '24px 20px',
+            textAlign: 'center',
+            color: '#dc2626',
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '8px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+        }}>
+            <div style={{ fontSize: '32px', marginBottom: '12px' }}>⚠️</div>
+            <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '4px' }}>Something went wrong</div>
+            <div style={{ fontSize: '13px', color: '#7f1d1d' }}>{errorMsg}</div>
+        </div>
+    );
     return (
-        <div style={{ fontFamily: 'sans-serif', maxWidth: 500, margin: '40px auto', border: '1px solid #e5e7eb', borderRadius: 8, padding: 24, background: '#f8fafc', textAlign: 'center' }}>
-            <h3 style={{ marginBottom: 8 }}>Negation Game × Scroll</h3>
-            <p style={{ marginBottom: 16 }}>This proposal is not yet a topic in Negation Game.</p>
-            <button onClick={handleCreate} style={{ background: '#10b981', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Create Topic</button>
+        <div style={{
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            maxWidth: '480px',
+            margin: '0 auto',
+            border: '1px solid #e2e8f0',
+            borderRadius: '12px',
+            padding: '32px 24px',
+            background: '#f8fafc',
+            textAlign: 'center',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+        }}>
+            <div style={{ fontSize: '32px', marginBottom: '16px', opacity: 0.6 }}>💡</div>
+            <h3 style={{
+                marginBottom: '12px',
+                fontSize: '18px',
+                fontWeight: '600',
+                color: '#1e293b',
+                letterSpacing: '-0.025em'
+            }}>Negation Game × Scroll</h3>
+            <p style={{
+                marginBottom: '24px',
+                fontSize: '14px',
+                color: '#64748b',
+                lineHeight: '1.5'
+            }}>This proposal is not yet a topic in Negation Game.</p>
+            <button
+                onClick={handleCreate}
+                style={{
+                    background: '#10b981',
+                    color: '#fff',
+                    padding: '12px 24px',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    fontFamily: 'inherit',
+                    boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)',
+                    transition: 'all 0.2s ease'
+                }}
+                onMouseOver={(e) => {
+                    e.currentTarget.style.background = '#059669';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(16, 185, 129, 0.3)';
+                }}
+                onMouseOut={(e) => {
+                    e.currentTarget.style.background = '#10b981';
+                    e.currentTarget.style.transform = 'translateY(0px)';
+                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(16, 185, 129, 0.2)';
+                }}
+            >
+                Create Topic
+            </button>
         </div>
     );
 } 
