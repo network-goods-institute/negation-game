@@ -18,7 +18,7 @@ import { HeaderActions } from "@/components/header/HeaderActions";
 import {
   DynamicHeaderContent
 } from "@/components/header/DynamicHeaderContent";
-import { getCurrentUser } from "@/lib/privy/auth";
+
 
 const inter = Inter({
   subsets: ["latin"],
@@ -124,7 +124,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const user = await getCurrentUser();
+  
 
   // Structured data for the organization
   const organizationStructuredData = {
