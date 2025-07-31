@@ -30,50 +30,89 @@ interface Props {
 }
 
 export function RationaleEmbedClient({ rationale }: Props) {
-  useEffect(() => {
-    const sendHeight = () => {
-      const height = document.documentElement.scrollHeight;
-      window.parent.postMessage({
-        source: 'negation-game-embed',
-        type: 'resize',
-        height: height
-      }, '*');
-    };
+  const [hoveredNodeId, setHoveredNodeId] = React.useState<string | null>(null);
+  const [nodePreview, setNodePreview] = React.useState<{
+    id: string,
+    content: string,
+    x: number,
+    y: number,
+    position: 'top' | 'bottom' | 'left' | 'right'
+  } | null>(null);
+  const [containerWidth, setContainerWidth] = React.useState<number>(400);
 
-    sendHeight();
-    const timer1 = setTimeout(sendHeight, 100);
-    const timer2 = setTimeout(sendHeight, 500);
-    const timer3 = setTimeout(sendHeight, 1000);
-    const timer4 = setTimeout(sendHeight, 2000);
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = body.style.overflow;
+    const prevOverscroll = html.style.overscrollBehavior;
+
+    html.style.overflow = 'hidden';
+    html.style.overscrollBehavior = 'none';
+    body.style.overflow = 'hidden';
 
     return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-      clearTimeout(timer4);
+      html.style.overflow = prevHtmlOverflow;
+      html.style.overscrollBehavior = prevOverscroll;
+      body.style.overflow = prevBodyOverflow;
     };
   }, []);
 
 
+  const calculateTooltipPosition = (nodeX: number, nodeY: number) => {
+    const tooltipHeight = 40;
+    const gap = 10;
+    const margin = 5;
+
+    const canFitTop = nodeY - tooltipHeight - gap > margin;
+    const canFitBottom = nodeY + tooltipHeight + gap < minimapHeight - margin;
+    const canFitLeft = nodeX - tooltipMaxWidth - gap > margin;
+    const canFitRight = nodeX + tooltipMaxWidth + gap < containerWidth - margin;
+
+    let position: 'top' | 'bottom' | 'left' | 'right' = 'top';
+
+    if (canFitTop) {
+      position = 'top';
+    } else if (canFitBottom) {
+      position = 'bottom';
+    } else if (canFitRight) {
+      position = 'right';
+    } else if (canFitLeft) {
+      position = 'left';
+    }
+
+    return {
+      position,
+      nodeX,
+      nodeY
+    };
+  };
+
   const containerStyle = {
-    padding: '12px',
+    padding: '8px 10px',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    fontSize: '13px',
+    fontSize: '12px',
     lineHeight: '1.3',
     color: '#222',
     backgroundColor: '#fff',
     border: '1px solid #e5e7eb',
-    borderRadius: '8px',
-    margin: '0'
+    borderRadius: '6px',
+    margin: '0',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s ease'
   };
+
+  const minimapHeight = 200;
+  const tooltipMaxWidth = 150;
 
   const minimapStyle = {
     width: '100%',
-    height: '280px',
-    backgroundColor: '#f8fafc',
-    border: '1px solid #e2e8f0',
+    height: `${minimapHeight}px`,
+    backgroundColor: 'rgba(31, 41, 55, 0.05)',
+    border: '1px solid rgba(75, 85, 99, 0.2)',
     borderRadius: '6px',
-    marginBottom: '12px',
+    marginBottom: '6px',
     position: 'relative' as const,
     overflow: 'hidden'
   };
@@ -90,14 +129,34 @@ export function RationaleEmbedClient({ rationale }: Props) {
     const width = maxX - minX || 200;
     const height = maxY - minY || 100;
 
+    const maxNodeWidth = Math.max(36, Math.min(60, containerWidth * 0.15));
+    const maxNodeHeight = 24;
+
+
+    const horizontalMargin = (maxNodeWidth / containerWidth) * 100;
+    const verticalMargin = (maxNodeHeight / minimapHeight) * 100;
+
+    const availableHorizontal = 100 - (horizontalMargin * 2);
+    const availableVertical = 100 - (verticalMargin * 2);
+
     return nodes.map((node, i) => {
-      const x = ((node.position.x - minX) / width) * 90 + 5; // 5% margin
-      const y = ((node.position.y - minY) / height) * 90 + 5; // 5% margin
+      const x = ((node.position.x - minX) / width) * availableHorizontal + horizontalMargin;
+      const y = ((node.position.y - minY) / height) * availableVertical + verticalMargin;
 
       // Check if this is the statement node (usually has type 'statement' or is the first node)
       const isStatement = (node as any).type === 'statement' ||
         (node as any).data?.type === 'statement' ||
         i === 0;
+
+      const nodeContent = isStatement
+        ? rationale.title
+        : (node as any).data?.content || (node as any).data?.initialPointData?.content || 'Point content';
+
+      const isHovered = hoveredNodeId === node.id;
+
+      const statementWidth = Math.max(36, Math.min(60, containerWidth * 0.15));
+      const pointWidth = Math.max(24, Math.min(36, containerWidth * 0.09));
+      const nodeHeight = 24;
 
       return (
         <div
@@ -106,11 +165,64 @@ export function RationaleEmbedClient({ rationale }: Props) {
             position: 'absolute',
             left: `${x}%`,
             top: `${y}%`,
-            width: isStatement ? '60px' : '36px',
-            height: isStatement ? '24px' : '24px',
-            backgroundColor: isStatement ? '#16a34a' : '#3b82f6',
-            borderRadius: isStatement ? '8px' : '6px',
-            border: `2px solid ${isStatement ? '#15803d' : '#1e40af'}`
+            width: isStatement ? `${statementWidth}px` : `${pointWidth}px`,
+            height: `${nodeHeight}px`,
+            backgroundColor: isHovered
+              ? (isStatement ? 'rgba(107, 114, 128, 1)' : 'rgba(107, 114, 128, 0.8)')
+              : (isStatement ? 'rgba(107, 114, 128, 0.8)' : 'rgba(107, 114, 128, 0.6)'),
+            borderRadius: isStatement ? '6px' : '4px',
+            border: `2px solid ${isStatement ? 'rgba(75, 85, 99, 0.9)' : 'rgba(75, 85, 99, 0.7)'}`,
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            transform: isHovered ? 'scale(1.1)' : 'scale(1)',
+            zIndex: isHovered ? 10 : 1
+          }}
+          onMouseEnter={(e) => {
+            e.stopPropagation();
+            setHoveredNodeId(node.id);
+            const rect = e.currentTarget.getBoundingClientRect();
+            const minimapRect = e.currentTarget.parentElement?.getBoundingClientRect();
+            if (minimapRect) {
+              const nodeX = rect.left - minimapRect.left + rect.width / 2;
+              const nodeY = rect.top - minimapRect.top + rect.height / 2;
+              const tooltipPos = calculateTooltipPosition(nodeX, nodeY);
+
+              setNodePreview({
+                id: node.id,
+                content: nodeContent,
+                x: tooltipPos.nodeX,
+                y: tooltipPos.nodeY,
+                position: tooltipPos.position
+              });
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.stopPropagation();
+            setHoveredNodeId(null);
+            setNodePreview(null);
+          }}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setHoveredNodeId(node.id);
+            const rect = e.currentTarget.getBoundingClientRect();
+            const minimapRect = e.currentTarget.parentElement?.getBoundingClientRect();
+            if (minimapRect) {
+              const nodeX = rect.left - minimapRect.left + rect.width / 2;
+              const nodeY = rect.top - minimapRect.top + rect.height / 2;
+              const tooltipPos = calculateTooltipPosition(nodeX, nodeY);
+
+              setNodePreview({
+                id: node.id,
+                content: nodeContent,
+                x: tooltipPos.nodeX,
+                y: tooltipPos.nodeY,
+                position: tooltipPos.position
+              });
+            }
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
           }}
         />
       );
@@ -119,27 +231,145 @@ export function RationaleEmbedClient({ rationale }: Props) {
 
 
   return (
-    <div style={containerStyle}>
+    <div
+      data-rationale-container
+      style={containerStyle}
+      onClick={() => {
+        const safeSpace = (rationale.space || 'scroll').replace(/[^a-zA-Z0-9-]/g, '');
+        const safeId = rationale.id.replace(/[^a-zA-Z0-9_-]/g, '');
+        if (safeSpace && safeId) {
+          window.open(`/s/${safeSpace}/rationale/${safeId}`, '_blank', 'noopener,noreferrer');
+        }
+      }}
+    >
       {/* MiniMap Section */}
       <div style={minimapStyle}>
         {renderNodes()}
       </div>
 
+      {/* Node Preview Tooltip - Discourse Style */}
+      {nodePreview && (() => {
+        const gap = 10;
+        const containerPadding = 10;
+        const minimapTop = 8;
+        let tooltipStyle = {};
+        let arrowStyle = {};
+
+        switch (nodePreview.position) {
+          case 'top':
+            tooltipStyle = {
+              left: `${containerPadding + nodePreview.x}px`,
+              top: `${minimapTop + nodePreview.y - gap}px`,
+              transform: 'translateX(-50%) translateY(-100%)'
+            };
+            arrowStyle = {
+              top: '100%',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              borderLeft: '5px solid transparent',
+              borderRight: '5px solid transparent',
+              borderTop: '5px solid #333'
+            };
+            break;
+          case 'bottom':
+            tooltipStyle = {
+              left: `${containerPadding + nodePreview.x}px`,
+              top: `${minimapTop + nodePreview.y + gap}px`,
+              transform: 'translateX(-50%) translateY(0%)'
+            };
+            arrowStyle = {
+              bottom: '100%',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              borderLeft: '5px solid transparent',
+              borderRight: '5px solid transparent',
+              borderBottom: '5px solid #333'
+            };
+            break;
+          case 'left':
+            tooltipStyle = {
+              left: `${containerPadding + nodePreview.x - gap}px`,
+              top: `${minimapTop + nodePreview.y}px`,
+              transform: 'translateX(-100%) translateY(-50%)'
+            };
+            arrowStyle = {
+              left: '100%',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              borderTop: '5px solid transparent',
+              borderBottom: '5px solid transparent',
+              borderLeft: '5px solid #333'
+            };
+            break;
+          case 'right':
+            tooltipStyle = {
+              left: `${containerPadding + nodePreview.x + gap}px`,
+              top: `${minimapTop + nodePreview.y}px`,
+              transform: 'translateX(0%) translateY(-50%)'
+            };
+            arrowStyle = {
+              right: '100%',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              borderTop: '5px solid transparent',
+              borderBottom: '5px solid transparent',
+              borderRight: '5px solid #333'
+            };
+            break;
+        }
+
+        return (
+          <div
+            style={{
+              position: 'absolute',
+              ...tooltipStyle,
+              backgroundColor: '#333',
+              color: '#fff',
+              padding: '6px 8px',
+              fontSize: '11px',
+              fontWeight: '400',
+              borderRadius: '3px',
+              maxWidth: `${tooltipMaxWidth}px`,
+              wordWrap: 'break-word',
+              zIndex: 20,
+              pointerEvents: 'none',
+              boxShadow: '0 2px 6px rgba(0, 0, 0, 0.2)',
+              border: '1px solid #444',
+              fontFamily: 'inherit'
+            }}
+          >
+            {nodePreview.content.length > 80
+              ? nodePreview.content.substring(0, 80) + '...'
+              : nodePreview.content
+            }
+            {/* Arrow */}
+            <div
+              style={{
+                position: 'absolute',
+                ...arrowStyle,
+                width: 0,
+                height: 0
+              }}
+            />
+          </div>
+        );
+      })()}
+
       {/* Content Section */}
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
         <div style={{ flex: 1 }}>
           {/* Title and Author */}
-          <div style={{ marginBottom: '6px' }}>
+          <div style={{ marginBottom: '4px' }}>
             <h3 style={{
-              margin: '0 0 3px',
-              fontSize: '15px',
+              margin: '0 0 2px',
+              fontSize: '14px',
               fontWeight: '600',
               color: '#1e293b',
               lineHeight: '1.3'
             }}>
               {rationale.title}
             </h3>
-            <div style={{ fontSize: '12px', color: '#64748b' }}>
+            <div style={{ fontSize: '11px', color: '#64748b' }}>
               by {rationale.authorUsername}
             </div>
           </div>
@@ -147,8 +377,8 @@ export function RationaleEmbedClient({ rationale }: Props) {
           {/* Description */}
           {rationale.description && (
             <p style={{
-              margin: '0 0 8px',
-              fontSize: '12px',
+              margin: '0 0 6px',
+              fontSize: '11px',
               color: '#64748b',
               lineHeight: '1.4',
               display: '-webkit-box',
@@ -156,8 +386,8 @@ export function RationaleEmbedClient({ rationale }: Props) {
               WebkitBoxOrient: 'vertical',
               overflow: 'hidden'
             }}>
-              {rationale.description.length > 150
-                ? rationale.description.substring(0, 150) + '...'
+              {rationale.description.length > 120
+                ? rationale.description.substring(0, 120) + '...'
                 : rationale.description
               }
             </p>
@@ -166,8 +396,8 @@ export function RationaleEmbedClient({ rationale }: Props) {
           {/* Stats Row */}
           <div style={{
             display: 'flex',
-            gap: '12px',
-            fontSize: '11px',
+            gap: '8px',
+            fontSize: '10px',
             color: '#64748b'
           }}>
             <span><strong>{Math.floor(rationale.statistics.totalCred)}</strong> cred</span>
@@ -187,14 +417,17 @@ export function RationaleEmbedClient({ rationale }: Props) {
             backgroundColor: '#0088cc',
             color: 'white',
             border: 'none',
-            padding: '6px 12px',
-            borderRadius: '4px',
-            fontSize: '12px',
+            padding: '4px 10px',
+            borderRadius: '3px',
+            fontSize: '11px',
             fontWeight: '600',
             cursor: 'pointer',
             fontFamily: 'inherit',
             textDecoration: 'none',
             transition: 'background-color 0.2s'
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
           }}
           onMouseOver={(e) => {
             e.currentTarget.style.backgroundColor = '#0066aa';

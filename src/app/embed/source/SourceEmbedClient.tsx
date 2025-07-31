@@ -51,12 +51,32 @@ export default function SourceEmbedClient({ sourceUrl }: Props) {
         run();
     }, [sourceUrl, router]);
 
+    const sanitizeText = (text: string) => {
+        return text
+            .replace(/[<>&"']/g, '') // Remove HTML/JS injection chars
+            .replace(/[^\w\s-]/g, '') // Keep only alphanumeric, spaces, hyphens
+            .substring(0, 100) // Limit length
+            .trim();
+    };
+
     const handleCreate = async () => {
         try {
             setStatus('loading');
             let title = 'New Topic';
             const m = sourceUrl.match(/\/t\/([^/]+)/);
-            if (m && m[1]) title = decodeURIComponent(m[1]).replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            if (m && m[1]) {
+                try {
+                    const decodedTitle = decodeURIComponent(m[1]);
+                    const sanitizedTitle = sanitizeText(decodedTitle);
+                    if (sanitizedTitle.length > 0) {
+                        title = sanitizedTitle
+                            .replace(/-/g, ' ')
+                            .replace(/\b\w/g, c => c.toUpperCase());
+                    }
+                } catch (e) {
+                    console.warn('Failed to decode URL component:', e);
+                }
+            }
             const res = await fetch('/api/embed/create-topic', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sourceUrl, title })

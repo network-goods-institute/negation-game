@@ -9,6 +9,10 @@ const ALLOWED_ORIGINS = [
   "https://negationgame.com",
   "https://play.negationgame.com",
   "https://scroll.negationgame.com",
+  "https://localhost:3000",
+  "http://localhost:3000",
+  "https://localhost:3001",
+  "http://localhost:3001",
 ];
 
 function isValidOrigin(origin: string | null): boolean {

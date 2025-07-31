@@ -39,13 +39,21 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
     const urlParams = new URLSearchParams(window.location.search);
     const postParam = urlParams.get('post');
     if (postParam) {
-      setPostNumber(parseInt(postParam) || 1);
+      const postNum = parseInt(postParam);
+      if (!isNaN(postNum) && postNum > 0 && postNum <= 10000) {
+        setPostNumber(postNum);
+      } else {
+        setPostNumber(1);
+      }
     }
 
     // Alternative: listen for post number from parent frame
     const handlePostNumber = (event: MessageEvent) => {
       if (event.data?.type === 'post-number' && typeof event.data.postNumber === 'number') {
-        setPostNumber(event.data.postNumber);
+        const postNum = event.data.postNumber;
+        if (!isNaN(postNum) && postNum > 0 && postNum <= 10000) {
+          setPostNumber(postNum);
+        }
       }
     };
 
@@ -53,23 +61,6 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
     return () => window.removeEventListener('message', handlePostNumber);
   }, []);
 
-  useEffect(() => {
-    const sendHeight = () => {
-      const height = document.documentElement.scrollHeight;
-      const finalHeight = selectedRationaleId ? height : height;
-      window.parent.postMessage({
-        source: 'negation-game-embed',
-        type: 'resize',
-        height: finalHeight
-      }, '*');
-    };
-
-    // Send immediately and after a delay to ensure proper measurement
-    sendHeight();
-    const timer = setTimeout(sendHeight, 500);
-
-    return () => clearTimeout(timer);
-  }, [selectedRationaleId, isRationaleLoading]);
 
   // Spinner animation
   useEffect(() => {
@@ -88,7 +79,6 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
     };
   }, [isRationaleLoading]);
 
-  // Always use relative URLs to avoid hydration mismatch
   const getFullUrl = (path: string) => path;
 
   const handleLinkClick = (e: React.MouseEvent, url: string) => {
@@ -103,18 +93,14 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
   };
 
   const handleBackToList = () => {
-    setIsRationaleLoading(true);
-    setTimeout(() => {
-      setSelectedRationaleId(null);
-      setIsRationaleLoading(false);
-    }, 300);
+    setSelectedRationaleId(null);
   };
 
 
   const containerStyle = {
-    padding: '16px',
+    padding: '12px',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    fontSize: '14px',
+    fontSize: '13px',
     lineHeight: '1.4',
     color: '#222',
     backgroundColor: '#fff'
@@ -139,7 +125,7 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
     );
   }
 
-  // If a rationale is selected, show the inline preview  
+  // If a rationale is selected, show the inline preview
   if (selectedRationaleId) {
     return (
       <div style={containerStyle}>
@@ -161,66 +147,62 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
           </button>
         </div>
 
-        {/* Loading state */}
-        {isRationaleLoading && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '200px',
-            border: '1px solid #ddd',
-            borderRadius: '4px',
-            backgroundColor: '#f9f9f9',
-            marginBottom: '8px'
-          }}>
-            <div style={{
-              width: '16px',
-              height: '16px',
-              border: '2px solid #ddd',
-              borderTop: '2px solid #0088cc',
-              borderRadius: '50%',
-              transform: `rotate(${spinnerRotation}deg)`,
-              transition: 'transform 0.1s linear'
-            }} />
-            <span style={{ marginLeft: '8px', fontSize: '13px', color: '#666' }}>
-              Loading rationale...
-            </span>
-          </div>
-        )}
-
-        <iframe
-          src={`/embed/rationale/${selectedRationaleId}`}
+        {/* Fixed-height wrapper so the embed is ALWAYS 460px tall */}
+        <div
           style={{
+            position: 'relative',
             width: '100%',
-            height: isRationaleLoading ? '0px' : '450px',
-            border: 'none',
-            borderRadius: '4px',
-            display: isRationaleLoading ? 'none' : 'block'
+            height: '460px'
           }}
-          title="Rationale Preview"
-          onLoad={(e) => {
-            setIsRationaleLoading(false);
+          aria-busy={isRationaleLoading}
+        >
+          <iframe
+            src={`/embed/rationale/${selectedRationaleId}`}
+            scrolling="no"
+            title="Rationale Preview"
+            onLoad={() => setIsRationaleLoading(false)}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              border: 'none',
+              borderRadius: '4px',
+              display: 'block',
+              overflow: 'hidden'
+            }}
+          />
 
-            const handleNestedHeight = (event: MessageEvent) => {
-              if (event.data?.source === 'negation-game-embed' && event.data?.type === 'resize') {
-                const iframe = e.target as HTMLIFrameElement;
-                iframe.style.height = `${event.data.height}px`;
-
-                setTimeout(() => {
-                  const totalHeight = document.documentElement.scrollHeight;
-                  window.parent.postMessage({
-                    source: 'negation-game-embed',
-                    type: 'resize',
-                    height: totalHeight + 20
-                  }, '*');
-                }, 100);
-              }
-            };
-
-            window.addEventListener('message', handleNestedHeight);
-            return () => window.removeEventListener('message', handleNestedHeight);
-          }}
-        />
+          {/* Loading overlay does NOT add heigh i think */}
+          {isRationaleLoading && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'rgba(249, 249, 249, 0.9)',
+                borderRadius: '4px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <div
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    border: '2px solid #ddd',
+                    borderTop: '2px solid #0088cc',
+                    borderRadius: '50%',
+                    transform: `rotate(${spinnerRotation}deg)`,
+                    marginRight: '8px'
+                  }}
+                />
+                <span style={{ fontSize: '13px', color: '#666' }}>Loading rationale...</span>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -242,7 +224,7 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
             {topic.name}
           </div>
           <p style={{ margin: '0 0 16px', color: '#666', fontSize: '13px' }}>
-            No rationales available for this topic yet.
+            No rationale link found in post.
           </p>
           <a
             href={getFullUrl(`/s/${topic.space}/topic/${encodeId(topic.id)}`)}
@@ -259,7 +241,7 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
               fontWeight: '500'
             }}
           >
-            Add Rationale
+            Create one
           </a>
         </div>
       </div>
@@ -270,120 +252,146 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
     <div style={containerStyle}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid #eee', paddingBottom: '8px' }}>
         <h3 style={{ margin: '0', fontSize: '15px', color: '#333', fontWeight: '600' }}>
-          Rationales
+          Negation Game × Scroll
         </h3>
         <div style={{ fontSize: '14px', fontWeight: '600', color: '#111' }}>
           {topic.name}
         </div>
         <div style={{ fontSize: '12px', color: '#888', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span>{rationales.length} rationale{rationales.length !== 1 ? 's' : ''}</span>
-          <span style={{ color: '#bbb', fontSize: '10px' }}>via Negation Game</span>
         </div>
       </div>
 
-      <div style={{ marginBottom: '12px' }}>
+      <div style={{ marginBottom: '8px', textAlign: 'center', padding: '12px 16px' }}>
+        <p style={{ margin: '0 0 12px', color: '#666', fontSize: '14px', fontWeight: '500' }}>
+          No rationale link found in post.
+        </p>
         <a
           href={getFullUrl(`/s/${topic.space}/topic/${encodeId(topic.id)}`)}
           onClick={(e) => handleLinkClick(e, `/s/${topic.space}/topic/${encodeId(topic.id)}`)}
           style={{
             display: 'inline-block',
-            backgroundColor: '#0088cc',
+            backgroundColor: '#10b981',
             color: 'white',
             border: 'none',
-            padding: '6px 12px',
-            borderRadius: '3px',
-            fontSize: '12px',
+            padding: '10px 20px',
+            borderRadius: '6px',
+            fontSize: '14px',
             textDecoration: 'none',
-            fontWeight: '500'
+            fontWeight: '600',
+            boxShadow: '0 2px 4px rgba(16, 185, 129, 0.3)',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.backgroundColor = '#059669';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+            e.currentTarget.style.boxShadow = '0 4px 8px rgba(16, 185, 129, 0.4)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.backgroundColor = '#10b981';
+            e.currentTarget.style.transform = 'translateY(0px)';
+            e.currentTarget.style.boxShadow = '0 2px 4px rgba(16, 185, 129, 0.3)';
           }}
         >
-          Add Rationale
+          Create one
         </a>
       </div>
 
-      <div style={{ marginBottom: '12px' }}>
-        {rationales.slice(0, 6).map((rationale) => (
-          <div key={rationale.id} style={{
-            border: '1px solid #ddd',
-            borderRadius: '3px',
-            padding: '12px',
-            marginBottom: '6px',
-            backgroundColor: '#fafafa'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between' }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <h4 style={{
-                  margin: '0 0 4px',
-                  fontSize: '13px',
-                  fontWeight: '500',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  color: '#333'
-                }}>
-                  {rationale.title}
-                </h4>
-                <div style={{ fontSize: '11px', color: '#888' }}>
-                  by {rationale.authorUsername} • {rationale.statistics.views} views • {rationale.statistics.copies} copies • {rationale.statistics.totalCred} cred • {rationale.statistics.averageFavor.toFixed(0)} favor
+      {rationales.length > 0 && (
+        <div style={{ marginBottom: '12px' }}>
+          <div style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginBottom: '8px' }}>
+            Existing rationales:
+          </div>
+          {rationales.slice(0, 3).map((rationale) => (
+            <div key={rationale.id} style={{
+              border: '1px solid #ddd',
+              borderRadius: '3px',
+              padding: '8px',
+              marginBottom: '4px',
+              backgroundColor: '#fafafa'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h4 style={{
+                    margin: '0 0 2px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    color: '#333'
+                  }}>
+                    {rationale.title}
+                  </h4>
+                  <div style={{ fontSize: '10px', color: '#888' }}>
+                    by {rationale.authorUsername} • {rationale.statistics.views} views • {rationale.statistics.copies} copies
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '4px', marginLeft: '8px' }}>
+                  <button
+                    onClick={(e) => handleViewRationale(rationale, e)}
+                    style={{
+                      display: 'inline-block',
+                      backgroundColor: '#0088cc',
+                      color: 'white',
+                      border: 'none',
+                      padding: '3px 6px',
+                      borderRadius: '2px',
+                      fontSize: '10px',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit'
+                    }}
+                  >
+                    View
+                  </button>
+                  <a
+                    href={`/s/${topic.space}/rationale/${rationale.id}`}
+                    target="_blank"
+                    rel="noopener,noreferrer"
+                    style={{
+                      display: 'inline-block',
+                      backgroundColor: '#f0f0f0',
+                      color: '#555',
+                      border: '1px solid #ccc',
+                      padding: '3px 6px',
+                      borderRadius: '2px',
+                      fontSize: '10px',
+                      textDecoration: 'none',
+                      fontFamily: 'inherit'
+                    }}
+                  >
+                    Open
+                  </a>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '6px', marginLeft: '12px' }}>
-                <button
-                  onClick={(e) => handleViewRationale(rationale, e)}
-                  style={{
-                    display: 'inline-block',
-                    backgroundColor: '#0088cc',
-                    color: 'white',
-                    border: 'none',
-                    padding: '4px 8px',
-                    borderRadius: '2px',
-                    fontSize: '11px',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit'
-                  }}
-                >
-                  View
-                </button>
-                <a
-                  href={`/s/${topic.space}/rationale/${rationale.id}`}
-                  target="_blank"
-                  rel="noopener,noreferrer"
-                  style={{
-                    display: 'inline-block',
-                    backgroundColor: '#f0f0f0',
-                    color: '#555',
-                    border: '1px solid #ccc',
-                    padding: '4px 8px',
-                    borderRadius: '2px',
-                    fontSize: '11px',
-                    textDecoration: 'none',
-                    fontFamily: 'inherit'
-                  }}
-                >
-                  Open
-                </a>
-              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
 
-      {rationales.length > 6 && (
-        <div style={{ textAlign: 'center', marginBottom: '12px' }}>
-          <a
-            href={getFullUrl(`/s/${topic.space}/topic/${encodeId(topic.id)}`)}
-            onClick={(e) => handleLinkClick(e, `/s/${topic.space}/topic/${encodeId(topic.id)}`)}
-            style={{
-              color: '#0088cc',
-              fontSize: '12px',
-              textDecoration: 'none'
-            }}
-          >
-            View all {rationales.length} rationales →
-          </a>
+          {rationales.length > 3 && (
+            <div style={{
+              border: '1px solid #ddd',
+              borderRadius: '3px',
+              padding: '12px',
+              marginBottom: '6px',
+              backgroundColor: '#fafafa',
+              textAlign: 'center'
+            }}>
+              <a
+                href={getFullUrl(`/s/${topic.space}/topic/${encodeId(topic.id)}`)}
+                onClick={(e) => handleLinkClick(e, `/s/${topic.space}/topic/${encodeId(topic.id)}`)}
+                style={{
+                  color: '#0088cc',
+                  fontSize: '13px',
+                  textDecoration: 'none',
+                  fontWeight: '500'
+                }}
+              >
+                See all {rationales.length} rationales →
+              </a>
+            </div>
+          )}
         </div>
       )}
-
 
     </div>
   );

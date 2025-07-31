@@ -8,10 +8,40 @@ export function EmbedTestClient() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
+  const generateSecureToken = () => {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2);
+    const signature = btoa(`${timestamp}-${random}`);
+    return `${timestamp}.${signature}`;
+  };
+
+  const validateToken = (token: string): boolean => {
+    try {
+      const [timestampStr, signature] = token.split('.');
+      const timestamp = parseInt(timestampStr);
+
+      const oneHour = 60 * 60 * 1000;
+      if (Date.now() - timestamp > oneHour) {
+        return false;
+      }
+
+      return !!(signature && signature.length > 10 && !isNaN(timestamp));
+    } catch (e) {
+      return false;
+    }
+  };
+
   useEffect(() => {
-    // Check if already authenticated
     const authToken = sessionStorage.getItem('embed-test-auth');
-    if (authToken === 'authenticated') {
+    if (authToken && authToken !== 'authenticated') {
+      if (validateToken(authToken)) {
+        setIsAuthenticated(true);
+      } else {
+        sessionStorage.removeItem('embed-test-auth');
+      }
+    } else if (authToken === 'authenticated') {
+      const newToken = generateSecureToken();
+      sessionStorage.setItem('embed-test-auth', newToken);
       setIsAuthenticated(true);
     }
     setIsLoading(false);
@@ -30,7 +60,8 @@ export function EmbedTestClient() {
       });
 
       if (response.ok) {
-        sessionStorage.setItem('embed-test-auth', 'authenticated');
+        const secureToken = generateSecureToken();
+        sessionStorage.setItem('embed-test-auth', secureToken);
         setIsAuthenticated(true);
       } else {
         setError('Invalid password');
@@ -198,18 +229,6 @@ function EmbedTestPage() {
   const [isLoading, setIsLoading] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  useEffect(() => {
-    const listener = (event: MessageEvent) => {
-      if (event.data?.source === 'negation-game-embed' && event.data?.type === 'resize') {
-        if (iframeRef.current && iframeRef.current.contentWindow === event.source) {
-          iframeRef.current.style.height = `${event.data.height}px`;
-          setIsLoading(false); // iframe has loaded and sent height
-        }
-      }
-    };
-    window.addEventListener('message', listener);
-    return () => window.removeEventListener('message', listener);
-  }, []);
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -354,9 +373,14 @@ function EmbedTestPage() {
             ref={iframeRef}
             src={iframeUrl}
             scrolling="no"
-            style={{ width: '100%', border: 'none', minHeight: 200 }}
+            style={{ width: '100%', border: 'none', height: '460px' }}
             title="Negation Game Embed"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+            referrerPolicy="strict-origin-when-cross-origin"
+            loading="lazy"
+            onLoad={() => setIsLoading(false)}
           />
+
         </div>
       )}
       <style>
