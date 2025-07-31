@@ -3,12 +3,12 @@ import { fetchViewpointsByTopic } from "@/actions/viewpoints/fetchViewpointsByTo
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { topicId: string } }
+  { params }: { params: Promise<{ topicId: string }> }
 ) {
   try {
     const { searchParams } = new URL(request.url);
     const space = searchParams.get("space");
-    
+
     if (!space) {
       return NextResponse.json(
         { error: "Space parameter is required" },
@@ -16,18 +16,16 @@ export async function GET(
       );
     }
 
-    const topicId = parseInt(params.topicId);
+    const resolvedParams = await params;
+    const topicId = parseInt(resolvedParams.topicId);
     if (isNaN(topicId)) {
-      return NextResponse.json(
-        { error: "Invalid topic ID" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid topic ID" }, { status: 400 });
     }
 
     const viewpoints = await fetchViewpointsByTopic(space, topicId);
-    
+
     // Transform the data for the embed
-    const rationales = viewpoints.map(vp => ({
+    const rationales = viewpoints.map((vp) => ({
       id: vp.id,
       title: vp.title,
       description: vp.description,
