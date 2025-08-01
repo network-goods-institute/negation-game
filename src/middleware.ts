@@ -148,7 +148,10 @@ export default function middleware(req: NextRequest) {
     const response = NextResponse.next();
     // eslint-disable-next-line drizzle/enforce-delete-with-where
     response.headers.delete("X-Frame-Options");
-    response.headers.set("Content-Security-Policy", "frame-ancestors *");
+    response.headers.set("Content-Security-Policy", "frame-ancestors *; default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self';");
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    response.headers.set("X-XSS-Protection", "1; mode=block");
+    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
     response.headers.set("x-pathname", url.pathname);
     return response;
   }
@@ -159,7 +162,10 @@ export default function middleware(req: NextRequest) {
     const response = NextResponse.next();
     // eslint-disable-next-line drizzle/enforce-delete-with-where
     response.headers.delete("X-Frame-Options");
-    response.headers.set("Content-Security-Policy", "frame-ancestors *");
+    response.headers.set("Content-Security-Policy", "frame-ancestors *; default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self';");
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    response.headers.set("X-XSS-Protection", "1; mode=block");
+    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
 
     // Prefix with /embed so root layout hides header
     response.headers.set("x-pathname", `/embed${url.pathname}`);

@@ -6,11 +6,12 @@ import {
   activeViewpointsFilter,
 } from "@/db/tables/viewpointsTable";
 import { eq, and } from "drizzle-orm";
+import { createSecureErrorResponse } from "@/lib/security/headers";
 
 const ALLOWED_ORIGINS = [
   "https://forum.scroll.io",
   "https://negationgame.com",
-  "https://play.negationgame.com", 
+  "https://play.negationgame.com",
   "https://scroll.negationgame.com",
   "https://localhost:3000",
   "http://localhost:3000",
@@ -26,14 +27,30 @@ function isValidOrigin(origin: string | null): boolean {
 }
 
 function isValidScrollUrl(url: string): boolean {
-  if (!url) return false;
+  if (!url || typeof url !== "string") return false;
 
-  if (url.includes("forum.scroll.io")) return true;
+  try {
+    const parsedUrl = new URL(url);
 
-  if (process.env.NODE_ENV !== "production" && url.includes("localhost"))
-    return true;
+    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+      return false;
+    }
 
-  return false;
+    const hostname = parsedUrl.hostname.toLowerCase();
+
+    if (hostname === "forum.scroll.io") return true;
+
+    if (
+      process.env.NODE_ENV !== "production" &&
+      (hostname === "localhost" || hostname === "127.0.0.1")
+    ) {
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    return false;
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -47,19 +64,14 @@ export async function GET(request: NextRequest) {
       : "https://forum.scroll.io";
 
     if (!sourceUrl) {
-      const response = NextResponse.json(
-        { error: "Missing source parameter" },
-        { status: 400 }
+      return createSecureErrorResponse(
+        "Missing source parameter",
+        400,
+        corsOrigin
       );
-      response.headers.set("Access-Control-Allow-Origin", corsOrigin);
-      response.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
-      response.headers.set("Access-Control-Allow-Headers", "Content-Type");
-      return response;
     }
 
-    const rationaleMatch = sourceUrl.match(
-      /\/rationale\/([a-zA-Z0-9_-]+)/
-    );
+    const rationaleMatch = sourceUrl.match(/\/rationale\/([a-zA-Z0-9_-]+)/);
     if (rationaleMatch) {
       const rationaleId = rationaleMatch[1];
 
@@ -77,14 +89,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (!isValidScrollUrl(sourceUrl)) {
-      const response = NextResponse.json(
-        { error: "Invalid source URL. Only forum.scroll.io URLs are allowed." },
-        { status: 400 }
+      return createSecureErrorResponse(
+        "Invalid source URL. Only forum.scroll.io URLs are allowed.",
+        400,
+        corsOrigin
       );
-      response.headers.set("Access-Control-Allow-Origin", corsOrigin);
-      response.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
-      response.headers.set("Access-Control-Allow-Headers", "Content-Type");
-      return response;
     }
 
     const topic = await db
@@ -138,14 +147,11 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (error) {
     console.error("Topic detector error:", error);
-    const response = NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
+    return createSecureErrorResponse(
+      "Internal server error",
+      500,
+      "https://forum.scroll.io"
     );
-    response.headers.set("Access-Control-Allow-Origin", "*");
-    response.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
-    response.headers.set("Access-Control-Allow-Headers", "Content-Type");
-    return response;
   }
 }
 
@@ -155,12 +161,10 @@ export async function OPTIONS(request: NextRequest) {
     ? origin!
     : "https://forum.scroll.io";
 
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      "Access-Control-Allow-Origin": corsOrigin,
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
-    },
-  });
+  const response = new NextResponse(null, { status: 200 });
+  response.headers.set("Access-Control-Allow-Origin", corsOrigin);
+  response.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+  response.headers.set("Access-Control-Allow-Headers", "Content-Type");
+
+  return response;
 }

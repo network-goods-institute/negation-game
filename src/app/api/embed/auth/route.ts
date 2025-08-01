@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { timingSafeEqual } from "crypto";
+import { createSecureErrorResponse } from "@/lib/security/headers";
 
 const ALLOWED_ORIGINS = [
   "https://forum.scroll.io",
@@ -14,57 +17,138 @@ function isValidOrigin(origin: string | null): boolean {
   );
 }
 
+function getClientIP(request: NextRequest): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  const realIP = request.headers.get("x-real-ip");
+
+  if (forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+
+  if (realIP) {
+    return realIP.trim();
+  }
+
+  return "unknown";
+}
+
 export async function POST(request: NextRequest) {
   const origin = request.headers.get("origin");
   const corsOrigin = isValidOrigin(origin)
     ? origin!
     : "https://forum.scroll.io";
 
+  const clientIP = getClientIP(request);
+
+  const rateLimitResult = await checkRateLimit(
+    `embed-auth-${clientIP}`,
+    5,
+    15 * 60 * 1000, // 15 minutes
+    "embed-auth"
+  );
+
+  if (!rateLimitResult.allowed) {
+    const response = createSecureErrorResponse(
+      "Too many authentication attempts. Please try again later.",
+      429,
+      corsOrigin
+    );
+    response.headers.set("X-RateLimit-Limit", "5");
+    response.headers.set(
+      "X-RateLimit-Remaining",
+      rateLimitResult.remaining.toString()
+    );
+    response.headers.set(
+      "X-RateLimit-Reset",
+      rateLimitResult.resetTime.toString()
+    );
+    return response;
+  }
+
   try {
-    const { password } = await request.json();
+    const body = await request.json();
+
+    if (!body || typeof body.password !== "string") {
+      return createSecureErrorResponse("Invalid request body", 400, corsOrigin);
+    }
+
+    const { password } = body;
+
+    if (password.length > 100) {
+      return createSecureErrorResponse("Password too long", 400, corsOrigin);
+    }
 
     const correctPassword = process.env.EMBED_TEST_PASSWORD;
 
     if (!correctPassword) {
       console.error("EMBED_TEST_PASSWORD environment variable not set");
-      return NextResponse.json(
-        { error: "Server configuration error" },
-        { status: 500 }
+      return createSecureErrorResponse(
+        "Server configuration error",
+        500,
+        corsOrigin
       );
     }
 
-    if (password === correctPassword) {
-      const response = NextResponse.json({ success: true });
+    let isPasswordValid = false;
+    try {
+      if (password.length === correctPassword.length) {
+        const passwordBuffer = Buffer.from(password, "utf8");
+        const correctPasswordBuffer = Buffer.from(correctPassword, "utf8");
+        isPasswordValid = timingSafeEqual(
+          passwordBuffer,
+          correctPasswordBuffer
+        );
+      }
+    } catch (error) {
+      isPasswordValid = false;
+    }
+
+    if (isPasswordValid) {
+      const response = NextResponse.json({
+        success: true,
+        message: "Authentication successful",
+      });
 
       response.headers.set("Access-Control-Allow-Origin", corsOrigin);
       response.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
       response.headers.set("Access-Control-Allow-Headers", "Content-Type");
+      response.headers.set("X-RateLimit-Limit", "5");
+      response.headers.set(
+        "X-RateLimit-Remaining",
+        rateLimitResult.remaining.toString()
+      );
+      response.headers.set(
+        "X-RateLimit-Reset",
+        rateLimitResult.resetTime.toString()
+      );
 
       return response;
     } else {
-      const response = NextResponse.json(
-        { error: "Invalid password" },
-        { status: 401 }
+      console.warn(
+        `Failed authentication attempt from IP: ${clientIP}, Origin: ${origin}`
       );
 
-      response.headers.set("Access-Control-Allow-Origin", corsOrigin);
-      response.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-      response.headers.set("Access-Control-Allow-Headers", "Content-Type");
+      const response = createSecureErrorResponse(
+        "Invalid credentials",
+        401,
+        corsOrigin
+      );
+
+      response.headers.set("X-RateLimit-Limit", "5");
+      response.headers.set(
+        "X-RateLimit-Remaining",
+        rateLimitResult.remaining.toString()
+      );
+      response.headers.set(
+        "X-RateLimit-Reset",
+        rateLimitResult.resetTime.toString()
+      );
 
       return response;
     }
   } catch (error) {
     console.error("Auth error:", error);
-    const response = NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-
-    response.headers.set("Access-Control-Allow-Origin", corsOrigin);
-    response.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-    response.headers.set("Access-Control-Allow-Headers", "Content-Type");
-
-    return response;
+    return createSecureErrorResponse("Internal server error", 500, corsOrigin);
   }
 }
 
@@ -74,12 +158,10 @@ export async function OPTIONS(request: NextRequest) {
     ? origin!
     : "https://forum.scroll.io";
 
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      "Access-Control-Allow-Origin": corsOrigin,
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
-    },
-  });
+  const response = new NextResponse(null, { status: 200 });
+  response.headers.set("Access-Control-Allow-Origin", corsOrigin);
+  response.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  response.headers.set("Access-Control-Allow-Headers", "Content-Type");
+
+  return response;
 }

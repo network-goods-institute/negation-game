@@ -243,7 +243,7 @@ function EmbedTestPage() {
           For production, just embed this URL directly - it will auto-detect the page URL:
         </p>
         <code style={{ background: '#f8fafc', padding: 4, borderRadius: 4, fontSize: 12, color: '#0c4a6e' }}>
-          {baseUrl}/embed/source
+          {baseUrl}/embed/scroll/source
         </code>
       </div>
 
@@ -304,7 +304,7 @@ function EmbedTestPage() {
                 setIframeUrl(`${baseUrl}/embed/rationale/${rationaleId}`);
               } else {
                 // Both topic and auto modes use the same URL as Discourse production
-                setIframeUrl(`${baseUrl}/embed/source?source=${encodeURIComponent(url)}`);
+                setIframeUrl(`${baseUrl}/embed/scroll/source?source=${encodeURIComponent(url)}`);
               }
             }}
             style={{

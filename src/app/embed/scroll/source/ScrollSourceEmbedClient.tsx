@@ -6,7 +6,7 @@ import { encodeId } from '@/lib/negation-game/encodeId';
 
 interface Props { sourceUrl: string; }
 
-export default function SourceEmbedClient({ sourceUrl }: Props) {
+export default function ScrollSourceEmbedClient({ sourceUrl }: Props) {
     const router = useRouter();
     const [status, setStatus] = useState<'loading' | 'error' | 'prompt'>('loading');
     const [errorMsg, setErrorMsg] = useState('');
@@ -52,15 +52,49 @@ export default function SourceEmbedClient({ sourceUrl }: Props) {
     }, [sourceUrl, router]);
 
     const sanitizeText = (text: string) => {
+        if (!text || typeof text !== 'string') return 'New Topic';
+
         return text
-            .replace(/[<>&"']/g, '') // Remove HTML/JS injection chars
+            .replace(/[<>&"'`(){}[\]\\|;:]/g, '') // Remove HTML/JS injection and other dangerous chars
             .replace(/[^\w\s-]/g, '') // Keep only alphanumeric, spaces, hyphens
+            .replace(/\s+/g, ' ') // Normalize whitespace
             .substring(0, 100) // Limit length
             .trim();
     };
 
+    const isValidUrl = (url: string): boolean => {
+        if (!url || typeof url !== 'string') return false;
+
+        try {
+            const parsedUrl = new URL(url);
+            const hostname = parsedUrl.hostname.toLowerCase();
+
+            if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+                return false;
+            }
+
+            if (hostname === 'forum.scroll.io') return true;
+
+            // Allow localhost for development
+            if (process.env.NODE_ENV !== 'production' &&
+                (hostname === 'localhost' || hostname === '127.0.0.1')) {
+                return true;
+            }
+
+            return false;
+        } catch {
+            return false;
+        }
+    };
+
     const handleCreate = async () => {
         try {
+            if (!isValidUrl(sourceUrl)) {
+                setStatus('error');
+                setErrorMsg('Invalid source URL. Only forum.scroll.io URLs are allowed.');
+                return;
+            }
+
             setStatus('loading');
             let title = 'New Topic';
             const m = sourceUrl.match(/\/t\/([^/]+)/);
@@ -77,16 +111,27 @@ export default function SourceEmbedClient({ sourceUrl }: Props) {
                     console.warn('Failed to decode URL component:', e);
                 }
             }
+
             const res = await fetch('/api/embed/create-topic', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sourceUrl, title })
             });
-            if (!res.ok) throw new Error('Failed to create topic');
+
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+                throw new Error(errorData.error || 'Failed to create topic');
+            }
+
             const data = await res.json();
+            if (!data.topicId) {
+                throw new Error('Invalid response from server');
+            }
+
             router.replace(`/embed/topic/${data.topicId}`);
         } catch (err: any) {
             setStatus('error');
-            setErrorMsg(err.message);
+            setErrorMsg(err.message || 'An unexpected error occurred');
         }
     };
 

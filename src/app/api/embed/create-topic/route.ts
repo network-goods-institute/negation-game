@@ -3,6 +3,7 @@ import { db } from "@/services/db";
 import { topicsTable } from "@/db/tables/topicsTable";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { createSecureErrorResponse } from "@/lib/security/headers";
 
 const ALLOWED_ORIGINS = [
   "https://forum.scroll.io",
@@ -39,39 +40,58 @@ export async function POST(request: NextRequest) {
     );
 
     if (!rateLimitResult.allowed) {
-      return new NextResponse(
-        JSON.stringify({
-          error: "Rate limit exceeded. Maximum 50 topics per day.",
-          resetTime: rateLimitResult.resetTime,
-        }),
-        {
-          status: 429,
-          headers: {
-            "Access-Control-Allow-Origin": corsOrigin,
-            "Content-Type": "application/json",
-            "X-RateLimit-Limit": "50",
-            "X-RateLimit-Remaining": rateLimitResult.remaining.toString(),
-            "X-RateLimit-Reset": rateLimitResult.resetTime.toString(),
-          },
-        }
+      const response = createSecureErrorResponse(
+        "Rate limit exceeded. Maximum 50 topics per day.",
+        429,
+        corsOrigin
       );
+      response.headers.set("X-RateLimit-Limit", "50");
+      response.headers.set(
+        "X-RateLimit-Remaining",
+        rateLimitResult.remaining.toString()
+      );
+      response.headers.set(
+        "X-RateLimit-Reset",
+        rateLimitResult.resetTime.toString()
+      );
+      return response;
     }
 
-    const isValidUrl =
-      sourceUrl &&
-      typeof sourceUrl === "string" &&
-      (sourceUrl.includes("forum.scroll.io") ||
-        (process.env.NODE_ENV !== "production" &&
-          sourceUrl.includes("localhost")));
+    function isValidSourceUrl(url: string): boolean {
+      if (!url || typeof url !== "string") return false;
 
-    if (!isValidUrl) {
-      return new NextResponse(JSON.stringify({ error: "Invalid source URL" }), {
-        status: 400,
-        headers: {
-          "Access-Control-Allow-Origin": corsOrigin,
-          "Content-Type": "application/json",
-        },
-      });
+      if (url.length > 2048) return false;
+
+      try {
+        const parsedUrl = new URL(url);
+
+        if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+          return false;
+        }
+
+        const hostname = parsedUrl.hostname.toLowerCase();
+
+        if (hostname === "forum.scroll.io") return true;
+
+        if (
+          process.env.NODE_ENV !== "production" &&
+          (hostname === "localhost" || hostname === "127.0.0.1")
+        ) {
+          return true;
+        }
+
+        return false;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    if (!isValidSourceUrl(sourceUrl)) {
+      return createSecureErrorResponse(
+        "Invalid source URL. Only forum.scroll.io URLs are allowed.",
+        400,
+        corsOrigin
+      );
     }
 
     const topicTitle = title && typeof title === "string" ? title : sourceUrl;
@@ -100,16 +120,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error creating topic:", error);
-    return new NextResponse(
-      JSON.stringify({ error: "Internal server error" }),
-      {
-        status: 500,
-        headers: {
-          "Access-Control-Allow-Origin": corsOrigin,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    return createSecureErrorResponse("Internal server error", 500, corsOrigin);
   }
 }
 
@@ -118,12 +129,11 @@ export async function OPTIONS(request: NextRequest) {
   const corsOrigin = isValidOrigin(origin)
     ? origin!
     : "https://forum.scroll.io";
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      "Access-Control-Allow-Origin": corsOrigin,
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
-    },
-  });
+
+  const response = new NextResponse(null, { status: 200 });
+  response.headers.set("Access-Control-Allow-Origin", corsOrigin);
+  response.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  response.headers.set("Access-Control-Allow-Headers", "Content-Type");
+
+  return response;
 }
