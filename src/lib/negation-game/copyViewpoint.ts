@@ -265,7 +265,7 @@ export const copyViewpointAndNavigate = async (
   try {
     // Use a simple fallback description for immediate copying
     // AI summary generation will happen in background after navigation
-    const fallbackDescription = `Copy of the rationale "${title.trim()}". This is a copy of an existing rationale.`;
+    const fallbackDescription = `Copy of the rationale "${title.trim()}". This is a copy of an existing rationale. (AI Summary is currently being generated.)`;
 
     // Store the copy in session storage with fallback description for fast navigation
     const success = copyViewpointToStorage(

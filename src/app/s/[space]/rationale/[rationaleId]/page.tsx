@@ -20,7 +20,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useRouter, notFound, useSearchParams, useParams } from "next/navigation";
 import Link from "next/link";
 import { useTopics } from "@/queries/topics/useTopics";
-import RationalePointsList from "@/components/rationale/RationalePointsList";
+import EnhancedRationalePointsList from "@/components/rationale/EnhancedRationalePointsList";
 import ExistingRationaleHeader from "@/components/rationale/ExistingRationaleHeader";
 import { useViewpoint } from "@/queries/viewpoints/useViewpoint";
 import { Loader } from "@/components/ui/loader";
@@ -57,6 +57,9 @@ function CopiedFromLink({ sourceId }: { sourceId: string }) {
     return (
         <Link href={linkPath} className="text-xs text-muted-foreground hover:text-primary transition-colors">
             Copied from: <span className="font-medium">{sourceViewpoint.title || 'Untitled Rationale'}</span>
+            {sourceViewpoint.author && (
+                <span className="text-muted-foreground"> - {sourceViewpoint.author}</span>
+            )}
         </Link>
     );
 }
@@ -467,8 +470,7 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                             }
                         />
 
-                        {/* Points List */}
-                        <RationalePointsList
+                        <EnhancedRationalePointsList
                             points={points}
                             hoveredPointId={hoveredPointId}
                             selectedPointIds={selectedPointIds}

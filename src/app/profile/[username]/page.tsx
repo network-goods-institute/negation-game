@@ -6,7 +6,7 @@ import { PointCard } from "@/components/cards/PointCard";
 import Link from "next/link";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftIcon, ArrowDownIcon, PencilIcon, ExternalLinkIcon, MessageSquareIcon } from "lucide-react";
+import { ArrowLeftIcon, ArrowDownIcon, PencilIcon, ExternalLinkIcon, MessageSquareIcon, CoinsIcon } from "lucide-react";
 import { useState, useMemo, useCallback, useEffect, memo } from "react";
 import { useProfilePoints } from "@/queries/points/useProfilePoints";
 import { useUserViewpoints } from "@/queries/users/useUserViewpoints";
@@ -27,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ProfilePoint } from "@/actions/points/fetchProfilePoints";
 import { ProfileBadge, RationaleRank } from "@/components/ui/ProfileBadge";
 import { DeltaComparisonWidget } from "@/components/delta/DeltaComparisonWidget";
+import { EarningsDialog } from "@/components/dialogs/EarningsDialog";
 
 type ProfileTab = "profile" | "endorsements" | "dashboard";
 
@@ -73,6 +74,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     const { data: endorsedPoints, isLoading: isLoadingEndorsedPoints } = useUserAllEndorsedPoints(username);
     const { data: userData } = useUser(username);
     const [editProfileOpen, setEditProfileOpen] = useState(false);
+    const [earningsDialogOpen, setEarningsDialogOpen] = useState(false);
 
     const isInitialLoading = isLoadingViewpoints || isLoadingEndorsedPoints;
 
@@ -280,17 +282,6 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                             <p className="text-sm text-muted-foreground">{userCred} cred</p>
                         </div>
                         <div className="flex items-center gap-2">
-                            {!isOwnProfile && userData?.id && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => router.push(`/messages/${userData.id}`)}
-                                    className="gap-1"
-                                >
-                                    <MessageSquareIcon className="size-3" />
-                                    Send Message
-                                </Button>
-                            )}
                             {isOwnProfile && (
                                 <Button
                                     variant="outline"
@@ -312,7 +303,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                     {userData.scrollDelegateLink || userData.agoraLink ? "Governance Delegate" : "Delegate Your Voting Power"}
                                 </h3>
                                 <p className="text-sm text-muted-foreground max-w-md">
-                                    {userData.scrollDelegateLink || userData.agoraLink 
+                                    {userData.scrollDelegateLink || userData.agoraLink
                                         ? `${username} is a governance delegate. View their profile or delegate your voting power.`
                                         : `Support ${username}'s governance decisions by delegating your voting power`
                                     }
@@ -401,17 +392,30 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                         <TabsContent value="profile" className="mt-4">
                             <div className="space-y-6">
                                 <div className="p-4 border rounded-lg">
-                                    <h3 className="font-medium mb-2">Stats</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div className="p-4 border rounded-lg text-center md:text-left">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="font-medium">Stats</h3>
+                                        {isOwnProfile && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setEarningsDialogOpen(true)}
+                                                className="gap-2"
+                                            >
+                                                <CoinsIcon className="size-4" />
+                                                Collect Earnings
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div className="p-4 border rounded-lg text-center">
                                             <p className="text-xs md:text-sm text-muted-foreground mb-1">Points Created</p>
                                             <p className="text-xl md:text-2xl font-medium">{validPoints.length}</p>
                                         </div>
-                                        <div className="p-4 border rounded-lg text-center md:text-left">
+                                        <div className="p-4 border rounded-lg text-center">
                                             <p className="text-xs md:text-sm text-muted-foreground mb-1">Points Endorsed</p>
                                             <p className="text-xl md:text-2xl font-medium">{userEndorsedPoints.length}</p>
                                         </div>
-                                        <div className="p-4 border rounded-lg text-center md:text-left">
+                                        <div className="p-4 border rounded-lg text-center">
                                             <p className="text-xs md:text-sm text-muted-foreground mb-1">Total Cred Endorsed</p>
                                             <p className="text-xl md:text-2xl font-medium">
                                                 {userEndorsedPoints.reduce((sum, point) =>
@@ -419,7 +423,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                     , 0)}
                                             </p>
                                         </div>
-                                        <div className="p-4 border rounded-lg text-center md:text-left">
+                                        <div className="p-4 border rounded-lg text-center">
                                             <p className="text-xs md:text-sm text-muted-foreground mb-1">Rationales Created</p>
                                             <p className="text-xl md:text-2xl font-medium">{userViewpoints?.length || 0}</p>
                                         </div>
@@ -696,6 +700,12 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                     currentDiscourseUsername={userData?.discourseUsername}
                     currentDiscourseCommunityUrl={userData?.discourseCommunityUrl}
                     currentDiscourseConsentGiven={userData?.discourseConsentGiven}
+                />
+            )}
+            {isOwnProfile && (
+                <EarningsDialog
+                    open={earningsDialogOpen}
+                    onOpenChange={setEarningsDialogOpen}
                 />
             )}
         </main>

@@ -49,7 +49,9 @@ export async function updateRationalePoints(
     );
   } catch (error) {
     console.error(
-      `[updateRationalePoints] Failed to update rationale points for ${rationaleId}:`,
+      "[updateRationalePoints] Failed to update rationale points for rationaleId:",
+      rationaleId,
+      "Error:",
       error instanceof Error ? error.message : String(error)
     );
     // Don't throw - we don't want to break rationale creation/update if this fails

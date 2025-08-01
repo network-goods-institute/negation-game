@@ -3,6 +3,7 @@
 import { getUserId } from "@/actions/users/getUserId";
 import { messagesTable } from "@/db/schema";
 import { db } from "@/services/db";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { and, eq } from "drizzle-orm";
 
 export interface EditMessageArgs {
@@ -15,6 +16,18 @@ export const editMessage = async ({ messageId, content }: EditMessageArgs) => {
 
   if (!userId) {
     throw new Error("Must be authenticated to edit messages");
+  }
+
+  const rateLimitResult = await checkRateLimit(
+    userId,
+    10,
+    60000,
+    "messages_edit"
+  );
+  if (!rateLimitResult.allowed) {
+    throw new Error(
+      "Rate limit exceeded. Please wait before editing more messages."
+    );
   }
 
   if (!content.trim()) {

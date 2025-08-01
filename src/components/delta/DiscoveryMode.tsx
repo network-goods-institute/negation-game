@@ -26,7 +26,7 @@ type BulkDeltaResult = {
     message?: string;
 };
 
-export function DiscoveryMode({ currentUserId }: { currentUserId?: string }) {
+export function DiscoveryMode({ currentUserId, spaceId }: { currentUserId?: string; spaceId?: string }) {
     const { login } = usePrivy();
     const [rootPoint, setRootPoint] = useState<
         { pointId: number; content: string } | null
@@ -192,7 +192,7 @@ export function DiscoveryMode({ currentUserId }: { currentUserId?: string }) {
                                                             asChild
                                                             className="h-8 w-8 p-0"
                                                         >
-                                                            <Link href={`/messages/${encodeURIComponent(user.username)}`}>
+                                                            <Link href={`/s/${encodeURIComponent(spaceId || 'global')}/messages/${encodeURIComponent(user.username)}`}>
                                                                 <MessageCircleIcon className="h-4 w-4" />
                                                                 <span className="sr-only">Message {user.username}</span>
                                                             </Link>
@@ -239,7 +239,7 @@ export function DiscoveryMode({ currentUserId }: { currentUserId?: string }) {
                                                             asChild
                                                             className="h-8 w-8 p-0"
                                                         >
-                                                            <Link href={`/messages/${encodeURIComponent(user.username)}`}>
+                                                            <Link href={`/s/${encodeURIComponent(spaceId || 'global')}/messages/${encodeURIComponent(user.username)}`}>
                                                                 <MessageCircleIcon className="h-4 w-4" />
                                                                 <span className="sr-only">Message {user.username}</span>
                                                             </Link>

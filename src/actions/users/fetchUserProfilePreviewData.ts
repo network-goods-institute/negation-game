@@ -36,7 +36,9 @@ export const fetchUserProfilePreviewData = async (userId: string) => {
     return result;
   } catch (error) {
     console.error(
-      `[fetchUserProfilePreviewData] Error fetching data for userId ${userId}:`,
+      "[fetchUserProfilePreviewData] Error fetching data for userId:",
+      userId,
+      "Error:",
       error
     );
     return null; // Indicate error fetching data

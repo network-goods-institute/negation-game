@@ -10,9 +10,9 @@ export const useMarkMessagesAsRead = () => {
 
   return useAuthenticatedMutation({
     mutationFn: (args: MarkMessagesAsReadArgs) => markMessagesAsRead(args),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
-      queryClient.invalidateQueries({ queryKey: ["unreadMessageCount"] });
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["conversations", undefined, variables.spaceId] });
+      queryClient.invalidateQueries({ queryKey: ["unreadMessageCount", variables.spaceId] });
     },
   });
 };

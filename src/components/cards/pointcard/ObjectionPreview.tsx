@@ -26,6 +26,7 @@ export const ObjectionPreview: React.FC<ObjectionPreviewProps> = ({
     targetId,
     space = 'global'
 }) => {
+    const { data: objectionPoint, isLoading: isLoadingObjection } = usePointDataById(objectionId);
     const { data: targetPoint, isLoading: isLoadingTarget } = usePointDataById(targetId);
     const setNegatedPointId = useSetAtom(negatedPointIdAtom);
 
@@ -51,6 +52,7 @@ export const ObjectionPreview: React.FC<ObjectionPreviewProps> = ({
             setIsOpen(false);
         }, 100);
     }, []);
+
 
     // Show the relationship: target counterpoint negating context point
     // This is what the objection point objects to
@@ -78,28 +80,33 @@ export const ObjectionPreview: React.FC<ObjectionPreviewProps> = ({
                 <div className="flex flex-col gap-4">
                     <div className="flex items-center justify-between">
                         <h3 className="text-sm font-medium">
-                            Point{" "}
                             <Link
                                 href={getPointUrl(objectionId, space)}
-                                className="text-blue-500 hover:underline"
+                                className="text-blue-500 hover:underline underline"
                             >
-                                {encodeId(objectionId)}
+                                {objectionPoint?.content ? objectionPoint.content.substring(0, 40) + (objectionPoint.content.length > 40 ? '...' : '') : 
+                                    <span className="inline-block h-3 w-24 bg-blue-500/30 rounded animate-pulse" />
+                                }
                             </Link>
-                            {" "}objects to{" "}
+                            {" "}argues that{" "}
                             <Link
                                 href={getPointUrl(targetId, space)}
-                                className="text-blue-500 hover:underline"
+                                className="text-blue-500 hover:underline underline"
                             >
-                                {encodeId(targetId)}
+                                {leftPoint?.content ? leftPoint.content.substring(0, 40) + (leftPoint.content.length > 40 ? '...' : '') : 
+                                    <span className="inline-block h-3 w-24 bg-blue-500/30 rounded animate-pulse" />
+                                }
                             </Link>
-                            {rightPoint ? " being relevant to " : " being relevant"}
-                            {rightPoint && (
+                            {" "}is not relevant to{" "}
+                            {rightPoint ? (
                                 <Link
                                     href={getPointUrl(rightPoint.pointId, space)}
-                                    className="text-blue-500 hover:underline"
+                                    className="text-blue-500 hover:underline underline"
                                 >
-                                    {encodeId(rightPoint.pointId)}
+                                    {rightPoint.content.substring(0, 40) + (rightPoint.content.length > 40 ? '...' : '')}
                                 </Link>
+                            ) : (
+                                "the topic"
                             )}
                         </h3>
                         <ObjectionIcon className="w-5 h-5 stroke-1 text-muted-foreground" />

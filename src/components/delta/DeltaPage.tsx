@@ -117,7 +117,7 @@ export default function DeltaPage() {
 
                 <TabsContent value="discovery" className="space-y-6">
                     <ErrorBoundary>
-                        <DiscoveryMode currentUserId={currentUserId} />
+                        <DiscoveryMode currentUserId={currentUserId} spaceId={spaceId || undefined} />
                     </ErrorBoundary>
                 </TabsContent>
 

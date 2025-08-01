@@ -1,7 +1,7 @@
 "use client";
 
 import RationaleMetaForm, { RationaleMetaFormProps } from "./RationaleMetaForm";
-import RationalePointsList, { RationalePointsListProps } from "./RationalePointsList";
+import EnhancedRationalePointsList, { EnhancedRationalePointsListProps } from "./EnhancedRationalePointsList";
 
 export interface NewRationaleFormProps {
     title: string;
@@ -12,11 +12,12 @@ export interface NewRationaleFormProps {
     onTopicChange: (value: string) => void;
     topics: RationaleMetaFormProps["topics"];
     currentSpace: string;
-    points: RationalePointsListProps["points"];
-    hoveredPointId?: RationalePointsListProps["hoveredPointId"];
+    points: EnhancedRationalePointsListProps["points"];
+    hoveredPointId?: EnhancedRationalePointsListProps["hoveredPointId"];
     isDescriptionEditing?: boolean;
     onDescriptionEdit?: () => void;
     onDescriptionBlur?: () => void;
+    isCopiedRationale?: boolean;
 }
 
 export default function NewRationaleForm({
@@ -33,6 +34,7 @@ export default function NewRationaleForm({
     isDescriptionEditing,
     onDescriptionEdit,
     onDescriptionBlur,
+    isCopiedRationale = false,
 }: NewRationaleFormProps) {
     return (
         <div className="overflow-auto">
@@ -46,16 +48,16 @@ export default function NewRationaleForm({
                 topics={topics}
                 currentSpace={currentSpace}
                 isNew
-                canEdit
+                canEdit={!isCopiedRationale}
                 hideTitle
                 showTopicHeader
-                hideTopicSelector
+                hideTopicSelector={isCopiedRationale}
                 isDescriptionEditing={isDescriptionEditing}
                 onDescriptionEdit={onDescriptionEdit}
                 onDescriptionBlur={onDescriptionBlur}
             />
             {points.length > 0 && (
-                <RationalePointsList points={points} hoveredPointId={hoveredPointId} />
+                <EnhancedRationalePointsList points={points} hoveredPointId={hoveredPointId} />
             )}
         </div>
     );

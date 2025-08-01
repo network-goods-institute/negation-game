@@ -20,6 +20,7 @@ import {
 } from "@/components/header/DynamicHeaderContent";
 import { getCurrentUser } from "@/lib/privy/auth";
 import { headers } from "next/headers";
+import { Analytics } from "@vercel/analytics/react"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -125,6 +126,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+
   const headersList = await headers();
   const pathname = headersList.get("x-pathname") || "";
   const isEmbedRoute = pathname.startsWith("/embed");
@@ -204,6 +206,8 @@ export default async function RootLayout({
             </QueryClientProvider>
           </ThemedPrivyProvider>
         </ThemeProvider>
+        <Analytics />
+        <script defer src="/_vercel/insights/script.js"></script>
       </body>
     </html>
   );

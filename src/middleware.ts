@@ -1,7 +1,8 @@
-import { SPACE_HEADER } from "@/constants/config";
+import { SPACE_HEADER, USER_HEADER } from "@/constants/config";
 import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
 import { isValidSpaceId } from "@/lib/negation-game/isValidSpaceId";
 import { VALID_SPACE_IDS } from "@/lib/negation-game/staticSpacesList";
+import { getPrivyClient } from "@/lib/privy/getPrivyClient";
 import { NextRequest, NextResponse } from "next/server";
 
 // Special subdomains that shouldn't redirect to a space
@@ -29,108 +30,93 @@ const SENSITIVE_PATTERNS = [
 
 export const config = {
   matcher: [
-    // Only run the middleware on these specific paths
-    // This is more reliable than trying to exclude specific paths
     "/",
     "/((?!_next/|_static/|img/|api/|_vercel|favicon\\.|.*\\.\\w+$).+)",
-
-    // Add a hostname-based matcher to catch all hosts
     {
       source: "/(.*)",
-      has: [
-        {
-          type: "host",
-          value: "(.+)",
-        },
-      ],
+      has: [{ type: "host", value: "(.+)" }],
     },
   ],
 };
 
-// Function to check if path should be handled by the middleware
 function shouldHandlePath(pathname: string): boolean {
-  // Skip static assets and API routes
-  if (
+  return !(
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/img/") ||
     pathname.startsWith("/_static/") ||
     pathname.startsWith("/api/") ||
     pathname.startsWith("/_vercel/") ||
     pathname === "/favicon.ico" ||
-    // Skip files with extensions in the root
     /^\/[^\/]+\.[a-zA-Z0-9]+$/.test(pathname)
-  ) {
-    return false;
-  }
-
-  return true;
+  );
 }
 
-// Function to handle subdomain routing logic
+async function handleAuth(req: NextRequest): Promise<NextResponse> {
+  const response = NextResponse.next();
+  const token = req.cookies.get("privy-token")?.value;
+
+  if (token) {
+    try {
+      const client = await getPrivyClient();
+      const claims = await client.verifyAuthToken(token);
+      response.headers.set(USER_HEADER, JSON.stringify(claims));
+    } catch (error: any) {
+      if (error.name !== "JWTExpired") {
+        console.error("Error verifying Privy auth token:", error);
+      }
+      // eslint-disable-next-line drizzle/enforce-delete-with-where
+      response.cookies.delete("privy-token");
+    }
+  }
+
+  return response;
+}
+
 function handleSubdomain(
   req: NextRequest,
   subdomain: string
 ): NextResponse | undefined {
   const url = req.nextUrl;
 
-  // Skip middleware for static assets
-  if (!shouldHandlePath(url.pathname)) {
-    return NextResponse.next();
-  }
-
-  // Skip blacklisted subdomains
   if (BLACKLISTED_SUBDOMAINS.has(subdomain) || !isValidSpaceId(subdomain)) {
-    // Special handling: if it's play.negationgame.com, allow rewrite to happen
     if (subdomain === "play") {
-      // Instead of returning early, let the middleware continue to rewrite to /s/global
       return undefined;
     }
-
-    // For other invalid subdomains, redirect to the main site
     return NextResponse.redirect(new URL("https://negationgame.com"));
   }
 
   if (VALID_SPACE_IDS.has(subdomain)) {
     let targetPath = url.pathname;
-
-    // If path already starts with /s/, remove the existing space parameter
     if (targetPath.startsWith("/s/")) {
-      // Extract the part after /s/{space}/
       const pathParts = targetPath.split("/").filter(Boolean);
       if (pathParts.length >= 2) {
-        // Remove the 's' and the original space name, keep rest of path
         pathParts.splice(0, 2);
         targetPath = pathParts.length > 0 ? `/${pathParts.join("/")}` : "";
       }
     }
 
-    // Redirect to the space page on play subdomain
     const spaceUrl = new URL(
       `/s/${subdomain}${targetPath}`,
       "https://play.negationgame.com"
     );
-
-    // Preserve query parameters
-    for (const [key, value] of url.searchParams.entries()) {
+    url.searchParams.forEach((value, key) => {
       spaceUrl.searchParams.set(key, value);
-    }
+    });
 
     const response = NextResponse.redirect(spaceUrl);
     response.headers.set(SPACE_HEADER, subdomain);
     return response;
-  } else {
-    // If it's not a valid space, redirect to the main site
-    return NextResponse.redirect(new URL("https://negationgame.com"));
   }
+
+  return NextResponse.redirect(new URL("https://negationgame.com"));
 }
 
-export default function middleware(req: NextRequest) {
+export default async function middleware(req: NextRequest) {
   const url = req.nextUrl;
   const { pathname } = url;
 
   if (SENSITIVE_PATTERNS.some((pattern) => pattern.test(pathname))) {
     console.error(`Blocked attempt to access sensitive path: ${pathname}`);
-
     const response = new NextResponse(null, {
       status: 404,
       statusText: "Not Found",
@@ -139,8 +125,7 @@ export default function middleware(req: NextRequest) {
     return response;
   }
 
-  // Skip middleware for static assets
-  if (!shouldHandlePath(url.pathname)) {
+  if (!shouldHandlePath(pathname)) {
     return NextResponse.next();
   }
 
@@ -179,43 +164,43 @@ export default function middleware(req: NextRequest) {
     return response;
   }
 
-  const host = req.headers.get("host") || "";
+  const authResponse = await handleAuth(req);
 
-  // Check if we're dealing with a subdomain of negationgame.com
+  const host = req.headers.get("host") || "";
   const domainMatch = host.match(/^([^.]+)\.negationgame\.com$/i);
+
   if (domainMatch) {
     const subdomain = domainMatch[1].toLowerCase();
-    const response = handleSubdomain(req, subdomain);
-    if (response) return response;
-  }
-
-  // Special-case root path to serve the marketing homepage
-  if (url.pathname === "/") {
-    return NextResponse.next();
-  }
-
-  // Replace 'viewpoint' with 'rationale' in the URL
-  if (url.pathname.includes("viewpoint")) {
-    const newPathname = url.pathname.replace(/viewpoint/g, "rationale");
-    const newUrl = new URL(newPathname, req.url);
-
-    // Preserve query parameters
-    for (const [key, value] of url.searchParams.entries()) {
-      newUrl.searchParams.set(key, value);
+    const subdomainResponse = handleSubdomain(req, subdomain);
+    if (subdomainResponse) {
+      // Forward headers from authResponse
+      authResponse.headers.forEach((value, key) => {
+        subdomainResponse.headers.set(key, value);
+      });
+      return subdomainResponse;
     }
+  }
 
+  if (pathname === "/") {
+    return authResponse;
+  }
+
+  if (pathname.includes("viewpoint")) {
+    const newPathname = pathname.replace(/viewpoint/g, "rationale");
+    const newUrl = new URL(newPathname, req.url);
+    url.searchParams.forEach((value, key) => {
+      newUrl.searchParams.set(key, value);
+    });
     return NextResponse.redirect(newUrl);
   }
 
-  // Explicit space segment is required; for any /s/:space path, set the header and continue
-  if (url.pathname.startsWith("/s/")) {
-    const space = getSpaceFromPathname(url.pathname);
+  if (pathname.startsWith("/s/")) {
+    const space = getSpaceFromPathname(pathname);
     if (!space) {
-      return; // malformed /s/ path, let Next.js handle 404
+      return; // malformed /s/ path
     }
-    const response = NextResponse.next();
-    response.headers.set(SPACE_HEADER, space);
-    return response;
+    authResponse.headers.set(SPACE_HEADER, space);
+    return authResponse;
   }
 
   // Handle profile paths without rewriting
@@ -232,28 +217,30 @@ export default function middleware(req: NextRequest) {
     url.pathname.startsWith("/delta") ||
     url.pathname.startsWith("/embed")
   ) {
-    const res = NextResponse.next();
-    if (!url.pathname.startsWith("/s/")) {
-      res.headers.set("X-Robots-Tag", "noindex, nofollow");
+    if (!pathname.startsWith("/s/")) {
+      authResponse.headers.set("X-Robots-Tag", "noindex, nofollow");
     }
-    return res;
+    return authResponse;
   }
 
-  // Redirect top-level '/chat' to '/s/global/chat'
-  if (url.pathname === "/chat" || url.pathname.startsWith("/chat/")) {
-    const redirectUrl = new URL(`/s/global${url.pathname}`, req.url);
-    // Preserve query parameters
-    for (const [key, value] of url.searchParams.entries()) {
+  if (pathname === "/chat" || pathname.startsWith("/chat/")) {
+    const redirectUrl = new URL(`/s/global${pathname}`, req.url);
+    url.searchParams.forEach((value, key) => {
       redirectUrl.searchParams.set(key, value);
-    }
+    });
     return NextResponse.redirect(redirectUrl);
   }
 
-  // No explicit space in URL: rewrite to /s/global
-  const rewriteUrl = new URL(`/s/global${url.pathname}`, req.url);
-  // Preserve query parameters
-  for (const [key, value] of url.searchParams.entries()) {
+  const rewriteUrl = new URL(`/s/global${pathname}`, req.url);
+  url.searchParams.forEach((value, key) => {
     rewriteUrl.searchParams.set(key, value);
-  }
-  return NextResponse.rewrite(rewriteUrl);
+  });
+
+  const rewriteResponse = NextResponse.rewrite(rewriteUrl);
+  // Forward headers from authResponse
+  authResponse.headers.forEach((value, key) => {
+    rewriteResponse.headers.set(key, value);
+  });
+
+  return rewriteResponse;
 }

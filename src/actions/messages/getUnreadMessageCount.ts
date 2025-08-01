@@ -5,7 +5,7 @@ import { messagesTable } from "@/db/schema";
 import { db } from "@/services/db";
 import { and, eq, sql } from "drizzle-orm";
 
-export const getUnreadMessageCount = async () => {
+export const getUnreadMessageCount = async (spaceId: string) => {
   const userId = await getUserId();
 
   if (!userId) {
@@ -20,6 +20,7 @@ export const getUnreadMessageCount = async () => {
     .where(
       and(
         eq(messagesTable.recipientId, userId),
+        eq(messagesTable.space, spaceId),
         eq(messagesTable.isRead, false),
         eq(messagesTable.isDeleted, false)
       )

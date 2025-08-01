@@ -1,51 +1,88 @@
-// this hook confusing af
 import { useQueryClient } from "@tanstack/react-query";
 import { editMessage, EditMessageArgs } from "@/actions/messages/editMessage";
 import { useAuthenticatedMutation } from "../auth/useAuthenticatedMutation";
 import { Message } from "@/types/messages";
+import { useUser } from "@/queries/users/useUser";
 
-export const useEditMessage = () => {
+export const useEditMessage = (spaceId?: string) => {
   const queryClient = useQueryClient();
+  const { data: user } = useUser();
 
   return useAuthenticatedMutation({
     mutationFn: (args: EditMessageArgs) => editMessage(args),
     onMutate: async ({ messageId, content }) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["conversation"] });
+      if (!user) return;
 
-      // Snapshot the previous value
-      const previousData = queryClient.getQueriesData({
-        queryKey: ["conversation"],
-      });
+      const conversationQueryKeys = queryClient
+        .getQueryCache()
+        .findAll({ queryKey: ["conversation"] })
+        .map((query) => query.queryKey);
 
-      // Optimistically update all conversation queries
-      queryClient.setQueriesData(
-        { queryKey: ["conversation"] },
-        (old: Message[] | undefined) => {
+      await Promise.all(
+        conversationQueryKeys.map((key) =>
+          queryClient.cancelQueries({ queryKey: key })
+        )
+      );
+
+      const previousData = conversationQueryKeys.map((key) => [
+        key,
+        queryClient.getQueryData(key),
+      ]);
+
+      conversationQueryKeys.forEach((key) => {
+        queryClient.setQueryData(key, (old: Message[] | undefined) => {
           if (!old) return old;
           return old.map((msg) =>
             msg.id === messageId
-              ? { ...msg, content, isEdited: true, editedAt: new Date() }
+              ? {
+                  ...msg,
+                  content,
+                  isEdited: true,
+                  editedAt: new Date(),
+                  _optimistic: true,
+                  _status: "editing" as const,
+                }
               : msg
           );
-        }
-      );
+        });
+      });
 
-      // Return a context object with the snapshotted value
       return { previousData };
     },
-    onError: (err, variables, context) => {
-      // If the mutation fails, use the context returned from onMutate to roll back
-      if (context?.previousData) {
-        context.previousData.forEach(([queryKey, data]) => {
-          queryClient.setQueryData(queryKey, data);
+    onSuccess: (_, { messageId, content }) => {
+      const conversationQueryKeys = queryClient
+        .getQueryCache()
+        .findAll({ queryKey: ["conversation"] })
+        .map((query) => query.queryKey);
+
+      conversationQueryKeys.forEach((key) => {
+        queryClient.setQueryData(key, (old: Message[] | undefined) => {
+          if (!old) return old;
+          return old.map((msg) =>
+            msg.id === messageId
+              ? {
+                  ...msg,
+                  _optimistic: false,
+                  _status: "edited" as const,
+                }
+              : msg
+          );
+        });
+      });
+
+      if (spaceId && user) {
+        queryClient.invalidateQueries({
+          queryKey: ["conversations", user.id, spaceId],
+          refetchType: "none",
         });
       }
     },
-    onSettled: () => {
-      // Always refetch after error or success to ensure server state
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
-      queryClient.invalidateQueries({ queryKey: ["conversation"] });
+    onError: (err, variables, context) => {
+      if (context?.previousData) {
+        context.previousData.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey as any, data);
+        });
+      }
     },
   });
 };

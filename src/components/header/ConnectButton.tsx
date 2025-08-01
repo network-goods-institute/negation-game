@@ -29,15 +29,15 @@ import { Badge } from "@/components/ui/badge";
 import { useRouter, usePathname } from "next/navigation";
 
 export const ConnectButton = () => {
-  const { login, logout, user: privyUser } = usePrivy();
+  const { ready, login, logout, user: privyUser } = usePrivy();
   const { data: user, isLoading } = useUser();
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
-  const { data: unreadMessageCount = 0 } = useUnreadMessageCount();
   const incompleteAssignmentCount = useIncompleteAssignmentCount();
   const router = useRouter();
   const pathname = usePathname();
 
   const currentSpace = pathname.match(/^\/s\/([^\/]+)/)?.[1];
+  const { data: unreadMessageCount = 0 } = useUnreadMessageCount(currentSpace || "global");
   const { data: adminStatus } = useAdminStatus();
   const prevPathRef = useRef(pathname);
 
@@ -45,6 +45,16 @@ export const ConnectButton = () => {
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [loadingRoute, setLoadingRoute] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  const handleLogin = async () => {
+    setIsLoggingIn(true);
+    try {
+      await login();
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
 
   // Check if user is admin of any space or is site admin
   const isAnySpaceAdmin = adminStatus?.siteAdmin || (adminStatus?.adminSpaces && adminStatus.adminSpaces.length > 0);
@@ -74,17 +84,30 @@ export const ConnectButton = () => {
     };
   };
 
+  if (!ready) {
+    return (
+      <Button
+        key="connect"
+        className="w-28 sm:w-36 rounded-full text-sm"
+        size={"sm"}
+        disabled
+      >
+        <LoaderCircleIcon className="animate-spin" />
+      </Button>
+    );
+  }
+
   if (!privyUser)
     return (
       <Button
         key="connect"
         className="w-28 sm:w-36 rounded-full text-sm"
         size={"sm"}
-        onClick={login}
-        disabled={privyUser !== null}
+        onClick={handleLogin}
+        disabled={isLoggingIn}
       >
         <p className="overflow-clip max-w-full">
-          {privyUser ? <LoaderCircleIcon className="animate-spin" /> : "Connect"}
+          {isLoggingIn ? <LoaderCircleIcon className="animate-spin" /> : "Connect"}
         </p>
       </Button>
     );
@@ -149,27 +172,29 @@ export const ConnectButton = () => {
               </Link>
             </DropdownMenuItem>
 
-            <DropdownMenuItem
-              asChild
-              onSelect={navigate("/messages")}
-              disabled={!!loadingRoute || pathname === "/messages"}
-            >
-              <Link href="/messages" className="gap-2">
-                {loadingRoute === "/messages" ? (
-                  <LoaderCircleIcon className="size-4 animate-spin" />
-                ) : (
-                  <MessageSquareIcon className="size-4" />
-                )}
-                <div className="flex items-center justify-between w-full">
-                  <span>Messages</span>
-                  {unreadMessageCount > 0 && (
-                    <Badge variant="destructive" className="h-4 min-w-4 px-1 text-xs ml-2">
-                      {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
-                    </Badge>
+            {currentSpace && (
+              <DropdownMenuItem
+                asChild
+                onSelect={navigate(`/s/${currentSpace}/messages`)}
+                disabled={!!loadingRoute || pathname === `/s/${currentSpace}/messages`}
+              >
+                <Link href={`/s/${currentSpace}/messages`} className="gap-2">
+                  {loadingRoute === `/s/${currentSpace}/messages` ? (
+                    <LoaderCircleIcon className="size-4 animate-spin" />
+                  ) : (
+                    <MessageSquareIcon className="size-4" />
                   )}
-                </div>
-              </Link>
-            </DropdownMenuItem>
+                  <div className="flex items-center justify-between w-full">
+                    <span>Messages</span>
+                    {unreadMessageCount > 0 && (
+                      <Badge variant="destructive" className="h-4 min-w-4 px-1 text-xs ml-2">
+                        {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
+                      </Badge>
+                    )}
+                  </div>
+                </Link>
+              </DropdownMenuItem>
+            )}
 
             <DropdownMenuItem
               asChild

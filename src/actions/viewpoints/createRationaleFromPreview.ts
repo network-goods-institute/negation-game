@@ -370,7 +370,9 @@ export async function createRationaleFromPreview({
           }
         } catch (error) {
           console.error(
-            `[createRationaleFromPreview] Failed to process point node ${node.id}:`,
+            "[createRationaleFromPreview] Failed to process point node:",
+            node.id,
+            "Error:",
             error
           );
           throw new Error(
@@ -696,7 +698,9 @@ export async function createRationaleFromPreview({
               );
             } catch (error) {
               console.error(
-                `[createRationaleFromPreview] Failed to create objection for node ${node.id}:`,
+                "[createRationaleFromPreview] Failed to create objection for node:",
+                node.id,
+                "Error:",
                 error
               );
               failedObjections.push({

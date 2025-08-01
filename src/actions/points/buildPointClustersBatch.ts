@@ -181,7 +181,9 @@ export async function buildPointClustersBatch(
         return { success: true, pointId };
       } catch (error) {
         console.error(
-          `[buildPointClustersBatch] Failed to build cluster for point ${pointId}:`,
+          "[buildPointClustersBatch] Failed to build cluster for point:",
+          pointId,
+          "Error:",
           error
         );
         return { success: false, pointId, error };

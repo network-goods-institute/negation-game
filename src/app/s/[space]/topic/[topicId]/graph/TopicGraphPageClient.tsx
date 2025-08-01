@@ -8,7 +8,7 @@ import { encodeId } from "@/lib/negation-game/encodeId";
 import GlobalTopicGraph from "@/components/topic/GlobalTopicGraph";
 import { Dynamic } from "@/components/utils/Dynamic";
 import { useTopicPoints } from "@/queries/topics/useTopicPoints";
-import RationalePointsList from "@/components/rationale/RationalePointsList";
+import EnhancedRationalePointsList from "@/components/rationale/EnhancedRationalePointsList";
 import { Loader } from "@/components/ui/loader";
 import { useAtom } from "jotai";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
@@ -95,7 +95,7 @@ export default function TopicGraphPageClient({ topic, space }: TopicGraphPageCli
                             <Loader className="h-6 w-6" />
                         </div>
                     ) : points.length > 0 ? (
-                        <RationalePointsList
+                        <EnhancedRationalePointsList
                             points={points}
                             hoveredPointId={hoveredPointId}
                             editMode={false}

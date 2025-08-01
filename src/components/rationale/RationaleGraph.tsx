@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useMemo } from 'react';
+import React, { useCallback } from 'react';
 import { GraphView } from '../graph/base/GraphView';
 import useScrollToPoint from '@/hooks/graph/useScrollToPoint';
 import { useReactFlow } from '@xyflow/react';
@@ -6,12 +6,6 @@ import type { ReactFlowInstance } from '@xyflow/react';
 import type { AppNode } from '../graph/nodes/AppNode';
 import type { ViewpointGraph } from '@/atoms/viewpointAtoms';
 import type { NodeChange, EdgeChange } from '@xyflow/react';
-import { toast } from 'sonner';
-import { useGraphPoints } from '@/hooks/graph/useGraphPoints';
-import { useQuery } from '@tanstack/react-query';
-import type { PointData } from '@/queries/points/usePointData';
-import { fetchPoints } from '@/actions/points/fetchPoints';
-import { GraphSizingContext } from '@/components/graph/base/GraphSizingContext';
 
 export interface RationaleGraphProps {
     graph: ViewpointGraph;
@@ -37,6 +31,9 @@ export interface RationaleGraphProps {
     onModifiedChange?: (isModified: boolean) => void;
     nodesDraggable?: boolean;
     topOffsetPx?: number;
+    onPublish?: () => void;
+    canPublish?: boolean;
+    isPublishing?: boolean;
 }
 
 export default function RationaleGraph({
@@ -63,42 +60,11 @@ export default function RationaleGraph({
     onModifiedChange,
     nodesDraggable,
     topOffsetPx,
+    onPublish,
+    canPublish = false,
+    isPublishing = false,
 }: RationaleGraphProps) {
-    const uniquePoints = useGraphPoints();
-    const pointIds = useMemo(() => uniquePoints.map((p) => p.pointId), [uniquePoints]);
-    const { data: pointsData } = useQuery<PointData[]>({
-        queryKey: ['graph-creds', pointIds],
-        queryFn: () => fetchPoints(pointIds),
-        enabled: pointIds.length > 0,
-        staleTime: 5 * 60 * 1000,
-    });
-    const creds = pointsData?.map((p) => p.cred ?? 0) ?? [];
-    const minCred = creds.length > 0 ? Math.min(...creds) : 0;
-    const maxCred = creds.length > 0 ? Math.max(...creds) : 0;
 
-    const toastIdRef = useRef<string | number | null>(null);
-    useEffect(() => {
-        if (toastIdRef.current) {
-            toast.dismiss(toastIdRef.current);
-        }
-        const id = toast(
-            "Node expansions, sharing, and other features may take a few seconds to become available as detailed node data loads.",
-            {
-                position: 'bottom-left',
-                duration: 30000,
-                action: {
-                    label: 'Dismiss',
-                    onClick: () => toast.dismiss(id),
-                },
-            }
-        );
-        toastIdRef.current = id;
-        return () => {
-            if (toastIdRef.current) {
-                toast.dismiss(toastIdRef.current);
-            }
-        };
-    }, []);
     const scrollHandler = useScrollToPoint();
     const reactFlow = useReactFlow<AppNode>();
     const onInit = (instance: ReactFlowInstance<AppNode>) => {
@@ -123,8 +89,7 @@ export default function RationaleGraph({
     );
 
     return (
-        <GraphSizingContext.Provider value={{ minCred, maxCred }}>
-            <GraphView
+        <GraphView
                 onNodeClick={scrollHandler}
                 onInit={onInit}
                 defaultNodes={graph.nodes}
@@ -151,7 +116,9 @@ export default function RationaleGraph({
                 hideComments={hideComments}
                 nodesDraggable={nodesDraggable}
                 topOffsetPx={topOffsetPx}
+                onPublish={onPublish}
+                canPublish={canPublish}
+                isPublishing={isPublishing}
             />
-        </GraphSizingContext.Provider>
     );
 } 

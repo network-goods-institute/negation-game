@@ -1,7 +1,8 @@
 import React from "react";
-import { encodeId } from "@/lib/negation-game/encodeId";
 import { cn } from "@/lib/utils/cn";
 import { ObjectionPreview } from "./ObjectionPreview";
+import { usePointDataById } from "@/queries/points/usePointDataById";
+import { ObjectionHeaderSkeleton } from "./ObjectionHeaderSkeleton";
 
 export interface ObjectionHeaderProps {
     id: number;
@@ -10,6 +11,13 @@ export interface ObjectionHeaderProps {
 }
 
 export const ObjectionHeader: React.FC<ObjectionHeaderProps> = ({ id, parentId, space }) => {
+    const { data: objectionPoint, isLoading: isObjectionLoading } = usePointDataById(id);
+    const { data: parentPoint, isLoading: isParentLoading } = usePointDataById(parentId);
+
+    if (isObjectionLoading || isParentLoading) {
+        return <ObjectionHeaderSkeleton />;
+    }
+
     return (
         <ObjectionPreview objectionId={id} targetId={parentId} space={space}>
             <div
@@ -20,9 +28,17 @@ export const ObjectionHeader: React.FC<ObjectionHeaderProps> = ({ id, parentId, 
                     "cursor-pointer hover:bg-red-100 dark:hover:bg-red-900"
                 )}
             >
-                <span>{encodeId(parentId)}</span>
+                <span className="underline">
+                    {parentPoint?.content ? parentPoint.content.substring(0, 25) + (parentPoint.content.length > 25 ? '...' : '') :
+                        <div className="h-3 w-16 bg-current/40 rounded animate-pulse" />
+                    }
+                </span>
                 <span className="mx-2">/</span>
-                <span>{encodeId(id)}</span>
+                <span className="underline">
+                    {objectionPoint?.content ? objectionPoint.content.substring(0, 25) + (objectionPoint.content.length > 25 ? '...' : '') :
+                        <div className="h-3 w-20 bg-current/40 rounded animate-pulse" />
+                    }
+                </span>
             </div>
         </ObjectionPreview>
     );

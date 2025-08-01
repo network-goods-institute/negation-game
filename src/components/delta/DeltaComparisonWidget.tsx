@@ -38,6 +38,7 @@ interface DeltaComparisonWidgetProps {
     title: string;
     description: React.ReactNode;
     currentUserId?: string;
+    spaceId?: string;
     className?: string;
 }
 
@@ -46,6 +47,7 @@ export function DeltaComparisonWidget({
     title,
     description,
     currentUserId,
+    spaceId,
     className = "",
 }: DeltaComparisonWidgetProps) {
     const { login } = usePrivy();
@@ -344,7 +346,7 @@ export function DeltaComparisonWidget({
                                                                             asChild
                                                                             className="h-6 w-6 p-0"
                                                                         >
-                                                                            <Link href={`/messages/${encodeURIComponent(user.username)}`}>
+                                                                            <Link href={`/s/${encodeURIComponent(spaceId || 'global')}/messages/${encodeURIComponent(user.username)}`}>
                                                                                 <MessageCircleIcon className="h-3 w-3" />
                                                                                 <span className="sr-only">Message {user.username}</span>
                                                                             </Link>
@@ -382,7 +384,7 @@ export function DeltaComparisonWidget({
                                                                             asChild
                                                                             className="h-6 w-6 p-0"
                                                                         >
-                                                                            <Link href={`/messages/${encodeURIComponent(user.username)}`}>
+                                                                            <Link href={`/s/${encodeURIComponent(spaceId || 'global')}/messages/${encodeURIComponent(user.username)}`}>
                                                                                 <MessageCircleIcon className="h-3 w-3" />
                                                                                 <span className="sr-only">Message {user.username}</span>
                                                                             </Link>

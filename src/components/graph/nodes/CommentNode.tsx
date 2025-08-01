@@ -4,7 +4,7 @@ import { NodeProps, Node, useReactFlow, useUpdateNodeInternals } from "@xyflow/r
 import { useState, useEffect, ChangeEvent, KeyboardEvent, useRef } from "react";
 import { AutosizeTextarea, AutosizeTextAreaRef } from "@/components/ui/autosize-textarea";
 import { Button } from "@/components/ui/button";
-import { MessageSquareIcon, TrashIcon, EditIcon } from "lucide-react";
+import { MessageSquareIcon, TrashIcon, EditIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 export type CommentNodeData = {
@@ -109,6 +109,22 @@ export const CommentNode = ({
             onMouseLeave={() => setIsHovered(false)}
             onDoubleClick={handleDoubleClick}
         >
+            {/* Delete X Button - Always Visible */}
+            <button
+                onClick={handleDelete}
+                className={cn(
+                    'absolute -top-2 -right-2 transform translate-x-[10px] -translate-y-1/2',
+                    'w-8 h-8 bg-background border-2 border-muted-foreground rounded-full',
+                    'flex items-center justify-center',
+                    'pointer-events-auto z-20 cursor-pointer',
+                    'hover:bg-red-50 hover:border-red-500 dark:hover:bg-red-900/20 dark:hover:border-red-400 transition-colors',
+                    'focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2'
+                )}
+                title="Delete comment"
+            >
+                <XIcon className="size-4 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors" />
+            </button>
+            
             {/* Comment Icon Header */}
             <div className="flex items-center gap-2 mb-3">
                 <MessageSquareIcon className="size-5 text-blue-600 dark:text-blue-400" />
@@ -126,18 +142,6 @@ export const CommentNode = ({
                             title="Edit comment"
                         >
                             <EditIcon className="size-3 text-blue-600 dark:text-blue-400" />
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 w-6 p-0 hover:bg-red-100 dark:hover:bg-red-900/20"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete();
-                            }}
-                            title="Delete comment"
-                        >
-                            <TrashIcon className="size-3 text-red-600 dark:text-red-400" />
                         </Button>
                     </div>
                 )}

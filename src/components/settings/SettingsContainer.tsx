@@ -7,15 +7,21 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUpdateUserSettings } from "@/mutations/user/useUpdateUserSettings";
-import { LoaderCircleIcon, MessageCircleIcon, EyeIcon, BellIcon } from "lucide-react";
-import Link from "next/link";
+import { useNotificationPreferences } from "@/queries/notifications/useNotificationPreferences";
+import { useUpdateNotificationPreferences } from "@/mutations/notifications/useUpdateNotificationPreferences";
+import { usePrivy } from "@privy-io/react-auth";
+import { LoaderCircleIcon, MessageCircleIcon, BellIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const SettingsContainer = () => {
     const { data: user, isLoading } = useUser();
+    const { ready, authenticated } = usePrivy();
+    const { data: preferences, isLoading: preferencesLoading } = useNotificationPreferences();
     const updateSettings = useUpdateUserSettings();
+    const updatePreferences = useUpdateNotificationPreferences();
 
     const [showReadReceipts, setShowReadReceipts] = useState(user?.showReadReceipts ?? true);
     const [receiveReadReceipts, setReceiveReadReceipts] = useState(user?.receiveReadReceipts ?? true);
@@ -54,7 +60,7 @@ export const SettingsContainer = () => {
         setHasChanges(true);
     };
 
-    if (isLoading) {
+    if (isLoading || preferencesLoading) {
         return (
             <div className="space-y-6">
                 <div className="border rounded-lg bg-card">
@@ -84,16 +90,36 @@ export const SettingsContainer = () => {
                             <Skeleton className="h-6 w-32" />
                         </div>
                     </div>
-                    <div className="p-6">
-                        <Skeleton className="h-3 w-80 mb-4" />
-                        <Skeleton className="h-10 w-48" />
+                    <div className="p-6 space-y-4">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                            <div key={i} className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <Skeleton className="h-4 w-32" />
+                                    <Skeleton className="h-3 w-64" />
+                                </div>
+                                <Skeleton className="h-6 w-11 rounded-full" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="border rounded-lg bg-card">
+                    <div className="p-6 border-b">
+                        <Skeleton className="h-6 w-44" />
+                    </div>
+                    <div className="p-6 space-y-4">
+                        <div className="space-y-2">
+                            <Skeleton className="h-4 w-40" />
+                            <Skeleton className="h-10 w-48" />
+                            <Skeleton className="h-3 w-72" />
+                        </div>
                     </div>
                 </div>
             </div>
         );
     }
 
-    if (!user) {
+    if (!user || !ready || !authenticated) {
         return (
             <div className="text-center p-8">
                 <p className="text-muted-foreground">Please log in to view settings.</p>
@@ -177,16 +203,107 @@ export const SettingsContainer = () => {
                         Notifications
                     </CardTitle>
                 </CardHeader>
-                <CardContent>
-                    <p className="text-muted-foreground mb-4">
-                        Manage your notification preferences and digest settings
-                    </p>
-                    <Link href="/settings/notifications">
-                        <Button variant="outline" className="w-full sm:w-auto">
-                            <EyeIcon className="w-4 h-4 mr-2" />
-                            View Notification Settings
-                        </Button>
-                    </Link>
+                <CardContent className="space-y-6">
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label>Endorsements</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    When someone endorses your points
+                                </p>
+                            </div>
+                            <Switch
+                                checked={preferences?.endorsementNotifications ?? true}
+                                onCheckedChange={(checked) =>
+                                    updatePreferences.mutate({ endorsementNotifications: checked })
+                                }
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label>Negations</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    When someone creates a counterpoint to your points
+                                </p>
+                            </div>
+                            <Switch
+                                checked={preferences?.negationNotifications ?? true}
+                                onCheckedChange={(checked) =>
+                                    updatePreferences.mutate({ negationNotifications: checked })
+                                }
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label>Restakes, Slashes & Doubts</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    When someone restakes, slashes, or doubts related to your points
+                                </p>
+                            </div>
+                            <Switch
+                                checked={preferences?.restakeNotifications ?? true}
+                                onCheckedChange={(checked) =>
+                                    updatePreferences.mutate({ restakeNotifications: checked })
+                                }
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label>Rationale Mentions</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    When your points are mentioned in rationales
+                                </p>
+                            </div>
+                            <Switch
+                                checked={preferences?.rationaleNotifications ?? true}
+                                onCheckedChange={(checked) =>
+                                    updatePreferences.mutate({ rationaleNotifications: checked })
+                                }
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label>Scroll Proposals</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    When new governance proposals are detected from forum.scroll.io
+                                </p>
+                            </div>
+                            <Switch
+                                checked={preferences?.scrollProposalNotifications ?? false}
+                                onCheckedChange={(checked) =>
+                                    updatePreferences.mutate({ scrollProposalNotifications: checked })
+                                }
+                            />
+                        </div>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-2">
+                        <Label>AI Summary Frequency</Label>
+                        <Select
+                            value={preferences?.digestFrequency ?? "daily"}
+                            onValueChange={(value: "none" | "daily" | "weekly") =>
+                                updatePreferences.mutate({ digestFrequency: value })
+                            }
+                        >
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">None</SelectItem>
+                                <SelectItem value="daily">Daily</SelectItem>
+                                <SelectItem value="weekly">Weekly</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <p className="text-sm text-muted-foreground">
+                            Get AI-generated summaries shown directly in your notifications
+                        </p>
+                    </div>
                 </CardContent>
             </Card>
         </div>

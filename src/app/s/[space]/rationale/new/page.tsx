@@ -523,75 +523,90 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
               isDescriptionEditing={isEditingDescription}
               onDescriptionEdit={() => setIsEditingDescription(true)}
               onDescriptionBlur={() => setIsEditingDescription(false)}
+              isCopiedRationale={isCopiedFromSessionStorage}
             />
           </div>
         ) : null}
       </div>
 
-      {/* Embed Mode Graph View */}
-      {(isEmbedMode || isDesktopEmbed) && canvasEnabled && (
-        <div className="flex-grow h-full min-h-[600px] bg-white">
-          <Dynamic>
-            <RationaleGraph key={graphRevision}
-              graph={graph}
-              setGraph={setGraph}
-              statement={statement}
-              description={reasoning}
-              canvasEnabled={canvasEnabled}
-              className="w-full h-full min-h-[600px] relative"
-              canModify={true}
-              isNew={true}
-              isSaving={isPublishing}
-              hideShareButton={true}
-              onSave={async () => {
-                try {
-                  const id = await publish();
-                  // state reset handled inside hook
-                  return true;
-                } catch {
-                  return false;
-                }
-              }}
-              topOffsetPx={64}
-            />
-          </Dynamic>
-        </div>
-      )}
+{/* Embed Mode Graph View */}
+{(isEmbedMode || isDesktopEmbed) && canvasEnabled && (
+  <div className="flex-grow h-full min-h-[600px] bg-white">
+    <Dynamic>
+      <RationaleGraph
+        key={graphRevision}
+        graph={graph}
+        setGraph={setGraph}
+        statement={statement}
+        description={reasoning}
+        canvasEnabled={canvasEnabled}
+        className="w-full h-full min-h-[600px] relative"
+        canModify={true}
+        isNew={true}
+        isSaving={isPublishing}
+        hideShareButton={true}
+        onSave={async () => {
+          try {
+            const id = await publish();
+            return true;
+          } catch {
+            return false;
+          }
+        }}
+        topOffsetPx={64}
+      />
+    </Dynamic>
+  </div>
+)}
 
-      {/* Normal Graph View - Hidden in embed mode */}
-      {!isEmbedMode && !isDesktopEmbed && (
-        <Dynamic>
-          <RationaleGraph key={graphRevision}
-            graph={graph}
-            setGraph={setGraph}
-            statement={statement}
-            description={reasoning}
-            canvasEnabled={canvasEnabled}
-            className={cn(
-              "!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset]  !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md:z-auto",
-              !canvasEnabled && isMobile && "hidden",
-              showFeed && isMobile && "hidden"
-            )}
-            canModify={true}
-            isNew={true}
-            isSaving={isPublishing}
-            hideShareButton={true}
-            onSave={async () => {
-              try {
-                const id = await publish();
-                // state reset handled inside hook
-                return true;
-              } catch {
-                return false;
-              }
-            }}
-            topOffsetPx={64}
-          />
-        </Dynamic>
+{/* Normal Graph View - Hidden in embed mode */}
+{!isEmbedMode && !isDesktopEmbed && (
+  <Dynamic>
+    <RationaleGraph
+      key={graphRevision}
+      graph={graph}
+      setGraph={setGraph}
+      statement={statement}
+      description={reasoning}
+      canvasEnabled={canvasEnabled}
+      className={cn(
+        "!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset]  !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md:z-auto",
+        !canvasEnabled && isMobile && "hidden",
+        showFeed && isMobile && "hidden"
       )}
+      canModify={true}
+      isNew={true}
+      isSaving={isPublishing}
+      // Full sharing/publish controls in normal mode:
+      hideShareButton={false}
+      isSharing={false}
+      toggleSharingMode={() => {}}
+      handleGenerateAndCopyShareLink={() => {}}
+      canPublish={canPublish}
+      isPublishing={isPublishing}
+      onPublish={async () => {
+        try {
+          await publish();
+        } catch (error) {
+          console.error('Failed to publish:', error);
+        }
+      }}
+      onSave={async () => {
+        try {
+          const id = await publish();
+          return true;
+        } catch {
+          return false;
+        }
+      }}
+      topOffsetPx={64}
+    />
+  </Dynamic>
+)}
 
-      {!isEmbedMode && !isDesktopEmbed && <PointsFeedContainer />}
-      {!isEmbedMode && !isDesktopEmbed && <DraftSavedIndicator />}
+{!isEmbedMode && !isDesktopEmbed && <PointsFeedContainer />}
+{!isEmbedMode && !isDesktopEmbed && <DraftSavedIndicator />}
+
     </main>
   );
 }

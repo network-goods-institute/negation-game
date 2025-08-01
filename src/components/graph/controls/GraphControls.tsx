@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Panel, MiniMap, Controls } from "@xyflow/react";
 import { SharePanel } from "./SharePanel";
 import { SaveDiscardPanel } from "./SaveDiscardPanel";
@@ -7,6 +7,16 @@ import { nanoid } from "nanoid";
 import { MessageSquareIcon } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { AppNode } from "@/components/graph/nodes/AppNode";
 
 export interface GraphControlsProps {
@@ -31,6 +41,9 @@ export interface GraphControlsProps {
     onClose?: () => void;
     closeButtonClassName?: string;
     topOffsetPx?: number;
+    onPublish?: () => void;
+    canPublish?: boolean;
+    isPublishing?: boolean;
 }
 
 
@@ -56,8 +69,13 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
     onClose,
     closeButtonClassName,
     topOffsetPx = 0,
+    onPublish,
+    canPublish = false,
+    isPublishing = false,
 }) => {
     const reactFlow = useReactFlow<AppNode>();
+    const [isCommentDialogOpen, setIsCommentDialogOpen] = useState(false);
+    
     const handleAddComment = () => {
         const { x: vpX, y: vpY, zoom } = reactFlow.getViewport();
         const screenX = window.innerWidth / 2;
@@ -111,6 +129,10 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
                     toggleSharingMode={toggleSharingMode}
                     isSaving={isSaving}
                     isDiscarding={isDiscarding}
+                    isNew={isNew}
+                    onPublish={onPublish}
+                    canPublish={canPublish}
+                    isPublishing={isPublishing}
                 />
                 <div className="relative mt-4">
                     <MiniMap nodeStrokeWidth={3} zoomable pannable />

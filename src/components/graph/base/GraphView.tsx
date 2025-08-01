@@ -20,7 +20,6 @@ import {
 import { useTheme } from "next-themes";
 import { useCallback, useMemo, useEffect, useState } from "react";
 import { useAtom } from "jotai";
-import { showEndorsementsAtom } from "@/atoms/showEndorsementsAtom";
 import { collapsedPointIdsAtom, ViewpointGraph, selectedPointIdsAtom } from "@/atoms/viewpointAtoms";
 import React from "react";
 import { useParams } from "next/navigation";
@@ -78,6 +77,9 @@ export interface GraphViewProps
   nodesDraggable?: boolean;
   topOffsetPx?: number;
   disableNotOwnerWarning?: boolean;
+  onPublish?: () => void;
+  canPublish?: boolean;
+  isPublishing?: boolean;
 }
 
 export const GraphView = ({
@@ -108,9 +110,11 @@ export const GraphView = ({
   nodesDraggable,
   topOffsetPx,
   disableNotOwnerWarning,
+  onPublish,
+  canPublish = false,
+  isPublishing = false,
   ...props
 }: GraphViewProps) => {
-  const [showEndorsements] = useAtom(showEndorsementsAtom);
   const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
   const [isDiscarding, setIsDiscarding] = useState(false);
   const [flowInstance, setFlowInstance] = useState<ReactFlowInstance<AppNode> | null>(null);
@@ -197,18 +201,19 @@ export const GraphView = ({
   // Memoize nodeTypes and edgeTypes
   const nodeTypes = useMemo(
     () => ({
-      point: (pointProps: any) => (
-        <PointNode
-          {...pointProps}
-          isSharing={isSharing || false}
-          showEndorsements={showEndorsements}
-        />
-      ),
+      point: (pointProps: any) => {
+        return (
+          <PointNode
+            {...pointProps}
+            isSharing={isSharing || false}
+          />
+        );
+      },
       statement: StatementNode,
       addPoint: AddPointNode,
       comment: CommentNode,
     }),
-    [isSharing, showEndorsements]
+    [isSharing]
   );
 
   const edgeTypes = useMemo(() => ({ negation: NegationEdge, statement: NegationEdge }), []);
@@ -464,8 +469,8 @@ export const GraphView = ({
 
   // Show a persistent copy warning for non-owners if graph is modified
   useNotOwnerWarning(
-    disableNotOwnerWarning ? false : isModified, 
-    canModify, 
+    disableNotOwnerWarning ? false : isModified,
+    canModify,
     openCopyConfirmDialog
   );
 
@@ -542,6 +547,9 @@ export const GraphView = ({
           onClose={onClose}
           closeButtonClassName={closeButtonClassName}
           topOffsetPx={topOffsetPx}
+          onPublish={onPublish}
+          canPublish={canPublish}
+          isPublishing={isPublishing}
         />
         <CollapseHintOverlay />
         <GlobalExpandPointDialog />
@@ -593,23 +601,23 @@ export const GraphView = ({
                 className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
                 onClick={() => {
                   if (contextMenu.node) {
-                    handleCollapseNode(contextMenu.node.id);
-                  }
-                  closeContextMenu();
-                }}
-              >
-                Collapse Node
-              </div>
-              <div
-                className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
-                onClick={() => {
-                  if (contextMenu.node) {
                     handleFocusNode(contextMenu.node.id);
                   }
                   closeContextMenu();
                 }}
               >
                 Focus Node
+              </div>
+              <div
+                className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
+                onClick={() => {
+                  if (contextMenu.node) {
+                    handleCollapseNode(contextMenu.node.id);
+                  }
+                  closeContextMenu();
+                }}
+              >
+                Collapse Node
               </div>
             </>
           ) : (

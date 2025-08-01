@@ -1,0 +1,3 @@
+[submodule "discourse"]
+	path = discourse
+	url = https://github.com/network-goods-institute/discourse

@@ -12,6 +12,7 @@ import {
   copiedFromIdAtom,
 } from "@/atoms/viewpointAtoms";
 import { generateRationaleSummary } from "@/actions/ai/generateRationaleSummary";
+import { validateAndCleanGraph } from "@/lib/negation-game/validateAndCleanGraph";
 
 /**
  * Hook to manage draft lifecycle: loading from sessionStorage, draft detection, and cleanup.
@@ -37,6 +38,41 @@ export default function useRationaleDraftLifecycle() {
   const hasLoadedCopyData = useRef(false);
   const [graphRevision, setGraphRevision] = useState(0);
   const hasGeneratedAIDescription = useRef(false);
+  const hasValidatedGraph = useRef(false);
+
+  useEffect(() => {
+    if (hasValidatedGraph.current || isDiscardingWithoutNav) {
+      return;
+    }
+
+    const hasPointNodes = graph.nodes.some(
+      (node) => node.type === "point" && "pointId" in node.data
+    );
+
+    if (hasPointNodes) {
+      hasValidatedGraph.current = true;
+
+      validateAndCleanGraph(graph)
+        .then((cleanedGraph) => {
+          if (
+            cleanedGraph.nodes.length !== graph.nodes.length ||
+            cleanedGraph.edges.length !== graph.edges.length
+          ) {
+            console.log("[DraftLifecycle] Cleaned up existing draft");
+            setGraph(cleanedGraph);
+            setGraphRevision((prev) => prev + 1);
+          }
+        })
+        .catch((error) => {
+          console.error(
+            "[DraftLifecycle] Failed to validate existing draft:",
+            error
+          );
+        });
+    } else {
+      hasValidatedGraph.current = true;
+    }
+  }, [graph, setGraph, setGraphRevision, isDiscardingWithoutNav]);
 
   // Draft and copy data detection with detailed logging
   useEffect(() => {
@@ -65,7 +101,13 @@ export default function useRationaleDraftLifecycle() {
           hasGeneratedAIDescription.current = false;
           setCopiedFromId(parsed.copiedFromId);
           if (parsed.graph) {
-            setGraph(parsed.graph);
+            validateAndCleanGraph(parsed.graph)
+              .then((cleanedGraph) => {
+                setGraph(cleanedGraph);
+              })
+              .catch((error) => {
+                setGraph(parsed.graph);
+              });
             hasLoadedCopyData.current = true;
           }
           if (parsed.title) {
