@@ -429,6 +429,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
               isDescriptionEditing={isEditingDescription}
               onDescriptionEdit={() => setIsEditingDescription(true)}
               onDescriptionBlur={() => setIsEditingDescription(false)}
+              isCopiedRationale={isCopiedFromSessionStorage}
             />
           </div>
         ) : null}

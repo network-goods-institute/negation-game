@@ -162,9 +162,16 @@ export default function RationaleMetaForm({
                             </h2>
                         </div>
                     ) : (
-                        <h2 className="font-semibold text-xl pr-16 mb-4 truncate">
-                            {topic || 'Untitled Topic'}
-                        </h2>
+                        <div className="mb-4">
+                            <h2 className="font-semibold text-xl pr-16 truncate">
+                                {topic || 'Untitled Topic'}
+                            </h2>
+                            {isNew && !canEdit && (
+                                <p className="text-sm text-muted-foreground mt-1">
+                                    Topic locked (copied from original rationale)
+                                </p>
+                            )}
+                        </div>
                     )
                 )
             )}

@@ -17,6 +17,7 @@ export interface NewRationaleFormProps {
     isDescriptionEditing?: boolean;
     onDescriptionEdit?: () => void;
     onDescriptionBlur?: () => void;
+    isCopiedRationale?: boolean;
 }
 
 export default function NewRationaleForm({
@@ -33,6 +34,7 @@ export default function NewRationaleForm({
     isDescriptionEditing,
     onDescriptionEdit,
     onDescriptionBlur,
+    isCopiedRationale = false,
 }: NewRationaleFormProps) {
     return (
         <div className="overflow-auto">
@@ -46,10 +48,10 @@ export default function NewRationaleForm({
                 topics={topics}
                 currentSpace={currentSpace}
                 isNew
-                canEdit
+                canEdit={!isCopiedRationale}
                 hideTitle
                 showTopicHeader
-                hideTopicSelector
+                hideTopicSelector={isCopiedRationale}
                 isDescriptionEditing={isDescriptionEditing}
                 onDescriptionEdit={onDescriptionEdit}
                 onDescriptionBlur={onDescriptionBlur}

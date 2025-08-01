@@ -57,6 +57,9 @@ function CopiedFromLink({ sourceId }: { sourceId: string }) {
     return (
         <Link href={linkPath} className="text-xs text-muted-foreground hover:text-primary transition-colors">
             Copied from: <span className="font-medium">{sourceViewpoint.title || 'Untitled Rationale'}</span>
+            {sourceViewpoint.author && (
+                <span className="text-muted-foreground"> - {sourceViewpoint.author}</span>
+            )}
         </Link>
     );
 }

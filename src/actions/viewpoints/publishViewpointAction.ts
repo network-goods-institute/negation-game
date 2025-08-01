@@ -39,22 +39,36 @@ export const publishViewpoint = async ({
     throw new Error("Must be authenticated to publish a rationale");
   }
 
+  let enforcedTopicId = topicId;
+
+  if (copiedFromId) {
+    const originalViewpoint = await db
+      .select({ topicId: viewpointsTable.topicId })
+      .from(viewpointsTable)
+      .where(eq(viewpointsTable.id, copiedFromId))
+      .limit(1);
+
+    if (originalViewpoint[0]?.topicId) {
+      enforcedTopicId = originalViewpoint[0].topicId;
+    }
+  }
+
   const tasks: Promise<any>[] = [];
 
-  if (topicId) {
-    tasks.push(canUserCreateRationaleForTopic(userId, topicId));
+  if (enforcedTopicId) {
+    tasks.push(canUserCreateRationaleForTopic(userId, enforcedTopicId));
     tasks.push(
       db
         .select({ name: topicsTable.name })
         .from(topicsTable)
-        .where(eq(topicsTable.id, topicId))
+        .where(eq(topicsTable.id, enforcedTopicId))
         .limit(1)
     );
   }
 
   const results = tasks.length > 0 ? await Promise.all(tasks) : [];
 
-  if (topicId) {
+  if (enforcedTopicId) {
     const canCreate = results[0];
     if (!canCreate) {
       throw new Error(
@@ -64,7 +78,7 @@ export const publishViewpoint = async ({
   }
 
   let finalTitle = title;
-  if (topicId && results[1] && results[1][0]) {
+  if (enforcedTopicId && results[1] && results[1][0]) {
     finalTitle = results[1][0].name;
   }
 
@@ -102,7 +116,7 @@ export const publishViewpoint = async ({
     id,
     createdBy: userId,
     description,
-    topicId: topicId ?? null,
+    topicId: enforcedTopicId ?? null,
     graph: cleanedGraph,
     title: finalTitle,
     space,
