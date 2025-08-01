@@ -23,7 +23,11 @@ export const userEndorsementsQueryKey = ({
   userId?: string;
 }) => [pointId, "endorsements", userId];
 
-export const useUserEndorsement = (userId?: string, pointId?: number) => {
+export const useUserEndorsement = (
+  userId?: string, 
+  pointId?: number, 
+  options?: { enabled?: boolean }
+) => {
   return useQuery({
     queryKey: userEndorsementsQueryKey({ pointId, userId }),
     queryFn: () =>
@@ -34,6 +38,7 @@ export const useUserEndorsement = (userId?: string, pointId?: number) => {
         : null,
     gcTime: Infinity,
     staleTime: 1000 * 60 * 5,
+    enabled: options?.enabled ?? true,
   });
 };
 

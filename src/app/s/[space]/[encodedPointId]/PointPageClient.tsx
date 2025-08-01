@@ -102,7 +102,6 @@ import {
 import { getBackButtonHandler } from "@/lib/negation-game/backButtonUtils";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 import { useSellEndorsement } from "@/mutations/endorsements/useSellEndorsement";
-import { AuthenticatedActionButton } from "@/components/editor/AuthenticatedActionButton";
 import { toast } from "sonner";
 import { ObjectionHeader } from '@/components/cards/pointcard/ObjectionHeader';
 import { DeltaComparisonWidget } from '@/components/delta/DeltaComparisonWidget';
@@ -132,9 +131,6 @@ type PageProps = {
 };
 import { useCounterpointSuggestions } from "@/queries/ai/useCounterpointSuggestions";
 import { useGraphPoints } from '@/hooks/graph/useGraphPoints';
-import { GraphSizingContext } from '@/components/graph/base/GraphSizingContext';
-import { fetchPoints } from '@/actions/points/fetchPoints';
-import type { PointData } from '@/queries/points/usePointData';
 import type { AppNode } from '@/components/graph/nodes/AppNode';
 import { useCollapseUndo } from '@/hooks/graph/useCollapseUndo';
 import { useChunkedPrefetchPoints } from '@/hooks/graph/useChunkedPrefetchPoints';
@@ -1425,16 +1421,6 @@ const PointPageGraphWrapper = ({
 
     useChunkedPrefetchPoints(flowInstance, nodes);
 
-    const { data: pointsData } = useQuery<PointData[]>({
-        queryKey: ['graph-creds', pointIds],
-        queryFn: () => fetchPoints(pointIds),
-        enabled: pointIds.length > 0,
-        staleTime: 5 * 60 * 1000,
-    });
-
-    const creds = pointsData?.map((p) => p.cred ?? 0) ?? [];
-    const minCred = creds.length > 0 ? Math.min(...creds) : 0;
-    const maxCred = creds.length > 0 ? Math.max(...creds) : 0;
 
     const filteredEdges = useFilteredEdges(nodes, edges);
 
@@ -1459,31 +1445,29 @@ const PointPageGraphWrapper = ({
 
 
     return (
-        <GraphSizingContext.Provider value={{ minCred, maxCred }}>
-            <GraphView
-                onInit={onInit}
-                defaultNodes={nodes}
-                defaultEdges={filteredEdges}
-                canModify={false}
-                canvasEnabled={true}
-                className="!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset] !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md: !z-10 md:z-auto"
-                isNew={true}
-                isSaving={false}
-                isContentModified={false}
-                onSaveChanges={async () => false}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                hideShareButton={true}
-                hideSavePanel={true}
-                hideComments={true}
-                nodesDraggable={true}
-                rootPointId={rootPointId}
-                onClose={onClose}
-                closeButtonClassName="md:hidden"
-                statement=""
-                description="Point exploration graph - changes are temporary and not saved"
-                disableNotOwnerWarning={true}
-            />
-        </GraphSizingContext.Provider>
+        <GraphView
+            onInit={onInit}
+            defaultNodes={nodes}
+            defaultEdges={filteredEdges}
+            canModify={false}
+            canvasEnabled={true}
+            className="!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset] !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md: !z-10 md:z-auto"
+            isNew={true}
+            isSaving={false}
+            isContentModified={false}
+            onSaveChanges={async () => false}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            hideShareButton={true}
+            hideSavePanel={true}
+            hideComments={true}
+            nodesDraggable={true}
+            rootPointId={rootPointId}
+            onClose={onClose}
+            closeButtonClassName="md:hidden"
+            statement=""
+            description="Point exploration graph - changes are temporary and not saved"
+            disableNotOwnerWarning={true}
+        />
     );
 }; 

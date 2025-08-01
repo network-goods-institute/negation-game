@@ -18,6 +18,7 @@ import { HeaderActions } from "@/components/header/HeaderActions";
 import {
   DynamicHeaderContent
 } from "@/components/header/DynamicHeaderContent";
+import { Analytics } from "@vercel/analytics/react"
 
 
 const inter = Inter({
@@ -124,7 +125,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  
+
 
   // Structured data for the organization
   const organizationStructuredData = {
@@ -196,6 +197,8 @@ export default async function RootLayout({
             </QueryClientProvider>
           </ThemedPrivyProvider>
         </ThemeProvider>
+        <Analytics />
+        <script defer src="/_vercel/insights/script.js"></script>
       </body>
     </html>
   );

@@ -20,7 +20,6 @@ import {
 import { useTheme } from "next-themes";
 import { useCallback, useMemo, useEffect, useState } from "react";
 import { useAtom } from "jotai";
-import { showEndorsementsAtom } from "@/atoms/showEndorsementsAtom";
 import { collapsedPointIdsAtom, ViewpointGraph, selectedPointIdsAtom } from "@/atoms/viewpointAtoms";
 import React from "react";
 import { useParams } from "next/navigation";
@@ -116,7 +115,6 @@ export const GraphView = ({
   isPublishing = false,
   ...props
 }: GraphViewProps) => {
-  const [showEndorsements] = useAtom(showEndorsementsAtom);
   const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
   const [isDiscarding, setIsDiscarding] = useState(false);
   const [flowInstance, setFlowInstance] = useState<ReactFlowInstance<AppNode> | null>(null);
@@ -203,18 +201,19 @@ export const GraphView = ({
   // Memoize nodeTypes and edgeTypes
   const nodeTypes = useMemo(
     () => ({
-      point: (pointProps: any) => (
-        <PointNode
-          {...pointProps}
-          isSharing={isSharing || false}
-          showEndorsements={showEndorsements}
-        />
-      ),
+      point: (pointProps: any) => {
+        return (
+          <PointNode
+            {...pointProps}
+            isSharing={isSharing || false}
+          />
+        );
+      },
       statement: StatementNode,
       addPoint: AddPointNode,
       comment: CommentNode,
     }),
-    [isSharing, showEndorsements]
+    [isSharing]
   );
 
   const edgeTypes = useMemo(() => ({ negation: NegationEdge, statement: NegationEdge }), []);

@@ -1,7 +1,7 @@
 "use client";
 
 import RationaleMetaForm, { RationaleMetaFormProps } from "./RationaleMetaForm";
-import RationalePointsList, { RationalePointsListProps } from "./RationalePointsList";
+import EnhancedRationalePointsList, { EnhancedRationalePointsListProps } from "./EnhancedRationalePointsList";
 
 export interface NewRationaleFormProps {
     title: string;
@@ -12,8 +12,8 @@ export interface NewRationaleFormProps {
     onTopicChange: (value: string) => void;
     topics: RationaleMetaFormProps["topics"];
     currentSpace: string;
-    points: RationalePointsListProps["points"];
-    hoveredPointId?: RationalePointsListProps["hoveredPointId"];
+    points: EnhancedRationalePointsListProps["points"];
+    hoveredPointId?: EnhancedRationalePointsListProps["hoveredPointId"];
     isDescriptionEditing?: boolean;
     onDescriptionEdit?: () => void;
     onDescriptionBlur?: () => void;
@@ -55,7 +55,7 @@ export default function NewRationaleForm({
                 onDescriptionBlur={onDescriptionBlur}
             />
             {points.length > 0 && (
-                <RationalePointsList points={points} hoveredPointId={hoveredPointId} />
+                <EnhancedRationalePointsList points={points} hoveredPointId={hoveredPointId} />
             )}
         </div>
     );

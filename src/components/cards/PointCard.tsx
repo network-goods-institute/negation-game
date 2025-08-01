@@ -41,13 +41,12 @@ import { selectedPointIdsAtom } from "@/atoms/viewpointAtoms";
 import { useSellEndorsement } from '@/mutations/endorsements/useSellEndorsement';
 import dynamic from "next/dynamic";
 import type { FavorHistoryChartProps } from "./pointcard/FavorHistoryChart";
-import { OPBadge } from "@/components/cards/pointcard/OPBadge";
 import { VisitedMarker } from "@/components/cards/pointcard/VisitedMarker";
 import { PointCardHeader } from "@/components/cards/pointcard/PointCardHeader";
 import { ObjectionHeader } from "@/components/cards/pointcard/ObjectionHeader";
 import { PointCardActions } from "@/components/cards/pointcard/PointCardActions";
 import { fetchFavorHistory } from '@/actions/feed/fetchFavorHistory';
-import { usePointEndorsementBreakdown } from "../../queries/points/usePointEndorsementBreakdown";
+import { OPBadge } from "@/components/cards/pointcard/OPBadge";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -110,8 +109,6 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   isLoading?: boolean;
   disableVisitedMarker?: boolean;
   isSharing?: boolean;
-  /** Whether to show detailed endorsements breakdown */
-  showEndorsements?: boolean;
   isObjection?: boolean;
   objectionTargetId?: number;
   isEdited?: boolean;
@@ -162,7 +159,6 @@ export const PointCard = ({
   isLoading = false,
   disableVisitedMarker = false,
   isSharing = false,
-  showEndorsements = false,
   isObjection,
   objectionTargetId,
   isEdited = false,
@@ -171,7 +167,6 @@ export const PointCard = ({
   editCount = 0,
   ...props
 }: PointCardProps) => {
-  const { data: endorsementDetails } = usePointEndorsementBreakdown(pointId, showEndorsements);
   const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
   const { mutateAsync: sellEndorsement, isPending: isSelling } = useSellEndorsement();
   const { data: opCred } = useUserEndorsement(originalPosterId, pointId);
@@ -489,11 +484,10 @@ export const PointCard = ({
           doubtPercentage={doubtPercentage}
         />
       </div>
-      {(endorsedByOp || (showEndorsements && endorsementDetails && endorsementDetails.length > 0)) && (
+      {endorsedByOp && (
         <OPBadge
-          opCred={endorsedByOp ? opCred : undefined}
+          opCred={opCred}
           originalPosterId={originalPosterId}
-          breakdown={showEndorsements ? endorsementDetails : undefined}
         />
       )}
       <VisitedMarker
@@ -517,57 +511,57 @@ export const PointCard = ({
 
   return (
     <>
-    <Popover
-      open={isOpen}
-      onOpenChange={(open) => {
-        if (!open) setIsOpen(false);
-      }}
-    >
-      <PopoverTrigger asChild>
-        {renderCardContent()}
-      </PopoverTrigger>
-      {!inGraphNode && (
-        <Portal>
-          <PopoverContent
-            className="w-80 sm:w-96 max-h-80 overflow-auto"
-            side="right"
-            align="start"
-            sideOffset={5}
-            onMouseEnter={handleHoverStart}
-            onMouseLeave={handleHoverEnd}
-          >
-            <div className="flex flex-col gap-3">
-              <div className="flex items-start gap-2">
-                {isCommand && space && space !== 'global' ? (
-                  <FeedCommandIcon />
-                ) : isPinned && space && space !== 'global' ? (
-                  <PinnedIcon />
-                ) : (
-                  <PointIcon />
-                )}
-                <h3 className="text-lg font-semibold -mt-0.5 break-words">{content}</h3>
+      <Popover
+        open={isOpen}
+        onOpenChange={(open) => {
+          if (!open) setIsOpen(false);
+        }}
+      >
+        <PopoverTrigger asChild>
+          {renderCardContent()}
+        </PopoverTrigger>
+        {!inGraphNode && (
+          <Portal>
+            <PopoverContent
+              className="w-80 sm:w-96 max-h-80 overflow-auto"
+              side="right"
+              align="start"
+              sideOffset={5}
+              onMouseEnter={handleHoverStart}
+              onMouseLeave={handleHoverEnd}
+            >
+              <div className="flex flex-col gap-3">
+                <div className="flex items-start gap-2">
+                  {isCommand && space && space !== 'global' ? (
+                    <FeedCommandIcon />
+                  ) : isPinned && space && space !== 'global' ? (
+                    <PinnedIcon />
+                  ) : (
+                    <PointIcon />
+                  )}
+                  <h3 className="text-lg font-semibold -mt-0.5 break-words">{content}</h3>
+                </div>
+
+                <PointStats
+                  className="mb-md"
+                  amountNegations={amountNegations}
+                  amountSupporters={amountSupporters}
+                  favor={favor}
+                  cred={cred}
+                  showSignalBars={inRationale}
+                />
+
+                <FavorHistoryChart
+                  popoverFavorHistory={popoverFavorHistory}
+                  initialFavorHistory={initialFavorHistory ?? []}
+                  favor={favor}
+                  isLoadingFavorHistory={isLoadingFavorHistory}
+                />
               </div>
-
-              <PointStats
-                className="mb-md"
-                amountNegations={amountNegations}
-                amountSupporters={amountSupporters}
-                favor={favor}
-                cred={cred}
-                showSignalBars={inRationale}
-              />
-
-              <FavorHistoryChart
-                popoverFavorHistory={popoverFavorHistory}
-                initialFavorHistory={initialFavorHistory ?? []}
-                favor={favor}
-                isLoadingFavorHistory={isLoadingFavorHistory}
-              />
-            </div>
-          </PopoverContent>
-        </Portal>
-      )}
-    </Popover>
+            </PopoverContent>
+          </Portal>
+        )}
+      </Popover>
 
     </>
   );

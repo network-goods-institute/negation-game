@@ -79,16 +79,16 @@ describe("fetchViewpoints", () => {
   it("should fetch viewpoints and calculate stats correctly", async () => {
     const spaceName = "test-space";
     const mockViewpoints = [
-      { 
-        id: "vp1", 
-        createdBy: "user1", 
-        graph: { nodes: [{ type: "point", data: { pointId: 1 } }] }, 
-        views: 10, 
+      {
+        id: "vp1",
+        createdBy: "user1",
+        graph: { nodes: [{ type: "point", data: { pointId: 1 } }] },
+        views: 10,
         copies: 2,
         authorId: "user1",
         authorUsername: "testuser",
         topic: "Test Topic",
-        topicId: "topic1"
+        topicId: "topic1",
       },
     ];
     const mockEndorsements = [{ pointId: 1, cred: 100, userId: "user1" }];
@@ -100,18 +100,18 @@ describe("fetchViewpoints", () => {
       leftJoin: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockResolvedValue(mockViewpoints),
-    };
+    } as any;
 
     const mockEndorsementsChain = {
       from: jest.fn().mockReturnThis(),
       innerJoin: jest.fn().mockReturnThis(),
       where: jest.fn().mockResolvedValue(mockEndorsements),
-    };
+    } as any;
 
     const mockFavorChain = {
       from: jest.fn().mockReturnThis(),
       where: jest.fn().mockResolvedValue(mockFavorValues),
-    };
+    } as any;
 
     mockDb.select
       .mockReturnValueOnce(mockViewpointsChain)
@@ -133,7 +133,7 @@ describe("fetchViewpoints", () => {
       leftJoin: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockResolvedValue([]),
-    };
+    } as any;
     mockDb.select.mockReturnValueOnce(mockQueryChain);
 
     const result = await fetchViewpoints("empty-space");
@@ -143,17 +143,17 @@ describe("fetchViewpoints", () => {
 
   it("should handle viewpoints with no points", async () => {
     const mockViewpoints = [
-      { 
-        id: "vp1", 
-        createdBy: "user1", 
-        graph: { nodes: [] }, 
-        views: 10, 
+      {
+        id: "vp1",
+        createdBy: "user1",
+        graph: { nodes: [] },
+        views: 10,
         copies: 2,
         authorId: "user1",
         authorUsername: "testuser",
         topic: "Test Topic",
-        topicId: "topic1"
-      }
+        topicId: "topic1",
+      },
     ];
     const mockQueryChain = {
       from: jest.fn().mockReturnThis(),
@@ -161,7 +161,7 @@ describe("fetchViewpoints", () => {
       leftJoin: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockResolvedValue(mockViewpoints),
-    };
+    } as any;
     mockDb.select.mockReturnValueOnce(mockQueryChain);
 
     const result = await fetchViewpoints("no-points-space");
@@ -173,17 +173,17 @@ describe("fetchViewpoints", () => {
 
   it("should handle missing interaction data by defaulting to 0", async () => {
     const mockViewpoints = [
-      { 
-        id: "vp1", 
-        createdBy: "user1", 
-        graph: { nodes: [] }, 
-        views: null, 
+      {
+        id: "vp1",
+        createdBy: "user1",
+        graph: { nodes: [] },
+        views: null,
         copies: undefined,
         authorId: "user1",
         authorUsername: "testuser",
         topic: "Test Topic",
-        topicId: "topic1"
-      }
+        topicId: "topic1",
+      },
     ];
     const mockQueryChain = {
       from: jest.fn().mockReturnThis(),
@@ -191,7 +191,7 @@ describe("fetchViewpoints", () => {
       leftJoin: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockResolvedValue(mockViewpoints),
-    };
+    } as any;
     mockDb.select.mockReturnValueOnce(mockQueryChain);
 
     const result = await fetchViewpoints("test-space");
