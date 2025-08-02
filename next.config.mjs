@@ -11,6 +11,8 @@ const nextConfig = {
     unoptimized: process.env.NODE_ENV === 'development',
   },
   async headers() {
+    const isDev = process.env.NODE_ENV === 'development';
+    
     return [
       {
         source: '/:path*',
@@ -43,8 +45,10 @@ const nextConfig = {
               // iframes you embed
               "frame-src 'self' https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://privy.play.negationgame.com https://www.youtube.com",
 
-              // AJAX, WebSocket, SIWE/API calls
-              "connect-src 'self' https://auth.privy.io wss://relay.walletconnect.com wss://relay.walletconnect.org wss://www.walletlink.org https://*.rpc.privy.systems https://explorer-api.walletconnect.com https://api.web3modal.org https://pulse.walletconnect.org https://privy.play.negationgame.com",
+              // AJAX, WebSocket, SIWE/API calls - more permissive in dev
+              isDev 
+                ? "connect-src 'self' https: wss: ws: http://localhost:* https://localhost:*"
+                : "connect-src 'self' https://auth.privy.io wss://relay.walletconnect.com wss://relay.walletconnect.org wss://www.walletlink.org https://*.rpc.privy.systems https://explorer-api.walletconnect.com https://api.web3modal.org https://pulse.walletconnect.org https://privy.play.negationgame.com",
 
               // service workers, web workers
               "worker-src 'self' blob:",

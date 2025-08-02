@@ -40,10 +40,7 @@ function isValidScrollUrl(url: string): boolean {
 
     if (hostname === "forum.scroll.io") return true;
 
-    if (
-      process.env.NODE_ENV !== "production" &&
-      (hostname === "localhost" || hostname === "127.0.0.1")
-    ) {
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
       return true;
     }
 
