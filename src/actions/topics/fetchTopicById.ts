@@ -9,6 +9,7 @@ export async function fetchTopicById(topicId: number) {
     .select({
       id: topicsTable.id,
       name: topicsTable.name,
+      space: topicsTable.space,
       discourseUrl: topicsTable.discourseUrl,
     })
     .from(topicsTable)

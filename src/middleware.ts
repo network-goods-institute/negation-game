@@ -129,7 +129,43 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  if (url.pathname.startsWith("/embed/")) {
+    const response = NextResponse.next();
+    // eslint-disable-next-line drizzle/enforce-delete-with-where
+    response.headers.delete("X-Frame-Options");
+    response.headers.set("Content-Security-Policy", "frame-ancestors *; default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://auth.privy.io https://*.rpc.privy.systems https://explorer-api.walletconnect.com https://api.web3modal.org https://pulse.walletconnect.org https://privy.play.negationgame.com https://vitals.vercel-insights.com wss://relay.walletconnect.com wss://relay.walletconnect.org wss://www.walletlink.org;");
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    response.headers.set("X-XSS-Protection", "1; mode=block");
+    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    response.headers.set("x-pathname", url.pathname);
+    return response;
+  }
+
+  const embedParam = url.searchParams.get("embed");
+  if (embedParam === "mobile" || embedParam === "embed" || embedParam === "desktop") {
+    // Treat as an embed route: allow in iframe and hide main header
+    const response = NextResponse.next();
+    // eslint-disable-next-line drizzle/enforce-delete-with-where
+    response.headers.delete("X-Frame-Options");
+    response.headers.set("Content-Security-Policy", "frame-ancestors *; default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://auth.privy.io https://*.rpc.privy.systems https://explorer-api.walletconnect.com https://api.web3modal.org https://pulse.walletconnect.org https://privy.play.negationgame.com https://vitals.vercel-insights.com wss://relay.walletconnect.com wss://relay.walletconnect.org wss://www.walletlink.org;");
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    response.headers.set("X-XSS-Protection", "1; mode=block");
+    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+
+    // Prefix with /embed so root layout hides header
+    response.headers.set("x-pathname", `/embed${url.pathname}`);
+
+    // If the path includes a space segment, pass it along so views/data still work
+    const space = getSpaceFromPathname(url.pathname);
+    if (space) {
+      response.headers.set(SPACE_HEADER, space);
+    }
+
+    return response;
+  }
+
   const authResponse = await handleAuth(req);
+
   const host = req.headers.get("host") || "";
   const domainMatch = host.match(/^([^.]+)\.negationgame\.com$/i);
 
@@ -167,12 +203,19 @@ export default async function middleware(req: NextRequest) {
     return authResponse;
   }
 
+  // Handle profile paths without rewriting
+  if (url.pathname.startsWith("/profile")) {
+    return NextResponse.next();
+  }
+
+  // Handle settings, notifications, messages, admin, delta, and embed paths without rewriting
   if (
-    pathname.startsWith("/profile") ||
-    pathname.startsWith("/settings") ||
-    pathname.startsWith("/notifications") ||
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/delta")
+    url.pathname.startsWith("/settings") ||
+    url.pathname.startsWith("/notifications") ||
+    url.pathname.startsWith("/messages") ||
+    url.pathname.startsWith("/admin") ||
+    url.pathname.startsWith("/delta") ||
+    url.pathname.startsWith("/embed")
   ) {
     if (!pathname.startsWith("/s/")) {
       authResponse.headers.set("X-Robots-Tag", "noindex, nofollow");

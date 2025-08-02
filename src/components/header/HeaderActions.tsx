@@ -32,13 +32,13 @@ export const HeaderActions = () => {
         <>
             <VideoIntroDialog open={showVideo} onOpenChange={setShowVideo} showBack={false} />
             <KeybindsDialog open={showKeybinds} onOpenChange={setShowKeybinds} />
-            <div className="flex gap-1 sm:gap-sm flex-shrink-0 items-center">
+            <div className="flex gap-1 md:gap-sm flex-shrink-0 items-center">
                 <Dynamic>
                     <ModeToggle />
                 </Dynamic>
                 <ConnectButton />
 
-                <div className="hidden sm:flex items-center gap-1 sm:gap-sm">
+                <div className="hidden md:flex items-center gap-1 md:gap-sm">
                     <DropdownMenu>
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -88,7 +88,7 @@ export const HeaderActions = () => {
                     </Dynamic>
                 </div>
 
-                <div className="flex sm:hidden">
+                <div className="flex md:hidden">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon">
