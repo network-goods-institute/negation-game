@@ -225,13 +225,15 @@ export const ConnectButton = () => {
               </Link>
             </DropdownMenuItem>
 
-            <DropdownMenuItem
-              onClick={() => setDialogOpen(true)}
-              className="gap-2"
-            >
-              <CoinsIcon className="size-4" />
-              Collect Earnings
-            </DropdownMenuItem>
+            {currentSpace && (
+              <DropdownMenuItem
+                onClick={() => setDialogOpen(true)}
+                className="gap-2"
+              >
+                <CoinsIcon className="size-4" />
+                Collect Earnings
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={() => setLeaderboardOpen(true)} className="gap-2">
               <TrophyIcon className="size-4" />
               Leaderboard
