@@ -102,7 +102,7 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
                     <Controls />
                 </div>
             </Panel>
-            <Panel position="bottom-right" className="z-10 mr-6 mb-10 flex flex-col items-end gap-3">
+            <Panel position="bottom-right" className="z-10 mr-2 mb-2 md:mr-6 md:mb-10 flex flex-col items-end gap-3">
                 {!hideComments && (
                     <Tooltip>
                         <TooltipTrigger asChild>
