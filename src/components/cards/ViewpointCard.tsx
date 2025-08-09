@@ -14,7 +14,6 @@ import { useRouter, usePathname } from "next/navigation";
 import { ViewpointStatsBar } from "../rationale/ViewpointStatsBar";
 import { UsernameDisplay } from "@/components/ui/UsernameDisplay";
 import useIsMobile from "@/hooks/ui/useIsMobile";
-import { encodeId } from "@/lib/negation-game/encodeId";
 
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
     loading: () => <div className="animate-pulse h-32 bg-muted/30 rounded-md" />,
@@ -109,15 +108,10 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
     const [isSelecting, setIsSelecting] = useState(false);
     const mouseDownRef = useRef<{ x: number, y: number } | null>(null);
     const isMobile = useIsMobile();
-    const [isTopicClicked, setIsTopicClicked] = useState(false); // New state for animation
+    const [isTopicClicked, setIsTopicClicked] = useState(false);
 
     const plainDescription = useMemo(() => stripMarkdown(description), [description]);
 
-    const isOnTopicPage = useMemo(() => {
-        if (!topicId || !space) return false;
-        const expectedPath = `/s/${space}/topic/${encodeId(topicId)}`;
-        return pathname === expectedPath;
-    }, [pathname, space, topicId]);
 
     useEffect(() => {
         if (isTopicClicked) {
@@ -261,7 +255,7 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                         {topic ? (
                                             topicId ? (
                                                 <>
-                                                    {isTopicClicked && !isOnTopicPage && (
+                                                    {isTopicClicked && (
                                                         <div className="inline-block mr-2 size-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                                                     )}
                                                     <span
@@ -271,13 +265,11 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                                         onClick={(e) => {
                                                             e.preventDefault();
                                                             e.stopPropagation();
-                                                            if (!isOnTopicPage) {
-                                                                setIsTopicClicked(true);
-                                                                router.push(`/s/${space}/topic/${encodeId(topicId)}`);
-                                                            }
+                                                            setIsTopicClicked(true);
+                                                            router.push(`/s/${space}/rationale/${id}`);
                                                         }}
-                                                        data-href={`/s/${space}/topic/${encodeId(topicId)}`}
-                                                        title={`View topic: ${topic}`}
+                                                        data-href={`/s/${space}/rationale/${id}`}
+                                                        title={`View rationale`}
                                                     >
                                                         {topic}
                                                     </span>
@@ -346,7 +338,7 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                     {topic ? (
                                         topicId ? (
                                             <>
-                                                {isTopicClicked && !isOnTopicPage && (
+                                                {isTopicClicked && (
                                                     <div className="inline-block mr-2 size-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                                                 )}
                                                 <span
@@ -356,13 +348,11 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                                     onClick={(e) => {
                                                         e.preventDefault();
                                                         e.stopPropagation();
-                                                        if (!isOnTopicPage) {
-                                                            setIsTopicClicked(true);
-                                                            router.push(`/s/${space}/topic/${encodeId(topicId)}`);
-                                                        }
+                                                        setIsTopicClicked(true);
+                                                        router.push(`/s/${space}/rationale/${id}`);
                                                     }}
-                                                    data-href={`/s/${space}/topic/${encodeId(topicId)}`}
-                                                    title={`View topic: ${topic}`}
+                                                    data-href={`/s/${space}/rationale/${id}`}
+                                                    title={`View rationale`}
                                                 >
                                                     {topic}
                                                 </span>
