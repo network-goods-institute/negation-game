@@ -76,16 +76,16 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
   useEffect(() => {
     setFeedEnabled(true);
   }, [setFeedEnabled]);
-  
+
   const isMobile = useIsMobile(768);
-  
+
   // Disable feed toggle when in desktop mode
   useEffect(() => {
     if (!isMobile) {
       setFeedEnabled(false);
     }
   }, [isMobile, setFeedEnabled]);
-  
+
   const showFeed = feedEnabled;
   const reactFlow = useReactFlow<AppNode>();
   const [graph, setGraph] = useAtom(viewpointGraphAtom);
@@ -280,6 +280,30 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       reactFlow.setNodes(initialViewpointGraph.nodes);
       reactFlow.setEdges(initialViewpointGraph.edges);
     }
+    if (preselectedTopicId && topicsData) {
+      const tid = decodeId(preselectedTopicId);
+      if (tid) {
+        const matching = topicsData.find((t) => t.id === tid);
+        if (matching) {
+          setTopic(matching.name);
+          setStatement(matching.name);
+          setTopicId(matching.id);
+          const newTitle = matching.name;
+          setTimeout(() => {
+            try {
+              updateNodeData("statement", {
+                statement: newTitle,
+                _lastUpdated: Date.now(),
+              });
+              const rfAny = reactFlow as any;
+              if (rfAny && typeof rfAny.markAsModified === "function") {
+                (reactFlow as any).markAsModified();
+              }
+            } catch { }
+          }, 400);
+        }
+      }
+    }
     // Clear sessionStorage draft data
     const storageKey = currentSpace ? `copyingViewpoint:${currentSpace}` : `copyingViewpoint`;
     sessionStorage.removeItem(storageKey);
@@ -298,6 +322,9 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
     setIsInitialLoadDialogOpen,
     setGraphRevision,
     currentSpace,
+    preselectedTopicId,
+    topicsData,
+    updateNodeData,
   ]);
 
   const handleBackClick = useCallback(() => {
@@ -452,8 +479,8 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
           isSaving={isPublishing}
           hideShareButton={false}
           isSharing={false}
-          toggleSharingMode={() => {}}
-          handleGenerateAndCopyShareLink={() => {}}
+          toggleSharingMode={() => { }}
+          handleGenerateAndCopyShareLink={() => { }}
           hideComments={false}
           onPublish={async () => {
             try {
