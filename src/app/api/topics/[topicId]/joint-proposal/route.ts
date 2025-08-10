@@ -7,7 +7,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 
 export async function POST(
   req: Request,
-  { params }: { params: { topicId: string } }
+  { params }: { params: Promise<{ topicId: string }> }
 ) {
   try {
     const userId = await getUserId();
@@ -35,7 +35,8 @@ export async function POST(
       );
     }
 
-    const topicId = parseInt(params.topicId);
+    const { topicId: topicIdParam } = await params;
+    const topicId = parseInt(topicIdParam);
     if (isNaN(topicId)) {
       return NextResponse.json({ error: "Invalid topic ID" }, { status: 400 });
     }

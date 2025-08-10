@@ -15,10 +15,6 @@ import { UsernameDisplay } from "@/components/ui/UsernameDisplay";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCanCreateRationale } from "@/hooks/topics/useCanCreateRationale";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { TopicJointProposalDialog } from "@/components/proposals/TopicJointProposalDialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-
 
 interface Topic {
     id: number;
@@ -61,7 +57,6 @@ interface TopicPageClientProps {
 }
 
 export default function TopicPageClient({ topic, viewpoints, space }: TopicPageClientProps) {
-    const router = useRouter();
     const isMobile = useIsMobile();
     const { user: privyUser } = usePrivy();
     const [viewpointsSortKey, setSortKey] = useState<SortKey>("recent");
@@ -69,9 +64,6 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
     const [isTopicsExpanded, setIsTopicsExpanded] = useState(false);
     const [isGlobalGraphLoading, setIsGlobalGraphLoading] = useState(false);
     const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
-    const [showJointProposalDialog, setShowJointProposalDialog] = useState(false);
-    const [isGeneratingProposal, setIsGeneratingProposal] = useState(false);
-    const [generatedProposal, setGeneratedProposal] = useState<string | null>(null);
 
     const { data: allUsers } = useAllUsers();
     const { data: permissionData, isLoading: isPermissionLoading } = useCanCreateRationale(topic?.id);
@@ -134,51 +126,6 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
         return sortDirection === 'desc' ? arr : arr.reverse();
     }, [viewpoints, viewpointsSortKey, sortDirection]);
 
-    const handleGenerateJointProposal = async (selectedDelegates: typeof availableRationaleAuthors) => {
-        if (selectedDelegates.length === 0) return;
-
-        setIsGeneratingProposal(true);
-        try {
-            const response = await fetch(`/api/topics/${topic.id}/joint-proposal`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    topicName: topic.name,
-                    selectedDelegates,
-                    spaceId: space,
-                }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to generate proposal');
-            }
-
-            const reader = response.body?.getReader();
-            if (!reader) throw new Error('No response stream');
-
-            let accumulatedText = '';
-            setGeneratedProposal(''); // Initialize with empty string
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                const chunk = new TextDecoder().decode(value);
-                accumulatedText += chunk;
-                setGeneratedProposal(accumulatedText);
-            }
-
-            setShowJointProposalDialog(false);
-        } catch (error) {
-            console.error('Error generating joint proposal:', error);
-            // TODO: Show error toast/notification
-        } finally {
-            setIsGeneratingProposal(false);
-        }
-    };
 
     return (
         <div className="flex-1 flex bg-muted/30 min-h-0 overflow-auto">
@@ -301,36 +248,35 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                         </div>
                     </div>
 
-                    {/* Joint Proposal Generation Section */}
+                    {/* Consilience Generation Section */}
                     {canGenerateJointProposal && (
                         <div className="mb-6">
-                            <div className="border rounded-lg p-4 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/30 dark:to-blue-950/30">
+                            <div className="border rounded-lg p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30">
                                 <div className="flex items-start justify-between">
                                     <div className="flex-1">
-                                        <h2 className="text-lg font-semibold mb-2 text-green-900 dark:text-green-100 flex items-center gap-2">
+                                        <h2 className="text-lg font-semibold mb-2 text-blue-900 dark:text-blue-100 flex items-center gap-2">
                                             <Users className="w-5 h-5" />
-                                            Generate Joint Proposal
+                                            Generate Consilience
                                         </h2>
-                                        <p className="text-green-700 dark:text-green-200 text-sm mb-4">
-                                            Create a collaborative proposal by synthesizing rationales from multiple delegates on this topic.
-                                            Works regardless of alignment level - even conflicting perspectives can create valuable synthesis.
+                                        <p className="text-blue-700 dark:text-blue-200 text-sm mb-4">
+                                            Create a synthesis proposal by combining two delegate perspectives with the original discourse content.
+                                            Shows what changed and why through interactive diff review.
                                         </p>
-                                        <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-300 mb-4">
+                                        <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-300 mb-4">
                                             <span>{viewpoints.length} rationale{viewpoints.length !== 1 ? 's' : ''} available</span>
-                                            {hasCurrentUserRationale && (
-                                                <span>• Including yours</span>
+                                            {topic.discourseUrl && (
+                                                <span>• Has discourse link</span>
                                             )}
                                         </div>
                                     </div>
                                 </div>
-                                <Button
-                                    onClick={() => setShowJointProposalDialog(true)}
-                                    className="bg-green-600 hover:bg-green-700"
-                                    disabled={isGeneratingProposal}
+                                <Link
+                                    href={`/s/${space}/consilience?topicId=${encodeId(topic.id)}`}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
                                 >
-                                    <Users className="w-4 h-4 mr-2" />
-                                    Generate Joint Proposal
-                                </Button>
+                                    <Users className="w-4 h-4" />
+                                    Generate Consilience
+                                </Link>
                             </div>
                         </div>
                     )}
@@ -659,43 +605,6 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                 </div>
             )}
 
-            {/* Joint Proposal Dialog */}
-            <TopicJointProposalDialog
-                isOpen={showJointProposalDialog}
-                onClose={() => setShowJointProposalDialog(false)}
-                topicId={topic.id}
-                topicName={topic.name}
-                availableAuthors={availableRationaleAuthors}
-                onGenerateProposal={handleGenerateJointProposal}
-                isGenerating={isGeneratingProposal}
-            />
-
-            {/* Generated Proposal Display*/}
-            {generatedProposal && (
-                <Dialog open={!!generatedProposal} onOpenChange={() => setGeneratedProposal(null)}>
-                    <DialogContent className="max-w-4xl max-h-[80vh]">
-                        <DialogHeader>
-                            <DialogTitle>Joint Proposal for {topic.name}</DialogTitle>
-                        </DialogHeader>
-                        <ScrollArea className="max-h-[60vh]">
-                            <div className="prose prose-sm max-w-none whitespace-pre-wrap">
-                                {generatedProposal}
-                            </div>
-                        </ScrollArea>
-                        <div className="flex justify-end gap-2">
-                            <Button variant="outline" onClick={() => setGeneratedProposal(null)}>
-                                Close
-                            </Button>
-                            <Button onClick={() => {
-                                navigator.clipboard.writeText(generatedProposal);
-                                // TODO: Show success toast
-                            }}>
-                                Copy to Clipboard
-                            </Button>
-                        </div>
-                    </DialogContent>
-                </Dialog>
-            )}
         </div>
     );
 } 
