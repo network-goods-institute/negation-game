@@ -51,7 +51,7 @@ export default function NewRationaleForm({
                 canEdit={!isCopiedRationale}
                 hideTitle
                 showTopicHeader
-                hideTopicSelector={isCopiedRationale}
+                hideTopicSelector
                 isDescriptionEditing={isDescriptionEditing}
                 onDescriptionEdit={onDescriptionEdit}
                 onDescriptionBlur={onDescriptionBlur}

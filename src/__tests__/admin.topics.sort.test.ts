@@ -1,4 +1,4 @@
-import { sortTopicsByCreatedDesc } from "@/components/admin/TopicsList";
+import { sortTopicsByCreatedDesc } from "@/utils/admin/sortTopics";
 import type { Topic } from "@/types/admin";
 
 describe("Admin Topics default ordering", () => {

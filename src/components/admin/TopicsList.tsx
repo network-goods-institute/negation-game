@@ -26,15 +26,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Topic } from "@/types/admin";
+import { sortTopicsByCreatedDesc } from "@/utils/admin/sortTopics";
 import { deleteTopic, updateTopic } from "@/services/admin/topicService";
 
-export const sortTopicsByCreatedDesc = (topics: Topic[]) => {
-    return [...topics].sort((a, b) => {
-        const aTime = new Date(a.createdAt).getTime();
-        const bTime = new Date(b.createdAt).getTime();
-        return bTime - aTime;
-    });
-};
 
 interface TopicsListProps {
     spaceId: string;
