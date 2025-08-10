@@ -373,6 +373,7 @@ export const PointCard = ({
         isPriority && !isPinned && "border-l-4 border-amber-400",
         inGraphNode && "pt-2.5",
         isSharing && !isSelected && "opacity-50 transition-opacity duration-200",
+        isSharing && isSelected && "border-l-4 border-blue-500 dark:border-blue-400",
         isSharing && "cursor-pointer",
         className
       )}
