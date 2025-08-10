@@ -24,7 +24,7 @@ import {
   slashesTable,
 } from "@/db/schema";
 import * as schema from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { exit } from "process";
 
 if (!process.env.POSTGRES_URL) {
@@ -130,7 +130,10 @@ async function cloneSpace() {
       );
       const originalNegations: SelectNegation[] =
         await tx.query.negationsTable.findMany({
-          where: eq(negationsTable.space, originalSpaceId),
+          where: and(
+            eq(negationsTable.space, originalSpaceId),
+            eq(negationsTable.isActive, true)
+          ),
         });
       const originalEndorsements: SelectEndorsement[] =
         await tx.query.endorsementsTable.findMany({
@@ -162,7 +165,10 @@ async function cloneSpace() {
         });
       const originalObjections: SelectObjection[] =
         await tx.query.objectionsTable.findMany({
-          where: eq(objectionsTable.space, originalSpaceId),
+          where: and(
+            eq(objectionsTable.space, originalSpaceId),
+            eq(objectionsTable.isActive, true)
+          ),
         });
       const originalDoubts: SelectDoubt[] = await tx.query.doubtsTable.findMany(
         {
@@ -189,31 +195,26 @@ async function cloneSpace() {
 
       log("Duplicating points and creating ID map...");
       const pointIdMap = new Map<number, number>();
-      const newPointsData: Omit<InsertPoint, "id" | "createdAt">[] =
-        originalPoints.map((p: SelectPoint) => ({
-          content: p.content,
-          createdBy: targetUserId,
-          keywords: p.keywords,
-          space: newSpaceId,
-          isCommand: p.isCommand,
-        }));
-
-      const insertedPoints = await tx
-        .insert(pointsTable)
-        .values(newPointsData)
-        .returning({
-          newId: pointsTable.id,
-        });
-
-      if (insertedPoints.length !== originalPoints.length) {
-        throw new Error(
-          "Mismatch between original points and inserted points count during mapping."
-        );
+      let insertedCount = 0;
+      for (const p of originalPoints) {
+        const inserted = await tx
+          .insert(pointsTable)
+          .values({
+            content: p.content,
+            createdBy: targetUserId,
+            keywords: p.keywords,
+            space: newSpaceId,
+            isCommand: p.isCommand,
+          })
+          .returning({ newId: pointsTable.id });
+        const newId = inserted[0]?.newId;
+        if (!newId) {
+          throw new Error("Failed to insert point during mapping");
+        }
+        pointIdMap.set(p.id, newId);
+        insertedCount += 1;
       }
-      originalPoints.forEach((op: SelectPoint, index: number) => {
-        pointIdMap.set(op.id, insertedPoints[index].newId);
-      });
-      log(`Duplicated ${insertedPoints.length} points. ID map created.`);
+      log(`Duplicated ${insertedCount} points. ID map created.`);
 
       if (originalNegations.length > 0) {
         log("Duplicating negations...");
@@ -363,10 +364,20 @@ async function cloneSpace() {
       if (originalViewpoints.length > 0) {
         log("Duplicating viewpoints...");
         const viewpointIdMap = new Map<string, string>();
+        const usedNewViewpointIds = new Set<string>();
         const newViewpointsData: InsertViewpoint[] = [];
 
         for (const v of originalViewpoints) {
-          const newViewpointId = `${newSpaceId}_${v.id.split("_").pop()}`; // Generate new ID
+          const hasPrefix = v.id.startsWith(`${originalSpaceId}_`);
+          const baseNewId = hasPrefix
+            ? `${newSpaceId}_${v.id.slice(originalSpaceId.length + 1)}`
+            : `${newSpaceId}_${v.id}`;
+          let newViewpointId = baseNewId;
+          let counter = 1;
+          while (usedNewViewpointIds.has(newViewpointId)) {
+            newViewpointId = `${baseNewId}_${counter++}`;
+          }
+          usedNewViewpointIds.add(newViewpointId);
           viewpointIdMap.set(v.id, newViewpointId);
 
           // Update graph to reference new point IDs
@@ -397,7 +408,7 @@ async function cloneSpace() {
             createdBy: targetUserId,
             space: newSpaceId,
             topicId: v.topicId ? topicIdMap.get(v.topicId) || null : null,
-            copiedFromId: null, // Will handle self-references in a second pass
+            copiedFromId: null,
           });
         }
 
