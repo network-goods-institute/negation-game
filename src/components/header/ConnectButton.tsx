@@ -65,24 +65,20 @@ export const ConnectButton = () => {
   // If user is admin of multiple spaces, show submenu; otherwise show direct link
   const hasMultipleAdminSpaces = availableAdminSpaces.length > 1;
 
+  const isSiteAdmin = Boolean(adminStatus?.siteAdmin);
+  const allSpaces = adminStatus?.allSpaces ?? defaultSpacesRef.current;
+  const adminSpacesList = adminStatus?.adminSpaces ?? defaultSpacesRef.current;
+
   useEffect(() => {
     prevPathRef.current = pathname;
   }, [pathname]);
 
   const prefetchTargets = useMemo(() => {
-    if (!adminStatus) return [] as string[];
-    const isSiteAdmin = !!adminStatus.siteAdmin;
-    const spaces = isSiteAdmin
-      ? (adminStatus.allSpaces ?? defaultSpacesRef.current)
-      : (adminStatus.adminSpaces ?? defaultSpacesRef.current);
+    const spaces = isSiteAdmin ? allSpaces : adminSpacesList;
     const targets = spaces.map((space) => `/s/${space}/admin`);
     if (isSiteAdmin) targets.push("/admin");
     return targets;
-  }, [
-    adminStatus?.siteAdmin,
-    (adminStatus?.allSpaces ?? defaultSpacesRef.current).join("|"),
-    (adminStatus?.adminSpaces ?? defaultSpacesRef.current).join("|"),
-  ]);
+  }, [isSiteAdmin, allSpaces, adminSpacesList]);
 
   useEffect(() => {
     if (!menuOpen || prefetchTargets.length === 0) return;

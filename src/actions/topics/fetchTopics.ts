@@ -4,7 +4,7 @@ import { db } from "@/services/db";
 import { topicsTable } from "@/db/tables/topicsTable";
 import { viewpointsTable } from "@/db/tables/viewpointsTable";
 import { usersTable } from "@/db/tables/usersTable";
-import { asc, eq, sql, and } from "drizzle-orm";
+import { asc, desc, eq, sql, and } from "drizzle-orm";
 
 export async function fetchTopics(space: string) {
   return db
@@ -38,20 +38,17 @@ export async function fetchTopics(space: string) {
     })
     .from(topicsTable)
     .leftJoin(viewpointsTable, eq(viewpointsTable.topicId, topicsTable.id))
-    .where(and(
-      eq(topicsTable.space, space),
-      eq(topicsTable.closed, false)
-    ))
+    .where(and(eq(topicsTable.space, space), eq(topicsTable.closed, false)))
     .groupBy(
-      topicsTable.id, 
-      topicsTable.name, 
+      topicsTable.id,
+      topicsTable.name,
       topicsTable.space,
-      topicsTable.discourseUrl, 
+      topicsTable.discourseUrl,
       topicsTable.restrictedRationaleCreation,
       topicsTable.closed,
       topicsTable.createdAt
     )
-    .orderBy(asc(topicsTable.name));
+    .orderBy(desc(topicsTable.createdAt));
 }
 
 export async function fetchAllTopics(space: string) {
@@ -88,13 +85,13 @@ export async function fetchAllTopics(space: string) {
     .leftJoin(viewpointsTable, eq(viewpointsTable.topicId, topicsTable.id))
     .where(eq(topicsTable.space, space))
     .groupBy(
-      topicsTable.id, 
-      topicsTable.name, 
+      topicsTable.id,
+      topicsTable.name,
       topicsTable.space,
-      topicsTable.discourseUrl, 
+      topicsTable.discourseUrl,
       topicsTable.restrictedRationaleCreation,
       topicsTable.closed,
       topicsTable.createdAt
     )
-    .orderBy(asc(topicsTable.name));
+    .orderBy(desc(topicsTable.createdAt));
 }
