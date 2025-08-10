@@ -30,8 +30,8 @@ export function useChunkedPrefetchPoints(
     const ids = Array.from(new Set(pointNodes.map((n) => n.data.pointId)));
     if (ids.length === 0) return;
 
-    const chunkSize = 20;
-    const delay = 100;
+    const chunkSize = 30;
+    const delay = 50;
     for (let i = 0; i < ids.length; i += chunkSize) {
       const chunk = ids.slice(i, i + chunkSize);
       setTimeout(

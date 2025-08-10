@@ -4,18 +4,10 @@ import { GOOD_ENOUGH_POINT_RATING } from "@/constants/config";
 import { PointStats } from "../cards/pointcard/PointStats";
 import {
     AlertTriangleIcon,
-    CircleCheckBigIcon,
-    SparklesIcon,
     CircleIcon,
-    UserIcon,
-    BrainCircuitIcon,
-    XIcon,
     ExternalLinkIcon,
-    TrendingUpIcon,
 } from "lucide-react";
 import { ReactNode } from "react";
-import { cn } from "@/lib/utils/cn";
-import { DialogClose } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getPointUrl } from "@/lib/negation-game/getPointUrl";
 import { useCurrentSpace } from "@/hooks/utils/useCurrentSpace";
@@ -60,6 +52,8 @@ interface CounterpointReviewProps {
     onSelectOwnText: () => void;
     isObjection: boolean;
     contextPointContent?: string;
+    onRetry?: () => void;
+    retryDisabled?: boolean;
 }
 
 export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
@@ -73,6 +67,8 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
     onSelectOwnText,
     isObjection,
     contextPointContent,
+    onRetry,
+    retryDisabled,
 }) => {
     const currentSpace = useCurrentSpace();
     return (
@@ -149,14 +145,17 @@ export const CounterpointReview: React.FC<CounterpointReviewProps> = ({
                         </>
                     )}
                     suggestions={(reviewResults.suggestions || []).map((s) => ({ text: s.suggestion, reason: s.reason }))}
-                    onRetry={() => {
-                        // No-op; Negate Dialog handles re-trigger externally
-                    }}
+                    onRetry={onRetry}
+                    retryDisabled={retryDisabled}
                     retryLabel="Review again"
                     originalText={counterpointContent}
                     isGoodEnough={reviewResults.rating >= GOOD_ENOUGH_POINT_RATING}
                     feedback={reviewResults.feedback}
                     originalPositiveLabel={isObjection ? "Your Objection" : "Your Counterpoint"}
+                    onSelectSuggestion={(text) => {
+                        onSelectSuggestion(text);
+                        onClose();
+                    }}
                     onSelectOriginal={() => {
                         onSelectOwnText();
                         setGuidanceNotes(

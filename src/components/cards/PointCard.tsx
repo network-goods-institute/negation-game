@@ -115,6 +115,7 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   editedAt?: Date;
   editedBy?: string;
   editCount?: number;
+  opCred?: number;
 }
 
 // Lazy-load the favor history chart component (default export)
@@ -165,11 +166,15 @@ export const PointCard = ({
   editedAt,
   editedBy,
   editCount = 0,
+  opCred: propsOpCred,
   ...props
 }: PointCardProps) => {
   const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
   const { mutateAsync: sellEndorsement, isPending: isSelling } = useSellEndorsement();
-  const { data: opCred } = useUserEndorsement(originalPosterId, pointId);
+  const { data: fetchedOpCred } = useUserEndorsement(originalPosterId, pointId, {
+    enabled: !propsOpCred && !!originalPosterId
+  });
+  const opCred = propsOpCred ?? fetchedOpCred;
   const [_, setHoveredPointId] = useAtom(hoveredPointIdAtom);
   const { user: privyUser, login } = usePrivy();
   const [endorsePopoverOpen, toggleEndorsePopoverOpen] = useToggle(false);

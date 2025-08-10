@@ -27,7 +27,7 @@ import { useDebounce } from "@uidotdev/usehooks";
 import { Handle, Node, NodeProps, Position, useReactFlow } from "@xyflow/react";
 import { XIcon, Search } from "lucide-react";
 import { nanoid } from "nanoid";
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { collapsedPointIdsAtom } from "@/atoms/viewpointAtoms";
 import { useSetAtom } from "jotai";
 import { reviewProposedPointAction, type PointReviewResults } from "@/actions/ai/reviewProposedPointAction";
@@ -123,7 +123,7 @@ export const AddPointNode = ({
 
   const similarPointsToShow = similarPoints ?? [];
 
-  const createPoint = async () => {
+  const createPoint = useCallback(async () => {
     const pointId = await makePoint({ content, cred: credInput });
     // Generate a guaranteed unique ID by combining nanoid with timestamp
     const uniqueId = `${nanoid()}-${Date.now()}`;
@@ -148,25 +148,32 @@ export const AddPointNode = ({
     setTimeout(() => {
       deleteElements({ nodes: [{ id }] });
     }, 50);
-  };
+  }, [makePoint, content, credInput, addNodes, parentId, positionAbsoluteX, positionAbsoluteY, getNode, addEdges, deleteElements, id]);
+
+  const submitOrReview = useCallback(async () => {
+    if (isMakingPoint || isReviewing) return;
+    if (hasContentBeenReviewed && content === lastReviewedContent) {
+      await createPoint();
+    } else {
+      const parentNode = getNode(parentId);
+      const parentContent = parentNode?.data?.content as string | undefined;
+      await reviewPoint({
+        pointContent: content,
+        parentContent: isParentStatement ? parentContent : undefined,
+      });
+    }
+  }, [isMakingPoint, isReviewing, hasContentBeenReviewed, content, lastReviewedContent, getNode, parentId, reviewPoint, isParentStatement, createPoint]);
 
   const handleButtonClick = async (event: React.MouseEvent<HTMLButtonElement>) => {
     if (event.altKey) {
-      // Alt+click bypasses review
       await createPoint();
     } else {
-      // If same content already reviewed, submit, else open review
-      if (hasContentBeenReviewed && content === lastReviewedContent) {
-        await createPoint();
-      } else {
-        const parentNode = getNode(parentId);
-        const parentContent = parentNode?.data?.content as string | undefined;
-        await reviewPoint({
-          pointContent: content,
-          parentContent: isParentStatement ? parentContent : undefined,
-        });
-      }
+      await submitOrReview();
     }
+  };
+
+  const handleTextareaKeyDown = (_e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Ctrl/Cmd+Enter submission removed
   };
 
   const handleSelectSuggestion = (suggestion: string) => {
@@ -249,6 +256,7 @@ export const AddPointNode = ({
         setContent={handleContentChange}
         cred={credInput}
         setCred={setCredInput}
+        textareaProps={{ onKeyDown: handleTextareaKeyDown }}
         guidanceNotes={<></>}
         compact={true}
         extraCompact={isParentStatement}

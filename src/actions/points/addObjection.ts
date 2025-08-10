@@ -148,11 +148,12 @@ export const validateObjectionTarget = async (
     // Find all points that this target point negates
     const contexts = await db
       .select({
-        contextPointId: sql<number>`CASE 
-          WHEN ${negationsTable.olderPointId} = ${targetPointId} 
-          THEN ${negationsTable.newerPointId}
-          ELSE ${negationsTable.olderPointId}
-        END`.as("contextPointId"),
+        contextPointId: sql<number>`
+          CASE 
+            WHEN ${negationsTable.olderPointId} = ${targetPointId} THEN ${negationsTable.newerPointId}
+            ELSE ${negationsTable.olderPointId}
+          END
+        `,
         contextContent: pointsTable.content,
         negationId: negationsTable.id,
       })
@@ -160,8 +161,7 @@ export const validateObjectionTarget = async (
       .innerJoin(
         pointsTable,
         sql`${pointsTable.id} = CASE 
-          WHEN ${negationsTable.olderPointId} = ${targetPointId} 
-          THEN ${negationsTable.newerPointId}
+          WHEN ${negationsTable.olderPointId} = ${targetPointId} THEN ${negationsTable.newerPointId}
           ELSE ${negationsTable.olderPointId}
         END`
       )

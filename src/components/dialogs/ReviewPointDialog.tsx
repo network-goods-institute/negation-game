@@ -90,7 +90,10 @@ export function ReviewPointDialog({
               </div>
             )}
             suggestions={(reviewResults.suggestions || []).map((s) => ({ text: s }))}
-            onSelectSuggestion={onSelectSuggestion}
+            onSelectSuggestion={(text) => {
+              onSelectSuggestion(text);
+              onOpenChange(false);
+            }}
             onRetry={() => {
               // re-run review with current content
               onSelectSuggestion(pointContent); // no-op hook consumer; kept for symmetry

@@ -32,7 +32,8 @@ export function useExpandCollapse(
   const expand = useCallback(() => {
     if (!pointData) {
       toast.error("Wait a second", {
-        description: "Content is still loading. Please wait for it to finish loading before expanding.",
+        description:
+          "Content is still loading. Please wait for it to finish loading before expanding.",
       });
       return;
     }
