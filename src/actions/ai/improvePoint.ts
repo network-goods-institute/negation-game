@@ -2,6 +2,7 @@
 
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
+import { withRetry } from "@/lib/utils/withRetry";
 
 const POINT_PROMPT = `You are a helpful assistant that improves the phrasing of points in a debate/discussion platform.
 A good point:
@@ -17,7 +18,7 @@ Provide 2-3 improved versions of the point that follow these guidelines. Each su
 DO NOT include any explanations or additional text—ONLY output the improved versions.`;
 
 const NEGATION_PROMPT = (
-  parentPoint: string,
+  parentPoint: string
 ) => `You are a helpful assistant that improves the phrasing of counterpoints in a debate/discussion platform.
 
 The user is trying to NEGATE this point: "${parentPoint}"
@@ -44,48 +45,52 @@ export const improvePoint = async (content: string): Promise<string | null> => {
     return null;
   }
 
-  const { text } = await generateText({
-    model: openai("gpt-4o-mini"),
-    messages: [
-      {
-        role: "system",
-        content: POINT_PROMPT,
-      },
-      {
-        role: "user",
-        content,
-      },
-    ],
-    temperature: 0.7,
-    maxTokens: 200,
-  });
+  const { text } = await withRetry(async () =>
+    generateText({
+      model: openai("gpt-4o-mini"),
+      messages: [
+        {
+          role: "system",
+          content: POINT_PROMPT,
+        },
+        {
+          role: "user",
+          content,
+        },
+      ],
+      temperature: 0.7,
+      maxTokens: 200,
+    })
+  );
 
   return text || null;
 };
 
 export const improveNegation = async (
   content: string,
-  parentPoint: string,
+  parentPoint: string
 ): Promise<string | null> => {
   if (!content?.trim()) {
     return null;
   }
 
-  const { text } = await generateText({
-    model: openai("gpt-4o-mini"),
-    messages: [
-      {
-        role: "system",
-        content: NEGATION_PROMPT(parentPoint),
-      },
-      {
-        role: "user",
-        content,
-      },
-    ],
-    temperature: 0.7,
-    maxTokens: 200,
-  });
+  const { text } = await withRetry(async () =>
+    generateText({
+      model: openai("gpt-4o-mini"),
+      messages: [
+        {
+          role: "system",
+          content: NEGATION_PROMPT(parentPoint),
+        },
+        {
+          role: "user",
+          content,
+        },
+      ],
+      temperature: 0.7,
+      maxTokens: 200,
+    })
+  );
 
   return text || null;
 };

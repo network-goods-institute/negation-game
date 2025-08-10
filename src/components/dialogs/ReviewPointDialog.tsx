@@ -11,13 +11,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { GOOD_ENOUGH_POINT_RATING } from "@/constants/config";
 import { PointStats } from "@/components/cards/pointcard/PointStats";
-import { 
-  CheckCircleIcon, 
-  XCircleIcon, 
-  LightbulbIcon,
-  ArrowRightIcon 
-} from "lucide-react";
 import { type PointReviewResults } from "@/actions/ai/reviewProposedPointAction";
+import ReviewSubmissionLayout from "@/components/review/ReviewSubmissionLayout";
 
 interface ReviewPointDialogProps {
   open: boolean;
@@ -65,102 +60,54 @@ export function ReviewPointDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogTitle>
-          {isOption ? "Option" : "Point"} Review
+      <DialogContent className="max-w-2xl p-0">
+        <DialogTitle className="px-6 pt-4 pb-2 border-b">
+          {isOption ? "Choose an Option Approach" : "Choose a Point Approach"}
         </DialogTitle>
-        <DialogDescription className="hidden">
-          Review and improve your {isOption ? "option" : "point"}
-        </DialogDescription>
-
-        <div className="space-y-6">
-          {/* Current Point */}
-          <div className="p-4 border rounded-lg bg-muted/30">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-sm font-medium">Your {isOption ? "Option" : "Point"}:</span>
-              <Badge variant={isGoodEnough ? "default" : "destructive"}>
-                {reviewResults.rating}/10
-              </Badge>
-            </div>
-            <p className="text-sm">{pointContent}</p>
-            {reviewResults.feedback && (
-              <p className="text-xs text-muted-foreground mt-2">{reviewResults.feedback}</p>
-            )}
+        <DialogDescription className="hidden">Review and improve your submission</DialogDescription>
+        <div className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-sm font-medium">Your {isOption ? "Option" : "Point"}:</span>
+            <Badge variant={isGoodEnough ? "default" : "destructive"}>{reviewResults.rating}/10</Badge>
           </div>
+          <ReviewSubmissionLayout
+            title={isOption ? "Choose an Option Approach" : "Choose a Point Approach"}
+            existingHeader={`Reuse an Existing ${isOption ? "Option" : "Point"}`}
+            existingItems={reviewResults.existingSimilarPoints.map((p, idx) => ({
+              key: `${p.pointId}-${idx}`,
+              item: p,
+              onClick: () => onSelectExisting(p.pointId),
+            }))}
+            renderExistingItem={(p: any) => (
+              <div className="flex flex-col gap-2">
+                <p className="text-sm">{p.content}</p>
+                <PointStats
+                  favor={p.favor}
+                  amountNegations={p.amountNegations}
+                  amountSupporters={p.amountSupporters}
+                  cred={p.cred}
+                />
+              </div>
+            )}
+            suggestions={(reviewResults.suggestions || []).map((s) => ({ text: s }))}
+            onSelectSuggestion={onSelectSuggestion}
+            onRetry={() => {
+              // re-run review with current content
+              onSelectSuggestion(pointContent); // no-op hook consumer; kept for symmetry
+            }}
+            retryLabel="Review again"
+            originalText={pointContent}
+            isGoodEnough={isGoodEnough}
+            feedback={reviewResults.feedback}
+            originalPositiveLabel={isOption ? "Your Option" : "Your Point"}
+            onSelectOriginal={onSubmitOriginal}
+          />
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap gap-2">
-            <Button 
-              onClick={onSubmitOriginal}
-              variant={isGoodEnough ? "default" : "outline"}
-              className="flex items-center gap-2"
-            >
-              {isGoodEnough ? <CheckCircleIcon className="h-4 w-4" /> : <XCircleIcon className="h-4 w-4" />}
-              Submit Original
-            </Button>
-            
+          <div className="mt-4 flex justify-end">
             <DialogClose asChild>
-              <Button variant="ghost">
-                Cancel
-              </Button>
+              <Button variant="ghost">Cancel</Button>
             </DialogClose>
           </div>
-
-          {/* Suggestions */}
-          {reviewResults.suggestions.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <LightbulbIcon className="h-4 w-4 text-yellow-500" />
-                <span className="font-medium text-sm">AI Suggestions</span>
-              </div>
-              {reviewResults.suggestions.map((suggestion, index) => (
-                <div key={index} className="p-3 border rounded-lg bg-background hover:bg-muted/50 transition-colors">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm flex-1">{suggestion}</p>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onSelectSuggestion(suggestion)}
-                      className="flex items-center gap-1 shrink-0"
-                    >
-                      <ArrowRightIcon className="h-3 w-3" />
-                      Use This
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Existing Similar Points */}
-          {hasExisting && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-sm">
-                  Similar Existing {isOption ? "Options" : "Points"} ({reviewResults.existingSimilarPoints.length})
-                </span>
-              </div>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {reviewResults.existingSimilarPoints.map((point, index) => (
-                  <div
-                    key={`${point.pointId}-${index}`}
-                    className="p-3 border rounded-lg bg-background hover:bg-muted/50 transition-colors cursor-pointer"
-                    onClick={() => onSelectExisting(point.pointId)}
-                  >
-                    <div className="flex flex-col gap-2">
-                      <p className="text-sm">{point.content}</p>
-                      <PointStats
-                        favor={point.favor}
-                        amountNegations={point.amountNegations}
-                        amountSupporters={point.amountSupporters}
-                        cred={point.cred}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </DialogContent>
     </Dialog>

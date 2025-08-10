@@ -958,9 +958,11 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
           modal={true}
         >
           <DialogContent
-            className="max-w-[700px] w-[95vw] p-0 rounded-xl shadow-xl border-2 overflow-hidden"
+            className="max-w-[700px] w-[95vw] p-0 rounded-xl shadow-xl border-2"
           >
-            <DialogTitle className="sr-only">Choose a Counterpoint Approach</DialogTitle>
+            <DialogTitle className="px-6 pt-4 pb-2 border-b">
+              {isObjection ? "Choose an Objection Approach" : "Choose a Counterpoint Approach"}
+            </DialogTitle>
             <CounterpointReview
               reviewResults={reviewResults}
               counterpointContent={counterpointContent}

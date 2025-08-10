@@ -65,6 +65,8 @@ export const AddPointNode = ({
   const setCollapsedPointIds = useSetAtom(collapsedPointIdsAtom);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [reviewResults, setReviewResults] = useState<PointReviewResults | null>(null);
+  const [lastReviewedContent, setLastReviewedContent] = useState<string>("");
+  const [hasContentBeenReviewed, setHasContentBeenReviewed] = useState(false);
 
   useEffect(() => {
     updateNodeData(id, { parentId, content, hasContent: content.length > 0 });
@@ -112,6 +114,8 @@ export const AddPointNode = ({
     onSuccess: (results) => {
       setReviewResults(results);
       setReviewDialogOpen(true);
+      setLastReviewedContent(content);
+      setHasContentBeenReviewed(true);
     },
   });
 
@@ -151,25 +155,32 @@ export const AddPointNode = ({
       // Alt+click bypasses review
       await createPoint();
     } else {
-      // Regular click goes through review
-      const parentNode = getNode(parentId);
-      const parentContent = parentNode?.data?.content as string | undefined;
-
-      await reviewPoint({
-        pointContent: content,
-        parentContent: isParentStatement ? parentContent : undefined,
-      });
+      // If same content already reviewed, submit, else open review
+      if (hasContentBeenReviewed && content === lastReviewedContent) {
+        await createPoint();
+      } else {
+        const parentNode = getNode(parentId);
+        const parentContent = parentNode?.data?.content as string | undefined;
+        await reviewPoint({
+          pointContent: content,
+          parentContent: isParentStatement ? parentContent : undefined,
+        });
+      }
     }
   };
 
   const handleSelectSuggestion = (suggestion: string) => {
     setContent(suggestion);
+    setLastReviewedContent(suggestion);
+    setHasContentBeenReviewed(true);
     setReviewDialogOpen(false);
   };
 
   const handleSubmitOriginal = async () => {
+    // Keep original text and return to editor; allow user to submit after review
+    setLastReviewedContent(content);
+    setHasContentBeenReviewed(true);
     setReviewDialogOpen(false);
-    await createPoint();
   };
 
   const handleSelectExisting = (pointId: number) => {
