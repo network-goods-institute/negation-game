@@ -115,7 +115,7 @@ export const AllTabContent = memo(({
             <CreateRationaleViewpointCard
                 onClick={handleNewViewpoint}
                 isLoading={false}
-                href="/rationale/new"
+                href={`${basePath}/rationale/new`}
             />
 
             {hasActiveFilters && (
