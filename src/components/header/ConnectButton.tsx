@@ -18,7 +18,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { clearPrivyCookie } from '@/actions/users/auth';
 import { LoaderCircleIcon, CoinsIcon, UserIcon, LogOutIcon, TrophyIcon, BellIcon, SettingsIcon, MessageSquareIcon, BarChart3Icon, ChevronDownIcon, ShieldIcon, ShieldCheckIcon } from "lucide-react";
 import { useAdminStatus } from "@/hooks/admin/useAdminStatus";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { EarningsDialog } from "../dialogs/EarningsDialog";
 import Link from "next/link";
 import { LeaderboardDialog } from "@/components/dialogs/LeaderboardDialog";
@@ -40,11 +40,11 @@ export const ConnectButton = () => {
   const { data: unreadMessageCount = 0 } = useUnreadMessageCount(currentSpace || "global");
   const { data: adminStatus } = useAdminStatus();
   const prevPathRef = useRef(pathname);
+  const defaultSpacesRef = useRef<string[]>([]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [loadingRoute, setLoadingRoute] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const handleLogin = async () => {
@@ -66,23 +66,32 @@ export const ConnectButton = () => {
   const hasMultipleAdminSpaces = availableAdminSpaces.length > 1;
 
   useEffect(() => {
-    if (loadingRoute && pathname !== prevPathRef.current) {
-      setMenuOpen(false);
-      setLoadingRoute(null);
-    }
     prevPathRef.current = pathname;
-  }, [pathname, loadingRoute]);
+  }, [pathname]);
 
-  const navigate = (target: string) => {
-    const isCurrent = pathname === target;
-    return (e: Event | React.SyntheticEvent) => {
-      e.preventDefault();
-      if (loadingRoute || isCurrent) return;
-      setMenuOpen(true);
-      setLoadingRoute(target);
-      router.push(target);
-    };
-  };
+  const prefetchTargets = useMemo(() => {
+    if (!adminStatus) return [] as string[];
+    const isSiteAdmin = !!adminStatus.siteAdmin;
+    const spaces = isSiteAdmin
+      ? (adminStatus.allSpaces ?? defaultSpacesRef.current)
+      : (adminStatus.adminSpaces ?? defaultSpacesRef.current);
+    const targets = spaces.map((space) => `/s/${space}/admin`);
+    if (isSiteAdmin) targets.push("/admin");
+    return targets;
+  }, [
+    adminStatus?.siteAdmin,
+    (adminStatus?.allSpaces ?? defaultSpacesRef.current).join("|"),
+    (adminStatus?.adminSpaces ?? defaultSpacesRef.current).join("|"),
+  ]);
+
+  useEffect(() => {
+    if (!menuOpen || prefetchTargets.length === 0) return;
+    prefetchTargets.forEach((t) => {
+      try {
+        router.prefetch?.(t as any);
+      } catch { }
+    });
+  }, [menuOpen, prefetchTargets, router]);
 
   if (!ready) {
     return (
@@ -157,33 +166,17 @@ export const ConnectButton = () => {
               {user.cred} cred
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              asChild
-              onSelect={navigate(`/profile/${user.username}`)}
-              disabled={!!loadingRoute || pathname === `/profile/${user.username}`}
-            >
-              <Link href={`/profile/${user.username}`} className="gap-2">
-                {loadingRoute === `/profile/${user.username}` ? (
-                  <LoaderCircleIcon className="size-4 animate-spin" />
-                ) : (
-                  <UserIcon className="size-4" />
-                )}
+            <DropdownMenuItem asChild disabled={pathname === `/profile/${user.username}`}>
+              <Link prefetch href={`/profile/${user.username}`} className="gap-2">
+                <UserIcon className="size-4" />
                 Profile
               </Link>
             </DropdownMenuItem>
 
             {currentSpace && (
-              <DropdownMenuItem
-                asChild
-                onSelect={navigate(`/s/${currentSpace}/messages`)}
-                disabled={!!loadingRoute || pathname === `/s/${currentSpace}/messages`}
-              >
-                <Link href={`/s/${currentSpace}/messages`} className="gap-2">
-                  {loadingRoute === `/s/${currentSpace}/messages` ? (
-                    <LoaderCircleIcon className="size-4 animate-spin" />
-                  ) : (
-                    <MessageSquareIcon className="size-4" />
-                  )}
+              <DropdownMenuItem asChild disabled={pathname === `/s/${currentSpace}/messages`}>
+                <Link prefetch href={`/s/${currentSpace}/messages`} className="gap-2">
+                  <MessageSquareIcon className="size-4" />
                   <div className="flex items-center justify-between w-full">
                     <span>Messages</span>
                     {unreadMessageCount > 0 && (
@@ -196,17 +189,9 @@ export const ConnectButton = () => {
               </DropdownMenuItem>
             )}
 
-            <DropdownMenuItem
-              asChild
-              onSelect={navigate("/notifications")}
-              disabled={!!loadingRoute || pathname === "/notifications"}
-            >
-              <Link href="/notifications" className="gap-2">
-                {loadingRoute === "/notifications" ? (
-                  <LoaderCircleIcon className="size-4 animate-spin" />
-                ) : (
-                  <BellIcon className="size-4" />
-                )}
+            <DropdownMenuItem asChild disabled={pathname === "/notifications"}>
+              <Link prefetch href="/notifications" className="gap-2">
+                <BellIcon className="size-4" />
                 <div className="flex items-center justify-between w-full">
                   <span>Notifications</span>
                   <div className="flex space-x-1">
@@ -239,17 +224,9 @@ export const ConnectButton = () => {
               Leaderboard
             </DropdownMenuItem>
             {currentSpace && (
-              <DropdownMenuItem
-                asChild
-                onSelect={navigate(`/s/${currentSpace}/statistics`)}
-                disabled={!!loadingRoute || pathname === `/s/${currentSpace}/statistics`}
-              >
-                <Link href={`/s/${currentSpace}/statistics`} className="gap-2">
-                  {loadingRoute === `/s/${currentSpace}/statistics` ? (
-                    <LoaderCircleIcon className="size-4 animate-spin" />
-                  ) : (
-                    <BarChart3Icon className="size-4" />
-                  )}
+              <DropdownMenuItem asChild disabled={pathname === `/s/${currentSpace}/statistics`}>
+                <Link prefetch href={`/s/${currentSpace}/statistics`} className="gap-2">
+                  <BarChart3Icon className="size-4" />
                   DAO Statistics
                 </Link>
               </DropdownMenuItem>
@@ -263,18 +240,9 @@ export const ConnectButton = () => {
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
                     {availableAdminSpaces?.map((space) => (
-                      <DropdownMenuItem
-                        key={space}
-                        asChild
-                        onSelect={navigate(`/s/${space}/admin`)}
-                        disabled={!!loadingRoute || pathname === `/s/${space}/admin`}
-                      >
-                        <Link href={`/s/${space}/admin`} className="gap-2">
-                          {loadingRoute === `/s/${space}/admin` ? (
-                            <LoaderCircleIcon className="size-4 animate-spin" />
-                          ) : (
-                            <ShieldIcon className="size-4" />
-                          )}
+                      <DropdownMenuItem key={space} asChild disabled={pathname === `/s/${space}/admin`}>
+                        <Link prefetch href={`/s/${space}/admin`} className="gap-2">
+                          <ShieldIcon className="size-4" />
                           {space.charAt(0).toUpperCase() + space.slice(1)}
                         </Link>
                       </DropdownMenuItem>
@@ -282,50 +250,26 @@ export const ConnectButton = () => {
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
               ) : (
-                <DropdownMenuItem
-                  asChild
-                  onSelect={navigate(`/s/${availableAdminSpaces?.[0] || 'global'}/admin`)}
-                  disabled={!!loadingRoute || pathname === `/s/${availableAdminSpaces?.[0] || 'global'}/admin`}
-                >
-                  <Link href={`/s/${availableAdminSpaces?.[0] || 'global'}/admin`} className="gap-2">
-                    {loadingRoute === `/s/${availableAdminSpaces?.[0] || 'global'}/admin` ? (
-                      <LoaderCircleIcon className="size-4 animate-spin" />
-                    ) : (
-                      <ShieldIcon className="size-4" />
-                    )}
+                <DropdownMenuItem asChild disabled={pathname === `/s/${availableAdminSpaces?.[0] || 'global'}/admin`}>
+                  <Link prefetch href={`/s/${availableAdminSpaces?.[0] || 'global'}/admin`} className="gap-2">
+                    <ShieldIcon className="size-4" />
                     Admin Panel
                   </Link>
                 </DropdownMenuItem>
               )
             )}
             {adminStatus?.siteAdmin && (
-              <DropdownMenuItem
-                asChild
-                onSelect={navigate("/admin")}
-                disabled={!!loadingRoute || pathname === "/admin"}
-              >
-                <Link href="/admin" className="gap-2">
-                  {loadingRoute === "/admin" ? (
-                    <LoaderCircleIcon className="size-4 animate-spin" />
-                  ) : (
-                    <ShieldCheckIcon className="size-4" />
-                  )}
+              <DropdownMenuItem asChild disabled={pathname === "/admin"}>
+                <Link prefetch href="/admin" className="gap-2">
+                  <ShieldCheckIcon className="size-4" />
                   Site Admin
                 </Link>
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              asChild
-              onSelect={navigate("/settings")}
-              disabled={!!loadingRoute || pathname === "/settings"}
-            >
-              <Link href="/settings" className="gap-2">
-                {loadingRoute === "/settings" ? (
-                  <LoaderCircleIcon className="size-4 animate-spin" />
-                ) : (
-                  <SettingsIcon className="size-4" />
-                )}
+            <DropdownMenuItem asChild disabled={pathname === "/settings"}>
+              <Link prefetch href="/settings" className="gap-2">
+                <SettingsIcon className="size-4" />
                 Settings
               </Link>
             </DropdownMenuItem>
