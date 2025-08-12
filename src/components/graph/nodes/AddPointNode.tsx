@@ -17,7 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Loader } from "@/components/ui/loader";
-import { POINT_MIN_LENGTH } from "@/constants/config";
+import { POINT_MIN_LENGTH, getPointMaxLength } from "@/constants/config";
 import { useCredInput } from "@/hooks/ui/useCredInput";
 import { cn } from "@/lib/utils/cn";
 import { useMakePoint } from "@/mutations/points/useMakePoint";
@@ -107,7 +107,9 @@ export const AddPointNode = ({
   });
 
   const { mutateAsync: makePoint, isPending: isMakingPoint } = useMakePoint();
-  const canMakePoint = content.length >= POINT_MIN_LENGTH && !isMakingPoint && !isLoading;
+  const isOption = isParentStatement;
+  const maxLength = getPointMaxLength(isOption);
+  const canMakePoint = content.length >= POINT_MIN_LENGTH && content.length <= maxLength && !isMakingPoint && !isLoading;
 
   const { mutateAsync: reviewPoint, isPending: isReviewing } = useMutation({
     mutationFn: reviewProposedPointAction,
@@ -124,7 +126,7 @@ export const AddPointNode = ({
   const similarPointsToShow = similarPoints ?? [];
 
   const createPoint = useCallback(async () => {
-    const pointId = await makePoint({ content, cred: credInput });
+    const pointId = await makePoint({ content, cred: credInput, isOption });
     // Generate a guaranteed unique ID by combining nanoid with timestamp
     const uniqueId = `${nanoid()}-${Date.now()}`;
     addNodes({
@@ -148,7 +150,7 @@ export const AddPointNode = ({
     setTimeout(() => {
       deleteElements({ nodes: [{ id }] });
     }, 50);
-  }, [makePoint, content, credInput, addNodes, parentId, positionAbsoluteX, positionAbsoluteY, getNode, addEdges, deleteElements, id]);
+  }, [makePoint, content, credInput, isOption, addNodes, parentId, positionAbsoluteX, positionAbsoluteY, getNode, addEdges, deleteElements, id]);
 
   const submitOrReview = useCallback(async () => {
     if (isMakingPoint || isReviewing) return;

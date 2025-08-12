@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  POINT_MAX_LENGTH,
+  REGULAR_POINT_MAX_LENGTH,
   POINT_MIN_LENGTH,
   GOOD_ENOUGH_POINT_RATING,
 } from "@/constants/config";
@@ -107,7 +107,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   const [selectedCounterpointCandidate, selectCounterpointCandidate] = useState<
     CounterpointCandidate | undefined
   >(undefined);
-  const charactersLeft = POINT_MAX_LENGTH - counterpointContent.length;
+  const charactersLeft = REGULAR_POINT_MAX_LENGTH - counterpointContent.length;
 
   const queryClient = useQueryClient();
 
@@ -735,7 +735,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                           )}
                           role="switch"
                           aria-checked={isObjection}
-                          disabled={isLoadingObjectionCtx || availableContexts.length === 0}
+                          disabled={isLoadingObjectionCtx || availableContexts.length === 0 || negatedPoint?.isOption}
                         >
                           <span
                             className={cn(
@@ -748,11 +748,13 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                       <TooltipContent side="top">
                         {isLoadingObjectionCtx
                           ? "Loading objection contexts…"
-                          : availableContexts.length === 0
-                            ? "No original points available to defend (objections not possible)"
-                            : isObjection
-                              ? "Make an objection (argue the point is irrelevant)"
-                              : "Make a counterpoint (argue the point is false)"
+                          : negatedPoint?.isOption
+                            ? "Objections are not available for option points"
+                            : availableContexts.length === 0
+                              ? "No original points available to defend (objections not possible)"
+                              : isObjection
+                                ? "Make an objection (argue the point is irrelevant)"
+                                : "Make a counterpoint (argue the point is false)"
                         }
                       </TooltipContent>
                     </Tooltip>
@@ -798,7 +800,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                           )}
                           role="switch"
                           aria-checked={isObjection}
-                          disabled={isLoadingObjectionCtx || availableContexts.length === 0}
+                          disabled={isLoadingObjectionCtx || availableContexts.length === 0 || negatedPoint?.isOption}
                         >
                           <span
                             className={cn(
@@ -811,11 +813,13 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                       <TooltipContent side="top">
                         {isLoadingObjectionCtx
                           ? "Loading objection contexts…"
-                          : availableContexts.length === 0
-                            ? "No original points available to defend (objections not possible)"
-                            : isObjection
-                              ? "Make an objection (argue the point is irrelevant)"
-                              : "Make a counterpoint (argue the point is false)"
+                          : negatedPoint?.isOption
+                            ? "Objections are not available for option points"
+                            : availableContexts.length === 0
+                              ? "No original points available to defend (objections not possible)"
+                              : isObjection
+                                ? "Make an objection (argue the point is irrelevant)"
+                                : "Make a counterpoint (argue the point is false)"
                         }
                       </TooltipContent>
                     </Tooltip>
@@ -874,7 +878,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                           )}
                           role="switch"
                           aria-checked={isObjection}
-                          disabled={isLoadingObjectionCtx || availableContexts.length === 0}
+                          disabled={isLoadingObjectionCtx || availableContexts.length === 0 || negatedPoint?.isOption}
                         >
                           <span
                             className={cn(
@@ -887,11 +891,13 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                       <TooltipContent side="top">
                         {isLoadingObjectionCtx
                           ? "Loading objection contexts…"
-                          : availableContexts.length === 0
-                            ? "No original points available to defend (objections not possible)"
-                            : isObjection
-                              ? "Make an objection (argue the point is irrelevant)"
-                              : "Make a counterpoint (argue the point is false)"
+                          : negatedPoint?.isOption
+                            ? "Objections are not available for option points"
+                            : availableContexts.length === 0
+                              ? "No original points available to defend (objections not possible)"
+                              : isObjection
+                                ? "Make an objection (argue the point is irrelevant)"
+                                : "Make a counterpoint (argue the point is false)"
                         }
                       </TooltipContent>
                     </Tooltip>

@@ -11,7 +11,7 @@ import { useSetAtom } from "jotai";
 import { usePrivy } from "@privy-io/react-auth";
 import { useInvalidateRelatedPoints } from "@/queries/points/usePointData";
 import { AutosizeTextarea } from "@/components/ui/autosize-textarea";
-import { POINT_MAX_LENGTH, POINT_MIN_LENGTH } from "@/constants/config";
+import { POINT_MIN_LENGTH, getPointMaxLength } from "@/constants/config";
 import { addAffectedEdgeAtom } from "@/atoms/affectedRelationshipsAtom";
 
 interface PointEditDialogProps {
@@ -20,6 +20,7 @@ interface PointEditDialogProps {
     pointId: number;
     currentContent: string;
     canEdit: boolean;
+    isOption?: boolean;
 }
 
 export const PointEditDialog = ({
@@ -28,6 +29,7 @@ export const PointEditDialog = ({
     pointId,
     currentContent,
     canEdit,
+    isOption = false,
 }: PointEditDialogProps) => {
     const handleOpenChange = (newOpen: boolean, event?: Event) => {
         if (event) {
@@ -42,9 +44,10 @@ export const PointEditDialog = ({
     const { user } = usePrivy();
     const invalidateRelatedPoints = useInvalidateRelatedPoints();
 
+    const maxLength = getPointMaxLength(isOption);
     const isContentChanged = content.trim() !== currentContent.trim();
     const isContentValid = content.trim().length >= POINT_MIN_LENGTH && 
-                          content.trim().length <= POINT_MAX_LENGTH;
+                          content.trim().length <= maxLength;
     const canSubmit = isContentChanged && isContentValid && !isSubmitting && canEdit;
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -171,7 +174,7 @@ export const PointEditDialog = ({
                         <AutosizeTextarea
                             value={content}
                             onChange={(e) => setContent(e.target.value)}
-                            maxLength={POINT_MAX_LENGTH}
+                            maxLength={maxLength}
                             placeholder="Edit your point..."
                             className="h-full min-h-[200px] resize-none"
                             minHeight={200}
@@ -181,7 +184,7 @@ export const PointEditDialog = ({
                     <div className="flex-shrink-0 space-y-2">
                         <div className="flex justify-between text-sm text-muted-foreground">
                             <span>
-                                {content.trim().length} / {POINT_MAX_LENGTH} characters
+                                {content.trim().length} / {maxLength} characters
                             </span>
                             {!isContentValid && content.trim().length > 0 && (
                                 <span className="text-destructive">

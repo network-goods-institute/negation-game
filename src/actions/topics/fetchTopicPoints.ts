@@ -25,11 +25,11 @@ import {
   totalRestakeAmountSql,
   viewerDoubtSql,
 } from "@/actions/utils/pointSqlUtils";
-import type { ViewpointGraph } from "@/atoms/viewpointAtoms";
 
 export interface TopicPointData {
   pointId: number;
   content: string;
+  isOption: boolean;
   cred: number;
   favor: number;
   amountSupporters: number;
@@ -250,6 +250,7 @@ export async function fetchTopicPoints(
     const result = pointsWithFavor.map((point) => ({
       pointId: point.pointId,
       content: point.content,
+      isOption: (point as any).isOption ?? false,
       cred: point.cred,
       favor: point.favor,
       amountSupporters: point.amountSupporters,

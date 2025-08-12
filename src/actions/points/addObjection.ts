@@ -11,11 +11,11 @@ import {
   pointsTable,
   usersTable,
 } from "@/db/schema";
-import { InsertEndorsement } from "@/db/tables/endorsementsTable";
-import { InsertPoint, Point } from "@/db/tables/pointsTable";
+import { Point } from "@/db/tables/pointsTable";
 import { db } from "@/services/db";
 import { waitUntil } from "@vercel/functions";
 import { eq, sql, and, or } from "drizzle-orm";
+import { POINT_MIN_LENGTH, getPointMaxLength } from "@/constants/config";
 
 export interface AddObjectionArgs {
   content: string;
@@ -34,6 +34,19 @@ export const addObjection = async ({
 
   if (!userId) {
     throw new Error("Must be authenticated to add an objection");
+  }
+
+  // Validate content length (objections are regular points, not options)
+  const trimmedContent = content.trim();
+  const maxLength = getPointMaxLength(false);
+
+  if (
+    trimmedContent.length < POINT_MIN_LENGTH ||
+    trimmedContent.length > maxLength
+  ) {
+    throw new Error(
+      `Point content must be between ${POINT_MIN_LENGTH} and ${maxLength} characters`
+    );
   }
 
   const space = await getSpace();
@@ -75,7 +88,12 @@ export const addObjection = async ({
   return await db.transaction(async (tx) => {
     const objectionPointId = await tx
       .insert(pointsTable)
-      .values({ content, createdBy: userId, space })
+      .values({
+        content: trimmedContent,
+        createdBy: userId,
+        space,
+        isOption: false,
+      })
       .returning({ id: pointsTable.id })
       .then(([{ id }]) => id);
 
@@ -117,8 +135,8 @@ export const addObjection = async ({
       space,
     });
 
-    waitUntil(addEmbedding({ content, id: objectionPointId }));
-    waitUntil(addKeywords({ content, id: objectionPointId }));
+    waitUntil(addEmbedding({ content: trimmedContent, id: objectionPointId }));
+    waitUntil(addKeywords({ content: trimmedContent, id: objectionPointId }));
 
     return objectionPointId;
   });

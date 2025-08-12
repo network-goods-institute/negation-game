@@ -2,7 +2,7 @@
 
 import {
   GOOD_ENOUGH_POINT_RATING,
-  POINT_MAX_LENGTH,
+  REGULAR_POINT_MAX_LENGTH,
   POINT_MIN_LENGTH,
 } from "@/constants/config";
 import { Point } from "@/db/tables/pointsTable";
@@ -79,7 +79,7 @@ Also offer 3 rephrasings of the OBJECTION that would make it better according to
 - The rephrasings must use modern and straightforward way.
 - The rephrasings must avoid using fancy, outdated, or overly formal expressions.
 - The rephrasings should not include opening remarks, going straight to the point.
-- The rephrasings should contain between ${POINT_MIN_LENGTH} and ${POINT_MAX_LENGTH} characters.
+- The rephrasings should contain between ${POINT_MIN_LENGTH} and ${REGULAR_POINT_MAX_LENGTH} characters.
 
 Each reason should be concise and highlight a specific improvement over the original objection or other suggestions, making sure the reasons are distinct from each other.
 

@@ -3,7 +3,7 @@ import {
     AutosizeTextAreaProps,
 } from "@/components/ui/autosize-textarea";
 import { Separator } from "@/components/ui/separator";
-import { POINT_MAX_LENGTH, POINT_MIN_LENGTH } from "@/constants/config";
+import { POINT_MIN_LENGTH, getPointMaxLength } from "@/constants/config";
 import { cn } from "@/lib/utils/cn";
 import { CircleCheckBigIcon } from "lucide-react";
 import { FC, HTMLAttributes, ReactNode } from "react";
@@ -48,7 +48,9 @@ export const PreviewPointEditor: FC<PreviewPointEditorProps> = ({
     const defaultPlaceholder = parentNodeType === "statement" ? "Make your option" : "Make your point";
     const placeholderText = placeholder || defaultPlaceholder;
 
-    const charactersLeft = POINT_MAX_LENGTH - content.length;
+    const isOption = parentNodeType === "statement";
+    const maxLength = getPointMaxLength(isOption);
+    const charactersLeft = maxLength - content.length;
     const showMinLengthMessage =
         content.length > 0 && content.length < POINT_MIN_LENGTH;
 
@@ -64,6 +66,7 @@ export const PreviewPointEditor: FC<PreviewPointEditorProps> = ({
                     textareaClassName
                 )}
                 placeholder={placeholderText}
+                maxLength={maxLength}
                 {...textareaProps}
             />
             <Separator className="w-full" />
@@ -101,7 +104,7 @@ export const PreviewPointEditor: FC<PreviewPointEditorProps> = ({
                             fill="none"
                             strokeDasharray="339.292"
                             strokeDashoffset={
-                                2 * Math.PI * 54 * (1 - POINT_MIN_LENGTH / POINT_MAX_LENGTH)
+                                2 * Math.PI * 54 * (1 - POINT_MIN_LENGTH / maxLength)
                             }
                             transform="rotate(-90 60 60)"
                         />
@@ -119,7 +122,7 @@ export const PreviewPointEditor: FC<PreviewPointEditorProps> = ({
                                 2 *
                                 Math.PI *
                                 54 *
-                                (Math.max(0, charactersLeft) / POINT_MAX_LENGTH)
+                                (Math.max(0, charactersLeft) / maxLength)
                             }
                             transform="rotate(-90 60 60)"
                         />
@@ -136,7 +139,7 @@ export const PreviewPointEditor: FC<PreviewPointEditorProps> = ({
                                 2 *
                                 Math.PI *
                                 54 *
-                                Math.max(0, 1 + Math.min(0, charactersLeft) / POINT_MAX_LENGTH)
+                                Math.max(0, 1 + Math.min(0, charactersLeft) / maxLength)
                             }
                             transform="rotate(-90 60 60)"
                         />

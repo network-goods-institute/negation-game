@@ -43,6 +43,7 @@ export const pointsTable = pgTable(
       { onDelete: "set null" }
     ),
     editCount: integer("edit_count").notNull().default(0),
+    isOption: boolean("is_option").notNull().default(false),
   },
   (table) => ({
     createdByIdx: index("points_created_by_idx").on(table.createdBy),
@@ -63,7 +64,10 @@ export const pointsTable = pgTable(
     editedByIdx: index("points_edited_by_idx").on(table.editedBy),
     contentLengthCheck: check(
       "content_length_check",
-      sql`LENGTH(${table.content}) >= 1 AND LENGTH(${table.content}) <= 10000`
+      sql`LENGTH(${table.content}) >= 10 AND LENGTH(${table.content}) <= CASE 
+        WHEN ${table.isOption} = true THEN 240 
+        ELSE 200 
+      END`
     ),
     softDeleteConsistency: check(
       "soft_delete_consistency",

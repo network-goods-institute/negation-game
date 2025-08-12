@@ -1255,6 +1255,7 @@ export function PointPageClient({
                     pointId={point.pointId}
                     currentContent={point.content}
                     canEdit={isPointOwner}
+                    isOption={point.isOption}
                 />
             )}
 
