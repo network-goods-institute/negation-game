@@ -19,14 +19,43 @@ export default function ScrollSourceEmbedClient({ sourceUrl }: Props) {
         }
         const run = async () => {
             try {
-                const res = await fetch(`/api/embed/topic-detector?source=${encodeURIComponent(sourceUrl)}`);
-                if (!res.ok) throw new Error(`Detector failed ${res.status}`);
-                const data = await res.json();
+                // Normalize the source URL to be tolerant of user-provided variants
+                let normalized = sourceUrl.trim();
+                try {
+                    const u = new URL(normalized);
+                    const host = u.hostname.toLowerCase();
+                    const path = decodeURIComponent(u.pathname).replace(/\/$/, "");
+                    const searchless = `${u.protocol}//${host}${path}`;
+                    normalized = searchless;
+                } catch { }
+
+                const detect = async (url: string) => {
+                    const r = await fetch(`/api/embed/topic-detector?source=${encodeURIComponent(url)}`);
+                    if (!r.ok) throw new Error(`Detector failed ${r.status}`);
+                    return r.json();
+                };
+
+                let data = await detect(normalized);
+                // Fallback: try without trailing numeric id in slug (…/t/slug/123 -> …/t/slug)
+                if (!data.found) {
+                    const stripped = normalized.replace(/(\/t\/[^/]+)\/\d+$/, "$1");
+                    if (stripped !== normalized) {
+                        data = await detect(stripped);
+                    }
+                }
+                // Fallback: inclusion check if backend returns a canonicalUrl
+                if (!data.found && data.canonicalUrl) {
+                    const canon = String(data.canonicalUrl);
+                    if (normalized.includes(canon) || canon.includes(normalized)) {
+                        data.found = true;
+                        data.type = data.type || 'topic';
+                    }
+                }
                 if (data.found) {
                     if (data.type === 'rationale') {
                         let rationaleId = data.rationaleId;
 
-                        let match = rationaleId.match(/\/rationale\/([a-zA-Z0-9_-]+)/);
+                        let match = rationaleId.match(/\/rationale\/([a-zA-Z0-9_-]+)/i);
                         if (match) {
                             rationaleId = match[1];
                         } else if (rationaleId.includes('http')) {
@@ -36,7 +65,8 @@ export default function ScrollSourceEmbedClient({ sourceUrl }: Props) {
 
                         router.replace(`/embed/rationale/${rationaleId}`);
                     } else if (data.type === 'topic' && data.topicId) {
-                        const tid = data.topicId as string;
+                        const tid = String(data.topicId).trim();
+                        // Accept numeric id, encoded id, or slug without strict equality
                         const encoded = /^\d+$/.test(tid) ? encodeId(Number(tid)) : tid;
                         router.replace(`/embed/topic/${encoded}`);
                     }
@@ -73,7 +103,7 @@ export default function ScrollSourceEmbedClient({ sourceUrl }: Props) {
                 return false;
             }
 
-            if (hostname === 'forum.scroll.io') return true;
+            if (hostname.endsWith('scroll.io')) return true; // allow subdomains and mirrors
 
             // Allow localhost for development
             if (process.env.NODE_ENV !== 'production' &&
@@ -140,23 +170,23 @@ export default function ScrollSourceEmbedClient({ sourceUrl }: Props) {
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             padding: '24px 20px',
             textAlign: 'center',
-            color: '#1e293b',
+            color: '#3A3835',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             minHeight: '180px',
-            backgroundColor: '#ffffff',
-            border: '1px solid #e2e8f0',
-            borderRadius: '8px',
+            backgroundColor: '#FDF9F2',
+            border: '1px solid #EAE8E5',
+            borderRadius: '6px',
             boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
         }}>
             <div
                 style={{
                     width: '40px',
                     height: '40px',
-                    border: '3px solid #e2e8f0',
-                    borderTop: '3px solid #3b82f6',
+                    border: '3px solid #EAE8E5',
+                    borderTop: '3px solid #ED7153',
                     borderRadius: '50%',
                     animation: 'spin 1s linear infinite',
                     marginBottom: '20px'
@@ -183,10 +213,10 @@ export default function ScrollSourceEmbedClient({ sourceUrl }: Props) {
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             padding: '24px 20px',
             textAlign: 'center',
-            color: '#dc2626',
-            backgroundColor: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderRadius: '8px',
+            color: '#9F2B1F',
+            backgroundColor: '#FDEDEA',
+            border: '1px solid #F2D6D1',
+            borderRadius: '6px',
             boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
         }}>
             <div style={{ fontSize: '32px', marginBottom: '12px' }}>⚠️</div>
@@ -199,10 +229,10 @@ export default function ScrollSourceEmbedClient({ sourceUrl }: Props) {
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             maxWidth: '480px',
             margin: '0 auto',
-            border: '1px solid #e2e8f0',
-            borderRadius: '12px',
+            border: '1px solid #EAE8E5',
+            borderRadius: '6px',
             padding: '32px 24px',
-            background: '#f8fafc',
+            background: '#FDF9F2',
             textAlign: 'center',
             boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
         }}>
@@ -223,27 +253,27 @@ export default function ScrollSourceEmbedClient({ sourceUrl }: Props) {
             <button
                 onClick={handleCreate}
                 style={{
-                    background: '#10b981',
-                    color: '#fff',
+                    background: '#ED7153',
+                    color: '#FFFFFF',
                     padding: '12px 24px',
                     border: 'none',
-                    borderRadius: '8px',
+                    borderRadius: '4px',
                     cursor: 'pointer',
                     fontSize: '14px',
                     fontWeight: '600',
                     fontFamily: 'inherit',
-                    boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)',
+                    boxShadow: '0 2px 4px rgba(237, 113, 83, 0.2)',
                     transition: 'all 0.2s ease'
                 }}
                 onMouseOver={(e) => {
-                    e.currentTarget.style.background = '#059669';
+                    e.currentTarget.style.background = '#D85F43';
                     e.currentTarget.style.transform = 'translateY(-1px)';
-                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(16, 185, 129, 0.3)';
+                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(237, 113, 83, 0.3)';
                 }}
                 onMouseOut={(e) => {
-                    e.currentTarget.style.background = '#10b981';
+                    e.currentTarget.style.background = '#ED7153';
                     e.currentTarget.style.transform = 'translateY(0px)';
-                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(16, 185, 129, 0.2)';
+                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(237, 113, 83, 0.2)';
                 }}
             >
                 Create Topic

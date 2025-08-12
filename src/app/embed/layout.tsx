@@ -73,11 +73,12 @@ export default function EmbedLayout({
 
   return (
     <div
+      data-embed-theme="scroll"
       style={{
         margin: 0,
         padding: '16px',
-        background: '#fff',
-        color: '#333',
+        background: '#FDF9F2',
+        color: '#3A3835',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         fontSize: '14px',
         lineHeight: '1.4',

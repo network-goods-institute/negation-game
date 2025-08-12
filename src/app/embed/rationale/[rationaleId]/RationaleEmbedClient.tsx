@@ -59,45 +59,15 @@ export function RationaleEmbedClient({ rationale }: Props) {
     };
   }, []);
 
-
-  const calculateTooltipPosition = (nodeX: number, nodeY: number) => {
-    const tooltipHeight = 40;
-    const gap = 10;
-    const margin = 5;
-
-    const canFitTop = nodeY - tooltipHeight - gap > margin;
-    const canFitBottom = nodeY + tooltipHeight + gap < minimapHeight - margin;
-    const canFitLeft = nodeX - tooltipMaxWidth - gap > margin;
-    const canFitRight = nodeX + tooltipMaxWidth + gap < containerWidth - margin;
-
-    let position: 'top' | 'bottom' | 'left' | 'right' = 'top';
-
-    if (canFitTop) {
-      position = 'top';
-    } else if (canFitBottom) {
-      position = 'bottom';
-    } else if (canFitRight) {
-      position = 'right';
-    } else if (canFitLeft) {
-      position = 'left';
-    }
-
-    return {
-      position,
-      nodeX,
-      nodeY
-    };
-  };
-
   const containerStyle = {
     padding: '10px 12px',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     fontSize: '12px',
     lineHeight: '1.3',
-    color: '#1a202c',
-    backgroundColor: '#ffffff',
-    border: '1px solid #e2e8f0',
-    borderRadius: '6px',
+    color: '#3A3835',
+    backgroundColor: '#FDF9F2',
+    border: '1px solid #EAE8E5',
+    borderRadius: '4px',
     margin: '0',
     cursor: 'pointer',
     transition: 'all 0.2s ease',
@@ -115,8 +85,8 @@ export function RationaleEmbedClient({ rationale }: Props) {
     width: '100%',
     height: `${minimapHeight}px`,
     backgroundColor: 'rgba(31, 41, 55, 0.03)',
-    border: '1px solid rgba(226, 232, 240, 0.8)',
-    borderRadius: '8px',
+    border: '1px solid rgba(234, 232, 229, 0.9)',
+    borderRadius: '4px',
     marginBottom: '8px',
     flex: '0 0 auto',
     position: 'relative' as const,
@@ -175,10 +145,10 @@ export function RationaleEmbedClient({ rationale }: Props) {
             width: isStatement ? `${statementWidth}px` : `${pointWidth}px`,
             height: `${nodeHeight}px`,
             backgroundColor: isHovered
-              ? (isStatement ? 'rgba(107, 114, 128, 1)' : 'rgba(107, 114, 128, 0.8)')
-              : (isStatement ? 'rgba(107, 114, 128, 0.8)' : 'rgba(107, 114, 128, 0.6)'),
-            borderRadius: isStatement ? '6px' : '4px',
-            border: `2px solid ${isStatement ? 'rgba(75, 85, 99, 0.9)' : 'rgba(75, 85, 99, 0.7)'}`,
+              ? (isStatement ? 'rgba(107, 114, 128, 0.6)' : 'rgba(107, 114, 128, 0.6)')
+              : (isStatement ? 'rgba(107, 114, 128, 0.5)' : 'rgba(107, 114, 128, 0.4)'),
+            borderRadius: isStatement ? '4px' : '3px',
+            border: `1px solid ${isStatement ? 'rgba(75, 85, 99, 0.6)' : 'rgba(75, 85, 99, 0.5)'}`,
             cursor: 'pointer',
             transition: 'all 0.2s ease',
             transform: isHovered ? 'scale(1.1)' : 'scale(1)',
@@ -190,16 +160,14 @@ export function RationaleEmbedClient({ rationale }: Props) {
             const rect = e.currentTarget.getBoundingClientRect();
             const minimapRect = e.currentTarget.parentElement?.getBoundingClientRect();
             if (minimapRect) {
-              const nodeX = rect.left - minimapRect.left + rect.width / 2;
-              const nodeY = rect.top - minimapRect.top + rect.height / 2;
-              const tooltipPos = calculateTooltipPosition(nodeX, nodeY);
-
+              const nodeRight = rect.right - minimapRect.left;
+              const nodeTop = rect.top - minimapRect.top;
               setNodePreview({
                 id: node.id,
                 content: nodeContent,
-                x: tooltipPos.nodeX,
-                y: tooltipPos.nodeY,
-                position: tooltipPos.position
+                x: nodeRight,
+                y: nodeTop,
+                position: 'right'
               });
             }
           }}
@@ -215,16 +183,14 @@ export function RationaleEmbedClient({ rationale }: Props) {
             const rect = e.currentTarget.getBoundingClientRect();
             const minimapRect = e.currentTarget.parentElement?.getBoundingClientRect();
             if (minimapRect) {
-              const nodeX = rect.left - minimapRect.left + rect.width / 2;
-              const nodeY = rect.top - minimapRect.top + rect.height / 2;
-              const tooltipPos = calculateTooltipPosition(nodeX, nodeY);
-
+              const nodeRight = rect.right - minimapRect.left;
+              const nodeTop = rect.top - minimapRect.top;
               setNodePreview({
                 id: node.id,
                 content: nodeContent,
-                x: tooltipPos.nodeX,
-                y: tooltipPos.nodeY,
-                position: tooltipPos.position
+                x: nodeRight,
+                y: nodeTop,
+                position: 'right'
               });
             }
           }}
@@ -254,110 +220,39 @@ export function RationaleEmbedClient({ rationale }: Props) {
         {renderNodes()}
       </div>
 
-      {/* Node Preview Tooltip - Discourse Style */}
+      {/* Node Preview Tooltip - simplified, right-offset without arrow */}
       {nodePreview && (() => {
-        const gap = 10;
+        const offsetX = 10;
         const containerPadding = 10;
         const minimapTop = 8;
-        let tooltipStyle = {};
-        let arrowStyle = {};
-
-        switch (nodePreview.position) {
-          case 'top':
-            tooltipStyle = {
-              left: `${containerPadding + nodePreview.x}px`,
-              top: `${minimapTop + nodePreview.y - gap}px`,
-              transform: 'translateX(-50%) translateY(-100%)'
-            };
-            arrowStyle = {
-              top: '100%',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              borderLeft: '5px solid transparent',
-              borderRight: '5px solid transparent',
-              borderTop: '5px solid #333'
-            };
-            break;
-          case 'bottom':
-            tooltipStyle = {
-              left: `${containerPadding + nodePreview.x}px`,
-              top: `${minimapTop + nodePreview.y + gap}px`,
-              transform: 'translateX(-50%) translateY(0%)'
-            };
-            arrowStyle = {
-              bottom: '100%',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              borderLeft: '5px solid transparent',
-              borderRight: '5px solid transparent',
-              borderBottom: '5px solid #333'
-            };
-            break;
-          case 'left':
-            tooltipStyle = {
-              left: `${containerPadding + nodePreview.x - gap}px`,
-              top: `${minimapTop + nodePreview.y}px`,
-              transform: 'translateX(-100%) translateY(-50%)'
-            };
-            arrowStyle = {
-              left: '100%',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              borderTop: '5px solid transparent',
-              borderBottom: '5px solid transparent',
-              borderLeft: '5px solid #333'
-            };
-            break;
-          case 'right':
-            tooltipStyle = {
-              left: `${containerPadding + nodePreview.x + gap}px`,
-              top: `${minimapTop + nodePreview.y}px`,
-              transform: 'translateX(0%) translateY(-50%)'
-            };
-            arrowStyle = {
-              right: '100%',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              borderTop: '5px solid transparent',
-              borderBottom: '5px solid transparent',
-              borderRight: '5px solid #333'
-            };
-            break;
-        }
+        const tooltipStyle = {
+          left: `${containerPadding + nodePreview.x + offsetX}px`,
+          top: `${minimapTop + nodePreview.y}px`,
+        } as React.CSSProperties;
 
         return (
           <div
             style={{
               position: 'absolute',
               ...tooltipStyle,
-              backgroundColor: '#333',
-              color: '#fff',
+              backgroundColor: '#2B2A29',
+              color: '#FFFFFF',
               padding: '6px 8px',
               fontSize: '11px',
               fontWeight: '400',
-              borderRadius: '3px',
+              borderRadius: '2px',
               maxWidth: `${tooltipMaxWidth}px`,
               wordWrap: 'break-word',
               zIndex: 20,
               pointerEvents: 'none',
               boxShadow: '0 2px 6px rgba(0, 0, 0, 0.2)',
-              border: '1px solid #444',
+              border: '1px solid #44403C',
               fontFamily: 'inherit'
             }}
           >
             {nodePreview.content.length > 80
               ? nodePreview.content.substring(0, 80) + '...'
-              : nodePreview.content
-            }
-            {/* Arrow */}
-            <div
-              style={{
-                position: 'absolute',
-                ...arrowStyle,
-                width: 0,
-                height: 0
-              }}
-            />
+              : nodePreview.content}
           </div>
         );
       })()}
@@ -390,18 +285,18 @@ export function RationaleEmbedClient({ rationale }: Props) {
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  backgroundColor: '#3b82f6',
+                  backgroundColor: '#ED7153',
                   color: 'white',
                   border: 'none',
                   padding: '6px 10px',
-                  borderRadius: '4px',
+                  borderRadius: '3px',
                   fontSize: '10px',
                   fontWeight: '600',
                   cursor: 'pointer',
                   fontFamily: 'inherit',
                   textDecoration: 'none',
                   transition: 'all 0.2s ease',
-                  boxShadow: '0 2px 4px rgba(59, 130, 246, 0.3)',
+                  boxShadow: '0 2px 4px rgba(237, 113, 83, 0.3)',
                   minWidth: '56px',
                   justifyContent: 'center',
                   flexShrink: 0
@@ -410,14 +305,14 @@ export function RationaleEmbedClient({ rationale }: Props) {
                   e.stopPropagation();
                 }}
                 onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = '#2563eb';
+                  e.currentTarget.style.backgroundColor = '#D85F43';
                   e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 3px 6px rgba(59, 130, 246, 0.4)';
+                  e.currentTarget.style.boxShadow = '0 3px 6px rgba(237, 113, 83, 0.4)';
                 }}
                 onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = '#3b82f6';
+                  e.currentTarget.style.backgroundColor = '#ED7153';
                   e.currentTarget.style.transform = 'translateY(0px)';
-                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(59, 130, 246, 0.3)';
+                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(237, 113, 83, 0.3)';
                 }}
               >
                 Open

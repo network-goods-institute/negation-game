@@ -83,11 +83,13 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
 
   const handleLinkClick = (e: React.MouseEvent, url: string) => {
     e.preventDefault();
+    e.stopPropagation();
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const handleViewRationale = (rationale: Rationale, e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsRationaleLoading(true);
     setSelectedRationaleId(rationale.id);
   };
@@ -102,10 +104,10 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     fontSize: '11px',
     lineHeight: '1.2',
-    color: '#1a202c',
-    backgroundColor: '#ffffff',
+    color: '#3A3835',
+    backgroundColor: '#FDF9F2',
     borderRadius: '4px',
-    border: '1px solid #e2e8f0',
+    border: '1px solid #EAE8E5',
     boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
     height: '420px',
     display: 'flex',
@@ -118,13 +120,13 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
     return (
       <div style={containerStyle}>
         <div style={{
-          border: '1px solid #e2e8f0',
+          border: '1px solid #EAE8E5',
           borderRadius: '4px',
           padding: '8px',
           textAlign: 'center',
-          backgroundColor: '#f8fafc',
+          backgroundColor: '#FBF4EA',
           fontSize: '9px',
-          color: '#64748b'
+          color: '#6B6A68'
         }}>
           Topic embeds only available on the first post
         </div>
@@ -135,29 +137,29 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
   // If a rationale is selected, show the inline preview
   if (selectedRationaleId) {
     return (
-      <div style={{...containerStyle}}>
-        <div style={{ marginBottom: '4px', borderBottom: '1px solid #e5e7eb', paddingBottom: '3px', flex: '0 0 auto' }}>
+      <div style={{ ...containerStyle }}>
+        <div style={{ marginBottom: '4px', borderBottom: '1px solid #EAE8E5', paddingBottom: '3px', flex: '0 0 auto' }}>
           <button
             onClick={handleBackToList}
             style={{
               backgroundColor: 'transparent',
-              border: '1px solid #d1d5db',
+              border: '1px solid #D7D4CF',
               padding: '4px 8px',
               borderRadius: '3px',
               fontSize: '10px',
               cursor: 'pointer',
               fontFamily: 'inherit',
-              color: '#4b5563',
+              color: '#3A3835',
               transition: 'all 0.2s ease',
               fontWeight: '500'
             }}
             onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = '#f3f4f6';
-              e.currentTarget.style.borderColor = '#9ca3af';
+              e.currentTarget.style.backgroundColor = '#EAE8E5';
+              e.currentTarget.style.borderColor = '#BDB9B3';
             }}
             onMouseOut={(e) => {
               e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.borderColor = '#d1d5db';
+              e.currentTarget.style.borderColor = '#D7D4CF';
             }}
           >
             ← Back to {topic.name}
@@ -186,7 +188,7 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
               width: '100%',
               height: '100%',
               border: 'none',
-              borderRadius: '8px',
+              borderRadius: '4px',
               display: 'block',
               overflow: 'hidden'
             }}
@@ -201,8 +203,8 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: 'rgba(248, 250, 252, 0.95)',
-                borderRadius: '8px',
+                backgroundColor: 'rgba(253, 249, 242, 0.95)',
+                borderRadius: '4px',
                 backdropFilter: 'blur(2px)'
               }}
             >
@@ -211,8 +213,8 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
                   style={{
                     width: '24px',
                     height: '24px',
-                    border: '3px solid #e2e8f0',
-                    borderTop: '3px solid #3b82f6',
+                    border: '3px solid #EAE8E5',
+                    borderTop: '3px solid #ED7153',
                     borderRadius: '50%',
                     transform: `rotate(${spinnerRotation}deg)`
                   }}
@@ -230,11 +232,11 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
     return (
       <div style={containerStyle}>
         <div style={{
-          border: '1px solid #e2e8f0',
+          border: '1px solid #EAE8E5',
           borderRadius: '4px',
           padding: '8px',
           textAlign: 'center',
-          backgroundColor: '#f8fafc'
+          backgroundColor: '#FBF4EA'
         }}>
           <div style={{ fontSize: '14px', marginBottom: '4px', opacity: 0.6 }}>🔍</div>
           <h3 style={{ margin: '0 0 4px', fontSize: '14px', color: '#1e293b', fontWeight: '600' }}>
@@ -251,26 +253,26 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
             onClick={(e) => handleLinkClick(e, `/s/${topic.space}/topic/${encodeId(topic.id)}`)}
             style={{
               display: 'inline-block',
-              backgroundColor: '#3b82f6',
-              color: 'white',
+              backgroundColor: '#ED7153',
+              color: '#FFFFFF',
               border: 'none',
               padding: '6px 12px',
-              borderRadius: '4px',
+              borderRadius: '3px',
               fontSize: '11px',
               textDecoration: 'none',
               fontWeight: '500',
-              boxShadow: '0 1px 2px rgba(59, 130, 246, 0.2)',
+              boxShadow: '0 1px 2px rgba(237, 113, 83, 0.2)',
               transition: 'all 0.2s ease'
             }}
             onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = '#2563eb';
+              e.currentTarget.style.backgroundColor = '#D85F43';
               e.currentTarget.style.transform = 'translateY(-1px)';
-              e.currentTarget.style.boxShadow = '0 2px 4px rgba(59, 130, 246, 0.3)';
+              e.currentTarget.style.boxShadow = '0 2px 4px rgba(237, 113, 83, 0.3)';
             }}
             onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = '#3b82f6';
+              e.currentTarget.style.backgroundColor = '#ED7153';
               e.currentTarget.style.transform = 'translateY(0px)';
-              e.currentTarget.style.boxShadow = '0 1px 2px rgba(59, 130, 246, 0.2)';
+              e.currentTarget.style.boxShadow = '0 1px 2px rgba(237, 113, 83, 0.2)';
             }}
           >
             Create Rationale
@@ -282,19 +284,19 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
 
   return (
     <div style={containerStyle}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px', borderBottom: '1px solid #e5e7eb', paddingBottom: '2px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px', borderBottom: '1px solid #EAE8E5', paddingBottom: '2px' }}>
         <h3 style={{ margin: '0', fontSize: '13px', color: '#1e293b', fontWeight: '600' }}>
           Negation Game × Scroll
         </h3>
-        <div style={{ fontSize: '12px', fontWeight: '600', color: '#334155' }}>
+        <div style={{ fontSize: '12px', fontWeight: '600', color: '#3A3835' }}>
           {topic.name}
         </div>
-        <div style={{ fontSize: '10px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', background: '#f1f5f9', padding: '2px 6px', borderRadius: '8px' }}>
+        <div style={{ fontSize: '10px', color: '#3A3835', display: 'flex', alignItems: 'center', gap: '4px', background: '#EAE8E5', padding: '2px 6px', borderRadius: '6px' }}>
           <span>{rationales.length} rationale{rationales.length !== 1 ? 's' : ''}</span>
         </div>
       </div>
 
-      <div style={{ marginBottom: '4px', textAlign: 'center', padding: '4px', background: '#f8fafc', borderRadius: '3px', border: '1px solid #e2e8f0' }}>
+      <div style={{ marginBottom: '4px', textAlign: 'center', padding: '4px', background: '#FBF4EA', borderRadius: '3px', border: '1px solid #EAE8E5' }}>
         <div style={{ fontSize: '16px', marginBottom: '6px', opacity: 0.6 }}>💭</div>
         <p style={{ margin: '0 0 10px', color: '#64748b', fontSize: '11px', fontWeight: '500' }}>
           No rationale link found in post.
@@ -304,26 +306,26 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
           onClick={(e) => handleLinkClick(e, `/s/${topic.space}/topic/${encodeId(topic.id)}`)}
           style={{
             display: 'inline-block',
-            backgroundColor: '#3b82f6',
+            backgroundColor: '#ED7153',
             color: 'white',
             border: 'none',
             padding: '6px 12px',
-            borderRadius: '4px',
+            borderRadius: '3px',
             fontSize: '11px',
             textDecoration: 'none',
             fontWeight: '500',
-            boxShadow: '0 1px 2px rgba(59, 130, 246, 0.2)',
+            boxShadow: '0 1px 2px rgba(237, 113, 83, 0.2)',
             transition: 'all 0.2s ease'
           }}
           onMouseOver={(e) => {
-            e.currentTarget.style.backgroundColor = '#2563eb';
+            e.currentTarget.style.backgroundColor = '#D85F43';
             e.currentTarget.style.transform = 'translateY(-1px)';
-            e.currentTarget.style.boxShadow = '0 2px 4px rgba(59, 130, 246, 0.3)';
+            e.currentTarget.style.boxShadow = '0 2px 4px rgba(237, 113, 83, 0.3)';
           }}
           onMouseOut={(e) => {
-            e.currentTarget.style.backgroundColor = '#3b82f6';
+            e.currentTarget.style.backgroundColor = '#ED7153';
             e.currentTarget.style.transform = 'translateY(0px)';
-            e.currentTarget.style.boxShadow = '0 1px 2px rgba(59, 130, 246, 0.2)';
+            e.currentTarget.style.boxShadow = '0 1px 2px rgba(237, 113, 83, 0.2)';
           }}
         >
           Create Rationale
@@ -337,28 +339,29 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
           </div>
           {rationales.slice(0, 3).map((rationale) => (
             <div key={rationale.id} style={{
-              border: '1px solid #e2e8f0',
-              borderRadius: '6px',
+              border: '1px solid #EAE8E5',
+              borderRadius: '4px',
               padding: '8px',
               marginBottom: '6px',
-              backgroundColor: '#ffffff',
+              backgroundColor: '#FFFFFF',
               boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
               transition: 'all 0.2s ease',
               cursor: 'pointer'
             }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.borderColor = '#cbd5e1';
-              e.currentTarget.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.1)';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.borderColor = '#e2e8f0';
-              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
-              e.currentTarget.style.transform = 'translateY(0px)';
-            }}>
+              onClick={(e) => handleViewRationale(rationale, e)}
+              onMouseOver={(e) => {
+                e.currentTarget.style.borderColor = '#D7D4CF';
+                e.currentTarget.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.1)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.borderColor = '#EAE8E5';
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+                e.currentTarget.style.transform = 'translateY(0px)';
+              }}>
               <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '12px', color: '#3b82f6', fontWeight: '600', marginBottom: '2px' }}>
+                  <div style={{ fontSize: '12px', color: '#ED7153', fontWeight: '600', marginBottom: '2px' }}>
                     {rationale.authorUsername}
                   </div>
                   <h4 style={{
@@ -381,7 +384,7 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
                     onClick={(e) => handleViewRationale(rationale, e)}
                     style={{
                       display: 'inline-block',
-                      backgroundColor: '#3b82f6',
+                      backgroundColor: '#ED7153',
                       color: 'white',
                       border: 'none',
                       padding: '4px 8px',
@@ -393,10 +396,10 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
                       transition: 'all 0.2s ease'
                     }}
                     onMouseOver={(e) => {
-                      e.currentTarget.style.backgroundColor = '#2563eb';
+                      e.currentTarget.style.backgroundColor = '#D85F43';
                     }}
                     onMouseOut={(e) => {
-                      e.currentTarget.style.backgroundColor = '#3b82f6';
+                      e.currentTarget.style.backgroundColor = '#ED7153';
                     }}
                   >
                     View
@@ -407,9 +410,9 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
                     rel="noopener,noreferrer"
                     style={{
                       display: 'inline-block',
-                      backgroundColor: '#f1f5f9',
-                      color: '#475569',
-                      border: '1px solid #cbd5e1',
+                      backgroundColor: '#EAE8E5',
+                      color: '#3A3835',
+                      border: '1px solid #D7D4CF',
                       padding: '4px 8px',
                       borderRadius: '3px',
                       fontSize: '10px',
@@ -418,13 +421,14 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
                       fontWeight: '500',
                       transition: 'all 0.2s ease'
                     }}
+                    onClick={(e) => handleLinkClick(e, `/s/${topic.space}/rationale/${rationale.id}`)}
                     onMouseOver={(e) => {
-                      e.currentTarget.style.backgroundColor = '#e2e8f0';
-                      e.currentTarget.style.borderColor = '#94a3b8';
+                      e.currentTarget.style.backgroundColor = '#E2DFDA';
+                      e.currentTarget.style.borderColor = '#BDB9B3';
                     }}
                     onMouseOut={(e) => {
-                      e.currentTarget.style.backgroundColor = '#f1f5f9';
-                      e.currentTarget.style.borderColor = '#cbd5e1';
+                      e.currentTarget.style.backgroundColor = '#EAE8E5';
+                      e.currentTarget.style.borderColor = '#D7D4CF';
                     }}
                   >
                     Open
@@ -436,18 +440,18 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
 
           {rationales.length > 3 && (
             <div style={{
-              border: '1px solid #ddd',
+              border: '1px solid #EAE8E5',
               borderRadius: '3px',
               padding: '12px',
               marginBottom: '6px',
-              backgroundColor: '#fafafa',
+              backgroundColor: '#FBF4EA',
               textAlign: 'center'
             }}>
               <a
                 href={getFullUrl(`/s/${topic.space}/topic/${encodeId(topic.id)}`)}
                 onClick={(e) => handleLinkClick(e, `/s/${topic.space}/topic/${encodeId(topic.id)}`)}
                 style={{
-                  color: '#0088cc',
+                  color: '#ED7153',
                   fontSize: '13px',
                   textDecoration: 'none',
                   fontWeight: '500'
