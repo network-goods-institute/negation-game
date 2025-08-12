@@ -103,7 +103,8 @@ export default function ScrollSourceEmbedClient({ sourceUrl }: Props) {
                 return false;
             }
 
-            if (hostname.endsWith('scroll.io')) return true; // allow subdomains and mirrors
+            // Only allow scroll.io and its direct subdomains
+            if (hostname === 'scroll.io' || hostname.endsWith('.scroll.io')) return true;
 
             // Allow localhost for development
             if (process.env.NODE_ENV !== 'production' &&

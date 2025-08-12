@@ -1,5 +1,6 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import ScrollSourceEmbedClient from "@/app/embed/scroll/source/ScrollSourceEmbedClient";
 
 // Mock next/navigation router
@@ -47,6 +48,41 @@ describe("ScrollSourceEmbedClient", () => {
         expect(calledUrl).toMatch(/^\/embed\/topic\//);
         // encodedId should not be literal 42
         expect(calledUrl).not.toEqual("/embed/topic/42");
+    });
+
+    it("validates allowed hosts: scroll.io root and subdomains only", async () => {
+        // First render: completely invalid host
+        (global.fetch as jest.Mock)
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ found: false }) })
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ found: false }) });
+
+        const { rerender } = render(<ScrollSourceEmbedClient sourceUrl="https://evilscroll.io/t/x" />);
+        await waitFor(() => expect(screen.getByRole('button', { name: /Create Topic/i })).toBeInTheDocument());
+        await userEvent.click(screen.getByRole('button', { name: /Create Topic/i }));
+        await waitFor(() => expect(document.body.textContent || '').toContain('Invalid source URL'));
+
+        // Allowed: root
+        (global.fetch as jest.Mock)
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ found: false }) })
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ found: false }) });
+        rerender(<ScrollSourceEmbedClient sourceUrl="https://scroll.io/t/x" />);
+        await waitFor(() => expect(screen.getByRole('button', { name: /Create Topic/i })).toBeInTheDocument());
+
+        // Allowed: subdomain
+        (global.fetch as jest.Mock)
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ found: false }) })
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ found: false }) });
+        rerender(<ScrollSourceEmbedClient sourceUrl="https://forum.scroll.io/t/x" />);
+        await waitFor(() => expect(screen.getByRole('button', { name: /Create Topic/i })).toBeInTheDocument());
+
+        // Disallowed: scroll.io.evil.com
+        (global.fetch as jest.Mock)
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ found: false }) })
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ found: false }) });
+        rerender(<ScrollSourceEmbedClient sourceUrl="https://scroll.io.evil.com/t/x" />);
+        await waitFor(() => expect(screen.getByRole('button', { name: /Create Topic/i })).toBeInTheDocument());
+        await userEvent.click(screen.getByRole('button', { name: /Create Topic/i }));
+        await waitFor(() => expect(document.body.textContent || '').toContain('Invalid source URL'));
     });
 
     it("shows prompt and Create Topic button when detector not found", async () => {
