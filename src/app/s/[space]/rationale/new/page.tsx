@@ -54,6 +54,46 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
   const { push } = router;
   const basePath = useBasePath();
   const currentSpace = useCurrentSpace();
+  
+  const searchParams = useSearchParams();
+  const embedParam = searchParams.get('embed');
+  const isEmbedMode = embedParam === 'mobile' || embedParam === 'embed';
+  const isMobileEmbed = embedParam === 'mobile';
+  const isEmbedEmbed = embedParam === 'embed';
+  const isDesktopEmbed = embedParam === 'desktop';
+
+  // Send height updates to parent when in embed mode
+  useEffect(() => {
+    if (isEmbedMode || isDesktopEmbed) {
+      const sendHeight = () => {
+        const height = document.documentElement.scrollHeight;
+        console.log('New rationale page sending height:', height);
+        window.parent.postMessage({
+          source: 'negation-game-rationale',
+          type: 'resize',
+          height: height
+        }, '*');
+      };
+
+      // Send height whenever it might change
+      const timer = setTimeout(() => {
+        console.log('Initial height calculation for embed mode');
+        sendHeight();
+      }, 1000);
+
+      // Send height on resize
+      const resizeObserver = new ResizeObserver(() => {
+        console.log('ResizeObserver triggered');
+        setTimeout(sendHeight, 100); // Small delay for DOM updates
+      });
+      resizeObserver.observe(document.body);
+
+      return () => {
+        clearTimeout(timer);
+        resizeObserver.disconnect();
+      };
+    }
+  }, [isEmbedMode, isDesktopEmbed]);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const {
@@ -72,6 +112,30 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
   const { data: topicsData } = useTopics(spaceId || "");
 
   const [canvasEnabled, setCanvasEnabled] = useAtom(canvasEnabledAtom);
+
+  useEffect(() => {
+    if (isEmbedMode || isDesktopEmbed) {
+      console.log('Canvas state changed in embed mode:', canvasEnabled);
+      const timer = setTimeout(() => {
+        const height = document.documentElement.scrollHeight;
+        console.log('Sending height after canvas toggle:', height);
+        window.parent.postMessage({
+          source: 'negation-game-rationale',
+          type: 'resize',
+          height: height
+        }, '*');
+      }, 500); // Longer delay for graph rendering
+
+      return () => clearTimeout(timer);
+    }
+  }, [canvasEnabled, isEmbedMode, isDesktopEmbed]);
+
+  // Enable canvas by default in embed mode (mobile view shows graph)
+  useEffect(() => {
+    if (isEmbedMode || isDesktopEmbed) {
+      setCanvasEnabled(true);
+    }
+  }, [isEmbedMode, isDesktopEmbed, setCanvasEnabled]);
   const [feedEnabled, setFeedEnabled] = useAtom(feedEnabledAtom);
   useEffect(() => {
     setFeedEnabled(true);
@@ -85,8 +149,8 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       setFeedEnabled(false);
     }
   }, [isMobile, setFeedEnabled]);
-
-  const showFeed = feedEnabled;
+  
+  const showFeed = feedEnabled && !isEmbedMode && !isDesktopEmbed; // Disable feed in embed mode
   const reactFlow = useReactFlow<AppNode>();
   const [graph, setGraph] = useAtom(viewpointGraphAtom);
   const points = useMemo(() => {
@@ -190,7 +254,6 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
     return id;
   }, [publish]);
 
-  const searchParams = useSearchParams();
   const autoPublish = searchParams.get('autoPublish') === 'true';
   const preselectedTopicId = searchParams.get('topicId');
   const [autoPublishInvoked, setAutoPublishInvoked] = useState(false);
@@ -245,7 +308,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       // Also reset ReactFlow directly if available
       if (reactFlow) {
         reactFlow.setNodes(initialViewpointGraph.nodes);
-        reactFlow.setEdges(initialViewpointGraph.edges);
+               reactFlow.setEdges(initialViewpointGraph.edges);
       }
 
       setIsConfirmDialogOpen(false);
@@ -280,30 +343,6 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       reactFlow.setNodes(initialViewpointGraph.nodes);
       reactFlow.setEdges(initialViewpointGraph.edges);
     }
-    if (preselectedTopicId && topicsData) {
-      const tid = decodeId(preselectedTopicId);
-      if (tid) {
-        const matching = topicsData.find((t) => t.id === tid);
-        if (matching) {
-          setTopic(matching.name);
-          setStatement(matching.name);
-          setTopicId(matching.id);
-          const newTitle = matching.name;
-          setTimeout(() => {
-            try {
-              updateNodeData("statement", {
-                statement: newTitle,
-                _lastUpdated: Date.now(),
-              });
-              const rfAny = reactFlow as any;
-              if (rfAny && typeof rfAny.markAsModified === "function") {
-                (reactFlow as any).markAsModified();
-              }
-            } catch { }
-          }, 400);
-        }
-      }
-    }
     // Clear sessionStorage draft data
     const storageKey = currentSpace ? `copyingViewpoint:${currentSpace}` : `copyingViewpoint`;
     sessionStorage.removeItem(storageKey);
@@ -322,9 +361,6 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
     setIsInitialLoadDialogOpen,
     setGraphRevision,
     currentSpace,
-    preselectedTopicId,
-    topicsData,
-    updateNodeData,
   ]);
 
   const handleBackClick = useCallback(() => {
@@ -345,27 +381,29 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
     return (
       <main className="relative flex-grow bg-background h-full overflow-hidden">
         <div className="flex flex-col h-full">
-          <NewRationaleHeader
-            spaceData={headerSpaceData}
-            spaceId={spaceId}
-            openConfirmDialog={openConfirmDialog}
-            isConfirmDialogOpen={isConfirmDialogOpen}
-            setIsConfirmDialogOpen={setIsConfirmDialogOpen}
-            isPending={isPending}
-            publish={handlePublish}
-            isPublishing={isPublishing}
-            canPublish={false}
-            isInitialLoadDialogOpen={isInitialLoadDialogOpen}
-            isCopiedFromSessionStorage={isCopiedFromSessionStorage}
-            setIsInitialLoadDialogOpen={setIsInitialLoadDialogOpen}
-            handleDiscardWithoutNavigation={handleDiscardWithoutNavigation}
-            isDiscardingWithoutNav={isDiscardingWithoutNav}
-            clearGraphAndState={clearGraphAndState}
-            handleBackClick={handleBackClick}
-            canvasEnabled={canvasEnabled}
-            toggleCanvas={() => setCanvasEnabled(!canvasEnabled)}
-          />
-          <Separator />
+          {!isEmbedMode && !isDesktopEmbed && (
+            <NewRationaleHeader
+              spaceData={headerSpaceData}
+              spaceId={spaceId}
+              openConfirmDialog={openConfirmDialog}
+              isConfirmDialogOpen={isConfirmDialogOpen}
+              setIsConfirmDialogOpen={setIsConfirmDialogOpen}
+              isPending={isPending}
+              publish={handlePublish}
+              isPublishing={isPublishing}
+              canPublish={false}
+              isInitialLoadDialogOpen={isInitialLoadDialogOpen}
+              isCopiedFromSessionStorage={isCopiedFromSessionStorage}
+              setIsInitialLoadDialogOpen={setIsInitialLoadDialogOpen}
+              handleDiscardWithoutNavigation={handleDiscardWithoutNavigation}
+              isDiscardingWithoutNav={isDiscardingWithoutNav}
+              clearGraphAndState={clearGraphAndState}
+              handleBackClick={handleBackClick}
+              canvasEnabled={canvasEnabled}
+              toggleCanvas={() => setCanvasEnabled(!canvasEnabled)}
+            />
+          )}
+          {!isEmbedMode && !isDesktopEmbed && <Separator />}
           <div className="flex-1 flex items-center justify-center p-8">
             <div className="max-w-md w-full">
               <Alert className="border-2 border-amber-300 dark:border-amber-600 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30">
@@ -407,36 +445,65 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
   return (
     <main className={cn(
       "relative flex-grow bg-background h-full overflow-hidden",
-      "md:grid",
-      showFeed
+      (isEmbedMode || isDesktopEmbed)
+        ? "flex flex-col"
+        : "md:grid",
+      !isEmbedMode && !isDesktopEmbed && showFeed
         ? "md:grid-cols-[0_minmax(200px,400px)_1fr_minmax(200px,400px)]"
-        : "md:grid-cols-[0_minmax(200px,400px)_1fr]"
+        : (!isEmbedMode && !isDesktopEmbed) && "md:grid-cols-[0_minmax(200px,400px)_1fr]"
     )}>
-      <div className="hidden md:block" />
-      <div className="flex flex-col h-full md:col-start-2 border-x overflow-hidden">
-        <NewRationaleHeader
-          spaceData={headerSpaceData}
-          spaceId={spaceId}
-          openConfirmDialog={openConfirmDialog}
-          isConfirmDialogOpen={isConfirmDialogOpen}
-          setIsConfirmDialogOpen={setIsConfirmDialogOpen}
-          isPending={isPending}
-          publish={handlePublish}
-          isPublishing={isPublishing}
-          canPublish={canPublish}
-          isInitialLoadDialogOpen={isInitialLoadDialogOpen}
-          isCopiedFromSessionStorage={isCopiedFromSessionStorage}
-          setIsInitialLoadDialogOpen={setIsInitialLoadDialogOpen}
-          handleDiscardWithoutNavigation={handleDiscardWithoutNavigation}
-          isDiscardingWithoutNav={isDiscardingWithoutNav}
-          clearGraphAndState={clearGraphAndState}
-          handleBackClick={handleBackClick}
-          canvasEnabled={canvasEnabled}
-          toggleCanvas={() => setCanvasEnabled(!canvasEnabled)}
-        />
-        <Separator />
-        {!showFeed || !isMobile ? (
-          <div className="flex-grow overflow-y-auto pb-10">
+      {!isEmbedMode && !isDesktopEmbed && <div className="hidden md:block" />}
+      <div className={cn(
+        "flex flex-col h-full overflow-hidden",
+        !isEmbedMode && !isDesktopEmbed && "md:col-start-2 border-x",
+        (isEmbedMode || isDesktopEmbed) && "border-0 max-w-full"
+      )}>
+        {!isEmbedMode && !isDesktopEmbed && (
+          <NewRationaleHeader
+            spaceData={headerSpaceData}
+            spaceId={spaceId}
+            openConfirmDialog={openConfirmDialog}
+            isConfirmDialogOpen={isConfirmDialogOpen}
+            setIsConfirmDialogOpen={setIsConfirmDialogOpen}
+            isPending={isPending}
+            publish={handlePublish}
+            isPublishing={isPublishing}
+            canPublish={canPublish}
+            isInitialLoadDialogOpen={isInitialLoadDialogOpen}
+            isCopiedFromSessionStorage={isCopiedFromSessionStorage}
+            setIsInitialLoadDialogOpen={setIsInitialLoadDialogOpen}
+            handleDiscardWithoutNavigation={handleDiscardWithoutNavigation}
+            isDiscardingWithoutNav={isDiscardingWithoutNav}
+            clearGraphAndState={clearGraphAndState}
+            handleBackClick={handleBackClick}
+            canvasEnabled={canvasEnabled}
+            toggleCanvas={() => setCanvasEnabled(!canvasEnabled)}
+          />
+        )}
+
+        {/* Simple toggle for embed mode */}
+        {(isEmbedMode || isDesktopEmbed) && (
+          <div className="flex justify-between items-center p-3 border-b bg-gray-50">
+            <h3 className="text-sm font-medium text-gray-700">New Rationale</h3>
+            <button
+              onClick={() => setCanvasEnabled(!canvasEnabled)}
+              className={cn(
+                "px-3 py-1 text-xs rounded-md transition-colors",
+                canvasEnabled
+                  ? "bg-blue-100 text-blue-700 border border-blue-200"
+                  : "bg-gray-100 text-gray-600 border border-gray-200"
+              )}
+            >
+              {canvasEnabled ? "📊 Graph" : "📄 Text"}
+            </button>
+          </div>
+        )}
+        {!isEmbedMode && !isDesktopEmbed && <Separator />}
+        {(!showFeed || !isMobile) && !((isEmbedMode || isDesktopEmbed) && canvasEnabled) ? (
+          <div className={cn(
+            "flex-grow overflow-y-auto",
+            (isEmbedMode || isDesktopEmbed) ? "pb-4 px-4" : "pb-10"
+          )}>
             <NewRationaleForm
               title={statement}
               onTitleChange={setStatement}
@@ -462,50 +529,84 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
         ) : null}
       </div>
 
-      <Dynamic>
-        <RationaleGraph key={graphRevision}
-          graph={graph}
-          setGraph={setGraph}
-          statement={statement}
-          description={reasoning}
-          canvasEnabled={canvasEnabled}
-          className={cn(
-            "!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset]  !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md:z-auto",
-            !canvasEnabled && isMobile && "hidden",
-            showFeed && isMobile && "hidden"
-          )}
-          canModify={true}
-          isNew={true}
-          isSaving={isPublishing}
-          hideShareButton={false}
-          isSharing={false}
-          toggleSharingMode={() => { }}
-          handleGenerateAndCopyShareLink={() => { }}
-          hideComments={false}
-          onPublish={async () => {
-            try {
-              await publish();
-            } catch (error) {
-              console.error('Failed to publish:', error);
-            }
-          }}
-          canPublish={canPublish}
-          isPublishing={isPublishing}
-          onSave={async () => {
-            try {
-              const id = await publish();
-              // state reset handled inside hook
-              return true;
-            } catch {
-              return false;
-            }
-          }}
-          topOffsetPx={64}
-        />
-      </Dynamic>
+{/* Embed Mode Graph View */}
+{(isEmbedMode || isDesktopEmbed) && canvasEnabled && (
+  <div className="flex-grow h-full min-h[600px] bg-white">
+    <Dynamic>
+      <RationaleGraph
+        key={graphRevision}
+        graph={graph}
+        setGraph={setGraph}
+        statement={statement}
+        description={reasoning}
+        canvasEnabled={canvasEnabled}
+        className="w-full h-full min-h-[600px] relative"
+        canModify={true}
+        isNew={true}
+        isSaving={isPublishing}
+        hideShareButton={true}
+        onSave={async () => {
+          try {
+            const id = await publish();
+            return true;
+          } catch {
+            return false;
+          }
+        }}
+        topOffsetPx={64}
+      />
+    </Dynamic>
+  </div>
+)}
 
-      <PointsFeedContainer />
-      <DraftSavedIndicator />
+{/* Normal Graph View - Hidden in embed mode */}
+{!isEmbedMode && !isDesktopEmbed && (
+  <Dynamic>
+    <RationaleGraph
+      key={graphRevision}
+      graph={graph}
+      setGraph={setGraph}
+      statement={statement}
+      description={reasoning}
+      canvasEnabled={canvasEnabled}
+      className={cn(
+        "!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset]  !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md:z-auto",
+        !canvasEnabled && isMobile && "hidden",
+        showFeed && isMobile && "hidden"
+      )}
+      canModify={true}
+      isNew={true}
+      isSaving={isPublishing}
+      // Full sharing/publish controls in normal mode:
+      hideShareButton={false}
+      isSharing={false}
+      toggleSharingMode={() => {}}
+      handleGenerateAndCopyShareLink={() => {}}
+      canPublish={canPublish}
+      isPublishing={isPublishing}
+      onPublish={async () => {
+        try {
+          await publish();
+        } catch (error) {
+          console.error('Failed to publish:', error);
+        }
+      }}
+      onSave={async () => {
+        try {
+          const id = await publish();
+          return true;
+        } catch {
+          return false;
+        }
+      }}
+      topOffsetPx={64}
+    />
+  </Dynamic>
+)}
+
+{!isEmbedMode && !isDesktopEmbed && <PointsFeedContainer />}
+{!isEmbedMode && !isDesktopEmbed && <DraftSavedIndicator />}
+
     </main>
   );
 }

@@ -153,7 +153,7 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     const pathname = usePathname();
 
     useEffect(() => {
-        if (pathname === '/') {
+        if (pathname === '/' || pathname.startsWith('/embed')) {
             setIsInitialized(true);
             return;
         }

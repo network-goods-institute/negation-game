@@ -42,3 +42,4 @@ certificates
 supabase/
 *.dump
 .claude/
+discourse/
