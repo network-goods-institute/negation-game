@@ -5,6 +5,7 @@ import { db } from "@/services/db";
 import { viewpointsTable, topicsTable } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { getDiscourseContent } from "@/actions/search/getDiscourseContent";
+import { z } from "zod";
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,14 +14,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { topicId, selectedUserIds, manualOriginal } = await request.json();
+    const bodySchema = z.object({
+      topicId: z.number().int().positive(),
+      selectedUserIds: z.array(z.string()).min(1).max(10),
+      manualOriginal: z.string().max(50000).optional().nullable(),
+    });
 
-    if (!topicId || !selectedUserIds || selectedUserIds.length < 1) {
+    const parsedBody = bodySchema.safeParse(await request.json());
+    if (!parsedBody.success) {
       return NextResponse.json(
-        { error: "Topic ID and at least one user ID are required" },
+        { error: "Invalid request body" },
         { status: 400 }
       );
     }
+
+    const { topicId, selectedUserIds, manualOriginal } = parsedBody.data;
 
     const topic = await db.query.topicsTable.findFirst({
       where: eq(topicsTable.id, topicId),
@@ -126,6 +134,8 @@ RULES
 - NEVER delete or rewrite the entire proposal. Limit changes to specific sentences/sections with clear explanations.`;
 
     const encoder = new TextEncoder();
+    const maxBytes = 512 * 1024; // 512KB safety cap
+    let sentBytes = 0;
     const stream = new ReadableStream({
       async start(controller) {
         try {
@@ -155,13 +165,35 @@ RULES
 
           const reader = textStream.getReader();
           let rawOut = "";
+          const decoder = new TextDecoder();
 
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
-            if (typeof value === "string") rawOut += value;
-            controller.enqueue(encoder.encode(value));
+            const v: any = value as any;
+            if (typeof v === "string") {
+              rawOut += v;
+              const chunk = encoder.encode(v);
+              sentBytes += chunk.byteLength;
+              if (sentBytes > maxBytes)
+                throw new Error("stream_limit_exceeded");
+              controller.enqueue(chunk);
+            } else if (v && typeof v.byteLength === "number") {
+              rawOut += decoder.decode(v as Uint8Array, { stream: true });
+              sentBytes += (v as Uint8Array).byteLength;
+              if (sentBytes > maxBytes)
+                throw new Error("stream_limit_exceeded");
+              controller.enqueue(v as Uint8Array);
+            } else {
+              const asString = String(v ?? "");
+              rawOut += asString;
+              const chunk = encoder.encode(asString);
+              sentBytes += chunk.byteLength;
+              if (sentBytes > maxBytes)
+                throw new Error("stream_limit_exceeded");
+              controller.enqueue(chunk);
+            }
           }
 
           try {
@@ -191,8 +223,15 @@ RULES
           } catch {}
 
           controller.close();
-        } catch (error) {
+        } catch (error: any) {
           console.error("Error in stream:", error);
+          if (error?.message === "stream_limit_exceeded") {
+            controller.enqueue(
+              encoder.encode(
+                '{"status":"error","code":"stream_limit_exceeded"}\n'
+              )
+            );
+          }
           controller.error(error);
         }
       },

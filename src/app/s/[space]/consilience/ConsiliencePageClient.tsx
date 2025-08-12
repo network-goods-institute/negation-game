@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { decodeId } from "@/lib/negation-game/decodeId";
 import { encodeId } from "@/lib/negation-game/encodeId";
@@ -14,8 +14,8 @@ import { Loader } from "@/components/ui/loader";
 import { ArrowLeft, Users, FileText, MessageSquare } from "lucide-react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useSpace } from "@/queries/space/useSpace";
-import { useViewpointsByTopic } from "@/queries/viewpoints/useViewpointsByTopic";
 import { useConsilienceAuthors } from "@/queries/consilience/useConsilienceAuthors";
+import { useUniqueRationaleAuthors } from "@/hooks/consilience/useUniqueRationaleAuthors";
 import { useTopics } from "@/queries/topics/useTopics";
 import { ConsilienceResults } from "./ConsilienceResults";
 
@@ -106,31 +106,52 @@ export function ConsiliencePageClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topic?.discourseUrl]);
 
-  const uniqueRationaleAuthors = React.useMemo(() => {
-    const byUser = new Map<string, { userId: string; username: string; rationales: { id: string; title: string; hasEndorsements: boolean }[] }>();
-    for (const a of authors || []) {
-      const existing = byUser.get(a.userId);
-      const rationales = a.rationales.map(r => ({ id: r.id, title: r.title, hasEndorsements: true }));
-      if (existing) {
-        const merged = [...existing.rationales, ...rationales];
-        const dedup = Array.from(new Map(merged.map(x => [x.id, x])).values());
-        existing.rationales = dedup;
-        byUser.set(a.userId, existing);
-      } else {
-        byUser.set(a.userId, { userId: a.userId, username: a.username, rationales });
-      }
+  const uniqueRationaleAuthors = useUniqueRationaleAuthors(authors);
+
+  const decodeStreamToJson = async (res: Response) => {
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error("No response stream");
+    let accumulatedText = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      accumulatedText += new TextDecoder().decode(value);
     }
-    const result = Array.from(byUser.values()).sort((a, b) => a.username.localeCompare(b.username));
-    return result;
-  }, [authors]);
+    let cleanText = accumulatedText
+      .split("\n")
+      .filter((line) => {
+        try {
+          const obj = JSON.parse(line);
+          return !(obj && obj.status && !obj.proposal);
+        } catch {
+          return true;
+        }
+      })
+      .join("\n")
+      .trim();
+    if (cleanText.startsWith("```json")) {
+      cleanText = cleanText.replace(/^```json\s*/, "").replace(/\s*```$/, "");
+    } else if (cleanText.startsWith("```")) {
+      cleanText = cleanText.replace(/^```\s*/, "").replace(/\s*```$/, "");
+    }
+    try {
+      return JSON.parse(cleanText);
+    } catch {
+      return {
+        proposal: accumulatedText,
+        summary: "Generated proposal (could not parse AI response structure)",
+        reasoning: "The AI provided a proposal but not in the expected structured format",
+        diffs: [],
+      };
+    }
+  };
 
   const handleGenerateConsilience = async () => {
-    setState(prev => ({ ...prev, step: "generating", requiresManualOriginal: false }));
-
+    setState((prev) => ({ ...prev, step: "generating", requiresManualOriginal: false }));
     try {
-      const response = await fetch('/api/consilience/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/consilience/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           topicId: state.topicId,
           selectedUserIds: state.selectedRationales,
@@ -142,100 +163,65 @@ export function ConsiliencePageClient() {
         const text = await response.text();
         try {
           const obj = JSON.parse(text);
-          if (obj?.code === 'manual_original_required') {
-            setState(prev => ({
+          if (obj?.code === "manual_original_required") {
+            setState((prev) => ({
               ...prev,
-              step: 'select',
+              step: "select",
               requiresManualOriginal: true,
-              notice: obj?.message || 'We could not fetch the original discourse post. Paste the original proposal text below and click Generate again.'
+              notice:
+                obj?.message ||
+                "We could not fetch the original discourse post. Paste the original proposal text below and click Generate again.",
             }));
             return;
           }
         } catch { }
-        throw new Error(text || 'Failed to generate consilience');
+        throw new Error(text || "Failed to generate consilience");
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No response stream');
+      const parsed = await decodeStreamToJson(response);
+      const proposalText = parsed.proposal || "";
 
-      let accumulatedText = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        accumulatedText += new TextDecoder().decode(value);
-      }
-
-      let parsed: any;
-      try {
-        let cleanText = accumulatedText
-          .split('\n')
-          .filter((line) => {
-            try {
-              const obj = JSON.parse(line);
-              return !(obj && obj.status && !obj.proposal);
-            } catch {
-              return true;
-            }
-          })
-          .join('\n')
-          .trim();
-
-        if (cleanText.startsWith('```json')) {
-          cleanText = cleanText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-        } else if (cleanText.startsWith('```')) {
-          cleanText = cleanText.replace(/^```\s*/, '').replace(/\s*```$/, '');
-        }
-
-        console.log('Raw response:', cleanText.substring(0, 200) + '...');
-        parsed = JSON.parse(cleanText);
-        console.log('Parsed successfully:', { hasProposal: !!parsed.proposal, numDiffs: parsed.diffs?.length || 0 });
-      } catch (e) {
-        console.warn('Failed to parse JSON, treating as plain text:', e);
-        parsed = {
-          proposal: accumulatedText,
-          summary: 'Generated proposal (could not parse AI response structure)',
-          reasoning: 'The AI provided a proposal but not in the expected structured format',
-          diffs: []
-        };
-      }
-
-      const proposalText = parsed.proposal || accumulatedText;
-
-      console.log('Setting final state:', {
-        proposalLength: proposalText.length,
-        numDiffs: (Array.isArray(parsed.diffs) ? parsed.diffs.length : 0),
-        summary: parsed.summary?.substring(0, 100) + '...'
-      });
-
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         step: "results",
         generatedProposal: proposalText,
-        originalProposal: (state.manualOriginal?.trim() || state.originalProposal) || 'Original proposal not available',
+        originalProposal:
+          (state.manualOriginal?.trim() || state.originalProposal) ||
+          "Original proposal not available",
         changes: {
-          summary: parsed.summary || 'Combined perspectives from selected delegates',
-          reasoning: parsed.reasoning || 'The proposal has been updated to incorporate insights from both delegate perspectives',
-          diffs: Array.isArray(parsed.diffs) && parsed.diffs.length > 0
-            ? parsed.diffs.map((d: any) => {
-              const t = String(d.type || '').toLowerCase();
-              return {
-                type: t === 'removal' ? 'removal' : t === 'modification' ? 'modification' : 'addition',
-                originalText: d.originalText || undefined,
-                newText: d.newText || undefined,
-                explanation: d.explanation || 'No explanation provided',
-                decision: 'pending' as const,
-              };
-            })
-            : [],
+          summary:
+            parsed.summary || "Combined perspectives from selected delegates",
+          reasoning:
+            parsed.reasoning ||
+            "The proposal has been updated to incorporate insights from both delegate perspectives",
+          diffs:
+            Array.isArray(parsed.diffs) && parsed.diffs.length > 0
+              ? parsed.diffs.map((d: any) => {
+                const t = String(d.type || "").toLowerCase();
+                return {
+                  type:
+                    t === "removal"
+                      ? "removal"
+                      : t === "modification"
+                        ? "modification"
+                        : "addition",
+                  originalText: d.originalText || undefined,
+                  newText: d.newText || undefined,
+                  explanation: d.explanation || "No explanation provided",
+                  decision: "pending" as const,
+                };
+              })
+              : [],
         },
       }));
     } catch (error) {
       console.error("Error generating consilience:", error);
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         step: "select",
         requiresManualOriginal: true,
-        notice: 'We could not fetch the original discourse post. Paste the original proposal text below and click Generate again.'
+        notice:
+          "We could not fetch the original discourse post. Paste the original proposal text below and click Generate again.",
       }));
     }
   };
@@ -601,7 +587,11 @@ export function ConsiliencePageClient() {
           changes={state.changes}
           topicName={state.topicName}
           topicId={state.topicId}
-          selectedAuthors={uniqueRationaleAuthors.filter(a =>
+          selectedAuthors={uniqueRationaleAuthors.map(a => ({
+            userId: a.userId,
+            username: a.username,
+            rationales: a.rationales.map(r => ({ id: r.id, title: r.title, hasEndorsements: Boolean(r.hasEndorsements) })),
+          })).filter(a =>
             state.selectedRationales.includes(a.userId)
           )}
           onStartOver={() => {

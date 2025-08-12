@@ -17,6 +17,16 @@ import {
 } from "lucide-react";
 import { ConsilienceEditor } from "./ConsilienceEditor";
 import { DiffView } from "@/components/ui/DiffView";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Diff {
   type: "addition" | "modification" | "removal";
@@ -60,6 +70,9 @@ export function ConsilienceResults({
   const [isProcessing, setIsProcessing] = useState(false);
   const [localChanges, setLocalChanges] = useState(changes);
   const [currentProposal, setCurrentProposal] = useState(generatedProposal);
+  const [decisionsRevision, setDecisionsRevision] = useState(0);
+  const [lastApplyRevision, setLastApplyRevision] = useState(0);
+  const [isExportConfirmOpen, setIsExportConfirmOpen] = useState(false);
 
   const typeLabel = (t: Diff["type"]) => t.charAt(0).toUpperCase() + t.slice(1);
 
@@ -70,6 +83,7 @@ export function ConsilienceResults({
         i === index ? { ...diff, decision: diff.decision === "approved" ? "pending" : "approved" } : diff
       )
     }));
+    setDecisionsRevision(r => r + 1);
   };
 
   const handleRejectDiff = (index: number) => {
@@ -79,6 +93,7 @@ export function ConsilienceResults({
         i === index ? { ...diff, decision: diff.decision === "rejected" ? "pending" : "rejected" } : diff
       )
     }));
+    setDecisionsRevision(r => r + 1);
   };
 
   const handleChatSubmit = async () => {
@@ -98,22 +113,27 @@ export function ConsilienceResults({
         }),
       });
       if (!res.ok) throw new Error('Failed to refine proposal');
-      const data = await res.json();
+      const data = await res.json() as import("@/types/consilience").ConsilienceAIResponse;
 
       const normalizedDiffs = Array.isArray(data.diffs)
-        ? data.diffs.map((d: any) => ({
-          type: d.type === 'Removal' ? 'removal' : d.type === 'Modification' ? 'modification' : 'addition',
-          originalText: d.originalText || '',
-          newText: d.newText || '',
-          explanation: d.explanation || '',
-          decision: 'pending' as const,
+        ? data.diffs.map((d) => ({
+          type:
+            d.type === "Removal"
+              ? "removal"
+              : d.type === "Modification"
+                ? "modification"
+                : "addition",
+          originalText: d.originalText || "",
+          newText: d.newText || "",
+          explanation: d.explanation || "",
+          decision: "pending" as const,
         }))
         : [];
 
       setLocalChanges(prev => ({
         summary: data.summary || prev.summary,
         reasoning: data.reasoning || prev.reasoning,
-        diffs: [...prev.diffs, ...normalizedDiffs],
+        diffs: [...prev.diffs, ...normalizedDiffs] as typeof prev.diffs,
       }));
       setCurrentProposal(data.proposal || currentProposal);
       setChatMessage('');
@@ -127,7 +147,7 @@ export function ConsilienceResults({
   const rejectedDiffs = localChanges.diffs.filter(d => d.decision === "rejected");
   const pendingDiffs = localChanges.diffs.filter(d => d.decision === "pending");
 
-  const applyApprovedDiffs = () => {
+  const computeAppliedText = () => {
     let next = originalProposal || "";
     for (const d of approvedDiffs) {
       if (d.type === "modification") {
@@ -144,20 +164,52 @@ export function ConsilienceResults({
         }
       }
     }
-    setCurrentProposal(next);
+    return next;
   };
 
-  const approveAll = () => setLocalChanges(prev => ({
-    ...prev,
-    diffs: prev.diffs.map(d => ({ ...d, decision: "approved" })),
-  }));
+  const applyApprovedDiffs = () => {
+    const next = computeAppliedText();
+    setCurrentProposal(next);
+    setLastApplyRevision(decisionsRevision);
+  };
 
-  const rejectAll = () => setLocalChanges(prev => ({
-    ...prev,
-    diffs: prev.diffs.map(d => ({ ...d, decision: "rejected" })),
-  }));
+  const approveAll = () => {
+    setLocalChanges(prev => ({
+      ...prev,
+      diffs: prev.diffs.map(d => ({ ...d, decision: "approved" })),
+    }));
+    setDecisionsRevision(r => r + 1);
+  };
 
-  const resetToOriginal = () => setCurrentProposal(originalProposal || "");
+  const rejectAll = () => {
+    setLocalChanges(prev => ({
+      ...prev,
+      diffs: prev.diffs.map(d => ({ ...d, decision: "rejected" })),
+    }));
+    setDecisionsRevision(r => r + 1);
+  };
+
+  const resetToOriginal = () => {
+    setCurrentProposal(originalProposal || "");
+    setLocalChanges(prev => ({
+      ...prev,
+      diffs: prev.diffs.map(d => ({ ...d, decision: "pending" as const })),
+    }));
+    setDecisionsRevision(r => r + 1);
+  };
+
+  const needsApplyBeforeExport = pendingDiffs.length > 0;
+
+  const exportText = (text?: string) => {
+    const content = text ?? currentProposal;
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${topicName.replace(/\s+/g, '-')}-consilience.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6 pb-24 sm:pb-0">
@@ -307,13 +359,11 @@ export function ConsilienceResults({
                 <Button className="sm:order-none order-1 flex-1 sm:flex-none" onClick={applyApprovedDiffs} disabled={approvedDiffs.length === 0}>Apply Approved</Button>
                 <Button size="sm" variant="ghost" onClick={onStartOver}>Start Over</Button>
                 <Button size="sm" onClick={() => {
-                  const blob = new Blob([currentProposal], { type: 'text/markdown;charset=utf-8' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `${topicName.replace(/\s+/g, '-')}-consilience.md`;
-                  a.click();
-                  URL.revokeObjectURL(url);
+                  if (needsApplyBeforeExport) {
+                    setIsExportConfirmOpen(true);
+                  } else {
+                    exportText();
+                  }
                 }}>Export</Button>
               </div>
             </div>
@@ -356,13 +406,11 @@ export function ConsilienceResults({
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={async () => { try { await navigator.clipboard.writeText(currentProposal); } catch { } }}>Copy</Button>
             <Button variant="outline" onClick={() => {
-              const blob = new Blob([currentProposal], { type: 'text/markdown;charset=utf-8' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `${topicName.replace(/\s+/g, '-')}-consilience.md`;
-              a.click();
-              URL.revokeObjectURL(url);
+              if (needsApplyBeforeExport) {
+                setIsExportConfirmOpen(true);
+              } else {
+                exportText();
+              }
             }}>Export</Button>
             <Button onClick={handleChatSubmit} disabled={!chatMessage.trim() || isProcessing}>
               {isProcessing ? (
@@ -380,6 +428,32 @@ export function ConsilienceResults({
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={isExportConfirmOpen} onOpenChange={setIsExportConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Pending changes not applied</AlertDialogTitle>
+            <AlertDialogDescription>
+              Some changes are still marked Pending. You can export with only Approved changes applied, or go back to finish decisions.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIsExportConfirmOpen(false)}>
+              Go back
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const next = computeAppliedText();
+                setCurrentProposal(next);
+                setIsExportConfirmOpen(false);
+                exportText(next);
+              }}
+            >
+              Apply approved anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

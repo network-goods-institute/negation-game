@@ -36,7 +36,7 @@ function validateDiscourseUrlDetailed(url: string): {
     }
 
     // Block private IP ranges and localhost
-    const hostname = parsedUrl.hostname;
+    const hostname = parsedUrl.hostname.toLowerCase();
     if (
       hostname === "localhost" ||
       hostname === "127.0.0.1" ||
