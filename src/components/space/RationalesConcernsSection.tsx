@@ -19,11 +19,10 @@ const RationalesConcernsSection = React.memo(function RationalesConcernsSection(
   const { data: topics, isLoading: topicsLoading } = useTopicSuggestions(spaceId);
   const [isExpanded, setIsExpanded] = useState(true);
 
-  const topicIds = useMemo(() => topics?.map(topic => topic.id) || [], [topics]);
-
   const { data: userTopicRationales, isLoading: userRationalesLoading } = useUserTopicRationales(
     privyUser?.id,
-    topicIds
+    undefined,
+    spaceId
   );
 
   const { displayTopics, isLoading, hasTopics } = useMemo(() => {
@@ -39,8 +38,9 @@ const RationalesConcernsSection = React.memo(function RationalesConcernsSection(
       return { displayTopics: [], isLoading: false, hasTopics: false };
     }
 
+    // Do not show any recommendations until we know which topics the user hasn't posted in
     if (userRationalesLoading || userTopicRationales === undefined) {
-      return { displayTopics: topics, isLoading: false, hasTopics: true };
+      return { displayTopics: [], isLoading: true, hasTopics: false };
     }
 
     const publishedTopicIds = new Set(userTopicRationales || []);

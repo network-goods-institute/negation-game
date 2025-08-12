@@ -1,5 +1,6 @@
 "use client";
 import { NegateButton } from "@/components/buttons/NegateButton";
+import { usePrefetchObjectionContexts } from "@/queries/points/useObjectionContexts";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ExternalLinkIcon } from "lucide-react";
@@ -73,72 +74,78 @@ export const PointCardActions: React.FC<PointCardActionsProps> = ({
     doubtAmount,
     doubtIsUserDoubt,
     doubtPercentage,
-}) => (
-    <div className="flex gap-sm w-full text-muted-foreground">
-        <div className="flex gap-sm">
-            <NegateButton
-                data-action-button="true"
-                userCredAmount={viewerNegationsCred > 0 ? viewerNegationsCred : undefined}
-                isActive={viewerNegationsCred > 0}
-                onClick={(e) => {
-                    if (e) {
-                        e.stopPropagation();
-                    }
-                    if (privyUser === null) {
-                        login();
-                        return;
-                    }
-                    if (e && onNegate) {
-                        onNegate(e);
-                    }
-                }}
-            />
-
-            <EndorsementControl
-                endorsedByViewer={endorsedByViewer}
-                viewerCred={viewerCred}
-                privyUser={privyUser}
-                login={login}
-                popoverOpen={popoverOpen}
-                togglePopover={togglePopover}
-                credInput={credInput}
-                setCredInput={setCredInput}
-                notEnoughCred={notEnoughCred}
-                isSellingMode={isSellingMode}
-                setIsSellingMode={setIsSellingMode}
-                onSubmit={onSubmit}
-                isPending={isPending}
-            />
-
-            {inRationale && !inGraphNode && (
-                <Link
-                    href={getPointUrl(pointId, currentSpace || 'global')}
-                    target="_blank"
-                    rel="noopener noreferrer"
+}) => {
+    const prefetchObjection = usePrefetchObjectionContexts();
+    return (
+        <div className="flex gap-sm w-full text-muted-foreground">
+            <div className="flex gap-sm">
+                <NegateButton
                     data-action-button="true"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <Button variant="ghost" className="p-1 -mb-2 rounded-full size-fit hover:bg-muted">
-                        <ExternalLinkIcon className="size-5 translate-y-[2.5px]" />
-                    </Button>
-                </Link>
-            )}
+                    userCredAmount={viewerNegationsCred > 0 ? viewerNegationsCred : undefined}
+                    isActive={viewerNegationsCred > 0}
+                    onClick={(e) => {
+                        if (e) {
+                            e.stopPropagation();
+                        }
+                        if (privyUser === null) {
+                            login();
+                            return;
+                        }
+                        if (e && onNegate) {
+                            onNegate(e);
+                        }
+                    }}
+                    onMouseEnter={() => prefetchObjection(pointId)}
+                    onFocus={() => prefetchObjection(pointId)}
+                    onMouseDown={() => prefetchObjection(pointId)}
+                />
 
-            <RestakeDoubtControls
-                isInPointPage={isInPointPage}
-                isNegation={isNegation}
-                parentCred={parentCred}
-                showRestakeAmount={showRestakeAmount}
-                restakeIsOwner={restakeIsOwner}
-                restakePercentage={restakePercentage}
-                isOverHundred={isOverHundred}
-                onRestake={onRestake}
-                doubtAmount={doubtAmount}
-                doubtIsUserDoubt={doubtIsUserDoubt}
-                doubtPercentage={doubtPercentage}
-            />
+                <EndorsementControl
+                    endorsedByViewer={endorsedByViewer}
+                    viewerCred={viewerCred}
+                    privyUser={privyUser}
+                    login={login}
+                    popoverOpen={popoverOpen}
+                    togglePopover={togglePopover}
+                    credInput={credInput}
+                    setCredInput={setCredInput}
+                    notEnoughCred={notEnoughCred}
+                    isSellingMode={isSellingMode}
+                    setIsSellingMode={setIsSellingMode}
+                    onSubmit={onSubmit}
+                    isPending={isPending}
+                />
+
+                {inRationale && !inGraphNode && (
+                    <Link
+                        href={getPointUrl(pointId, currentSpace || 'global')}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        data-action-button="true"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <Button variant="ghost" className="p-1 -mb-2 rounded-full size-fit hover:bg-muted">
+                            <ExternalLinkIcon className="size-5 translate-y-[2.5px]" />
+                        </Button>
+                    </Link>
+                )}
+
+                <RestakeDoubtControls
+                    isInPointPage={isInPointPage}
+                    isNegation={isNegation}
+                    parentCred={parentCred}
+                    showRestakeAmount={showRestakeAmount}
+                    restakeIsOwner={restakeIsOwner}
+                    restakePercentage={restakePercentage}
+                    isOverHundred={isOverHundred}
+                    onRestake={onRestake}
+                    doubtAmount={doubtAmount}
+                    doubtIsUserDoubt={doubtIsUserDoubt}
+                    doubtPercentage={doubtPercentage}
+                />
+            </div>
         </div>
-    </div>
-);
+    );
+}
 
 export default PointCardActions; 

@@ -26,7 +26,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Topic } from "@/types/admin";
+import { sortTopicsByCreatedDesc } from "@/utils/admin/sortTopics";
 import { deleteTopic, updateTopic } from "@/services/admin/topicService";
+
 
 interface TopicsListProps {
     spaceId: string;
@@ -48,6 +50,8 @@ export function TopicsList({
     const [toggleClosedTopicId, setToggleClosedTopicId] = useState<number | null>(null);
 
     const queryClient = useQueryClient();
+
+    const sortedTopics = sortTopicsByCreatedDesc(topics);
 
     const deleteMutation = useMutation({
         mutationFn: deleteTopic,
@@ -143,9 +147,10 @@ export function TopicsList({
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {topics.map((topic) => (
+                                    {sortedTopics.map((topic) => (
                                         <TableRow
                                             key={topic.id}
+                                            data-topic-id={topic.id}
                                             className={selectedTopic?.id === topic.id ? "bg-muted" : ""}
                                         >
                                             <TableCell>
@@ -248,7 +253,7 @@ export function TopicsList({
 
                         {/* Mobile view */}
                         <div className="md:hidden space-y-4">
-                            {topics.map((topic) => (
+                            {sortedTopics.map((topic) => (
                                 <div
                                     key={topic.id}
                                     className={`p-4 border rounded-lg space-y-3 ${selectedTopic?.id === topic.id ? "bg-muted" : ""

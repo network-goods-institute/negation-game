@@ -48,10 +48,14 @@ export default function NewRationaleForm({
                 topics={topics}
                 currentSpace={currentSpace}
                 isNew
-                canEdit={!isCopiedRationale}
+                canEdit
+                allowTopicEditInHeader={!isCopiedRationale}
                 hideTitle
                 showTopicHeader
-                hideTopicSelector={isCopiedRationale}
+                hideTopicSelector
+                showTopicLockedHint={isCopiedRationale}
+                spaceSlug={currentSpace}
+                enableTopicNavigation
                 isDescriptionEditing={isDescriptionEditing}
                 onDescriptionEdit={onDescriptionEdit}
                 onDescriptionBlur={onDescriptionBlur}

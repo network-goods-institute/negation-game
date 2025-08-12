@@ -103,9 +103,11 @@ describe("useEndorse", () => {
     // Call the hook
     const result = useEndorse();
 
-    // Verify it was called with the correct parameters
+    // Verify it was called with the correct parameters including optimistic updates
     expect(useAuthenticatedMutation).toHaveBeenCalledWith({
       mutationFn: endorse,
+      onMutate: expect.any(Function),
+      onError: expect.any(Function),
       onSuccess: expect.any(Function),
     });
 

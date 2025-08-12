@@ -27,6 +27,7 @@ export interface RationaleMetaFormProps {
     currentSpace: string;
     isNew?: boolean;
     canEdit?: boolean;
+    allowTopicEditInHeader?: boolean;
     renderCopiedFromLink?: React.ReactNode;
     showEditButtons?: boolean;
     titleModified?: boolean;
@@ -63,6 +64,7 @@ export interface RationaleMetaFormProps {
      * Requires spaceSlug to be provided.
      */
     enableTopicNavigation?: boolean;
+    showTopicLockedHint?: boolean;
 }
 
 export default function RationaleMetaForm({
@@ -82,6 +84,7 @@ export default function RationaleMetaForm({
     currentSpace,
     isNew = false,
     canEdit = false,
+    allowTopicEditInHeader = true,
     renderCopiedFromLink,
     showEditButtons = false,
     titleModified = false,
@@ -93,6 +96,7 @@ export default function RationaleMetaForm({
     showTopicHeader = false,
     spaceSlug,
     enableTopicNavigation = false,
+    showTopicLockedHint = false,
 }: RationaleMetaFormProps) {
     const router = useRouter();
     const pathname = usePathname();
@@ -133,7 +137,7 @@ export default function RationaleMetaForm({
     return (
         <div className="flex flex-col p-2 gap-0">
             {showTopicHeader && (
-                isNew && canEdit ? (
+                isNew && allowTopicEditInHeader && canEdit ? (
                     <div className="mb-4">
                         <label className="text-sm font-medium mb-1 inline-block">Topic</label>
                         <TopicSelector
@@ -160,17 +164,20 @@ export default function RationaleMetaForm({
                             >
                                 {topic || 'Untitled Topic'}
                             </h2>
+                            {showTopicLockedHint && (
+                                <p className="text-sm text-muted-foreground mt-1">Topic locked (copied from original rationale)</p>
+                            )}
                         </div>
                     ) : (
                         <div className="mb-4">
                             <h2 className="font-semibold text-xl pr-16 truncate">
                                 {topic || 'Untitled Topic'}
                             </h2>
-                            {isNew && !canEdit && (
+                            {(isNew && !canEdit) || showTopicLockedHint ? (
                                 <p className="text-sm text-muted-foreground mt-1">
                                     Topic locked (copied from original rationale)
                                 </p>
-                            )}
+                            ) : null}
                         </div>
                     )
                 )

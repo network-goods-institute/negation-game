@@ -16,6 +16,7 @@ import { InsertPoint, Point } from "@/db/tables/pointsTable";
 import { db } from "@/services/db";
 import { waitUntil } from "@vercel/functions";
 import { eq, sql, and, or } from "drizzle-orm";
+import { POINT_MIN_LENGTH, getPointMaxLength } from "@/constants/config";
 
 export const addCounterpoint = async ({
   content,
@@ -30,12 +31,22 @@ export const addCounterpoint = async ({
     throw new Error("Must be authenticated to add a point");
   }
 
+  // Validate content length (counterpoints are regular points, not options)
+  const trimmedContent = content.trim();
+  const maxLength = getPointMaxLength(false);
+  
+  if (trimmedContent.length < POINT_MIN_LENGTH || trimmedContent.length > maxLength) {
+    throw new Error(
+      `Point content must be between ${POINT_MIN_LENGTH} and ${maxLength} characters`
+    );
+  }
+
   const space = await getSpace();
 
   return await db.transaction(async (tx) => {
     const newPointId = await tx
       .insert(pointsTable)
-      .values({ content, createdBy: userId, space })
+      .values({ content: trimmedContent, createdBy: userId, space, isOption: false })
       .returning({ id: pointsTable.id })
       .then(([{ id }]) => id);
 
@@ -62,8 +73,8 @@ export const addCounterpoint = async ({
       space,
     });
 
-    waitUntil(addEmbedding({ content, id: newPointId }));
-    waitUntil(addKeywords({ content, id: newPointId }));
+    waitUntil(addEmbedding({ content: trimmedContent, id: newPointId }));
+    waitUntil(addKeywords({ content: trimmedContent, id: newPointId }));
 
     return newPointId;
   });

@@ -7,7 +7,7 @@ const endorsementsFetcher = memoize((userId: string) =>
   create({
     fetcher: async (ids: number[]) => await fetchUserEndorsements(userId, ids),
     resolver: keyResolver("pointId"),
-    scheduler: windowScheduler(20),
+    scheduler: windowScheduler(2),
   })
 );
 
@@ -24,8 +24,8 @@ export const userEndorsementsQueryKey = ({
 }) => [pointId, "endorsements", userId];
 
 export const useUserEndorsement = (
-  userId?: string, 
-  pointId?: number, 
+  userId?: string,
+  pointId?: number,
   options?: { enabled?: boolean }
 ) => {
   return useQuery({
@@ -37,7 +37,9 @@ export const useUserEndorsement = (
             .then(({ cred }) => cred)
         : null,
     gcTime: Infinity,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 10, // Longer stale time - endorsements don't change often
+    refetchOnWindowFocus: false, // Don't refetch gold borders on window focus
+    refetchOnMount: false, // Don't refetch if we have cached data
     enabled: options?.enabled ?? true,
   });
 };

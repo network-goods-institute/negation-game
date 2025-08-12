@@ -17,7 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Loader } from "@/components/ui/loader";
-import { POINT_MIN_LENGTH } from "@/constants/config";
+import { POINT_MIN_LENGTH, getPointMaxLength } from "@/constants/config";
 import { useCredInput } from "@/hooks/ui/useCredInput";
 import { cn } from "@/lib/utils/cn";
 import { useMakePoint } from "@/mutations/points/useMakePoint";
@@ -27,7 +27,7 @@ import { useDebounce } from "@uidotdev/usehooks";
 import { Handle, Node, NodeProps, Position, useReactFlow } from "@xyflow/react";
 import { XIcon, Search } from "lucide-react";
 import { nanoid } from "nanoid";
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { collapsedPointIdsAtom } from "@/atoms/viewpointAtoms";
 import { useSetAtom } from "jotai";
 import { reviewProposedPointAction, type PointReviewResults } from "@/actions/ai/reviewProposedPointAction";
@@ -65,6 +65,8 @@ export const AddPointNode = ({
   const setCollapsedPointIds = useSetAtom(collapsedPointIdsAtom);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [reviewResults, setReviewResults] = useState<PointReviewResults | null>(null);
+  const [lastReviewedContent, setLastReviewedContent] = useState<string>("");
+  const [hasContentBeenReviewed, setHasContentBeenReviewed] = useState(false);
 
   useEffect(() => {
     updateNodeData(id, { parentId, content, hasContent: content.length > 0 });
@@ -105,13 +107,17 @@ export const AddPointNode = ({
   });
 
   const { mutateAsync: makePoint, isPending: isMakingPoint } = useMakePoint();
-  const canMakePoint = content.length >= POINT_MIN_LENGTH && !isMakingPoint && !isLoading;
+  const isOption = isParentStatement;
+  const maxLength = getPointMaxLength(isOption);
+  const canMakePoint = content.length >= POINT_MIN_LENGTH && content.length <= maxLength && !isMakingPoint && !isLoading;
 
   const { mutateAsync: reviewPoint, isPending: isReviewing } = useMutation({
     mutationFn: reviewProposedPointAction,
     onSuccess: (results) => {
       setReviewResults(results);
       setReviewDialogOpen(true);
+      setLastReviewedContent(content);
+      setHasContentBeenReviewed(true);
     },
   });
 
@@ -119,8 +125,8 @@ export const AddPointNode = ({
 
   const similarPointsToShow = similarPoints ?? [];
 
-  const createPoint = async () => {
-    const pointId = await makePoint({ content, cred: credInput });
+  const createPoint = useCallback(async () => {
+    const pointId = await makePoint({ content, cred: credInput, isOption });
     // Generate a guaranteed unique ID by combining nanoid with timestamp
     const uniqueId = `${nanoid()}-${Date.now()}`;
     addNodes({
@@ -144,32 +150,46 @@ export const AddPointNode = ({
     setTimeout(() => {
       deleteElements({ nodes: [{ id }] });
     }, 50);
-  };
+  }, [makePoint, content, credInput, isOption, addNodes, parentId, positionAbsoluteX, positionAbsoluteY, getNode, addEdges, deleteElements, id]);
 
-  const handleButtonClick = async (event: React.MouseEvent<HTMLButtonElement>) => {
-    if (event.altKey) {
-      // Alt+click bypasses review
+  const submitOrReview = useCallback(async () => {
+    if (isMakingPoint || isReviewing) return;
+    if (hasContentBeenReviewed && content === lastReviewedContent) {
       await createPoint();
     } else {
-      // Regular click goes through review
       const parentNode = getNode(parentId);
       const parentContent = parentNode?.data?.content as string | undefined;
-
       await reviewPoint({
         pointContent: content,
         parentContent: isParentStatement ? parentContent : undefined,
       });
     }
+  }, [isMakingPoint, isReviewing, hasContentBeenReviewed, content, lastReviewedContent, getNode, parentId, reviewPoint, isParentStatement, createPoint]);
+
+  const handleButtonClick = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (event.altKey) {
+      await createPoint();
+    } else {
+      await submitOrReview();
+    }
+  };
+
+  const handleTextareaKeyDown = (_e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Ctrl/Cmd+Enter submission removed
   };
 
   const handleSelectSuggestion = (suggestion: string) => {
     setContent(suggestion);
+    setLastReviewedContent(suggestion);
+    setHasContentBeenReviewed(true);
     setReviewDialogOpen(false);
   };
 
   const handleSubmitOriginal = async () => {
+    // Keep original text and return to editor; allow user to submit after review
+    setLastReviewedContent(content);
+    setHasContentBeenReviewed(true);
     setReviewDialogOpen(false);
-    await createPoint();
   };
 
   const handleSelectExisting = (pointId: number) => {
@@ -238,6 +258,7 @@ export const AddPointNode = ({
         setContent={handleContentChange}
         cred={credInput}
         setCred={setCredInput}
+        textareaProps={{ onKeyDown: handleTextareaKeyDown }}
         guidanceNotes={<></>}
         compact={true}
         extraCompact={isParentStatement}

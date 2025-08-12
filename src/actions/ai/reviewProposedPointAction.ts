@@ -33,7 +33,7 @@ export const reviewProposedPointAction = async ({
   const isOption = !!parentContent;
 
   const prompt = isOption
-    ? `You are a helpful assistant that evaluates and improves option statements in a debate/discussion platform.
+    ? `You are a helpful, pragmatic assistant that evaluates and improves option statements in a debate/discussion platform.
 
 The user is proposing this OPTION for the statement:
 "${parentContent}"
@@ -53,10 +53,14 @@ Evaluate whether this OPTION meets the criteria of a good option:
 - Is easily understandable
 - Provides a clear actionable position or viewpoint
 
-Rate the option from 1-10 (where ${GOOD_ENOUGH_POINT_RATING}+ is considered good enough to submit).
-Provide 2-3 improved versions if the rating is below ${GOOD_ENOUGH_POINT_RATING}.
-Include brief feedback explaining the rating.`
-    : `You are a helpful assistant that evaluates and improves point statements in a debate/discussion platform.
+ Be lenient: if it cleanly meets the basic criteria above and is coherent, rate it at least ${GOOD_ENOUGH_POINT_RATING}.
+ Only suggest improvements when they are materially better than the original (not minor rephrasing).
+ If the original is already good, prefer an empty suggestions list.
+
+ Rate the option from 1-10 (where ${GOOD_ENOUGH_POINT_RATING}+ is considered good enough to submit).
+ If the rating is below ${GOOD_ENOUGH_POINT_RATING}, provide up to 2-3 improved versions.
+ Include brief feedback explaining the rating.`
+    : `You are a helpful, pragmatic assistant that evaluates and improves point statements in a debate/discussion platform.
 
 PROPOSED POINT:
 ${pointContent}
@@ -72,9 +76,13 @@ Evaluate whether this POINT meets the criteria of a good point:
 - Is not vague or ambiguous
 - Is easily understandable
 
-Rate the point from 1-10 (where ${GOOD_ENOUGH_POINT_RATING}+ is considered good enough to submit).
-Provide 2-3 improved versions if the rating is below ${GOOD_ENOUGH_POINT_RATING}.
-Include brief feedback explaining the rating.`;
+ Be lenient: if it cleanly meets the basic criteria above and is coherent, rate it at least ${GOOD_ENOUGH_POINT_RATING}.
+ Only suggest improvements when they are materially better than the original (not minor rephrasing).
+ If the original is already good, prefer an empty suggestions list.
+
+ Rate the point from 1-10 (where ${GOOD_ENOUGH_POINT_RATING}+ is considered good enough to submit).
+ If the rating is below ${GOOD_ENOUGH_POINT_RATING}, provide up to 2-3 improved versions.
+ Include brief feedback explaining the rating.`;
 
   const reviewTask = withRetry(async () => {
     return await generateObject({

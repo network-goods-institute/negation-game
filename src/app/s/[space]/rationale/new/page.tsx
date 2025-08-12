@@ -140,9 +140,9 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
   useEffect(() => {
     setFeedEnabled(true);
   }, [setFeedEnabled]);
-  
+
   const isMobile = useIsMobile(768);
-  
+
   // Disable feed toggle when in desktop mode
   useEffect(() => {
     if (!isMobile) {
@@ -308,7 +308,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       // Also reset ReactFlow directly if available
       if (reactFlow) {
         reactFlow.setNodes(initialViewpointGraph.nodes);
-        reactFlow.setEdges(initialViewpointGraph.edges);
+               reactFlow.setEdges(initialViewpointGraph.edges);
       }
 
       setIsConfirmDialogOpen(false);
@@ -531,7 +531,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
 
 {/* Embed Mode Graph View */}
 {(isEmbedMode || isDesktopEmbed) && canvasEnabled && (
-  <div className="flex-grow h-full min-h-[600px] bg-white">
+  <div className="flex-grow h-full min-h[600px] bg-white">
     <Dynamic>
       <RationaleGraph
         key={graphRevision}

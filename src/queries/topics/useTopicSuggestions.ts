@@ -6,5 +6,8 @@ export const useTopicSuggestions = (space: string) => {
     queryKey: ["topicSuggestions", space],
     queryFn: () => fetchTopicSuggestions(space),
     staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 1,
   });
 };

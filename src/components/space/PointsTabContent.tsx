@@ -84,9 +84,9 @@ export const PointsTabContent = memo(({
     return (
         <>
             <CreateRationaleViewpointCard
-                onClick={() => {/* TODO: Add navigation to create rationale */ }}
+                onClick={() => {/* handled via href */ }}
                 isLoading={false}
-                href="/rationale/new"
+                href={`${basePath}/rationale/new`}
             />
 
             {visibleItems.map((item: any) => (

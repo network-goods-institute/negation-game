@@ -73,7 +73,7 @@ export default function ExistingRationaleHeader({
                             <LinkIcon className="size-3.5" />
                         )}
                     </Button>
-                    <AuthenticatedActionButton
+                    <Button
                         size="icon"
                         variant={isOwner ? "outline" : "default"}
                         className="rounded-full p-1 size-7"
@@ -87,7 +87,7 @@ export default function ExistingRationaleHeader({
                         ) : (
                             <CopyIcon className="size-3.5" />
                         )}
-                    </AuthenticatedActionButton>
+                    </Button>
                 </div>
             </RationaleHeaderBar>
 
@@ -111,7 +111,7 @@ export default function ExistingRationaleHeader({
                                 <LinkIcon className="size-4" />
                             )}
                         </Button>
-                        <AuthenticatedActionButton
+                        <Button
                             variant={isOwner ? "outline" : "default"}
                             className="rounded-full flex items-center gap-2 px-4"
                             onClick={() => setIsPageCopyConfirmOpen(true)}
@@ -128,7 +128,7 @@ export default function ExistingRationaleHeader({
                                     <CopyIcon className="size-4" />
                                 </>
                             )}
-                        </AuthenticatedActionButton>
+                        </Button>
                     </div>
                 </div>
             </div>

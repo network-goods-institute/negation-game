@@ -14,6 +14,7 @@ import { useAtom } from "jotai";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import useIsMobile from "@/hooks/ui/useIsMobile";
 import { cn } from "@/lib/utils/cn";
+import { ReactFlowProvider } from "@xyflow/react";
 
 interface Topic {
     id: number;
@@ -26,7 +27,7 @@ interface TopicGraphPageClientProps {
     space: string;
 }
 
-export default function TopicGraphPageClient({ topic, space }: TopicGraphPageClientProps) {
+function TopicGraphPageClientContent({ topic, space }: TopicGraphPageClientProps) {
     const { data: topicPoints, isLoading: pointsLoading } = useTopicPoints(topic.id);
     const [hoveredPointId] = useAtom(hoveredPointIdAtom);
     const points = useMemo(() => {
@@ -140,5 +141,13 @@ export default function TopicGraphPageClient({ topic, space }: TopicGraphPageCli
                 </Dynamic>
             </div>
         </div>
+    );
+}
+
+export default function TopicGraphPageClient(props: TopicGraphPageClientProps) {
+    return (
+        <ReactFlowProvider>
+            <TopicGraphPageClientContent {...props} />
+        </ReactFlowProvider>
     );
 } 

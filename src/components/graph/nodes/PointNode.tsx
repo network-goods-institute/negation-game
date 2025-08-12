@@ -24,6 +24,7 @@ import { calculateInitialLayout } from "@/components/utils/graph-utils";
 import { collapseHintAtom } from '@/atoms/graphSettingsAtom';
 import { OPBadge } from "@/components/cards/pointcard/OPBadge";
 import { useUserEndorsement } from "@/queries/users/useUserEndorsements";
+import { usePrefetchObjectionContexts } from "@/queries/points/useObjectionContexts";
 
 export type PointNodeData = {
   pointId: number;
@@ -146,6 +147,14 @@ const RawPointNode = ({
   }, [shouldExpandOnInit, pointData, expand]);
 
   const hasInitializedCollapsedState = useRef(false);
+
+  const prefetchObjection = usePrefetchObjectionContexts();
+
+  useEffect(() => {
+    if (hoveredPoint === pointId) {
+      prefetchObjection(pointId);
+    }
+  }, [hoveredPoint, pointId, prefetchObjection]);
 
   useEffect(() => {
     // Only run once per node mount

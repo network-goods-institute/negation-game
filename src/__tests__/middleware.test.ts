@@ -63,7 +63,7 @@ jest.mock("next/server", () => ({
 
 // Mock the static spaces list
 jest.mock("@/lib/negation-game/staticSpacesList", () => ({
-  VALID_SPACE_IDS: new Set(["scroll", "global", "test-space"]),
+  VALID_SPACE_IDS: new Set(["scroll", "global", "test-space", "arbitrum"]),
 }));
 
 describe("Middleware", () => {
@@ -100,6 +100,21 @@ describe("Middleware", () => {
         expect.objectContaining({
           href: expect.stringContaining(
             "https://play.negationgame.com/s/scroll"
+          ),
+        })
+      );
+    });
+
+    test("redirects arbitrum subdomain to play.negationgame.com/s/arbitrum", async () => {
+      await mockMiddleware(
+        "https://arbitrum.negationgame.com",
+        "arbitrum.negationgame.com"
+      );
+
+      expect(NextResponse.redirect).toHaveBeenCalledWith(
+        expect.objectContaining({
+          href: expect.stringContaining(
+            "https://play.negationgame.com/s/arbitrum"
           ),
         })
       );
@@ -209,7 +224,10 @@ describe("Middleware", () => {
     });
 
     test("redirects to negationgame.com for blacklisted subdomains", async () => {
-      await mockMiddleware("https://www.negationgame.com", "www.negationgame.com");
+      await mockMiddleware(
+        "https://www.negationgame.com",
+        "www.negationgame.com"
+      );
 
       expect(NextResponse.redirect).toHaveBeenCalledWith(
         expect.objectContaining({

@@ -84,7 +84,7 @@ export const ObjectionPreview: React.FC<ObjectionPreviewProps> = ({
                                 href={getPointUrl(objectionId, space)}
                                 className="text-blue-500 hover:underline underline"
                             >
-                                {objectionPoint?.content ? objectionPoint.content.substring(0, 40) + (objectionPoint.content.length > 40 ? '...' : '') : 
+                                {objectionPoint?.content ? objectionPoint.content.substring(0, 40) + (objectionPoint.content.length > 40 ? '...' : '') :
                                     <span className="inline-block h-3 w-24 bg-blue-500/30 rounded animate-pulse" />
                                 }
                             </Link>
@@ -93,7 +93,7 @@ export const ObjectionPreview: React.FC<ObjectionPreviewProps> = ({
                                 href={getPointUrl(targetId, space)}
                                 className="text-blue-500 hover:underline underline"
                             >
-                                {leftPoint?.content ? leftPoint.content.substring(0, 40) + (leftPoint.content.length > 40 ? '...' : '') : 
+                                {leftPoint?.content ? leftPoint.content.substring(0, 40) + (leftPoint.content.length > 40 ? '...' : '') :
                                     <span className="inline-block h-3 w-24 bg-blue-500/30 rounded animate-pulse" />
                                 }
                             </Link>

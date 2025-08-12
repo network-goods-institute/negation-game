@@ -165,7 +165,7 @@ export function SpacePageClient({ params, searchParams: _searchParams }: PagePro
         if (privyUser) {
             setIsNavigating(true);
             setIsNewRationaleLoading(true);
-            router.push(`${basePath}/topics`);
+            router.push(`${basePath}/rationale/new`);
         } else {
             login();
         }

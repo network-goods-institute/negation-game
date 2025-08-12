@@ -6,7 +6,6 @@ import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { PointCard } from "@/components/cards/PointCard";
 import { OPBadge } from "@/components/cards/pointcard/OPBadge";
-import { useUserEndorsement } from "@/queries/users/useUserEndorsements";
 import { cn } from "@/lib/utils/cn";
 import useFocusNode from "@/hooks/graph/useFocusNode";
 import type { ParallelRationalePointData } from '@/hooks/points/useParallelRationaleData';
@@ -31,7 +30,7 @@ const EnhancedRationalePointCardWrapper: React.FC<EnhancedRationalePointCardWrap
     const [hoveredPointId] = useAtom(hoveredPointIdAtom);
     const focusNode = useFocusNode();
 
-    const { data: opCred } = useUserEndorsement(originalPosterId, point.pointId);
+    const opCred = pointData.opCred;
     const endorsedByOp = Boolean(opCred && opCred > 0);
 
     const { data: favorHistory } = useFavorHistory({
@@ -88,6 +87,7 @@ const EnhancedRationalePointCardWrapper: React.FC<EnhancedRationalePointCardWrap
                 editedAt={pointData.editedAt ?? undefined}
                 editedBy={pointData.editedBy ?? undefined}
                 editCount={pointData.editCount ?? 0}
+                opCred={opCred}
             />
 
             {endorsedByOp && (

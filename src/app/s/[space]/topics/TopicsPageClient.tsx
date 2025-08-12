@@ -29,7 +29,7 @@ interface TopicsPageClientProps {
 export default function TopicsPageClient({ space, topics }: TopicsPageClientProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [filterType, setFilterType] = useState<"all" | "missing-my-rationales" | "has-my-rationales" | "missing-any-rationales" | "has-any-rationales">("all");
-    const [sortBy, setSortBy] = useState<"name" | "rationales" | "recent">("name");
+    const [sortBy, setSortBy] = useState<"name" | "rationales" | "recent">("recent");
     const [filtersOpen, setFiltersOpen] = useState(false);
 
     const { user: privyUser } = usePrivy();

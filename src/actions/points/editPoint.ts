@@ -9,7 +9,7 @@ import { addKeywords } from "@/actions/ai/addKeywords";
 import { fetchAffectedRelationships } from "@/actions/points/fetchAffectedRelationships";
 import { waitUntil } from "@vercel/functions";
 import { revalidatePath } from "next/cache";
-import { POINT_MAX_LENGTH, POINT_MIN_LENGTH } from "@/constants/config";
+import { POINT_MIN_LENGTH, getPointMaxLength } from "@/constants/config";
 
 export interface EditPointArgs {
   pointId: number;
@@ -36,14 +36,6 @@ export const editPoint = async ({
   }
 
   const trimmedContent = content.trim();
-  if (
-    trimmedContent.length < POINT_MIN_LENGTH ||
-    trimmedContent.length > POINT_MAX_LENGTH
-  ) {
-    throw new Error(
-      `Point content must be between ${POINT_MIN_LENGTH} and ${POINT_MAX_LENGTH} characters`
-    );
-  }
 
   return await db.transaction(async (tx) => {
     // First, get the current point to validate ownership and capture previous content
@@ -56,6 +48,7 @@ export const editPoint = async ({
         space: pointsTable.space,
         editCount: pointsTable.editCount,
         createdAt: pointsTable.createdAt,
+        isOption: pointsTable.isOption,
       })
       .from(pointsTable)
       .where(and(eq(pointsTable.id, pointId), eq(pointsTable.isActive, true)))
@@ -70,6 +63,14 @@ export const editPoint = async ({
     // Check ownership
     if (point.createdBy !== userId) {
       throw new Error("You can only edit your own points");
+    }
+
+    // Validate content length using the point's isOption flag
+    const maxLength = getPointMaxLength(point.isOption);
+    if (trimmedContent.length < POINT_MIN_LENGTH || trimmedContent.length > maxLength) {
+      throw new Error(
+        `Point content must be between ${POINT_MIN_LENGTH} and ${maxLength} characters`
+      );
     }
 
     // Check if content actually changed

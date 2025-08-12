@@ -6,6 +6,7 @@ import { useParallelRationaleData } from '@/hooks/points/useParallelRationaleDat
 import { EnhancedPointCardSkeleton } from '@/components/cards/pointcard/EnhancedPointCardSkeleton';
 import { useOriginalPoster } from '@/components/contexts/OriginalPosterContext';
 import { Loader } from '@/components/ui/loader';
+import { useRationalePointsOptimization } from '@/hooks/rationale/useRationalePointsOptimization';
 
 export interface EnhancedRationalePointsListProps {
     points: { pointId: number; parentId?: number | string; initialPointData?: any }[];
@@ -36,6 +37,8 @@ export default function EnhancedRationalePointsList({
         isEndorsementsLoading,
         isUsersLoading
     } = useParallelRationaleData(pointIds, originalPosterId);
+
+    useRationalePointsOptimization(pointsData, originalPosterId);
 
     const pointDataMap = React.useMemo(() => {
         const map = new Map();

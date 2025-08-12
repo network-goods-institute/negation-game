@@ -2,7 +2,13 @@ import { TimelineScale } from "@/lib/negation-game/timelineScale";
 
 export const POINT_MIN_LENGTH = 10;
 
-export const POINT_MAX_LENGTH = 160;
+export const REGULAR_POINT_MAX_LENGTH = 200; // 25% increase from 160
+export const OPTION_POINT_MAX_LENGTH = 240; // 50% increase from 160
+
+export const POINT_MAX_LENGTH = 160; // Deprecated, use getPointMaxLength() instead
+
+export const getPointMaxLength = (isOption: boolean = false): number =>
+  isOption ? OPTION_POINT_MAX_LENGTH : REGULAR_POINT_MAX_LENGTH;
 
 export const USERNAME_MIN_LENGTH = 3;
 export const USERNAME_MAX_LENGTH = 15;

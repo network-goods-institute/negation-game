@@ -21,6 +21,30 @@ export const useEndorse = () => {
 
   return useAuthenticatedMutation({
     mutationFn: endorse,
+    onMutate: async ({ pointId, cred }) => {
+      // Optimistic update for user endorsement (gold border)
+      const endorsementQueryKey = userEndorsementsQueryKey({ pointId, userId: user?.id });
+      
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: endorsementQueryKey });
+      
+      // Get previous value
+      const previousEndorsement = queryClient.getQueryData(endorsementQueryKey);
+      
+      // Optimistically update endorsement
+      queryClient.setQueryData(endorsementQueryKey, (old: number | null | undefined) => {
+        return (old || 0) + cred;
+      });
+      
+      return { previousEndorsement, endorsementQueryKey };
+    },
+    onError: (err, variables, context) => {
+      // Revert optimistic update on error
+      if (context?.previousEndorsement !== undefined) {
+        queryClient.setQueryData(context.endorsementQueryKey, context.previousEndorsement);
+      }
+      toast.error("Failed to endorse point");
+    },
     onSuccess: (_endorsementId, { pointId }) => {
       toast.success("Point endorsed successfully");
 

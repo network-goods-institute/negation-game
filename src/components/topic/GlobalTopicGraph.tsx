@@ -338,10 +338,8 @@ const GlobalTopicGraphContent = React.memo(function GlobalTopicGraphContent({ to
 
 export default function GlobalTopicGraph(props: GlobalTopicGraphProps) {
     return (
-        <ReactFlowProvider>
-            <Dynamic>
-                <GlobalTopicGraphContent {...props} />
-            </Dynamic>
-        </ReactFlowProvider>
+        <Dynamic>
+            <GlobalTopicGraphContent {...props} />
+        </Dynamic>
     );
 } 
