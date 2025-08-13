@@ -112,10 +112,11 @@ export function ConsiliencePageClient() {
     const reader = res.body?.getReader();
     if (!reader) throw new Error("No response stream");
     let accumulatedText = "";
+    const decoder = new TextDecoder();
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      accumulatedText += new TextDecoder().decode(value);
+      accumulatedText += decoder.decode(value, { stream: true });
     }
     let cleanText = accumulatedText
       .split("\n")

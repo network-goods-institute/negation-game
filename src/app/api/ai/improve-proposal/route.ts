@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { geminiService } from "@/services/ai/geminiService";
 import { getUserId } from "@/actions/users/getUserId";
+import { improveProposalBodySchema } from "./schema";
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,8 +10,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const contentLength = request.headers.get("content-length");
+    const maxPayloadSize = 1024 * 1024;
+    if (contentLength && parseInt(contentLength) > maxPayloadSize) {
+      return NextResponse.json(
+        { error: "Request payload too large" },
+        { status: 413 }
+      );
+    }
+
+    const json = await request.json();
+    const bodyResult = improveProposalBodySchema.safeParse(json);
+    if (!bodyResult.success) {
+      return NextResponse.json(
+        { error: "Invalid request body" },
+        { status: 400 }
+      );
+    }
     const { currentText, instruction, originalText, topicId, selectedUserIds } =
-      await request.json();
+      bodyResult.data;
 
     if (!currentText || !instruction) {
       return NextResponse.json(
@@ -79,11 +97,11 @@ RULES
       cleanText = cleanText.replace(/^```\s*/, "").replace(/\s*```$/, "");
     }
 
-    let parsed: any;
+    let parsedResponse: any;
     try {
-      parsed = JSON.parse(cleanText);
+      parsedResponse = JSON.parse(cleanText);
     } catch (_) {
-      parsed = {
+      parsedResponse = {
         proposal: improvedText,
         summary: "Updated proposal",
         reasoning: "AI returned unstructured output; treating as full proposal",
@@ -91,18 +109,7 @@ RULES
       };
     }
 
-    try {
-      console.log("[improve-proposal] output", {
-        hasProposal: !!parsed?.proposal,
-        proposalLen: parsed?.proposal ? String(parsed.proposal).length : 0,
-        diffsCount: Array.isArray(parsed?.diffs) ? parsed.diffs.length : 0,
-        summaryPreview: parsed?.summary
-          ? String(parsed.summary).slice(0, 180)
-          : null,
-      });
-    } catch {}
-
-    return NextResponse.json(parsed);
+    return NextResponse.json(parsedResponse);
   } catch (error) {
     console.error("Error improving proposal:", error);
     return NextResponse.json(

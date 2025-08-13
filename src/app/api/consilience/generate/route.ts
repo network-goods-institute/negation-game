@@ -208,18 +208,6 @@ RULES
                 .replace(/\s*```$/, "");
             }
             const parsed = JSON.parse(cleanText);
-            console.log("[consilience-generate] output", {
-              hasProposal: !!parsed?.proposal,
-              proposalLen: parsed?.proposal
-                ? String(parsed.proposal).length
-                : 0,
-              diffsCount: Array.isArray(parsed?.diffs)
-                ? parsed.diffs.length
-                : 0,
-              summaryPreview: parsed?.summary
-                ? String(parsed.summary).slice(0, 180)
-                : null,
-            });
           } catch {}
 
           controller.close();
