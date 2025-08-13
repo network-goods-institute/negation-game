@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { ViewpointCardWrapper } from "@/components/cards/ViewpointCardWrapper";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftIcon, ChevronDownIcon, ChevronUpIcon, X, Check, ExternalLink, LayoutGrid, Lock, Info, Crown } from "lucide-react";
+import { ArrowLeftIcon, ChevronDownIcon, ChevronUpIcon, X, Check, ExternalLink, LayoutGrid, Lock, Info, Crown, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { encodeId } from "@/lib/negation-game/encodeId";
@@ -15,7 +15,6 @@ import { UsernameDisplay } from "@/components/ui/UsernameDisplay";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCanCreateRationale } from "@/hooks/topics/useCanCreateRationale";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-
 
 interface Topic {
     id: number;
@@ -58,7 +57,6 @@ interface TopicPageClientProps {
 }
 
 export default function TopicPageClient({ topic, viewpoints, space }: TopicPageClientProps) {
-    const router = useRouter();
     const isMobile = useIsMobile();
     const { user: privyUser } = usePrivy();
     const [viewpointsSortKey, setSortKey] = useState<SortKey>("recent");
@@ -99,6 +97,18 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
 
     const hasCurrentUserRationale = viewpoints.some(vp => vp.authorId === privyUser?.id);
 
+    const availableRationaleAuthors = useMemo(() => {
+        return viewpoints.map(vp => ({
+            userId: vp.authorId,
+            username: vp.authorUsername,
+            rationaleId: vp.id,
+            rationaleTitle: vp.title,
+            isCurrentUser: vp.authorId === privyUser?.id || false,
+        }));
+    }, [viewpoints, privyUser?.id]);
+
+    const canGenerateJointProposal = viewpoints.length >= 1 && privyUser;
+
     const handleCardClick = (id: string) => {
         setLoadingCardId(id);
         const rationaleId = id.replace('rationale-', '');
@@ -115,6 +125,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
         const arr = [...viewpoints].sort(sortFunctions[viewpointsSortKey]);
         return sortDirection === 'desc' ? arr : arr.reverse();
     }, [viewpoints, viewpointsSortKey, sortDirection]);
+
 
     return (
         <div className="flex-1 flex bg-muted/30 min-h-0 overflow-auto">
@@ -236,6 +247,39 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                             </Link>
                         </div>
                     </div>
+
+                    {/* Consilience Generation Section */}
+                    {canGenerateJointProposal && (
+                        <div className="mb-6">
+                            <div className="border rounded-lg p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30">
+                                <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                        <h2 className="text-lg font-semibold mb-2 text-blue-900 dark:text-blue-100 flex items-center gap-2">
+                                            <Users className="w-5 h-5" />
+                                            Generate Consilience
+                                        </h2>
+                                        <p className="text-blue-700 dark:text-blue-200 text-sm mb-4">
+                                            Create a synthesis proposal by combining two delegate perspectives with the original discourse content.
+                                            Shows what changed and why through interactive diff review.
+                                        </p>
+                                        <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-300 mb-4">
+                                            <span>{viewpoints.length} rationale{viewpoints.length !== 1 ? 's' : ''} available</span>
+                                            {topic.discourseUrl && (
+                                                <span>• Has discourse link</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                <Link
+                                    href={`/s/${space}/consilience?topicId=${encodeId(topic.id)}`}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                                >
+                                    <Users className="w-4 h-4" />
+                                    Generate Consilience
+                                </Link>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Create Rationale Section */}
                     {!hasCurrentUserRationale && privyUser && (
@@ -560,6 +604,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                     </div>
                 </div>
             )}
+
         </div>
     );
 } 
