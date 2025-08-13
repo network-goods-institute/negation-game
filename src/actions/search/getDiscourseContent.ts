@@ -140,8 +140,11 @@ export async function getDiscourseContent(
           });
           const finalUrl = resp.url?.replace(/\/$/, "");
           const finalValidation = validateDiscourseUrlDetailed(finalUrl);
+          const finalHost = finalValidation.hostname?.toLowerCase();
           if (
             finalValidation.ok &&
+            finalHost &&
+            ALLOWED_DISCOURSE_HOSTS.includes(finalHost) &&
             /\/t\/[^/]+\/\d+(?:\/\d+)?$/.test(finalValidation.pathname || "")
           ) {
             cleanUrl = finalUrl;
