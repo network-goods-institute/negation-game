@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Download,
@@ -26,6 +25,7 @@ interface TopicProposalResultProps {
   onClose: () => void;
   result: TopicJointProposalResult;
   generatedText: string;
+  onSave?: (text: string) => void;
 }
 
 export function TopicProposalResult({
@@ -33,14 +33,21 @@ export function TopicProposalResult({
   onClose,
   result,
   generatedText,
+  onSave,
 }: TopicProposalResultProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [currentProposal, setCurrentProposal] = useState(generatedText);
   const [editedProposal, setEditedProposal] = useState(generatedText);
   const [copySuccess, setCopySuccess] = useState(false);
 
+  useEffect(() => {
+    setCurrentProposal(generatedText);
+    setEditedProposal(generatedText);
+  }, [generatedText]);
+
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(isEditing ? editedProposal : generatedText);
+      await navigator.clipboard.writeText(isEditing ? editedProposal : currentProposal);
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
     } catch (error) {
@@ -49,12 +56,13 @@ export function TopicProposalResult({
   };
 
   const handleSave = () => {
+    setCurrentProposal(editedProposal);
     setIsEditing(false);
-    // I'll implement this later
+    onSave?.(editedProposal);
   };
 
   const handleExport = (format: 'markdown' | 'plain' | 'discourse') => {
-    const text = isEditing ? editedProposal : generatedText;
+    const text = isEditing ? editedProposal : currentProposal;
     let content = text;
     let filename = `joint-proposal-${result.metadata.topicName.toLowerCase().replace(/\s+/g, '-')}`;
 
@@ -108,7 +116,7 @@ export function TopicProposalResult({
                 />
               ) : (
                 <div className="prose prose-sm max-w-none whitespace-pre-wrap p-4 border rounded-lg bg-muted/20">
-                  {generatedText}
+                  {currentProposal}
                 </div>
               )}
             </ScrollArea>
@@ -119,7 +127,10 @@ export function TopicProposalResult({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setIsEditing(!isEditing)}
+                  onClick={() => {
+                    if (isEditing) setEditedProposal(currentProposal);
+                    setIsEditing(!isEditing);
+                  }}
                 >
                   {isEditing ? (
                     <>
