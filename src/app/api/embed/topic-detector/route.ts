@@ -100,7 +100,12 @@ export async function GET(request: NextRequest) {
         space: topicsTable.space,
       })
       .from(topicsTable)
-      .where(eq(topicsTable.discourseUrl, sourceUrl))
+      .where(
+        and(
+          eq(topicsTable.discourseUrl, sourceUrl),
+          eq(topicsTable.space, "scroll")
+        )
+      )
       .limit(1);
 
     if (topic.length === 0) {

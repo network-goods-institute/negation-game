@@ -6,16 +6,8 @@ export async function GET(
   { params }: { params: Promise<{ topicId: string }> }
 ) {
   try {
-    const { searchParams } = new URL(request.url);
-    const space = searchParams.get("space");
-
-    if (!space) {
-      return NextResponse.json(
-        { error: "Space parameter is required" },
-        { status: 400 }
-      );
-    }
-
+    // Enforce Scroll space for embeds regardless of query params
+    const space = "scroll";
     const resolvedParams = await params;
     const topicId = parseInt(resolvedParams.topicId);
     if (isNaN(topicId)) {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { computeUsersDaoAlignment } from "@/actions/analytics/computeUsersDaoAlignment";
 import { getUserId } from "@/actions/users/getUserId";
-import { checkRateLimit } from "@/lib/rateLimit";
+import { checkRateLimitStrict } from "@/lib/rateLimit";
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,10 +10,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const rateLimit = await checkRateLimit(userId, 10, 60000, "analytics");
+    const rateLimit = await checkRateLimitStrict(
+      userId,
+      10,
+      60000,
+      "analytics"
+    );
     if (!rateLimit.allowed) {
       return NextResponse.json(
-        { error: "Rate limit exceeded. Analytics limited to 10 requests per minute." },
+        {
+          error:
+            "Rate limit exceeded. Analytics limited to 10 requests per minute.",
+        },
         { status: 429 }
       );
     }

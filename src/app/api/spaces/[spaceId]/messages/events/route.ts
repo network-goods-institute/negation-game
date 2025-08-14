@@ -163,12 +163,27 @@ export async function GET(
     },
   });
 
+  const originHeader = request.headers.get("origin");
+  const allowedOrigins = new Set([
+    "https://negationgame.com",
+    "https://play.negationgame.com",
+    "https://scroll.negationgame.com",
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://localhost:3000",
+    "https://localhost:3001",
+  ]);
+  const requestOrigin = allowedOrigins.has(originHeader || "")
+    ? (originHeader as string)
+    : new URL(request.url).origin;
+
   return new Response(stream, {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
-      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Origin": requestOrigin,
+      Vary: "Origin",
       "Access-Control-Allow-Methods": "GET",
       "Access-Control-Allow-Headers": "Cache-Control",
     },

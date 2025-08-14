@@ -34,7 +34,10 @@ export default async function TopicEmbedPage({ params }: Props) {
             notFound();
         }
 
-        const rationales = await fetchViewpointsByTopic(topic.space, topicId);
+        if (topic.space !== 'scroll') {
+            notFound();
+        }
+        const rationales = await fetchViewpointsByTopic('scroll', topicId);
 
         return (
             <TopicEmbedClient

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { computeDelta } from "@/actions/analytics/computeDelta";
 import { getUserId } from "@/actions/users/getUserId";
-import { checkRateLimit } from "@/lib/rateLimit";
+import { checkRateLimitStrict } from "@/lib/rateLimit";
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const rateLimit = await checkRateLimit(userId, 20, 60000, "delta"); // 20 requests per minute
+    const rateLimit = await checkRateLimitStrict(userId, 20, 60000, "delta"); // 20 requests per minute
     if (!rateLimit.allowed) {
       return NextResponse.json(
         {

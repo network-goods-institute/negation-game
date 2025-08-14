@@ -13,6 +13,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { FileText, MessageSquareQuote, ExternalLink, BookText } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import SanitizedHtml from "@/components/chatbot/visual/SanitizedHtml";
 
 interface MessageSource {
     type: string; // 'Rationale', 'Endorsed Point', 'Discourse Post'
@@ -147,10 +148,9 @@ const SourceListItem: React.FC<SourceListItemProps> = ({ source, space, storedMe
                                     <DialogTitle>Discourse Post {displayId} Preview</DialogTitle>
                                 </DialogHeader>
                                 <ScrollArea className="flex-grow overflow-y-auto px-6 py-4">
-                                    <div
-                                        className="prose prose-sm dark:prose-invert max-w-none [&_a]:text-primary [&_a:hover]:underline"
-                                        dangerouslySetInnerHTML={{ __html: discourseMessage?.content || discourseMessage?.raw || `(No content preview available for Post ${displayId})` }}
-                                    />
+                                    <div className="prose prose-sm dark:prose-invert max-w-none [&_a]:text-primary [&_a:hover]:underline">
+                                        <SanitizedHtml html={discourseMessage?.content || `(No content preview available for Post ${displayId})`} />
+                                    </div>
                                 </ScrollArea>
                                 {href && (
                                     <div className="px-6 pb-6 pt-4 border-t flex justify-end">

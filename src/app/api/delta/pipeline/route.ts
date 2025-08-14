@@ -5,7 +5,7 @@ import {
 } from "@/actions/analytics/runDailyDeltaPipeline";
 import { getUserId } from "@/actions/users/getUserId";
 import { isUserSiteAdmin } from "@/utils/adminUtils";
-import { checkRateLimit } from "@/lib/rateLimit";
+import { checkRateLimitStrict } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 799;
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const rateLimit = await checkRateLimit(
+    const rateLimit = await checkRateLimitStrict(
       userId,
       2,
       3600000,

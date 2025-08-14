@@ -18,9 +18,13 @@ export default async function RationaleEmbedPage({ params }: Props) {
             notFound();
         }
 
+        if ((rationale.space ?? 'scroll') !== 'scroll') {
+            notFound();
+        }
+
         return (
             <RationaleEmbedClient
-                rationale={rationale}
+                rationale={{ ...rationale, space: 'scroll' }}
             />
         );
     } catch (error) {

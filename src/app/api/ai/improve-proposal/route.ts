@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { geminiService } from "@/services/ai/geminiService";
 import { getUserId } from "@/actions/users/getUserId";
+import { checkRateLimitStrict } from "@/lib/rateLimit";
 import { improveProposalBodySchema } from "./schema";
 
 export async function POST(request: NextRequest) {
@@ -8,6 +9,19 @@ export async function POST(request: NextRequest) {
     const userId = await getUserId();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const rateLimit = await checkRateLimitStrict(
+      userId,
+      5,
+      60000,
+      "ai-improve-proposal"
+    );
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded" },
+        { status: 429 }
+      );
     }
 
     const contentLength = request.headers.get("content-length");
