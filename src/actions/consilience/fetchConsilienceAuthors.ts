@@ -23,7 +23,6 @@ export async function fetchConsilienceAuthors(
       id: viewpointsTable.id,
       createdBy: viewpointsTable.createdBy,
       title: viewpointsTable.title,
-      graph: viewpointsTable.graph,
       username: usersTable.username,
     })
     .from(viewpointsTable)

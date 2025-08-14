@@ -435,7 +435,7 @@ describe("fetchFeedPage", () => {
     mockDb.select.mockReturnValue(makeSelectChain(feedRows));
     mockDb.execute.mockResolvedValue([]);
     const { fetchFeedPage } = await import("@/actions/feed/fetchFeed");
-    const res = await fetchFeedPage(older);
+    const res = await fetchFeedPage(Number(older) as any);
     expect(res.length).toBe(2);
     // Ensure orderBy was applied (desc by createdAt)
     expect(res[0].createdAt >= res[1].createdAt).toBe(true);

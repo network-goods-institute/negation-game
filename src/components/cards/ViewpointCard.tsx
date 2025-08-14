@@ -11,6 +11,8 @@ import {
 import { Portal } from "@radix-ui/react-portal";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
 import { useRouter, usePathname } from "next/navigation";
+import { encodeId } from "@/lib/negation-game/encodeId";
+import Link from "next/link";
 import { ViewpointStatsBar } from "../rationale/ViewpointStatsBar";
 import { UsernameDisplay } from "@/components/ui/UsernameDisplay";
 import useIsMobile from "@/hooks/ui/useIsMobile";
@@ -109,6 +111,7 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
     const mouseDownRef = useRef<{ x: number, y: number } | null>(null);
     const isMobile = useIsMobile();
     const [isTopicClicked, setIsTopicClicked] = useState(false);
+    const [isViewTopicClicked, setIsViewTopicClicked] = useState(false);
 
     const plainDescription = useMemo(() => stripMarkdown(description), [description]);
 
@@ -121,6 +124,15 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
             return () => clearTimeout(timer);
         }
     }, [isTopicClicked]);
+
+    useEffect(() => {
+        if (isViewTopicClicked) {
+            const timer = setTimeout(() => {
+                setIsViewTopicClicked(false);
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [isViewTopicClicked]);
 
     // Monitor selection changes
     useEffect(() => {
@@ -286,6 +298,24 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                             userId={authorId}
                                             className="text-yellow-600 dark:text-yellow-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded font-medium"
                                         />
+                                        {topic && topicId && (
+                                            <Link
+                                                href={`/s/${space}/topic/${encodeId(topicId)}`}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsViewTopicClicked(true);
+                                                }}
+                                                className="ml-2 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline font-medium inline-flex items-center"
+                                                title="View topic and proposal generation features"
+                                            >
+                                                <span className="w-3 h-3 mr-1 flex items-center justify-center flex-shrink-0">
+                                                    {isViewTopicClicked && (
+                                                        <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                                                    )}
+                                                </span>
+                                                <span>View Topic</span>
+                                            </Link>
+                                        )}
                                     </>
                                 </h3>
                             </div>
@@ -369,6 +399,24 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                         userId={authorId}
                                         className="text-yellow-600 dark:text-yellow-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded font-medium"
                                     />
+                                    {topic && topicId && (
+                                        <Link
+                                            href={`/s/${space}/topic/${encodeId(topicId)}`}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsViewTopicClicked(true);
+                                            }}
+                                            className="ml-2 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline font-medium inline-flex items-center"
+                                            title="View topic and proposal generation features"
+                                        >
+                                            <span className="w-3 h-3 mr-1 flex items-center justify-center flex-shrink-0">
+                                                {isViewTopicClicked && (
+                                                    <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                                                )}
+                                            </span>
+                                            <span>View Topic</span>
+                                        </Link>
+                                    )}
                                 </>
                             </h3>
                         </div>

@@ -6,6 +6,7 @@ export const useConsilienceAuthors = (topicId?: number) => {
     queryKey: ["consilienceAuthors", topicId],
     queryFn: () => fetchConsilienceAuthors(topicId!),
     enabled: typeof topicId === "number" && topicId > 0,
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
   });
 };

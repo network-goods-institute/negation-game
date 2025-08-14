@@ -1,6 +1,6 @@
 import React, { useCallback } from "react";
 import { ViewpointCard } from "@/components/cards/ViewpointCard";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { preventDefaultIfContainsSelection } from "@/lib/utils/preventDefaultIfContainsSelection";
 
 interface ViewpointCardWrapperProps {
@@ -39,21 +39,28 @@ export function ViewpointCardWrapper({
     topic = '',
     topicId
 }: ViewpointCardWrapperProps) {
+    const router = useRouter();
+
     // Card click handler - only triggers navigation when the ViewpointCard
     // component determines it's a valid click (not a text selection)
-    const onCardClick = useCallback(() => {
+    const onCardClick = useCallback((e: React.MouseEvent) => {
+        // Don't navigate if user is selecting text or clicking on interactive elements
+        preventDefaultIfContainsSelection(e as any);
+
+        // Check if the click target is a link or button (our View Topic button)
+        const target = e.target as HTMLElement;
+        if (target.closest('a') || target.closest('button')) {
+            return; // Let the nested link/button handle the navigation
+        }
+
         handleCardClick?.(`rationale-${id}`);
-    }, [id, handleCardClick]);
+        router.push(`/s/${space}/rationale/${id}`);
+    }, [id, handleCardClick, router, space]);
 
     return (
-        <Link
-            draggable={false}
-            href={`/s/${space}/rationale/${id}`}
+        <div
             className="flex border-b cursor-pointer hover:bg-accent min-w-0 w-full"
-            onClick={(e) => {
-                preventDefaultIfContainsSelection(e as unknown as React.MouseEvent<HTMLAnchorElement>);
-                onCardClick();
-            }}
+            onClick={onCardClick}
         >
             <ViewpointCard
                 onClick={onCardClick}
@@ -68,10 +75,10 @@ export function ViewpointCardWrapper({
                 createdAt={createdAt}
                 space={space}
                 statistics={statistics}
-                linkable={false} // Disable internal linking since we're using the outer Link now
+                linkable={false}
                 isLoading={loadingCardId === `rationale-${id}`}
                 data-rationale-id={id}
             />
-        </Link>
+        </div>
     );
 } 

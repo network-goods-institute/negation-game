@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserId } from "@/actions/users/getUserId";
 import { geminiService } from "@/services/ai/geminiService";
 import { db } from "@/services/db";
-import { viewpointsTable, topicsTable } from "@/db/schema";
+import { viewpointsTable, topicsTable, usersTable } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { getDiscourseContent } from "@/actions/search/getDiscourseContent";
 import { z } from "zod";
@@ -42,11 +42,11 @@ export async function POST(request: NextRequest) {
       .select({
         id: viewpointsTable.id,
         userId: viewpointsTable.createdBy,
-        title: viewpointsTable.title,
+        username: usersTable.username,
         description: viewpointsTable.description,
-        graph: viewpointsTable.graph,
       })
       .from(viewpointsTable)
+      .innerJoin(usersTable, eq(usersTable.id, viewpointsTable.createdBy))
       .where(
         and(
           eq(viewpointsTable.topicId, topicId),
@@ -62,6 +62,19 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       );
+    }
+    const uniqueUserIds = new Set(rationales.map((r) => r.userId));
+    if (uniqueUserIds.size !== selectedUserIds.length) {
+      const allowed = new Set(rationales.map((r) => r.userId));
+      const normalizedSelected = selectedUserIds.filter((id) =>
+        allowed.has(id)
+      );
+      if (normalizedSelected.length === 0) {
+        return NextResponse.json(
+          { error: "Selected users have no active rationales for this topic" },
+          { status: 400 }
+        );
+      }
     }
 
     let discourseContent =
@@ -92,14 +105,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const rationaleInputs = rationales
-      .map(
-        (r, i) =>
-          `### DELEGATE ${i + 1}
-TITLE: ${r.title}
-RATIONALE:
-${r.description}`
-      )
+    const byUser = new Map<string, { username: string; texts: string[] }>();
+    for (const r of rationales) {
+      const username = r.username || r.userId;
+      const entry = byUser.get(r.userId) || { username, texts: [] as string[] };
+      const text = (r.description || "").trim();
+      if (text && !entry.texts.includes(text)) entry.texts.push(text);
+      byUser.set(r.userId, entry);
+    }
+
+    const rationaleInputs = Array.from(byUser.values())
+      .map((u) => {
+        const bullets = u.texts
+          .slice(0, 3)
+          .map((t) => `- ${t}`)
+          .join("\n");
+        return `### DELEGATE @${u.username}\nRATIONALES:\n${bullets || "- (no detailed description provided)"}`;
+      })
       .join("\n\n");
 
     const systemPrompt = `You are an expert editor generating a merged proposal.
@@ -110,12 +132,16 @@ ${rationaleInputs}
 
 TASK
 Produce an updated proposal that reflects all selected delegates' perspectives, and a machine-readable list of diffs from ORIGINAL.
+When delegates agree on a point, keep wording identical. When they differ, prefer highlighting endorsement strength or specific constraints rather than rewording the point itself.
+Important domain guidance:
+- Many points in different delegates' rationales may be the same or near-identical. Do not duplicate those; preserve shared points as-is.
+- What typically differs between delegates are endorsements on points (strength/cred emphasis). Highlight differences in endorsements and conviction rather than rewording identical content.
 
 RESPONSE FORMAT (STRICT JSON)
 {
   "proposal": "<full updated proposal markdown>",
   "summary": "<1-2 sentences summary>",
-  "reasoning": "<why these changes satisfy both delegates>",
+  "reasoning": "<why these changes satisfy both delegates, noting where endorsements differ while points stay the same>",
   "diffs": [
     { "type": "Addition" | "Modification" | "Removal", "originalText": "<string optional>", "newText": "<string optional>", "explanation": "<string>" }
   ]
@@ -126,6 +152,7 @@ RULES
 - Capitalize diff types exactly as Addition | Modification | Removal.
 - Start from ORIGINAL. Preserve all unchanged content IDENTICALLY (do not paraphrase).
 - Only change text necessary to reflect the selected delegates' perspectives, referencing the DELEGATE blocks.
+- Prefer to preserve wording where points are equivalent; surface endorsement/weighting changes explicitly.
 - Diffs must be granular and human-auditable.
 - For Modification diffs, include both originalText (verbatim from ORIGINAL) and newText.
 - For Removal diffs, include originalText (verbatim from ORIGINAL) and omit newText.

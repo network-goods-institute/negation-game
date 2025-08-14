@@ -10,7 +10,7 @@ import { Loader } from "@/components/ui/loader";
 import useIsMobile from "@/hooks/ui/useIsMobile";
 import { DeltaComparisonWidget } from "@/components/delta/DeltaComparisonWidget";
 import { usePrivy } from "@privy-io/react-auth";
-import { useAllUsers } from "@/queries/users/useAllUsers";
+import { useSpaceUsers } from "@/queries/users/useSpaceUsers";
 import { UsernameDisplay } from "@/components/ui/UsernameDisplay";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCanCreateRationale } from "@/hooks/topics/useCanCreateRationale";
@@ -59,20 +59,22 @@ interface TopicPageClientProps {
 export default function TopicPageClient({ topic, viewpoints, space }: TopicPageClientProps) {
     const isMobile = useIsMobile();
     const { user: privyUser } = usePrivy();
+    const router = useRouter();
     const [viewpointsSortKey, setSortKey] = useState<SortKey>("recent");
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
     const [isTopicsExpanded, setIsTopicsExpanded] = useState(false);
     const [isGlobalGraphLoading, setIsGlobalGraphLoading] = useState(false);
     const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
+    const [isGeneratingProposal, setIsGeneratingProposal] = useState(false);
 
-    const { data: allUsers } = useAllUsers();
+    const { data: spaceUsers, isLoading: isUsersLoading } = useSpaceUsers(space);
     const { data: permissionData, isLoading: isPermissionLoading } = useCanCreateRationale(topic?.id);
 
 
     const sortedDelegates = useMemo(() => {
-        if (!allUsers) return [];
+        if (!spaceUsers) return [];
 
-        const delegatesWithStatus = allUsers.map(user => {
+        const delegatesWithStatus = spaceUsers.map(user => {
             const hasPublished = viewpoints.some(vp => vp.authorId === user.id);
             const reputation = user.cred || 50;
             const isDelegate = !!(user.agoraLink || user.scrollDelegateLink || user.delegationUrl);
@@ -93,7 +95,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
             // Third priority: alphabetical
             return a.username.localeCompare(b.username);
         });
-    }, [allUsers, viewpoints]);
+    }, [spaceUsers, viewpoints]);
 
     const hasCurrentUserRationale = viewpoints.some(vp => vp.authorId === privyUser?.id);
 
@@ -180,17 +182,25 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                 </div>
                             )}
                         </div>
-                        {topic.discourseUrl && (
-                            <a
-                                href={topic.discourseUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 rounded-lg text-sm font-medium transition-colors"
-                            >
-                                <ExternalLink className="w-4 h-4" />
-                                <span>View Forum Discussion</span>
-                            </a>
-                        )}
+                        <div className="flex items-center gap-3">
+                            <Link href={`/s/${space}/topics`}>
+                                <Button variant="outline" size="sm" className="inline-flex items-center gap-2">
+                                    <LayoutGrid className="w-4 h-4" />
+                                    <span>All Topics</span>
+                                </Button>
+                            </Link>
+                            {topic.discourseUrl && (
+                                <a
+                                    href={topic.discourseUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 rounded-lg text-sm font-medium transition-colors"
+                                >
+                                    <ExternalLink className="w-4 h-4" />
+                                    <span>View Forum Discussion</span>
+                                </a>
+                            )}
+                        </div>
                     </div>
 
                     {/* Global Graph Preview */}
@@ -256,7 +266,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                     <div className="flex-1">
                                         <h2 className="text-lg font-semibold mb-2 text-blue-900 dark:text-blue-100 flex items-center gap-2">
                                             <Users className="w-5 h-5" />
-                                            Generate Consilience
+                                            Generate Proposal
                                         </h2>
                                         <p className="text-blue-700 dark:text-blue-200 text-sm mb-4">
                                             Create a synthesis proposal by combining two delegate perspectives with the original discourse content.
@@ -270,13 +280,26 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                         </div>
                                     </div>
                                 </div>
-                                <Link
-                                    href={`/s/${space}/consilience?topicId=${encodeId(topic.id)}`}
-                                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                                <Button
+                                    onClick={() => {
+                                        setIsGeneratingProposal(true);
+                                        router.push(`/s/${space}/consilience?topicId=${encodeId(topic.id)}`);
+                                    }}
+                                    disabled={isGeneratingProposal}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
                                 >
-                                    <Users className="w-4 h-4" />
-                                    Generate Consilience
-                                </Link>
+                                    {isGeneratingProposal ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                                            Loading...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Users className="w-4 h-4 mr-2" />
+                                            Generate Proposal
+                                        </>
+                                    )}
+                                </Button>
                             </div>
                         </div>
                     )}
@@ -417,7 +440,12 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                 <span className="text-sm text-muted-foreground">By Status</span>
                             </div>
                             <div className="space-y-2">
-                                {sortedDelegates.map((user) => (
+                                {isUsersLoading ? (
+                                    <div className="p-4 bg-muted/30 border rounded-lg text-center">
+                                        <Loader className="h-5 w-5 mx-auto mb-2" />
+                                        <p className="text-sm text-muted-foreground">Loading delegates...</p>
+                                    </div>
+                                ) : sortedDelegates.map((user) => (
                                     <div key={user.id} className="flex items-center justify-between p-3 bg-background border rounded-lg hover:bg-accent/50 transition-colors">
                                         <div className="flex flex-col">
                                             <div className="flex items-center gap-1">
@@ -482,7 +510,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                         </div>
                                     </div>
                                 ))}
-                                {(!sortedDelegates || sortedDelegates.length === 0) && (
+                                {!isUsersLoading && (!sortedDelegates || sortedDelegates.length === 0) && (
                                     <div className="p-4 bg-muted/30 border rounded-lg text-center">
                                         <p className="text-sm text-muted-foreground">
                                             No delegates found in this space
@@ -526,7 +554,12 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                             </div>
 
                             <div className="space-y-3">
-                                {sortedDelegates.map((user) => (
+                                {isUsersLoading ? (
+                                    <div className="p-6 bg-muted/30 border rounded-lg text-center">
+                                        <Loader className="h-5 w-5 mx-auto mb-2" />
+                                        <p className="text-muted-foreground">Loading delegates...</p>
+                                    </div>
+                                ) : sortedDelegates.map((user) => (
                                     <div key={user.id} className="flex items-center justify-between p-4 bg-muted/20 border rounded-lg hover:bg-muted/30 transition-colors">
                                         <div className="flex flex-col">
                                             <div className="flex items-center gap-1">
@@ -591,7 +624,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                         </div>
                                     </div>
                                 ))}
-                                {(!sortedDelegates || sortedDelegates.length === 0) && (
+                                {!isUsersLoading && (!sortedDelegates || sortedDelegates.length === 0) && (
                                     <div className="p-6 bg-muted/30 border rounded-lg text-center">
                                         <p className="text-muted-foreground">
                                             No delegates found in this space

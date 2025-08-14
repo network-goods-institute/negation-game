@@ -1,14 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { decodeId } from "@/lib/negation-game/decodeId";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Loader } from "@/components/ui/loader";
 import { ArrowLeft, Users, FileText, MessageSquare } from "lucide-react";
@@ -28,8 +27,11 @@ interface ConsilienceState {
   originalProposal: string;
   generatedProposal: string;
   manualOriginal: string;
-  requiresManualOriginal: boolean;
-  notice?: string;
+  discourseLoading: boolean;
+  discourseError: string | null;
+  discourseSuccess: boolean;
+  discourseRetryCount: number;
+  discourseAutoRetrying: boolean;
   changes: {
     summary: string;
     reasoning: string;
@@ -48,6 +50,7 @@ export function ConsiliencePageClient() {
   const searchParams = useSearchParams();
   const spaceSlug = params.space as string;
   const { user: privyUser, ready: privyReady } = usePrivy();
+  const router = useRouter();
 
   const { data: space } = useSpace(spaceSlug);
   const spaceId = space?.id;
@@ -62,9 +65,15 @@ export function ConsiliencePageClient() {
     originalProposal: "",
     generatedProposal: "",
     manualOriginal: "",
-    requiresManualOriginal: false,
+    discourseLoading: false,
+    discourseError: null,
+    discourseSuccess: false,
+    discourseRetryCount: 0,
+    discourseAutoRetrying: false,
     changes: null,
   });
+
+  const [isNavigatingBack, setIsNavigatingBack] = useState(false);
 
   const topicIdParam = searchParams.get("topicId");
   const decodedTopicId = React.useMemo(() => {
@@ -91,20 +100,120 @@ export function ConsiliencePageClient() {
   }, [topic]);
 
   useEffect(() => {
-    const loadOriginal = async () => {
-      if (!topic?.discourseUrl) return;
-      try {
-        const res = await fetch(`/api/discourse/content?url=${encodeURIComponent(topic.discourseUrl)}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data?.content) {
-          setState(prev => ({ ...prev, originalProposal: data.content }));
+    if (topic?.id) {
+      const href = `/s/${spaceSlug}/topic/${encodeId(topic.id)}`;
+      try { router.prefetch(href); } catch { }
+    }
+  }, [router, spaceSlug, topic?.id]);
+
+  const MAX_DISCOURSE_RETRIES = 5;
+  const RETRY_DELAY_MS = 3000;
+  const abortRef = useRef<AbortController | null>(null);
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shouldAutoRetryRef = useRef<boolean>(true);
+
+  const clearPendingRetry = () => {
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+  };
+
+  const fetchOriginal = useCallback(async (manualRetry?: boolean) => {
+    if (!topic?.discourseUrl) {
+      setState(prev => ({
+        ...prev,
+        discourseError: null,
+        discourseLoading: false,
+        discourseSuccess: false
+      }));
+      return;
+    }
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    clearPendingRetry();
+    if (manualRetry) {
+      // Re-enable auto-retry after a manual retry
+      shouldAutoRetryRef.current = true;
+    }
+
+    setState(prev => ({
+      ...prev,
+      discourseLoading: true,
+      discourseError: null,
+      discourseSuccess: false,
+      discourseAutoRetrying: !manualRetry && Boolean(prev.discourseRetryCount),
+      discourseRetryCount: manualRetry ? 0 : prev.discourseRetryCount,
+    }));
+
+    try {
+      const res = await fetch(`/api/discourse/content?url=${encodeURIComponent(topic.discourseUrl)}`, { signal: controller.signal });
+
+      if (!res.ok) throw new Error(String(res.status));
+
+      const data = await res.json();
+
+      if (data?.content) {
+        setState(prev => ({
+          ...prev,
+          originalProposal: data.content,
+          discourseLoading: false,
+          discourseError: null,
+          discourseSuccess: true,
+          discourseRetryCount: 0,
+          discourseAutoRetrying: false
+        }));
+      } else {
+        throw new Error("no_content");
+      }
+    } catch (error) {
+      if ((error as any)?.name === 'AbortError' || (abortRef.current && abortRef.current.signal.aborted)) return;
+      setState(prev => {
+        const nextCount = prev.discourseRetryCount + 1;
+        const shouldRetry = shouldAutoRetryRef.current && nextCount < MAX_DISCOURSE_RETRIES;
+        if (shouldRetry) {
+          retryTimeoutRef.current = setTimeout(() => {
+            if (shouldAutoRetryRef.current) {
+              fetchOriginal(false);
+            }
+          }, RETRY_DELAY_MS);
         }
-      } catch { }
-    };
-    loadOriginal();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        return {
+          ...prev,
+          discourseLoading: shouldRetry,
+          discourseError: "Unable to fetch discourse content - network or rate limit error",
+          discourseSuccess: false,
+          discourseRetryCount: nextCount,
+          discourseAutoRetrying: shouldRetry
+        };
+      });
+    }
   }, [topic?.discourseUrl]);
+
+  useEffect(() => {
+    shouldAutoRetryRef.current = true;
+    fetchOriginal();
+  }, [fetchOriginal]);
+
+  useEffect(() => {
+    return () => {
+      clearPendingRetry();
+      abortRef.current?.abort();
+    };
+  }, []);
+
+  const handleCancelFetch = useCallback(() => {
+    shouldAutoRetryRef.current = false;
+    clearPendingRetry();
+    abortRef.current?.abort();
+    setState(prev => ({
+      ...prev,
+      discourseLoading: false,
+      discourseAutoRetrying: false
+    }));
+  }, []);
 
   const uniqueRationaleAuthors = useUniqueRationaleAuthors(authors);
 
@@ -148,7 +257,7 @@ export function ConsiliencePageClient() {
   };
 
   const handleGenerateConsilience = async () => {
-    setState((prev) => ({ ...prev, step: "generating", requiresManualOriginal: false }));
+    setState((prev) => ({ ...prev, step: "generating" }));
     try {
       const response = await fetch("/api/consilience/generate", {
         method: "POST",
@@ -162,20 +271,6 @@ export function ConsiliencePageClient() {
 
       if (!response.ok) {
         const text = await response.text();
-        try {
-          const obj = JSON.parse(text);
-          if (obj?.code === "manual_original_required") {
-            setState((prev) => ({
-              ...prev,
-              step: "select",
-              requiresManualOriginal: true,
-              notice:
-                obj?.message ||
-                "We could not fetch the original discourse post. Paste the original proposal text below and click Generate again.",
-            }));
-            return;
-          }
-        } catch { }
         throw new Error(text || "Failed to generate consilience");
       }
 
@@ -220,10 +315,8 @@ export function ConsiliencePageClient() {
       setState((prev) => ({
         ...prev,
         step: "select",
-        requiresManualOriginal: true,
-        notice:
-          "We could not fetch the original discourse post. Paste the original proposal text below and click Generate again.",
       }));
+      // TODO: Show error toast or alert
     }
   };
 
@@ -360,35 +453,28 @@ export function ConsiliencePageClient() {
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <Dialog open={state.requiresManualOriginal} onOpenChange={(open) => {
-        if (!open) setState(prev => ({ ...prev, requiresManualOriginal: false, notice: undefined }));
-      }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Original Proposal Required</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">{state.notice || 'We could not fetch the original discourse post due to forum rate limits.'}</p>
-            <textarea
-              value={state.manualOriginal}
-              onChange={(e) => setState(prev => ({ ...prev, manualOriginal: e.target.value }))}
-              placeholder="Paste the full original proposal text here to continue."
-              className="w-full min-h-[160px] rounded-md border p-2 bg-background"
-            />
-            <div className="flex justify-end">
-              <Button onClick={handleGenerateConsilience} disabled={!state.manualOriginal.trim()}>
-                Continue
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
       <div className="flex items-center gap-4 mb-8">
-        <Button variant="ghost" asChild className="flex items-center gap-2">
-          <Link href={`/s/${spaceSlug}/topic/${encodeId(topic.id)}`}>
-            <ArrowLeft className="w-4 h-4" />
-            Back to Topic
-          </Link>
+        <Button
+          variant="ghost"
+          className="flex items-center gap-2"
+          onClick={() => {
+            if (isNavigatingBack) return;
+            setIsNavigatingBack(true);
+            router.push(`/s/${spaceSlug}/topic/${encodeId(topic.id)}`);
+          }}
+          disabled={isNavigatingBack}
+        >
+          {isNavigatingBack ? (
+            <>
+              <Loader className="w-4 h-4" />
+              Loading…
+            </>
+          ) : (
+            <>
+              <ArrowLeft className="w-4 h-4" />
+              Back to Topic
+            </>
+          )}
         </Button>
         <div>
           <h1 className="text-2xl font-bold">Consilience Generator</h1>
@@ -398,6 +484,7 @@ export function ConsiliencePageClient() {
 
       {state.step === "select" && (
         <div className="space-y-6">
+          {/* Select Delegates Section - First Step */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -406,114 +493,228 @@ export function ConsiliencePageClient() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {state.requiresManualOriginal && (
-                <Alert className="mb-4">
-                  <AlertDescription>
-                    {state.notice || 'We could not fetch the original discourse post due to forum rate limits. Paste the original proposal text below and click Generate again.'}
-                  </AlertDescription>
-                </Alert>
-              )}
-              <p className="text-sm text-muted-foreground mb-4">
-                Choose delegates to generate consilience between their perspectives. Select at least one, up to as many as you want.
-              </p>
+              <div className="space-y-3 mb-6">
+                <p className="text-sm text-muted-foreground">
+                  Choose delegates whose perspectives you want to synthesize into a joint proposal. The AI will combine their viewpoints with the original discourse content.
+                </p>
+                <div className="flex items-center gap-2 text-xs bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                  <div className="w-4 h-4 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs">
+                    i
+                  </div>
+                  <span className="text-blue-700 dark:text-blue-300">
+                    Select at least 1 delegate. You can add or remove delegates by clicking them.
+                  </span>
+                </div>
+              </div>
 
-              {/* Email-style Recipients Field */}
+              {/* Selected Delegates */}
               <div className="space-y-4">
+                <h4 className="text-sm font-semibold text-foreground">Selected Delegates</h4>
                 <div className="flex items-start gap-2">
                   <label className="text-sm font-medium text-muted-foreground w-8 pt-3">To:</label>
-                  <div className="flex-1 min-h-[50px] border rounded-md p-2 bg-background">
+                  <div className="flex-1 min-h-[50px] border-2 border-dashed border-border dark:border-border rounded-md p-2 bg-background dark:bg-muted/5 relative">
                     <div className="flex flex-wrap gap-2 min-h-[32px] items-center">
                       {state.selectedRationales.map((userId) => {
                         const delegate = uniqueRationaleAuthors.find(a => a.userId === userId);
                         if (!delegate) return null;
                         return (
-                          <div key={userId} className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-3 py-1.5 rounded-full text-sm shadow-sm">
+                          <button
+                            key={userId}
+                            onClick={() => {
+                              setState(prev => ({
+                                ...prev,
+                                selectedRationales: prev.selectedRationales.filter(id => id !== userId)
+                              }));
+                            }}
+                            className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-3 py-1.5 rounded-full text-sm shadow-sm transition-all cursor-pointer"
+                            title={`Click to remove ${delegate.username}`}
+                          >
                             <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center text-xs font-bold">
                               {delegate.username.charAt(0).toUpperCase()}
                             </div>
                             <span className="font-medium">{delegate.username}</span>
-                            <button
-                              onClick={() => {
-                                setState(prev => ({
-                                  ...prev,
-                                  selectedRationales: prev.selectedRationales.filter(id => id !== userId)
-                                }));
-                              }}
-                              className="ml-1 w-4 h-4 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white font-bold text-xs transition-colors"
-                            >
+                            <div className="ml-1 w-4 h-4 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white font-bold text-xs transition-colors">
                               ×
-                            </button>
-                          </div>
+                            </div>
+                          </button>
                         );
                       })}
                       {state.selectedRationales.length === 0 && (
-                        <span className="text-muted-foreground text-sm italic">Select delegates to generate consilience...</span>
+                        <div className="flex items-center gap-2 text-muted-foreground text-sm italic">
+                          <Users className="w-4 h-4" />
+                          <span>Click delegates below to add them here...</span>
+                        </div>
                       )}
                     </div>
                   </div>
                 </div>
 
                 {/* Available Delegates */}
-                {uniqueRationaleAuthors.length > 0 && (
-                  <div className="border rounded-lg">
-                    <div className="p-3 border-b bg-muted/20">
-                      <h4 className="text-sm font-medium">Available Delegates ({uniqueRationaleAuthors.length} found)</h4>
+                {(isAuthorsLoading || uniqueRationaleAuthors.length > 0) && (
+                  <div className="border-2 border-border dark:border-border rounded-lg">
+                    <div className="p-3 border-b border-border dark:border-border bg-muted/20 dark:bg-muted/10">
+                      <h4 className="text-sm font-medium">
+                        {isAuthorsLoading ? 'Loading delegates…' : `Available Delegates (${uniqueRationaleAuthors.length} found)`}
+                      </h4>
                     </div>
                     <div className="max-h-48 overflow-y-auto">
-                      {isAuthorsLoading && (
-                        <div className="p-3 text-sm text-muted-foreground">Loading collaborators…</div>
-                      )}
-                      {uniqueRationaleAuthors.map(author => (
-                        <button
-                          key={author.userId}
-                          onClick={() => {
-                            if (state.selectedRationales.includes(author.userId)) return;
-                            setState(prev => ({
-                              ...prev,
-                              selectedRationales: Array.from(new Set([...prev.selectedRationales, author.userId]))
-                            }));
-                          }}
-                          disabled={state.selectedRationales.includes(author.userId)}
-                          className="w-full flex items-center gap-3 p-3 hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed text-left"
-                        >
-                          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-sm font-medium text-primary">
-                            {author.username.charAt(0).toUpperCase()}
+                      {isAuthorsLoading
+                        ? (
+                          <div className="p-3 space-y-2">
+                            {[1, 2, 3, 4, 5, 6].map((i) => (
+                              <div key={i} className="flex items-center gap-3 p-2">
+                                <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />
+                                <div className="flex-1 space-y-1">
+                                  <div className="w-24 h-4 bg-muted animate-pulse rounded" />
+                                  <div className="w-16 h-3 bg-muted animate-pulse rounded" />
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">{author.username}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {author.rationales.length} rationale{author.rationales.length !== 1 ? 's' : ''}
-                            </div>
-                          </div>
-                        </button>
-                      ))}
+                        )
+                        : (
+                          uniqueRationaleAuthors.map(author => (
+                            <button
+                              key={author.userId}
+                              onClick={() => {
+                                const isSelected = state.selectedRationales.includes(author.userId);
+                                if (isSelected) {
+                                  setState(prev => ({
+                                    ...prev,
+                                    selectedRationales: prev.selectedRationales.filter(id => id !== author.userId)
+                                  }));
+                                } else {
+                                  setState(prev => ({
+                                    ...prev,
+                                    selectedRationales: Array.from(new Set([...prev.selectedRationales, author.userId]))
+                                  }));
+                                }
+                              }}
+                              className={`w-full flex items-center gap-3 p-3 hover:bg-muted/50 dark:hover:bg-muted/30 text-left border-b border-border/30 dark:border-border/20 last:border-b-0 transition-colors ${state.selectedRationales.includes(author.userId)
+                                ? 'bg-primary/10 dark:bg-primary/20 border-primary/20'
+                                : ''
+                                }`}
+                            >
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${state.selectedRationales.includes(author.userId)
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-primary/10 text-primary'
+                                }`}>
+                                {state.selectedRationales.includes(author.userId) ? '✓' : author.username.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="flex-1">
+                                <div className="font-medium text-sm">{author.username}</div>
+                                {/* Hide counts for leaner list */}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {state.selectedRationales.includes(author.userId) ? 'Click to remove' : 'Click to select'}
+                              </div>
+                            </button>
+                          ))
+                        )}
                     </div>
                   </div>
                 )}
-
-                {/* Manual Original Proposal Fallback */}
-                <div className="space-y-2 mt-4">
-                  <label className="text-sm font-medium text-muted-foreground">Original Proposal {state.requiresManualOriginal ? '(required now)' : '(optional manual paste)'} </label>
-                  <textarea
-                    value={state.manualOriginal}
-                    onChange={(e) => setState(prev => ({ ...prev, manualOriginal: e.target.value }))}
-                    placeholder="If the discourse content cannot be fetched, paste the full original proposal text here."
-                    className="w-full min-h-[120px] rounded-md border p-2 bg-background"
-                  />
-                  <p className="text-xs text-muted-foreground">If provided, this will be used as the original proposal for diffs when the discourse URL is rate-limited or unavailable.</p>
-                </div>
               </div>
 
-              <Button
-                onClick={handleGenerateConsilience}
-                disabled={state.selectedRationales.length === 0}
-                className="w-full mt-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-              >
-                Generate Consilience ({state.selectedRationales.length} delegate{state.selectedRationales.length !== 1 ? 's' : ''})
-              </Button>
+              {/* Proposal Content moved to its own card below */}
             </CardContent>
           </Card>
 
+          {/* Discourse Load Card (loading/error/success + manual override) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Proposal Content
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {state.discourseLoading && (
+                <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Loader className="w-5 h-5 text-blue-600" />
+                    <div>
+                      <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Preparing inputs…</p>
+                      <p className="text-xs text-blue-700 dark:text-blue-300">
+                        {state.discourseAutoRetrying
+                          ? `Fetching original discourse post (retry ${state.discourseRetryCount} of ${MAX_DISCOURSE_RETRIES})`
+                          : 'Fetching original discourse post'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {state.discourseAutoRetrying && (
+                      <Badge variant="outline" className="text-[10px]">Auto-retrying</Badge>
+                    )}
+                    <Button size="sm" variant="outline" onClick={handleCancelFetch}>Cancel</Button>
+                  </div>
+                </div>
+              )}
+
+              {state.discourseError && !state.discourseLoading && (
+                <div className="p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <div className="w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center text-xs mt-0.5">!</div>
+                    <div>
+                      <p className="text-sm font-medium text-red-900 dark:text-red-100 mb-1">Failed to load discourse content</p>
+                      <p className="text-xs text-red-700 dark:text-red-300">{state.discourseError}</p>
+                      {state.discourseRetryCount > 0 && (
+                        <p className="text-xs text-red-700 dark:text-red-300 mt-1">Tried {Math.min(state.discourseRetryCount, MAX_DISCOURSE_RETRIES)} of {MAX_DISCOURSE_RETRIES}</p>
+                      )}
+                      <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                        This can fail due to forum rate limits, network issues, missing permissions, or the post being unavailable. If it keeps failing, paste the original proposal below.
+                      </p>
+                      <div className="mt-3">
+                        <Button size="sm" variant="outline" onClick={() => fetchOriginal(true)}>
+                          Retry fetch
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {state.discourseSuccess && state.originalProposal && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg">
+                    <div className="w-4 h-4 rounded-full bg-green-500 text-white flex items-center justify-center text-xs">✓</div>
+                    <span className="text-sm font-medium text-green-900 dark:text-green-100">
+                      Successfully loaded original proposal ({state.originalProposal.length} characters)
+                    </span>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto bg-muted/20 rounded-lg p-3 border">
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{state.originalProposal}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Manual Override Section */}
+              <div className="mt-6 pt-4 border-t border-border/50">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold text-foreground">Manual Override</h4>
+                    <Badge variant="outline" className="text-xs">
+                      {state.discourseError || !topic.discourseUrl ? 'Required' : 'Optional'}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {state.discourseSuccess ? 'Override the automatically loaded content if needed:' : 'Paste the complete original proposal text:'}
+                  </p>
+                  <textarea
+                    value={state.manualOriginal}
+                    onChange={(e) => setState(prev => ({ ...prev, manualOriginal: e.target.value }))}
+                    placeholder={state.discourseSuccess ? "Override: paste different proposal content here..." : "Paste the complete original proposal text here..."}
+                    className="w-full min-h-[120px] rounded-md border-2 border-dashed border-border p-3 bg-background dark:bg-muted/5 resize-y text-sm"
+                  />
+                  {state.manualOriginal.trim() && (
+                    <p className="text-xs text-green-600 dark:text-green-400">✓ Manual content will be used ({state.manualOriginal.trim().length} characters)</p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Link Card (discourse URL) */}
           {topic.discourseUrl && (
             <Card>
               <CardHeader>
@@ -536,6 +737,30 @@ export function ConsiliencePageClient() {
               </CardContent>
             </Card>
           )}
+
+          {/* Generate Button */}
+          <div className="mt-8 pt-6 border-t border-border/50">
+            <Button
+              onClick={handleGenerateConsilience}
+              disabled={
+                state.selectedRationales.length === 0 ||
+                state.discourseLoading ||
+                (!state.discourseSuccess && !state.manualOriginal.trim())
+              }
+              size="lg"
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500"
+            >
+              <Users className="w-5 h-5 mr-2" />
+              {state.discourseLoading
+                ? 'Loading proposal content...'
+                : state.selectedRationales.length === 0
+                  ? 'Select delegates to continue'
+                  : (!state.discourseSuccess && !state.manualOriginal.trim())
+                    ? 'Provide proposal content above'
+                    : `Generate Proposal with ${state.selectedRationales.length} delegate${state.selectedRationales.length !== 1 ? 's' : ''}`}
+            </Button>
+          </div>
+
         </div>
       )}
 
@@ -549,34 +774,34 @@ export function ConsiliencePageClient() {
           </div>
 
           <div className="text-center space-y-4 max-w-lg">
-            <h2 className="text-2xl font-semibold">Preparing Inputs…</h2>
+            <h2 className="text-2xl font-semibold">Generating proposal…</h2>
             <div className="space-y-2 text-muted-foreground">
-              <p>Fetching the original discourse post (first post only). This may be rate-limited by the forum.</p>
-              <p>If it stalls, paste the original proposal text on the previous screen and click Generate again.</p>
-              <p>Then we will generate the merged proposal and diffs.</p>
-              <div className="flex flex-wrap justify-center gap-2 pt-2">
-                {uniqueRationaleAuthors
-                  .filter(a => state.selectedRationales.includes(a.userId))
-                  .map(author => (
-                    <Badge key={author.userId} variant="outline" className="text-sm">
-                      {author.username}
-                    </Badge>
-                  ))}
-              </div>
+              <p>Combining the selected delegates' perspectives into a single proposal.</p>
+              <p>Highlighting endorsement differences where points are the same.</p>
+              <p>This step runs the AI and may take a moment.</p>
             </div>
-
-            <div className="flex items-center justify-center gap-2 pt-4">
-              <div className="flex gap-1">
-                {[0, 1, 2].map(i => (
-                  <div
-                    key={i}
-                    className="w-2 h-2 bg-primary/60 rounded-full animate-pulse"
-                    style={{ animationDelay: `${i * 0.2}s` }}
-                  />
+            <div className="flex flex-wrap justify-center gap-2 pt-2">
+              {uniqueRationaleAuthors
+                .filter(a => state.selectedRationales.includes(a.userId))
+                .map(author => (
+                  <Badge key={author.userId} variant="outline" className="text-sm">
+                    {author.username}
+                  </Badge>
                 ))}
-              </div>
-              <span className="text-sm text-muted-foreground ml-2">This may take a moment</span>
             </div>
+          </div>
+
+          <div className="flex items-center justify-center gap-2 pt-4">
+            <div className="flex gap-1">
+              {[0, 1, 2].map(i => (
+                <div
+                  key={i}
+                  className="w-2 h-2 bg-primary/60 rounded-full animate-pulse"
+                  style={{ animationDelay: `${i * 0.2}s` }}
+                />
+              ))}
+            </div>
+            <span className="text-sm text-muted-foreground ml-2">This may take a moment</span>
           </div>
         </div>
       )}

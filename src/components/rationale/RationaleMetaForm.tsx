@@ -9,6 +9,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useRouter, usePathname } from 'next/navigation';
 import { encodeId } from '@/lib/negation-game/encodeId';
+import Link from 'next/link';
 
 export interface RationaleMetaFormProps {
     title: string;
@@ -101,6 +102,7 @@ export default function RationaleMetaForm({
     const router = useRouter();
     const pathname = usePathname();
     const [isTopicClicked, setIsTopicClicked] = useState(false);
+    const [isViewTopicClicked, setIsViewTopicClicked] = useState(false);
 
     const shouldHideTitle = hideTitle || (showTopicHeader && title === topic);
 
@@ -167,6 +169,25 @@ export default function RationaleMetaForm({
                             {showTopicLockedHint && (
                                 <p className="text-sm text-muted-foreground mt-1">Topic locked (copied from original rationale)</p>
                             )}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                asChild
+                                className="mt-2 w-fit text-sm"
+                            >
+                                <Link
+                                    href={`/s/${spaceSlug}/topic/${encodeId(topicId!)}`}
+                                    onClick={() => setIsViewTopicClicked(true)}
+                                    className="inline-flex items-center"
+                                >
+                                    <span className="w-4 h-4 mr-2 flex items-center justify-center flex-shrink-0">
+                                        {isViewTopicClicked && (
+                                            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                        )}
+                                    </span>
+                                    <span>View Topic</span>
+                                </Link>
+                            </Button>
                         </div>
                     ) : (
                         <div className="mb-4">
@@ -178,6 +199,27 @@ export default function RationaleMetaForm({
                                     Topic locked (copied from original rationale)
                                 </p>
                             ) : null}
+                            {spaceSlug && topicId && !isOnTopicPage && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    asChild
+                                    className="mt-2 w-fit text-sm"
+                                >
+                                    <Link
+                                        href={`/s/${spaceSlug}/topic/${encodeId(topicId)}`}
+                                        onClick={() => setIsViewTopicClicked(true)}
+                                        className="inline-flex items-center"
+                                    >
+                                        <span className="w-4 h-4 mr-2 flex items-center justify-center flex-shrink-0">
+                                            {isViewTopicClicked && (
+                                                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                            )}
+                                        </span>
+                                        <span>View Topic</span>
+                                    </Link>
+                                </Button>
+                            )}
                         </div>
                     )
                 )
