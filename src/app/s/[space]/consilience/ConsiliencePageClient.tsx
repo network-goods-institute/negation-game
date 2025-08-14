@@ -776,7 +776,7 @@ export function ConsiliencePageClient() {
           <div className="text-center space-y-4 max-w-lg">
             <h2 className="text-2xl font-semibold">Generating proposal…</h2>
             <div className="space-y-2 text-muted-foreground">
-              <p>Combining the selected delegates' perspectives into a single proposal.</p>
+              <p>Combining the selected delegates&apos; perspectives into a single proposal.</p>
               <p>Highlighting endorsement differences where points are the same.</p>
               <p>This step runs the AI and may take a moment.</p>
             </div>

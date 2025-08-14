@@ -75,7 +75,6 @@ export const PointEditor: FC<PointEditorProps> = ({
           textareaClassName
         )}
         placeholder={placeholderText}
-        maxLength={maxLength}
         {...textareaProps}
       />
       <Separator className="w-full" />
