@@ -2,9 +2,8 @@
 
 import { getUserId } from "@/actions/users/getUserId";
 import { db } from "@/services/db";
-import { spacesTable } from "@/db/schema";
+import { spacesTable, currentPointFavorView } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
-import { addFavor } from "@/db/utils/addFavor";
 import { FeedPoint } from "@/actions/feed/fetchFeed";
 import { decodeId } from "@/lib/negation-game/decodeId";
 
@@ -267,7 +266,11 @@ export async function fetchPinnedPoint({ spaceId }: FetchPinnedPointParams) {
     return null;
   }
 
-  const pointsWithFavor = await addFavor(points);
-
-  return pointsWithFavor[0];
+  if (!points || points.length === 0) return null;
+  const [point] = points;
+  const favorRow = await db
+    .select({ favor: currentPointFavorView.favor })
+    .from(currentPointFavorView)
+    .where(sql`${currentPointFavorView.pointId} = ${point.pointId}`);
+  return { ...point, favor: favorRow[0]?.favor ?? 0 } as FeedPoint;
 }

@@ -12,7 +12,6 @@ import {
   negationsTable,
   objectionsTable,
 } from "@/db/schema";
-import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -31,8 +30,12 @@ export const fetchPoints = async (ids: number[]) => {
   return fetchPointsWithSpace(ids, space, viewerId);
 };
 
-export const fetchPointsWithSpace = async (ids: number[], space: string, viewerId?: string | null) => {
-  const actualViewerId = viewerId || await getUserId();
+export const fetchPointsWithSpace = async (
+  ids: number[],
+  space: string,
+  viewerId?: string | null
+) => {
+  const actualViewerId = viewerId || (await getUserId());
 
   // Get the space's pinnedPointId
   const spaceDetails = await db.query.spacesTable.findFirst({
@@ -90,6 +93,11 @@ export const fetchPointsWithSpace = async (ids: number[], space: string, viewerI
   return await db
     .select({
       ...getColumns(pointsWithDetailsView),
+      favor: sql<number>`COALESCE((
+        SELECT "favor"
+        FROM "current_point_favor" cpf
+        WHERE cpf."id" = "point_with_details_view"."id"
+      ), 0)`.mapWith(Number),
       isPinned:
         sql<boolean>`${pointsWithDetailsView.pointId} = ${pinnedPointId || 0}`.mapWith(
           Boolean
@@ -193,8 +201,5 @@ export const fetchPointsWithSpace = async (ids: number[], space: string, viewerI
         inArray(pointsWithDetailsView.pointId, ids),
         eq(pointsWithDetailsView.space, space)
       )
-    )
-    .then((points) => {
-      return addFavor(points);
-    });
+    );
 };

@@ -1,11 +1,5 @@
-import {
-  endorsementsTable,
-  negationsTable,
-  pointsTable,
-  restakesTable,
-  slashesTable,
-  doubtsTable,
-} from "@/db/schema";
+import { endorsementsTable, negationsTable, pointsTable } from "@/db/schema";
+import { effectiveRestakesView } from "@/db/views/effectiveRestakesView";
 import { InferSelectViewModel } from "@/db/utils/InferSelectViewModel";
 import { sql } from "drizzle-orm";
 import { pgView } from "drizzle-orm/pg-core";
@@ -45,31 +39,18 @@ export const currentPointFavorView = pgView("current_point_favor").as((qb) =>
       restakeBonus: sql<number>`
         COALESCE((
           SELECT SUM(
-            GREATEST(0, 
-              ${restakesTable.amount} - COALESCE((
-                SELECT ${slashesTable.amount}
-                FROM ${slashesTable}
-                WHERE ${slashesTable.restakeId} = ${restakesTable.id}
-              ), 0)
-            ) - GREATEST(0, COALESCE((
-              SELECT SUM(${doubtsTable.amount})
-              FROM ${doubtsTable}
-              WHERE ${doubtsTable.pointId} = ${restakesTable.pointId}
-              AND ${doubtsTable.negationId} = ${restakesTable.negationId}
-            ), 0) - COALESCE((
-              SELECT ${slashesTable.amount}
-              FROM ${slashesTable}
-              WHERE ${slashesTable.restakeId} = ${restakesTable.id}
-            ), 0))
+            GREATEST(
+              0,
+              ${effectiveRestakesView.amount} - GREATEST(${effectiveRestakesView.slashedAmount}, ${effectiveRestakesView.doubtedAmount})
+            )
           )
-          FROM ${restakesTable}
-          WHERE ${restakesTable.pointId} = ${pointsTable.id}
-          AND ${restakesTable.amount} > 0
+          FROM ${effectiveRestakesView}
+          WHERE ${effectiveRestakesView.pointId} = ${pointsTable.id}
         ), 0)
       `
         .mapWith(Number)
         .as("restake_bonus"),
-      favor: sql<number>`
+      favor: sql<number>`(
         CASE
           WHEN COALESCE((
             SELECT SUM(${endorsementsTable.cred})
@@ -119,30 +100,18 @@ export const currentPointFavorView = pgView("current_point_favor").as((qb) =>
                 )
               ), 0)
             )
-          ) + COALESCE((
-            SELECT SUM(
-              GREATEST(0, 
-                ${restakesTable.amount} - COALESCE((
-                  SELECT ${slashesTable.amount}
-                  FROM ${slashesTable}
-                  WHERE ${slashesTable.restakeId} = ${restakesTable.id}
-                ), 0)
-              ) - GREATEST(0, COALESCE((
-                SELECT SUM(${doubtsTable.amount})
-                FROM ${doubtsTable}
-                WHERE ${doubtsTable.pointId} = ${restakesTable.pointId}
-                AND ${doubtsTable.negationId} = ${restakesTable.negationId}
-              ), 0) - COALESCE((
-                SELECT ${slashesTable.amount}
-                FROM ${slashesTable}
-                WHERE ${slashesTable.restakeId} = ${restakesTable.id}
-              ), 0))
-            )
-            FROM ${restakesTable}
-            WHERE ${restakesTable.pointId} = ${pointsTable.id}
-            AND ${restakesTable.amount} > 0
-          ), 0)
-        END::integer
+          )
+        END
+      ) + COALESCE((
+        SELECT SUM(
+          GREATEST(
+            0, 
+            ${effectiveRestakesView.amount} - GREATEST(${effectiveRestakesView.slashedAmount}, ${effectiveRestakesView.doubtedAmount})
+          )
+        )
+        FROM ${effectiveRestakesView}
+        WHERE ${effectiveRestakesView.pointId} = ${pointsTable.id}
+      ), 0)::integer
       `
         .mapWith(Number)
         .as("favor"),
