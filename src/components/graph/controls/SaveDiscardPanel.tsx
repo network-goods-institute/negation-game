@@ -43,7 +43,7 @@ export const SaveDiscardPanel: React.FC<SaveDiscardPanelProps> = memo(({
 
     return (
         <Panel position="top-right" className="m-1 mr-0 md:m-2">
-            <div className="flex flex-col items-end gap-2 mt-2 md:mt-0">
+            <div className="flex flex-col items-end gap-2 mt-14 md:mt-12">
                 {onClose && (
                     <Button
                         variant="ghost"

@@ -333,6 +333,10 @@ export const UnifiedContentList = memo(({
       {contentType === "rationales" && !searchQuery && !hasActiveFilters && (
         <div className="mx-auto w-full max-w-5xl px-3">
           <RationalesConcernsSection spaceId={space} />
+          <CreateRationaleViewpointCard 
+            onClick={handleNewViewpoint}
+            className="mb-4"
+          />
         </div>
       )}
 
