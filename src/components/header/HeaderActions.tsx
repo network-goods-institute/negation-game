@@ -34,6 +34,7 @@ export const HeaderActions = () => {
     const { openDialog: openWriteupDialog } = useWriteup();
     const [showKeybinds, setShowKeybinds] = useState(false);
     const [showVideo, setShowVideo] = useState(false);
+
     const [isAiLoading, setIsAiLoading] = useState(false);
     const router = useRouter();
     const pathname = usePathname();
@@ -45,7 +46,7 @@ export const HeaderActions = () => {
     const isSpacePage = pathname.match(/^\/s\/[^\/]+$/) !== null;
 
     useEffect(() => {
-        // Get the search container element
+        // Get the search container element for portal rendering
         const container = document.getElementById('header-search-container');
         setSearchContainer(container);
     }, []);
@@ -69,8 +70,9 @@ export const HeaderActions = () => {
                 searchContainer
             )}
 
-            <div className="flex gap-1 sm:gap-sm flex-shrink-0 items-center">
-                <div className="hidden sm:block">
+            <div className="flex gap-1 sm:gap-2 flex-shrink-0 items-center">
+                {/* Enhanced AI button for mobile only */}
+                <div className="hidden sm:block xl:hidden">
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button
@@ -93,7 +95,7 @@ export const HeaderActions = () => {
                     </Tooltip>
                 </div>
 
-                <div className="hidden sm:block">
+                <div className="hidden sm:block flex-shrink-0">
                     <Dynamic>
                         <ModeToggle />
                     </Dynamic>
@@ -101,7 +103,8 @@ export const HeaderActions = () => {
 
                 <ConnectButton />
 
-                <div className="hidden sm:flex items-center gap-1 sm:gap-sm">
+                {/* Enhanced desktop dropdown with responsive md: breakpoints */}
+                <div className="hidden md:flex items-center gap-1 md:gap-2 flex-shrink-0">
                     <DropdownMenu>
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -117,6 +120,7 @@ export const HeaderActions = () => {
                             </TooltipContent>
                         </Tooltip>
                         <DropdownMenuContent align="end">
+                            {/* AI Assistant in dropdown as fallback */}
                             <DropdownMenuItem onClick={handleAiClick} disabled={pathname === `${basePath}/chat`}>
                                 {isAiLoading ? (
                                     <Loader className="mr-2 h-4 w-4" />
@@ -125,6 +129,8 @@ export const HeaderActions = () => {
                                 )}
                                 <span>AI Assistant</span>
                             </DropdownMenuItem>
+
+                            {/* Enhanced inline theme toggle from incoming */}
                             <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
                                 {theme === 'dark' ? (
                                     <Sun className="mr-2 h-4 w-4" />
@@ -133,7 +139,9 @@ export const HeaderActions = () => {
                                 )}
                                 <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
                             </DropdownMenuItem>
+
                             <DropdownMenuSeparator />
+
                             <DropdownMenuItem onClick={() => openOnboardingDialog()}>
                                 <InfoIcon className="mr-2 h-4 w-4" />
                                 <span>Onboarding</span>
@@ -168,7 +176,8 @@ export const HeaderActions = () => {
                     </Dynamic>
                 </div>
 
-                <div className="flex sm:hidden">
+                {/* Enhanced mobile dropdown with all features */}
+                <div className="flex md:hidden flex-shrink-0">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon">
@@ -177,6 +186,7 @@ export const HeaderActions = () => {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                            {/* AI Assistant for mobile */}
                             <DropdownMenuItem onClick={handleAiClick} disabled={pathname === `${basePath}/chat`}>
                                 {isAiLoading ? (
                                     <Loader className="mr-2 h-4 w-4" />
@@ -185,6 +195,8 @@ export const HeaderActions = () => {
                                 )}
                                 <span>AI Assistant</span>
                             </DropdownMenuItem>
+
+                            {/* Enhanced inline theme toggle for mobile */}
                             <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
                                 {theme === 'dark' ? (
                                     <Sun className="mr-2 h-4 w-4" />
@@ -193,7 +205,10 @@ export const HeaderActions = () => {
                                 )}
                                 <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
                             </DropdownMenuItem>
+
                             <DropdownMenuSeparator />
+
+                            {/* All help features available on mobile */}
                             <DropdownMenuItem onClick={() => openOnboardingDialog()}>
                                 <InfoIcon className="mr-2 h-4 w-4" />
                                 <span>Onboarding</span>
@@ -227,4 +242,4 @@ export const HeaderActions = () => {
             </div>
         </>
     );
-}; 
+};

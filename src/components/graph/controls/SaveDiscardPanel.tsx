@@ -42,8 +42,8 @@ export const SaveDiscardPanel: React.FC<SaveDiscardPanelProps> = memo(({
     const showActions = isModified || isContentModified;
 
     return (
-        <Panel position="top-right" className="m-2">
-            <div className="flex flex-col items-end gap-2 mt-16 sm:mt-0">
+        <Panel position="top-right" className="m-1 mr-0 md:m-2">
+            <div className="flex flex-col items-end gap-2 mt-2 md:mt-0">
                 {onClose && (
                     <Button
                         variant="ghost"
@@ -71,10 +71,7 @@ export const SaveDiscardPanel: React.FC<SaveDiscardPanelProps> = memo(({
                                         </div>
                                     ) : (
                                         <div className="flex items-center">
-                                            <span className={cn(
-                                                "text-xs font-medium",
-                                                canModify === false && "text-[11px] leading-none"
-                                            )}>
+                                            <span className="text-sm font-medium">
                                                 {canModify
                                                     ? isNew
                                                         ? "Publish Rationale"

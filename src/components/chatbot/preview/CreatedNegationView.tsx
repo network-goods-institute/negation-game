@@ -80,6 +80,10 @@ export const CreatedNegationView: React.FC<CreatedNegationViewProps> =
                                     isNegation={false}
                                     onNegate={handleNegateOriginal}
                                     className="border rounded-md shadow-sm bg-card"
+                                    isEdited={originalPoint.isEdited ?? false}
+                                    editedAt={originalPoint.editedAt ?? undefined}
+                                    editedBy={originalPoint.editedBy ?? undefined}
+                                    editCount={originalPoint.editCount ?? 0}
                                 />
                                 <Button variant="ghost" size="icon" className="absolute bottom-0 right-0 mb-1 mr-1 h-7 w-7" asChild>
                                     <Link href={originalPointUrl} target="_blank" rel="noopener noreferrer" title="View Original Point">
@@ -105,6 +109,10 @@ export const CreatedNegationView: React.FC<CreatedNegationViewProps> =
                                     isNegation={true}
                                     onNegate={handleNegateCounterpoint}
                                     className="border rounded-md shadow-sm bg-card"
+                                    isEdited={counterpoint.isEdited ?? false}
+                                    editedAt={counterpoint.editedAt ?? undefined}
+                                    editedBy={counterpoint.editedBy ?? undefined}
+                                    editCount={counterpoint.editCount ?? 0}
                                 />
                                 <Button variant="ghost" size="icon" className="absolute bottom-0 right-0 mb-1 mr-1 h-7 w-7" asChild>
                                     <Link href={counterpointUrl} target="_blank" rel="noopener noreferrer" title="View Negating Point">

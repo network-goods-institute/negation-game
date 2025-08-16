@@ -109,6 +109,7 @@ export const RationaleVisualFeed: React.FC<RationaleVisualFeedProps> = ({
                         nodesDraggable={true}
                         nodesConnectable={true}
                         elementsSelectable={true}
+                        multiSelectionKeyCode={null}
                         proOptions={{ hideAttribution: true }}
                         minZoom={0.2}
                         colorMode={theme as any}

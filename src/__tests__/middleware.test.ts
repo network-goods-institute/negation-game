@@ -19,6 +19,9 @@ interface MockNextRequest {
     has: (key: string) => boolean;
     mockHost?: string;
   };
+  cookies: {
+    get: (key: string) => { value: string } | undefined;
+  };
 }
 
 // Mock NextResponse
@@ -32,6 +35,11 @@ jest.mock("next/server", () => ({
       }),
       set: jest.fn(),
       has: jest.fn(),
+    },
+    cookies: {
+      get: jest.fn((key: string) => {
+        return key === "privy-token" ? undefined : undefined;
+      }),
     },
     mockHost: null, // We'll set this in our tests
   })),
@@ -55,14 +63,14 @@ jest.mock("next/server", () => ({
 
 // Mock the static spaces list
 jest.mock("@/lib/negation-game/staticSpacesList", () => ({
-  VALID_SPACE_IDS: new Set(["scroll", "global", "test-space"]),
+  VALID_SPACE_IDS: new Set(["scroll", "global", "test-space", "arbitrum"]),
 }));
 
 describe("Middleware", () => {
   // Type for our NextRequest constructor
   let NextRequest: (url: string) => MockNextRequest;
   // Type for our middleware wrapper function
-  let mockMiddleware: (url: string, host: string) => any;
+  let mockMiddleware: (url: string, host: string) => Promise<any>;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -72,18 +80,18 @@ describe("Middleware", () => {
     NextRequest = nextServer.NextRequest;
 
     // Create a simplified version of the middleware for testing
-    mockMiddleware = (url: string, host: string) => {
+    mockMiddleware = async (url: string, host: string) => {
       const req = NextRequest(url);
       req.headers.get = jest.fn((key: string) =>
         key === "host" ? host : null
       );
-      return middleware(req as any);
+      return await middleware(req as any);
     };
   });
 
   describe("Subdomain routing", () => {
-    test("redirects valid space subdomain to play.negationgame.com/s/[space]", () => {
-      mockMiddleware(
+    test("redirects valid space subdomain to play.negationgame.com/s/[space]", async () => {
+      await mockMiddleware(
         "https://scroll.negationgame.com",
         "scroll.negationgame.com"
       );
@@ -97,8 +105,23 @@ describe("Middleware", () => {
       );
     });
 
-    test("redirects valid space subdomain with path to play.negationgame.com/s/[space]/[path]", () => {
-      mockMiddleware(
+    test("redirects arbitrum subdomain to play.negationgame.com/s/arbitrum", async () => {
+      await mockMiddleware(
+        "https://arbitrum.negationgame.com",
+        "arbitrum.negationgame.com"
+      );
+
+      expect(NextResponse.redirect).toHaveBeenCalledWith(
+        expect.objectContaining({
+          href: expect.stringContaining(
+            "https://play.negationgame.com/s/arbitrum"
+          ),
+        })
+      );
+    });
+
+    test("redirects valid space subdomain with path to play.negationgame.com/s/[space]/[path]", async () => {
+      await mockMiddleware(
         "https://scroll.negationgame.com/some/path",
         "scroll.negationgame.com"
       );
@@ -112,8 +135,8 @@ describe("Middleware", () => {
       );
     });
 
-    test("handles paths that already contain /s/[space]/ by using only the subdomain", () => {
-      mockMiddleware(
+    test("handles paths that already contain /s/[space]/ by using only the subdomain", async () => {
+      await mockMiddleware(
         "https://scroll.negationgame.com/s/ethereum/point/123",
         "scroll.negationgame.com"
       );
@@ -127,8 +150,8 @@ describe("Middleware", () => {
       );
     });
 
-    test("handles path with /s/ prefix but no additional path", () => {
-      mockMiddleware(
+    test("handles path with /s/ prefix but no additional path", async () => {
+      await mockMiddleware(
         "https://scroll.negationgame.com/s/ethereum",
         "scroll.negationgame.com"
       );
@@ -142,8 +165,8 @@ describe("Middleware", () => {
       );
     });
 
-    test("preserves query parameters when handling paths with /s/[space]", () => {
-      mockMiddleware(
+    test("preserves query parameters when handling paths with /s/[space]", async () => {
+      await mockMiddleware(
         "https://scroll.negationgame.com/s/ethereum/point/123?foo=bar&test=123",
         "scroll.negationgame.com"
       );
@@ -157,8 +180,8 @@ describe("Middleware", () => {
       );
     });
 
-    test("preserves query parameters when redirecting", () => {
-      mockMiddleware(
+    test("preserves query parameters when redirecting", async () => {
+      await mockMiddleware(
         "https://scroll.negationgame.com?foo=bar&test=123",
         "scroll.negationgame.com"
       );
@@ -172,8 +195,8 @@ describe("Middleware", () => {
       );
     });
 
-    test("redirects invalid space subdomain to negationgame.com", () => {
-      mockMiddleware(
+    test("redirects invalid space subdomain to negationgame.com", async () => {
+      await mockMiddleware(
         "https://invalid.negationgame.com",
         "invalid.negationgame.com"
       );
@@ -185,8 +208,8 @@ describe("Middleware", () => {
       );
     });
 
-    test("allows play subdomain to continue serving root without rewrite", () => {
-      const result = mockMiddleware(
+    test("allows play subdomain to continue serving root without rewrite", async () => {
+      const result = await mockMiddleware(
         "https://play.negationgame.com",
         "play.negationgame.com"
       );
@@ -200,8 +223,11 @@ describe("Middleware", () => {
       expect(result?.type).toBe("next");
     });
 
-    test("redirects to negationgame.com for blacklisted subdomains", () => {
-      mockMiddleware("https://www.negationgame.com", "www.negationgame.com");
+    test("redirects to negationgame.com for blacklisted subdomains", async () => {
+      await mockMiddleware(
+        "https://www.negationgame.com",
+        "www.negationgame.com"
+      );
 
       expect(NextResponse.redirect).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -212,11 +238,11 @@ describe("Middleware", () => {
   });
 
   describe("Path handling", () => {
-    test("rewrites non-/s/ paths to /s/global", () => {
+    test("rewrites non-/s/ paths to /s/global", async () => {
       // Need to mock the subdomain check to return false to test this case
       jest.spyOn(String.prototype, "match").mockReturnValueOnce(null);
 
-      mockMiddleware(
+      await mockMiddleware(
         "https://play.negationgame.com/about",
         "play.negationgame.com"
       );
@@ -234,8 +260,8 @@ describe("Middleware", () => {
         jest.spyOn(String.prototype, "match").mockReturnValueOnce(null);
       });
 
-      test("replaces viewpoint with rationale in simple paths", () => {
-        mockMiddleware(
+      test("replaces viewpoint with rationale in simple paths", async () => {
+        await mockMiddleware(
           "https://play.negationgame.com/viewpoint/123",
           "play.negationgame.com"
         );
@@ -247,8 +273,8 @@ describe("Middleware", () => {
         );
       });
 
-      test("replaces viewpoint with rationale in nested paths", () => {
-        mockMiddleware(
+      test("replaces viewpoint with rationale in nested paths", async () => {
+        await mockMiddleware(
           "https://play.negationgame.com/s/scroll/viewpoint/456/edit",
           "play.negationgame.com"
         );
@@ -260,8 +286,8 @@ describe("Middleware", () => {
         );
       });
 
-      test("replaces multiple viewpoint occurrences in a path", () => {
-        mockMiddleware(
+      test("replaces multiple viewpoint occurrences in a path", async () => {
+        await mockMiddleware(
           "https://play.negationgame.com/viewpoint/categories/viewpoint/recent",
           "play.negationgame.com"
         );
@@ -275,8 +301,8 @@ describe("Middleware", () => {
         );
       });
 
-      test("preserves query parameters when replacing viewpoint with rationale", () => {
-        mockMiddleware(
+      test("preserves query parameters when replacing viewpoint with rationale", async () => {
+        await mockMiddleware(
           "https://play.negationgame.com/viewpoint/123?sort=recent&filter=active",
           "play.negationgame.com"
         );
@@ -308,13 +334,14 @@ describe("Middleware", () => {
 
     test.each(staticAssetPaths)(
       "middleware doesn't process $name ($path)",
-      ({ path }) => {
+      async ({ path }) => {
         const req = NextRequest(`https://play.negationgame.com${path}`);
         req.headers.get = jest.fn((key: string) =>
           key === "host" ? "play.negationgame.com" : null
         );
+        req.cookies.get = jest.fn(() => undefined);
 
-        const result = middleware(req as any);
+        const result = await middleware(req as any);
         expect(result).toBeDefined();
         expect(result?.type).toBe("next");
       }
@@ -337,7 +364,7 @@ describe("Middleware", () => {
 
     test.each(regularPaths)(
       "middleware processes $name ($path)",
-      ({ path }) => {
+      async ({ path }) => {
         // Mock the subdomain check to return false
         jest.spyOn(String.prototype, "match").mockReturnValueOnce(null);
 
@@ -345,8 +372,9 @@ describe("Middleware", () => {
         req.headers.get = jest.fn((key: string) =>
           key === "host" ? "play.negationgame.com" : null
         );
+        req.cookies.get = jest.fn(() => undefined);
 
-        const result = middleware(req as any);
+        const result = await middleware(req as any);
 
         // These should not return NextResponse.next() without modifications
         // Unless they're special paths like /profile/username

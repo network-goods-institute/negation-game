@@ -22,7 +22,12 @@ import { AppEdge } from "@/components/graph/edges/AppEdge";
 import { fetchUserEndorsements } from "@/actions/endorsements/fetchUserEndorsements";
 import { sellEndorsement } from "@/actions/endorsements/sellEndorsement";
 import { fetchPointsByExactContent } from "@/actions/points/fetchPointsByExactContent";
-import { fetchUserAssignments, markAssignmentCompleted } from "@/actions/topics/manageRationaleAssignments";
+import {
+  fetchUserAssignments,
+  markAssignmentCompleted,
+} from "@/actions/topics/manageRationaleAssignments";
+import { updateRationalePoints } from "@/actions/viewpoints/updateRationalePoints";
+import { POINT_MIN_LENGTH, getPointMaxLength } from "@/constants/config";
 
 interface CreateRationaleParams {
   userId: string;
@@ -80,15 +85,21 @@ function validateGraphStructure(
       });
     }
 
-    if (
-      data.content &&
-      (data.content.length < 10 || data.content.length > 160)
-    ) {
-      errors.push({
-        type: "validation",
-        message: `Point content must be between 10-160 characters (current: ${data.content.length})`,
-        nodeId: node.id,
-      });
+    if (data.content) {
+      const parentEdge = edges.find((edge) => edge.target === node.id);
+      const isOption = parentEdge?.type === "statement";
+      const maxLength = getPointMaxLength(isOption);
+
+      if (
+        data.content.length < POINT_MIN_LENGTH ||
+        data.content.length > maxLength
+      ) {
+        errors.push({
+          type: "validation",
+          message: `Point content must be between ${POINT_MIN_LENGTH}-${maxLength} characters (current: ${data.content.length})`,
+          nodeId: node.id,
+        });
+      }
     }
 
     // Validate objection structure
@@ -309,6 +320,9 @@ export async function createRationaleFromPreview({
         const data = node.data as PreviewPointNodeData;
         let finalPointId: number;
 
+        const parentEdge = previewEdges.find((edge) => edge.target === node.id);
+        const isOption = parentEdge?.type === "statement";
+
         try {
           if (
             data.existingPointId !== undefined &&
@@ -328,6 +342,7 @@ export async function createRationaleFromPreview({
                 finalPointId = await makePoint({
                   content: data.content,
                   cred: 0,
+                  isOption,
                 });
                 contentToNewPointIdMap.set(data.content, finalPointId);
                 createdPoints.push(finalPointId);
@@ -352,6 +367,7 @@ export async function createRationaleFromPreview({
                   finalPointId = await makePoint({
                     content: data.content,
                     cred: 0,
+                    isOption,
                   });
                   contentToNewPointIdMap.set(data.content, finalPointId);
                   createdPoints.push(finalPointId);
@@ -369,7 +385,9 @@ export async function createRationaleFromPreview({
           }
         } catch (error) {
           console.error(
-            `[createRationaleFromPreview] Failed to process point node ${node.id}:`,
+            "[createRationaleFromPreview] Failed to process point node:",
+            node.id,
+            "Error:",
             error
           );
           throw new Error(
@@ -695,7 +713,9 @@ export async function createRationaleFromPreview({
               );
             } catch (error) {
               console.error(
-                `[createRationaleFromPreview] Failed to create objection for node ${node.id}:`,
+                "[createRationaleFromPreview] Failed to create objection for node:",
+                node.id,
+                "Error:",
                 error
               );
               failedObjections.push({
@@ -720,6 +740,9 @@ export async function createRationaleFromPreview({
         createdBy: userId,
         space: spaceId,
       });
+
+      // Update rationale_points bridge table
+      await updateRationalePoints(newViewpointId, finalGraph);
     } catch (error) {
       console.error(
         "[createRationaleFromPreview] Failed to create rationale:",
@@ -735,17 +758,23 @@ export async function createRationaleFromPreview({
       try {
         const userAssignments = await fetchUserAssignments(userId);
         const matchingAssignment = userAssignments.find(
-          assignment => assignment.topicId === topicId && 
-          assignment.spaceId === spaceId && 
-          !assignment.completed
+          (assignment) =>
+            assignment.topicId === topicId &&
+            assignment.spaceId === spaceId &&
+            !assignment.completed
         );
-        
+
         if (matchingAssignment) {
           await markAssignmentCompleted(matchingAssignment.id);
-          console.log(`[createRationaleFromPreview] Completed assignment ${matchingAssignment.id} for topic ${topicId}`);
+          console.log(
+            `[createRationaleFromPreview] Completed assignment ${matchingAssignment.id} for topic ${topicId}`
+          );
         }
       } catch (error) {
-        console.warn("[createRationaleFromPreview] Failed to check/complete assignment:", error);
+        console.warn(
+          "[createRationaleFromPreview] Failed to check/complete assignment:",
+          error
+        );
         // Don't fail the rationale creation if assignment completion fails
       }
     }

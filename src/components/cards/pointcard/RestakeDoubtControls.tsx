@@ -48,8 +48,11 @@ export const RestakeDoubtControls: React.FC<RestakeDoubtControlsProps> = ({
                     onRestake({ openedFromSlashedIcon: false });
                 }}
             >
-                {showRestakeAmount && isOverHundred && (
-                    <span className="ml-1 translate-y-[-1px]">+</span>
+                {showRestakeAmount && restakeIsOwner && (
+                    <span className="ml-1 translate-y-[-1px]">
+                        {restakePercentage}
+                        {isOverHundred && "+"}%
+                    </span>
                 )}
             </RestakeButton>
             <DoubtButton

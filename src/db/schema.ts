@@ -5,6 +5,10 @@ export { negationsTable } from "@/db/tables/negationsTable";
 export { objectionsTable } from "@/db/tables/objectionsTable";
 export { pointsTable } from "@/db/tables/pointsTable";
 export {
+  pointActionEnum,
+  pointHistoryTable,
+} from "@/db/tables/pointHistoryTable";
+export {
   restakeActionEnum,
   restakeHistoryTable,
   restakesTable,
@@ -56,7 +60,10 @@ export {
 export { pointClustersTable } from "@/db/tables/pointClustersTable";
 export { snapshotsTable } from "@/db/tables/snapshotsTable";
 export { dailyStancesTable } from "@/db/tables/dailyStancesTable";
+export { rationalePointsTable } from "@/db/tables/rationalePointsTable";
 export {
   credEventsTable,
   credEventKindEnum,
 } from "@/db/tables/credEventsTable";
+
+export { rateLimitsTable } from "@/db/tables/rateLimitsTable";

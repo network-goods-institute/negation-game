@@ -39,11 +39,12 @@ export function GraphNodeShell({
             data-loading={isLoading}
             style={style}
             className={cn(
-                'relative border-2 min-h-28 w-64 transition-all duration-200 select-none',
+                'relative min-h-28 w-80 transition-all duration-200 select-none',
+                hovered ? 'border-4' : 'border-2',
                 level % 2 === 1 ? 'node-level-stripe' : 'bg-background',
                 'border-muted-foreground/60 dark:border-muted-foreground/40',
                 endorsedByOp && 'border-yellow-500 dark:border-yellow-500',
-                hovered && 'border-primary dark:border-primary',
+                hovered && 'border-blue-500 dark:border-blue-400',
                 (!hasAnimationPlayed && (isExpanding || dataIsExpanding)) && 'animate-node-expand'
             )}
             onMouseOver={onHover}
@@ -53,7 +54,6 @@ export function GraphNodeShell({
             onTouchCancel={onPressEnd}
             onMouseDown={onPressStart}
             onMouseUp={onPressEnd}
-            title={`Point ID: ${id}`}
         >
             {children}
         </div>

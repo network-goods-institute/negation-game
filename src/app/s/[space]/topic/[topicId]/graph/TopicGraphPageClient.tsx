@@ -8,12 +8,13 @@ import { encodeId } from "@/lib/negation-game/encodeId";
 import GlobalTopicGraph from "@/components/topic/GlobalTopicGraph";
 import { Dynamic } from "@/components/utils/Dynamic";
 import { useTopicPoints } from "@/queries/topics/useTopicPoints";
-import RationalePointsList from "@/components/rationale/RationalePointsList";
+import EnhancedRationalePointsList from "@/components/rationale/EnhancedRationalePointsList";
 import { Loader } from "@/components/ui/loader";
 import { useAtom } from "jotai";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import useIsMobile from "@/hooks/ui/useIsMobile";
 import { cn } from "@/lib/utils/cn";
+import { ReactFlowProvider } from "@xyflow/react";
 
 interface Topic {
     id: number;
@@ -26,7 +27,7 @@ interface TopicGraphPageClientProps {
     space: string;
 }
 
-export default function TopicGraphPageClient({ topic, space }: TopicGraphPageClientProps) {
+function TopicGraphPageClientContent({ topic, space }: TopicGraphPageClientProps) {
     const { data: topicPoints, isLoading: pointsLoading } = useTopicPoints(topic.id);
     const [hoveredPointId] = useAtom(hoveredPointIdAtom);
     const points = useMemo(() => {
@@ -41,7 +42,7 @@ export default function TopicGraphPageClient({ topic, space }: TopicGraphPageCli
     const isMobile = useIsMobile();
 
     return (
-        <div className="flex-grow bg-background h-full overflow-hidden md:grid md:grid-cols-[0_minmax(200px,400px)_1fr]">
+        <div className="flex-1 bg-background h-[calc(100vh-var(--header-height))] overflow-hidden md:grid md:grid-cols-[0_minmax(200px,400px)_1fr]">
             {/* Hidden spacer column */}
             <div className="hidden md:block"></div>
 
@@ -89,13 +90,13 @@ export default function TopicGraphPageClient({ topic, space }: TopicGraphPageCli
                 </div>
 
                 {/* Points List */}
-                <div className="flex-grow overflow-y-auto">
+                <div className="flex-1 min-h-0 overflow-y-auto">
                     {pointsLoading ? (
                         <div className="flex items-center justify-center h-32">
                             <Loader className="h-6 w-6" />
                         </div>
                     ) : points.length > 0 ? (
-                        <RationalePointsList
+                        <EnhancedRationalePointsList
                             points={points}
                             hoveredPointId={hoveredPointId}
                             editMode={false}
@@ -112,7 +113,7 @@ export default function TopicGraphPageClient({ topic, space }: TopicGraphPageCli
 
             {/* Right side - Graph */}
             <div className={cn(
-                "flex flex-col h-full md:col-start-3",
+                "flex flex-col h-full md:col-start-3 min-h-0",
                 isMobile && view === 'list' && "hidden"
             )}>
                 {/* Mobile Graph Header with Close Button */}
@@ -131,14 +132,30 @@ export default function TopicGraphPageClient({ topic, space }: TopicGraphPageCli
                     </div>
                 )}
 
-                <Dynamic>
-                    <GlobalTopicGraph
-                        topicId={topic.id}
-                        topicName={topic.name}
-                        className="h-full"
-                    />
-                </Dynamic>
+                <div className="flex-1 min-h-0 relative">
+                    {pointsLoading ? (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <Loader className="h-8 w-8" />
+                        </div>
+                    ) : (
+                        <Dynamic>
+                            <GlobalTopicGraph
+                                topicId={topic.id}
+                                topicName={topic.name}
+                                className="h-full"
+                            />
+                        </Dynamic>
+                    )}
+                </div>
             </div>
         </div>
+    );
+}
+
+export default function TopicGraphPageClient(props: TopicGraphPageClientProps) {
+    return (
+        <ReactFlowProvider>
+            <TopicGraphPageClientContent {...props} />
+        </ReactFlowProvider>
     );
 } 

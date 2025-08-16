@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
 import { encodeId } from '@/lib/negation-game/encodeId';
+import SanitizedHtml from "@/components/chatbot/visual/SanitizedHtml";
 import { useQuery } from '@tanstack/react-query';
 import { fetchPoint } from '@/actions/points/fetchPoint';
 
@@ -162,10 +163,9 @@ export const SourceCitation: React.FC<SourceCitationProps> = ({ type, id, title,
                     <DialogTitle>Discourse Post {id} Preview</DialogTitle>
                 </DialogHeader>
                 <ScrollArea className="flex-grow overflow-y-auto px-6 py-4">
-                    <div
-                        className="prose prose-sm dark:prose-invert max-w-none [&_a]:text-primary [&_a:hover]:underline"
-                        dangerouslySetInnerHTML={{ __html: previewDialogContent }}
-                    />
+                    <div className="prose prose-sm dark:prose-invert max-w-none [&_a]:text-primary [&_a:hover]:underline">
+                        <SanitizedHtml html={htmlContent || rawContent || `(No content preview available for Post ${id})`} />
+                    </div>
                 </ScrollArea>
                 {href && (
                     <div className="px-6 pb-6 pt-4 border-t flex justify-end">

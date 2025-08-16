@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { ViewpointCardWrapper } from "@/components/cards/ViewpointCardWrapper";
 import { Button } from "@/components/ui/button";
-import { ChevronDownIcon, ChevronUpIcon, X, Check, ExternalLink, LayoutGrid, Lock, Info, Crown } from "lucide-react";
+import { Check, ExternalLink, LayoutGrid, Lock, Info, Crown, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { encodeId } from "@/lib/negation-game/encodeId";
@@ -10,14 +10,13 @@ import { Loader } from "@/components/ui/loader";
 import useIsMobile from "@/hooks/ui/useIsMobile";
 import { DeltaComparisonWidget } from "@/components/delta/DeltaComparisonWidget";
 import { usePrivy } from "@privy-io/react-auth";
-import { useAllUsers } from "@/queries/users/useAllUsers";
+import { useSpaceUsers } from "@/queries/users/useSpaceUsers";
 import { UsernameDisplay } from "@/components/ui/UsernameDisplay";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCanCreateRationale } from "@/hooks/topics/useCanCreateRationale";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SpaceLayout } from "@/components/layouts/SpaceLayout";
 import { SpaceChildHeader } from "@/components/layouts/headers/SpaceChildHeader";
-
 
 interface Topic {
     id: number;
@@ -60,22 +59,22 @@ interface TopicPageClientProps {
 }
 
 export default function TopicPageClient({ topic, viewpoints, space }: TopicPageClientProps) {
-    const router = useRouter();
-    const isMobile = useIsMobile();
     const { user: privyUser } = usePrivy();
+    const router = useRouter();
     const [viewpointsSortKey, setSortKey] = useState<SortKey>("recent");
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-    const [isTopicsExpanded, setIsTopicsExpanded] = useState(false);
     const [isGlobalGraphLoading, setIsGlobalGraphLoading] = useState(false);
+    const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
+    const [isGeneratingProposal, setIsGeneratingProposal] = useState(false);
 
-    const { data: allUsers } = useAllUsers();
+    const { data: spaceUsers, isLoading: isUsersLoading } = useSpaceUsers(space);
     const { data: permissionData, isLoading: isPermissionLoading } = useCanCreateRationale(topic?.id);
 
 
     const sortedDelegates = useMemo(() => {
-        if (!allUsers) return [];
+        if (!spaceUsers) return [];
 
-        const delegatesWithStatus = allUsers.map(user => {
+        const delegatesWithStatus = spaceUsers.map(user => {
             const hasPublished = viewpoints.some(vp => vp.authorId === user.id);
             const reputation = user.cred || 50;
             const isDelegate = !!(user.agoraLink || user.scrollDelegateLink || user.delegationUrl);
@@ -96,9 +95,19 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
             // Third priority: alphabetical
             return a.username.localeCompare(b.username);
         });
-    }, [allUsers, viewpoints]);
+    }, [spaceUsers, viewpoints]);
 
     const hasCurrentUserRationale = viewpoints.some(vp => vp.authorId === privyUser?.id);
+
+    const canGenerateJointProposal = viewpoints.length >= 1 && privyUser;
+
+    const handleCardClick = (id: string) => {
+        setLoadingCardId(id);
+        const rationaleId = id.replace('rationale-', '');
+        if (typeof window !== 'undefined') {
+            window.location.href = `/s/${space}/rationale/${rationaleId}`;
+        }
+    };
 
     useEffect(() => {
         setIsGlobalGraphLoading(false);
@@ -109,183 +118,153 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
         return sortDirection === 'desc' ? arr : arr.reverse();
     }, [viewpoints, viewpointsSortKey, sortDirection]);
 
-    const subtitle = useMemo(() => {
-        const parts: string[] = [`${viewpoints.length} rationales`];
 
-        if (hasCurrentUserRationale) {
-            parts.push("You published a rationale");
-        }
-
-        return parts.join(' • ');
-    }, [viewpoints.length, hasCurrentUserRationale]);
-
-    const rightActions = (
-        <div className="flex items-center gap-2">
-            {topic.discourseUrl && (
-                <a
-                    href={topic.discourseUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 rounded-lg text-sm font-medium transition-colors"
-                >
-                    <ExternalLink className="w-4 h-4" />
-                    <span>Forum</span>
-                </a>
-            )}
-            {isMobile && (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsTopicsExpanded(!isTopicsExpanded)}
-                    className="flex items-center whitespace-nowrap"
-                >
-                    <span>Delegates</span>
-                    {isTopicsExpanded ? <ChevronUpIcon className="h-4 w-4 ml-1" /> : <ChevronDownIcon className="h-4 w-4 ml-1" />}
-                </Button>
-            )}
-        </div>
+    const headerContent = (
+        <SpaceChildHeader
+            title={`Topic: ${topic.name}`}
+            subtitle={`${viewpoints.length} rationale${viewpoints.length !== 1 ? 's' : ''}`}
+            onBack={() => router.push(`/s/${space}`)}
+        />
     );
 
-    const header = (
-        <div>
-            <SpaceChildHeader
-                title={`Topic: ${topic.name}`}
-                subtitle={subtitle}
-                backUrl={`/s/${space}`}
-                rightActions={rightActions}
-            />
-
-            {/* Additional content below header */}
-            <div className="px-4 sm:px-6">
-                {hasCurrentUserRationale && (
-                    <div className="py-3 border-b">
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 rounded-lg text-sm font-medium">
-                            <Check className="w-4 h-4" />
-                            <span>You already published a rationale for this topic</span>
-                        </div>
-                    </div>
-                )}
-                {topic.discourseUrl && (
-                    <div className="py-3 sm:hidden">
-                        <a
-                            href={topic.discourseUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 rounded-lg text-sm font-medium transition-colors"
-                        >
-                            <ExternalLink className="w-4 h-4" />
-                            <span>View Forum Discussion</span>
-                        </a>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-
-    const delegateStatusSection = (
-        <div className="space-y-3" data-testid="delegate-status-section">
-            <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Delegate Status</h3>
-                <span className="text-sm text-muted-foreground">By Status</span>
-            </div>
-            <div className="space-y-2">
-                {sortedDelegates.map((user) => (
-                    <div key={user.id} className="flex items-center justify-between p-3 bg-background border rounded-lg hover:bg-accent/50 transition-colors">
-                        <div className="flex flex-col">
-                            <div className="flex items-center gap-1">
-                                <UsernameDisplay
-                                    username={user.username}
-                                    userId={user.id}
-                                    className="text-sm font-medium"
-                                />
-                                {user.isDelegate && (
-                                    <Crown className="h-3 w-3 text-amber-500" />
-                                )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground">{Math.round(user.reputation)} cred</span>
-                                {user.scrollDelegateLink && (
-                                    <a
-                                        href={user.scrollDelegateLink}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-primary text-xs hover:underline"
-                                        title="Scroll Delegate"
-                                    >
-                                        Scroll
-                                    </a>
-                                )}
-                                {user.agoraLink && (
-                                    <a
-                                        href={user.agoraLink}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-primary text-xs hover:underline"
-                                        title="Agora Profile"
-                                    >
-                                        Agora
-                                    </a>
-                                )}
-                                {user.delegationUrl && !user.scrollDelegateLink && !user.agoraLink && (
-                                    <a
-                                        href={user.delegationUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-primary text-xs hover:underline"
-                                        title="Delegate"
-                                    >
-                                        Delegate
-                                    </a>
-                                )}
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            {user.hasPublished ? (
-                                <div className="flex items-center gap-1" title="This delegate already published a rationale for this topic">
-                                    <Check className="w-4 h-4 text-green-600" />
-                                    <span className="text-xs text-green-600">Published</span>
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-1" title="This delegate has not published a rationale for this topic yet">
-                                    <div className="w-4 h-4 border-2 border-muted-foreground/30 rounded-full" />
-                                    <span className="text-xs text-muted-foreground">Pending</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                ))}
-                {(!sortedDelegates || sortedDelegates.length === 0) && (
-                    <div className="p-4 bg-muted/30 border rounded-lg text-center">
-                        <p className="text-sm text-muted-foreground">
-                            No delegates found in this space
-                        </p>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-
-    const sidebarContent = (
-        <>
+    // Right sidebar content with delegate status
+    const rightSidebarContent = (
+        <div className="space-y-4 h-full flex flex-col">
+            {/* Delta Comparison Widget */}
             <DeltaComparisonWidget
-                // @ts-ignore
-                comparison={{ type: "topic", topicId: encodeId(topic.id) }}
+                comparison={{ type: "topic", topicId: topic.id }}
                 title="Topic Alignment"
                 description="Find aligned users"
                 currentUserId={privyUser?.id}
+                spaceId={space}
             />
-            {delegateStatusSection}
-        </>
+
+            {/* Delegate Status Section */}
+            <div className="space-y-3 flex-1 min-h-0 flex flex-col" data-testid="delegate-status-section">
+                <div className="flex items-center justify-between flex-shrink-0">
+                    <h3 className="text-lg font-semibold">Delegate Status</h3>
+                    <span className="text-sm text-muted-foreground">By Status</span>
+                </div>
+                <div className="space-y-2 flex-1 min-h-0 overflow-y-auto">
+                    {isUsersLoading ? (
+                        <div className="p-4 bg-muted/30 border rounded-lg text-center">
+                            <Loader className="h-5 w-5 mx-auto mb-2" />
+                            <p className="text-sm text-muted-foreground">Loading delegates...</p>
+                        </div>
+                    ) : sortedDelegates.map((user) => (
+                        <div key={user.id} className="flex items-center justify-between p-3 bg-background border rounded-lg hover:bg-accent/50 transition-colors">
+                            <div className="flex flex-col">
+                                <div className="flex items-center gap-1">
+                                    <UsernameDisplay
+                                        username={user.username}
+                                        userId={user.id}
+                                        className="text-sm font-medium"
+                                    />
+                                    {user.isDelegate && (
+                                        <Crown className="h-3 w-3 text-amber-500" />
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-muted-foreground">{Math.round(user.reputation)} cred</span>
+                                    {user.scrollDelegateLink && (
+                                        <a
+                                            href={user.scrollDelegateLink}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-primary text-xs hover:underline"
+                                            title="Scroll Delegate"
+                                        >
+                                            Scroll
+                                        </a>
+                                    )}
+                                    {user.agoraLink && (
+                                        <a
+                                            href={user.agoraLink}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-primary text-xs hover:underline"
+                                            title="Agora Profile"
+                                        >
+                                            Agora
+                                        </a>
+                                    )}
+                                    {user.delegationUrl && !user.scrollDelegateLink && !user.agoraLink && (
+                                        <a
+                                            href={user.delegationUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-primary text-xs hover:underline"
+                                            title="Delegate"
+                                        >
+                                            Delegate
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {user.hasPublished ? (
+                                    <div className="flex items-center gap-1" title="This delegate already published a rationale for this topic">
+                                        <Check className="w-4 h-4 text-green-600" />
+                                        <span className="text-xs text-green-600">Published</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-1" title="This delegate has not published a rationale for this topic yet">
+                                        <div className="w-4 h-4 border-2 border-muted-foreground/30 rounded-full" />
+                                        <span className="text-xs text-muted-foreground">Pending</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                    {!isUsersLoading && (!sortedDelegates || sortedDelegates.length === 0) && (
+                        <div className="p-4 bg-muted/30 border rounded-lg text-center">
+                            <p className="text-sm text-muted-foreground">
+                                No delegates found in this space
+                            </p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
     );
 
     return (
         <SpaceLayout
             space={space}
-            header={header}
+            header={headerContent}
+            rightSidebarContent={rightSidebarContent}
             showUserProfilePreview={true}
-            rightSidebarContent={sidebarContent}
+            isHomePage={false}
         >
-            <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+            <div className="bg-background border rounded-lg shadow-sm p-6">
+                {/* Topic Actions */}
+                <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3">
+                    {hasCurrentUserRationale && (
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 rounded-lg text-sm font-medium">
+                            <Check className="w-4 h-4" />
+                            <span>You already published a rationale for this topic</span>
+                        </div>
+                    )}
+                    <div className="flex items-center gap-3 ml-auto">
+                        <Link href={`/s/${space}/topics`}>
+                            <Button variant="outline" size="sm" className="inline-flex items-center gap-2">
+                                <LayoutGrid className="w-4 h-4" />
+                                <span>All Topics</span>
+                            </Button>
+                        </Link>
+                        {topic.discourseUrl && (
+                            <a
+                                href={topic.discourseUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 rounded-lg text-sm font-medium transition-colors"
+                            >
+                                <ExternalLink className="w-4 h-4" />
+                                <span>View Forum Discussion</span>
+                            </a>
+                        )}
+                    </div>
+                </div>
 
                 {/* Global Graph Preview */}
                 <div className="mb-6">
@@ -307,8 +286,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                 >
                                     {isGlobalGraphLoading ? (
                                         <>
-                                            <Loader className="size-4 text-white" />
-                                            Loading...
+                                            Opening...
                                         </>
                                     ) : (
                                         <>
@@ -321,26 +299,63 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                         </div>
                         <Link href={`/s/${space}/topic/${encodeId(topic.id)}/graph`}>
                             <div
-                                className={`h-32 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-950/50 dark:to-indigo-950/50 cursor-pointer hover:from-blue-100 hover:to-indigo-200 dark:hover:from-blue-900/50 dark:hover:to-indigo-900/50 transition-colors flex items-center justify-center ${isGlobalGraphLoading ? 'opacity-75' : ''}`}
+                                className="h-32 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-950/50 dark:to-indigo-950/50 cursor-pointer hover:from-blue-100 hover:to-indigo-200 dark:hover:from-blue-900/50 dark:hover:to-indigo-900/50 transition-colors flex items-center justify-center"
                                 onClick={() => setIsGlobalGraphLoading(true)}
                             >
                                 <div className="text-center text-muted-foreground">
-                                    {isGlobalGraphLoading ? (
-                                        <>
-                                            <Loader className="size-8 mx-auto mb-2 text-blue-600" />
-                                            <p className="text-sm">Loading graph...</p>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <LayoutGrid className="size-8 mx-auto mb-2" />
-                                            <p className="text-sm">See how rationales in {topic.name} interact with each other</p>
-                                        </>
-                                    )}
+                                    <LayoutGrid className="size-8 mx-auto mb-2" />
+                                    <p className="text-sm">See how rationales in {topic.name} interact with each other</p>
                                 </div>
                             </div>
                         </Link>
                     </div>
                 </div>
+
+                {/* Consilience Generation Section */}
+                {canGenerateJointProposal && (
+                    <div className="mb-6">
+                        <div className="border rounded-lg p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30">
+                            <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                    <h2 className="text-lg font-semibold mb-2 text-blue-900 dark:text-blue-100 flex items-center gap-2">
+                                        <Users className="w-5 h-5" />
+                                        Generate Proposal
+                                    </h2>
+                                    <p className="text-blue-700 dark:text-blue-200 text-sm mb-4">
+                                        Create a synthesis proposal by combining two delegate perspectives with the original discourse content.
+                                        Shows what changed and why through interactive diff review.
+                                    </p>
+                                    <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-300 mb-4">
+                                        <span>{viewpoints.length} rationale{viewpoints.length !== 1 ? 's' : ''} available</span>
+                                        {topic.discourseUrl && (
+                                            <span>• Has discourse link</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            <Button
+                                onClick={() => {
+                                    setIsGeneratingProposal(true);
+                                    router.push(`/s/${space}/consilience?topicId=${encodeId(topic.id)}`);
+                                }}
+                                disabled={isGeneratingProposal}
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
+                            >
+                                {isGeneratingProposal ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                                        Loading...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Users className="w-4 h-4 mr-2" />
+                                        Generate Proposal
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    </div>
+                )}
 
                 {/* Create Rationale Section */}
                 {!hasCurrentUserRationale && privyUser && (
@@ -449,122 +464,13 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                 statistics={vp.statistics}
                                 topic={topic.name}
                                 topicId={topic.id}
+                                loadingCardId={loadingCardId}
+                                handleCardClick={handleCardClick}
                             />
                         ))
                     )}
                 </div>
             </div>
-
-            {/* Mobile Delegates Overlay */}
-            {isMobile && isTopicsExpanded && (
-                <div className="fixed inset-0 z-50 bg-background animate-in slide-in-from-bottom duration-300">
-                    <div className="flex flex-col h-full">
-                        <div className="flex items-center justify-between p-4 border-b">
-                            <h2 className="text-lg font-semibold">Delegate Status</h2>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setIsTopicsExpanded(false)}
-                            >
-                                <X className="w-5 h-5" />
-                            </Button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-6">
-                            {/* Mobile Delta Widget - Above filtering */}
-                            <div className="mb-6">
-                                <DeltaComparisonWidget
-                                    // @ts-ignore
-                                    comparison={{ type: "topic", topicId: encodeId(topic.id) }}
-                                    title="Topic Alignment"
-                                    description="Find aligned users"
-                                    currentUserId={privyUser?.id}
-                                />
-                            </div>
-
-                            {/* Mobile Sort Controls */}
-                            <div className="mb-4">
-                                <div className="text-sm text-muted-foreground font-medium mb-2">Sorted by Status</div>
-                            </div>
-
-                            <div className="space-y-3">
-                                {sortedDelegates.map((user) => (
-                                    <div key={user.id} className="flex items-center justify-between p-4 bg-muted/20 border rounded-lg hover:bg-muted/30 transition-colors">
-                                        <div className="flex flex-col">
-                                            <div className="flex items-center gap-1">
-                                                <UsernameDisplay
-                                                    username={user.username}
-                                                    userId={user.id}
-                                                    className="font-medium"
-                                                />
-                                                {user.isDelegate && (
-                                                    <Crown className="h-3 w-3 text-amber-500" />
-                                                )}
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-sm text-muted-foreground">{Math.round(user.reputation)} cred</span>
-                                                {user.scrollDelegateLink && (
-                                                    <a
-                                                        href={user.scrollDelegateLink}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-primary text-xs hover:underline"
-                                                        title="Scroll Delegate"
-                                                    >
-                                                        Scroll
-                                                    </a>
-                                                )}
-                                                {user.agoraLink && (
-                                                    <a
-                                                        href={user.agoraLink}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-primary text-xs hover:underline"
-                                                        title="Agora Profile"
-                                                    >
-                                                        Agora
-                                                    </a>
-                                                )}
-                                                {user.delegationUrl && !user.scrollDelegateLink && !user.agoraLink && (
-                                                    <a
-                                                        href={user.delegationUrl}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-primary text-xs hover:underline"
-                                                        title="Delegate"
-                                                    >
-                                                        Delegate
-                                                    </a>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            {user.hasPublished ? (
-                                                <div className="flex items-center gap-2" title="This delegate already published a rationale for this topic">
-                                                    <Check className="w-5 h-5 text-green-600" />
-                                                    <span className="text-sm text-green-600">Published</span>
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-center gap-2" title="This delegate has not published a rationale for this topic yet">
-                                                    <div className="w-5 h-5 border-2 border-muted-foreground/30 rounded-full" />
-                                                    <span className="text-sm text-muted-foreground">Pending</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                                {(!sortedDelegates || sortedDelegates.length === 0) && (
-                                    <div className="p-6 bg-muted/30 border rounded-lg text-center">
-                                        <p className="text-muted-foreground">
-                                            No delegates found in this space
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
-
-                        </div>
-                    </div>
-                </div>
-            )}
         </SpaceLayout>
     );
-} 
+}

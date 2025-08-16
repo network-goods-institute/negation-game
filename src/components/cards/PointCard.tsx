@@ -41,13 +41,12 @@ import { selectedPointIdsAtom } from "@/atoms/viewpointAtoms";
 import { useSellEndorsement } from '@/mutations/endorsements/useSellEndorsement';
 import dynamic from "next/dynamic";
 import type { FavorHistoryChartProps } from "./pointcard/FavorHistoryChart";
-import { OPBadge } from "@/components/cards/pointcard/OPBadge";
 import { VisitedMarker } from "@/components/cards/pointcard/VisitedMarker";
 import { PointCardHeader } from "@/components/cards/pointcard/PointCardHeader";
 import { ObjectionHeader } from "@/components/cards/pointcard/ObjectionHeader";
 import { PointCardActions } from "@/components/cards/pointcard/PointCardActions";
 import { fetchFavorHistory } from '@/actions/feed/fetchFavorHistory';
-import { usePointEndorsementBreakdown } from "../../queries/points/usePointEndorsementBreakdown";
+import { OPBadge } from "@/components/cards/pointcard/OPBadge";
 
 export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   pointId: number;
@@ -110,10 +109,13 @@ export interface PointCardProps extends HTMLAttributes<HTMLDivElement> {
   isLoading?: boolean;
   disableVisitedMarker?: boolean;
   isSharing?: boolean;
-  /** Whether to show detailed endorsements breakdown */
-  showEndorsements?: boolean;
   isObjection?: boolean;
   objectionTargetId?: number;
+  isEdited?: boolean;
+  editedAt?: Date;
+  editedBy?: string;
+  editCount?: number;
+  opCred?: number;
 }
 
 // Lazy-load the favor history chart component (default export)
@@ -158,15 +160,21 @@ export const PointCard = ({
   isLoading = false,
   disableVisitedMarker = false,
   isSharing = false,
-  showEndorsements = false,
   isObjection,
   objectionTargetId,
+  isEdited = false,
+  editedAt,
+  editedBy,
+  editCount = 0,
+  opCred: propsOpCred,
   ...props
 }: PointCardProps) => {
-  const { data: endorsementDetails } = usePointEndorsementBreakdown(pointId, showEndorsements);
   const { mutateAsync: endorse, isPending: isEndorsing } = useEndorse();
   const { mutateAsync: sellEndorsement, isPending: isSelling } = useSellEndorsement();
-  const { data: opCred } = useUserEndorsement(originalPosterId, pointId);
+  const { data: fetchedOpCred } = useUserEndorsement(originalPosterId, pointId, {
+    enabled: !propsOpCred && !!originalPosterId
+  });
+  const opCred = propsOpCred ?? fetchedOpCred;
   const [_, setHoveredPointId] = useAtom(hoveredPointIdAtom);
   const { user: privyUser, login } = usePrivy();
   const [endorsePopoverOpen, toggleEndorsePopoverOpen] = useToggle(false);
@@ -207,6 +215,7 @@ export const PointCard = ({
   const endorsedByViewer = viewerContext?.viewerCred !== undefined && viewerContext.viewerCred > 0;
   const endorsedByOp = opCred && opCred > 0;
   const visited = visitedPoints.has(pointId);
+
 
   useEffect(() => {
     if (!disablePopover && pointId && isOpen) {
@@ -369,6 +378,7 @@ export const PointCard = ({
         isPriority && !isPinned && "border-l-4 border-amber-400",
         inGraphNode && "pt-2.5",
         isSharing && !isSelected && "opacity-50 transition-opacity duration-200",
+        isSharing && isSelected && "border-l-4 border-blue-500 dark:border-blue-400",
         isSharing && "cursor-pointer",
         className
       )}
@@ -396,6 +406,7 @@ export const PointCard = ({
         <CheckboxPrimitive.Root
           checked={isSelected}
           onCheckedChange={handleSelect}
+          onClick={(e) => e.stopPropagation()}
           className="absolute top-4 right-4 z-10 h-5 w-5 rounded-sm border border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
           aria-label={`Select point ${pointId}`}
         >
@@ -429,15 +440,21 @@ export const PointCard = ({
           isNegation={isNegation}
           parentPointId={parentPoint?.id}
           pointId={pointId}
+          isEdited={isEdited}
+          editedAt={editedAt}
+          editCount={editCount}
         />
 
-        <PointStats
-          className="mb-md select-text"
-          amountNegations={amountNegations}
-          amountSupporters={amountSupporters}
-          favor={favor}
-          cred={cred}
-        />
+        <div className="mb-md space-y-2">
+          <PointStats
+            className="select-text"
+            amountNegations={amountNegations}
+            amountSupporters={amountSupporters}
+            favor={favor}
+            cred={cred}
+            showSignalBars={inRationale}
+          />
+        </div>
 
         <PointCardActions
           onNegate={onNegate}
@@ -462,7 +479,7 @@ export const PointCard = ({
           isInPointPage={isInPointPage}
           isNegation={!!isNegation}
           isObjection={isObjection}
-          parentCred={parentPoint?.cred}
+          parentCred={parentPoint?.viewerCred}
           showRestakeAmount={showRestakeAmount}
           restakeIsOwner={restake?.isOwner}
           restakePercentage={restakePercentage}
@@ -473,11 +490,10 @@ export const PointCard = ({
           doubtPercentage={doubtPercentage}
         />
       </div>
-      {(endorsedByOp || (showEndorsements && endorsementDetails && endorsementDetails.length > 0)) && (
+      {endorsedByOp && (
         <OPBadge
-          opCred={endorsedByOp ? opCred : undefined}
+          opCred={opCred}
           originalPosterId={originalPosterId}
-          breakdown={showEndorsements ? endorsementDetails : undefined}
         />
       )}
       <VisitedMarker
@@ -492,58 +508,67 @@ export const PointCard = ({
   );
 
   if (disablePopover) {
-    return renderCardContent();
+    return (
+      <>
+        {renderCardContent()}
+      </>
+    );
   }
 
   return (
-    <Popover
-      open={isOpen}
-      onOpenChange={(open) => {
-        if (!open) setIsOpen(false);
-      }}
-    >
-      <PopoverTrigger asChild>
-        {renderCardContent()}
-      </PopoverTrigger>
-      <Portal>
-        <PopoverContent
-          className="w-80 sm:w-96 max-h-80 overflow-auto"
-          side="right"
-          align="start"
-          sideOffset={5}
-          onMouseEnter={handleHoverStart}
-          onMouseLeave={handleHoverEnd}
-        >
-          <div className="flex flex-col gap-3">
-            <div className="flex items-start gap-2">
-              {isCommand && space && space !== 'global' ? (
-                <FeedCommandIcon />
-              ) : isPinned && space && space !== 'global' ? (
-                <PinnedIcon />
-              ) : (
-                <PointIcon />
-              )}
-              <h3 className="text-lg font-semibold -mt-0.5 break-words">{content}</h3>
-            </div>
+    <>
+      <Popover
+        open={isOpen}
+        onOpenChange={(open) => {
+          if (!open) setIsOpen(false);
+        }}
+      >
+        <PopoverTrigger asChild>
+          {renderCardContent()}
+        </PopoverTrigger>
+        {!inGraphNode && (
+          <Portal>
+            <PopoverContent
+              className="w-80 sm:w-96 max-h-80 overflow-auto"
+              side="right"
+              align="start"
+              sideOffset={5}
+              onMouseEnter={handleHoverStart}
+              onMouseLeave={handleHoverEnd}
+            >
+              <div className="flex flex-col gap-3">
+                <div className="flex items-start gap-2">
+                  {isCommand && space && space !== 'global' ? (
+                    <FeedCommandIcon />
+                  ) : isPinned && space && space !== 'global' ? (
+                    <PinnedIcon />
+                  ) : (
+                    <PointIcon />
+                  )}
+                  <h3 className="text-lg font-semibold -mt-0.5 break-words">{content}</h3>
+                </div>
 
-            <PointStats
-              className="mb-md"
-              amountNegations={amountNegations}
-              amountSupporters={amountSupporters}
-              favor={favor}
-              cred={cred}
-            />
+                <PointStats
+                  className="mb-md"
+                  amountNegations={amountNegations}
+                  amountSupporters={amountSupporters}
+                  favor={favor}
+                  cred={cred}
+                  showSignalBars={inRationale}
+                />
 
-            {/* Favor History Chart (lazy-loaded) */}
-            <FavorHistoryChart
-              popoverFavorHistory={popoverFavorHistory}
-              initialFavorHistory={initialFavorHistory ?? []}
-              favor={favor}
-              isLoadingFavorHistory={isLoadingFavorHistory}
-            />
-          </div>
-        </PopoverContent>
-      </Portal>
-    </Popover>
+                <FavorHistoryChart
+                  popoverFavorHistory={popoverFavorHistory}
+                  initialFavorHistory={initialFavorHistory ?? []}
+                  favor={favor}
+                  isLoadingFavorHistory={isLoadingFavorHistory}
+                />
+              </div>
+            </PopoverContent>
+          </Portal>
+        )}
+      </Popover>
+
+    </>
   );
 };

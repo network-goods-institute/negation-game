@@ -1,14 +1,13 @@
 import { useAuthenticatedQuery } from "@/queries/auth/useAuthenticatedQuery";
-import {
-  getConversation,
-  GetConversationArgs,
-} from "@/actions/messages/getConversation";
+import { getConversation } from "@/actions/messages/getConversation";
 import { useUser } from "@/queries/users/useUser";
 
-export const useConversation = (
-  otherUserId: string,
-  options?: { limit?: number; offset?: number }
-) => {
+export const useConversation = (args: {
+  otherUserId: string;
+  spaceId: string;
+  options?: { limit?: number; offset?: number };
+}) => {
+  const { otherUserId, spaceId, options } = args;
   const { data: user } = useUser();
   const userId = user?.id;
 
@@ -18,10 +17,11 @@ export const useConversation = (
       "conversation",
       userId,
       otherUserId,
+      spaceId,
       options?.limit,
       options?.offset,
     ],
-    queryFn: () => getConversation({ otherUserId, ...options }),
+    queryFn: () => getConversation({ otherUserId, spaceId, ...options }),
     enabled: !!userId && !!otherUserId,
   });
 };

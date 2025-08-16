@@ -13,11 +13,14 @@ import { InsertPoint, Point } from "@/db/tables/pointsTable";
 import { waitUntil } from "@vercel/functions";
 import { executeCommand } from "@/actions/feed/handleCommand";
 import { revalidatePath } from "next/cache";
+import { POINT_MIN_LENGTH, getPointMaxLength } from "@/constants/config";
 
 export const makePoint = async ({
   content,
   cred = 0,
-}: Pick<InsertPoint, "content"> & Pick<InsertEndorsement, "cred">): Promise<
+  isOption = false,
+}: Pick<InsertPoint, "content"> &
+  Pick<InsertEndorsement, "cred"> & { isOption?: boolean }): Promise<
   Point["id"]
 > => {
   const userId = await getUserId();
@@ -27,13 +30,30 @@ export const makePoint = async ({
     throw new Error("Must be authenticated to add a point");
   }
 
-  // Check if this is a command
-  const isCommand = content.trim().startsWith("/");
+  const trimmedContent = content.trim();
+  const maxLength = getPointMaxLength(isOption);
+
+  if (
+    trimmedContent.length < POINT_MIN_LENGTH ||
+    trimmedContent.length > maxLength
+  ) {
+    throw new Error(
+      `Point content must be between ${POINT_MIN_LENGTH} and ${maxLength} characters`
+    );
+  }
+
+  const isCommand = trimmedContent.startsWith("/");
 
   return await db.transaction(async (tx) => {
     const newPointId = await tx
       .insert(pointsTable)
-      .values({ content, createdBy: userId, space, isCommand })
+      .values({
+        content: trimmedContent,
+        createdBy: userId,
+        space,
+        isCommand,
+        isOption,
+      })
       .returning({ id: pointsTable.id })
       .then(([{ id }]) => id);
 
@@ -53,15 +73,31 @@ export const makePoint = async ({
       });
     }
 
-    waitUntil(addEmbedding({ content, id: newPointId }));
-    waitUntil(addKeywords({ content, id: newPointId }));
+    waitUntil(addEmbedding({ content: trimmedContent, id: newPointId }));
+    waitUntil(addKeywords({ content: trimmedContent, id: newPointId }));
+
+    waitUntil(
+      (async () => {
+        try {
+          const { buildPointCluster } = await import(
+            "@/actions/points/buildPointCluster"
+          );
+          await buildPointCluster(newPointId);
+        } catch (error) {
+          console.error(
+            `Failed to build cluster for point ${newPointId}:`,
+            error
+          );
+        }
+      })()
+    );
 
     // If this is a command, execute it after the transaction
     if (isCommand) {
       waitUntil(
         (async () => {
           try {
-            const result = await executeCommand(space, content);
+            const result = await executeCommand(space, trimmedContent);
 
             if (result.success) {
               revalidatePath(`/s/${space}`);

@@ -14,6 +14,7 @@ import { ContestedPointsCard } from "./ContestedPointsCard";
 import { UsersAlignmentCard } from "./UsersAlignmentCard";
 import { DiscoveryMode } from "./DiscoveryMode";
 import { ManualCompare } from "./ManualCompare";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 export default function DeltaPage() {
     const { user } = usePrivy();
@@ -55,13 +56,19 @@ export default function DeltaPage() {
             </Alert>
 
             {/* DAO-wide alignment metric */}
-            <DaoAlignmentCard />
+            <ErrorBoundary>
+                <DaoAlignmentCard />
+            </ErrorBoundary>
 
             {/* Most Contested Points */}
-            <ContestedPointsCard />
+            <ErrorBoundary>
+                <ContestedPointsCard />
+            </ErrorBoundary>
 
             {/* Users vs DAO Alignment */}
-            <UsersAlignmentCard />
+            <ErrorBoundary>
+                <UsersAlignmentCard spaceId={spaceId || undefined} />
+            </ErrorBoundary>
 
             <Card>
                 <CardHeader>
@@ -109,11 +116,15 @@ export default function DeltaPage() {
                 </TabsList>
 
                 <TabsContent value="discovery" className="space-y-6">
-                    <DiscoveryMode currentUserId={currentUserId} />
+                    <ErrorBoundary>
+                        <DiscoveryMode currentUserId={currentUserId} spaceId={spaceId || undefined} />
+                    </ErrorBoundary>
                 </TabsContent>
 
                 <TabsContent value="manual" className="space-y-6">
-                    <ManualCompare currentUserId={currentUserId} />
+                    <ErrorBoundary>
+                        <ManualCompare currentUserId={currentUserId} />
+                    </ErrorBoundary>
                 </TabsContent>
             </Tabs>
         </div>

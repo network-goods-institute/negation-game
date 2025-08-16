@@ -28,6 +28,7 @@ interface SelectNegationDialogProps extends DialogProps {
     content: string;
     createdAt: Date;
     stakedAmount: number;
+    cred: number;
     viewerCred?: number;
     amountSupporters: number;
     amountNegations: number;

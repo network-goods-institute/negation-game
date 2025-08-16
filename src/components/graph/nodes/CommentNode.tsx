@@ -4,7 +4,7 @@ import { NodeProps, Node, useReactFlow, useUpdateNodeInternals } from "@xyflow/r
 import { useState, useEffect, ChangeEvent, KeyboardEvent, useRef } from "react";
 import { AutosizeTextarea, AutosizeTextAreaRef } from "@/components/ui/autosize-textarea";
 import { Button } from "@/components/ui/button";
-import { MessageSquareIcon, TrashIcon, XIcon } from "lucide-react";
+import { MessageSquareIcon, TrashIcon, EditIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 export type CommentNodeData = {
@@ -90,10 +90,8 @@ export const CommentNode = ({
         }
     };
 
-    const handleClick = () => {
-        if (!isEditing) {
-            startEditing();
-        }
+    const handleDoubleClick = () => {
+        startEditing();
     };
 
     const handleBlur = () => {
@@ -109,65 +107,68 @@ export const CommentNode = ({
             )}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
-            onClick={handleClick}
+            onDoubleClick={handleDoubleClick}
         >
+            {/* Delete X Button - Always Visible */}
+            <button
+                onClick={handleDelete}
+                className={cn(
+                    'absolute -top-2 -right-2 transform translate-x-[10px] -translate-y-1/2',
+                    'w-8 h-8 bg-background border-2 border-muted-foreground rounded-full',
+                    'flex items-center justify-center',
+                    'pointer-events-auto z-20 cursor-pointer',
+                    'hover:bg-red-50 hover:border-red-500 dark:hover:bg-red-900/20 dark:hover:border-red-400 transition-colors',
+                    'focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2'
+                )}
+                title="Delete comment"
+            >
+                <XIcon className="size-4 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors" />
+            </button>
+            
             {/* Comment Icon Header */}
-            <div className="flex items-center gap-2 mb-2">
-                <MessageSquareIcon className="size-4 text-blue-600 dark:text-blue-400" />
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Comment</span>
-                {(isHovered || isEditing) && (
+            <div className="flex items-center gap-2 mb-3">
+                <MessageSquareIcon className="size-5 text-blue-600 dark:text-blue-400" />
+                <span className="text-base font-medium text-gray-600 dark:text-gray-400">Comment</span>
+                {isHovered && !isEditing && (
                     <div className="ml-auto flex gap-1">
                         <Button
                             size="sm"
                             variant="ghost"
-                            className="h-6 w-6 p-0 hover:bg-red-100 dark:hover:bg-red-900/20"
+                            className="h-6 w-6 p-0 hover:bg-blue-100 dark:hover:bg-blue-900/20"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                handleDelete();
+                                startEditing();
                             }}
-                            title="Delete comment"
+                            title="Edit comment"
                         >
-                            <TrashIcon className="size-3 text-red-600 dark:text-red-400" />
+                            <EditIcon className="size-3 text-blue-600 dark:text-blue-400" />
                         </Button>
-                        {isEditing && (
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleCancel();
-                                }}
-                                title="Cancel editing"
-                            >
-                                <XIcon className="size-3 text-gray-600 dark:text-gray-400" />
-                            </Button>
-                        )}
                     </div>
                 )}
             </div>
 
             {/* Content Area */}
-            {isEditing ? (
-                <AutosizeTextarea
-                    ref={textareaRef}
-                    className="bg-transparent resize-none outline-none w-full text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 text-sm leading-relaxed border-none focus:ring-0 p-0"
-                    value={editedContent}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Click here to add a comment..."
-                    autoFocus
-                />
-            ) : (
-                <div className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap text-sm leading-relaxed cursor-text">
-                    {initialContent || (
-                        <span className="text-gray-500 dark:text-gray-400 italic">
-                            Click here to add a comment...
+            <div className="relative">
+                {isEditing && (
+                    <AutosizeTextarea
+                        ref={textareaRef}
+                        className="absolute inset-0 bg-transparent resize-none outline-none w-full text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 text-lg leading-relaxed border-none focus:ring-0 p-0 opacity-0"
+                        value={editedContent}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Enter your comment..."
+                        autoFocus
+                    />
+                )}
+                <div className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap text-lg leading-relaxed cursor-pointer select-text">
+                    {isEditing ? editedContent : initialContent || (
+                        <span className="text-gray-500 dark:text-gray-400 italic text-lg">
+                            Double-click to add comment...
                         </span>
                     )}
                 </div>
-            )}
+            </div>
         </div>
     );
 };

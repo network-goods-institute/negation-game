@@ -1,18 +1,36 @@
 import { useCallback } from "react";
 import { copyViewpointAndNavigate } from "@/lib/negation-game/copyViewpoint";
 import type { ViewpointGraph } from "@/atoms/viewpointAtoms";
+import { useAtomValue } from "jotai";
+import {
+  viewpointTopicAtom,
+  viewpointTopicIdAtom,
+} from "@/atoms/viewpointAtoms";
 
 /**
  * Returns a callback to copy the given graph, handling errors and fallback navigation.
  */
-export function useGraphCopyHandler(statement: string, description: string) {
+export function useGraphCopyHandler(
+  statement: string,
+  description: string,
+  defaultTopic?: string,
+  defaultTopicId?: number
+) {
+  const topicFromAtom = useAtomValue(viewpointTopicAtom);
+  const topicIdFromAtom = useAtomValue(viewpointTopicIdAtom);
+  const effectiveTopic = defaultTopic ?? topicFromAtom;
+  const effectiveTopicId = defaultTopicId ?? topicIdFromAtom;
   return useCallback(
     async (graphToCopy: ViewpointGraph) => {
       try {
         const result = await copyViewpointAndNavigate(
           graphToCopy,
           statement,
-          description
+          description,
+          undefined,
+          false,
+          effectiveTopic,
+          effectiveTopicId
         );
 
         if (!result) {
@@ -29,6 +47,6 @@ export function useGraphCopyHandler(statement: string, description: string) {
         return false;
       }
     },
-    [statement, description]
+    [statement, description, effectiveTopic, effectiveTopicId]
   );
 }

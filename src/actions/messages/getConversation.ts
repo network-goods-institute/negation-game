@@ -7,12 +7,14 @@ import { and, eq, or, desc } from "drizzle-orm";
 
 export interface GetConversationArgs {
   otherUserId: string;
+  spaceId: string;
   limit?: number;
   offset?: number;
 }
 
 export const getConversation = async ({
   otherUserId,
+  spaceId,
   limit = 50,
   offset = 0,
 }: GetConversationArgs) => {
@@ -23,12 +25,17 @@ export const getConversation = async ({
     throw new Error("Must be authenticated to view messages");
   }
 
-  const conversationId = generateConversationId(userId, decodedOtherUserId);
+  const conversationId = generateConversationId(
+    userId,
+    decodedOtherUserId,
+    spaceId
+  );
 
   try {
     const messages = await db
       .select({
         id: messagesTable.id,
+        sequenceNumber: messagesTable.sequenceNumber,
         content: messagesTable.content,
         senderId: messagesTable.senderId,
         recipientId: messagesTable.recipientId,
@@ -46,17 +53,18 @@ export const getConversation = async ({
       .where(
         and(
           eq(messagesTable.conversationId, conversationId),
+          eq(messagesTable.space, spaceId),
           or(
             eq(messagesTable.senderId, userId),
             eq(messagesTable.recipientId, userId)
           )
         )
       )
-      .orderBy(desc(messagesTable.createdAt))
+      .orderBy(desc(messagesTable.sequenceNumber))
       .limit(limit)
       .offset(offset);
 
-    return messages.reverse(); // Return in chronological order
+    return messages.reverse();
   } catch (error) {
     throw error;
   }

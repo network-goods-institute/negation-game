@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchTopics } from "@/actions/topics/fetchTopics";
+import { fetchAllTopics } from "@/actions/topics/fetchTopics";
 import { getUserId } from "@/actions/users/getUserId";
 import { requireSpaceAdmin } from "@/utils/adminUtils";
 
@@ -16,7 +16,7 @@ export async function GET(
     const { spaceId } = await params;
     await requireSpaceAdmin(userId, spaceId);
 
-    const topics = await fetchTopics(spaceId);
+    const topics = await fetchAllTopics(spaceId);
     return NextResponse.json(topics);
   } catch (error) {
     console.error("Error fetching topics:", error);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNotifications } from "@/queries/notifications/useNotifications";
 import { useMarkAllNotificationsRead, useMarkNotificationRead } from "@/mutations/notifications/useMarkNotificationsRead";
 import { Button } from "@/components/ui/button";
@@ -13,11 +13,15 @@ import { usePrivy } from "@privy-io/react-auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserAssignments } from "@/components/assignments/UserAssignments";
 import { CollapsibleCardDeck, CardDeckControls } from "@/components/ui/collapsible-card-deck";
-import { 
-  groupNotificationsByType, 
-  groupNotificationsByTime, 
-  groupNotificationsBySpace 
+import {
+    groupNotificationsByType,
+    groupNotificationsByTime,
+    groupNotificationsBySpace
 } from "@/utils/notificationGrouping";
+import Link from "next/link";
+import { useSetAtom } from "jotai";
+import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
+import { handleBackNavigation } from "@/lib/negation-game/backButtonUtils";
 
 export const NotificationsPage = () => {
     const { data: notifications = [], isLoading, error } = useNotifications();
@@ -25,7 +29,32 @@ export const NotificationsPage = () => {
     const markReadMutation = useMarkNotificationRead();
     const router = useRouter();
     const { ready, authenticated } = usePrivy();
-    
+    const setInitialTab = useSetAtom(initialSpaceTabAtom);
+    const [fallbackHref, setFallbackHref] = useState<string>("/s/global");
+
+    useEffect(() => {
+        try {
+            const ref = document.referrer ? new URL(document.referrer) : null;
+            if (ref && ref.origin === window.location.origin) {
+                const match = ref.pathname.match(/^\/s\/([^/]+)/);
+                if (match?.[1]) {
+                    setFallbackHref(`/s/${match[1]}`);
+                    return;
+                }
+                if (ref.pathname === "/") {
+                    setFallbackHref("/");
+                    return;
+                }
+            }
+        } catch { }
+        setFallbackHref("/s/global");
+    }, []);
+
+    const onBackClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        handleBackNavigation(router, setInitialTab, fallbackHref);
+    };
+
     const [groupingMode, setGroupingMode] = useState<'type' | 'time' | 'space' | 'readStatus'>('type');
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
@@ -102,13 +131,10 @@ export const NotificationsPage = () => {
         return (
             <div className="container max-w-4xl mx-auto p-6">
                 <div className="flex items-center gap-3 mb-6">
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => router.back()}
-                        className="mr-2"
-                    >
-                        <ArrowLeftIcon className="w-4 h-4" />
+                    <Button variant="ghost" size="sm" asChild className="mr-2">
+                        <Link prefetch href={fallbackHref} onClick={onBackClick}>
+                            <ArrowLeftIcon className="w-4 h-4" />
+                        </Link>
                     </Button>
                     <BellIcon className="w-6 h-6" />
                     <h1 className="text-2xl font-bold">Notifications</h1>
@@ -145,13 +171,10 @@ export const NotificationsPage = () => {
         return (
             <div className="container max-w-4xl mx-auto p-6">
                 <div className="flex items-center gap-3 mb-6">
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => router.back()}
-                        className="mr-2"
-                    >
-                        <ArrowLeftIcon className="w-4 h-4" />
+                    <Button variant="ghost" size="sm" asChild className="mr-2">
+                        <Link prefetch href={fallbackHref} onClick={onBackClick}>
+                            <ArrowLeftIcon className="w-4 h-4" />
+                        </Link>
                     </Button>
                     <BellIcon className="w-6 h-6" />
                     <h1 className="text-2xl font-bold">Notifications</h1>
@@ -245,7 +268,7 @@ export const NotificationsPage = () => {
                         currentGrouping={groupingMode}
                         groupingOptions={groupingOptions}
                     />
-                    
+
                     <CollapsibleCardDeck
                         groups={notificationGroups}
                         renderItem={(notification) => (
@@ -274,9 +297,8 @@ const NotificationCard = ({ notification, onMarkRead }: NotificationCardProps) =
     const isUnread = !notification.readAt;
 
     return (
-        <div className={`p-3 border rounded-lg transition-colors ${
-            isUnread ? 'border-primary/50 bg-primary/5' : 'border-border'
-        }`}>
+        <div className={`p-3 border rounded-lg transition-colors ${isUnread ? 'border-primary/50 bg-primary/5' : 'border-border'
+            }`}>
             <div className="flex items-start justify-between">
                 <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2">

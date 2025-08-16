@@ -56,15 +56,17 @@ export const endorse = async ({
     return insertResult[0].id;
   });
 
-  // Track the cred event for delta pipeline
-  await trackEndorseEvent(userId, pointId, cred);
-
-  // Queue notification in background - let the queue handle all the logic
-  queueEndorsementNotification({
-    pointId,
-    endorserId: userId,
-    credAmount: cred,
-    space,
+  // Track the cred event and queue notification in background - don't await
+  Promise.all([
+    trackEndorseEvent(userId, pointId, cred),
+    queueEndorsementNotification({
+      pointId,
+      endorserId: userId,
+      credAmount: cred,
+      space,
+    }),
+  ]).catch((error) => {
+    console.error("Background endorsement tasks failed:", error);
   });
 
   return endorsementId;

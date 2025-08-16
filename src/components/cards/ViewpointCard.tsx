@@ -10,11 +10,12 @@ import {
 } from "@/components/ui/popover";
 import { Portal } from "@radix-ui/react-portal";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import { encodeId } from "@/lib/negation-game/encodeId";
+import Link from "next/link";
 import { ViewpointStatsBar } from "../rationale/ViewpointStatsBar";
 import { UsernameDisplay } from "@/components/ui/UsernameDisplay";
 import useIsMobile from "@/hooks/ui/useIsMobile";
-import { encodeId } from "@/lib/negation-game/encodeId";
 
 const DynamicMarkdown = dynamic(() => import('react-markdown'), {
     loading: () => <div className="animate-pulse h-32 bg-muted/30 rounded-md" />,
@@ -108,8 +109,29 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
     const [isSelecting, setIsSelecting] = useState(false);
     const mouseDownRef = useRef<{ x: number, y: number } | null>(null);
     const isMobile = useIsMobile();
+    const [isTopicClicked, setIsTopicClicked] = useState(false);
+    const [isViewTopicClicked, setIsViewTopicClicked] = useState(false);
 
     const plainDescription = useMemo(() => stripMarkdown(description), [description]);
+
+
+    useEffect(() => {
+        if (isTopicClicked) {
+            const timer = setTimeout(() => {
+                setIsTopicClicked(false);
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [isTopicClicked]);
+
+    useEffect(() => {
+        if (isViewTopicClicked) {
+            const timer = setTimeout(() => {
+                setIsViewTopicClicked(false);
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [isViewTopicClicked]);
 
     // Monitor selection changes
     useEffect(() => {
@@ -227,13 +249,13 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                     tabIndex={0}
                     {...props}
                 >
-                    <div className="@container/point relative flex flex-col pt-4 pb-3 px-4 border-b hover:bg-accent">
+                    <div className="@container/point relative flex flex-col pt-4 pb-3 px-4 border-b hover:bg-accent min-w-0 overflow-hidden">
                         {isLoading && (
-                            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
+                            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 pointer-events-none">
                                 <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                             </div>
                         )}
-                        <div className="flex flex-col flex-grow w-full min-w-0">
+                        <div className="flex flex-col flex-grow w-full min-w-0 overflow-hidden">
                             <div className="flex items-start gap-2">
                                 <ViewpointIcon className="flex-shrink-0" />
                                 <h3 className={cn(
@@ -243,18 +265,26 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                     <>
                                         {topic ? (
                                             topicId ? (
-                                                <span
-                                                    className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        router.push(`/s/${space}/topic/${encodeId(topicId)}`);
-                                                    }}
-                                                    data-href={`/s/${space}/topic/${encodeId(topicId)}`}
-                                                    title={`View topic: ${topic}`}
-                                                >
-                                                    {topic}
-                                                </span>
+                                                <>
+                                                    {isTopicClicked && (
+                                                        <div className="inline-block mr-2 size-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                                    )}
+                                                    <span
+                                                        className={cn(
+                                                            "text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                                                        )}
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            setIsTopicClicked(true);
+                                                            router.push(`/s/${space}/rationale/${id}`);
+                                                        }}
+                                                        data-href={`/s/${space}/rationale/${id}`}
+                                                        title={`View rationale`}
+                                                    >
+                                                        {topic}
+                                                    </span>
+                                                </>
                                             ) : (
                                                 <span>{topic}</span>
                                             )
@@ -267,12 +297,30 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                             userId={authorId}
                                             className="text-yellow-600 dark:text-yellow-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded font-medium"
                                         />
+                                        {topic && topicId && (
+                                            <a
+                                                href={`/s/${space}/topic/${encodeId(topicId)}`}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsViewTopicClicked(true);
+                                                }}
+                                                className="ml-2 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline font-medium inline-flex items-center"
+                                                title="View topic and proposal generation features"
+                                            >
+                                                <span className="w-3 h-3 mr-1 flex items-center justify-center flex-shrink-0">
+                                                    {isViewTopicClicked && (
+                                                        <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                                                    )}
+                                                </span>
+                                                <span>View Topic</span>
+                                            </a>
+                                        )}
                                     </>
                                 </h3>
                             </div>
 
                             {plainDescription && (
-                                <div className="text-sm text-muted-foreground select-text sm:line-clamp-2 sm:mb-2 sm:h-10 sm:overflow-hidden whitespace-normal">
+                                <div className="text-sm text-muted-foreground select-text sm:line-clamp-2 sm:mb-2 sm:h-10 overflow-hidden whitespace-normal">
                                     {plainDescription}
                                 </div>
                             )}
@@ -318,18 +366,26 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                 <>
                                     {topic ? (
                                         topicId ? (
-                                            <span
-                                                className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    router.push(`/s/${space}/topic/${encodeId(topicId)}`);
-                                                }}
-                                                data-href={`/s/${space}/topic/${encodeId(topicId)}`}
-                                                title={`View topic: ${topic}`}
-                                            >
-                                                {topic}
-                                            </span>
+                                            <>
+                                                {isTopicClicked && (
+                                                    <div className="inline-block mr-2 size-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                                )}
+                                                <span
+                                                    className={cn(
+                                                        "text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                                                    )}
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        setIsTopicClicked(true);
+                                                        router.push(`/s/${space}/rationale/${id}`);
+                                                    }}
+                                                    data-href={`/s/${space}/rationale/${id}`}
+                                                    title={`View rationale`}
+                                                >
+                                                    {topic}
+                                                </span>
+                                            </>
                                         ) : (
                                             <span>{topic}</span>
                                         )
@@ -342,6 +398,24 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                         userId={authorId}
                                         className="text-yellow-600 dark:text-yellow-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded font-medium"
                                     />
+                                    {topic && topicId && (
+                                        <Link
+                                            href={`/s/${space}/topic/${encodeId(topicId)}`}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsViewTopicClicked(true);
+                                            }}
+                                            className="ml-2 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline font-medium inline-flex items-center"
+                                            title="View topic and proposal generation features"
+                                        >
+                                            <span className="w-3 h-3 mr-1 flex items-center justify-center flex-shrink-0">
+                                                {isViewTopicClicked && (
+                                                    <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                                                )}
+                                            </span>
+                                            <span>View Topic</span>
+                                        </Link>
+                                    )}
                                 </>
                             </h3>
                         </div>

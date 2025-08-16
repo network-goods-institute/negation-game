@@ -1,5 +1,47 @@
-import { NextResponse } from "next/server";
-export async function GET(request: Request) {
+import { NextRequest, NextResponse } from "next/server";
+import { getUserId } from "@/actions/users/getUserId";
+import { checkRateLimitStrict } from "@/lib/rateLimit";
+
+const ALLOWED_DISCOURSE_HOSTS = new Set<string>([
+  "forum.ethereum.org",
+  "gov.gitcoin.co",
+  "commonwealth.im",
+  "discourse.sourcecred.io",
+  "forum.scroll.io",
+]);
+
+function isValidPublicHostname(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  if (
+    h === "localhost" ||
+    h === "127.0.0.1" ||
+    h === "::1" ||
+    h.startsWith("127.") ||
+    h.startsWith("10.") ||
+    h.startsWith("192.168.") ||
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(h) ||
+    /^169\.254\./.test(h) ||
+    /^224\./.test(h) ||
+    /^f[cd][0-9a-f]{2}:/i.test(h)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function sanitizeUsernameSegment(input: string): string | null {
+  // Discourse usernames are typically alphanumeric, dashes and underscores
+  // Keep conservative to avoid path traversal or injection
+  const match = input.match(/^[A-Za-z0-9._-]{1,64}$/);
+  return match ? match[0] : null;
+}
+
+export async function GET(request: NextRequest) {
+  const userId = await getUserId();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const username = searchParams.get("username");
   const discourseUrl = searchParams.get("url");
@@ -11,87 +53,74 @@ export async function GET(request: Request) {
     );
   }
 
+  const rate = await checkRateLimitStrict(userId, 10, 60000, "discourse_posts");
+  if (!rate.allowed) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+  }
+
   try {
-    console.log(
-      `[Discourse API] Fetching posts for username: ${username} from URL: ${discourseUrl}`
+    const parsedBase = new URL(discourseUrl.trim());
+    if (parsedBase.protocol !== "https:") {
+      return NextResponse.json({ error: "HTTPS required" }, { status: 400 });
+    }
+    if (!isValidPublicHostname(parsedBase.hostname)) {
+      return NextResponse.json({ error: "Host not allowed" }, { status: 400 });
+    }
+    if (!ALLOWED_DISCOURSE_HOSTS.has(parsedBase.hostname.toLowerCase())) {
+      return NextResponse.json(
+        { error: "Forum host not permitted" },
+        { status: 400 }
+      );
+    }
+
+    const cleanUsername = sanitizeUsernameSegment(username);
+    if (!cleanUsername) {
+      return NextResponse.json({ error: "Invalid username" }, { status: 400 });
+    }
+
+    const endpoint = new URL(
+      `/users/${cleanUsername}/activity.json`,
+      parsedBase
     );
-    const cleanUrl = discourseUrl.trim().replace(/\/$/, "");
 
-    const endpoint = `${cleanUrl}/users/${username}/activity.json`;
-    console.log(`[Discourse API] Using endpoint: ${endpoint}`);
-
-    const response = await fetch(endpoint, {
+    const response = await fetch(endpoint.toString(), {
       cache: "no-store",
+      redirect: "error",
       headers: {
         Accept: "application/json",
+        "User-Agent": "NegationGameBot/1.0",
       },
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!response.ok) {
-      console.error(
-        `[Discourse API] Endpoint failed with status ${response.status}`
-      );
-      const errorText = await response.text();
-      console.error(`[Discourse API] Error response body: ${errorText}`);
       return NextResponse.json(
-        {
-          error: `Failed to fetch posts from Discourse (${response.status}). Response: ${errorText}`,
-        },
+        { error: `Failed to fetch posts from Discourse (${response.status})` },
         { status: response.status }
       );
     }
 
-    let data;
-    try {
-      data = await response.json();
-    } catch (e) {
-      const responseText = await response.text();
-      console.error("[Discourse API] Failed to parse JSON response.", e);
-      console.error(`[Discourse API] Raw response text: ${responseText}`);
-      return NextResponse.json(
-        {
-          error: "Failed to parse response from Discourse API.",
-          rawResponse: responseText,
-        },
-        { status: 500 }
-      );
-    }
-
+    const data = await response.json().catch(() => null);
     if (!Array.isArray(data)) {
-      console.error(
-        "[Discourse API] Unexpected response format, expected array",
-        data
-      );
       return NextResponse.json(
         {
           error: "Invalid response format from Discourse API (expected array)",
-          responseData: data,
         },
-        { status: 500 }
+        { status: 502 }
       );
     }
 
-    console.log(
-      `[Discourse API] Found ${data.length} posts for user ${username}`
-    );
-
-    const simplifiedPosts = data.map((post) => ({
+    const simplifiedPosts = data.map((post: any) => ({
       id: post.id,
       content: post.cooked,
       created_at: post.created_at,
       topic_title: post.topic_title || "",
     }));
 
-    return NextResponse.json({
-      latest_posts: simplifiedPosts,
-    });
+    return NextResponse.json({ latest_posts: simplifiedPosts });
   } catch (error) {
-    console.error("[Discourse API] General error:", error);
     return NextResponse.json(
-      {
-        error:
-          "An unexpected error occurred while fetching posts from Discourse",
-      },
+      { error: "Failed to fetch posts from Discourse" },
       { status: 500 }
     );
   }

@@ -17,53 +17,61 @@ export const regenerateGraphIds = (graph: ViewpointGraph): ViewpointGraph => {
     idMap.set(statementNode.id, "statement");
   }
 
-  // Generate new IDs for all other nodes with increased uniqueness
+  const timestamp = Date.now();
   const newNodes = graph.nodes.map((node, index) => {
     // Statement node keeps its ID
     if (node.type === "statement") {
       return { ...node, id: "statement" } as AppNode;
     }
 
-    // Generate a truly unique ID with multiple sources of randomness and index
-    const timestamp = Date.now() + index; // Add index to ensure uniqueness even when created in same millisecond
-    const random1 = Math.random().toString(36).substring(2, 10);
-    const random2 = Math.random().toString(36).substring(2, 6);
-    const newId = `${node.type || "node"}_${random1}_${timestamp}_${random2}_${index}`;
-
+    const newId = `${node.type || "node"}_${timestamp}_${index}_${Math.random().toString(36).substring(2, 8)}`;
     idMap.set(node.id, newId);
 
     return {
       ...node,
       id: newId,
-      // Preserve the pointId and other data, but ensure it's a new object reference
       data: { ...node.data },
     } as AppNode;
   });
 
-  // Update edge source and target IDs using the mapping
   let newEdges = graph.edges.map((edge, index) => {
     const newSource = idMap.get(edge.source) || edge.source;
     const newTarget = idMap.get(edge.target) || edge.target;
 
-    // Generate unique edge ID with index to ensure uniqueness
-    const timestamp = Date.now() + Math.floor(Math.random() * 1000) + index;
-    const random = Math.random().toString(36).substring(2, 10);
-    const newId = `edge_${random}_${timestamp}_${index}`;
+    const newId = `edge_${timestamp}_${index}_${Math.random().toString(36).substring(2, 6)}`;
+
+    // Update sourceHandle and targetHandle to use new node IDs
+    let newSourceHandle = edge.sourceHandle;
+    let newTargetHandle = edge.targetHandle;
+
+    if (edge.sourceHandle) {
+      const oldSourceId = edge.source;
+      const newSourceId = newSource;
+      newSourceHandle = edge.sourceHandle.replace(oldSourceId, newSourceId);
+    }
+
+    if (edge.targetHandle) {
+      const oldTargetId = edge.target;
+      const newTargetId = newTarget;
+      newTargetHandle = edge.targetHandle.replace(oldTargetId, newTargetId);
+    }
 
     return {
       ...edge,
       id: newId,
       source: newSource,
       target: newTarget,
+      sourceHandle: newSourceHandle,
+      targetHandle: newTargetHandle,
     } as Edge;
   });
 
-  // Check for and remove duplicate edges based on source-target pairs
+  // Check for and remove duplicate edges based on source-target pairs AND edge type
   const edgeMap = new Map<string, Edge>();
   const duplicateEdges: string[] = [];
 
   newEdges.forEach((edge) => {
-    const key = `${edge.source}->${edge.target}`;
+    const key = `${edge.source}->${edge.target}:${edge.type ?? "default"}`;
     if (edgeMap.has(key)) {
       duplicateEdges.push(edge.id);
     } else {
@@ -220,8 +228,8 @@ export const copyViewpointToStorage = (
       copiedFromId: sourceId,
       isCopyOperation: true,
       timestamp: Date.now(),
-      ...(topic && { topic }),
-      ...(topicId && { topicId }),
+      ...(topic !== undefined && topic !== null && { topic }),
+      ...(topicId !== undefined && topicId !== null && { topicId }),
     };
 
     sessionStorage.setItem(storageKey, JSON.stringify(viewpointDataToStore));
@@ -245,30 +253,21 @@ export const copyViewpointAndNavigate = async (
 ): Promise<boolean> => {
   // Before storing, log the graph for debugging
   console.log("Copying graph with nodes:", graphToCopy.nodes.length);
-  console.log("[copyViewpointAndNavigate] Topic info received:", { topic, topicId });
+  console.log("[copyViewpointAndNavigate] Topic info received:", {
+    topic,
+    topicId,
+  });
 
   try {
-    let summaryDescription = `Copy of the rationale "${title.trim()}". This is a copy of an existing rationale.`;
+    // Use a simple fallback description for immediate copying
+    // AI summary generation will happen in background after navigation
+    const fallbackDescription = `Copy of the rationale "${title.trim()}". This is a copy of an existing rationale. (AI Summary is currently being generated.)`;
 
-    const { generateRationaleSummary } = await import(
-      "@/actions/ai/generateRationaleSummary"
-    );
-
-    try {
-      summaryDescription = await generateRationaleSummary({
-        title,
-        description,
-        graph: graphToCopy,
-      });
-    } catch (summaryError) {
-      console.error("Error generating rationale summary:", summaryError);
-    }
-
-    // Store the copy in session storage
+    // Store the copy in session storage with fallback description for fast navigation
     const success = copyViewpointToStorage(
       graphToCopy,
       title,
-      summaryDescription,
+      fallbackDescription,
       sourceId,
       topic,
       topicId
@@ -279,25 +278,16 @@ export const copyViewpointAndNavigate = async (
       return false;
     }
 
-    // Track the copy if a source ID is provided
-    // We'll do this in the background without awaiting it to avoid delays
+    // Track the copy if a source ID is provided - do this in background without blocking
     if (sourceId) {
-      try {
-        // Use fetch without await so it runs in background and doesn't block navigation
-        fetch(`/api/viewpoint/track-copy?id=${sourceId}`, {
-          method: "POST",
-          // Add credentials to ensure cookies are sent
-          credentials: "same-origin",
-          // Short timeout to prevent long-running requests
-          signal: AbortSignal.timeout(2000),
-        }).catch((err) => {
-          // This is non-critical, we can log but continue with navigation
-          console.warn("Error tracking copy (non-blocking):", err);
-        });
-      } catch (error) {
-        // Don't block navigation if tracking fails
-        console.warn("Error initiating copy tracking (non-blocking):", error);
-      }
+      // Fire-and-forget with very short timeout to avoid any delays
+      fetch(`/api/viewpoint/track-copy?id=${sourceId}`, {
+        method: "POST",
+        credentials: "same-origin",
+        signal: AbortSignal.timeout(1000),
+      }).catch(() => {
+        // Silently fail - this is non-critical telemetry
+      });
     }
 
     // Navigate to the new page under the explicit space, optionally auto-publishing

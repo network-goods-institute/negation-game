@@ -14,7 +14,7 @@ export const pointFetcher = create({
     }));
   },
   resolver: keyResolver("pointId"),
-  scheduler: windowScheduler(10),
+  scheduler: windowScheduler(2),
 });
 
 export type PointData = Awaited<ReturnType<typeof fetchPoints>>[number];
@@ -28,8 +28,8 @@ export const usePointData = (pointId?: number) => {
   return useQuery<PointData | null, Error>({
     queryKey: pointQueryKey({ pointId, userId: user?.id }),
     queryFn: () => (pointId ? pointFetcher.fetch(pointId) : null),
-    gcTime: 10 * 60 * 1000,
-    staleTime: 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,

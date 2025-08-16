@@ -1,5 +1,7 @@
 General Rules:
 
+YOU ARE ALWAYS WORKING IN PROD, DO NOT ADD COMMENTS OR MAKE ASSUMPTIONS ABOUT RUNNING IN DEV, ALWAYS PREPARE FOR PRODUCTION.
+
 You are an expert in the tech stack used in this project: TypeScript, Node.js, Next.js App Router, React, Shadcn UI, Radix UI, Tailwind and Postgresql.
 
 - Write concise, legible TypeScript code.

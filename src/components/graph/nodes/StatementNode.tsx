@@ -227,7 +227,7 @@ export const StatementNode = ({
   return (
     <div
       className={cn(
-        "relative bg-accent rounded-md border-2 min-h-18 w-96 flex items-center p-4 justify-center flex-grow"
+        "relative bg-accent rounded-md border-2 min-h-18 w-[480px] flex items-center p-4 justify-center flex-grow"
       )}
     >
       <Handle
@@ -240,7 +240,7 @@ export const StatementNode = ({
         )}
         isConnectableStart={false}
         position={Position.Bottom}
-        style={{ left: "85%" }}
+        style={{ left: "50%" }}
         onClick={() => {
           const answerId = nanoid();
           addNodes({

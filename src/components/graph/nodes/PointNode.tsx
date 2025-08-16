@@ -4,7 +4,7 @@ import { useAtom, useSetAtom } from "jotai";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { cn } from "@/lib/utils/cn";
 import { useCallback, useEffect, useMemo, useState, useRef, memo } from "react";
-import { usePointNodeData } from "@/hooks/graph/usePointNodeData";
+import { useEnhancedPointNodeData } from "@/hooks/graph/useEnhancedPointNodeData";
 import { usePointNegations } from "@/queries/points/usePointNegations";
 import { useParams, usePathname } from "next/navigation";
 import { expandDialogAtom } from "../../dialogs/expandpointdialog";
@@ -22,6 +22,9 @@ import { NodeHandles } from "@/components/graph/nodes/NodeHandles";
 import { GraphNodeShell } from "@/components/graph/nodes/GraphNodeShell";
 import { calculateInitialLayout } from "@/components/utils/graph-utils";
 import { collapseHintAtom } from '@/atoms/graphSettingsAtom';
+import { OPBadge } from "@/components/cards/pointcard/OPBadge";
+import { useUserEndorsement } from "@/queries/users/useUserEndorsements";
+import { usePrefetchObjectionContexts } from "@/queries/points/useObjectionContexts";
 
 export type PointNodeData = {
   pointId: number;
@@ -39,14 +42,12 @@ export type PointNode = Node<PointNodeData, "point">;
 export interface PointNodeProps extends NodeProps {
   data: PointNodeData;
   isSharing?: boolean;
-  showEndorsements?: boolean;
 }
 
 const RawPointNode = ({
   data: { pointId, parentId, expandOnInit, isExpanding: dataIsExpanding, initialPointData },
   id,
   isSharing,
-  showEndorsements = false,
 }: PointNodeProps) => {
 
   const { expand, collapse } = useExpandCollapse(id, pointId, parentId);
@@ -81,7 +82,14 @@ const RawPointNode = ({
   const { data: originalViewpoint } = useViewpoint(isViewpointContext ? rationaleId : "DISABLED");
   const { originalPosterId } = useOriginalPoster();
 
-  const { pointData: fetchedPointData, isLoading: hookLoading, endorsedByOp } = usePointNodeData(pointId, parentId);
+  const { pointData: fetchedPointData, isLoading: hookLoading } = useEnhancedPointNodeData(
+    pointId,
+    parentId,
+    false
+  );
+
+  const { data: opCred } = useUserEndorsement(originalPosterId, pointId);
+  const endorsedByOp = Boolean(opCred && opCred > 0);
   const { data: pointNegations } = usePointNegations(pointId);
   const pointData = hookLoading
     ? initialPointData
@@ -139,6 +147,14 @@ const RawPointNode = ({
   }, [shouldExpandOnInit, pointData, expand]);
 
   const hasInitializedCollapsedState = useRef(false);
+
+  const prefetchObjection = usePrefetchObjectionContexts();
+
+  useEffect(() => {
+    if (hoveredPoint === pointId) {
+      prefetchObjection(pointId);
+    }
+  }, [hoveredPoint, pointId, prefetchObjection]);
 
   useEffect(() => {
     // Only run once per node mount
@@ -544,16 +560,28 @@ const RawPointNode = ({
           "border-0 shadow-none"
         )}
         inGraphNode
+        inRationale={true}
         restake={pointData?.restake ? { ...pointData.restake, isOwner: false } : null}
         totalRestakeAmount={pointData?.totalRestakeAmount}
         doubt={pointData?.doubt}
         originalPosterId={originalPosterId}
         graphNodeLevel={level}
         isSharing={isSharing}
-        showEndorsements={showEndorsements}
         isObjection={pointData?.isObjection ?? false}
         objectionTargetId={pointData?.objectionTargetId ?? undefined}
+        isEdited={pointData?.isEdited ?? false}
+        editedAt={pointData?.editedAt || undefined}
+        editedBy={pointData?.editedBy || undefined}
+        editCount={pointData?.editCount ?? 0}
       />
+
+      {endorsedByOp && (
+        <OPBadge
+          opCred={opCred ?? undefined}
+          originalPosterId={originalPosterId}
+        />
+      )}
+
       <DisconnectDialog
         open={isConfirmDialogOpen}
         onOpenChange={setIsConfirmDialogOpen}

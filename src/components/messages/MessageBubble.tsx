@@ -11,7 +11,7 @@ import { toast } from "sonner";
 interface MessageBubbleProps {
     message: Message & {
         _optimistic?: boolean;
-        _status?: 'sending' | 'sent' | 'failed';
+        _status?: 'sending' | 'sent' | 'failed' | 'editing' | 'deleting' | 'edited' | 'deleted';
         _error?: string;
     };
     senderUsername?: string;
@@ -102,13 +102,19 @@ export function MessageBubble({
 
     const getStatusIcon = () => {
         if (message._status === 'sending') {
-            return <ClockIcon className="size-3 text-muted-foreground" />;
+            return <ClockIcon className="size-3 opacity-60 animate-pulse" />;
+        }
+        if (message._status === 'editing') {
+            return <ClockIcon className="size-3 opacity-60 animate-pulse" />;
+        }
+        if (message._status === 'deleting') {
+            return <ClockIcon className="size-3 opacity-60 animate-pulse" />;
         }
         if (message._status === 'failed') {
             return <XCircleIcon className="size-3 text-destructive" />;
         }
-        if (message._status === 'sent' || !message._optimistic) {
-            return <CheckIcon className="size-3 text-muted-foreground" />;
+        if (message._status === 'sent' || message._status === 'edited' || message._status === 'deleted' || !message._optimistic) {
+            return <CheckIcon className="size-3 opacity-60" />;
         }
         return null;
     };
@@ -120,7 +126,7 @@ export function MessageBubble({
         )}>
             <Avatar className="size-8 flex-shrink-0">
                 <AvatarImage src={senderImage} />
-                <AvatarFallback className="bg-primary/10 text-primary">
+                <AvatarFallback className="bg-muted-foreground text-white">
                     {senderUsername?.[0]?.toUpperCase() || "?"}
                 </AvatarFallback>
             </Avatar>
@@ -178,10 +184,10 @@ export function MessageBubble({
                         <div className={cn("flex", isOwn ? "justify-end" : "justify-start")}>
                             <div
                                 className={cn(
-                                    "inline-block min-w-[200px] max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed",
+                                    "inline-block min-w-[200px] max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed",
                                     isOwn
                                         ? "bg-primary text-primary-foreground rounded-br-md"
-                                        : "bg-muted text-foreground rounded-bl-md",
+                                        : "bg-accent text-accent-foreground rounded-bl-md border border-border",
                                     message._status === 'failed' && "opacity-60",
                                     message.isDeleted && "bg-muted/60 text-muted-foreground italic"
                                 )}
@@ -191,16 +197,16 @@ export function MessageBubble({
                                 </p>
 
                                 {!message.isDeleted && (
-                                    <div className="flex items-center gap-1 mt-1 justify-start">
+                                    <div className="flex items-center gap-1 mt-2 justify-start">
                                         {getStatusIcon()}
                                         {showReadIndicator && isOwn && message.readAt && (
-                                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                            <div className="flex items-center gap-1 text-xs opacity-80">
                                                 <EyeIcon className="size-3" />
-                                                <span>Seen</span>
+                                                <span className="font-medium">Seen</span>
                                             </div>
                                         )}
                                         {message._status === 'failed' && message._error && (
-                                            <span className="text-xs text-destructive">
+                                            <span className="text-xs text-destructive font-medium">
                                                 Failed
                                             </span>
                                         )}

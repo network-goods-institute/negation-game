@@ -7,7 +7,7 @@ import { useTopics } from "@/queries/topics/useTopics";
 import { toast } from "sonner";
 import { fetchPointsByExactContent } from "@/actions/points/fetchPointsByExactContent";
 import { createRationaleFromPreview } from "@/actions/viewpoints/createRationaleFromPreview";
-import { POINT_MIN_LENGTH, POINT_MAX_LENGTH } from "@/constants/config";
+import { POINT_MIN_LENGTH, getPointMaxLength } from "@/constants/config";
 import {
   ConflictingPoint,
   ResolvedMappings,
@@ -76,12 +76,14 @@ export function useRationaleCreation({
 
       for (const node of pointNodes) {
         const contentLength = node.data.content.length;
-        if (
-          contentLength < POINT_MIN_LENGTH ||
-          contentLength > POINT_MAX_LENGTH
-        ) {
+
+        const parentEdge = currentEdges.find((edge) => edge.target === node.id);
+        const isOption = parentEdge?.type === "statement";
+        const maxLength = getPointMaxLength(isOption);
+
+        if (contentLength < POINT_MIN_LENGTH || contentLength > maxLength) {
           toast.error(
-            `Point content length invalid (must be ${POINT_MIN_LENGTH}-${POINT_MAX_LENGTH} chars): "${
+            `Point content length invalid (must be ${POINT_MIN_LENGTH}-${maxLength} chars): "${
               node.data.content.length > 50
                 ? node.data.content.substring(0, 47) + "..."
                 : node.data.content

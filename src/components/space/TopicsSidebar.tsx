@@ -10,10 +10,10 @@ import { cn } from "@/lib/utils/cn";
 import { validateAndFormatUrl } from "@/lib/validation/validateUrl";
 import { createTopic } from "@/actions/topics/createTopic";
 import { useTopics } from "@/queries/topics/useTopics";
-import { Plus, X, ChevronRight } from "lucide-react";
+import { Plus, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { encodeId } from "@/lib/negation-game/encodeId";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 interface TopicsSidebarProps {
     space: string;
@@ -31,6 +31,7 @@ export const TopicsSidebar = memo(({
     onClose,
 }: TopicsSidebarProps) => {
     const pathname = usePathname();
+    const router = useRouter();
     const isHomePage = pathname === `/s/${space}`;
 
     const { data: topics, refetch: refetchTopics, isLoading } = useTopics(space);
@@ -118,7 +119,7 @@ export const TopicsSidebar = memo(({
         <>
             <div
                 className={cn(
-                    "w-full h-full flex flex-col",
+                    "w-full h-full flex flex-col overflow-hidden",
                     "lg:relative",
                     !onClose && "lg:translate-x-0"
                 )}
@@ -134,8 +135,8 @@ export const TopicsSidebar = memo(({
                     </div>
                 </div>
 
-                <div className="pl-2 -ml-2 space-y-2">
-                    <div className="space-y-0.5">
+                <div className="pl-2 -ml-2 space-y-2 overflow-hidden">
+                    <div className="space-y-0.5 w-full max-w-full">
                         <TooltipProvider>
                             {availableTopics.map((topicName: string) => {
                                 const topic = topics?.find(t => t.name === topicName);
@@ -144,14 +145,14 @@ export const TopicsSidebar = memo(({
                                 const hasNoPoints = topic?.pointsCount === 0;
 
                                 return (
-                                    <div key={topicName} className="flex items-center gap-1 w-full">
+                                    <div key={topicName} className="flex items-center gap-1 w-full min-w-0">
                                         <Tooltip>
                                             <TooltipTrigger asChild className="flex-1 min-w-0">
                                                 <Button
                                                     variant={isSelected ? "secondary" : isHomePage ? "ghost" : "outline"}
                                                     size="sm"
                                                     className={cn(
-                                                        "w-full justify-start text-left h-9 text-xs py-1",
+                                                        "w-full justify-start text-left h-auto min-h-[36px] text-xs py-2 px-3 min-w-0",
                                                         isSelected && "bg-secondary",
                                                         hasNoPoints && "opacity-50",
                                                         !isHomePage && "hover:bg-transparent border-0"
@@ -168,7 +169,9 @@ export const TopicsSidebar = memo(({
                                                         }
                                                     }}
                                                 >
-                                                    {topicName}
+                                                    <span className="break-words leading-tight overflow-hidden">
+                                                        {topicName}
+                                                    </span>
                                                 </Button>
                                             </TooltipTrigger>
                                             {validUrl && (
@@ -185,6 +188,18 @@ export const TopicsSidebar = memo(({
                                                     size="sm"
                                                     className="h-9 w-9 p-0 opacity-50 hover:opacity-100"
                                                     title={`View ${topicName} topic page`}
+                                                    onClick={(e) => {
+                                                        // show a quick inline loading indicator
+                                                        const el = (e.currentTarget as HTMLButtonElement);
+                                                        el.disabled = true;
+                                                        el.classList.add('opacity-70');
+                                                        const icon = el.querySelector('svg');
+                                                        if (icon) icon.classList.add('hidden');
+                                                        // inject spinner
+                                                        const spinner = document.createElement('span');
+                                                        spinner.className = 'inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin';
+                                                        el.appendChild(spinner);
+                                                    }}
                                                 >
                                                     <ChevronRight className="h-3 w-3" />
                                                 </Button>

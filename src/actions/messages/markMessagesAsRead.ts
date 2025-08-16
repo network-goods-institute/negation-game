@@ -7,10 +7,12 @@ import { and, eq } from "drizzle-orm";
 
 export interface MarkMessagesAsReadArgs {
   otherUserId: string;
+  spaceId: string;
 }
 
 export const markMessagesAsRead = async ({
   otherUserId,
+  spaceId,
 }: MarkMessagesAsReadArgs) => {
   const decodedOtherUserId = decodeURIComponent(otherUserId);
 
@@ -20,7 +22,7 @@ export const markMessagesAsRead = async ({
     throw new Error("Must be authenticated to mark messages as read");
   }
 
-  const conversationId = generateConversationId(userId, decodedOtherUserId);
+  const conversationId = generateConversationId(userId, decodedOtherUserId, spaceId);
 
   const now = new Date();
 
@@ -35,6 +37,7 @@ export const markMessagesAsRead = async ({
       and(
         eq(messagesTable.conversationId, conversationId),
         eq(messagesTable.recipientId, userId),
+        eq(messagesTable.space, spaceId),
         eq(messagesTable.isRead, false)
       )
     );

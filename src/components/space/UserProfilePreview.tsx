@@ -81,7 +81,7 @@ export function UserProfilePreview() {
                                         <p className="font-medium mb-1">How to gain cred:</p>
                                         <ul className="list-disc list-inside space-y-1 text-xs">
                                             <li>Create valuable points and rationales</li>
-                                            <li>Doubt restakes that won't be slashed</li>
+                                            <li>Doubt restakes that won&apos;t be slashed</li>
                                             <li>Collect earnings from successful doubts</li>
                                         </ul>
                                     </TooltipContent>

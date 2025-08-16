@@ -5,36 +5,41 @@ import { useConversation } from "@/queries/messages/useConversation";
 import { useUser } from "@/queries/users/useUser";
 import { MessageList } from "./MessageList";
 import { MessageInput } from "./MessageInput";
-import { ConversationHeader } from "./ConversationHeader";
 import { LoaderCircleIcon } from "lucide-react";
 import { useMarkMessagesAsRead } from "@/mutations/messages/useMarkMessagesAsRead";
-import { useConversationPolling } from "@/hooks/messages/useConversationPolling";
+import { useConversationSSE } from "@/hooks/messages/useConversationSSE";
 import { useClosedConversations } from "@/hooks/messages/useClosedConversations";
 import { generateConversationId } from "@/db/schema";
 
 interface ConversationViewProps {
-    otherUsername: string;
+    username: string;
+    spaceId: string;
 }
 
-export const ConversationView = ({ otherUsername }: ConversationViewProps) => {
+export const ConversationView = ({ username: otherUsername, spaceId }: ConversationViewProps) => {
     const { data: user } = useUser();
     const { data: otherUser, isLoading: isLoadingOtherUser } = useUser(otherUsername);
-    const { data: messages, isLoading: isLoadingMessages, error } = useConversation(otherUser?.id || "");
+    const { data: messages, isLoading: isLoadingMessages, error } = useConversation({
+        otherUserId: otherUser?.id || "",
+        spaceId
+    });
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const markAsReadMutation = useMarkMessagesAsRead();
     const { reopenConversation } = useClosedConversations();
 
-    const { status: pollStatus, hasNewMessages, markAsViewed, restartPolling, isPollingActive, errorCount } = useConversationPolling({
+    const { status: sseStatus, hasNewMessages, markAsViewed, restartConnection, isConnected, reconnectAttempts } = useConversationSSE({
         otherUserId: otherUser?.id || "",
+        spaceId,
         enabled: !!otherUser?.id,
+        lastSequence: messages && messages.length > 0 ? messages[messages.length - 1]?.sequenceNumber?.toString() : undefined,
     });
 
     useEffect(() => {
         if (user?.id && otherUser?.id) {
-            const conversationId = generateConversationId(user.id, otherUser.id);
+            const conversationId = generateConversationId(user.id, otherUser.id, spaceId);
             reopenConversation(conversationId);
         }
-    }, [user?.id, otherUser?.id, reopenConversation]);
+    }, [user?.id, otherUser?.id, spaceId, reopenConversation]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -42,11 +47,11 @@ export const ConversationView = ({ otherUsername }: ConversationViewProps) => {
 
     const markAsRead = useCallback(() => {
         if (messages && messages.length > 0 && otherUser?.id) {
-            markAsReadMutation.mutate({ otherUserId: otherUser.id });
-            markAsViewed(); // Reset polling flag
+            markAsReadMutation.mutate({ otherUserId: otherUser.id, spaceId });
+            markAsViewed();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [messages, otherUser?.id, markAsViewed]);
+    }, [messages, otherUser?.id, spaceId, markAsViewed]);
 
     useEffect(() => {
         scrollToBottom();
@@ -57,10 +62,10 @@ export const ConversationView = ({ otherUsername }: ConversationViewProps) => {
     }, [markAsRead]);
 
     useEffect(() => {
-        if (errorCount >= 3) {
-            console.warn("Conversation polling has encountered multiple errors. You may need to refresh the page.");
+        if (reconnectAttempts >= 3) {
+            console.warn("Conversation connection has encountered multiple errors. You may need to refresh the page.");
         }
-    }, [errorCount]);
+    }, [reconnectAttempts]);
 
     if (!user) {
         return (
@@ -104,40 +109,42 @@ export const ConversationView = ({ otherUsername }: ConversationViewProps) => {
     }
 
     return (
-        <div className="h-screen max-w-6xl mx-auto w-full flex flex-col overflow-hidden">
-            <ConversationHeader
-                otherUserId={otherUser.id}
-                otherUsername={otherUser.username}
-            />
-
-            {/* Show polling status if needed */}
-            {!isPollingActive && errorCount > 0 && (
-                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
-                    <div className="flex">
-                        <div className="ml-3">
-                            <p className="text-sm text-yellow-700">
-                                Message polling stopped due to connection issues.
-                                <button
-                                    onClick={restartPolling}
-                                    className="ml-2 underline hover:no-underline"
-                                >
-                                    Retry
-                                </button>
-                            </p>
-                        </div>
+        <div className="h-full flex flex-col">
+            {/* Connection status */}
+            {!isConnected && reconnectAttempts > 0 && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/30 border-b border-yellow-200 dark:border-yellow-800/50 px-6 py-3">
+                    <div className="max-w-4xl mx-auto">
+                        <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                            Connection lost. Messages may not update in real-time.
+                            <button
+                                onClick={restartConnection}
+                                className="ml-2 underline hover:no-underline font-semibold text-yellow-900 dark:text-yellow-100"
+                            >
+                                Reconnect
+                            </button>
+                        </p>
                     </div>
                 </div>
             )}
 
-            <div className="flex-1 overflow-y-auto">
-                <MessageList messages={messages || []} currentUserId={user.id} />
-                <div ref={messagesEndRef} />
-            </div>
+            {/* Messages Area */}
+            <div className="flex-1 overflow-hidden bg-background">
+                <div className="h-full max-w-4xl mx-auto px-6 flex flex-col">
+                    <div className="flex-1 overflow-y-auto py-6 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+                        <MessageList messages={messages || []} currentUserId={user.id} spaceId={spaceId} />
+                        <div ref={messagesEndRef} />
+                    </div>
 
-            <MessageInput
-                recipientId={otherUser.id}
-                onMessageSent={scrollToBottom}
-            />
+                    {/* Message Input Area */}
+                    <div className="bg-card border-t border-border px-4 py-4">
+                        <MessageInput
+                            recipientId={otherUser.id}
+                            spaceId={spaceId}
+                            onMessageSent={scrollToBottom}
+                        />
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }; 

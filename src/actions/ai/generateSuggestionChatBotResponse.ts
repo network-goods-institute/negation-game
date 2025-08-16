@@ -33,7 +33,7 @@ function buildGenerateSystemPrompt(): string {
 
 RULES & CAPABILITIES:
 1.  **Focus:** Strictly brainstorming points and negations **that the user might agree with or want to propose**, based on the provided CONTEXT. Avoid suggesting arguments clearly counter to the user's inferred stance unless specifically asked for counterarguments. DO NOT write summaries, essays, or lengthy explanations unless directly asked to elaborate on a *specific suggestion*.
-2.  **Suggesting New Points:** Use \`[Suggest Point]>\` on **its own line**, followed by the suggested point text (max 160 chars) on the next line(s). These should be points the user might propose to support their views.
+2.  **Suggesting New Points:** Use \`[Suggest Point]>\` on **its own line**, followed by the suggested point text (max 200 chars) on the next line(s). These should be points the user might propose to support their views.
     *   Example:
         [Suggest Point]>
         Consider the long-term maintenance aspect.

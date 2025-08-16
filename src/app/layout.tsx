@@ -20,6 +20,8 @@ import {
   DynamicHeaderContent
 } from "@/components/header/DynamicHeaderContent";
 import { getCurrentUser } from "@/lib/privy/auth";
+import { headers } from "next/headers";
+import { Analytics } from "@vercel/analytics/react"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -125,6 +127,11 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+
+  const headersList = await headers();
+  const pathname = headersList.get("x-pathname") || "";
+  const isEmbedRoute = pathname.startsWith("/embed");
+
   const user = await getCurrentUser();
 
   // Structured data for the organization
@@ -164,8 +171,9 @@ export default async function RootLayout({
       <body className={cn("font-sans", inter.variable, "h-full flex flex-col")}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme={isEmbedRoute ? "light" : "system"}
+          forcedTheme={isEmbedRoute ? "light" : undefined}
+          enableSystem={!isEmbedRoute}
           disableTransitionOnChange
         >
           <ThemedPrivyProvider>
@@ -175,38 +183,42 @@ export default async function RootLayout({
                   <OnboardingProvider>
                     <SpaceSearchProvider>
                       <TooltipProvider>
-                        <header className="fixed top-0 z-20 border-b py-sm grid grid-cols-3 container-padding items-center w-full bg-background h-[var(--header-height)]">
-                          <div className="flex items-center min-w-0" id="header-container">
-                            <div className="flex items-center min-w-0 overflow-hidden" id="dynamic-header-content">
-                              <DynamicHeaderContent />
+                        {!isEmbedRoute && (
+                          <header className="fixed top-0 z-20 border-b py-sm grid grid-cols-3 container-padding items-center w-full bg-background h-[var(--header-height)]">
+                            <div className="flex items-center min-w-0" id="header-container">
+                              <div className="flex items-center min-w-0" id="dynamic-header-content">
+                                <DynamicHeaderContent />
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex justify-center px-4" id="header-search-container">
-                            {/* Search will be rendered here via HeaderActions */}
-                          </div>
-                          <div className="flex justify-end">
-                            <HeaderActions />
-                          </div>
-                        </header>
+                            <div className="flex justify-center px-4" id="header-search-container">
+                              {/* Search will be rendered here via HeaderActions */}
+                            </div>
+                            <div className="flex justify-end items-center">
+                              <HeaderActions />
+                            </div>
+                          </header>
+                        )}
 
-                        <div className="pt-[var(--header-height)]">
+                        <div className={isEmbedRoute ? "" : "pt-[var(--header-height)]"}>
                           {children}
                         </div>
 
-                      <Toaster />
-                      <GlobalDialogs />
-                    </TooltipProvider>
+                        <Toaster />
+                        <GlobalDialogs />
+                        <DevOnly>
+                          <ToggleableReactQueryDevTools />
+                        </DevOnly>
+                      </TooltipProvider>
                     </SpaceSearchProvider>
-                    <DevOnly>
-                      <ToggleableReactQueryDevTools />
-                    </DevOnly>
                   </OnboardingProvider>
                 </WriteupProvider>
               </KnowledgeBaseProvider>
             </QueryClientProvider>
           </ThemedPrivyProvider>
         </ThemeProvider>
-      </body>
-    </html>
+        <Analytics />
+        <script defer src="/_vercel/insights/script.js"></script>
+    </body>
+    </html >
   );
 }

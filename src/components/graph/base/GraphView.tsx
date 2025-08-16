@@ -20,10 +20,10 @@ import {
 import { useTheme } from "next-themes";
 import { useCallback, useMemo, useEffect, useState } from "react";
 import { useAtom } from "jotai";
-import { showEndorsementsAtom } from "@/atoms/showEndorsementsAtom";
 import { collapsedPointIdsAtom, ViewpointGraph, selectedPointIdsAtom } from "@/atoms/viewpointAtoms";
 import React from "react";
 import { useParams } from "next/navigation";
+import { usePointNegations } from "@/queries/points/usePointNegations";
 import { useViewpoint } from "@/queries/viewpoints/useViewpoint";
 import { GraphCanvas } from "@/components/graph/base/GraphCanvas";
 import { GraphControls } from "../controls/GraphControls";
@@ -77,6 +77,10 @@ export interface GraphViewProps
   originalGraphData?: ViewpointGraph;
   nodesDraggable?: boolean;
   topOffsetPx?: number;
+  disableNotOwnerWarning?: boolean;
+  onPublish?: () => void;
+  canPublish?: boolean;
+  isPublishing?: boolean;
 }
 
 export const GraphView = ({
@@ -106,9 +110,12 @@ export const GraphView = ({
   originalGraphData,
   nodesDraggable,
   topOffsetPx,
+  disableNotOwnerWarning,
+  onPublish,
+  canPublish = false,
+  isPublishing = false,
   ...props
 }: GraphViewProps) => {
-  const [showEndorsements] = useAtom(showEndorsementsAtom);
   const [collapsedPointIds, setCollapsedPointIds] = useAtom(collapsedPointIdsAtom);
   const [isDiscarding, setIsDiscarding] = useState(false);
   const [flowInstance, setFlowInstance] = useState<ReactFlowInstance<AppNode> | null>(null);
@@ -121,6 +128,8 @@ export const GraphView = ({
   );
   const { theme } = useTheme();
   const [selectedIds] = useAtom(selectedPointIdsAtom);
+
+  const { data: rootNegations } = usePointNegations(rootPointId);
 
   const [, setConnectDialogState] = useAtom(connectNodesDialogAtom);
   const [, setMergeNodesDialogState] = useAtom(mergeNodesDialogAtom);
@@ -169,6 +178,57 @@ export const GraphView = ({
 
   useChunkedPrefetchPoints(flowInstance, nodes);
 
+  // Initialize graph from rootPointId + its immediate negations if no nodes exist yet
+  useEffect(() => {
+    if (!rootPointId) return;
+    if (nodes.length > 0) return;
+
+    const rootId = `root-${rootPointId}`;
+
+    const seededNodes: AppNode[] = [
+      {
+        id: rootId,
+        type: "point",
+        position: { x: 0, y: 0 },
+        data: { pointId: rootPointId },
+      } as unknown as AppNode,
+    ];
+
+    const seededEdges: Edge[] = [];
+
+    if (Array.isArray(rootNegations) && rootNegations.length > 0) {
+      const spacingX = 380;
+      const spacingY = 280;
+      const mid = (rootNegations.length - 1) / 2;
+      rootNegations.forEach((n, index) => {
+        const childId = `neg-${n.pointId}`;
+        const x = (index - mid) * spacingX;
+        const y = spacingY;
+        seededNodes.push({
+          id: childId,
+          type: "point",
+          position: { x, y },
+          data: { pointId: n.pointId, parentId: rootPointId },
+        } as unknown as AppNode);
+        seededEdges.push({
+          id: `e-${childId}-${rootId}`,
+          source: childId,
+          target: rootId,
+          type: "negation",
+        });
+      });
+    }
+
+    setNodes(seededNodes);
+    setEdges(seededEdges);
+
+    setTimeout(() => {
+      if (flowInstance) {
+        flowInstance.fitView({ padding: 0.3, duration: 500 });
+      }
+    }, 500);
+  }, [rootPointId, rootNegations, nodes.length, setNodes, setEdges, flowInstance]);
+
   const { onNodesChange, onEdgesChange } = useGraphChangeHandlers({
     flowInstance,
     setLocalGraph: debouncedSetLocalGraph,
@@ -195,18 +255,19 @@ export const GraphView = ({
   // Memoize nodeTypes and edgeTypes
   const nodeTypes = useMemo(
     () => ({
-      point: (pointProps: any) => (
-        <PointNode
-          {...pointProps}
-          isSharing={isSharing || false}
-          showEndorsements={showEndorsements}
-        />
-      ),
+      point: (pointProps: any) => {
+        return (
+          <PointNode
+            {...pointProps}
+            isSharing={isSharing || false}
+          />
+        );
+      },
       statement: StatementNode,
       addPoint: AddPointNode,
       comment: CommentNode,
     }),
-    [isSharing, showEndorsements]
+    [isSharing]
   );
 
   const edgeTypes = useMemo(() => ({ negation: NegationEdge, statement: NegationEdge }), []);
@@ -333,10 +394,20 @@ export const GraphView = ({
     }
   }, [flowInstance]);
 
-  const handleAddComment = useCallback((x: number, y: number) => {
+  const handleAddComment = useCallback((screenX: number, screenY: number) => {
     if (flowInstance) {
       const { x: vpX, y: vpY, zoom } = flowInstance.getViewport();
-      const position = { x: (x - vpX) / zoom, y: (y - vpY) / zoom };
+      const flowContainer = document.querySelector('.react-flow');
+      const containerRect = flowContainer?.getBoundingClientRect();
+
+      const adjustedX = screenX - (containerRect?.left || 0);
+      const adjustedY = screenY - (containerRect?.top || 0);
+
+      const position = {
+        x: (adjustedX - vpX) / zoom,
+        y: (adjustedY - vpY) / zoom
+      };
+
       const id = `comment-${nanoid()}`;
       flowInstance.addNodes([{
         id,
@@ -451,7 +522,11 @@ export const GraphView = ({
   } = useDeepLinkShareDialog();
 
   // Show a persistent copy warning for non-owners if graph is modified
-  useNotOwnerWarning(isModified, canModify, openCopyConfirmDialog);
+  useNotOwnerWarning(
+    disableNotOwnerWarning ? false : isModified,
+    canModify,
+    openCopyConfirmDialog
+  );
 
   const handleNodeDragStart = useCallback(() => {
     setConnectDialogState({
@@ -526,6 +601,9 @@ export const GraphView = ({
           onClose={onClose}
           closeButtonClassName={closeButtonClassName}
           topOffsetPx={topOffsetPx}
+          onPublish={onPublish}
+          canPublish={canPublish}
+          isPublishing={isPublishing}
         />
         <CollapseHintOverlay />
         <GlobalExpandPointDialog />
@@ -577,17 +655,6 @@ export const GraphView = ({
                 className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
                 onClick={() => {
                   if (contextMenu.node) {
-                    handleCollapseNode(contextMenu.node.id);
-                  }
-                  closeContextMenu();
-                }}
-              >
-                Collapse Node
-              </div>
-              <div
-                className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
-                onClick={() => {
-                  if (contextMenu.node) {
                     handleFocusNode(contextMenu.node.id);
                   }
                   closeContextMenu();
@@ -595,21 +662,36 @@ export const GraphView = ({
               >
                 Focus Node
               </div>
-            </>
-          ) : (
-            <>
               <div
                 className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
                 onClick={() => {
-                  if (contextMenu) {
-                    handleAddComment(contextMenu.x, contextMenu.y);
+                  if (contextMenu.node) {
+                    handleCollapseNode(contextMenu.node.id);
                   }
                   closeContextMenu();
                 }}
               >
-                Add Comment
+                Collapse Node
               </div>
-              <div className="h-px bg-border mx-1 my-1" />
+            </>
+          ) : (
+            <>
+              {!hideComments && (
+                <>
+                  <div
+                    className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
+                    onClick={() => {
+                      if (contextMenu) {
+                        handleAddComment(contextMenu.x, contextMenu.y);
+                      }
+                      closeContextMenu();
+                    }}
+                  >
+                    Add Comment
+                  </div>
+                  <div className="h-px bg-border mx-1 my-1" />
+                </>
+              )}
               <div
                 className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent"
                 onClick={() => {

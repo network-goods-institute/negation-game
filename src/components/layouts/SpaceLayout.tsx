@@ -11,6 +11,7 @@ const TopicsSidebar = React.lazy(() => import("@/components/space/TopicsSidebar"
 const StatisticsSummaryCard = React.lazy(() => import("@/components/statistics/StatisticsSummaryCard").then(mod => ({ default: mod.StatisticsSummaryCard })));
 const LeaderboardCard = React.lazy(() => import("@/components/space/LeaderboardCard").then(mod => ({ default: mod.LeaderboardCard })));
 const UserProfilePreview = React.lazy(() => import("@/components/space/UserProfilePreview").then(mod => ({ default: mod.UserProfilePreview })));
+const FullWidthAiButton = React.lazy(() => import("@/components/ai/FullWidthAiButton").then(mod => ({ default: mod.FullWidthAiButton })));
 
 
 interface SpaceLayoutProps {
@@ -130,7 +131,9 @@ export function SpaceLayout({
                     )}
 
                     <div className="flex-1 sm:mt-6">
-                        {children}
+                        <div className="mx-auto w-full max-w-5xl px-3">
+                            {children}
+                        </div>
                     </div>
                 </main>
 
@@ -138,19 +141,27 @@ export function SpaceLayout({
                 {showSidebars && showStatsSidebar && (
                     <aside className="hidden xl:block w-80 flex-shrink-0">
                         <div className="fixed w-80 top-14 bottom-0 border-l bg-muted/10">
-                            <div className="px-4 2xl:px-8 py-4 space-y-4">
-                                {rightSidebarContent ? (
-                                    rightSidebarContent
-                                ) : (
-                                    <>
-                                        <Suspense fallback={<div className="h-32 animate-pulse bg-muted/20 rounded-lg" />}>
-                                            <StatisticsSummaryCard space={space} />
-                                        </Suspense>
-                                        <Suspense fallback={<div className="h-64 animate-pulse bg-muted/20 rounded-lg" />}>
-                                            <LeaderboardCard space={space} />
-                                        </Suspense>
-                                    </>
-                                )}
+                            <div className="px-4 2xl:px-8 py-4 h-full flex flex-col overflow-hidden">
+                                {/* Full-width AI Assistant button for desktop */}
+                                <Suspense fallback={<div className="h-12 animate-pulse bg-muted/20 rounded-lg" />}>
+                                    <FullWidthAiButton />
+                                </Suspense>
+
+                                {/* Right sidebar content area. Not scrollable by default; pages can manage their own scrolling inside. */}
+                                <div className="flex-1 min-h-0 mt-4">
+                                    {rightSidebarContent ? (
+                                        rightSidebarContent
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <Suspense fallback={<div className="h-32 animate-pulse bg-muted/20 rounded-lg" />}>
+                                                <StatisticsSummaryCard space={space} />
+                                            </Suspense>
+                                            <Suspense fallback={<div className="h-64 animate-pulse bg-muted/20 rounded-lg" />}>
+                                                <LeaderboardCard space={space} />
+                                            </Suspense>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </aside>

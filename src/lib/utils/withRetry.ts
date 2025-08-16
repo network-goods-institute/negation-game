@@ -21,6 +21,15 @@ const defaultOptions: Required<RetryOptions> = {
     "Service Unavailable",
     "resource has been exhausted",
     "too many requests",
+    "quota",
+    "context length",
+    "maximum context length",
+    "timeout",
+    "timed out",
+    "ETIMEDOUT",
+    "ECONNRESET",
+    "gateway timeout",
+    "504",
   ],
 };
 

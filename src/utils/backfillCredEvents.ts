@@ -138,19 +138,19 @@ export async function backfillCredEvents(cutoff?: Date) {
     throw new Error("SQL connection not initialized");
   }
 
-  // Bulk insert using raw SQL
-  const values = toInsert
-    .map(
-      (e) =>
-        `('${e.userId}', ${e.pointId}, '${e.kind}', ${e.amount}, '${e.ts.toISOString()}')`
-    )
-    .join(", ");
+  const rows = toInsert.map((e) => [
+    e.userId,
+    e.pointId,
+    e.kind,
+    e.amount,
+    e.ts,
+  ]);
 
-  const insertResult = await sql.unsafe(`
+  const insertResult = await (sql as any)`
     INSERT INTO cred_events (user_id, point_id, kind, amount, ts)
-    VALUES ${values}
+    VALUES ${(sql as any)(rows)}
     ON CONFLICT ON CONSTRAINT cred_events_pkey DO NOTHING
-  `);
+  `;
 
   const inserted = Array.isArray(insertResult)
     ? insertResult.length

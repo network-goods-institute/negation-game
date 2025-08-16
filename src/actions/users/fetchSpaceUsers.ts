@@ -8,8 +8,7 @@ import { endorsementsTable } from "@/db/tables/endorsementsTable";
 import { restakesTable } from "@/db/tables/restakesTable";
 import { slashesTable } from "@/db/tables/slashesTable";
 import { doubtsTable } from "@/db/tables/doubtsTable";
-import { topicsTable } from "@/db/tables/topicsTable";
-import { sql, eq, or, and } from "drizzle-orm";
+import { sql, or, desc } from "drizzle-orm";
 
 export async function fetchSpaceUsers(spaceId: string) {
   // Get users who have any activity in this space
@@ -17,6 +16,10 @@ export async function fetchSpaceUsers(spaceId: string) {
     .select({
       id: usersTable.id,
       username: usersTable.username,
+      cred: usersTable.cred,
+      delegationUrl: usersTable.delegationUrl,
+      agoraLink: usersTable.agoraLink,
+      scrollDelegateLink: usersTable.scrollDelegateLink,
     })
     .from(usersTable)
     .where(
@@ -32,12 +35,6 @@ export async function fetchSpaceUsers(spaceId: string) {
           SELECT 1 FROM ${pointsTable} p 
           WHERE p.created_by = ${usersTable.id} 
           AND p.space = ${spaceId}
-        )`,
-        // Users who have created topics in this space
-        sql`EXISTS (
-          SELECT 1 FROM ${topicsTable} t 
-          WHERE t.created_by = ${usersTable.id} 
-          AND t.space = ${spaceId}
         )`,
         // Users who have endorsed points in this space
         sql`EXISTS (
@@ -68,7 +65,9 @@ export async function fetchSpaceUsers(spaceId: string) {
           AND p.space = ${spaceId}
         )`
       )
-    );
+    )
+    .limit(100)
+    .orderBy(desc(usersTable.cred));
 
   return results;
 }

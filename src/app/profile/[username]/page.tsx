@@ -21,14 +21,29 @@ import { useSetAtom } from "jotai";
 import { preventDefaultIfContainsSelection } from "@/lib/utils/preventDefaultIfContainsSelection";
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { useQueryClient } from "@tanstack/react-query";
+import dynamic from "next/dynamic";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ProfilePoint } from "@/actions/points/fetchProfilePoints";
 import { ProfileBadge, RationaleRank } from "@/components/ui/ProfileBadge";
 import { DeltaComparisonWidget } from "@/components/delta/DeltaComparisonWidget";
 import { useEarningsPreview } from "@/queries/epistemic/useEarningsPreview";
-import { ProfileEditDialog } from "@/components/dialogs/ProfileEditDialog";
-import { EarningsDialog } from "@/components/dialogs/EarningsDialog";
+
+const ProfileEditDialog = dynamic(
+    () => import("@/components/dialogs/ProfileEditDialog").then(mod => mod.ProfileEditDialog),
+    {
+        ssr: false,
+        loading: () => null
+    }
+);
+
+const EarningsDialog = dynamic(
+    () => import("@/components/dialogs/EarningsDialog").then(mod => mod.EarningsDialog),
+    {
+        ssr: false,
+        loading: () => null
+    }
+);
 
 type ProfileTab = "profile" | "endorsements" | "dashboard";
 
@@ -70,7 +85,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     const [editProfileOpen, setEditProfileOpen] = useState(false);
     const [earningsDialogOpen, setEarningsDialogOpen] = useState(false);
     const [showCredInfo, setShowCredInfo] = useState(false);
-    
+
     const { data: earningsPreview = 0 } = useEarningsPreview({
         enabled: !!privyUser && privyUser?.id === userData?.id
     });
@@ -293,11 +308,13 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => router.push(`/messages/${userData.id}`)}
+                                    asChild
                                     className="gap-1"
                                 >
-                                    <MessageSquareIcon className="size-3" />
-                                    Send Message
+                                    <Link href={`/s/global/messages/${username}`}>
+                                        <MessageSquareIcon className="size-3" />
+                                        Send Message
+                                    </Link>
                                 </Button>
                             )}
                             {isOwnProfile && (
@@ -333,7 +350,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                             <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
                                 <li>Create high-quality points that gain endorsements</li>
                                 <li>Write comprehensive rationales that connect multiple points</li>
-                                <li>Successfully doubt restakes that won't be slashed</li>
+                                <li>Successfully doubt restakes that won&apos;t be slashed</li>
                                 <li>Collect earnings from your successful doubts regularly</li>
                             </ul>
                             <p className="text-xs text-muted-foreground mt-2 italic">
@@ -349,7 +366,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                     {userData.scrollDelegateLink || userData.agoraLink ? "Governance Delegate" : "Delegate Your Voting Power"}
                                 </h3>
                                 <p className="text-sm text-muted-foreground max-w-md">
-                                    {userData.scrollDelegateLink || userData.agoraLink 
+                                    {userData.scrollDelegateLink || userData.agoraLink
                                         ? `${username} is a governance delegate. View their profile or delegate your voting power.`
                                         : `Support ${username}'s governance decisions by delegating your voting power`
                                     }
@@ -431,14 +448,14 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                         </div>
                     )}
 
-                    {/* Delta Comparison Widget */}
-                    {userData?.id && (
+                    {/* Delta Comparison Widget - Only show if viewing your own profile or you're authenticated */}
+                    {userData?.id && privyUser?.id && (
                         <div className="mb-6">
                             <DeltaComparisonWidget
                                 comparison={{ type: "user", userId: userData.id, username: username }}
                                 title="User Alignment Discovery"
                                 description="Find users who agree or disagree with you most across all points created by this user"
-                                currentUserId={privyUser?.id}
+                                currentUserId={privyUser.id}
                             />
                         </div>
                     )}
@@ -458,17 +475,30 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                         <TabsContent value="profile" className="mt-4">
                             <div className="space-y-6">
                                 <div className="p-4 border rounded-lg">
-                                    <h3 className="font-medium mb-2">Stats</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div className="p-4 border rounded-lg text-center md:text-left">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="font-medium">Stats</h3>
+                                        {isOwnProfile && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setEarningsDialogOpen(true)}
+                                                className="gap-2"
+                                            >
+                                                <CoinsIcon className="size-4" />
+                                                Collect Earnings
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div className="p-4 border rounded-lg text-center">
                                             <p className="text-xs md:text-sm text-muted-foreground mb-1">Points Created</p>
                                             <p className="text-xl md:text-2xl font-medium">{validPoints.length}</p>
                                         </div>
-                                        <div className="p-4 border rounded-lg text-center md:text-left">
+                                        <div className="p-4 border rounded-lg text-center">
                                             <p className="text-xs md:text-sm text-muted-foreground mb-1">Points Endorsed</p>
                                             <p className="text-xl md:text-2xl font-medium">{userEndorsedPoints.length}</p>
                                         </div>
-                                        <div className="p-4 border rounded-lg text-center md:text-left">
+                                        <div className="p-4 border rounded-lg text-center">
                                             <p className="text-xs md:text-sm text-muted-foreground mb-1">Total Cred Endorsed</p>
                                             <p className="text-xl md:text-2xl font-medium">
                                                 {userEndorsedPoints.reduce((sum, point) =>
@@ -476,7 +506,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                                     , 0)}
                                             </p>
                                         </div>
-                                        <div className="p-4 border rounded-lg text-center md:text-left">
+                                        <div className="p-4 border rounded-lg text-center">
                                             <p className="text-xs md:text-sm text-muted-foreground mb-1">Rationales Created</p>
                                             <p className="text-xl md:text-2xl font-medium">{userViewpoints?.length || 0}</p>
                                         </div>
@@ -743,11 +773,10 @@ export default function ProfilePage({ params }: ProfilePageProps) {
             </div>
 
             {isOwnProfile && (
-                <>
-                    <Suspense fallback={null}>
-                        <ProfileEditDialog
-                            open={editProfileOpen}
-                            onOpenChange={setEditProfileOpen}
+                <Suspense fallback={null}>
+                    <ProfileEditDialog
+                        open={editProfileOpen}
+                        onOpenChange={setEditProfileOpen}
                         currentBio={userData?.bio}
                         currentDelegationUrl={userData?.delegationUrl}
                         currentAgoraLink={userData?.agoraLink}
@@ -755,18 +784,13 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                         currentDiscourseUsername={userData?.discourseUsername}
                         currentDiscourseCommunityUrl={userData?.discourseCommunityUrl}
                         currentDiscourseConsentGiven={userData?.discourseConsentGiven}
-                        />
-                    </Suspense>
-                    {earningsDialogOpen && (
-                        <Suspense fallback={null}>
-                            <EarningsDialog
-                                open={earningsDialogOpen}
-                                onOpenChange={setEarningsDialogOpen}
-                            />
-                        </Suspense>
-                    )}
-                </>
+                    />
+                    <EarningsDialog
+                        open={earningsDialogOpen}
+                        onOpenChange={setEarningsDialogOpen}
+                    />
+                </Suspense>
             )}
         </main>
     );
-} 
+}

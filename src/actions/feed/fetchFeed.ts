@@ -12,13 +12,11 @@ import {
   negationsTable,
   objectionsTable,
 } from "@/db/schema";
-import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
 import { Timestamp } from "@/types/Timestamp";
 import { desc, eq, sql, and, ne } from "drizzle-orm";
 import { decodeId } from "@/lib/negation-game/decodeId";
-import { deduplicatePoints } from "@/db/utils/deduplicatePoints";
 
 export type FeedPoint = {
   pointId: number;
@@ -85,12 +83,14 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
     conditions.push(ne(pointsWithDetailsView.pointId, pinnedPointId));
   }
 
-  // this is somehow producing duplicates
-  // i have not been able to track it down, it seems to be related to pin commands
-  // but i don't understand why
   const results = await db
-    .selectDistinct({
+    .select({
       ...getColumns(pointsWithDetailsView),
+      favor: sql<number>`COALESCE((
+        SELECT "favor"
+        FROM "current_point_favor" cpf
+        WHERE cpf."id" = "point_with_details_view"."id"
+      ), 0)`.mapWith(Number),
       viewerCred: sql<number>`
         COALESCE((
           SELECT SUM(${endorsementsTable.cred})
@@ -165,12 +165,29 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
       `.mapWith((x) => x as number | null),
       doubt: viewerId
         ? {
-            id: doubtsTable.id,
-            amount: doubtsTable.amount,
-            userAmount: doubtsTable.amount,
-            isUserDoubt: sql<boolean>`${doubtsTable.userId} = ${viewerId}`.as(
-              "is_user_doubt"
-            ),
+            id: sql<number | null>`(
+              SELECT MIN(${doubtsTable.id})
+              FROM ${doubtsTable}
+              WHERE ${doubtsTable.pointId} = ${pointsWithDetailsView.pointId}
+                AND ${doubtsTable.userId} = ${viewerId}
+            )`.mapWith((v) => v as number | null),
+            amount: sql<number>`COALESCE((
+              SELECT SUM(${doubtsTable.amount})
+              FROM ${doubtsTable}
+              WHERE ${doubtsTable.pointId} = ${pointsWithDetailsView.pointId}
+                AND ${doubtsTable.userId} = ${viewerId}
+            ), 0)`.mapWith(Number),
+            userAmount: sql<number>`COALESCE((
+              SELECT SUM(${doubtsTable.amount})
+              FROM ${doubtsTable}
+              WHERE ${doubtsTable.pointId} = ${pointsWithDetailsView.pointId}
+                AND ${doubtsTable.userId} = ${viewerId}
+            ), 0)`.mapWith(Number),
+            isUserDoubt: sql<boolean>`EXISTS (
+              SELECT 1 FROM ${doubtsTable}
+              WHERE ${doubtsTable.pointId} = ${pointsWithDetailsView.pointId}
+                AND ${doubtsTable.userId} = ${viewerId}
+            )`.mapWith(Boolean),
           }
         : sql<null>`NULL`.mapWith((x) => x as null),
       isObjection: sql<boolean>`EXISTS (
@@ -187,15 +204,6 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
     })
     .from(pointsWithDetailsView)
     .where(and(...conditions))
-    .leftJoin(
-      doubtsTable,
-      viewerId
-        ? and(
-            eq(doubtsTable.pointId, pointsWithDetailsView.pointId),
-            eq(doubtsTable.userId, viewerId)
-          )
-        : sql`false`
-    )
     .orderBy(desc(pointsWithDetailsView.createdAt));
 
   // Get all pin commands with the highest favor
@@ -322,10 +330,8 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
         )
       : [];
 
-  const uniquePoints = deduplicatePoints(results);
-
   // Add pinCommands array to each point
-  const pointsWithCommandsInit = uniquePoints.map((point) => ({
+  const pointsWithCommandsInit = results.map((point) => ({
     ...point,
     pinCommands: [] as Array<{
       id: number;
@@ -353,5 +359,5 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
     pinCommands: point.pinCommands.length > 0 ? point.pinCommands : undefined,
   }));
 
-  return await addFavor(pointsWithCommands);
+  return pointsWithCommands;
 };

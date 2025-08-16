@@ -37,7 +37,7 @@ export function SpaceChildHeader({
 
   return (
     <div className={cn(
-      "sticky top-0 z-50 border-b border-border/50",
+      "sticky top-[var(--header-height)] z-40 border-b border-border/50 bg-background",
       className
     )}>
       <div className="flex items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
@@ -58,9 +58,15 @@ export function SpaceChildHeader({
               {title}
             </h1>
             {subtitle && (
-              <p className="text-sm text-muted-foreground truncate">
-                {subtitle}
-              </p>
+              typeof subtitle === 'string' ? (
+                <p className="text-sm text-muted-foreground truncate">
+                  {subtitle}
+                </p>
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  {subtitle}
+                </div>
+              )
             )}
           </div>
         </div>

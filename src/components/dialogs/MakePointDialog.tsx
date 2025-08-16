@@ -10,7 +10,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { POINT_MAX_LENGTH, POINT_MIN_LENGTH } from "@/constants/config";
+import { REGULAR_POINT_MAX_LENGTH, POINT_MIN_LENGTH } from "@/constants/config";
 import { useCredInput } from "@/hooks/ui/useCredInput";
 import { useSubmitHotkey } from "@/hooks/ui/useSubmitHotkey";
 import { cn } from "@/lib/utils/cn";
@@ -119,7 +119,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({ ...props }) => {
   }, [setSuggestion]);
 
   const handleSubmit = useCallback(() => {
-    if (!user || (!selectedPoint && !(content.length >= POINT_MIN_LENGTH && content.length <= POINT_MAX_LENGTH))) return;
+    if (!user || (!selectedPoint && !(content.length >= POINT_MIN_LENGTH && content.length <= REGULAR_POINT_MAX_LENGTH))) return;
     if (isSubmitting) return;
 
     setIsSubmitting(true);
@@ -398,7 +398,7 @@ export const MakePointDialog: FC<MakePointDialogProps> = ({ ...props }) => {
 
         <Button
           onClick={handleSubmit}
-          disabled={!user || (!selectedPoint && !(content.length >= POINT_MIN_LENGTH && content.length <= POINT_MAX_LENGTH)) || isSubmitting || (selectedPoint && cred <= 0)}
+          disabled={!user || (!selectedPoint && !(content.length >= POINT_MIN_LENGTH && content.length <= REGULAR_POINT_MAX_LENGTH)) || isSubmitting || (selectedPoint && cred <= 0)}
         >
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isSubmitting

@@ -2,7 +2,7 @@
 
 import { AuthenticatedActionButton } from "@/components/editor/AuthenticatedActionButton";
 import { Button } from "@/components/ui/button";
-import { POINT_MIN_LENGTH } from "@/constants/config";
+import { POINT_MIN_LENGTH, getPointMaxLength } from "@/constants/config";
 import { cn } from "@/lib/utils/cn";
 import { Handle, Node, NodeProps, Position, useReactFlow } from "@xyflow/react";
 import { XIcon, Search } from "lucide-react";
@@ -105,7 +105,9 @@ export const PreviewAddPointNode = ({
 
 
 
-  const canAddPoint = content.length >= POINT_MIN_LENGTH && (!isObjection || selectedContextId);
+  const isOption = isParentStatement;
+  const maxLength = getPointMaxLength(isOption);
+  const canAddPoint = content.length >= POINT_MIN_LENGTH && content.length <= maxLength && (!isObjection || selectedContextId);
 
   const handleAdd = async () => {
     let nodeContent = content;

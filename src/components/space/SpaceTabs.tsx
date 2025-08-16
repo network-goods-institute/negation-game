@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import { ListTree, Filter, ChevronDown } from "lucide-react";
+import { Filter, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import useIsMobile from "@/hooks/ui/useIsMobile";
-import type { SortOrder } from "@/app/s/[space]/SpacePageClient";
+import type { SortOrder } from "@/types/space";
 import { Button } from "@/components/ui/button";
 import {
     Select,

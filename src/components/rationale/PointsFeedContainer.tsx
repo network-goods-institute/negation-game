@@ -55,7 +55,7 @@ const PointsFeedContainer: React.FC = () => {
                 spaceSlug={spaceSlug!}
                 className={cn(
                     "!fixed inset-0 top-[var(--header-height)] !h-[calc(100vh-var(--header-height))]",
-                    "md:!relative md:col-start-4 md:inset-[reset] md:top-[reset] md:!h-full md:!z-auto"
+                    "md:!relative md:col-start-4 md:inset-[reset] md:top-[reset] md:!h-full md:!z-auto md:min-h-0 md:overflow-y-auto"
                 )}
             />
             <div className="hidden md:flex absolute top-4 right-4 z-50">

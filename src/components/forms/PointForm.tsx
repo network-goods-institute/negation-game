@@ -10,17 +10,24 @@ import {
   FormLabel,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { POINT_MAX_LENGTH } from "@/constants/config";
-import { InsertPoint, insertPointSchema } from "@/db/tables/pointsTable";
+import { REGULAR_POINT_MAX_LENGTH, POINT_MIN_LENGTH } from "@/constants/config";
+import { InsertPoint } from "@/db/tables/pointsTable";
 import { cn } from "@/lib/utils/cn";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FC, HTMLAttributes } from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
+import { z } from "zod";
 
 export interface PositionFormProps extends HTMLAttributes<HTMLFormElement> {
   onValidSubmit: SubmitHandler<Omit<InsertPoint, "createdBy">>;
   onCancel: () => void;
 }
+
+const pointFormSchema = z.object({
+  content: z.string()
+    .min(POINT_MIN_LENGTH, `Content must be at least ${POINT_MIN_LENGTH} characters`)
+    .max(REGULAR_POINT_MAX_LENGTH, `Content must be at most ${REGULAR_POINT_MAX_LENGTH} characters`)
+});
 
 export const PointForm: FC<PositionFormProps> = ({
   onValidSubmit,
@@ -29,7 +36,7 @@ export const PointForm: FC<PositionFormProps> = ({
   ...props
 }) => {
   const form = useForm<Omit<InsertPoint, "createdBy">>({
-    resolver: zodResolver(insertPointSchema.pick({ content: true })),
+    resolver: zodResolver(pointFormSchema),
     defaultValues: {
       content: "",
     },
@@ -51,11 +58,11 @@ export const PointForm: FC<PositionFormProps> = ({
                 <FormLabel>Description</FormLabel>
                 <FormDescription
                   className={cn(
-                    field.value.length > POINT_MAX_LENGTH && "text-destructive"
+                    field.value.length > REGULAR_POINT_MAX_LENGTH && "text-destructive"
                   )}
                 >
-                  {field.value.length}/{POINT_MAX_LENGTH}
-                  {field.value.length > POINT_MAX_LENGTH && "!"}
+                  {field.value.length}/{REGULAR_POINT_MAX_LENGTH}
+                  {field.value.length > REGULAR_POINT_MAX_LENGTH && "!"}
                 </FormDescription>
               </div>
               <FormControl>

@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  POINT_MAX_LENGTH,
+  REGULAR_POINT_MAX_LENGTH,
   POINT_MIN_LENGTH,
   GOOD_ENOUGH_POINT_RATING,
 } from "@/constants/config";
@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils/cn";
 import { useAddCounterpoint } from "@/mutations/points/useAddCounterpoint";
 import { useEndorse } from "@/mutations/endorsements/useEndorse";
 import { useNegate } from "@/mutations/points/useNegate";
-import { validateObjectionTarget } from "@/actions/points/addObjection";
+import { useObjectionContexts } from "@/queries/points/useObjectionContexts";
 import { useAddObjection } from "@/mutations/points/useAddObjection";
 import { usePointDataById } from "@/queries/points/usePointDataById";
 import { DialogProps } from "@radix-ui/react-dialog";
@@ -44,7 +44,7 @@ import {
   AlertTriangleIcon,
 } from "lucide-react";
 import { ObjectionIcon } from "@/components/icons/ObjectionIcon";
-import { FC, ReactNode, useCallback, useEffect, useState } from "react";
+import { FC, ReactNode, useCallback, useEffect, useState, useMemo } from "react";
 import {
   Tooltip,
   TooltipContent,
@@ -107,7 +107,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   const [selectedCounterpointCandidate, selectCounterpointCandidate] = useState<
     CounterpointCandidate | undefined
   >(undefined);
-  const charactersLeft = POINT_MAX_LENGTH - counterpointContent.length;
+  const charactersLeft = REGULAR_POINT_MAX_LENGTH - counterpointContent.length;
 
   const queryClient = useQueryClient();
 
@@ -205,10 +205,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   const canReview =
     charactersLeft >= 0 && counterpointContent.length >= POINT_MIN_LENGTH;
 
-  const canSubmit = selectedCounterpointCandidate?.isCounterpoint
-    ? true
-    : (charactersLeft >= 0 && counterpointContent.length >= POINT_MIN_LENGTH &&
-      (!isObjection || (isObjection && availableContexts.length > 0)));
+  let canSubmit = selectedCounterpointCandidate?.isCounterpoint ? true : (charactersLeft >= 0 && counterpointContent.length >= POINT_MIN_LENGTH);
   const handleClose = useCallback(() => {
     selectCounterpointCandidate(undefined);
     setGuidanceNotes(undefined);
@@ -262,27 +259,33 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   // Note: We don't call handleClose here to avoid infinite loops
   // The dialog's onOpenChange will handle cleanup when it actually closes
 
-  useEffect(() => {
-    const dialogIsOpen = negationSuggestion !== null || objectionSuggestion !== null || negatedPointId !== undefined;
+  const dialogIsOpen = negationSuggestion !== null || objectionSuggestion !== null || negatedPointId !== undefined;
+  const { data: objectionCtxData, isLoading: isLoadingObjectionCtx } = useObjectionContexts(currentNegatedPointId, { enabled: dialogIsOpen });
 
-    if (currentNegatedPointId && dialogIsOpen && loadedContextsForPointId !== currentNegatedPointId) {
-      validateObjectionTarget(currentNegatedPointId).then((result) => {
-        setAvailableContexts(result.availableContexts);
-        setSelectedContextIndex(0);
-        setLoadedContextsForPointId(currentNegatedPointId);
-      }).catch((error) => {
-        console.error("Error loading objection contexts:", error);
-        setAvailableContexts([]);
-        setSelectedContextIndex(0);
-        setLoadedContextsForPointId(null);
-      });
-    } else if (!dialogIsOpen) {
-      // Clear contexts when dialog closes
+  useEffect(() => {
+    if (!dialogIsOpen) {
       setAvailableContexts([]);
       setSelectedContextIndex(0);
       setLoadedContextsForPointId(null);
+      return;
     }
-  }, [currentNegatedPointId, negationSuggestion, objectionSuggestion, negatedPointId, loadedContextsForPointId]);
+    if (currentNegatedPointId && objectionCtxData && loadedContextsForPointId !== currentNegatedPointId) {
+      setAvailableContexts(objectionCtxData.availableContexts);
+      setSelectedContextIndex(0);
+      setLoadedContextsForPointId(currentNegatedPointId);
+    }
+  }, [dialogIsOpen, objectionCtxData, currentNegatedPointId, loadedContextsForPointId]);
+
+  // After objection contexts load, gate submission when objection is selected with no contexts
+  if (!selectedCounterpointCandidate?.isCounterpoint) {
+    if (isObjection) {
+      if (isLoadingObjectionCtx) {
+        canSubmit = false;
+      } else if (availableContexts.length === 0) {
+        canSubmit = false;
+      }
+    }
+  }
 
   useEffect(() => {
     if (needsReview) {
@@ -517,20 +520,6 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
 
   const isOpen = negationSuggestion !== null || objectionSuggestion !== null || negatedPointId !== undefined;
 
-  // Suppress Ctrl/Cmd+Enter submission when the dialog is open
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isOpen) return;
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown, true);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown, true);
-    };
-  }, [isOpen]);
 
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -640,9 +629,16 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                         {isObjection ? "Counterpoint being objected to:" : "Point being negated:"}
                       </span>
                     </div>
-                    <p className="tracking-tight text-md @sm/point:text-lg -mt-2">
-                      {negatedPoint?.content}
-                    </p>
+                    {isLoadingNegatedPoint ? (
+                      <div className="animate-pulse">
+                        <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+                        <div className="h-4 bg-muted rounded w-1/2"></div>
+                      </div>
+                    ) : (
+                      <p className="tracking-tight text-md @sm/point:text-lg -mt-2">
+                        {negatedPoint?.content}
+                      </p>
+                    )}
                   </>
                 )}
               </div>
@@ -739,7 +735,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                           )}
                           role="switch"
                           aria-checked={isObjection}
-                          disabled={availableContexts.length === 0}
+                          disabled={isLoadingObjectionCtx || availableContexts.length === 0 || negatedPoint?.isOption}
                         >
                           <span
                             className={cn(
@@ -750,11 +746,15 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="top">
-                        {availableContexts.length === 0
-                          ? "No original points available to defend (objections not possible)"
-                          : isObjection
-                            ? "Make an objection (argue the point is irrelevant)"
-                            : "Make a counterpoint (argue the point is false)"
+                        {isLoadingObjectionCtx
+                          ? "Loading objection contexts…"
+                          : negatedPoint?.isOption
+                            ? "Objections are not available for option points"
+                            : availableContexts.length === 0
+                              ? "No original points available to defend (objections not possible)"
+                              : isObjection
+                                ? "Make an objection (argue the point is irrelevant)"
+                                : "Make a counterpoint (argue the point is false)"
                         }
                       </TooltipContent>
                     </Tooltip>
@@ -800,7 +800,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                           )}
                           role="switch"
                           aria-checked={isObjection}
-                          disabled={availableContexts.length === 0}
+                          disabled={isLoadingObjectionCtx || availableContexts.length === 0 || negatedPoint?.isOption}
                         >
                           <span
                             className={cn(
@@ -811,11 +811,15 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="top">
-                        {availableContexts.length === 0
-                          ? "No original points available to defend (objections not possible)"
-                          : isObjection
-                            ? "Make an objection (argue the point is irrelevant)"
-                            : "Make a counterpoint (argue the point is false)"
+                        {isLoadingObjectionCtx
+                          ? "Loading objection contexts…"
+                          : negatedPoint?.isOption
+                            ? "Objections are not available for option points"
+                            : availableContexts.length === 0
+                              ? "No original points available to defend (objections not possible)"
+                              : isObjection
+                                ? "Make an objection (argue the point is irrelevant)"
+                                : "Make a counterpoint (argue the point is false)"
                         }
                       </TooltipContent>
                     </Tooltip>
@@ -874,7 +878,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                           )}
                           role="switch"
                           aria-checked={isObjection}
-                          disabled={availableContexts.length === 0}
+                          disabled={isLoadingObjectionCtx || availableContexts.length === 0 || negatedPoint?.isOption}
                         >
                           <span
                             className={cn(
@@ -885,11 +889,15 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="top">
-                        {availableContexts.length === 0
-                          ? "No original points available to defend (objections not possible)"
-                          : isObjection
-                            ? "Make an objection (argue the point is irrelevant)"
-                            : "Make a counterpoint (argue the point is false)"
+                        {isLoadingObjectionCtx
+                          ? "Loading objection contexts…"
+                          : negatedPoint?.isOption
+                            ? "Objections are not available for option points"
+                            : availableContexts.length === 0
+                              ? "No original points available to defend (objections not possible)"
+                              : isObjection
+                                ? "Make an objection (argue the point is irrelevant)"
+                                : "Make a counterpoint (argue the point is false)"
                         }
                       </TooltipContent>
                     </Tooltip>
@@ -958,9 +966,11 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
           modal={true}
         >
           <DialogContent
-            className="max-w-[700px] w-[95vw] p-0 rounded-xl shadow-xl border-2 overflow-hidden"
+            className="max-w-[700px] w-[95vw] p-0 rounded-xl shadow-xl border-2"
           >
-            <DialogTitle className="sr-only">Choose a Counterpoint Approach</DialogTitle>
+            <DialogTitle className="px-6 pt-4 pb-2 border-b">
+              {isObjection ? "Choose an Objection Approach" : "Choose a Counterpoint Approach"}
+            </DialogTitle>
             <CounterpointReview
               reviewResults={reviewResults}
               counterpointContent={counterpointContent}
@@ -972,6 +982,12 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
               onSelectOwnText={handleSelectOwnText}
               isObjection={isObjection}
               contextPointContent={availableContexts[selectedContextIndex]?.contextContent}
+              onRetry={() => {
+                if (!canReview || isReviewingCounterpoint) return;
+                setIsProcessing(true);
+                reviewCounterpoint().finally(() => setIsProcessing(false));
+              }}
+              retryDisabled={isReviewingCounterpoint}
             />
           </DialogContent>
         </Dialog>

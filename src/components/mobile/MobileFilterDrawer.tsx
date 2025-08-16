@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils/cn'
 import { Separator } from '@/components/ui/separator'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import type { SortOrder } from '@/app/s/[space]/SpacePageClient'
+import type { SortOrder } from '@/types/space'
 import { SearchInput } from '@/components/search/SearchInput'
 import { PointFilterSelector } from '@/components/inputs/PointFilterSelector'
 

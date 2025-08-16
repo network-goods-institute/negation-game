@@ -43,13 +43,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = memo(
         ...props
     }) => {
         const { theme } = useTheme();
-        
-        // Right-click context menu handler for graph canvas
-        // Currently disabled - uncomment to enable context menu functionality
-        // const handlePaneContextMenu = (event: React.MouseEvent) => {
-        //     event.preventDefault();
-        //     // Add context menu logic here
-        // };
+
 
         return (
             <ReactFlow
@@ -66,6 +60,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = memo(
                 colorMode={theme as ColorMode}
                 proOptions={{ hideAttribution: true }}
                 nodesDraggable={nodesDraggable}
+                multiSelectionKeyCode={null}
                 // onPaneContextMenu={handlePaneContextMenu}
                 {...props}
             >

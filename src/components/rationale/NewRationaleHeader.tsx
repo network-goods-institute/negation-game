@@ -5,7 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AuthenticatedActionButton } from "@/components/editor/AuthenticatedActionButton";
 import { Button } from "@/components/ui/button";
-import { Trash2Icon, Handshake as HandshakeIcon } from "lucide-react";
+import { Trash2Icon } from "lucide-react";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -16,9 +16,6 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useAtom } from "jotai";
-import { showEndorsementsAtom } from "@/atoms/showEndorsementsAtom";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 export default function NewRationaleHeader({
     spaceData,
@@ -58,7 +55,6 @@ export default function NewRationaleHeader({
     canvasEnabled: boolean;
     toggleCanvas: () => void;
 }) {
-    const [showEndorsements, setShowEndorsements] = useAtom(showEndorsementsAtom);
     return (
         <>
             <RationaleHeaderBar
@@ -100,22 +96,6 @@ export default function NewRationaleHeader({
                     >
                         Publish
                     </AuthenticatedActionButton>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                size="icon"
-                                variant={showEndorsements ? "default" : "outline"}
-                                className="rounded-full p-1 size-7"
-                                onClick={() => setShowEndorsements(!showEndorsements)}
-                            >
-                                <HandshakeIcon className="size-4" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" align="center">
-                            Toggle showing all endorsements<br />
-                            (gold = OP-only; gold+stripe = OP+others; blue = others-only)
-                        </TooltipContent>
-                    </Tooltip>
                 </div>
             </div>
             <Separator />

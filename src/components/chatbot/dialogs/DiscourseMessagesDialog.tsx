@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { DiscourseMessage } from "@/types/chat";
+import SanitizedHtml from "@/components/chatbot/visual/SanitizedHtml";
 
 interface DiscourseMessagesDialogProps {
     isOpen: boolean;
@@ -41,9 +42,8 @@ export function DiscourseMessagesDialog({ isOpen, onOpenChange, messages }: Disc
                                             </div>
                                         </div>
                                         <div className="prose dark:prose-invert max-w-none text-sm mt-2">
-                                            {/* WARNING: Only use dangerouslySetInnerHTML if the source (Discourse API) is trusted 
-                                                 and properly sanitizes its HTML output. Consider using a sanitizer library if unsure. */}
-                                            <div dangerouslySetInnerHTML={{ __html: message.content }} />
+                                            {/* Sanitize as an extra layer even if Discourse sanitized */}
+                                            <SanitizedHtml html={message.content} />
                                         </div>
                                     </div>
                                 ))

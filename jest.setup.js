@@ -115,6 +115,44 @@ global.ReadableStream = class ReadableStream {
   }
 };
 
+// Web standard Request/Response polyfills for route handlers
+if (typeof global.Request === 'undefined') {
+  global.Request = class Request {
+    constructor(input, init = {}) {
+      this.url = typeof input === 'string' ? input : input?.url || '';
+      this.method = init.method || 'GET';
+      this.headers = new Map(Object.entries(init.headers || {}));
+      this._signal = init.signal;
+    }
+    headers;
+    method;
+    url;
+    _signal;
+    get signal() { return this._signal; }
+  };
+}
+if (typeof global.Response === 'undefined') {
+  global.Response = class Response {
+    constructor(body, init = {}) {
+      this._body = body;
+      this.status = init.status || 200;
+      this.headers = new Map(Object.entries(init.headers || {}));
+    }
+    headers;
+    status;
+    _body;
+    static json(obj, init = {}) {
+      return new Response(JSON.stringify(obj), { ...init, headers: { 'content-type': 'application/json', ...(init.headers || {}) } });
+    }
+  };
+}
+
+// Node 20 jsdom lacks clearImmediate in some environments
+if (typeof global.clearImmediate === 'undefined') {
+  global.clearImmediate = (id) => clearTimeout(id);
+}
+
+
 // Mock @privy-io/react-auth
 jest.mock('@privy-io/react-auth', () => ({
   usePrivy: () => ({

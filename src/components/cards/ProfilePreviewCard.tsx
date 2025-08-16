@@ -40,8 +40,8 @@ export function ProfilePreviewCard({
     }
 
     // Calculate earned badges based on rationales count
-    const rationaleBadgeThresholds: RationaleRank[] = [1, 5, 10, 25, 50, 100];
     const earnedBadges = useMemo(() => {
+        const rationaleBadgeThresholds: RationaleRank[] = [1, 5, 10, 25, 50, 100];
         return rationaleBadgeThresholds.filter(threshold => rationalesCount >= threshold);
     }, [rationalesCount]);
 

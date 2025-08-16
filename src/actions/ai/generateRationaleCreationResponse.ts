@@ -11,11 +11,75 @@ import { ChatMessage, DiscourseMessage } from "@/types/chat";
 import { PointNodeData } from "@/components/graph/nodes/PointNode";
 import { StatementNodeData } from "@/components/graph/nodes/StatementNode";
 import { AddPointNodeData } from "@/components/graph/nodes/AddPointNode";
-import { POINT_MIN_LENGTH, POINT_MAX_LENGTH } from "@/constants/config";
+import {
+  POINT_MIN_LENGTH,
+  REGULAR_POINT_MAX_LENGTH,
+  OPTION_POINT_MAX_LENGTH,
+} from "@/constants/config";
 import { parse } from "node-html-parser";
 import { getDiscourseContent } from "@/actions/search/getDiscourseContent";
 import { toast } from "sonner";
 import { GraphCommand } from "@/types/graphCommands";
+
+const ALLOWED_DOMAINS = [
+  "forum.ethereum.org",
+  "gov.gitcoin.co",
+  "commonwealth.im",
+  "discourse.sourcecred.io",
+  "forum.scroll.io",
+  "github.com",
+  "docs.google.com",
+  "medium.com",
+  "blog.ethereum.org",
+  "ethereum.org",
+];
+
+function isValidExternalUrl(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url);
+
+    // Only allow HTTPS
+    if (parsedUrl.protocol !== "https:") {
+      return false;
+    }
+
+    // Block private IP ranges and localhost (comprehensive check)
+    const hostname = parsedUrl.hostname;
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1" ||
+      hostname.startsWith("127.") ||
+      hostname.startsWith("10.") ||
+      hostname.startsWith("192.168.") ||
+      hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./) ||
+      hostname.match(/^169\.254\./) || // Link-local
+      hostname.match(/^224\./) || // Multicast
+      hostname.match(/^f[cd][0-9a-f]{2}:/i) // IPv6 private
+    ) {
+      return false;
+    }
+
+    // Only allow specific trusted domains (exact match)
+    if (!ALLOWED_DOMAINS.includes(hostname)) {
+      return false;
+    }
+
+    // Block suspicious query parameters
+    if (parsedUrl.search && parsedUrl.search.includes("redirect")) {
+      return false;
+    }
+
+    // Block data URLs and other protocols
+    if (parsedUrl.protocol !== "https:") {
+      return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 interface RationaleCreationResponse {
   textStream: ReadableStream<string>;
@@ -36,19 +100,49 @@ async function fetchLinkContent(url: string): Promise<string | null> {
   if (discourseText) {
     return discourseText;
   }
+
+  if (!isValidExternalUrl(url)) {
+    console.warn("Blocked request to invalid URL:", url);
+    return null;
+  }
+
   try {
+    // Re-validate URL before making request
+    if (!isValidExternalUrl(url)) {
+      console.warn("URL validation failed before fetch:", url);
+      return null;
+    }
+
     const response = await fetch(url, {
-      headers: { "User-Agent": "NegationGameBot/1.0" },
+      method: "GET",
+      headers: {
+        "User-Agent": "NegationGameBot/1.0",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
+      redirect: "error", // Prevent redirects that could bypass validation
+      signal: AbortSignal.timeout(10000), // 10 second timeout
     });
     if (!response.ok) {
       console.warn(
-        `Failed to fetch link content from ${url}. Status: ${response.status}`
+        "Failed to fetch link content from URL:",
+        url,
+        "Status:",
+        response.status
       );
       toast.error(
         `Failed to fetch link content from ${url}. Status: ${response.status} This may because it's not a discourse link or the link is private.`
       );
       return null;
     }
+    // Check content length
+    const contentLength = response.headers.get("content-length");
+    if (contentLength && parseInt(contentLength) > 5000000) {
+      // 5MB limit
+      console.warn("Response too large:", url, "Size:", contentLength);
+      return null;
+    }
+
     const contentType = response.headers.get("content-type");
     if (
       contentType &&
@@ -71,11 +165,21 @@ async function fetchLinkContent(url: string): Promise<string | null> {
         return htmlContent.substring(0, 50000);
       }
     } else {
-      console.warn(`Unsupported content type for ${url}: ${contentType}`);
+      console.warn(
+        "Unsupported content type for URL:",
+        url,
+        "Type:",
+        contentType
+      );
       return null;
     }
   } catch (error) {
-    console.error(`Error fetching link content from ${url}:`, error);
+    console.error(
+      "Error fetching link content from URL:",
+      url,
+      "Error:",
+      error
+    );
     return null;
   }
 }
@@ -140,7 +244,7 @@ IMPORTANT: When you make modifications to the graph, output a list of commands a
     - **IMPORTANT: The statement node itself is NOT a claim to be supported or negated by its children.** Think of it like the title of a debate or a research question.
 
 *   **Point Nodes:** Individual arguments or claims (type: "point"). They contain:
-    - "content": The argument text (min 10 chars, max 160 chars)
+    - "content": The argument text (min 10 chars, max ${REGULAR_POINT_MAX_LENGTH} chars; ${OPTION_POINT_MAX_LENGTH} if it is a direct child of the statement)
     - "cred": How much the author endorses this point
     - Points under statement are main positions/options regarding the neutral statement topic.
     - Points under other points are counterarguments to their parent point. A child such directly attack or discredit it's parent's point.
@@ -201,7 +305,7 @@ IMPORTANT: When you make modifications to the graph, output a list of commands a
     *   **Multiple Connections:** A single point can negate multiple other points, and a single point can be negated by multiple other points. This creates a rich network of counterarguments.
     *   **Cross-Branch Negations:** Encourage connections between points from different main positions when they logically negate each other.
     *   Validation: If a proposed new point does not clearly negate its target, explicitly ask the user to rephrase it as a negation or suggest how it could weaken the target.
-    *   Point Content: Ensure clear, focused arguments (10-160 chars).
+    *   Point Content: Ensure clear, focused arguments (10-${REGULAR_POINT_MAX_LENGTH} chars). Statement children (options) can use up to ${OPTION_POINT_MAX_LENGTH} chars.
     *   Cred: Set/update based on user's expressed conviction.
     *   Preserve IDs: Keep existing IDs for unchanged nodes.
     *   DO NOT include position data - node positions are calculated by the force layout.
@@ -342,7 +446,7 @@ ${linkContext}
 - All point-to-point links must use type 'negation'.
 - **Flexible Connections:** You can create negation edges between any two point nodes, regardless of hierarchy or branch position.
 - When user says "add X cred", respond with "Added X cred to [point], total cred is now Y".
-- Point content must be 10-160 characters.
+ - Point content must be 10-${REGULAR_POINT_MAX_LENGTH} characters (up to ${OPTION_POINT_MAX_LENGTH} if directly under the statement).
 - Never include position data - positions are handled by the force layout.
 - If graph changes are made, ALWAYS output a JSON array of commands.
 - If no graph changes are made, DO NOT output the JSON block.
@@ -550,10 +654,10 @@ function extractTextAndCommands(
                 nodeWithDefaults.data = { ...data, content };
               }
 
-              if (content.length > POINT_MAX_LENGTH) {
+              if (content.length > REGULAR_POINT_MAX_LENGTH) {
                 console.error("Point exceeds max length:", content);
                 throw new Error(
-                  `AI generated point exceeding max length (${POINT_MAX_LENGTH} characters).`
+                  `AI generated point exceeding max length (${REGULAR_POINT_MAX_LENGTH} characters).`
                 );
               }
             }

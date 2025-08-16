@@ -12,7 +12,6 @@ import {
   negationsTable,
   objectionsTable,
 } from "@/db/schema";
-import { addFavor } from "@/db/utils/addFavor";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -28,6 +27,15 @@ import {
 export const fetchPoints = async (ids: number[]) => {
   const viewerId = await getUserId();
   const space = await getSpace();
+  return fetchPointsWithSpace(ids, space, viewerId);
+};
+
+export const fetchPointsWithSpace = async (
+  ids: number[],
+  space: string,
+  viewerId?: string | null
+) => {
+  const actualViewerId = viewerId || (await getUserId());
 
   // Get the space's pinnedPointId
   const spaceDetails = await db.query.spacesTable.findFirst({
@@ -85,6 +93,11 @@ export const fetchPoints = async (ids: number[]) => {
   return await db
     .select({
       ...getColumns(pointsWithDetailsView),
+      favor: sql<number>`COALESCE((
+        SELECT "favor"
+        FROM "current_point_favor" cpf
+        WHERE cpf."id" = "point_with_details_view"."id"
+      ), 0)`.mapWith(Number),
       isPinned:
         sql<boolean>`${pointsWithDetailsView.pointId} = ${pinnedPointId || 0}`.mapWith(
           Boolean
@@ -95,13 +108,13 @@ export const fetchPoints = async (ids: number[]) => {
         THEN ${highestFavorCommand?.id || null}
         ELSE NULL
       END`.mapWith((val) => val),
-      viewerCred: viewerCredSql(viewerId),
-      viewerNegationsCred: viewerId
+      viewerCred: viewerCredSql(actualViewerId),
+      viewerNegationsCred: actualViewerId
         ? sql<number>`
             COALESCE((
               SELECT SUM(${endorsementsTable.cred})
               FROM ${endorsementsTable}
-              WHERE ${endorsementsTable.userId} = ${viewerId}
+              WHERE ${endorsementsTable.userId} = ${actualViewerId}
                 AND ${endorsementsTable.pointId} IN (
                   SELECT older_point_id FROM ${negationsTable} WHERE newer_point_id = ${pointsWithDetailsView.pointId} AND ${negationsTable.isActive} = true
                   UNION
@@ -114,15 +127,15 @@ export const fetchPoints = async (ids: number[]) => {
       slashedAmount: slashedAmountSql(pointsWithDetailsView),
       doubtedAmount: doubtedAmountSql(pointsWithDetailsView),
       totalRestakeAmount: totalRestakeAmountSql,
-      doubt: viewerId
-        ? viewerDoubtSql(viewerId)
+      doubt: actualViewerId
+        ? viewerDoubtSql(actualViewerId)
         : {
             id: sql<number | null>`null`.mapWith((v) => v),
             amount: sql<number | null>`null`.mapWith((v) => v),
             userAmount: sql<number>`0`.mapWith(Number),
             isUserDoubt: sql<boolean>`false`.mapWith(Boolean),
           },
-      ...(viewerId
+      ...(actualViewerId
         ? {
             restake: {
               id: effectiveRestakesView.pointId,
@@ -188,8 +201,5 @@ export const fetchPoints = async (ids: number[]) => {
         inArray(pointsWithDetailsView.pointId, ids),
         eq(pointsWithDetailsView.space, space)
       )
-    )
-    .then((points) => {
-      return addFavor(points);
-    });
+    );
 };

@@ -63,6 +63,10 @@ export function CreatedPointView({ pointId, spaceId, onClose }: CreatedPointView
                         linkDisabled={true}
                         disablePopover={true}
                         onNegate={handleNegateClick}
+                        isEdited={createdPointData.isEdited ?? false}
+                        editedAt={createdPointData.editedAt ?? undefined}
+                        editedBy={createdPointData.editedBy ?? undefined}
+                        editCount={createdPointData.editCount ?? 0}
                     />
                 )}
                 <div className="flex justify-between items-center mt-auto pt-4">

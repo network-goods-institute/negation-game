@@ -10,6 +10,7 @@ import {
   negationsTable,
   effectiveRestakesView,
   slashesTable,
+  rationalePointsTable,
 } from "@/db/schema";
 import { eq, and, inArray, sql } from "drizzle-orm";
 import { addFavor } from "@/db/utils/addFavor";
@@ -24,11 +25,11 @@ import {
   totalRestakeAmountSql,
   viewerDoubtSql,
 } from "@/actions/utils/pointSqlUtils";
-import type { ViewpointGraph } from "@/atoms/viewpointAtoms";
 
 export interface TopicPointData {
   pointId: number;
   content: string;
+  isOption: boolean;
   cred: number;
   favor: number;
   amountSupporters: number;
@@ -66,6 +67,10 @@ export interface TopicPointData {
   isActive: boolean;
   deletedAt: Date | null;
   deletedBy: string | null;
+  isEdited: boolean;
+  editedAt: Date | null;
+  editedBy: string | null;
+  editCount: number;
 }
 
 export async function fetchTopicPoints(
@@ -78,29 +83,45 @@ export async function fetchTopicPoints(
     const viewpoints = await db
       .select({
         id: viewpointsTable.id,
-        graph: viewpointsTable.graph,
       })
       .from(viewpointsTable)
       .where(eq(viewpointsTable.topicId, topicId));
 
-    const initialPointIds = new Set<number>();
-    for (const viewpoint of viewpoints) {
-      const graph = viewpoint.graph as ViewpointGraph;
-      if (graph?.nodes) {
-        for (const node of graph.nodes) {
-          if (node.type === "point" && node.data?.pointId) {
-            initialPointIds.add(node.data.pointId);
-            
-            // Also capture objection target and context points
-            if (node.data.isObjection) {
-              if (node.data.objectionTargetId) {
-                initialPointIds.add(node.data.objectionTargetId);
-              }
-              if (node.data.objectionContextId) {
-                initialPointIds.add(node.data.objectionContextId);
-              }
-            }
-          }
+    const viewpointIds = viewpoints.map((v) => v.id);
+    const pointMappings =
+      viewpointIds.length > 0
+        ? await db
+            .select({
+              pointId: rationalePointsTable.pointId,
+            })
+            .from(rationalePointsTable)
+            .where(inArray(rationalePointsTable.rationaleId, viewpointIds))
+        : [];
+
+    const initialPointIds = new Set(pointMappings.map((pm) => pm.pointId));
+
+    // Capture objection target and context points
+    if (initialPointIds.size > 0) {
+      const objectionDetails = await db
+        .select({
+          objectionPointId: objectionsTable.objectionPointId,
+          targetPointId: objectionsTable.targetPointId,
+          contextPointId: objectionsTable.contextPointId,
+        })
+        .from(objectionsTable)
+        .where(
+          and(
+            inArray(objectionsTable.objectionPointId, Array.from(initialPointIds)),
+            eq(objectionsTable.isActive, true)
+          )
+        );
+
+      for (const objection of objectionDetails) {
+        if (objection.targetPointId) {
+          initialPointIds.add(objection.targetPointId);
+        }
+        if (objection.contextPointId) {
+          initialPointIds.add(objection.contextPointId);
         }
       }
     }
@@ -255,6 +276,7 @@ export async function fetchTopicPoints(
     const result = pointsWithFavor.map((point) => ({
       pointId: point.pointId,
       content: point.content,
+      isOption: (point as any).isOption ?? false,
       cred: point.cred,
       favor: point.favor,
       amountSupporters: point.amountSupporters,
@@ -288,6 +310,10 @@ export async function fetchTopicPoints(
       isActive: true,
       deletedAt: null,
       deletedBy: null,
+      isEdited: point.isEdited || false,
+      editedAt: point.editedAt || null,
+      editedBy: point.editedBy || null,
+      editCount: point.editCount || 0,
     }));
 
     // Ensure unique points

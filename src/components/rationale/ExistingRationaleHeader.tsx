@@ -2,15 +2,10 @@
 
 import RationaleHeaderBar from "./RationaleHeaderBar";
 import { Button } from "@/components/ui/button";
-import { AuthenticatedActionButton } from "@/components/editor/AuthenticatedActionButton";
-import { CopyIcon, LinkIcon, CheckIcon, Share2Icon, Handshake as HandshakeIcon } from "lucide-react";
+import { CopyIcon, LinkIcon, CheckIcon, Share2Icon } from "lucide-react";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils/cn";
 import { ViewpointIcon } from "@/components/icons/AppIcons";
-import { useAtom } from "jotai";
-import { showEndorsementsAtom } from "@/atoms/showEndorsementsAtom";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-
 export interface ExistingRationaleHeaderProps {
     isSharing: boolean;
     isCopying: boolean;
@@ -23,6 +18,7 @@ export interface ExistingRationaleHeaderProps {
     handleBackClick: () => void;
     canvasEnabled: boolean;
     toggleCanvas: () => void;
+    isOwner: boolean;
 }
 
 export default function ExistingRationaleHeader({
@@ -37,8 +33,8 @@ export default function ExistingRationaleHeader({
     handleBackClick,
     canvasEnabled,
     toggleCanvas,
+    isOwner,
 }: ExistingRationaleHeaderProps) {
-    const [showEndorsements, setShowEndorsements] = useAtom(showEndorsementsAtom);
     return (
         <>
             <RationaleHeaderBar
@@ -53,22 +49,6 @@ export default function ExistingRationaleHeader({
                 toggleCanvas={toggleCanvas}
             >
                 <div className="flex items-center gap-2 md:hidden">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                size="icon"
-                                variant={showEndorsements ? "default" : "outline"}
-                                className="rounded-full p-1 size-7"
-                                onClick={() => setShowEndorsements(!showEndorsements)}
-                            >
-                                <HandshakeIcon className="size-3.5" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" align="center">
-                            Toggle showing all endorsements<br />
-                            (gold = OP-only; gold+stripe = OP+others; blue = others-only)
-                        </TooltipContent>
-                    </Tooltip>
                     <Button
                         size="icon"
                         variant={isSharing ? "default" : "outline"}
@@ -92,9 +72,9 @@ export default function ExistingRationaleHeader({
                             <LinkIcon className="size-3.5" />
                         )}
                     </Button>
-                    <AuthenticatedActionButton
+                    <Button
                         size="icon"
-                        variant="default"
+                        variant={isOwner ? "outline" : "default"}
                         className="rounded-full p-1 size-7"
                         onClick={() => setIsPageCopyConfirmOpen(true)}
                         disabled={isCopying}
@@ -106,29 +86,13 @@ export default function ExistingRationaleHeader({
                         ) : (
                             <CopyIcon className="size-3.5" />
                         )}
-                    </AuthenticatedActionButton>
+                    </Button>
                 </div>
             </RationaleHeaderBar>
 
-            <div className="hidden md:block sticky top-10 z-40 w-full bg-background/70 backdrop-blur border-b">
+            <div className="hidden md:block sticky top-12 z-40 w-full bg-background/70 backdrop-blur border-b">
                 <div className="flex items-center justify-between gap-3 px-4 py-3">
                     <div className="flex items-center gap-2">
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    size="icon"
-                                    variant={showEndorsements ? "default" : "outline"}
-                                    className="rounded-full p-1 size-7"
-                                    onClick={() => setShowEndorsements(!showEndorsements)}
-                                >
-                                    <HandshakeIcon className="size-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" align="center">
-                                Toggle showing all endorsements<br />
-                                (gold = OP-only; gold+stripe = OP+others; blue = others-only)
-                            </TooltipContent>
-                        </Tooltip>
                         <Button
                             variant="outline"
                             className={cn(
@@ -146,8 +110,8 @@ export default function ExistingRationaleHeader({
                                 <LinkIcon className="size-4" />
                             )}
                         </Button>
-                        <AuthenticatedActionButton
-                            variant="default"
+                        <Button
+                            variant={isOwner ? "outline" : "default"}
                             className="rounded-full flex items-center gap-2 px-4"
                             onClick={() => setIsPageCopyConfirmOpen(true)}
                             disabled={isCopying}
@@ -163,7 +127,7 @@ export default function ExistingRationaleHeader({
                                     <CopyIcon className="size-4" />
                                 </>
                             )}
-                        </AuthenticatedActionButton>
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -180,7 +144,7 @@ export default function ExistingRationaleHeader({
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <Button
                             variant="outline"
-                            className="mt-2 sm:mt-0"
+                            className="mt-2 md:mt-0"
                             onClick={() => {
                                 setIsPageCopyConfirmOpen(false);
                                 handleCopy(false);

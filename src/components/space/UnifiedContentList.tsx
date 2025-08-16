@@ -7,8 +7,9 @@ import { FeedItem } from "@/components/space/FeedItem";
 import { useInfiniteScroll } from "@/hooks/ui/useInfiniteScroll";
 import { FeedSkeleton, InfiniteScrollSkeleton } from "./skeletons";
 import { NewRationaleButton } from "@/components/rationale/NewRationaleButton";
-
-export type ContentType = "all" | "points" | "rationales";
+import { CreateRationaleViewpointCard } from "@/components/space/CreateRationaleViewpointCard";
+import { RationalesConcernsSection } from "@/components/space/RationalesConcernsSection";
+import type { SortOrder, ContentType } from "@/types/space";
 export type ContentItem = {
   type: 'point' | 'rationale';
   id: string;
@@ -16,8 +17,6 @@ export type ContentItem = {
   createdAt: Date;
   data: any;
 };
-
-export type SortOrder = "recent" | "favor" | "cred" | "activity";
 
 export interface UnifiedContentListProps {
   // Data sources
@@ -187,18 +186,42 @@ export const UnifiedContentList = memo(({
       const query = searchQuery.trim().toLowerCase();
       items = items.filter(item => {
         if (item.type === 'point') {
-          // Search in point content and author username
+          // Search in point content, author username, and source references
           const pointData = item.data;
           const contentMatch = pointData.content?.toLowerCase().includes(query);
-          const authorMatch = pointData.username?.toLowerCase().includes(query);
-          return contentMatch || authorMatch;
+
+          // Search author fields - could be 'username' or 'author'
+          const usernameMatch = pointData.username?.toLowerCase().includes(query);
+          const authorMatch = pointData.author?.toLowerCase().includes(query);
+
+          const sourceMatch = pointData.sourceText?.toLowerCase().includes(query);
+          const sourceUrlMatch = pointData.sourceUrl?.toLowerCase().includes(query);
+          return contentMatch || usernameMatch || authorMatch || sourceMatch || sourceUrlMatch;
         } else if (item.type === 'rationale') {
-          // Search in rationale title, description, and author
+          // Search in rationale title, description, author, topic, and content
           const rationaleData = item.data;
           const titleMatch = rationaleData.title?.toLowerCase().includes(query);
           const descriptionMatch = rationaleData.description?.toLowerCase().includes(query);
+
+          // Search author fields - could be 'author', 'authorUsername', or 'username'
           const authorMatch = rationaleData.author?.toLowerCase().includes(query);
-          return titleMatch || descriptionMatch || authorMatch;
+          const authorUsernameMatch = rationaleData.authorUsername?.toLowerCase().includes(query);
+          const usernameMatch = rationaleData.username?.toLowerCase().includes(query);
+
+          const topicMatch = rationaleData.topic?.toLowerCase().includes(query);
+          const contentMatch = rationaleData.content?.toLowerCase().includes(query);
+
+          // Also search in rationale points if they exist
+          let rationalePointsMatch = false;
+          if (rationaleData.points && Array.isArray(rationaleData.points)) {
+            rationalePointsMatch = rationaleData.points.some((point: any) =>
+              point.content?.toLowerCase().includes(query) ||
+              point.username?.toLowerCase().includes(query) ||
+              point.author?.toLowerCase().includes(query)
+            );
+          }
+
+          return titleMatch || descriptionMatch || authorMatch || authorUsernameMatch || usernameMatch || topicMatch || contentMatch || rationalePointsMatch;
         }
         return false;
       });
@@ -242,7 +265,7 @@ export const UnifiedContentList = memo(({
   );
 
   const loadMore = useCallback(() => {
-    setVisibleCount(c => Math.min(c + 20, filteredContent.length));
+    setVisibleCount(c => Math.min(c + 10, filteredContent.length));
   }, [filteredContent.length]);
 
   const sentinelRef = useInfiniteScroll(loadMore, [filteredContent.length]);
@@ -285,29 +308,19 @@ export const UnifiedContentList = memo(({
         <span className="text-muted-foreground">
           {hasActiveFilters ? "No content matches your filters" : "Nothing here yet"}
         </span>
-        <div className="flex items-center justify-center gap-3">
-          {contentType !== "points" && (
-            <NewRationaleButton
-              onClick={handleNewViewpoint}
+        {onRefetchFeed && (
+          <div className="flex items-center justify-center gap-3">
+            <Button
               variant="outline"
-              className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-300 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
-            />
-          )}
-          {onRefetchFeed && (
-            <>
-              {contentType !== "points" && <span className="text-muted-foreground">or</span>}
-              <Button
-                variant="outline"
-                onClick={onRefetchFeed}
-                disabled={isRefetching}
-                className="rounded-full flex items-center gap-2 px-6"
-              >
-                <RefreshCwIcon className={`size-4 ${isRefetching ? 'animate-spin' : ''}`} />
-                <span>{isRefetching ? 'Refreshing...' : 'Refresh Feed'}</span>
-              </Button>
-            </>
-          )}
-        </div>
+              onClick={onRefetchFeed}
+              disabled={isRefetching}
+              className="rounded-full flex items-center gap-2 px-6"
+            >
+              <RefreshCwIcon className={`size-4 ${isRefetching ? 'animate-spin' : ''}`} />
+              <span>{isRefetching ? 'Refreshing...' : 'Refresh Feed'}</span>
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -316,6 +329,13 @@ export const UnifiedContentList = memo(({
 
   return (
     <div className="flex flex-col flex-grow w-full">
+      {/* Rationale-specific components - show at top of rationales tab when not searching/filtering */}
+      {contentType === "rationales" && !searchQuery && !hasActiveFilters && (
+        <div className="mx-auto w-full max-w-5xl px-3">
+          <RationalesConcernsSection spaceId={space} />
+        </div>
+      )}
+
       {/* Show active filters indicator */}
       {hasActiveFilters && (
         <div className="px-4 py-3 bg-muted/30 border-b">
