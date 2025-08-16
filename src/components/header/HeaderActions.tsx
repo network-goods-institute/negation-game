@@ -130,7 +130,6 @@ export const HeaderActions = () => {
                                 <span>AI Assistant</span>
                             </DropdownMenuItem>
 
-                            {/* Enhanced inline theme toggle from incoming */}
                             <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
                                 {theme === 'dark' ? (
                                     <Sun className="mr-2 h-4 w-4" />

@@ -1,333 +1,260 @@
-import { render, screen } from '@testing-library/react';
-// import { SearchResultsList } from '../search/SearchResultsList';
-import { SearchResult } from '@/actions/search/searchContent';
+import { render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useSearch } from '@/queries/search/useSearch';
 import userEvent from '@testing-library/user-event';
 
-// Temporary placeholder component for testing
-const SearchResultsList = (props: any) => {
-    if (props.isLoading) {
-        return <div data-testid="loader">Loading...</div>;
-    }
-
-    if (props.query.length < 2 && !props.hasSearched) {
-        return <div>Enter at least 2 characters to search</div>;
-    }
-
-    if (props.query.length >= 2 && !props.hasSearched) {
-        return <div>Type to search...</div>;
-    }
-
-    if (props.hasSearched && props.results.length === 0) {
-        return <div>No results found for &quot;{props.query}&quot;</div>;
-    }
+const SearchTestComponent = () => {
+    const { searchQuery, searchResults, isLoading, handleSearch, isActive, hasSearched } = useSearch();
 
     return (
-        <div data-testid="search-results-list">
-            {props.results.map((result: any) => {
-                if (result.type === 'point') {
-                    return (
-                        <div key={result.id}>
-                            <div data-testid="point-card" className={props.loadingCardId === `point-${result.id}` ? 'loading' : ''}>
-                                {props.loadingCardId === `point-${result.id}` && <div data-testid="loading-spinner">Loading...</div>}
-                                Point: {result.content}
-                            </div>
+        <div>
+            <input
+                data-testid="search-input"
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                placeholder="Search..."
+            />
+
+            {isLoading && <div data-testid="loading">Loading...</div>}
+
+            {!isLoading && searchQuery.length > 0 && searchQuery.length < 2 && (
+                <div data-testid="min-chars">Enter at least 2 characters to search</div>
+            )}
+
+            {!isLoading && searchQuery.length >= 2 && !hasSearched && (
+                <div data-testid="type-to-search">Type to search...</div>
+            )}
+
+            {!isLoading && hasSearched && searchResults.length === 0 && searchQuery.length >= 2 && (
+                <div data-testid="no-results">No results found for "{searchQuery}"</div>
+            )}
+
+            {!isLoading && hasSearched && searchResults.length > 0 && (
+                <div data-testid="search-results">
+                    {searchResults.map((result) => (
+                        <div key={`${result.type}-${result.id}`} data-testid={`result-${result.type}`}>
+                            {result.type === 'point' ? (
+                                <div>Point: {result.content}</div>
+                            ) : (
+                                <div>Rationale: {result.title}</div>
+                            )}
                         </div>
-                    );
-                }
-                if (result.type === 'rationale') {
-                    return (
-                        <div key={result.id}>
-                            <div
-                                data-testid="viewpoint-card-wrapper"
-                                onClick={() => props.handleCardClick?.(props.loadingCardId === `rationale-${result.id}` ? result.id : `rationale-${result.id}`)}
-                            >
-                                {props.loadingCardId === `rationale-${result.id}` && <div data-testid="loading-spinner">Loading...</div>}
-                                Rationale: {result.title}
-                            </div>
-                        </div>
-                    );
-                }
-                return null;
-            })}
+                    ))}
+                </div>
+            )}
+
+            <div data-testid="search-state">
+                isActive: {isActive.toString()}, hasSearched: {hasSearched.toString()}
+            </div>
         </div>
     );
 };
 
-// Mock the necessary dependencies
-jest.mock('@/hooks/utils/useBasePath', () => ({
-    useBasePath: () => '/s/global',
+// Mock the debounce hook
+jest.mock('@uidotdev/usehooks', () => ({
+    useDebounce: jest.fn((value: string) => value), // Return value immediately for testing
 }));
 
-// Mock jotai properly
-jest.mock('jotai', () => ({
-    useSetAtom: jest.fn().mockReturnValue(jest.fn()),
-    atom: jest.fn()
+// Mock the search action
+jest.mock('@/actions/search/searchContent', () => ({
+    searchContent: jest.fn(),
 }));
 
-jest.mock('@privy-io/react-auth', () => ({
-    usePrivy: () => ({
-        user: null,
-        login: jest.fn(),
-    }),
+// Mock space and user actions  
+jest.mock('@/actions/spaces/getSpace', () => ({
+    getSpace: jest.fn().mockResolvedValue('test-space'),
 }));
 
-jest.mock('@/components/ui/loader', () => ({
-    Loader: () => <div data-testid="loader">Loading...</div>,
+jest.mock('@/actions/users/getUserId', () => ({
+    getUserId: jest.fn().mockResolvedValue('test-user-id'),
 }));
 
-// Mock PointCard component
-jest.mock('@/components/cards/PointCard', () => ({
-    PointCard: (props: any) => (
-        <div data-testid="point-card" className={props.className}>
-            {props.isLoading && <div data-testid="loading-spinner" />}
-        </div>
-    ),
+// Mock database
+jest.mock('@/services/db', () => ({
+    db: {
+        execute: jest.fn(),
+        select: jest.fn().mockReturnThis(),
+        from: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        innerJoin: jest.fn().mockReturnThis(),
+        leftJoin: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+    },
 }));
 
-// Mock the ViewpointCardWrapper component
-jest.mock('@/components/cards/ViewpointCardWrapper', () => ({
-    ViewpointCardWrapper: (props: any) => (
-        <div
-            data-testid="viewpoint-card-wrapper"
-            onClick={() => props.handleCardClick?.(`rationale-${props.id}`)}
-        >
-            {props.loadingCardId === `rationale-${props.id}` && (
-                <div data-testid="loading-spinner">Loading...</div>
-            )}
-        </div>
-    ),
-}));
+const renderWithQueryClient = (component: React.ReactElement) => {
+    const queryClient = new QueryClient({
+        defaultOptions: {
+            queries: { retry: false },
+        },
+    });
+    return render(
+        <QueryClientProvider client={queryClient}>
+            {component}
+        </QueryClientProvider>
+    );
+};
 
-// Mock point data for tests
-const createMockPointData = () => ({
-    pointId: 1,
-    content: 'Test point content',
-    createdAt: new Date('2023-01-01'),
-    createdBy: 'user1',
-    space: 'global',
-    amountNegations: 5,
-    amountSupporters: 10,
-    cred: 100,
-    favor: 0.75,
-    negationsCred: 20,
-    negationIds: ['2', '3'],
-    username: 'testuser',
-    relevance: 0.95,
-    viewerCred: 50
-} as any); // Cast as any to bypass TypeScript errors in test fixtures
+describe('Search Functionality Integration Tests', () => {
+    let mockSearchContent: jest.MockedFunction<any>;
 
-describe('SearchResultsList', () => {
-    it('displays loading state correctly', () => {
-        render(
-            <SearchResultsList
-                results={[]}
-                isLoading={true}
-                query="test"
-                hasSearched={true}
-            />
-        );
-        expect(screen.getByTestId('loader')).toBeInTheDocument();
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockSearchContent = require('@/actions/search/searchContent').searchContent;
     });
 
-    it('displays empty state when no results found', () => {
-        render(
-            <SearchResultsList
-                results={[]}
-                isLoading={false}
-                query="test"
-                hasSearched={true}
-            />
-        );
-        expect(screen.getByText(/no results found for/i)).toBeInTheDocument();
+    it('should show minimum character requirement when query is too short', async () => {
+        const user = userEvent.setup();
+        renderWithQueryClient(<SearchTestComponent />);
+
+        const input = screen.getByTestId('search-input');
+        await user.type(input, 't');
+
+        expect(screen.getByTestId('min-chars')).toBeInTheDocument();
     });
 
-    it('displays \'Enter at least 2 characters\' message when query is too short', () => {
-        render(
-            <SearchResultsList
-                results={[]}
-                isLoading={false}
-                query="t"
-                hasSearched={false}
-            />
-        );
-        expect(screen.getByText(/enter at least 2 characters/i)).toBeInTheDocument();
-    });
-
-    it('displays \'Type to search...\' when query is valid but not searched yet', () => {
-        render(
-            <SearchResultsList
-                results={[]}
-                isLoading={false}
-                query="test"
-                hasSearched={false}
-            />
-        );
-        expect(screen.getByText(/type to search/i)).toBeInTheDocument();
-    });
-
-    it('renders point cards', () => {
-        const mockResults: SearchResult[] = [
+    it('should handle search input and trigger search', async () => {
+        const user = userEvent.setup();
+        mockSearchContent.mockResolvedValue([
             {
-                id: '1',
-                content: 'Test point content',
-                createdAt: new Date('2023-01-01'),
                 type: 'point',
-                pointData: createMockPointData(),
-                author: 'testuser',
-                relevance: 0.95
-            }
-        ];
-
-        render(
-            <SearchResultsList
-                results={mockResults}
-                isLoading={false}
-                query="test"
-                hasSearched={true}
-            />
-        );
-
-        expect(screen.getByTestId('point-card')).toBeInTheDocument();
-    });
-
-    it('renders viewpoint cards', () => {
-        const mockResults: SearchResult[] = [
-            {
-                type: 'rationale',
-                id: 'vp-1',
-                title: 'Test viewpoint title',
-                description: 'Test viewpoint description',
-                content: '',
-                createdAt: new Date('2023-01-01'),
+                id: 1,
+                content: 'Test point content',
+                createdAt: new Date(),
                 author: 'testuser',
                 relevance: 1,
-                space: 'global',
-                statistics: {
-                    views: 100,
-                    copies: 20,
-                    totalCred: 500,
-                    averageFavor: 0.8
-                }
             }
-        ];
+        ]);
 
-        render(
-            <SearchResultsList
-                results={mockResults}
-                isLoading={false}
-                query="test"
-                hasSearched={true}
-            />
-        );
+        renderWithQueryClient(<SearchTestComponent />);
 
-        expect(screen.getByTestId('viewpoint-card-wrapper')).toBeInTheDocument();
+        const input = screen.getByTestId('search-input');
+        await user.type(input, 'test query');
+
+        // Wait for search to complete (no debounce delay since mocked)
+        await waitFor(() => {
+            expect(mockSearchContent).toHaveBeenCalledWith(['test query']);
+        });
+
+        await waitFor(() => {
+            expect(screen.getByTestId('search-results')).toBeInTheDocument();
+        });
     });
 
-    it('correctly renders mixed results', () => {
-        const mockResults: SearchResult[] = [
+    it('should display search results when found', async () => {
+        const user = userEvent.setup();
+        const mockResults = [
             {
-                id: '1',
-                content: 'Test point content',
-                createdAt: new Date('2023-01-01'),
-                type: 'point',
-                pointData: createMockPointData(),
+                type: 'point' as const,
+                id: 1,
+                content: 'Test point about cats',
+                createdAt: new Date(),
                 author: 'testuser',
-                relevance: 0.95
+                relevance: 1,
             },
             {
-                type: 'rationale',
-                id: 'vp-1',
-                title: 'Test viewpoint title',
-                description: 'Test viewpoint description',
-                content: '',
-                createdAt: new Date('2023-01-01'),
+                type: 'rationale' as const,
+                id: 'r1',
+                title: 'Test Rationale',
+                content: 'Test rationale content',
+                createdAt: new Date(),
                 author: 'testuser',
                 relevance: 1,
-                space: 'global',
-                statistics: {
-                    views: 100,
-                    copies: 20,
-                    totalCred: 500,
-                    averageFavor: 0.8
-                }
             }
         ];
+        mockSearchContent.mockResolvedValue(mockResults);
 
-        render(
-            <SearchResultsList
-                results={mockResults}
-                isLoading={false}
-                query="test"
-                hasSearched={true}
-            />
-        );
+        renderWithQueryClient(<SearchTestComponent />);
 
-        expect(screen.getByTestId('point-card')).toBeInTheDocument();
-        expect(screen.getByTestId('viewpoint-card-wrapper')).toBeInTheDocument();
+        const input = screen.getByTestId('search-input');
+        await user.type(input, 'cats');
+
+        await waitFor(() => {
+            expect(screen.getByTestId('result-point')).toBeInTheDocument();
+            expect(screen.getByTestId('result-rationale')).toBeInTheDocument();
+        });
+
+        expect(screen.getByText('Point: Test point about cats')).toBeInTheDocument();
+        expect(screen.getByText('Rationale: Test Rationale')).toBeInTheDocument();
     });
 
-    it('shows loading animation on point card when loadingCardId matches', () => {
-        const mockResults: SearchResult[] = [
-            {
-                id: '1',
-                content: 'Test point content',
-                createdAt: new Date('2023-01-01'),
-                type: 'point',
-                pointData: createMockPointData(),
-                author: 'testuser',
-                relevance: 0.95
-            }
-        ];
-
-        render(
-            <SearchResultsList
-                results={mockResults}
-                isLoading={false}
-                query="test"
-                hasSearched={true}
-                loadingCardId="point-1"
-            />
-        );
-
-        expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
-    });
-
-    it('calls handleCardClick when a viewpoint is clicked', async () => {
+    it('should show no results message when search returns empty', async () => {
         const user = userEvent.setup();
-        const mockHandleCardClick = jest.fn();
+        mockSearchContent.mockResolvedValue([]);
 
-        const mockResults: SearchResult[] = [
-            {
-                type: 'rationale',
-                id: 'vp-1',
-                title: 'Test viewpoint',
-                content: 'Test viewpoint description',
-                description: 'Test viewpoint description',
-                createdAt: new Date('2023-01-01'),
-                author: 'testuser',
-                relevance: 1,
-                space: 'test-space',
-                statistics: {
-                    views: 50,
-                    copies: 20,
-                    totalCred: 500,
-                    averageFavor: 80,
-                }
-            }
-        ];
+        renderWithQueryClient(<SearchTestComponent />);
 
-        render(
-            <SearchResultsList
-                results={mockResults}
-                isLoading={false}
-                query="test"
-                hasSearched={true}
-                handleCardClick={mockHandleCardClick}
-            />
-        );
+        const input = screen.getByTestId('search-input');
+        await user.type(input, 'nonexistent');
 
-        const viewpointWrapper = screen.getByTestId('viewpoint-card-wrapper');
-        await user.click(viewpointWrapper);
-        expect(mockHandleCardClick).toHaveBeenCalledWith('rationale-vp-1');
+        await waitFor(() => {
+            expect(screen.getByTestId('no-results')).toBeInTheDocument();
+        });
+
+        expect(screen.getByText('No results found for "nonexistent"')).toBeInTheDocument();
+    });
+
+    it('should handle search errors gracefully', async () => {
+        const user = userEvent.setup();
+        mockSearchContent.mockRejectedValue(new Error('Search failed'));
+
+        renderWithQueryClient(<SearchTestComponent />);
+
+        const input = screen.getByTestId('search-input');
+        await user.type(input, 'error query');
+
+        // Should not crash and should eventually show no results
+        await waitFor(() => {
+            expect(screen.getByTestId('no-results')).toBeInTheDocument();
+        });
+    });
+
+    it('should update search state correctly', async () => {
+        const user = userEvent.setup();
+        mockSearchContent.mockResolvedValue([]);
+
+        renderWithQueryClient(<SearchTestComponent />);
+
+        const input = screen.getByTestId('search-input');
+
+        // Initially should not be active or searched
+        expect(screen.getByTestId('search-state')).toHaveTextContent('isActive: false, hasSearched: false');
+
+        await user.type(input, 'te');
+
+        // Should become active with valid query
+        await waitFor(() => {
+            expect(screen.getByTestId('search-state')).toHaveTextContent('isActive: true');
+        });
+
+        await user.type(input, 'st');
+
+        // Should have searched
+        await waitFor(() => {
+            expect(screen.getByTestId('search-state')).toHaveTextContent('hasSearched: true');
+        });
+    });
+
+    it('should reset state when clearing search', async () => {
+        const user = userEvent.setup();
+        mockSearchContent.mockResolvedValue([]);
+
+        renderWithQueryClient(<SearchTestComponent />);
+
+        const input = screen.getByTestId('search-input');
+
+        // Type and search
+        await user.type(input, 'test');
+        await waitFor(() => {
+            expect(screen.getByTestId('search-state')).toHaveTextContent('isActive: true');
+        });
+
+        // Clear input
+        await user.clear(input);
+
+        // Should reset state
+        await waitFor(() => {
+            expect(screen.getByTestId('search-state')).toHaveTextContent('isActive: false, hasSearched: false');
+        });
     });
 }); 
