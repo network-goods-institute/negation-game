@@ -1,3 +1,5 @@
+// ignore this file
+
 declare module "@wojtekmaj/react-daterange-picker" {
   import { ReactElement } from "react";
 

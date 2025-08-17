@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import { Loader } from "@/components/ui/loader";
-import useIsMobile from "@/hooks/ui/useIsMobile";
 import { DeltaComparisonWidget } from "@/components/delta/DeltaComparisonWidget";
 import { usePrivy } from "@privy-io/react-auth";
 import { useSpaceUsers } from "@/queries/users/useSpaceUsers";
@@ -110,7 +109,11 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
     };
 
     useEffect(() => {
-        setIsGlobalGraphLoading(false);
+        const timer = setTimeout(() => {
+            setIsGlobalGraphLoading(false);
+        }, 100);
+
+        return () => clearTimeout(timer);
     }, [topic.id]);
 
     const sorted = useMemo(() => {
@@ -299,9 +302,14 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                         </div>
                         <Link href={`/s/${space}/topic/${encodeId(topic.id)}/graph`}>
                             <div
-                                className="h-32 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-950/50 dark:to-indigo-950/50 cursor-pointer hover:from-blue-100 hover:to-indigo-200 dark:hover:from-blue-900/50 dark:hover:to-indigo-900/50 transition-colors flex items-center justify-center"
+                                className="relative h-32 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-950/50 dark:to-indigo-950/50 cursor-pointer hover:from-blue-100 hover:to-indigo-200 dark:hover:from-blue-900/50 dark:hover:to-indigo-900/50 transition-colors flex items-center justify-center overflow-hidden"
                                 onClick={() => setIsGlobalGraphLoading(true)}
                             >
+                                {isGlobalGraphLoading && (
+                                    <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
+                                        <Loader className="w-8 h-8 text-primary" />
+                                    </div>
+                                )}
                                 <div className="text-center text-muted-foreground">
                                     <LayoutGrid className="size-8 mx-auto mb-2" />
                                     <p className="text-sm">See how rationales in {topic.name} interact with each other</p>

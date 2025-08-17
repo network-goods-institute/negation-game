@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAtom, useSetAtom } from "jotai";
 import { useReactFlow } from "@xyflow/react";
 import type { AppNode } from "@/components/graph/nodes/AppNode";
-import { useCurrentSpace } from "@/hooks/utils/useCurrentSpace";
+import { useCurrentSpace } from "../utils/useCurrentSpace";
 import {
   viewpointGraphAtom,
   viewpointStatementAtom,
@@ -219,6 +219,7 @@ export default function useRationaleDraftLifecycle() {
     setIsInitialLoadDialogOpen,
     graphRevision,
     setGraphRevision,
+    isReactFlowReady,
     setIsReactFlowReady,
     isDiscardingWithoutNav,
     setIsDiscardingWithoutNav,

@@ -40,7 +40,7 @@ export const RestakeDoubtControls: React.FC<RestakeDoubtControlsProps> = ({
                 percentage={showRestakeAmount && restakeIsOwner ? restakePercentage : undefined}
                 isActive={showRestakeAmount && restakeIsOwner}
                 showText={false}
-                className="[&_.size-7]:!w-5 [&_.size-7]:!h-5"
+                className="[&_svg]:!w-5 [&_svg]:!h-5"
                 data-action-button="true"
                 onClick={(e) => {
                     e?.preventDefault();
@@ -59,7 +59,7 @@ export const RestakeDoubtControls: React.FC<RestakeDoubtControlsProps> = ({
                 userAmount={doubtAmount !== undefined && doubtAmount > 0 && doubtIsUserDoubt ? doubtAmount : undefined}
                 isActive={doubtAmount !== undefined && doubtAmount > 0 && doubtIsUserDoubt}
                 showText={false}
-                className="[&>svg]:!w-5 [&>svg]:!h-5"
+                className="[&_svg]:!w-5 [&_svg]:!h-5"
                 data-action-button="true"
                 onClick={(e) => {
                     e?.preventDefault();

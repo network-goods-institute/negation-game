@@ -221,13 +221,27 @@ export const GraphView = ({
 
     setNodes(seededNodes);
     setEdges(seededEdges);
+  }, [rootPointId, rootNegations, nodes.length, setNodes, setEdges]);
 
-    setTimeout(() => {
-      if (flowInstance) {
-        flowInstance.fitView({ padding: 0.3, duration: 500 });
-      }
-    }, 500);
-  }, [rootPointId, rootNegations, nodes.length, setNodes, setEdges, flowInstance]);
+  useEffect(() => {
+    if (!flowInstance || nodes.length === 0) return;
+
+    // Check if this is the initial load for a rootPointId
+    if (rootPointId && nodes.some(node => node.type === 'point')) {
+      const timeoutId = setTimeout(() => {
+        // Use requestAnimationFrame to ensure all DOM updates are complete
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (flowInstance) {
+              flowInstance.fitView({ padding: 0.3, duration: 500 });
+            }
+          });
+        });
+      }, 1500);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [flowInstance, nodes.length, rootPointId]);
 
   const { onNodesChange, onEdgesChange } = useGraphChangeHandlers({
     flowInstance,

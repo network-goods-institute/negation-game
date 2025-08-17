@@ -93,27 +93,23 @@ export function SpaceLayout({
                                 </Suspense>
 
                                 {/* Create Rationale Button */}
-                                {onCreateRationale && (
-                                    <div className="flex-1 px-4 flex flex-col justify-end">
-                                        <Button
-                                            onClick={onCreateRationale}
-                                            className="w-full flex items-center justify-center gap-3 rounded-full bg-blue-500 hover:bg-blue-600 text-white"
-                                            size="lg"
-                                            disabled={isCreatingRationale}
-                                        >
-                                            <div className="flex items-center gap-2">
-
-                                                {isCreatingRationale ? (
-                                                    <Loader size={20} color="white" />
-                                                ) : (
-                                                    <Plus size={20} color="#FFFFFF" />
-                                                )}
-                                                <span className="text-white">Create a rationale</span>
-                                            </div>
-
-                                        </Button>
-                                    </div>
-                                )}
+                                <div className="flex-1 flex flex-col justify-end">
+                                    <Button
+                                        onClick={onCreateRationale || (() => window.location.href = `/s/${space}/rationale/new`)}
+                                        className="w-full flex items-center justify-center gap-3 rounded-full bg-blue-500 hover:bg-blue-600 text-white"
+                                        size="lg"
+                                        disabled={isCreatingRationale}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            {isCreatingRationale ? (
+                                                <Loader size={20} color="white" />
+                                            ) : (
+                                                <Plus size={20} color="#FFFFFF" />
+                                            )}
+                                            <span className="text-white">Create a rationale</span>
+                                        </div>
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     </aside>

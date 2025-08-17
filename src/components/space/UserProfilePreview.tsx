@@ -3,7 +3,7 @@
 import { useUser } from "@/queries/users/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { Button } from "@/components/ui/button";
-import { UserIcon, CoinsIcon, InfoIcon } from "lucide-react";
+import { UserIcon, CoinsIcon, InfoIcon, Loader } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, Suspense } from "react";
 import { useEarningsPreview } from "@/queries/epistemic/useEarningsPreview";
@@ -20,6 +20,7 @@ export function UserProfilePreview() {
     const router = useRouter();
     const { data: userData, isLoading } = useUser(privyUser?.id);
     const [earningsDialogOpen, setEarningsDialogOpen] = useState(false);
+    const [isNavigatingToProfile, setIsNavigatingToProfile] = useState(false);
     
     const { data: earningsPreview = 0 } = useEarningsPreview({
         enabled: !!privyUser
@@ -45,6 +46,7 @@ export function UserProfilePreview() {
     }
 
     const handleProfileClick = () => {
+        setIsNavigatingToProfile(true);
         router.push(`/profile/${userData?.username || privyUser.id}`);
     };
 
@@ -97,8 +99,16 @@ export function UserProfilePreview() {
                         size="sm"
                         className="w-full"
                         onClick={handleProfileClick}
+                        disabled={isNavigatingToProfile}
                     >
-                        View Profile
+                        {isNavigatingToProfile ? (
+                            <>
+                                <Loader className="size-3 mr-2 animate-spin" />
+                                Loading...
+                            </>
+                        ) : (
+                            "View Profile"
+                        )}
                     </Button>
                     <Button
                         variant={earningsPreview > 0 ? "default" : "outline"}

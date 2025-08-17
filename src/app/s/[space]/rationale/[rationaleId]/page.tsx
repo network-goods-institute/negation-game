@@ -406,7 +406,7 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
 
                     {/* --- Scrollable Content START*/}
                     <div className={cn(
-                        "flex flex-col flex-grow min-h-0 overflow-hidden",
+                        "flex flex-col flex-grow min-h-0 overflow-y-auto",
                         (isEmbedMode || isDesktopEmbed) ? "pb-4 px-4" : "pb-10",
                         !isEmbedMode && !isDesktopEmbed && showFeed && isMobile && "hidden",
                         !isEmbedMode && !isDesktopEmbed && canvasEnabled && "hidden md:block",
@@ -474,7 +474,7 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                             selectedPointIds={selectedPointIds}
                             editMode={true}
                             isSharing={isSharing}
-                            containerClassName="relative flex flex-col flex-1 min-h-0 overflow-y-auto md:pr-2"
+                            containerClassName="relative flex flex-col flex-1 min-h-0 md:pr-2"
                         />
                     </div>
                     {/* --- Scrollable Content END --- */}

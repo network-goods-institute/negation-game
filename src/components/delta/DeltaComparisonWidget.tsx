@@ -60,6 +60,12 @@ export function DeltaComparisonWidget({
     const buttonRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
+        if (!isOpen) {
+            setIsPositioned(false);
+        }
+    }, [isOpen]);
+
+    useEffect(() => {
         function updatePosition() {
             if (isOpen && buttonRef.current) {
                 const rect = buttonRef.current.getBoundingClientRect();
@@ -82,17 +88,24 @@ export function DeltaComparisonWidget({
                     left: newLeft
                 });
 
-                // Ensure positioned state is set after a short delay for smooth rendering
-                if (!isPositioned) {
-                    setTimeout(() => setIsPositioned(true), 10);
-                }
+                // Set positioned immediately after calculating position
+                setIsPositioned(true);
             }
         }
 
-        updatePosition();
-
         if (isOpen) {
-            setIsPositioned(false);
+            // Force immediate position calculation when opening
+            if (buttonRef.current) {
+                const rect = buttonRef.current.getBoundingClientRect();
+                const newTop = rect.bottom + 12;
+                const newLeft = rect.left + rect.width / 2 - 192;
+
+                setPosition({
+                    top: newTop,
+                    left: newLeft
+                });
+                setIsPositioned(true);
+            }
 
             // Enhanced scroll and resize handling
             const handleScroll = () => updatePosition();
@@ -233,7 +246,7 @@ export function DeltaComparisonWidget({
                 </div>
 
                 {/* Portal rendering for better z-index management with enhanced positioning */}
-                {isOpen && typeof window !== 'undefined' && createPortal(
+                {isOpen && isPositioned && typeof window !== 'undefined' && createPortal(
                     <div
                         className="fixed z-[200] w-96 max-w-[calc(100vw-2rem)]"
                         style={{

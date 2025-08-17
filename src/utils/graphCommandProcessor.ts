@@ -136,7 +136,6 @@ export function applyGraphCommands(
     }
   }
 
-  // Validate graph structure
   const structuralErrors = validateGraphStructure(updatedGraph);
   errors.push(...structuralErrors);
 
@@ -358,11 +357,9 @@ function applyDeleteEdgeCommand(
   graph: ViewpointGraph,
   command: any
 ): ViewpointGraph {
-  // Handle both edgeId and id for backward compatibility
   const targetEdgeId = command.edgeId || command.id;
   const edgeExists = graph.edges.find((e) => e.id === targetEdgeId);
   if (!edgeExists) {
-    // Edge doesn't exist - just skip deletion gracefully
     console.log(`Edge ${targetEdgeId} not found, skipping deletion`);
     return graph;
   }
@@ -390,7 +387,7 @@ function applyUpdateStatementCommand(
     type: "statement",
     data: {
       ...statementNode.data,
-      statement: command.statement || command.title, // Handle both 'statement' and 'title' properties
+      statement: command.statement || command.title,
     } as StatementNodeData,
   };
 

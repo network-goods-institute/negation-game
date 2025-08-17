@@ -100,6 +100,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
     setIsInitialLoadDialogOpen,
     graphRevision,
     setGraphRevision,
+    isReactFlowReady,
     setIsReactFlowReady,
     isDiscardingWithoutNav,
   } = useRationaleDraftLifecycle();
@@ -212,18 +213,23 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
     }
   }, [spaceObj, viewGraph.nodes, setViewGraph, setViewpointStatement, isCopiedFromSessionStorage]);
 
+  // Keep statement node title IDENTICAL to topic name - NEVER show placeholder when topic exists
   useEffect(() => {
-    updateNodeData("statement", {
-      statement: statement.length > 0 ? statement : PLACEHOLDER_STATEMENT,
-      _lastUpdated: Date.now()
-    });
-  }, [statement, updateNodeData]);
+    if (isReactFlowReady) {
+      const nodeStatement = topic ? topic : (statement || PLACEHOLDER_STATEMENT);
+      updateNodeData("statement", {
+        statement: nodeStatement,
+        _lastUpdated: Date.now()
+      });
+    }
+  }, [topic, statement, updateNodeData, isReactFlowReady]);
+
 
   useEffect(() => {
-    if (isCopiedFromSessionStorage && statement && reactFlow) {
+    if (isCopiedFromSessionStorage && statement && reactFlow && isReactFlowReady) {
       setTimeout(() => {
         updateNodeData("statement", {
-          statement: statement.length > 0 ? statement : PLACEHOLDER_STATEMENT,
+          statement: topic ? topic : (statement || PLACEHOLDER_STATEMENT),
           _lastUpdated: Date.now()
         });
 
@@ -235,7 +241,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
         }
       }, 400);
     }
-  }, [isCopiedFromSessionStorage, statement, updateNodeData, reactFlow]);
+  }, [isCopiedFromSessionStorage, statement, updateNodeData, reactFlow, isReactFlowReady]);
 
   const { publish, isPublishing, canPublish } = usePublishRationale();
   const [hoveredPointId, setHoveredPointId] = useAtom(hoveredPointIdAtom);
@@ -275,10 +281,33 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
           setTopic(matchingTopic.name);
           setStatement(matchingTopic.name);
           setTopicId(matchingTopic.id);
+          
+          // Force immediate statement node update for preselected topics
+          if (isReactFlowReady) {
+            // Force update multiple times to ensure it sticks
+            setTimeout(() => {
+              updateNodeData("statement", {
+                statement: matchingTopic.name,
+                _lastUpdated: Date.now()
+              });
+            }, 50);
+            setTimeout(() => {
+              updateNodeData("statement", {
+                statement: matchingTopic.name,
+                _lastUpdated: Date.now()
+              });
+            }, 200);
+            setTimeout(() => {
+              updateNodeData("statement", {
+                statement: matchingTopic.name,
+                _lastUpdated: Date.now()
+              });
+            }, 500);
+          }
         }
       }
     }
-  }, [preselectedTopicId, topicsData, topic, setTopic, setTopicId, setStatement]);
+  }, [preselectedTopicId, topicsData, topic, setTopic, setTopicId, setStatement, isReactFlowReady, updateNodeData]);
 
   useEffect(() => {
     if (

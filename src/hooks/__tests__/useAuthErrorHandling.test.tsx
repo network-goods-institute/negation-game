@@ -4,7 +4,6 @@ import { useAuthErrorHandling } from '../auth/useAuthErrorHandling';
 import { handleAuthError } from '@/lib/auth/handleAuthError';
 import { usePrivy } from '@privy-io/react-auth';
 
-// Mock dependencies
 jest.mock('@/lib/auth/handleAuthError', () => ({
     handleAuthError: jest.fn(),
     isAuthError: jest.fn().mockImplementation((error) => {
@@ -53,7 +52,6 @@ describe('useAuthErrorHandling', () => {
         expect(handleAuthError).toHaveBeenCalledWith(mockError, 'test action');
         expect(result.current.isHandlingAuthError).toBe(true);
 
-        // Should call login after a timeout
         act(() => {
             jest.runAllTimers();
         });

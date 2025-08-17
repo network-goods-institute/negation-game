@@ -272,7 +272,6 @@ class GeminiService {
     return elementStream;
   }
 
-  // Utility method to get current rate limit status
   getRateLimitStatus(modelName: string): {
     requestsThisMinute: number;
     requestsToday: number;

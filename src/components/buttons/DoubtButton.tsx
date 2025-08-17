@@ -33,7 +33,7 @@ export const DoubtButton = forwardRef<HTMLButtonElement, DoubtButtonProps>(({
         />
       }
       className={cn(
-        "p-2 -mb-2 -ml-1",
+        "p-2 -mb-2",
         className
       )}
       {...props}

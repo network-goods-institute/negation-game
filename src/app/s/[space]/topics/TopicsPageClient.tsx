@@ -1,16 +1,16 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Search, Filter } from "lucide-react";
+import { Search, Filter, Loader } from "lucide-react";
 import { TopicCard } from "@/components/topic/TopicCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { usePrivy } from "@privy-io/react-auth";
 import { useUserTopicRationales } from "@/queries/topics/useUserTopicRationales";
 import { SpaceLayout } from "@/components/layouts/SpaceLayout";
 import { SpaceChildHeader } from "@/components/layouts/headers/SpaceChildHeader";
+import { TopicCardSkeleton } from "@/components/space/skeletons";
 
 interface Topic {
     id: number;
@@ -236,22 +236,29 @@ export default function TopicsPageClient({ space, topics }: TopicsPageClientProp
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        {filteredAndSortedTopics.map((topic) => {
-                            const hasUserRationale = userTopicRationales ? userTopicRationales.includes(topic.id) : false;
-                            return (
-                                <TopicCard
-                                    key={topic.id}
-                                    topic={topic}
-                                    spaceId={space}
-                                    size="md"
-                                    hasUserRationale={hasUserRationale}
-                                    userRationalesLoaded={!userRationalesLoading}
-                                />
-                            );
-                        })}
+                        {userRationalesLoading ? (
+                            // Show skeleton loaders while user rationales are loading
+                            Array.from({ length: Math.min(6, topics.length) }).map((_, index) => (
+                                <TopicCardSkeleton key={index} />
+                            ))
+                        ) : (
+                            filteredAndSortedTopics.map((topic) => {
+                                const hasUserRationale = userTopicRationales ? userTopicRationales.includes(topic.id) : false;
+                                return (
+                                    <TopicCard
+                                        key={topic.id}
+                                        topic={topic}
+                                        spaceId={space}
+                                        size="md"
+                                        hasUserRationale={hasUserRationale}
+                                        userRationalesLoaded={!userRationalesLoading}
+                                    />
+                                );
+                            })
+                        )}
 
                         {/* End of topics indicator */}
-                        {filteredAndSortedTopics.length > 0 && (
+                        {!userRationalesLoading && filteredAndSortedTopics.length > 0 && (
                             <div className="text-center py-8 mt-8 border-t border-border/30">
                                 <p className="text-sm text-muted-foreground">
                                     That&apos;s all {filteredAndSortedTopics.length} topic{filteredAndSortedTopics.length === 1 ? '' : 's'}

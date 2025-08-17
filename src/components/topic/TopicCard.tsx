@@ -41,7 +41,8 @@ export function TopicCard({
     hasUserRationale = false,
     userRationalesLoaded = true
 }: TopicCardProps) {
-    const isLoading = loading;
+    const [isNavigating, setIsNavigating] = useState(false);
+    const isLoading = loading || isNavigating;
     const [isOpen, setIsOpen] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
     const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -113,10 +114,17 @@ export function TopicCard({
             .trim();
     }, [latestViewpoint?.description]);
 
+    const handleClick = useCallback(() => {
+        setIsNavigating(true);
+        if (onLoadingChange) {
+            onLoadingChange(true);
+        }
+    }, [onLoadingChange]);
+
     return (
         <Popover open={isOpen} onOpenChange={setIsOpen}>
             <PopoverTrigger asChild>
-                <Link href={href} className="block w-full" prefetch={false}>
+                <Link href={href} className="block w-full" prefetch={false} onClick={handleClick}>
                     <div
                         className={cn(
                             "group relative w-full rounded-lg border transition-all duration-200 cursor-pointer",

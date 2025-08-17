@@ -224,6 +224,70 @@ describe("useDeletePoint", () => {
 
     // Verify no invalidations occurred
     expect(mockInvalidateRelatedPoints).not.toHaveBeenCalled();
+    expect(mockQueryClient.invalidateQueries).not.toHaveBeenCalled();
+  });
+
+  it("should handle various failure messages", async () => {
+    let capturedOnSuccess: SuccessCallbackType | undefined;
+
+    (useAuthenticatedMutation as jest.Mock).mockImplementation(
+      ({ onSuccess }) => {
+        capturedOnSuccess = onSuccess;
+        return { mutateAsync: jest.fn() };
+      }
+    );
+
+    useDeletePoint();
+
+    // Test different failure scenarios
+    const failureScenarios = [
+      "Cannot delete points with endorsements",
+      "Point has active negations",
+      "Point not found",
+      "Insufficient permissions"
+    ];
+
+    for (const message of failureScenarios) {
+      jest.clearAllMocks();
+      
+      if (capturedOnSuccess) {
+        capturedOnSuccess(
+          { success: false, message },
+          { pointId: 123 }
+        );
+      }
+
+      expect(toast.error).toHaveBeenCalledWith(message);
+      expect(mockInvalidateRelatedPoints).not.toHaveBeenCalled();
+    }
+  });
+
+  it("should handle missing user ID gracefully", async () => {
+    // Mock user as null
+    (usePrivy as jest.Mock).mockReturnValue({ user: null });
+
+    let capturedOnSuccess: SuccessCallbackType | undefined;
+
+    (useAuthenticatedMutation as jest.Mock).mockImplementation(
+      ({ onSuccess }) => {
+        capturedOnSuccess = onSuccess;
+        return { mutateAsync: jest.fn() };
+      }
+    );
+
+    useDeletePoint();
+
+    if (capturedOnSuccess) {
+      capturedOnSuccess(
+        { success: true, message: "Point deleted successfully" },
+        { pointId: 123 }
+      );
+    }
+
+    // Should still invalidate queries but with undefined userId
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["point", { pointId: 123, userId: undefined }],
+    });
   });
 
   it("should handle errors", async () => {
@@ -253,6 +317,67 @@ describe("useDeletePoint", () => {
 
     // Check toast error was shown
     expect(toast.error).toHaveBeenCalledWith("Failed to delete point");
+  });
+
+  it("should handle network errors during deletion", async () => {
+    let capturedOnError: ErrorCallbackType | undefined;
+
+    (useAuthenticatedMutation as jest.Mock).mockImplementation(
+      ({ onError }) => {
+        capturedOnError = onError;
+        return { mutateAsync: jest.fn() };
+      }
+    );
+
+    useDeletePoint();
+
+    if (capturedOnError) {
+      capturedOnError(new Error("Network request failed"));
+    }
+
+    expect(toast.error).toHaveBeenCalledWith("Failed to delete point");
+  });
+
+  it("should properly invalidate validation deletion cache", async () => {
+    let capturedOnSuccess: SuccessCallbackType | undefined;
+
+    (useAuthenticatedMutation as jest.Mock).mockImplementation(
+      ({ onSuccess }) => {
+        capturedOnSuccess = onSuccess;
+        return { mutateAsync: jest.fn() };
+      }
+    );
+
+    useDeletePoint();
+
+    if (capturedOnSuccess) {
+      capturedOnSuccess(
+        { success: true, message: "Point deleted successfully" },
+        { pointId: 456 }
+      );
+    }
+
+    // Verify the validation cache for this specific point was invalidated
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['validate-deletion', 456],
+    });
+  });
+
+  it("should call mutateAsync with correct parameters", async () => {
+    const mockMutateAsync = jest.fn().mockResolvedValue({
+      success: true,
+      message: "Point deleted successfully"
+    });
+
+    (useAuthenticatedMutation as jest.Mock).mockReturnValue({
+      mutateAsync: mockMutateAsync,
+    });
+
+    const { mutateAsync } = useDeletePoint();
+    
+    await mutateAsync({ pointId: 789 });
+
+    expect(mockMutateAsync).toHaveBeenCalledWith({ pointId: 789 });
   });
 
   // Fallback redirection test removed - redirect logic is now handled in DeletePointDialog component

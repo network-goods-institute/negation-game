@@ -26,7 +26,7 @@ const SearchTestComponent = () => {
             )}
 
             {!isLoading && hasSearched && searchResults.length === 0 && searchQuery.length >= 2 && (
-                <div data-testid="no-results">No results found for "{searchQuery}"</div>
+                <div data-testid="no-results">No results found for &quot;{searchQuery}&quot;</div>
             )}
 
             {!isLoading && hasSearched && searchResults.length > 0 && (

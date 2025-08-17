@@ -310,12 +310,8 @@ export default function PointPageClient({ params, searchParams }: PointPageClien
                 { pointId: point.pointId, amountToSell: changeAmount },
                 {
                     onSuccess: () => {
-                        toast.success("Endorsement reduced");
                         setIsChangeOpen(false);
-                        refetchPoint();
-                        refetchNegations();
                     },
-                    onError: () => toast.error("Failed to change endorsement"),
                 }
             );
         } else {
@@ -323,12 +319,8 @@ export default function PointPageClient({ params, searchParams }: PointPageClien
                 { pointId: point.pointId, cred: changeAmount },
                 {
                     onSuccess: () => {
-                        toast.success("Endorsement increased");
                         setIsChangeOpen(false);
-                        refetchPoint();
-                        refetchNegations();
                     },
-                    onError: () => toast.error("Failed to change endorsement"),
                 }
             );
         }
