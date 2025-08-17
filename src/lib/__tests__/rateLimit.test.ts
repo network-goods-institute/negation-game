@@ -1,7 +1,5 @@
 import { checkRateLimit, cleanupExpiredRateLimits } from "../rateLimit";
 import { db } from "@/services/db";
-import { rateLimitsTable } from "@/db/schema";
-import { eq } from "drizzle-orm";
 
 // Mock the database
 jest.mock("@/services/db", () => ({

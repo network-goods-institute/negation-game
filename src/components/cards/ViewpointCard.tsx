@@ -105,7 +105,6 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const router = useRouter();
-    const pathname = usePathname();
     const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [isSelecting, setIsSelecting] = useState(false);
     const mouseDownRef = useRef<{ x: number, y: number } | null>(null);
@@ -250,13 +249,13 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                     tabIndex={0}
                     {...props}
                 >
-                    <div className="@container/point relative flex flex-col pt-4 pb-3 px-4 border-b hover:bg-accent">
+                    <div className="@container/point relative flex flex-col pt-4 pb-3 px-4 border-b hover:bg-accent min-w-0 overflow-hidden">
                         {isLoading && (
-                            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
+                            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 pointer-events-none">
                                 <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                             </div>
                         )}
-                        <div className="flex flex-col flex-grow w-full min-w-0">
+                        <div className="flex flex-col flex-grow w-full min-w-0 overflow-hidden">
                             <div className="flex items-start gap-2">
                                 <ViewpointIcon className="flex-shrink-0" />
                                 <h3 className={cn(
@@ -299,7 +298,7 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                             className="text-yellow-600 dark:text-yellow-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded font-medium"
                                         />
                                         {topic && topicId && (
-                                            <Link
+                                            <a
                                                 href={`/s/${space}/topic/${encodeId(topicId)}`}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
@@ -314,14 +313,14 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                                     )}
                                                 </span>
                                                 <span>View Topic</span>
-                                            </Link>
+                                            </a>
                                         )}
                                     </>
                                 </h3>
                             </div>
 
                             {plainDescription && (
-                                <div className="text-sm text-muted-foreground select-text sm:line-clamp-2 sm:mb-2 sm:h-10 sm:overflow-hidden whitespace-normal">
+                                <div className="text-sm text-muted-foreground select-text sm:line-clamp-2 sm:mb-2 sm:h-10 overflow-hidden whitespace-normal">
                                     {plainDescription}
                                 </div>
                             )}

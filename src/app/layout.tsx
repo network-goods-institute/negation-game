@@ -14,6 +14,7 @@ import "./globals.css";
 import { KnowledgeBaseProvider } from "@/components/contexts/KnowledgeBaseContext";
 import { OnboardingProvider } from "@/components/contexts/OnboardingContext";
 import { WriteupProvider } from "@/components/contexts/WriteupContext";
+import { SpaceSearchProvider } from "@/components/contexts/SpaceSearchContext";
 import { HeaderActions } from "@/components/header/HeaderActions";
 import {
   DynamicHeaderContent
@@ -180,26 +181,35 @@ export default async function RootLayout({
               <KnowledgeBaseProvider>
                 <WriteupProvider>
                   <OnboardingProvider>
-                    <TooltipProvider>
-                      {!isEmbedRoute && (
-                        <header className="sticky top-0 z-20 border-b py-sm flex justify-between container-padding items-center w-full bg-background h-[var(--header-height)]">
-                          <div className="flex items-center min-w-0" id="header-container">
-                            <div className="flex items-center min-w-0 overflow-hidden" id="dynamic-header-content">
-                              <DynamicHeaderContent />
+                    <SpaceSearchProvider>
+                      <TooltipProvider>
+                        {!isEmbedRoute && (
+                          <header className="fixed top-0 z-20 border-b py-sm grid grid-cols-3 container-padding items-center w-full bg-background h-[var(--header-height)]">
+                            <div className="flex items-center min-w-0" id="header-container">
+                              <div className="flex items-center min-w-0" id="dynamic-header-content">
+                                <DynamicHeaderContent />
+                              </div>
                             </div>
-                          </div>
-                          <HeaderActions />
-                        </header>
-                      )}
+                            <div className="flex justify-center px-4" id="header-search-container">
+                              {/* Search will be rendered here via HeaderActions */}
+                            </div>
+                            <div className="flex justify-end items-center">
+                              <HeaderActions />
+                            </div>
+                          </header>
+                        )}
 
-                      {children}
+                        <div className={isEmbedRoute ? "" : "pt-[var(--header-height)]"}>
+                          {children}
+                        </div>
 
-                      <Toaster />
-                      <GlobalDialogs />
-                    </TooltipProvider>
-                    <DevOnly>
-                      <ToggleableReactQueryDevTools />
-                    </DevOnly>
+                        <Toaster />
+                        <GlobalDialogs />
+                        <DevOnly>
+                          <ToggleableReactQueryDevTools />
+                        </DevOnly>
+                      </TooltipProvider>
+                    </SpaceSearchProvider>
                   </OnboardingProvider>
                 </WriteupProvider>
               </KnowledgeBaseProvider>
@@ -208,7 +218,7 @@ export default async function RootLayout({
         </ThemeProvider>
         <Analytics />
         <script defer src="/_vercel/insights/script.js"></script>
-      </body>
-    </html>
+    </body>
+    </html >
   );
 }

@@ -19,12 +19,8 @@ export function ModeToggle(props: ButtonProps) {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" {...props}>
           {theme === "light" && <Sun className="h-[1.2rem] w-[1.2rem]" />}
-          {theme === "dark" && (
-            <Moon className="absolute h-[1.2rem] w-[1.2rem]" />
-          )}
-          {theme === "system" && (
-            <SunMoon className="absolute h-[1.2rem] w-[1.2rem]" />
-          )}
+          {theme === "dark" && <Moon className="h-[1.2rem] w-[1.2rem]" />}
+          {theme === "system" && <SunMoon className="h-[1.2rem] w-[1.2rem]" />}
           <span className="sr-only">Toggle theme</span>
         </Button>
       </DropdownMenuTrigger>

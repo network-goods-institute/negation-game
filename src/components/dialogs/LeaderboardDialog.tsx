@@ -173,7 +173,7 @@ export const LeaderboardDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-xl md:max-w-2xl h-auto max-h-[85vh] flex flex-col p-4 sm:p-6">
+            <DialogContent className="max-w-xl md:max-w-2xl h-[85vh] flex flex-col p-4 sm:p-6 overflow-hidden">
                 <DialogHeader className="space-y-1">
                     <div className="flex items-center gap-2">
                         <DialogClose asChild>
@@ -257,18 +257,19 @@ export const LeaderboardDialog = ({
                 </div>
 
                 {/* Leaderboard content */}
-                <div className="mt-2 flex-1 overflow-y-auto">
+                <div className="mt-2 flex-1 min-h-0 overflow-hidden">
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-2">
                             <Loader2Icon className="size-6 animate-spin text-muted-foreground" />
                             <div className="text-sm text-muted-foreground">Loading leaderboard data...</div>
                         </div>
                     ) : (
-                        <Tabs value={viewMode} className="w-full">
-                            <TabsContent value="table" className="mt-0">
-                                <div className="border rounded-lg overflow-x-auto">
-                                    <table className="w-full min-w-[600px]">
-                                        <thead className="bg-muted/30">
+                        <Tabs value={viewMode} className="w-full h-full flex flex-col">
+                            <TabsContent value="table" className="mt-0 flex-1 overflow-hidden">
+                                <div className="h-full overflow-auto">
+                                    <div className="border rounded-lg overflow-hidden">
+                                        <table className="w-full min-w-[600px]">
+                                        <thead className="bg-muted/30 sticky top-0 z-10">
                                             <tr>
                                                 <th className="text-left py-2 pl-3 pr-2 text-xs font-medium w-[10%]">Rank</th>
                                                 <th className="text-left py-2 px-2 text-xs font-medium w-[30%]">User</th>
@@ -343,11 +344,13 @@ export const LeaderboardDialog = ({
                                             ))}
                                         </tbody>
                                     </table>
+                                    </div>
                                 </div>
                             </TabsContent>
 
-                            <TabsContent value="cards" className="mt-0 space-y-2 overflow-x-auto pb-16">
-                                <div className="grid grid-cols-1 gap-2">
+                            <TabsContent value="cards" className="mt-0 flex-1 overflow-hidden">
+                                <div className="h-full overflow-auto pb-4">
+                                    <div className="grid grid-cols-1 gap-2">
                                     {sortedUsers.map((user, index) => (
                                         <div
                                             key={user.id}
@@ -399,6 +402,7 @@ export const LeaderboardDialog = ({
                                             </div>
                                         </div>
                                     ))}
+                                    </div>
                                 </div>
                             </TabsContent>
                         </Tabs>
@@ -406,8 +410,8 @@ export const LeaderboardDialog = ({
                 </div>
 
                 {/* Footer with Points Count */}
-                <div className="absolute bottom-0 left-0 right-0 border-t bg-background/80 backdrop-blur-sm">
-                    <div className="px-6 py-3 flex items-center justify-end">
+                <div className="mt-4 border-t">
+                    <div className="pt-3 flex items-center justify-end">
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <EyeIcon className="size-3.5" />
                             <span>{Array.from(useAtomValue(visitedPointsAtom)).length} points viewed</span>

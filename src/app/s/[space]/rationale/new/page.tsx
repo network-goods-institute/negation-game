@@ -54,12 +54,10 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
   const { push } = router;
   const basePath = useBasePath();
   const currentSpace = useCurrentSpace();
-  
+
   const searchParams = useSearchParams();
   const embedParam = searchParams.get('embed');
   const isEmbedMode = embedParam === 'mobile' || embedParam === 'embed';
-  const isMobileEmbed = embedParam === 'mobile';
-  const isEmbedEmbed = embedParam === 'embed';
   const isDesktopEmbed = embedParam === 'desktop';
 
   // Send height updates to parent when in embed mode
@@ -102,6 +100,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
     setIsInitialLoadDialogOpen,
     graphRevision,
     setGraphRevision,
+    isReactFlowReady,
     setIsReactFlowReady,
     isDiscardingWithoutNav,
   } = useRationaleDraftLifecycle();
@@ -149,7 +148,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       setFeedEnabled(false);
     }
   }, [isMobile, setFeedEnabled]);
-  
+
   const showFeed = feedEnabled && !isEmbedMode && !isDesktopEmbed; // Disable feed in embed mode
   const reactFlow = useReactFlow<AppNode>();
   const [graph, setGraph] = useAtom(viewpointGraphAtom);
@@ -214,18 +213,23 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
     }
   }, [spaceObj, viewGraph.nodes, setViewGraph, setViewpointStatement, isCopiedFromSessionStorage]);
 
+  // Keep statement node title IDENTICAL to topic name - NEVER show placeholder when topic exists
   useEffect(() => {
-    updateNodeData("statement", {
-      statement: statement.length > 0 ? statement : PLACEHOLDER_STATEMENT,
-      _lastUpdated: Date.now()
-    });
-  }, [statement, updateNodeData]);
+    if (isReactFlowReady) {
+      const nodeStatement = topic ? topic : (statement || PLACEHOLDER_STATEMENT);
+      updateNodeData("statement", {
+        statement: nodeStatement,
+        _lastUpdated: Date.now()
+      });
+    }
+  }, [topic, statement, updateNodeData, isReactFlowReady]);
+
 
   useEffect(() => {
-    if (isCopiedFromSessionStorage && statement && reactFlow) {
+    if (isCopiedFromSessionStorage && statement && reactFlow && isReactFlowReady) {
       setTimeout(() => {
         updateNodeData("statement", {
-          statement: statement.length > 0 ? statement : PLACEHOLDER_STATEMENT,
+          statement: topic ? topic : (statement || PLACEHOLDER_STATEMENT),
           _lastUpdated: Date.now()
         });
 
@@ -237,7 +241,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
         }
       }, 400);
     }
-  }, [isCopiedFromSessionStorage, statement, updateNodeData, reactFlow]);
+  }, [isCopiedFromSessionStorage, statement, updateNodeData, reactFlow, isReactFlowReady, topic]);
 
   const { publish, isPublishing, canPublish } = usePublishRationale();
   const [hoveredPointId, setHoveredPointId] = useAtom(hoveredPointIdAtom);
@@ -277,10 +281,33 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
           setTopic(matchingTopic.name);
           setStatement(matchingTopic.name);
           setTopicId(matchingTopic.id);
+
+          // Force immediate statement node update for preselected topics
+          if (isReactFlowReady) {
+            // Force update multiple times to ensure it sticks
+            setTimeout(() => {
+              updateNodeData("statement", {
+                statement: matchingTopic.name,
+                _lastUpdated: Date.now()
+              });
+            }, 50);
+            setTimeout(() => {
+              updateNodeData("statement", {
+                statement: matchingTopic.name,
+                _lastUpdated: Date.now()
+              });
+            }, 200);
+            setTimeout(() => {
+              updateNodeData("statement", {
+                statement: matchingTopic.name,
+                _lastUpdated: Date.now()
+              });
+            }, 500);
+          }
         }
       }
     }
-  }, [preselectedTopicId, topicsData, topic, setTopic, setTopicId, setStatement]);
+  }, [preselectedTopicId, topicsData, topic, setTopic, setTopicId, setStatement, isReactFlowReady, updateNodeData]);
 
   useEffect(() => {
     if (
@@ -308,7 +335,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       // Also reset ReactFlow directly if available
       if (reactFlow) {
         reactFlow.setNodes(initialViewpointGraph.nodes);
-               reactFlow.setEdges(initialViewpointGraph.edges);
+        reactFlow.setEdges(initialViewpointGraph.edges);
       }
 
       setIsConfirmDialogOpen(false);
@@ -447,14 +474,14 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
       "relative flex-grow bg-background h-full overflow-hidden",
       (isEmbedMode || isDesktopEmbed)
         ? "flex flex-col"
-        : "md:grid",
+        : "md:grid h-[calc(100vh-var(--header-height))]",
       !isEmbedMode && !isDesktopEmbed && showFeed
         ? "md:grid-cols-[0_minmax(200px,400px)_1fr_minmax(200px,400px)]"
         : (!isEmbedMode && !isDesktopEmbed) && "md:grid-cols-[0_minmax(200px,400px)_1fr]"
     )}>
       {!isEmbedMode && !isDesktopEmbed && <div className="hidden md:block" />}
       <div className={cn(
-        "flex flex-col h-full overflow-hidden",
+        "flex flex-col h-full min-h-0 overflow-hidden",
         !isEmbedMode && !isDesktopEmbed && "md:col-start-2 border-x",
         (isEmbedMode || isDesktopEmbed) && "border-0 max-w-full"
       )}>
@@ -501,7 +528,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
         {!isEmbedMode && !isDesktopEmbed && <Separator />}
         {(!showFeed || !isMobile) && !((isEmbedMode || isDesktopEmbed) && canvasEnabled) ? (
           <div className={cn(
-            "flex-grow overflow-y-auto",
+            "flex-grow min-h-0 overflow-y-auto",
             (isEmbedMode || isDesktopEmbed) ? "pb-4 px-4" : "pb-10"
           )}>
             <NewRationaleForm
@@ -529,83 +556,83 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
         ) : null}
       </div>
 
-{/* Embed Mode Graph View */}
-{(isEmbedMode || isDesktopEmbed) && canvasEnabled && (
-  <div className="flex-grow h-full min-h[600px] bg-white">
-    <Dynamic>
-      <RationaleGraph
-        key={graphRevision}
-        graph={graph}
-        setGraph={setGraph}
-        statement={statement}
-        description={reasoning}
-        canvasEnabled={canvasEnabled}
-        className="w-full h-full min-h-[600px] relative"
-        canModify={true}
-        isNew={true}
-        isSaving={isPublishing}
-        hideShareButton={true}
-        onSave={async () => {
-          try {
-            const id = await publish();
-            return true;
-          } catch {
-            return false;
-          }
-        }}
-        topOffsetPx={64}
-      />
-    </Dynamic>
-  </div>
-)}
-
-{/* Normal Graph View - Hidden in embed mode */}
-{!isEmbedMode && !isDesktopEmbed && (
-  <Dynamic>
-    <RationaleGraph
-      key={graphRevision}
-      graph={graph}
-      setGraph={setGraph}
-      statement={statement}
-      description={reasoning}
-      canvasEnabled={canvasEnabled}
-      className={cn(
-        "!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset]  !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md:z-auto",
-        !canvasEnabled && isMobile && "hidden",
-        showFeed && isMobile && "hidden"
+      {/* Embed Mode Graph View */}
+      {(isEmbedMode || isDesktopEmbed) && canvasEnabled && (
+        <div className="flex-grow h-full min-h[600px] bg-white">
+          <Dynamic>
+            <RationaleGraph
+              key={graphRevision}
+              graph={graph}
+              setGraph={setGraph}
+              statement={statement}
+              description={reasoning}
+              canvasEnabled={canvasEnabled}
+              className="w-full h-full min-h-[600px] relative"
+              canModify={true}
+              isNew={true}
+              isSaving={isPublishing}
+              hideShareButton={true}
+              onSave={async () => {
+                try {
+                  const id = await publish();
+                  return true;
+                } catch {
+                  return false;
+                }
+              }}
+              topOffsetPx={64}
+            />
+          </Dynamic>
+        </div>
       )}
-      canModify={true}
-      isNew={true}
-      isSaving={isPublishing}
-      // Full sharing/publish controls in normal mode:
-      hideShareButton={false}
-      isSharing={false}
-      toggleSharingMode={() => {}}
-      handleGenerateAndCopyShareLink={() => {}}
-      canPublish={canPublish}
-      isPublishing={isPublishing}
-      onPublish={async () => {
-        try {
-          await publish();
-        } catch (error) {
-          console.error('Failed to publish:', error);
-        }
-      }}
-      onSave={async () => {
-        try {
-          const id = await publish();
-          return true;
-        } catch {
-          return false;
-        }
-      }}
-      topOffsetPx={64}
-    />
-  </Dynamic>
-)}
 
-{!isEmbedMode && !isDesktopEmbed && <PointsFeedContainer />}
-{!isEmbedMode && !isDesktopEmbed && <DraftSavedIndicator />}
+      {/* Normal Graph View - Hidden in embed mode */}
+      {!isEmbedMode && !isDesktopEmbed && (
+        <Dynamic>
+          <RationaleGraph
+            key={graphRevision}
+            graph={graph}
+            setGraph={setGraph}
+            statement={statement}
+            description={reasoning}
+            canvasEnabled={canvasEnabled}
+            className={cn(
+              "!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset]  !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md:z-auto",
+              !canvasEnabled && isMobile && "hidden",
+              showFeed && isMobile && "hidden"
+            )}
+            canModify={true}
+            isNew={true}
+            isSaving={isPublishing}
+            // Full sharing/publish controls in normal mode:
+            hideShareButton={false}
+            isSharing={false}
+            toggleSharingMode={() => { }}
+            handleGenerateAndCopyShareLink={() => { }}
+            canPublish={canPublish}
+            isPublishing={isPublishing}
+            onPublish={async () => {
+              try {
+                await publish();
+              } catch (error) {
+                console.error('Failed to publish:', error);
+              }
+            }}
+            onSave={async () => {
+              try {
+                const id = await publish();
+                return true;
+              } catch {
+                return false;
+              }
+            }}
+            topOffsetPx={64}
+          />
+        </Dynamic>
+      )}
+
+      {!isEmbedMode && !isDesktopEmbed && <PointsFeedContainer />}
+      {!isEmbedMode && !isDesktopEmbed && <DraftSavedIndicator />}
 
     </main>
   );

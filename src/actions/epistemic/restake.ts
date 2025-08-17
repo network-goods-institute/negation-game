@@ -26,19 +26,26 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
     throw new Error("Must be authenticated to restake");
   }
 
-  // Validate against user's current endorsement amount on the parent point
-  const [{ cred: endorseCred } = { cred: 0 }] = await db
-    .select({ cred: endorsementsTable.cred })
+  // Validate against user's total endorsement amount on the parent point (sum of all endorsements)
+  const [{ totalCred: endorseCred } = { totalCred: 0 }] = await db
+    .select({
+      totalCred:
+        sql<number>`COALESCE(SUM(${endorsementsTable.cred}), 0)`.mapWith(
+          Number
+        ),
+    })
     .from(endorsementsTable)
     .where(
       and(
         eq(endorsementsTable.userId, userId),
         eq(endorsementsTable.pointId, pointId)
       )
-    )
-    .limit(1);
+    );
 
   if (amount > endorseCred) {
+    console.warn(
+      `[restake] cap exceeded user=${userId} point=${pointId} endorseCred=${endorseCred} amount=${amount}`
+    );
     throw new Error(
       `Restake amount (${amount}) cannot exceed your endorsement (${endorseCred}) on this point.`
     );

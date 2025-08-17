@@ -5,7 +5,6 @@ import { useConversation } from "@/queries/messages/useConversation";
 import { useUser } from "@/queries/users/useUser";
 import { MessageList } from "./MessageList";
 import { MessageInput } from "./MessageInput";
-import { ConversationHeader } from "./ConversationHeader";
 import { LoaderCircleIcon } from "lucide-react";
 import { useMarkMessagesAsRead } from "@/mutations/messages/useMarkMessagesAsRead";
 import { useConversationSSE } from "@/hooks/messages/useConversationSSE";
@@ -135,7 +134,7 @@ export const ConversationView = ({ username: otherUsername, spaceId }: Conversat
                         <MessageList messages={messages || []} currentUserId={user.id} spaceId={spaceId} />
                         <div ref={messagesEndRef} />
                     </div>
-                    
+
                     {/* Message Input Area */}
                     <div className="bg-card border-t border-border px-4 py-4">
                         <MessageInput

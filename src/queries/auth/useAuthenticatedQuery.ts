@@ -58,7 +58,6 @@ export function useAuthenticatedQuery<
     );
   }, []);
 
-  // Enhanced query function that checks auth freshness
   const enhancedQueryFn = async (...args: any[]): Promise<TQueryFnData> => {
     // If not authenticated, trigger login
     if (!authenticated || !user) {

@@ -7,7 +7,6 @@ import { usePointDataById } from "@/queries/points/usePointDataById";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import Link from "next/link";
 import { getPointUrl } from "@/lib/negation-game/getPointUrl";
-import { encodeId } from "@/lib/negation-game/encodeId";
 import { useQuery } from "@tanstack/react-query";
 import { fetchObjectionContext } from "@/actions/points/fetchObjectionContext";
 import { useSetAtom } from "jotai";

@@ -1,7 +1,7 @@
 import { useAuthenticatedQuery } from "@/queries/auth/useAuthenticatedQuery";
 import { getNotifications } from "@/actions/notifications/getNotifications";
 import { useUser } from "@/queries/users/useUser";
-import { useAppVisibility } from "@/hooks/utils/useAppVisibility";
+import { useAppVisibility } from "@/hooks//utils/useAppVisibility";
 
 export interface UseNotificationsOptions {
   limit?: number;

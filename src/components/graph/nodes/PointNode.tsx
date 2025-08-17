@@ -60,8 +60,8 @@ const RawPointNode = ({
   const [hasAnimationPlayed, setHasAnimationPlayed] = useState(false);
   const [isActive, setIsActive] = useState(false);
   const incomingConnections = useNodeConnections({
-    handleType: "target",
     id: id,
+    handleType: "target",
   });
 
   const updateNodeInternals = useUpdateNodeInternals();

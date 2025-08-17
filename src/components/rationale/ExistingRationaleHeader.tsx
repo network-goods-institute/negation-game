@@ -2,7 +2,6 @@
 
 import RationaleHeaderBar from "./RationaleHeaderBar";
 import { Button } from "@/components/ui/button";
-import { AuthenticatedActionButton } from "@/components/editor/AuthenticatedActionButton";
 import { CopyIcon, LinkIcon, CheckIcon, Share2Icon } from "lucide-react";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils/cn";

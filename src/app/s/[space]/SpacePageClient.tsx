@@ -1,501 +1,276 @@
 "use client";
 
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
-import { Loader } from "@/components/ui/loader";
 import { useBasePath } from "@/hooks/utils/useBasePath";
 import { preventDefaultIfContainsSelection } from "@/lib/utils/preventDefaultIfContainsSelection";
 import { useFeed } from "@/queries/feed/useFeed";
-import { useSpace } from "@/queries/space/useSpace";
 import { usePrivy } from "@privy-io/react-auth";
 import { useSetAtom, useAtom } from "jotai";
 import { useCallback, useState, useMemo, memo, useEffect, useRef, Profiler } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useViewpoints } from "@/queries/viewpoints/useViewpoints";
 import { useSearch } from "@/queries/search/useSearch";
-import { SearchResultsList } from "@/components/search/SearchResultsList";
 import { usePinnedPoint } from "@/queries/points/usePinnedPoint";
 import { usePriorityPoints } from "@/queries/points/usePriorityPoints";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePrefetchPoint } from "@/queries/points/usePointData";
 import React from "react";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
-import { SpacePageHeader } from "@/components/space/SpacePageHeader";
+import { useSpaceSearch } from "@/components/contexts/SpaceSearchContext";
 import { PinnedPointWithHistory } from "@/components/space/PinnedPointWithHistory";
-import { FeedItem } from "@/components/space/FeedItem";
-import { AllTabContent } from "@/components/space/AllTabContent";
-import { RationalesTabContent } from "@/components/space/RationalesTabContent";
 import { PriorityPointsSection } from "@/components/space/PriorityPointsSection";
-import { PointsTabContent } from "@/components/space/PointsTabContent";
-import { SelectPointForNegationDialog } from "@/components/dialogs/SelectPointForNegationDialog";
-import { selectPointForNegationOpenAtom } from "@/atoms/selectPointForNegationOpenAtom";
-import { setPrivyToken } from "@/lib/privy/setPrivyToken";
+import { UnifiedContentList } from "@/components/space/UnifiedContentList";
 import { PriorityPointsSkeleton } from "@/components/space/skeletons";
+import { SpaceLayout } from "@/components/layouts/SpaceLayout";
+import { QuickActionsBar } from "@/components/space/QuickActionsBar";
+import { SpaceTabs } from "@/components/space/SpaceTabs";
 
 interface PageProps {
     params: { space: string };
     searchParams: { [key: string]: string | string[] | undefined };
 }
 
-type PointItem = {
-    type: 'point';
-    id: string;
-    content: string;
-    createdAt: Date;
-    data: any;
-};
-
-type ViewpointItem = {
-    type: 'rationale';
-    id: string;
-    content: string;
-    createdAt: Date;
-    data: any;
-};
-
-type FeedItem = PointItem | ViewpointItem;
-
-type Tab = "all" | "points" | "rationales" | "search";
-
-
-export function SpacePageClient({ params, searchParams: _searchParams }: PageProps) {
-    const { user: privyUser, login } = usePrivy();
-    const basePath = useBasePath();
-    const space = useSpace(params.space);
+export default function SpacePageClient({ params, searchParams }: PageProps) {
+    const space = params.space;
+    const { user: privyUser, login, ready } = usePrivy();
     const router = useRouter();
     const pathname = usePathname();
-    const [isNavigating, setIsNavigating] = useState(false);
-    const [initialTabFromAtom, setInitialTabAtom] = useAtom(initialSpaceTabAtom);
     const queryClient = useQueryClient();
+    const basePath = useBasePath();
+    const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
+    const { searchQuery, searchResults, isLoading: searchLoading, handleSearch, isActive, hasSearched } = useSearch();
 
-    const lastTabViewTimes = useRef<Record<string, number>>({
-        rationales: 0,
-        points: 0,
-        all: 0,
-        search: 0
-    });
+    const setNegatedPointId = useSetAtom(negatedPointIdAtom);
+    const [initialSpaceTab, setInitialSpaceTab] = useAtom(initialSpaceTabAtom);
 
-    const { data: viewpoints, isLoading: viewpointsLoading } = useViewpoints(space.data?.id || "global");
-
-    const [selectedTab, setSelectedTab] = useState<Tab | null>(null);
-    const [isAiAssistantLoading, setIsAiAssistantLoading] = useState(false);
-    const [isDeltaCompareLoading, setIsDeltaCompareLoading] = useState(false);
-    const [isNewRationaleLoading, setIsNewRationaleLoading] = useState(false);
-    const [isSelectNegationOpen, setIsSelectNegationOpen] = useAtom(selectPointForNegationOpenAtom);
-
-    // Filter states
-    const [selectedPointIds, setSelectedPointIds] = useState<number[]>([]);
-    const [matchType, setMatchType] = useState<"any" | "all">("any");
+    const [selectedTab, setSelectedTab] = useState<"all" | "points" | "rationales">("rationales");
+    const [sortOrder, setSortOrder] = useState<"recent" | "favor" | "cred" | "activity">("recent");
     const [topicFilters, setTopicFilters] = useState<string[]>([]);
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [topicsOpen, setTopicsOpen] = useState(false);
-    const [isRefetchingFeed, setIsRefetchingFeed] = useState(false);
-    useEffect(() => {
-        if (selectedTab === null && initialTabFromAtom) {
-            setSelectedTab(initialTabFromAtom);
-            setInitialTabAtom(null);
-        } else if (selectedTab === null && !initialTabFromAtom) {
-            setSelectedTab("rationales");
+    const [selectedPointIds, setSelectedPointIds] = useState<number[]>([]);
+    const [matchType, setMatchType] = useState<"any" | "all">("any");
+
+    const { searchQuery: contextSearchQuery, activeTab, contentType, mobileFiltersOpen } = useSpaceSearch();
+
+    const { data: feedData, isLoading: isFeedLoading } = useFeed({
+        enabled: true,
+    });
+    const { data: viewpointsData, isLoading: isViewpointsLoading } = useViewpoints(space);
+    const { data: pinnedPointData } = usePinnedPoint(space);
+    const { data: priorityPointsData, isLoading: isPriorityPointsLoading } = usePriorityPoints();
+
+    const prefetchPoint = usePrefetchPoint();
+    const prefetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    const handlePrefetch = useCallback((pointId: number) => {
+        if (prefetchTimeoutRef.current) {
+            clearTimeout(prefetchTimeoutRef.current);
         }
-    }, [initialTabFromAtom, selectedTab, setInitialTabAtom]);
+        prefetchTimeoutRef.current = setTimeout(() => {
+            prefetchPoint(pointId);
+        }, 100);
+    }, [prefetchPoint]);
 
-    // Handle close topics event from mobile overlay
-    useEffect(() => {
-        const handleCloseTopics = () => {
-            setTopicsOpen(false);
-        };
-
-        window.addEventListener('closeTopics', handleCloseTopics);
-        return () => {
-            window.removeEventListener('closeTopics', handleCloseTopics);
-        };
-    }, []);
-
-    const { searchQuery, searchResults, isLoading: searchLoading, handleSearch, isActive, hasSearched } = useSearch();
-    const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
-
-    const handleCardClick = useCallback((id: string) => {
-        setLoadingCardId(id);
-    }, []);
-
-    // Keep the loading indicator visible until this component unmounts (i.e. when we fully leave
-    // the space feed). Clearing it immediately on pathname change was causing the spinner to
-    // disappear too early.
-    useEffect(() => {
-        return () => {
-            setLoadingCardId(null);
-            setIsNewRationaleLoading(false);
-        };
-    }, []);
-
-    useEffect(() => {
-        if (privyUser?.id && isNavigating) {
-            queryClient.setQueryData(["feed", privyUser?.id], (oldData: any) => oldData);
-        }
-    }, [queryClient, privyUser?.id, isNavigating]);
-
-    const { data: points, isLoading, refetch: refetchFeed } = useFeed();
-
-    const {
-        data: priorityPoints,
-        isLoading: priorityPointsLoading
-    } = usePriorityPoints();
-
-    const shouldLoadPinnedPoint = space.data?.id !== "global";
-
-    const { data: pinnedPoint, isLoading: pinnedPointLoading } = usePinnedPoint(
-        shouldLoadPinnedPoint ? space.data?.id : undefined
-    );
-
-    const handleTabChange = useCallback((tab: Tab) => {
-        setSelectedTab(tab);
-
-        if (lastTabViewTimes.current) {
-            lastTabViewTimes.current[tab] = Date.now();
-        }
-
-        if (tab === "search") {
-            setTimeout(() => {
-                const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
-                if (searchInput) searchInput.focus();
-            }, 0);
-        }
-    }, []);
-
-    const handleNewViewpoint = () => {
+    const handleNegate = useCallback((pointId: number) => {
         if (privyUser) {
-            setIsNavigating(true);
-            setIsNewRationaleLoading(true);
-            router.push(`${basePath}/rationale/new`);
+            setNegatedPointId(pointId);
         } else {
             login();
         }
-    };
+    }, [privyUser, setNegatedPointId, login]);
 
-    const setNegatedPointId = useSetAtom(negatedPointIdAtom);
+    // Navigation
+    const handleNewViewpoint = useCallback(() => {
+        router.push(`${basePath}/rationale/new`);
+    }, [router, basePath]);
 
-    const isInSpecificSpace = pathname?.includes('/s/') && !pathname.match(/^\/s\/global\//);
+    // Content data processing
+    const allFeedItems = useMemo(() => {
+        if (!feedData || !Array.isArray(feedData)) return [];
+        return feedData;
+    }, [feedData]);
 
+    const allViewpoints = useMemo(() => {
+        return viewpointsData || [];
+    }, [viewpointsData]);
 
-    const filteredPriorityPoints = useMemo(() => {
-        if (!priorityPoints || priorityPointsLoading) return [];
-
-        const uniquePriorityPoints = Array.from(
-            new Map(priorityPoints.map(point => [point.pointId, point])).values()
-        );
-
-        return uniquePriorityPoints.filter(point => {
-            return !pinnedPoint || point.pointId !== pinnedPoint.pointId;
-        }).slice(0, 3);
-    }, [priorityPoints, pinnedPoint, priorityPointsLoading]);
-
-    const pinnedAndPriorityPoints = useMemo(() => {
-        const pointIds = new Set<number>();
-
-        if (filteredPriorityPoints?.length) {
-            filteredPriorityPoints.forEach(point => pointIds.add(point.pointId));
+    // Auto-scroll for initial space tab
+    useEffect(() => {
+        if (initialSpaceTab && typeof window !== 'undefined') {
+            const timer = setTimeout(() => {
+                const element = document.getElementById(`tab-${initialSpaceTab}`);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                setInitialSpaceTab(null);
+            }, 100);
+            return () => clearTimeout(timer);
         }
+    }, [initialSpaceTab, setInitialSpaceTab]);
 
-        if (pinnedPoint?.pointId) {
-            pointIds.add(pinnedPoint.pointId);
-        }
-
-
-        return pointIds;
-    }, [filteredPriorityPoints, pinnedPoint]);
-
-    const combinedFeed = useMemo(() => {
-        if (!points) {
-            return [];
-        }
-        const allItems: FeedItem[] = [];
-
-        const includePoints = selectedTab !== "rationales";
-        const includeRationales = selectedTab === "all" || selectedTab === "rationales";
-
-        if (includePoints && Array.isArray(points)) {
-            points
-                .filter((point: any) => !pinnedAndPriorityPoints.has(point.pointId))
-                .forEach((point: any) => {
-                    allItems.push({
-                        type: 'point',
-                        id: `point-${point.pointId}`,
-                        content: point.content,
-                        createdAt: point.createdAt,
-                        data: point,
-                    });
-                });
-        }
-
-        if (includeRationales && viewpoints) {
-            viewpoints.forEach(viewpoint => {
-                allItems.push({
-                    type: 'rationale',
-                    id: viewpoint.id,
-                    content: viewpoint.title,
-                    createdAt: viewpoint.createdAt,
-                    data: viewpoint,
-                });
-            });
-        }
-
-        return allItems.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    }, [points, viewpoints, pinnedAndPriorityPoints, selectedTab]);
-
-    const handleSearchChange = (value: string) => {
-        handleSearch(value);
-        if (value.trim().length > 0 && selectedTab !== "search") {
-            setSelectedTab("search");
-        }
-    };
-
-    const handlePinnedPointClick = (e: React.MouseEvent, encodedId: string) => {
-        preventDefaultIfContainsSelection(e);
-        router.push(`${basePath}/${encodedId}`);
-    }
-
-    const prefetchPoint = usePrefetchPoint();
-
-    const handleAiAssistantClick = () => {
-        setIsAiAssistantLoading(true);
-        router.push(`${basePath}/chat`);
-    };
-
-    const handleDeltaCompareClick = () => {
-        setIsDeltaCompareLoading(true);
-        router.push(`${basePath}/delta`);
-    };
-
-
-    const handlePointSelect = useCallback((pointId: number) => {
-        setSelectedPointIds(prev => [...prev, pointId]);
+    // Event listeners cleanup
+    useEffect(() => {
+        return () => {
+            if (prefetchTimeoutRef.current) {
+                clearTimeout(prefetchTimeoutRef.current);
+            }
+        };
     }, []);
 
-    const handlePointDeselect = useCallback((pointId: number) => {
-        setSelectedPointIds(prev => prev.filter(id => id !== pointId));
-    }, []);
+    // Invalidation handlers
+    useEffect(() => {
+        const handleEndorsementChange = (event: Event) => {
+            const pointId = (event as CustomEvent)?.detail?.pointId;
+            queryClient.invalidateQueries({ queryKey: ["feed", space] });
+            queryClient.invalidateQueries({ queryKey: ["priority-points", space] });
+            queryClient.invalidateQueries({ queryKey: ["user-viewpoints"] });
+            if (pointId) {
+                queryClient.invalidateQueries({ queryKey: ["point", pointId] });
+            }
+        };
 
-    const handleClearAll = useCallback(() => {
-        setSelectedPointIds([]);
-    }, []);
+        window.addEventListener("endorse-event", handleEndorsementChange);
+        return () => window.removeEventListener("endorse-event", handleEndorsementChange);
+    }, [queryClient, space]);
 
-    const handleMatchTypeChange = useCallback((type: "any" | "all") => {
-        setMatchType(type);
-    }, []);
+    const isLoading = isFeedLoading || isViewpointsLoading;
 
-    const handleRefetchFeed = useCallback(async () => {
-        setIsRefetchingFeed(true);
-        try {
-            await setPrivyToken();
-            await refetchFeed();
-        } catch (error) {
-            console.error("Error refetching feed:", error);
-        } finally {
-            setIsRefetchingFeed(false);
-        }
-    }, [refetchFeed]);
+    const headerContent = (
+        <>
+            <QuickActionsBar />
+            <SpaceTabs
+                selectedTab={selectedTab}
+                onTabChange={setSelectedTab}
+                spaceId={space}
+                onNewViewpoint={handleNewViewpoint}
+                filtersOpen={filtersOpen}
+                onFiltersToggle={() => setFiltersOpen(!filtersOpen)}
+                topicsOpen={topicsOpen}
+                onTopicsToggle={() => setTopicsOpen(!topicsOpen)}
+                sortOrder={sortOrder}
+                onSortOrderChange={setSortOrder}
+                topicFilters={topicFilters}
+                onTopicFiltersChange={setTopicFilters}
+                points={allFeedItems}
+                selectedPointIds={selectedPointIds}
+                onPointSelect={(pointId) => setSelectedPointIds([...selectedPointIds, pointId])}
+                onPointDeselect={(pointId) => setSelectedPointIds(selectedPointIds.filter(id => id !== pointId))}
+                onClearAll={() => setSelectedPointIds([])}
+                matchType={matchType}
+                onMatchTypeChange={setMatchType}
+            />
+        </>
+    );
 
-    if (selectedTab === null) {
-        return (
-            <main className="flex-1 grid sm:grid-cols-[1fr_1fr] overflow-auto bg-background min-h-0">
-                <div className="col-span-full flex items-center justify-center h-full">
-                    <Loader className="size-8" />
-                </div>
-            </main>
-        );
-    }
-
-    return (
-        <div className="flex-1 flex bg-muted/30 min-h-0 overflow-auto">
-            {/* Left negative space (hidden until xl) */}
-            <div className="hidden xl:block flex-[2] max-w-[400px] bg-muted/10 dark:bg-muted/5 border-r border-border/50"></div>
-
-            {/* Center content */}
-            <main className="relative w-full flex-[2] flex flex-col min-h-0 bg-background xl:border-x border-border/50 shadow-lg">
-                <SpacePageHeader
-                    space={space}
-                    selectedTab={selectedTab}
-                    onTabChange={handleTabChange}
-                    searchQuery={searchQuery}
-                    onSearchChange={handleSearchChange}
-                    isAiLoading={isAiAssistantLoading}
-                    onAiClick={handleAiAssistantClick}
-                    chatHref={`${basePath}/chat`}
-                    isDeltaLoading={isDeltaCompareLoading}
-                    onDeltaClick={handleDeltaCompareClick}
-                    deltaHref={`${basePath}/delta`}
-                    onNewViewpoint={handleNewViewpoint}
-                    isNewRationaleLoading={isNewRationaleLoading}
-                    filtersOpen={filtersOpen}
-                    onFiltersToggle={() => setFiltersOpen(!filtersOpen)}
-                    topicsOpen={topicsOpen}
-                    onTopicsToggle={() => setTopicsOpen(!topicsOpen)}
-                />
-                <div className="flex-1 px-4 sm:px-6 lg:px-8 bg-background">
-                    {selectedTab === null && (
-                        <div className="col-span-full flex items-center justify-center h-full">
-                            <Loader className="size-8" />
-                        </div>
-                    )}
-
-                    {selectedTab !== "search" && selectedTab !== "rationales" &&
-                        pinnedPoint && !pinnedPointLoading && isInSpecificSpace && (
-                            <div className="border-b transition-opacity duration-200 ease-in-out">
-                                <PinnedPointWithHistory
-                                    pinnedPoint={pinnedPoint}
-                                    space={space.data?.id ?? "global"}
-                                    loadingCardId={loadingCardId}
-                                    basePath={basePath}
-                                    handleCardClick={handleCardClick}
-                                    handleNavigate={handlePinnedPointClick}
-                                />
-                            </div>
-                        )}
-
-                    {selectedTab !== "search" && selectedTab !== "rationales" &&
-                        (priorityPointsLoading && space.data ? (
-                            <PriorityPointsSkeleton count={2} />
-                        ) : filteredPriorityPoints.length > 0 ? (
-                            <div className="border-b transition-opacity duration-200 ease-in-out">
+    const mainContent = hasSearched && isActive ? (
+        <div className="mx-auto w-full max-w-5xl px-3">
+            <UnifiedContentList
+                space={space}
+                contentType={selectedTab}
+                searchQuery={contextSearchQuery}
+                points={allFeedItems}
+                viewpoints={allViewpoints}
+                basePath={basePath}
+                isLoading={isLoading}
+                sortOrder={sortOrder}
+                selectedPointIds={selectedPointIds}
+                matchType={matchType}
+                topicFilters={topicFilters}
+                user={privyUser}
+                login={() => { }}
+                setNegatedPointId={handleNegate}
+                handleNewViewpoint={handleNewViewpoint}
+                handleCardClick={(id: string) => setLoadingCardId(id)}
+                onPrefetchPoint={handlePrefetch}
+                loadingCardId={loadingCardId}
+            />
+        </div>
+    ) : (
+        <Profiler
+            id="SpaceContent"
+            onRender={(id, phase, actualDuration) => {
+                if (process.env.NODE_ENV === 'development') {
+                    console.log(`${id} ${phase} took ${actualDuration}ms`);
+                }
+            }}
+        >
+            <div className="mx-auto w-full max-w-5xl px-3">
+                <div className="bg-background border rounded-lg shadow-sm p-6">
+                    <div className="space-y-6">
+                        {/* Priority Points Section - Hide in rationales tab and during search */}
+                        {selectedTab !== "rationales" && !contextSearchQuery?.trim() && (
+                            isPriorityPointsLoading ? (
+                                <PriorityPointsSkeleton />
+                            ) : priorityPointsData && priorityPointsData.length > 0 ? (
                                 <PriorityPointsSection
-                                    filteredPriorityPoints={filteredPriorityPoints}
+                                    filteredPriorityPoints={priorityPointsData}
                                     basePath={basePath}
-                                    space={space.data?.id ?? "global"}
-                                    setNegatedPointId={setNegatedPointId}
-                                    login={login}
+                                    space={space}
+                                    setNegatedPointId={handleNegate}
+                                    login={() => { }}
                                     user={privyUser}
                                     selectedTab={selectedTab}
                                     loadingCardId={loadingCardId}
-                                    handleCardClick={handleCardClick}
-                                    onPrefetchPoint={prefetchPoint}
+                                    handleCardClick={(id: string) => setLoadingCardId(id)}
+                                    onPrefetchPoint={handlePrefetch}
                                 />
-                            </div>
-                        ) : null)}
+                            ) : null
+                        )}
 
-                    {selectedTab === "search" ? (
-                        searchQuery.trim().length >= 2 ? (
-                            <SearchResultsList
-                                results={searchResults}
-                                isLoading={searchLoading}
-                                query={searchQuery}
-                                hasSearched={hasSearched}
-                                loadingCardId={loadingCardId}
-                                handleCardClick={handleCardClick}
-                            />
-                        ) : (
-                            <Profiler
-                                id="SearchPointsTabContent"
-                                onRender={(id, phase, actualDuration) => {
-                                    console.log(
-                                        `SearchPointsTabContent [${phase}] render time: ${actualDuration}ms`
-                                    );
-                                }}
-                            >
-                                <PointsTabContent
-                                    points={Array.isArray(points) ? points : []}
-                                    isLoading={isLoading}
-                                    combinedFeed={combinedFeed}
-                                    basePath={basePath}
-                                    space={space.data?.id ?? "global"}
-                                    setNegatedPointId={setNegatedPointId}
-                                    login={login}
-                                    user={privyUser}
-                                    pinnedPoint={pinnedPoint}
-                                    handleCardClick={handleCardClick}
-                                    loadingCardId={loadingCardId}
-                                    onPrefetchPoint={prefetchPoint}
-                                    onRefetchFeed={handleRefetchFeed}
-                                    isRefetching={isRefetchingFeed}
-                                />
-                            </Profiler>
-                        )
-                    ) : selectedTab === "all" ? (
-                        <AllTabContent
-                            points={Array.isArray(points) ? points : []}
-                            viewpoints={viewpoints}
-                            isLoading={isLoading}
-                            viewpointsLoading={viewpointsLoading}
-                            combinedFeed={combinedFeed}
-                            basePath={basePath}
-                            space={space.data?.id ?? "global"}
-                            setNegatedPointId={setNegatedPointId}
-                            login={login}
-                            user={privyUser}
-                            pinnedPoint={pinnedPoint}
-                            handleNewViewpoint={handleNewViewpoint}
-                            handleCardClick={handleCardClick}
-                            loadingCardId={loadingCardId}
-                            onPrefetchPoint={prefetchPoint}
-                            selectedPointIds={selectedPointIds}
-                            matchType={matchType}
-                            topicFilters={topicFilters}
-                            filtersOpen={filtersOpen}
-                            onPointSelect={handlePointSelect}
-                            onPointDeselect={handlePointDeselect}
-                            onClearAll={handleClearAll}
-                            onMatchTypeChange={handleMatchTypeChange}
-                            onTopicFiltersChange={setTopicFilters}
-                            onRefetchFeed={handleRefetchFeed}
-                            isRefetching={isRefetchingFeed}
-                        />
-                    ) : selectedTab === "points" ? (
-                        <Profiler id="PointsTabContent" onRender={(id, phase, actualDuration) => {
-                            console.log(`PointsTabContent [${phase}] render time: ${actualDuration}ms`);
-                        }}>
-                            <PointsTabContent
-                                points={Array.isArray(points) ? points : []}
-                                isLoading={isLoading}
-                                combinedFeed={combinedFeed}
+                        {/* Pinned Point */}
+                        {pinnedPointData && (
+                            <PinnedPointWithHistory
+                                pinnedPoint={pinnedPointData}
+                                space={space}
                                 basePath={basePath}
-                                space={space.data?.id ?? "global"}
-                                setNegatedPointId={setNegatedPointId}
-                                login={login}
-                                user={privyUser}
-                                pinnedPoint={pinnedPoint}
-                                handleCardClick={handleCardClick}
-                                loadingCardId={loadingCardId}
-                                onPrefetchPoint={prefetchPoint}
-                                onRefetchFeed={handleRefetchFeed}
-                                isRefetching={isRefetchingFeed}
+                                loadingCardId={null}
+                                handleCardClick={() => { }}
+                                handleNavigate={(e, encodedId) => {
+                                    preventDefaultIfContainsSelection(e);
+                                    router.push(`${basePath}/${encodedId}`);
+                                }}
                             />
-                        </Profiler>
-                    ) : (
-                        <RationalesTabContent
-                            viewpoints={viewpoints}
-                            viewpointsLoading={viewpointsLoading}
-                            space={space.data?.id ?? "global"}
-                            handleNewViewpoint={handleNewViewpoint}
-                            isNewRationaleLoading={isNewRationaleLoading}
-                            handleCardClick={handleCardClick}
-                            loadingCardId={loadingCardId}
-                            points={Array.isArray(points) ? points : []}
+                        )}
+
+                        <UnifiedContentList
+                            space={space}
+                            contentType={selectedTab}
+                            searchQuery={contextSearchQuery}
+                            points={allFeedItems}
+                            viewpoints={allViewpoints}
+                            basePath={basePath}
+                            isLoading={isLoading}
+                            sortOrder={sortOrder}
                             selectedPointIds={selectedPointIds}
                             matchType={matchType}
                             topicFilters={topicFilters}
-                            filtersOpen={filtersOpen}
-                            onPointSelect={handlePointSelect}
-                            onPointDeselect={handlePointDeselect}
-                            onClearAll={handleClearAll}
-                            onMatchTypeChange={handleMatchTypeChange}
-                            onTopicFiltersChange={setTopicFilters}
-                            onRefetchFeed={handleRefetchFeed}
-                            isRefetching={isRefetchingFeed}
-                            onFiltersToggle={() => setFiltersOpen(!filtersOpen)}
+                            user={privyUser}
+                            login={() => { }}
+                            setNegatedPointId={handleNegate}
+                            handleNewViewpoint={handleNewViewpoint}
+                            handleCardClick={(id: string) => setLoadingCardId(id)}
+                            onPrefetchPoint={handlePrefetch}
+                            loadingCardId={loadingCardId}
                         />
-                    )}
+                    </div>
                 </div>
-            </main>
-
-            {/* Right negative space (hidden until xl) */}
-            <div className="hidden xl:block flex-[2] max-w-[400px] bg-muted/10 dark:bg-muted/5 border-l border-border/50"></div>
-
-            <SelectPointForNegationDialog
-                isOpen={isSelectNegationOpen}
-                onOpenChange={setIsSelectNegationOpen}
-                onPointSelected={(id) => {
-                    // TODO: Handle negation selection
-                    // since like do we need it anymore
-                }}
-            />
-        </div>
+            </div>
+        </Profiler>
     );
-} 
+
+    return (
+        <SpaceLayout
+            space={space}
+            header={headerContent}
+            onCreateRationale={handleNewViewpoint}
+            showUserProfilePreview={true}
+            topicFilters={topicFilters}
+            onTopicFiltersChange={setTopicFilters}
+        >
+            {mainContent}
+
+            {/* Dialogs */}
+        </SpaceLayout>
+    );
+}

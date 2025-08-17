@@ -16,18 +16,33 @@ export const useSellEndorsement = () => {
 
   return useAuthenticatedMutation({
     mutationFn: sellEndorsement,
-    onMutate: async ({ pointId }) => {
-      await queryClient.cancelQueries({
-        queryKey: userEndorsementsQueryKey({ pointId, userId: user?.id }),
+    onMutate: async ({ pointId, amountToSell }) => {
+      // Optimistic update for user endorsement (remove gold border)
+      const endorsementQueryKey = userEndorsementsQueryKey({ pointId, userId: user?.id });
+      
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: endorsementQueryKey });
+      
+      // Get previous value
+      const previousEndorsement = queryClient.getQueryData(endorsementQueryKey);
+      
+      // Optimistically update endorsement (reduce by amount sold)
+      queryClient.setQueryData(endorsementQueryKey, (old: number | null | undefined) => {
+        const newAmount = (old || 0) - amountToSell;
+        return newAmount <= 0 ? null : newAmount;
       });
+      
+      return { previousEndorsement, endorsementQueryKey };
+    },
+    onError: (err, variables, context) => {
+      // Revert optimistic update on error
+      if (context?.previousEndorsement !== undefined) {
+        queryClient.setQueryData(context.endorsementQueryKey, context.previousEndorsement);
+      }
+      toast.error("Failed to sell endorsement");
     },
     onSuccess: (_, { pointId }) => {
       toast.success("Endorsement sold successfully");
-
-      queryClient.setQueryData(
-        userEndorsementsQueryKey({ pointId, userId: user?.id }),
-        (old: any) => null
-      );
 
       queryClient.invalidateQueries({
         queryKey: userEndorsementsQueryKey({ pointId, userId: user?.id }),

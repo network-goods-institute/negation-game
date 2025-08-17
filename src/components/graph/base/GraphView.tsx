@@ -23,6 +23,7 @@ import { useAtom } from "jotai";
 import { collapsedPointIdsAtom, ViewpointGraph, selectedPointIdsAtom } from "@/atoms/viewpointAtoms";
 import React from "react";
 import { useParams } from "next/navigation";
+import { usePointNegations } from "@/queries/points/usePointNegations";
 import { useViewpoint } from "@/queries/viewpoints/useViewpoint";
 import { GraphCanvas } from "@/components/graph/base/GraphCanvas";
 import { GraphControls } from "../controls/GraphControls";
@@ -128,6 +129,8 @@ export const GraphView = ({
   const { theme } = useTheme();
   const [selectedIds] = useAtom(selectedPointIdsAtom);
 
+  const { data: rootNegations } = usePointNegations(rootPointId);
+
   const [, setConnectDialogState] = useAtom(connectNodesDialogAtom);
   const [, setMergeNodesDialogState] = useAtom(mergeNodesDialogAtom);
 
@@ -174,6 +177,71 @@ export const GraphView = ({
   });
 
   useChunkedPrefetchPoints(flowInstance, nodes);
+
+  // Initialize graph from rootPointId + its immediate negations if no nodes exist yet
+  useEffect(() => {
+    if (!rootPointId) return;
+    if (nodes.length > 0) return;
+
+    const rootId = `root-${rootPointId}`;
+
+    const seededNodes: AppNode[] = [
+      {
+        id: rootId,
+        type: "point",
+        position: { x: 0, y: 0 },
+        data: { pointId: rootPointId },
+      } as unknown as AppNode,
+    ];
+
+    const seededEdges: Edge[] = [];
+
+    if (Array.isArray(rootNegations) && rootNegations.length > 0) {
+      const spacingX = 380;
+      const spacingY = 280;
+      const mid = (rootNegations.length - 1) / 2;
+      rootNegations.forEach((n, index) => {
+        const childId = `neg-${n.pointId}`;
+        const x = (index - mid) * spacingX;
+        const y = spacingY;
+        seededNodes.push({
+          id: childId,
+          type: "point",
+          position: { x, y },
+          data: { pointId: n.pointId, parentId: rootPointId },
+        } as unknown as AppNode);
+        seededEdges.push({
+          id: `e-${childId}-${rootId}`,
+          source: childId,
+          target: rootId,
+          type: "negation",
+        });
+      });
+    }
+
+    setNodes(seededNodes);
+    setEdges(seededEdges);
+  }, [rootPointId, rootNegations, nodes.length, setNodes, setEdges]);
+
+  useEffect(() => {
+    if (!flowInstance || nodes.length === 0) return;
+
+    // Check if this is the initial load for a rootPointId
+    if (rootPointId && nodes.some(node => node.type === 'point')) {
+      const timeoutId = setTimeout(() => {
+        // Use requestAnimationFrame to ensure all DOM updates are complete
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (flowInstance) {
+              flowInstance.fitView({ padding: 0.3, duration: 500 });
+            }
+          });
+        });
+      }, 1500);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [flowInstance, nodes.length, rootPointId, nodes]);
 
   const { onNodesChange, onEdgesChange } = useGraphChangeHandlers({
     flowInstance,

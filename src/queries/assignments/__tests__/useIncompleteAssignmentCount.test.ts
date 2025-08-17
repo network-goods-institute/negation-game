@@ -1,4 +1,3 @@
-// Mock fetch globally
 global.fetch = jest.fn();
 
 jest.mock("@tanstack/react-query", () => ({

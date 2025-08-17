@@ -8,7 +8,7 @@ import { endorsementsTable } from "@/db/tables/endorsementsTable";
 import { restakesTable } from "@/db/tables/restakesTable";
 import { slashesTable } from "@/db/tables/slashesTable";
 import { doubtsTable } from "@/db/tables/doubtsTable";
-import { sql, eq, or, and, desc } from "drizzle-orm";
+import { sql, or, desc } from "drizzle-orm";
 
 export async function fetchSpaceUsers(spaceId: string) {
   // Get users who have any activity in this space

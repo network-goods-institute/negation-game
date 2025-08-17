@@ -6,8 +6,8 @@ import { PointCard } from "@/components/cards/PointCard";
 import Link from "next/link";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftIcon, ArrowDownIcon, PencilIcon, ExternalLinkIcon, MessageSquareIcon, CoinsIcon } from "lucide-react";
-import { useState, useMemo, useCallback, useEffect, memo } from "react";
+import { ArrowLeftIcon, ArrowDownIcon, PencilIcon, ExternalLinkIcon, MessageSquareIcon, CoinsIcon, InfoIcon } from "lucide-react";
+import { useState, useMemo, useCallback, useEffect, memo, Suspense } from "react";
 import { useProfilePoints } from "@/queries/points/useProfilePoints";
 import { useUserViewpoints } from "@/queries/users/useUserViewpoints";
 import { Separator } from "@/components/ui/separator";
@@ -27,9 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ProfilePoint } from "@/actions/points/fetchProfilePoints";
 import { ProfileBadge, RationaleRank } from "@/components/ui/ProfileBadge";
 import { DeltaComparisonWidget } from "@/components/delta/DeltaComparisonWidget";
-import { EarningsDialog } from "@/components/dialogs/EarningsDialog";
-
-type ProfileTab = "profile" | "endorsements" | "dashboard";
+import { useEarningsPreview } from "@/queries/epistemic/useEarningsPreview";
 
 const ProfileEditDialog = dynamic(
     () => import("@/components/dialogs/ProfileEditDialog").then(mod => mod.ProfileEditDialog),
@@ -39,6 +37,16 @@ const ProfileEditDialog = dynamic(
     }
 );
 
+const EarningsDialog = dynamic(
+    () => import("@/components/dialogs/EarningsDialog").then(mod => mod.EarningsDialog),
+    {
+        ssr: false,
+        loading: () => null
+    }
+);
+
+type ProfileTab = "profile" | "endorsements" | "dashboard";
+
 const MemoizedPointCard = memo(PointCard);
 const MemoizedViewpointCardWrapper = memo(ViewpointCardWrapper);
 
@@ -47,10 +55,11 @@ interface ProfilePageProps {
         username: string;
     }>;
 }
+
 export default function ProfilePage({ params }: ProfilePageProps) {
-    // Unwrap params using React.use()
-    const unwrappedParams = React.use(params as any) as { username: string };
-    const username = unwrappedParams.username;
+    // Properly unwrap the params promise
+    const resolvedParams = React.use(params);
+    const username = resolvedParams.username;
 
     // All hooks must be called at the top level, before any conditionals
     const { user: privyUser, ready, login } = usePrivy();
@@ -75,6 +84,11 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     const { data: userData } = useUser(username);
     const [editProfileOpen, setEditProfileOpen] = useState(false);
     const [earningsDialogOpen, setEarningsDialogOpen] = useState(false);
+    const [showCredInfo, setShowCredInfo] = useState(false);
+
+    const { data: earningsPreview = 0 } = useEarningsPreview({
+        enabled: !!privyUser && privyUser?.id === userData?.id
+    });
 
     const isInitialLoading = isLoadingViewpoints || isLoadingEndorsedPoints;
 
@@ -279,22 +293,71 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                     <div className="flex items-center justify-between mb-4">
                         <div>
                             <h2 className="text-lg font-medium">{username}</h2>
-                            <p className="text-sm text-muted-foreground">{userCred} cred</p>
+                            <div className="flex items-center gap-1">
+                                <p className="text-sm text-muted-foreground">{userCred} cred</p>
+                                <button
+                                    onClick={() => setShowCredInfo(!showCredInfo)}
+                                    className="hover:text-foreground transition-colors"
+                                >
+                                    <InfoIcon className="size-3 text-muted-foreground" />
+                                </button>
+                            </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            {isOwnProfile && (
+                            {!isOwnProfile && userData?.id && (
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setEditProfileOpen(true)}
+                                    asChild
                                     className="gap-1"
                                 >
-                                    <PencilIcon className="size-3" />
-                                    Edit Profile
+                                    <Link href={`/s/global/messages/${username}`}>
+                                        <MessageSquareIcon className="size-3" />
+                                        Send Message
+                                    </Link>
                                 </Button>
+                            )}
+                            {isOwnProfile && (
+                                <>
+                                    {earningsPreview > 0 && (
+                                        <Button
+                                            variant="default"
+                                            size="sm"
+                                            onClick={() => setEarningsDialogOpen(true)}
+                                            className="gap-1"
+                                        >
+                                            <CoinsIcon className="size-3" />
+                                            Collect {earningsPreview < 0.01 ? "< 0.01" : earningsPreview.toFixed(0)} Cred
+                                        </Button>
+                                    )}
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setEditProfileOpen(true)}
+                                        className="gap-1"
+                                    >
+                                        <PencilIcon className="size-3" />
+                                        Edit Profile
+                                    </Button>
+                                </>
                             )}
                         </div>
                     </div>
+
+                    {showCredInfo && (
+                        <div className="mb-4 p-3 bg-muted/30 rounded-lg">
+                            <p className="text-sm font-medium mb-2">How to gain cred:</p>
+                            <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                                <li>Create high-quality points that gain endorsements</li>
+                                <li>Write comprehensive rationales that connect multiple points</li>
+                                <li>Successfully doubt restakes that won&apos;t be slashed</li>
+                                <li>Collect earnings from your successful doubts regularly</li>
+                            </ul>
+                            <p className="text-xs text-muted-foreground mt-2 italic">
+                                Remember: Cred represents your credibility and influence in the system. Use it wisely!
+                            </p>
+                        </div>
+                    )}
 
                     {(userData?.scrollDelegateLink || userData?.agoraLink || userData?.delegationUrl) && (
                         <div className="mb-6 p-4 bg-primary/5 border rounded-lg">
@@ -361,6 +424,26 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                                 {earnedRationaleBadges.map((threshold) => (
                                     <ProfileBadge key={threshold} threshold={threshold as RationaleRank} />
                                 ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Earnings Section for Own Profile */}
+                    {isOwnProfile && earningsPreview === 0 && (
+                        <div className="mb-6 p-4 bg-muted/10 border border-muted rounded-lg">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-sm font-medium">No earnings available</h3>
+                                    <p className="text-xs text-muted-foreground">Check if you have any pending earnings from doubts</p>
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setEarningsDialogOpen(true)}
+                                >
+                                    <CoinsIcon className="size-3 mr-1" />
+                                    Check Earnings
+                                </Button>
                             </div>
                         </div>
                     )}
@@ -690,24 +773,24 @@ export default function ProfilePage({ params }: ProfilePageProps) {
             </div>
 
             {isOwnProfile && (
-                <ProfileEditDialog
-                    open={editProfileOpen}
-                    onOpenChange={setEditProfileOpen}
-                    currentBio={userData?.bio}
-                    currentDelegationUrl={userData?.delegationUrl}
-                    currentAgoraLink={userData?.agoraLink}
-                    currentScrollDelegateLink={userData?.scrollDelegateLink}
-                    currentDiscourseUsername={userData?.discourseUsername}
-                    currentDiscourseCommunityUrl={userData?.discourseCommunityUrl}
-                    currentDiscourseConsentGiven={userData?.discourseConsentGiven}
-                />
-            )}
-            {isOwnProfile && (
-                <EarningsDialog
-                    open={earningsDialogOpen}
-                    onOpenChange={setEarningsDialogOpen}
-                />
+                <Suspense fallback={null}>
+                    <ProfileEditDialog
+                        open={editProfileOpen}
+                        onOpenChange={setEditProfileOpen}
+                        currentBio={userData?.bio}
+                        currentDelegationUrl={userData?.delegationUrl}
+                        currentAgoraLink={userData?.agoraLink}
+                        currentScrollDelegateLink={userData?.scrollDelegateLink}
+                        currentDiscourseUsername={userData?.discourseUsername}
+                        currentDiscourseCommunityUrl={userData?.discourseCommunityUrl}
+                        currentDiscourseConsentGiven={userData?.discourseConsentGiven}
+                    />
+                    <EarningsDialog
+                        open={earningsDialogOpen}
+                        onOpenChange={setEarningsDialogOpen}
+                    />
+                </Suspense>
             )}
         </main>
     );
-} 
+}

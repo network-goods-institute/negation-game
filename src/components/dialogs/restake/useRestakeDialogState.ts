@@ -14,6 +14,7 @@ import { TimelineScale } from "@/lib/negation-game/timelineScale";
 import { useCredInput } from "@/hooks/ui/useCredInput";
 import { useToggle } from "@uidotdev/usehooks";
 import { useRestakeCalculations } from "./useRestakeCalculations";
+import { usePointData } from "@/queries/points/usePointData";
 
 interface UseRestakeDialogStateProps {
   originalPoint: {
@@ -58,6 +59,9 @@ export const useRestakeDialogState = ({
     originalPoint.id,
     counterPoint.id
   );
+
+  // Always fetch freshest parent point data to get up-to-date viewerCred (endorsement)
+  const { data: freshParentPoint } = usePointData(originalPoint.id);
 
   // State
   const [selectedAmount, setSelectedAmount] = useState(0); // Amount selected on slider
@@ -111,7 +115,9 @@ export const useRestakeDialogState = ({
     currentlyStaked: currentRestakeAmount,
     openedFromSlashedIcon: inDoubtMode,
     isSlashing: isReducingRestake,
-    originalPoint,
+    originalPoint: {
+      viewerCred: freshParentPoint?.viewerCred ?? originalPoint.viewerCred,
+    },
     existingDoubt,
     existingRestake,
     user: user ? { cred: user.cred } : undefined,

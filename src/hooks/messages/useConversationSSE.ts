@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@/queries/users/useUser";
-import { usePrivy } from "@privy-io/react-auth";
 
 interface ConversationStatus {
   unreadCount: number;

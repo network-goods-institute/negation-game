@@ -45,7 +45,7 @@ export function CreateRationaleViewpointCard({
 
           <div className="flex-1">
             <h3 className="text-xl font-bold text-blue-900 dark:text-blue-100 group-hover:text-blue-700 dark:group-hover:text-blue-200 transition-colors mb-2">
-              ✨ Create Your Rationale
+              Create Your Rationale
             </h3>
 
             <p className="text-blue-700 dark:text-blue-200 font-medium mb-4 leading-relaxed">

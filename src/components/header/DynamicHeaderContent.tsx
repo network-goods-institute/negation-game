@@ -67,7 +67,7 @@ export function DynamicHeaderContent() {
             {isSpacePage && spaceId ? (
                 <Link
                     href={`/s/${spaceId}`}
-                    className="flex items-center min-w-0 overflow-hidden"
+                    className="flex items-center min-w-0 max-w-full"
                     onClick={(e) => handleClick(e, `/s/${spaceId}`)}
                 >
                     {isNavigating ? (
@@ -77,11 +77,11 @@ export function DynamicHeaderContent() {
                         </div>
                     ) : (
                         <>
-                            <span className="text-[11px] md:text-base font-bold whitespace-nowrap">Negation Game</span> {/* Mobile: 11px, Medium+: base */}
-                            <span className="text-muted-foreground text-xs mx-0.5">×</span>
-                            <div className="flex items-center">
+                            <span className="text-[10px] md:text-base font-bold whitespace-nowrap">Negation Game</span> {/* Mobile: 10px, Medium+: base */}
+                            <span className="text-muted-foreground text-[10px] md:text-xs mx-0.5">×</span>
+                            <div className="flex items-center min-w-0">
                                 {renderIcon()}
-                                <span className="text-[11px] md:text-base font-bold whitespace-nowrap">{`s/${spaceId}`}</span> {/* Mobile: 11px, Medium+: base */}
+                                <span className="text-[10px] md:text-base font-bold truncate">{`s/${spaceId}`}</span> {/* Mobile: 10px with truncate, Medium+: base */}
                             </div>
                         </>
                     )}

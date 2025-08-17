@@ -278,10 +278,12 @@ const GlobalTopicGraphContent = React.memo(function GlobalTopicGraphContent({ to
 
     if (isLoading) {
         return (
-            <div className={cn("h-full border rounded-lg flex items-center justify-center", className)}>
-                <div className="text-center">
-                    <Loader className="h-8 w-8 mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">Loading topic graph...</p>
+            <div className={cn("h-full border rounded-lg", className)}>
+                <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                        <Loader className="h-8 w-8 mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground">Loading topic graph...</p>
+                    </div>
                 </div>
             </div>
         );
@@ -317,11 +319,11 @@ const GlobalTopicGraphContent = React.memo(function GlobalTopicGraphContent({ to
                 setLocalGraph={setLocalGraph} // Update local graph
                 statement={statement}
                 description={description}
-                canModify={true} // Allow full interactions including negation expansion
+                canModify={true}
                 canvasEnabled={true}
-                hideShareButton={true} // Hide sharing panel
-                hideSavePanel={true} // Hide save/discard panel
-                hideComments={true} // Hide comment functionality
+                hideShareButton={true}
+                hideSavePanel={true}
+                hideComments={true}
                 isNew={false}
                 isSaving={false} // Never in saving state
                 isContentModified={false} // Never show as modified
@@ -329,7 +331,7 @@ const GlobalTopicGraphContent = React.memo(function GlobalTopicGraphContent({ to
                 onSave={async () => false} // Disable saving - always return false
                 onResetContent={() => { }} // No-op reset
                 onModifiedChange={() => { }} // No-op modified change
-                nodesDraggable={false} // Disable node movement for optimized panning
+                nodesDraggable={false}
                 className="h-full"
             />
         </div>

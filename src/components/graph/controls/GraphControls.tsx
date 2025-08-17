@@ -7,16 +7,6 @@ import { nanoid } from "nanoid";
 import { MessageSquareIcon } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import type { AppNode } from "@/components/graph/nodes/AppNode";
 
 export interface GraphControlsProps {
@@ -74,21 +64,20 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
     isPublishing = false,
 }) => {
     const reactFlow = useReactFlow<AppNode>();
-    const [isCommentDialogOpen, setIsCommentDialogOpen] = useState(false);
-    
+
     const handleAddComment = () => {
         const { x: vpX, y: vpY, zoom } = reactFlow.getViewport();
         const screenX = window.innerWidth / 2;
         const screenY = window.innerHeight / 2;
         const position = { x: (screenX - vpX) / zoom, y: (screenY - vpY) / zoom };
         const id = `comment-${nanoid()}`;
-        reactFlow.addNodes([{ 
-            id, 
-            type: "comment", 
-            position, 
-            data: { content: "", _lastModified: Date.now() } 
+        reactFlow.addNodes([{
+            id,
+            type: "comment",
+            position,
+            data: { content: "", _lastModified: Date.now() }
         }]);
-        
+
         // Mark as modified since we're adding a new comment
         if (typeof (reactFlow as any).markAsModified === 'function') {
             (reactFlow as any).markAsModified();
@@ -98,17 +87,17 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
     return (
         <>
             <Panel position="bottom-left" className="m-2">
-                <div className="relative bottom-[10px] md:bottom-[20px] mb-4">
+                <div className="relative bottom-[10px] md:bottom-[20px] mb-6">
                     <Controls />
                 </div>
             </Panel>
-            <Panel position="bottom-right" className="z-10 mr-2 mb-2 md:mr-6 md:mb-10 flex flex-col items-end gap-3">
+            <Panel position="bottom-right" className="z-10 mr-2 mb-4 md:mr-6 md:mb-12 flex flex-col items-end gap-3">
                 {!hideComments && (
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
+                            <Button
+                                variant="outline"
+                                size="sm"
                                 onClick={handleAddComment}
                                 className="bg-white dark:bg-gray-800 border-blue-200 dark:border-blue-700 hover:bg-white dark:hover:bg-gray-800 text-blue-700 dark:text-blue-300 shadow-md mr-12"
                             >

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useDeletePoint } from "@/mutations/points/useDeletePoint";
-import { validatePointDeletion, ValidationResult } from "@/actions/points/validatePointDeletion";
+import { validatePointDeletion } from "@/actions/points/validatePointDeletion";
 import {
     generateConfirmationRequirement,
     validateConfirmation,

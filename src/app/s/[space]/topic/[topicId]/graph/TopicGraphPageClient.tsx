@@ -42,7 +42,7 @@ function TopicGraphPageClientContent({ topic, space }: TopicGraphPageClientProps
     const isMobile = useIsMobile();
 
     return (
-        <div className="flex-grow bg-background h-full overflow-hidden md:grid md:grid-cols-[0_minmax(200px,400px)_1fr]">
+        <div className="flex-1 bg-background h-[calc(100vh-var(--header-height))] overflow-hidden md:grid md:grid-cols-[0_minmax(200px,400px)_1fr]">
             {/* Hidden spacer column */}
             <div className="hidden md:block"></div>
 
@@ -90,7 +90,7 @@ function TopicGraphPageClientContent({ topic, space }: TopicGraphPageClientProps
                 </div>
 
                 {/* Points List */}
-                <div className="flex-grow overflow-y-auto">
+                <div className="flex-1 min-h-0 overflow-y-auto">
                     {pointsLoading ? (
                         <div className="flex items-center justify-center h-32">
                             <Loader className="h-6 w-6" />
@@ -113,7 +113,7 @@ function TopicGraphPageClientContent({ topic, space }: TopicGraphPageClientProps
 
             {/* Right side - Graph */}
             <div className={cn(
-                "flex flex-col h-full md:col-start-3",
+                "flex flex-col h-full md:col-start-3 min-h-0",
                 isMobile && view === 'list' && "hidden"
             )}>
                 {/* Mobile Graph Header with Close Button */}
@@ -132,13 +132,21 @@ function TopicGraphPageClientContent({ topic, space }: TopicGraphPageClientProps
                     </div>
                 )}
 
-                <Dynamic>
-                    <GlobalTopicGraph
-                        topicId={topic.id}
-                        topicName={topic.name}
-                        className="h-full"
-                    />
-                </Dynamic>
+                <div className="flex-1 min-h-0 relative">
+                    {pointsLoading ? (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <Loader className="h-8 w-8" />
+                        </div>
+                    ) : (
+                        <Dynamic>
+                            <GlobalTopicGraph
+                                topicId={topic.id}
+                                topicName={topic.name}
+                                className="h-full"
+                            />
+                        </Dynamic>
+                    )}
+                </div>
             </div>
         </div>
     );

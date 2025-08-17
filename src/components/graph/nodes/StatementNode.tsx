@@ -90,8 +90,8 @@ export const StatementNode = ({
   positionAbsoluteY,
 }: StatementNodeProps) => {
   const incomingConnections = useNodeConnections({
-    handleType: "target",
     id: id,
+    handleType: "target",
   });
 
   const { addEdges, addNodes, getNodes, getEdges, getNode, updateNodeData } = useReactFlow();

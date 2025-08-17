@@ -43,6 +43,8 @@ export const FeedItem = memo(({
 
     if (item.type === 'point') {
         const point = item.data;
+        const viewerCred = typeof point.viewerCred === 'number' ? point.viewerCred : 0;
+        const viewerNegationsCred = typeof point.viewerNegationsCred === 'number' ? point.viewerNegationsCred : 0;
         const isProposalToPin = point.content?.startsWith('/pin ');
         const isPinnedPoint = pinnedPoint && pinnedPoint.pointId === point.pointId;
 
@@ -109,7 +111,7 @@ export const FeedItem = memo(({
                     amountNegations={point.amountNegations}
                     pointId={point.pointId}
                     cred={point.cred}
-                    viewerContext={{ viewerCred: point.viewerCred, viewerNegationsCred: point.viewerNegationsCred ?? 0 }}
+                    viewerContext={{ viewerCred, viewerNegationsCred }}
                     isCommand={point.isCommand}
                     isPinned={isPinnedPoint}
                     space={space || "global"}

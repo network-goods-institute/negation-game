@@ -169,7 +169,7 @@ export function DelegateLinksPrompt({ open, onOpenChange }: DelegateLinksPromptP
         ...(availableOptions.scroll ? [{
             value: "scroll" as const,
             icon: Vote,
-            label: "Scroll Delegate", 
+            label: "Scroll Delegate",
             description: "Connect your Scroll governance profile",
             placeholder: "https://gov.scroll.io/delegates/..."
         }] : []),
@@ -209,8 +209,8 @@ export function DelegateLinksPrompt({ open, onOpenChange }: DelegateLinksPromptP
                                 const Icon = option.icon;
                                 return (
                                     <div key={option.value} className="space-y-3">
-                                        <Label 
-                                            htmlFor={option.value} 
+                                        <Label
+                                            htmlFor={option.value}
                                             className={cn(
                                                 "flex items-center space-x-3 p-3 rounded-lg border hover:bg-accent/50 transition-colors cursor-pointer",
                                                 delegateType === option.value && "border-primary bg-primary/10 ring-1 ring-primary/20"
@@ -220,7 +220,7 @@ export function DelegateLinksPrompt({ open, onOpenChange }: DelegateLinksPromptP
                                             <Icon className={cn(
                                                 "h-4 w-4",
                                                 delegateType === option.value ? "text-primary" :
-                                                option.value === "none" ? "text-muted-foreground" : "text-muted-foreground"
+                                                    option.value === "none" ? "text-muted-foreground" : "text-muted-foreground"
                                             )} />
                                             <div className="flex-1">
                                                 <div className={cn(
@@ -247,8 +247,8 @@ export function DelegateLinksPrompt({ open, onOpenChange }: DelegateLinksPromptP
                                                     <Input
                                                         value={
                                                             option.value === "agora" ? agoraLink :
-                                                            option.value === "scroll" ? scrollDelegateLink :
-                                                            delegationUrl
+                                                                option.value === "scroll" ? scrollDelegateLink :
+                                                                    delegationUrl
                                                         }
                                                         onChange={(e) => {
                                                             if (option.value === "agora") setAgoraLink(e.target.value);
@@ -291,8 +291,8 @@ export function DelegateLinksPrompt({ open, onOpenChange }: DelegateLinksPromptP
                         }
                         className="px-6"
                     >
-                        {isSubmitting ? 
-                            ((delegateType as string) === "none" ? "Saving..." : "Connecting...") : 
+                        {isSubmitting ?
+                            ((delegateType as string) === "none" ? "Saving..." : "Connecting...") :
                             ((delegateType as string) === "none" ? "Save" : "Connect")
                         }
                     </Button>

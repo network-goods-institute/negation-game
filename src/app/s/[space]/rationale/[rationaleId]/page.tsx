@@ -337,7 +337,7 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
 
     if (!viewpoint)
         return (
-            <div className="flex-grow flex items-center justify-center">
+            <div className="flex-grow flex items-center justify-center h-[calc(100vh-var(--header-height))]">
                 <Loader className="size-12" />
             </div>
         );
@@ -359,14 +359,14 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                 "relative flex-grow bg-background h-full overflow-hidden",
                 (isEmbedMode || isDesktopEmbed)
                     ? "flex flex-col"
-                    : "md:grid",
+                    : "md:grid h-[calc(100vh-var(--header-height))]",
                 !isEmbedMode && !isDesktopEmbed && showFeed
                     ? "md:grid-cols-[0_minmax(200px,400px)_1fr_minmax(200px,400px)]"
                     : (!isEmbedMode && !isDesktopEmbed) && "md:grid-cols-[0_minmax(200px,400px)_1fr]"
             )}>
                 {!isEmbedMode && !isDesktopEmbed && <div className="hidden md:block"></div>}
                 <div className={cn(
-                    "flex flex-col h-full overflow-hidden",
+                    "flex flex-col h-full min-h-0 overflow-hidden",
                     !isEmbedMode && !isDesktopEmbed && "md:col-start-2 border-x",
                     (isEmbedMode || isDesktopEmbed) && "border-0 max-w-full"
                 )}>
@@ -387,7 +387,6 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                         />
                     )}
 
-                    {/* Simple toggle for embed mode */}
                     {(isEmbedMode || isDesktopEmbed) && (
                         <div className="flex justify-between items-center p-3 border-b bg-gray-50">
                             <h3 className="text-sm font-medium text-gray-700">Rationale View</h3>
@@ -407,13 +406,12 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
 
                     {/* --- Scrollable Content START*/}
                     <div className={cn(
-                        "flex-grow overflow-y-auto",
+                        "flex flex-col flex-grow min-h-0 overflow-y-auto",
                         (isEmbedMode || isDesktopEmbed) ? "pb-4 px-4" : "pb-10",
                         !isEmbedMode && !isDesktopEmbed && showFeed && isMobile && "hidden",
                         !isEmbedMode && !isDesktopEmbed && canvasEnabled && "hidden md:block",
                         !isEmbedMode && !isDesktopEmbed && !canvasEnabled && (isGraphModified || isContentModified) && isOwner && "pb-24 md:pb-10",
                         !isEmbedMode && !isDesktopEmbed && isSharing && "pb-24 md:pb-24",
-                        // In embed mode, show/hide based on canvas state
                         (isEmbedMode || isDesktopEmbed) && canvasEnabled && "hidden",
                         (isEmbedMode || isDesktopEmbed) && !canvasEnabled && "flex flex-col"
                     )}>
@@ -476,7 +474,7 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                             selectedPointIds={selectedPointIds}
                             editMode={true}
                             isSharing={isSharing}
-                            containerClassName="relative flex flex-col"
+                            containerClassName="relative flex flex-col flex-1 min-h-0 md:pr-2"
                         />
                     </div>
                     {/* --- Scrollable Content END --- */}
@@ -533,8 +531,7 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                             canModify={canEdit}
                             canvasEnabled={canvasEnabled}
                             className={cn(
-                                "!fixed inset-0 top-[var(--header-height)] !h-[calc(100vh-var(--header-height))]",
-                                "md:!relative md:col-start-3 md:inset-[reset] md:top-[reset] md:!h-full md:!z-auto",
+                                "!fixed md:!sticky inset-0 top-[var(--header-height)] md:inset-[reset] !h-[calc(100vh-var(--header-height))] md:top-[var(--header-height)] md:col-start-3 md:z-auto",
                                 !canvasEnabled && "hidden md:block",
                                 showFeed && isMobile && "hidden"
                             )}
@@ -580,7 +577,7 @@ function ViewpointPageWrapper({ rationaleId }: { rationaleId: string }) {
 
     if (isLoading) {
         return (
-            <div className="flex-grow flex items-center justify-center">
+            <div className="flex-grow flex items-center justify-center h-[calc(100vh-var(--header-height))]">
                 <Loader className="size-12" />
             </div>
         );
@@ -588,7 +585,7 @@ function ViewpointPageWrapper({ rationaleId }: { rationaleId: string }) {
     if (!viewpoint || isError) {
         notFound();
         return (
-            <div className="flex-grow flex items-center justify-center">
+            <div className="flex-grow flex items-center justify-center h-[calc(100vh-var(--header-height))]">
                 <Loader className="size-12" />
             </div>
         );

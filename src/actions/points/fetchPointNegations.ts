@@ -229,7 +229,8 @@ export const fetchPointNegations = async (
           eq(negationsTable.olderPointId, pointId),
           eq(negationsTable.newerPointId, pointId)
         ),
-        eq(pointsWithDetailsView.space, space)
+        eq(pointsWithDetailsView.space, space),
+        ne(pointsWithDetailsView.pointId, pointId)
       )
     )
     .then((points) => {

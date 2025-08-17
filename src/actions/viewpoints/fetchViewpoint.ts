@@ -5,13 +5,12 @@ import {
   viewpointsTable,
   viewpointInteractionsTable,
   topicsTable,
-  rationalePointsTable,
   endorsementsTable,
 } from "@/db/schema";
 import { activeViewpointsFilter } from "@/db/tables/viewpointsTable";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
-import { eq, sql, and, count, sum, gt, inArray } from "drizzle-orm";
+import { eq, sql, and, sum, gt, inArray } from "drizzle-orm";
 import { trackViewpointView } from "./trackViewpointView";
 import { calculateViewpointStats } from "@/actions/utils/calculateViewpointStats";
 

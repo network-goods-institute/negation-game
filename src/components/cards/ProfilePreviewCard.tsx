@@ -5,7 +5,8 @@ import { ExternalLinkIcon, FileTextIcon, CalendarIcon } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from 'date-fns';
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import React from "react";
+import React, { useMemo } from "react";
+import { ProfileBadge, RationaleRank } from "@/components/ui/ProfileBadge";
 
 // invalid join date
 // basically this is when i added the created_at column to the database
@@ -38,6 +39,12 @@ export function ProfilePreviewCard({
         memberStatus = "";
     }
 
+    // Calculate earned badges based on rationales count
+    const earnedBadges = useMemo(() => {
+        const rationaleBadgeThresholds: RationaleRank[] = [1, 5, 10, 25, 50, 100];
+        return rationaleBadgeThresholds.filter(threshold => rationalesCount >= threshold);
+    }, [rationalesCount]);
+
     return (
         <div className="flex flex-col gap-4 p-4 max-w-xs w-full">
             <div>
@@ -49,6 +56,16 @@ export function ProfilePreviewCard({
 
             {bio && (
                 <p className="text-sm text-muted-foreground line-clamp-3">{bio}</p>
+            )}
+
+            {earnedBadges.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                    {earnedBadges.slice(-2).map((threshold) => (
+                        <div key={threshold} className="scale-75 origin-left">
+                            <ProfileBadge threshold={threshold} />
+                        </div>
+                    ))}
+                </div>
             )}
 
             <div className="flex flex-col gap-2 text-sm">

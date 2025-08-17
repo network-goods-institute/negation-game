@@ -18,7 +18,7 @@ export const useSearchUsers = (query: string) => {
         throw error;
       }
     },
-    enabled: debouncedQuery.trim().length > 0,
+    enabled: debouncedQuery?.trim().length > 0,
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 1,
   });

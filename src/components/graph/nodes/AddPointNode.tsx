@@ -174,9 +174,6 @@ export const AddPointNode = ({
     }
   };
 
-  const handleTextareaKeyDown = (_e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Ctrl/Cmd+Enter submission removed
-  };
 
   const handleSelectSuggestion = (suggestion: string) => {
     setContent(suggestion);
@@ -258,7 +255,6 @@ export const AddPointNode = ({
         setContent={handleContentChange}
         cred={credInput}
         setCred={setCredInput}
-        textareaProps={{ onKeyDown: handleTextareaKeyDown }}
         guidanceNotes={<></>}
         compact={true}
         extraCompact={isParentStatement}

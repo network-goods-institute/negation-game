@@ -17,7 +17,6 @@ export const regenerateGraphIds = (graph: ViewpointGraph): ViewpointGraph => {
     idMap.set(statementNode.id, "statement");
   }
 
-  // Generate new IDs for all other nodes - simplified for better performance
   const timestamp = Date.now();
   const newNodes = graph.nodes.map((node, index) => {
     // Statement node keeps its ID
@@ -25,7 +24,6 @@ export const regenerateGraphIds = (graph: ViewpointGraph): ViewpointGraph => {
       return { ...node, id: "statement" } as AppNode;
     }
 
-    // Simplified ID generation for better performance
     const newId = `${node.type || "node"}_${timestamp}_${index}_${Math.random().toString(36).substring(2, 8)}`;
     idMap.set(node.id, newId);
 
@@ -36,12 +34,10 @@ export const regenerateGraphIds = (graph: ViewpointGraph): ViewpointGraph => {
     } as AppNode;
   });
 
-  // Update edge source and target IDs using the mapping - simplified
   let newEdges = graph.edges.map((edge, index) => {
     const newSource = idMap.get(edge.source) || edge.source;
     const newTarget = idMap.get(edge.target) || edge.target;
 
-    // Simplified edge ID generation
     const newId = `edge_${timestamp}_${index}_${Math.random().toString(36).substring(2, 6)}`;
 
     // Update sourceHandle and targetHandle to use new node IDs

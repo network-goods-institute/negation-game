@@ -92,7 +92,7 @@ export const useInvalidateRelatedPoints = () => {
       });
 
       queryClient.invalidateQueries({
-        queryKey: ["point-negations", pointId],
+        queryKey: [pointId, "negations"],
         exact: false,
       });
 

@@ -35,6 +35,18 @@ export async function fetchTopics(space: string) {
       )`
         .mapWith((v) => v as string | null)
         .as("latestAuthorUsername"),
+      pointsCount: sql<number>`(
+        SELECT COUNT(DISTINCT (node -> 'data' ->> 'pointId')::int)
+        FROM (
+          SELECT jsonb_array_elements(graph -> 'nodes') AS node
+          FROM ${viewpointsTable}
+          WHERE topic_id = ${topicsTable.id}
+        ) AS nodes
+        WHERE node ->> 'type' = 'point'
+          AND (node -> 'data' ->> 'pointId')::int IS NOT NULL
+      )`
+        .mapWith(Number)
+        .as("pointsCount"),
     })
     .from(topicsTable)
     .leftJoin(viewpointsTable, eq(viewpointsTable.topicId, topicsTable.id))

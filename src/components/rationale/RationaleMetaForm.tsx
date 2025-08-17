@@ -178,13 +178,13 @@ export default function RationaleMetaForm({
                                 <Link
                                     href={`/s/${spaceSlug}/topic/${encodeId(topicId!)}`}
                                     onClick={() => setIsViewTopicClicked(true)}
-                                    className="inline-flex items-center"
+                                    className="inline-flex items-center justify-center"
                                 >
-                                    <span className="w-4 h-4 mr-2 flex items-center justify-center flex-shrink-0">
-                                        {isViewTopicClicked && (
+                                    {isViewTopicClicked && (
+                                        <span className="w-4 h-4 mr-2 flex items-center justify-center flex-shrink-0">
                                             <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                                        )}
-                                    </span>
+                                        </span>
+                                    )}
                                     <span>View Topic</span>
                                 </Link>
                             </Button>
@@ -209,13 +209,13 @@ export default function RationaleMetaForm({
                                     <Link
                                         href={`/s/${spaceSlug}/topic/${encodeId(topicId)}`}
                                         onClick={() => setIsViewTopicClicked(true)}
-                                        className="inline-flex items-center"
+                                        className="inline-flex items-center justify-center"
                                     >
-                                        <span className="w-4 h-4 mr-2 flex items-center justify-center flex-shrink-0">
-                                            {isViewTopicClicked && (
+                                        {isViewTopicClicked && (
+                                            <span className="w-4 h-4 mr-2 flex items-center justify-center flex-shrink-0">
                                                 <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                                            )}
-                                        </span>
+                                            </span>
+                                        )}
                                         <span>View Topic</span>
                                     </Link>
                                 </Button>

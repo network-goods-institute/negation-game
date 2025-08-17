@@ -1,18 +1,21 @@
+"use client";
 import { Suspense } from "react";
 import { LoaderCircleIcon } from "lucide-react";
+import { SpaceChildHeader } from "@/components/layouts/headers/SpaceChildHeader";
+import { getBackButtonHandler } from "@/lib/negation-game/backButtonUtils";
+import { useRouter } from "next/navigation";
+import { useSetAtom } from "jotai";
+import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 import { SettingsContainer } from "@/components/settings/SettingsContainer";
 
 export default function SettingsPage() {
+    const router = useRouter();
+    const setInitialTab = useSetAtom(initialSpaceTabAtom);
+    const onBack = getBackButtonHandler(router, setInitialTab);
     return (
         <div className="min-h-screen bg-background">
-            <div className="container mx-auto max-w-4xl py-8">
-                <div className="mb-8 space-y-3">
-                    <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-                    <p className="text-muted-foreground text-lg">
-                        Manage your account preferences and privacy settings
-                    </p>
-                </div>
-
+            <SpaceChildHeader title="Settings" onBack={onBack} />
+            <div className="container mx-auto max-w-4xl pt-6 pb-8">
                 <Suspense
                     fallback={
                         <div className="flex items-center justify-center p-16">
@@ -28,4 +31,4 @@ export default function SettingsPage() {
             </div>
         </div>
     );
-} 
+}

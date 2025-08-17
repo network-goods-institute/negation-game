@@ -1,4 +1,4 @@
-import { SpacePageClient } from "@/app/s/[space]/SpacePageClient";
+import SpacePageClient from "@/app/s/[space]/SpacePageClient";
 
 export default async function SpacePage({
   params,

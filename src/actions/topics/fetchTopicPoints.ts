@@ -100,6 +100,32 @@ export async function fetchTopicPoints(
 
     const initialPointIds = new Set(pointMappings.map((pm) => pm.pointId));
 
+    // Capture objection target and context points
+    if (initialPointIds.size > 0) {
+      const objectionDetails = await db
+        .select({
+          objectionPointId: objectionsTable.objectionPointId,
+          targetPointId: objectionsTable.targetPointId,
+          contextPointId: objectionsTable.contextPointId,
+        })
+        .from(objectionsTable)
+        .where(
+          and(
+            inArray(objectionsTable.objectionPointId, Array.from(initialPointIds)),
+            eq(objectionsTable.isActive, true)
+          )
+        );
+
+      for (const objection of objectionDetails) {
+        if (objection.targetPointId) {
+          initialPointIds.add(objection.targetPointId);
+        }
+        if (objection.contextPointId) {
+          initialPointIds.add(objection.contextPointId);
+        }
+      }
+    }
+
     if (initialPointIds.size === 0) {
       return [];
     }
