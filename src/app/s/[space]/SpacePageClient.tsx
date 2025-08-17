@@ -211,8 +211,8 @@ export default function SpacePageClient({ params, searchParams }: PageProps) {
                                     login={() => { }}
                                     user={privyUser}
                                     selectedTab={selectedTab}
-                                    loadingCardId={null}
-                                    handleCardClick={() => { }}
+                                    loadingCardId={loadingCardId}
+                                    handleCardClick={(id: string) => setLoadingCardId(id)}
                                     onPrefetchPoint={handlePrefetch}
                                 />
                             ) : null

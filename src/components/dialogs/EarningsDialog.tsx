@@ -141,7 +141,7 @@ export const EarningsDialog: FC<EarningsDialogProps> = ({
                           amountNegations: 3,
                           negationsCred: 50,
                           stakedAmount: 25,
-                          viewerCred: 0 // Set to 0 to disable endorsement
+                          viewerCred: 100
                         }}
                         totalRestakeAmount={30}
                         restake={{
@@ -159,6 +159,7 @@ export const EarningsDialog: FC<EarningsDialogProps> = ({
                           userAmount: 10,
                           isUserDoubt: true
                         }}
+                        isInPointPage
                         className="border"
                         // Empty handlers to prevent functionality
                         onNegate={(e) => e.preventDefault()}

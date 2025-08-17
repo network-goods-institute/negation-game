@@ -241,7 +241,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
         }
       }, 400);
     }
-  }, [isCopiedFromSessionStorage, statement, updateNodeData, reactFlow, isReactFlowReady]);
+  }, [isCopiedFromSessionStorage, statement, updateNodeData, reactFlow, isReactFlowReady, topic]);
 
   const { publish, isPublishing, canPublish } = usePublishRationale();
   const [hoveredPointId, setHoveredPointId] = useAtom(hoveredPointIdAtom);
@@ -281,7 +281,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
           setTopic(matchingTopic.name);
           setStatement(matchingTopic.name);
           setTopicId(matchingTopic.id);
-          
+
           // Force immediate statement node update for preselected topics
           if (isReactFlowReady) {
             // Force update multiple times to ensure it sticks

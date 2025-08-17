@@ -8,10 +8,15 @@ export const useSpace = (spaceOverride?: string) => {
 
   return useQuery({
     queryKey: ["space", space],
-    queryFn: ({ queryKey: [, space] }) => {
-      if (!space) return null;
-
-      return fetchSpace(space);
+    queryFn: ({ queryKey: [, rawSpace] }) => {
+      if (!rawSpace) return null;
+      let decoded: string;
+      try {
+        decoded = decodeURIComponent(rawSpace as string);
+      } catch {
+        decoded = rawSpace as string;
+      }
+      return fetchSpace(decoded);
     },
   });
 };

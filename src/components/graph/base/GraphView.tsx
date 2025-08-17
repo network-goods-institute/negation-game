@@ -241,7 +241,7 @@ export const GraphView = ({
 
       return () => clearTimeout(timeoutId);
     }
-  }, [flowInstance, nodes.length, rootPointId]);
+  }, [flowInstance, nodes.length, rootPointId, nodes]);
 
   const { onNodesChange, onEdgesChange } = useGraphChangeHandlers({
     flowInstance,
