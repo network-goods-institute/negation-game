@@ -6,6 +6,10 @@ import { Loader } from "@/components/ui/loader";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { FixedCreateButton } from "./FixedCreateButton";
+import Link from "next/link";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { MoreHorizontal } from "lucide-react";
+import { useIsSpaceAdmin } from "@/hooks/admin/useAdminStatus";
 // Lazy load components for code splitting
 const TopicsSidebar = React.lazy(() => import("@/components/space/TopicsSidebar").then(mod => ({ default: mod.TopicsSidebar })));
 const StatisticsSummaryCard = React.lazy(() => import("@/components/statistics/StatisticsSummaryCard").then(mod => ({ default: mod.StatisticsSummaryCard })));
@@ -92,23 +96,26 @@ export function SpaceLayout({
                                     />
                                 </Suspense>
 
-                                {/* Create Rationale Button */}
+                                {/* Create & Drafts Menu */}
                                 <div className="flex-1 flex flex-col justify-end">
-                                    <Button
-                                        onClick={onCreateRationale || (() => window.location.href = `/s/${space}/rationale/new`)}
-                                        className="w-full flex items-center justify-center gap-3 rounded-full bg-blue-500 hover:bg-blue-600 text-white"
-                                        size="lg"
-                                        disabled={isCreatingRationale}
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            {isCreatingRationale ? (
-                                                <Loader size={20} color="white" />
-                                            ) : (
-                                                <Plus size={20} color="#FFFFFF" />
-                                            )}
-                                            <span className="text-white">Create a rationale</span>
-                                        </div>
-                                    </Button>
+                                    <div className="flex gap-3 items-center">
+                                        <Button
+                                            onClick={onCreateRationale || (() => window.location.href = `/s/${space}/rationale/new`)}
+                                            className="flex-1 flex items-center justify-center gap-3 rounded-full bg-blue-500 hover:bg-blue-600 text-white"
+                                            size="lg"
+                                            disabled={isCreatingRationale}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                {isCreatingRationale ? (
+                                                    <Loader size={20} color="white" />
+                                                ) : (
+                                                    <Plus size={20} color="#FFFFFF" />
+                                                )}
+                                                <span className="text-white">Create a rationale</span>
+                                            </div>
+                                        </Button>
+                                        <DraftsMenu space={space} />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -202,5 +209,30 @@ export function SpaceLayout({
             )}
 
         </div>
+    );
+}
+
+function DraftsMenu({ space }: { space: string }) {
+    const { isAdmin } = useIsSpaceAdmin(space);
+    if (!isAdmin) return null;
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="lg" className="px-3">
+                    <MoreHorizontal className="h-5 w-5" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                    <Link href={`/s/${space}/rationale/new`}>Create rationale</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                    <Link href={`/s/${space}/experimental/rationale/draft/new`}>New Draft</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                    <Link href={`/s/${space}/experimental/rationale/draft`}>Drafts</Link>
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }

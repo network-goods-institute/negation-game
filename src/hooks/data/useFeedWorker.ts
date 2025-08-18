@@ -5,6 +5,7 @@ import {
   isBrowser,
   areWorkersSupported,
 } from "@/lib/error-handling/buildDiagnostics";
+import { usePathname } from "next/navigation";
 
 const processPointsDirectly = (
   points: any[],
@@ -41,8 +42,14 @@ export const useFeedWorker = () => {
   const setPointData = useSetPointData();
   const queryClient = useQueryClient();
   const [isWorkerSupported, setIsWorkerSupported] = useState<boolean>(false);
+  const pathname = usePathname();
+
+  const isExperimentalPage = pathname?.includes("/experimental/");
 
   useEffect(() => {
+    if (isExperimentalPage) {
+      return;
+    }
     if (!isBrowser()) {
       return;
     }
@@ -103,7 +110,7 @@ export const useFeedWorker = () => {
       setIsWorkerSupported(false);
       return undefined;
     }
-  }, [queryClient, setPointData]);
+  }, [queryClient, setPointData, isExperimentalPage]);
 
   const processPoints = (points: any[], userId: string) => {
     if (!isBrowser()) {

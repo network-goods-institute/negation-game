@@ -67,3 +67,5 @@ export {
 } from "@/db/tables/credEventsTable";
 
 export { rateLimitsTable } from "@/db/tables/rateLimitsTable";
+export { experimentalGraphDocsTable } from "@/db/tables/experimentalGraphDocsTable";
+export { experimentalGraphDocPointsTable } from "@/db/tables/experimentalGraphDocPointsTable";

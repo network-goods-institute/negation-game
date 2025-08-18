@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePrivy } from "@privy-io/react-auth";
 import { useFeedWorker } from "@/hooks/data/useFeedWorker";
 import { setPrivyToken } from "@/lib/privy/setPrivyToken";
+import { usePathname } from "next/navigation";
 let hasLoggedServerActionError = false;
 
 const isServerActionError = (error: any): boolean => {
@@ -33,11 +34,17 @@ const isAuthError = (error: any): boolean => {
 export const useFeed = (options: { enabled?: boolean } = {}) => {
   const { enabled = true } = options;
   const { user: privyUser, ready, getAccessToken } = usePrivy();
+  const pathname = usePathname();
+
+  const isExperimentalPage = pathname?.includes("/experimental/");
+  const shouldRunFeed = enabled && !isExperimentalPage;
+
   const { processPoints } = useFeedWorker();
   const queryClient = useQueryClient();
 
   return useQuery({
     queryKey: ["feed", privyUser?.id, ready],
+    enabled: shouldRunFeed && ready && !!privyUser?.id,
     queryFn: async () => {
       try {
         const page = await fetchFeedPage();
@@ -131,7 +138,6 @@ export const useFeed = (options: { enabled?: boolean } = {}) => {
       return failureCount < 3;
     },
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30000),
-    enabled: ready && enabled,
     refetchOnWindowFocus: false,
     refetchOnMount: true,
     refetchOnReconnect: true,

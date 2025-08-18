@@ -43,3 +43,5 @@ supabase/
 *.dump
 .claude/
 discourse/
+
+tldraw-docs/
