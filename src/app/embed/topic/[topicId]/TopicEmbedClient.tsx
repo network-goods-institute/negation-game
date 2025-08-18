@@ -128,7 +128,36 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
           fontSize: '9px',
           color: '#6B6A68'
         }}>
-          Topic embeds only available on the first post
+          <div style={{ marginBottom: '6px' }}>Topic embeds only available on the first post</div>
+          <a
+            href={getFullUrl(`/s/${topic.space}/topic/${encodeId(topic.id)}`)}
+            onClick={(e) => handleLinkClick(e, `/s/${topic.space}/topic/${encodeId(topic.id)}`)}
+            style={{
+              display: 'inline-block',
+              backgroundColor: '#ED7153',
+              color: '#FFFFFF',
+              border: 'none',
+              padding: '6px 12px',
+              borderRadius: '3px',
+              fontSize: '11px',
+              textDecoration: 'none',
+              fontWeight: '500',
+              boxShadow: '0 1px 2px rgba(237, 113, 83, 0.2)',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = '#D85F43';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = '0 2px 4px rgba(237, 113, 83, 0.3)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = '#ED7153';
+              e.currentTarget.style.transform = 'translateY(0px)';
+              e.currentTarget.style.boxShadow = '0 1px 2px rgba(237, 113, 83, 0.2)';
+            }}
+          >
+            Open Topic
+          </a>
         </div>
       </div>
     );
@@ -234,49 +263,77 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
         <div style={{
           border: '1px solid #EAE8E5',
           borderRadius: '4px',
-          padding: '8px',
+          padding: '12px',
           textAlign: 'center',
           backgroundColor: '#FBF4EA'
         }}>
-          <div style={{ fontSize: '14px', marginBottom: '4px', opacity: 0.6 }}>🔍</div>
-          <h3 style={{ margin: '0 0 4px', fontSize: '14px', color: '#1e293b', fontWeight: '600' }}>
-            Negation Game × Scroll
+          <div style={{ fontSize: '16px', marginBottom: '6px', opacity: 0.7 }}>🔍</div>
+          <h3 style={{ margin: '0 0 6px', fontSize: '16px', color: '#1e293b', fontWeight: '700', letterSpacing: '-0.015em' }}>
+            No rationales yet
           </h3>
-          <div style={{ fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
+          <div style={{ fontSize: '13px', color: '#334155', marginBottom: '10px', fontWeight: 600 }}>
             {topic.name}
           </div>
-          <p style={{ margin: '0 0 10px', color: '#64748b', fontSize: '11px' }}>
-            Create argument
+          <p style={{ margin: '0 0 14px', color: '#475569', fontSize: '12px', lineHeight: 1.4 }}>
+            Create the first rationale to map arguments and help the Scroll community decide faster.
           </p>
-          <a
-            href={getFullUrl(`/s/${topic.space}/topic/${encodeId(topic.id)}`)}
-            onClick={(e) => handleLinkClick(e, `/s/${topic.space}/topic/${encodeId(topic.id)}`)}
-            style={{
-              display: 'inline-block',
-              backgroundColor: '#ED7153',
-              color: '#FFFFFF',
-              border: 'none',
-              padding: '6px 12px',
-              borderRadius: '3px',
-              fontSize: '11px',
-              textDecoration: 'none',
-              fontWeight: '500',
-              boxShadow: '0 1px 2px rgba(237, 113, 83, 0.2)',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = '#D85F43';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-              e.currentTarget.style.boxShadow = '0 2px 4px rgba(237, 113, 83, 0.3)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = '#ED7153';
-              e.currentTarget.style.transform = 'translateY(0px)';
-              e.currentTarget.style.boxShadow = '0 1px 2px rgba(237, 113, 83, 0.2)';
-            }}
-          >
-            Create Rationale
-          </a>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+            <a
+              href={getFullUrl(`/s/${topic.space}/rationale/new?topicId=${encodeId(topic.id)}`)}
+              onClick={(e) => handleLinkClick(e, `/s/${topic.space}/rationale/new?topicId=${encodeId(topic.id)}`)}
+              style={{
+                display: 'inline-block',
+                backgroundColor: '#ED7153',
+                color: '#FFFFFF',
+                border: 'none',
+                padding: '8px 14px',
+                borderRadius: '5px',
+                fontSize: '12px',
+                textDecoration: 'none',
+                fontWeight: '700',
+                boxShadow: '0 2px 6px rgba(237, 113, 83, 0.25)',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = '#D85F43';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 4px 10px rgba(237, 113, 83, 0.35)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = '#ED7153';
+                e.currentTarget.style.transform = 'translateY(0px)';
+                e.currentTarget.style.boxShadow = '0 2px 6px rgba(237, 113, 83, 0.25)';
+              }}
+            >
+              Create Rationale
+            </a>
+            <a
+              href={getFullUrl(`/s/${topic.space}/topic/${encodeId(topic.id)}`)}
+              onClick={(e) => handleLinkClick(e, `/s/${topic.space}/topic/${encodeId(topic.id)}`)}
+              style={{
+                display: 'inline-block',
+                backgroundColor: '#EAE8E5',
+                color: '#3A3835',
+                border: '1px solid #D7D4CF',
+                padding: '8px 14px',
+                borderRadius: '5px',
+                fontSize: '12px',
+                textDecoration: 'none',
+                fontWeight: '700',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = '#E2DFDA';
+                e.currentTarget.style.borderColor = '#BDB9B3';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = '#EAE8E5';
+                e.currentTarget.style.borderColor = '#D7D4CF';
+              }}
+            >
+              Learn More
+            </a>
+          </div>
         </div>
       </div>
     );

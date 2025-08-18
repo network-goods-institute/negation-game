@@ -23,7 +23,8 @@ export default function ScrollSourceEmbedClient({ sourceUrl }: Props) {
                 let normalized = sourceUrl.trim();
                 try {
                     const u = new URL(normalized);
-                    const host = u.hostname.toLowerCase();
+                    // Include port when present to preserve exact discourse_url matches
+                    const host = u.host.toLowerCase();
                     const path = decodeURIComponent(u.pathname).replace(/\/$/, "");
                     const searchless = `${u.protocol}//${host}${path}`;
                     normalized = searchless;

@@ -48,14 +48,23 @@ const nextConfig = {
     ];
 
     // Embed pages need to be framable by allowlisted origins only
-    const embedAllowedAncestors = [
+    const embedAllowedAncestorsArr = [
       "https://forum.scroll.io",
       "https://negationgame.com",
       "https://play.negationgame.com",
       "https://scroll.negationgame.com",
       "https://*.negationgame.com",
       "https://negation-game-git-fork-swaggymar-fb888c-network-goods-institute.vercel.app",
-    ].join(' ');
+    ];
+    if (isDev) {
+      embedAllowedAncestorsArr.push(
+        "http://localhost:*",
+        "https://localhost:*",
+        "http://127.0.0.1:*",
+        "https://127.0.0.1:*",
+      );
+    }
+    const embedAllowedAncestors = embedAllowedAncestorsArr.join(' ');
 
     const cspEmbed = [
       "default-src 'self'",

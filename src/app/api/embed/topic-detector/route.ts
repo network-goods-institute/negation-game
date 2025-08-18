@@ -7,6 +7,7 @@ import {
 } from "@/db/tables/viewpointsTable";
 import { eq, and } from "drizzle-orm";
 import { createSecureErrorResponse } from "@/lib/security/headers";
+import { encodeId } from "@/lib/negation-game/encodeId";
 
 const ALLOWED_ORIGINS = [
   "https://forum.scroll.io",
@@ -28,6 +29,7 @@ function isValidOrigin(origin: string | null): boolean {
 
 function isValidScrollUrl(url: string): boolean {
   if (!url || typeof url !== "string") return false;
+  if (url.length > 2048) return false;
 
   try {
     const parsedUrl = new URL(url);
@@ -40,7 +42,10 @@ function isValidScrollUrl(url: string): boolean {
 
     if (hostname === "forum.scroll.io") return true;
 
-    if (hostname === "localhost" || hostname === "127.0.0.1") {
+    if (
+      process.env.NODE_ENV !== "production" &&
+      (hostname === "localhost" || hostname === "127.0.0.1")
+    ) {
       return true;
     }
 
@@ -136,7 +141,7 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.json({
       found: true,
       type: "topic",
-      topicId: topicData.id,
+      topicId: encodeId(topicData.id),
       title: topicData.name,
       spaceId: topicData.space,
       hasRationales: rationales.length > 0,
