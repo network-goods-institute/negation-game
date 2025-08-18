@@ -9,22 +9,21 @@ import { eq, and } from "drizzle-orm";
 import { createSecureErrorResponse } from "@/lib/security/headers";
 import { encodeId } from "@/lib/negation-game/encodeId";
 
+const isDev = process.env.NODE_ENV !== "production";
 const ALLOWED_ORIGINS = [
   "https://forum.scroll.io",
   "https://negationgame.com",
   "https://play.negationgame.com",
   "https://scroll.negationgame.com",
-  "https://localhost:3000",
-  "http://localhost:3000",
-  "https://localhost:3001",
-  "http://localhost:3001",
 ];
 
 function isValidOrigin(origin: string | null): boolean {
   if (!origin) return false;
-  return (
-    ALLOWED_ORIGINS.includes(origin) || origin.endsWith(".negationgame.com")
-  );
+  if (ALLOWED_ORIGINS.includes(origin) || origin.endsWith(".negationgame.com"))
+    return true;
+  if (isDev && /^https?:\/\/(localhost|127\.0\.0\.1)(:\\d+)?$/i.test(origin))
+    return true;
+  return false;
 }
 
 function isValidScrollUrl(url: string): boolean {
