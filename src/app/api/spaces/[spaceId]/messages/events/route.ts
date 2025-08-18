@@ -164,16 +164,21 @@ export async function GET(
   });
 
   const originHeader = request.headers.get("origin");
-  const allowedOrigins = new Set([
+  const isDev = process.env.NODE_ENV !== "production";
+  const PROD_ALLOWED_ORIGINS = new Set([
     "https://negationgame.com",
     "https://play.negationgame.com",
     "https://scroll.negationgame.com",
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "https://localhost:3000",
-    "https://localhost:3001",
   ]);
-  const requestOrigin = allowedOrigins.has(originHeader || "")
+  const isValidOrigin = (origin: string | null): boolean => {
+    if (!origin) return false;
+    if (PROD_ALLOWED_ORIGINS.has(origin)) return true;
+    if (origin.endsWith(".negationgame.com")) return true;
+    if (isDev && /^https?:\/\/(localhost|127\.0\.0\.1)(:\\d+)?$/i.test(origin))
+      return true;
+    return false;
+  };
+  const requestOrigin = isValidOrigin(originHeader)
     ? (originHeader as string)
     : new URL(request.url).origin;
 
