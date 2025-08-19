@@ -159,6 +159,7 @@ export function ConsiliencePageClient() {
         setState(prev => ({
           ...prev,
           originalProposal: data.content,
+          manualOriginal: prev.manualOriginal || data.content, // Fill textbox if empty
           discourseLoading: false,
           discourseError: null,
           discourseSuccess: true,
@@ -573,43 +574,45 @@ export function ConsiliencePageClient() {
                           </div>
                         )
                         : (
-                          uniqueRationaleAuthors.map(author => (
-                            <button
-                              key={author.userId}
-                              onClick={() => {
-                                const isSelected = state.selectedRationales.includes(author.userId);
-                                if (isSelected) {
-                                  setState(prev => ({
-                                    ...prev,
-                                    selectedRationales: prev.selectedRationales.filter(id => id !== author.userId)
-                                  }));
-                                } else {
-                                  setState(prev => ({
-                                    ...prev,
-                                    selectedRationales: Array.from(new Set([...prev.selectedRationales, author.userId]))
-                                  }));
-                                }
-                              }}
-                              className={`w-full flex items-center gap-3 p-3 hover:bg-muted/50 dark:hover:bg-muted/30 text-left border-b border-border/30 dark:border-border/20 last:border-b-0 transition-colors ${state.selectedRationales.includes(author.userId)
-                                ? 'bg-primary/10 dark:bg-primary/20 border-primary/20'
-                                : ''
-                                }`}
-                            >
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${state.selectedRationales.includes(author.userId)
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-primary/10 text-primary'
-                                }`}>
-                                {state.selectedRationales.includes(author.userId) ? '✓' : author.username.charAt(0).toUpperCase()}
-                              </div>
-                              <div className="flex-1">
-                                <div className="font-medium text-sm">{author.username}</div>
-                                {/* Hide counts for leaner list */}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {state.selectedRationales.includes(author.userId) ? 'Click to remove' : 'Click to select'}
-                              </div>
-                            </button>
-                          ))
+                          uniqueRationaleAuthors.map(author => {
+                            const isSelected = state.selectedRationales.includes(author.userId);
+                            return (
+                              <button
+                                key={author.userId}
+                                onClick={() => {
+                                  if (isSelected) {
+                                    setState(prev => ({
+                                      ...prev,
+                                      selectedRationales: prev.selectedRationales.filter(id => id !== author.userId)
+                                    }));
+                                  } else {
+                                    setState(prev => ({
+                                      ...prev,
+                                      selectedRationales: Array.from(new Set([...prev.selectedRationales, author.userId]))
+                                    }));
+                                  }
+                                }}
+                                className={`w-full flex items-center gap-3 p-3 hover:bg-muted/50 dark:hover:bg-muted/30 text-left border-b border-border/30 dark:border-border/20 last:border-b-0 transition-colors ${state.selectedRationales.includes(author.userId)
+                                  ? 'bg-primary/10 dark:bg-primary/20 border-primary/20'
+                                  : ''
+                                  }`}
+                              >
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${state.selectedRationales.includes(author.userId)
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'bg-primary/10 text-primary'
+                                  }`}>
+                                  {state.selectedRationales.includes(author.userId) ? '✓' : author.username.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="flex-1">
+                                  <div className="font-medium text-sm">{author.username}</div>
+                                  {/* Hide counts for leaner list */}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {isSelected ? 'Remove' : 'Select'}
+                                </div>
+                              </button>
+                            );
+                          })
                         )}
                     </div>
                   </div>
@@ -620,7 +623,7 @@ export function ConsiliencePageClient() {
             </CardContent>
           </Card>
 
-          {/* Discourse Load Card (loading/error/success + manual override) */}
+          {/* Simplified Proposal Content */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -629,87 +632,35 @@ export function ConsiliencePageClient() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {state.discourseLoading && (
-                <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Loader className="w-5 h-5 text-blue-600" />
-                    <div>
-                      <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Preparing inputs…</p>
-                      <p className="text-xs text-blue-700 dark:text-blue-300">
-                        {state.discourseAutoRetrying
-                          ? `Fetching original discourse post (retry ${state.discourseRetryCount} of ${MAX_DISCOURSE_RETRIES})`
-                          : 'Fetching original discourse post'}
-                      </p>
-                    </div>
+              <div className="space-y-3">
+                {state.discourseLoading && (
+                  <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <Loader className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm text-blue-900 dark:text-blue-100">Fetching original proposal...</span>
+                    <Button size="sm" variant="outline" onClick={handleCancelFetch} className="ml-auto">Cancel</Button>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {state.discourseAutoRetrying && (
-                      <Badge variant="outline" className="text-[10px]">Auto-retrying</Badge>
-                    )}
-                    <Button size="sm" variant="outline" onClick={handleCancelFetch}>Cancel</Button>
-                  </div>
-                </div>
-              )}
+                )}
 
-              {state.discourseError && !state.discourseLoading && (
-                <div className="p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <div className="w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center text-xs mt-0.5">!</div>
-                    <div>
-                      <p className="text-sm font-medium text-red-900 dark:text-red-100 mb-1">Failed to load discourse content</p>
-                      <p className="text-xs text-red-700 dark:text-red-300">{state.discourseError}</p>
-                      {state.discourseRetryCount > 0 && (
-                        <p className="text-xs text-red-700 dark:text-red-300 mt-1">Tried {Math.min(state.discourseRetryCount, MAX_DISCOURSE_RETRIES)} of {MAX_DISCOURSE_RETRIES}</p>
-                      )}
-                      <p className="text-xs text-red-600 dark:text-red-400 mt-2">
-                        This can fail due to forum rate limits, network issues, missing permissions, or the post being unavailable. If it keeps failing, paste the original proposal below.
-                      </p>
-                      <div className="mt-3">
-                        <Button size="sm" variant="outline" onClick={() => fetchOriginal(true)}>
-                          Retry fetch
-                        </Button>
-                      </div>
-                    </div>
+                {state.discourseError && !state.discourseLoading && (
+                  <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg">
+                    <p className="text-sm font-medium text-red-900 dark:text-red-100 mb-1">uh oh.. we were unable to fetch the discourse proposal. Sometimes these things happen</p>
+                    <p className="text-xs text-red-700 dark:text-red-300 mb-3">Please copy and paste the proposal content into the section below</p>
+                    <Button size="sm" variant="outline" onClick={() => fetchOriginal(true)}>
+                      Retry fetch
+                    </Button>
                   </div>
-                </div>
-              )}
+                )}
 
-              {state.discourseSuccess && state.originalProposal && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg">
-                    <div className="w-4 h-4 rounded-full bg-green-500 text-white flex items-center justify-center text-xs">✓</div>
-                    <span className="text-sm font-medium text-green-900 dark:text-green-100">
-                      Successfully loaded original proposal ({state.originalProposal.length} characters)
-                    </span>
-                  </div>
-                  <div className="max-h-48 overflow-y-auto bg-muted/20 rounded-lg p-3 border">
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{state.originalProposal}</p>
-                  </div>
-                </div>
-              )}
+                <textarea
+                  value={state.manualOriginal}
+                  onChange={(e) => setState(prev => ({ ...prev, manualOriginal: e.target.value }))}
+                  placeholder="Paste the complete original proposal content here..."
+                  className="w-full min-h-[200px] rounded-md border border-border p-3 bg-background resize-y text-sm"
+                />
 
-              {/* Manual Override Section */}
-              <div className="mt-6 pt-4 border-t border-border/50">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-semibold text-foreground">Manual Override</h4>
-                    <Badge variant="outline" className="text-xs">
-                      {state.discourseError || !topic.discourseUrl ? 'Required' : 'Optional'}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {state.discourseSuccess ? 'Override the automatically loaded content if needed:' : 'Paste the complete original proposal text:'}
-                  </p>
-                  <textarea
-                    value={state.manualOriginal}
-                    onChange={(e) => setState(prev => ({ ...prev, manualOriginal: e.target.value }))}
-                    placeholder={state.discourseSuccess ? "Override: paste different proposal content here..." : "Paste the complete original proposal text here..."}
-                    className="w-full min-h-[120px] rounded-md border-2 border-dashed border-border p-3 bg-background dark:bg-muted/5 resize-y text-sm"
-                  />
-                  {state.manualOriginal.trim() && (
-                    <p className="text-xs text-green-600 dark:text-green-400">✓ Manual content will be used ({state.manualOriginal.trim().length} characters)</p>
-                  )}
-                </div>
+                {state.manualOriginal.trim() && (
+                  <p className="text-xs text-muted-foreground">{state.manualOriginal.trim().length} characters</p>
+                )}
               </div>
             </CardContent>
           </Card>
