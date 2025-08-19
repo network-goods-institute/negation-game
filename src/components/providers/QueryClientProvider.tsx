@@ -6,17 +6,36 @@ import {
 } from "@tanstack/react-query";
 import { FC, PropsWithChildren, useState, useEffect } from "react";
 import { setPrivyToken } from "@/lib/privy/setPrivyToken";
+import { userQueryKey } from "@/queries/users/useUser";
 
-export const QueryClientProvider: FC<PropsWithChildren> = ({ children }) => {
+interface QueryClientProviderProps extends PropsWithChildren {
+  initialUserData?: any;
+  initialUserId?: string;
+}
+
+export const QueryClientProvider: FC<QueryClientProviderProps> = ({ children, initialUserData, initialUserId }) => {
   // Use React state to maintain the QueryClient instance between renders
   // This ensures the cache persists during navigation events
-  const [queryClient] = useState(() => new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 5 * 60 * 1000, // 5 minutes
+  const [queryClient] = useState(() => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: {
+          staleTime: 15 * 60 * 1000, // 15 minutes (increased from 5)
+          gcTime: 30 * 60 * 1000,   // Keep in memory longer
+          retry: 1,                 // Reduce retries from 3 to 1
+          retryDelay: 500,          // Faster retries (500ms vs exponential)
+          refetchOnWindowFocus: false, // Reduce unnecessary requests
+        },
       },
-    },
-  }));
+    });
+
+    // Pre-populate user data if available from server
+    if (initialUserData && initialUserId) {
+      client.setQueryData(userQueryKey(initialUserId), initialUserData);
+    }
+
+    return client;
+  });
 
   return (
     <TanstackQueryClientProvider client={queryClient}>

@@ -17,10 +17,9 @@ export const useUser = (idOrUsername?: string) => {
       return result || null;
     },
     enabled: ready && (!!authenticated || !!idOrUsername) && !!id,
-    retry: (failureCount, error) => {
-      return failureCount < 3;
-    },
-    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 10000),
-    staleTime: 5 * 60 * 1000,
+    // Inherit optimized settings from QueryClient defaults
+    // staleTime: 15 * 60 * 1000 (from provider)
+    // retry: 1 (from provider)
+    // retryDelay: 500 (from provider)
   });
 };

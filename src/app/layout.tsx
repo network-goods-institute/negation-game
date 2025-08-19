@@ -132,7 +132,17 @@ export default async function RootLayout({
   const pathname = headersList.get("x-pathname") || "";
   const isEmbedRoute = pathname.startsWith("/embed");
 
-  const user = await getCurrentUser();
+  const serverUser = await getCurrentUser();
+
+  let clientUser = null;
+  if (serverUser?.id) {
+    try {
+      const { fetchUser } = await import("@/actions/users/fetchUser");
+      clientUser = await fetchUser(serverUser.id);
+    } catch (error) {
+      console.error("Failed to fetch user data for hydration:", error);
+    }
+  }
 
   // Structured data for the organization
   const organizationStructuredData = {
@@ -177,7 +187,10 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <ThemedPrivyProvider>
-            <QueryClientProvider>
+            <QueryClientProvider
+              initialUserData={clientUser}
+              initialUserId={serverUser?.id}
+            >
               <KnowledgeBaseProvider>
                 <WriteupProvider>
                   <OnboardingProvider>
@@ -218,7 +231,7 @@ export default async function RootLayout({
         </ThemeProvider>
         <Analytics />
         <script defer src="/_vercel/insights/script.js"></script>
-    </body>
+      </body>
     </html >
   );
 }

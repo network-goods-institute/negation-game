@@ -93,11 +93,15 @@ export const ConnectButton = () => {
     return (
       <Button
         key="connect"
-        className="w-28 sm:w-36 rounded-full text-sm"
+        variant="outline"
+        className="w-32 sm:w-36 text-sm"
         size={"sm"}
         disabled
       >
-        <LoaderCircleIcon className="animate-spin" />
+        <div className="flex items-center gap-1 overflow-hidden">
+          <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+          <ChevronDownIcon className="size-4 flex-shrink-0 opacity-50" />
+        </div>
       </Button>
     );
   }
@@ -117,17 +121,38 @@ export const ConnectButton = () => {
       </Button>
     );
 
-  if (!user)
+  if (privyUser && !user && isLoading) {
+    return (
+      <Button
+        key="connect-loading"
+        variant="outline"
+        className="w-32 sm:w-36 text-sm"
+        size={"sm"}
+        disabled
+      >
+        <div className="flex items-center gap-1 overflow-hidden">
+          <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+          <ChevronDownIcon className="size-4 flex-shrink-0 opacity-50" />
+        </div>
+      </Button>
+    );
+  }
+
+  if (privyUser && !user && !isLoading)
     return (
       <>
-        <NewUserDialog open={!isLoading} />
+        <NewUserDialog open={true} />
         <Button
           key="connect"
-          className="w-28 sm:w-36 rounded-full text-sm"
+          variant="outline"
+          className="w-32 sm:w-36 text-sm"
           size={"sm"}
           disabled
         >
-          <LoaderCircleIcon className="animate-spin" />
+          <div className="flex items-center gap-1 overflow-hidden">
+            <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+            <ChevronDownIcon className="size-4 flex-shrink-0 opacity-50" />
+          </div>
         </Button>
       </>
     );
