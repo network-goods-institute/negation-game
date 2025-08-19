@@ -11,6 +11,11 @@ const customJestConfig = {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   testMatch: ['**/__tests__/**/*.test.[jt]s?(x)'],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/discourse/',
+    '/tldraw-docs/',
+  ],
   collectCoverageFrom: [
     'src/**/*.{js,jsx,ts,tsx}',
     '!src/**/*.d.ts',
@@ -18,6 +23,10 @@ const customJestConfig = {
   ],
   transformIgnorePatterns: [
     '/node_modules/(?!(remark-gfm|@privy-io|ofetch|destr|ufo|node-fetch-native|jose|@tanstack|@radix-ui.*|lucide-react|class-variance-authority|clsx|tailwind-merge|@uidotdev|nanoid|remark.*|micromark.*|mdast.*|unist.*|unified|bail|is-plain-obj|trough|vfile|rehype.*|hast.*)/)',
+  ],
+  modulePathIgnorePatterns: [
+    '/discourse/',
+    '/tldraw-docs/',
   ],
   moduleFileExtensions: ['js', 'jsx', 'ts', 'tsx', 'json', 'node', 'mjs'],
   globals: {
