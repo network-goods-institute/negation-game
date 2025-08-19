@@ -36,6 +36,9 @@ export const fetchPointsWithSpace = async (
   viewerId?: string | null
 ) => {
   const actualViewerId = viewerId || (await getUserId());
+  const ENABLE_PINNED_PRIORITY =
+    process.env.NEXT_PUBLIC_FEATURE_PINNED_AND_PRIORITY === "true" ||
+    process.env.NODE_ENV === "test";
 
   // Get the space's pinnedPointId
   const spaceDetails = await db.query.spacesTable.findFirst({
@@ -48,8 +51,9 @@ export const fetchPointsWithSpace = async (
   const pinnedPointId = spaceDetails?.pinnedPointId;
 
   // Find the command point that pinned this point with the highest favor
-  const commandPoint = await db.execute(
-    sql`
+  const commandPoint = ENABLE_PINNED_PRIORITY
+    ? await db.execute(
+        sql`
     WITH command_points AS (
       SELECT 
         p.*,
@@ -86,9 +90,11 @@ export const fetchPointsWithSpace = async (
     ORDER BY favor DESC, created_at DESC
     LIMIT 1
   `
-  );
+      )
+    : [];
 
-  const highestFavorCommand = commandPoint.length > 0 ? commandPoint[0] : null;
+  const highestFavorCommand =
+    ENABLE_PINNED_PRIORITY && commandPoint.length > 0 ? commandPoint[0] : null;
 
   return await db
     .select({
@@ -98,16 +104,19 @@ export const fetchPointsWithSpace = async (
         FROM "current_point_favor" cpf
         WHERE cpf."id" = "point_with_details_view"."id"
       ), 0)`.mapWith(Number),
-      isPinned:
-        sql<boolean>`${pointsWithDetailsView.pointId} = ${pinnedPointId || 0}`.mapWith(
-          Boolean
-        ),
+      isPinned: ENABLE_PINNED_PRIORITY
+        ? sql<boolean>`${pointsWithDetailsView.pointId} = ${pinnedPointId || 0}`.mapWith(
+            Boolean
+          )
+        : sql<boolean>`false`.mapWith(Boolean),
       isCommand: pointsWithDetailsView.isCommand,
-      pinnedByCommandId: sql<number | null>`CASE 
-        WHEN ${pointsWithDetailsView.pointId} = ${pinnedPointId || 0} 
-        THEN ${highestFavorCommand?.id || null}
-        ELSE NULL
-      END`.mapWith((val) => val),
+      pinnedByCommandId: ENABLE_PINNED_PRIORITY
+        ? sql<number | null>`CASE 
+            WHEN ${pointsWithDetailsView.pointId} = ${pinnedPointId || 0} 
+            THEN ${highestFavorCommand?.id || null}
+            ELSE NULL
+          END`.mapWith((val) => val)
+        : sql<number | null>`NULL`.mapWith((val) => val),
       viewerCred: viewerCredSql(actualViewerId),
       viewerNegationsCred: actualViewerId
         ? sql<number>`
