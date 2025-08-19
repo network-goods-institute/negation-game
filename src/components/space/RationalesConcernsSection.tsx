@@ -165,7 +165,10 @@ const RationalesConcernsSection = React.memo(function RationalesConcernsSection(
                   className="text-amber-600 hover:text-amber-800 dark:text-amber-300 dark:hover:text-amber-200 text-xs h-auto p-1"
                   asChild
                 >
-                  <Link href={`/s/${spaceId}/topics`} className="flex items-center gap-1">
+                  <Link prefetch={false} href={`/s/${spaceId}/topics`} className="flex items-center gap-1" onClick={(e) => {
+                    e.preventDefault();
+                    window.location.assign(`/s/${spaceId}/topics`);
+                  }}>
                     View all topics
                     <ArrowRightIcon className="h-3 w-3" />
                   </Link>

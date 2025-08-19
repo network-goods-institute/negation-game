@@ -47,7 +47,6 @@ export interface UnifiedContentListProps {
   setNegatedPointId: (id: number) => void;
   handleNewViewpoint: () => void;
   handleCardClick: (id: string, item?: any) => void;
-  onPrefetchPoint: (id: number) => void;
   onRefetchFeed?: () => void;
 
   // UI state
@@ -74,7 +73,6 @@ export const UnifiedContentList = memo(({
   setNegatedPointId,
   handleNewViewpoint,
   handleCardClick,
-  onPrefetchPoint,
   onRefetchFeed,
   pinnedPoint,
   loadingCardId,
@@ -333,7 +331,7 @@ export const UnifiedContentList = memo(({
       {contentType === "rationales" && !searchQuery && !hasActiveFilters && (
         <div className="mx-auto w-full max-w-5xl px-3">
           <RationalesConcernsSection spaceId={space} />
-          <CreateRationaleViewpointCard 
+          <CreateRationaleViewpointCard
             onClick={handleNewViewpoint}
             className="mb-4"
           />
@@ -372,7 +370,6 @@ export const UnifiedContentList = memo(({
           pinnedPoint={pinnedPoint}
           handleCardClick={handleCardClick}
           loadingCardId={loadingCardId}
-          onPrefetchPoint={onPrefetchPoint}
         />
       ))}
 

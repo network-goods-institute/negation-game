@@ -63,17 +63,6 @@ export default function SpacePageClient({ params, searchParams }: PageProps) {
     const { data: pinnedPointData } = usePinnedPoint(space);
     const { data: priorityPointsData, isLoading: isPriorityPointsLoading } = usePriorityPoints();
 
-    const prefetchPoint = usePrefetchPoint();
-    const prefetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-    const handlePrefetch = useCallback((pointId: number) => {
-        if (prefetchTimeoutRef.current) {
-            clearTimeout(prefetchTimeoutRef.current);
-        }
-        prefetchTimeoutRef.current = setTimeout(() => {
-            prefetchPoint(pointId);
-        }, 100);
-    }, [prefetchPoint]);
 
     const handleNegate = useCallback((pointId: number) => {
         if (privyUser) {
@@ -113,13 +102,7 @@ export default function SpacePageClient({ params, searchParams }: PageProps) {
     }, [initialSpaceTab, setInitialSpaceTab]);
 
     // Event listeners cleanup
-    useEffect(() => {
-        return () => {
-            if (prefetchTimeoutRef.current) {
-                clearTimeout(prefetchTimeoutRef.current);
-            }
-        };
-    }, []);
+    // no-op cleanup
 
     // Invalidation handlers
     useEffect(() => {
@@ -185,7 +168,6 @@ export default function SpacePageClient({ params, searchParams }: PageProps) {
                 setNegatedPointId={handleNegate}
                 handleNewViewpoint={handleNewViewpoint}
                 handleCardClick={(id: string) => setLoadingCardId(id)}
-                onPrefetchPoint={handlePrefetch}
                 loadingCardId={loadingCardId}
             />
         </div>
@@ -216,7 +198,6 @@ export default function SpacePageClient({ params, searchParams }: PageProps) {
                                     selectedTab={selectedTab}
                                     loadingCardId={loadingCardId}
                                     handleCardClick={(id: string) => setLoadingCardId(id)}
-                                    onPrefetchPoint={handlePrefetch}
                                 />
                             ) : null
                         )}
@@ -253,7 +234,6 @@ export default function SpacePageClient({ params, searchParams }: PageProps) {
                             setNegatedPointId={handleNegate}
                             handleNewViewpoint={handleNewViewpoint}
                             handleCardClick={(id: string) => setLoadingCardId(id)}
-                            onPrefetchPoint={handlePrefetch}
                             loadingCardId={loadingCardId}
                         />
                     </div>

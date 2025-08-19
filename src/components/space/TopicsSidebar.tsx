@@ -139,11 +139,15 @@ export const TopicsSidebar = memo(({
                 <div className="sticky top-0 z-10 backdrop-blur border-b border-border/50 p-3">
                     <div className="flex items-center justify-between">
                         <h2 className="text-sm font-semibold text-muted-foreground">Topics</h2>
-                        <Link href={`/s/${space}/topics`}>
-                            <button className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
-                                View All
-                            </button>
-                        </Link>
+                        <button
+                            className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                router.push(`/s/${space}/topics`);
+                            }}
+                        >
+                            View All
+                        </button>
                     </div>
                 </div>
 

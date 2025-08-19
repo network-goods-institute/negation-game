@@ -2,13 +2,14 @@
 
 import React, { memo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { usePrefetchFavorHistory } from "@/hooks/data/usePrefetchFavorHistory";
 import { preventDefaultIfContainsSelection } from "@/lib/utils/preventDefaultIfContainsSelection";
 import { decodeId } from "@/lib/negation-game/decodeId";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import { PointCard } from "@/components/cards/PointCard";
 import { ViewpointCardWrapper } from "@/components/cards/ViewpointCardWrapper";
+import { pointQueryKey } from "@/queries/points/usePointData";
 
 const MemoizedPointCard = memo(PointCard);
 const MemoizedViewpointCardWrapper = memo(ViewpointCardWrapper);
@@ -23,7 +24,6 @@ export interface FeedItemProps {
     pinnedPoint: any;
     handleCardClick: (id: string) => void;
     loadingCardId: string | null;
-    onPrefetchPoint: (id: number) => void;
 }
 
 export const FeedItem = memo(({
@@ -35,11 +35,12 @@ export const FeedItem = memo(({
     user,
     pinnedPoint,
     handleCardClick,
-    loadingCardId,
-    onPrefetchPoint
+    loadingCardId
 }: FeedItemProps) => {
+    const router = useRouter();
+    const queryClient = useQueryClient();
     const pointId = item.type === 'point' ? item.data.pointId : null;
-    const handleHover = usePrefetchFavorHistory(pointId, onPrefetchPoint);
+    const handleHover = usePrefetchFavorHistory(pointId, () => { });
 
     if (item.type === 'point') {
         const point = item.data;
@@ -79,20 +80,28 @@ export const FeedItem = memo(({
             : point.pinCommands?.[0]?.id;
 
         return (
-            <Link
-                draggable={false}
+            <div
+                className="flex border-b cursor-pointer hover:bg-accent transition-colors duration-150"
+                onMouseEnter={handleHover}
                 onClick={(e) => {
                     preventDefaultIfContainsSelection(e);
                     const isActionButton = (e.target as HTMLElement)
                         .closest('[data-action-button="true"]');
-                    if (!isActionButton && window.getSelection()?.isCollapsed !== false) {
-                        onPrefetchPoint(point.pointId);
-                        handleCardClick(`point-${point.pointId}`);
+                    if (isActionButton || window.getSelection()?.isCollapsed === false) {
+                        return;
                     }
+                    // Seed caches and navigate immediately without waiting
+                    queryClient.setQueryData(
+                        pointQueryKey({ pointId: point.pointId, userId: user?.id }),
+                        point
+                    );
+                    queryClient.setQueryData(
+                        pointQueryKey({ pointId: point.pointId, userId: undefined }),
+                        point
+                    );
+                    handleCardClick(`point-${point.pointId}`);
+                    router.push(`${basePath}/${encodeId(point.pointId)}`);
                 }}
-                href={`${basePath}/${encodeId(point.pointId)}`}
-                className="flex border-b cursor-pointer hover:bg-accent transition-colors duration-150"
-                onMouseEnter={handleHover}
             >
                 <MemoizedPointCard
                     onNegate={(e) => {
@@ -131,7 +140,7 @@ export const FeedItem = memo(({
                     editedBy={point.editedBy}
                     editCount={point.editCount ?? 0}
                 />
-            </Link>
+            </div>
         );
     } else if (item.type === 'rationale') {
         const viewpoint = item.data;

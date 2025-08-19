@@ -72,6 +72,7 @@ setInterval(() => {
   const now = Date.now();
   for (const [key, value] of userCache.entries()) {
     if (value.expires <= now) {
+      // eslint-disable-next-line drizzle/enforce-delete-with-where
       userCache.delete(key);
     }
   }

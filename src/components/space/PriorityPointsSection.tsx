@@ -13,7 +13,6 @@ export interface PriorityPointsSectionProps {
     selectedTab: string;
     loadingCardId: string | null;
     handleCardClick: (id: string) => void;
-    onPrefetchPoint: (id: number) => void;
 }
 
 export const PriorityPointsSection = memo(({
@@ -25,8 +24,7 @@ export const PriorityPointsSection = memo(({
     user,
     selectedTab,
     loadingCardId,
-    handleCardClick,
-    onPrefetchPoint
+    handleCardClick
 }: PriorityPointsSectionProps) => {
     if (!filteredPriorityPoints || filteredPriorityPoints.length === 0) return null;
 
@@ -58,7 +56,6 @@ export const PriorityPointsSection = memo(({
                         user={user}
                         loadingCardId={loadingCardId}
                         handleCardClick={handleCardClick}
-                        onPrefetchPoint={onPrefetchPoint}
                     />
                 ))}
             </div>
