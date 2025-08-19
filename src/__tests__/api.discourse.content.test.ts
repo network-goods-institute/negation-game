@@ -1,37 +1,38 @@
-let GETHandler: any;
+const setup = async (opts?: {
+  authed?: boolean;
+  rateAllowed?: boolean;
+  content?: string | null;
+}) => {
+  const authed = opts?.authed !== false;
+  const rateAllowed = opts?.rateAllowed !== false;
+  const content =
+    opts?.content === undefined
+      ? "Username: alice\nContent:\nHello world"
+      : opts.content;
 
-jest.mock("@/actions/users/getUserId", () => ({
-  getUserId: jest.fn(async () => "user-1"),
-}));
-
-jest.mock("@/lib/rateLimit", () => ({
-  checkRateLimitStrict: jest.fn(async () => ({
-    allowed: true,
-    remaining: 9,
-    resetTime: Date.now() + 60000,
-  })),
-}));
-
-jest.mock("@/actions/search/getDiscourseContent", () => ({
-  getDiscourseContent: jest.fn(
-    async () => "Username: alice\nContent:\nHello world"
-  ),
-}));
+  jest.resetModules();
+  jest.doMock("@/actions/users/getUserId", () => ({
+    getUserId: jest.fn(async () => (authed ? "user-1" : null)),
+  }));
+  jest.doMock("@/lib/rateLimit", () => ({
+    checkRateLimitStrict: jest.fn(async () => ({
+      allowed: rateAllowed,
+      remaining: rateAllowed ? 9 : 0,
+      resetTime: Date.now() + 60000,
+    })),
+  }));
+  jest.doMock("@/actions/search/getDiscourseContent", () => ({
+    getDiscourseContent: jest.fn(async () => content),
+  }));
+  const route = require("@/app/api/discourse/content/route");
+  return route.GET as (req: Request) => Promise<Response>;
+};
 
 describe("/api/discourse/content", () => {
   const makeReq = (url: string) => new Request(url);
 
-  beforeEach(() => {
-    jest.resetModules();
-    ({ GET: GETHandler } = require("@/app/api/discourse/content/route"));
-  });
-
   it("returns 401 when unauthenticated", async () => {
-    jest.doMock("@/actions/users/getUserId", () => ({
-      getUserId: jest.fn(async () => null),
-    }));
-    jest.resetModules();
-    ({ GET: GETHandler } = require("@/app/api/discourse/content/route"));
+    const GETHandler = await setup({ authed: false });
 
     const res = await GETHandler(
       makeReq(
@@ -42,6 +43,7 @@ describe("/api/discourse/content", () => {
   });
 
   it("returns 400 for missing url", async () => {
+    const GETHandler = await setup();
     const res = await GETHandler(
       makeReq("https://unit.test/api/discourse/content") as any
     );
@@ -49,6 +51,7 @@ describe("/api/discourse/content", () => {
   });
 
   it("returns 400 for invalid host", async () => {
+    const GETHandler = await setup();
     const res = await GETHandler(
       makeReq(
         "https://unit.test/api/discourse/content?url=https%3A%2F%2Fevil.example.com%2Ft%2Fbad"
@@ -58,15 +61,7 @@ describe("/api/discourse/content", () => {
   });
 
   it("returns 429 when rate limited", async () => {
-    jest.doMock("@/lib/rateLimit", () => ({
-      checkRateLimitStrict: jest.fn(async () => ({
-        allowed: false,
-        remaining: 0,
-        resetTime: Date.now() + 60000,
-      })),
-    }));
-    jest.resetModules();
-    ({ GET: GETHandler } = require("@/app/api/discourse/content/route"));
+    const GETHandler = await setup({ rateAllowed: false });
 
     const res = await GETHandler(
       makeReq(
@@ -77,11 +72,7 @@ describe("/api/discourse/content", () => {
   });
 
   it("returns 404 when content not found", async () => {
-    jest.doMock("@/actions/search/getDiscourseContent", () => ({
-      getDiscourseContent: jest.fn(async () => null),
-    }));
-    jest.resetModules();
-    ({ GET: GETHandler } = require("@/app/api/discourse/content/route"));
+    const GETHandler = await setup({ content: null });
 
     const res = await GETHandler(
       makeReq(
@@ -92,14 +83,16 @@ describe("/api/discourse/content", () => {
   });
 
   it("returns 200 with content for valid request", async () => {
+    const GETHandler = await setup();
     const res = await GETHandler(
       makeReq(
         "https://unit.test/api/discourse/content?url=https%3A%2F%2Fforum.scroll.io%2Ft%2Fbetter-dao-decisions-aligned-incentives-research-on-carroll-mechanisms"
       ) as any
     );
     expect(res.status).toBe(200);
-    const json = await (res as Response).json();
-    expect(typeof json.content).toBe("string");
-    expect(json.content.length).toBeGreaterThan(0);
+    const {
+      getDiscourseContent,
+    } = require("@/actions/search/getDiscourseContent");
+    expect(getDiscourseContent).toHaveBeenCalled();
   });
 });

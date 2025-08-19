@@ -53,23 +53,16 @@ export default function ScrollSourceEmbedClient({ sourceUrl }: Props) {
                     }
                 }
                 if (data.found) {
-                    if (data.type === 'rationale') {
-                        let rationaleId = data.rationaleId;
-
-                        let match = rationaleId.match(/\/rationale\/([a-zA-Z0-9_-]+)/i);
-                        if (match) {
-                            rationaleId = match[1];
-                        } else if (rationaleId.includes('http')) {
-                            const parts = rationaleId.split('/');
-                            rationaleId = parts[parts.length - 1];
-                        }
-
-                        router.replace(`/embed/rationale/${rationaleId}`);
-                    } else if (data.type === 'topic' && data.topicId) {
+                    if (data.type === 'topic' && data.topicId) {
                         const tid = String(data.topicId).trim();
-                        // Accept numeric id, encoded id, or slug without strict equality
                         const encoded = /^\d+$/.test(tid) ? encodeId(Number(tid)) : tid;
-                        router.replace(`/embed/topic/${encoded}`);
+                        const r = data.rationaleId ? `?rationale=${encodeURIComponent(String(data.rationaleId))}` : '';
+                        router.replace(`/embed/topic/${encoded}${r}`);
+                    } else if (data.type === 'rationale' && data.rationaleId) {
+                        let rationaleId = String(data.rationaleId);
+                        const match = rationaleId.match(/\/rationale\/([a-zA-Z0-9_-]+)/i);
+                        if (match) rationaleId = match[1];
+                        router.replace(`/embed/rationale/${rationaleId}`);
                     }
                 } else {
                     setStatus('prompt');

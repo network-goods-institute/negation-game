@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import { encodeId } from '@/lib/negation-game/encodeId';
 
 interface RationaleStats {
   views: number;
@@ -18,6 +19,7 @@ interface Rationale {
   createdAt: Date;
   authorUsername: string;
   space: string | null;
+  topicId?: number | null;
   statistics: RationaleStats;
   graph?: {
     nodes: Array<{ id: string; position: { x: number; y: number } }>;
@@ -27,9 +29,10 @@ interface Rationale {
 
 interface Props {
   rationale: Rationale;
+  from?: string;
 }
 
-export function RationaleEmbedClient({ rationale }: Props) {
+export function RationaleEmbedClient({ rationale, from }: Props) {
   const [hoveredNodeId, setHoveredNodeId] = React.useState<string | null>(null);
   const [nodePreview, setNodePreview] = React.useState<{
     id: string,
@@ -98,6 +101,63 @@ export function RationaleEmbedClient({ rationale }: Props) {
     const nodes = rationale.graph?.nodes || [];
     if (nodes.length === 0) return null;
 
+    const edges = Array.isArray(rationale.graph?.edges) ? rationale.graph!.edges : [];
+
+    const sourceSet = new Set<string>(
+      edges
+        .map((e: any) => e?.source)
+        .filter((s: any): s is string => typeof s === 'string')
+    );
+
+    let rootId: string | null = null;
+    const typedRoot = nodes.find((n: any) => n?.type === 'statement' || n?.data?.type === 'statement');
+    if (typedRoot) {
+      rootId = (typedRoot as any).id;
+    }
+    if (!rootId && nodes.length > 0) {
+      const candidate = nodes.find((n) => !sourceSet.has(n.id)) || nodes[0];
+      rootId = candidate?.id ?? null;
+    }
+
+    const childrenByParent = new Map<string, string[]>();
+    for (const e of edges) {
+      const parentId = typeof e?.target === 'string' ? e.target : null;
+      const childId = typeof e?.source === 'string' ? e.source : null;
+      if (!parentId || !childId) continue;
+      if (!childrenByParent.has(parentId)) childrenByParent.set(parentId, []);
+      childrenByParent.get(parentId)!.push(childId);
+    }
+
+    const levelsById = new Map<string, number>();
+    if (rootId) {
+      const queue: Array<{ id: string; level: number }> = [{ id: rootId, level: 0 }];
+      levelsById.set(rootId, 0);
+      while (queue.length > 0) {
+        const { id, level } = queue.shift()!;
+        const children = childrenByParent.get(id) || [];
+        for (const child of children) {
+          if (!levelsById.has(child)) {
+            levelsById.set(child, level + 1);
+            queue.push({ id: child, level: level + 1 });
+          }
+        }
+      }
+    }
+
+    if (levelsById.size === 0) {
+      const sortedByY = [...nodes].sort((a, b) => a.position.y - b.position.y);
+      let currentLevelIdx = -1;
+      let lastY = Number.NEGATIVE_INFINITY;
+      const threshold = 120;
+      for (const n of sortedByY) {
+        if (n.position.y - lastY > threshold) {
+          currentLevelIdx += 1;
+          lastY = n.position.y;
+        }
+        levelsById.set(n.id, Math.max(0, currentLevelIdx));
+      }
+    }
+
     const minX = Math.min(...nodes.map(n => n.position.x));
     const maxX = Math.max(...nodes.map(n => n.position.x));
     const minY = Math.min(...nodes.map(n => n.position.y));
@@ -135,6 +195,11 @@ export function RationaleEmbedClient({ rationale }: Props) {
       const pointWidth = Math.max(24, Math.min(36, containerWidth * 0.09));
       const nodeHeight = 24;
 
+      const level = levelsById.get(node.id) ?? 0;
+      const stripeImage = level % 2 === 1
+        ? 'repeating-linear-gradient(45deg, rgba(59, 130, 246, 0.08) 0px, rgba(59, 130, 246, 0.08) 6px, rgba(0,0,0,0) 6px, rgba(0,0,0,0) 12px)'
+        : 'none';
+
       return (
         <div
           key={node.id}
@@ -147,6 +212,7 @@ export function RationaleEmbedClient({ rationale }: Props) {
             backgroundColor: isHovered
               ? (isStatement ? 'rgba(107, 114, 128, 0.6)' : 'rgba(107, 114, 128, 0.6)')
               : (isStatement ? 'rgba(107, 114, 128, 0.5)' : 'rgba(107, 114, 128, 0.4)'),
+            backgroundImage: isHovered ? 'none' : stripeImage,
             borderRadius: isStatement ? '4px' : '3px',
             border: `1px solid ${isStatement ? 'rgba(75, 85, 99, 0.6)' : 'rgba(75, 85, 99, 0.5)'}`,
             cursor: 'pointer',
@@ -215,6 +281,8 @@ export function RationaleEmbedClient({ rationale }: Props) {
         }
       }}
     >
+      {/* No back button here; topic embed will provide it */}
+
       {/* MiniMap Section */}
       <div style={minimapStyle}>
         {renderNodes()}
@@ -345,13 +413,48 @@ export function RationaleEmbedClient({ rationale }: Props) {
             gap: '8px',
             fontSize: '10px',
             color: '#64748b',
-            fontWeight: '500'
+            fontWeight: '500',
+            marginBottom: '6px'
           }}>
             <span style={{ color: '#059669' }}><strong>{Math.floor(rationale.statistics.totalCred)}</strong> cred</span>
             <span style={{ color: '#f59e0b' }}><strong>{rationale.statistics.averageFavor?.toFixed(1) || '0.0'}</strong> favor</span>
             <span style={{ color: '#0369a1' }}><strong>{rationale.statistics.endorsements || 0}</strong> endorsements</span>
             <span style={{ color: '#7c3aed' }}><strong>{rationale.statistics.pointsCount || 0}</strong> points</span>
             <span style={{ color: '#dc2626' }}><strong>{rationale.statistics.copies}</strong> copies</span>
+          </div>
+
+          {/* See all rationales link */}
+          <div style={{
+            border: '1px solid #EAE8E5',
+            borderRadius: '3px',
+            padding: '8px',
+            backgroundColor: '#FBF4EA',
+            textAlign: 'center'
+          }}>
+            <a
+              href={typeof rationale.topicId === 'number' && !isNaN(rationale.topicId)
+                ? `/s/${rationale.space || 'scroll'}/topic/${encodeId(rationale.topicId)}`
+                : `/s/${rationale.space || 'scroll'}/topics`}
+              target="_blank"
+              rel="noopener,noreferrer"
+              style={{
+                color: '#ED7153',
+                fontSize: '11px',
+                textDecoration: 'none',
+                fontWeight: '500'
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.textDecoration = 'underline';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.textDecoration = 'none';
+              }}
+            >
+              See all rationales on this topic →
+            </a>
           </div>
         </div>
       </div>

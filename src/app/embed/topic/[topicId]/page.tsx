@@ -8,10 +8,13 @@ interface Props {
     params: Promise<{
         topicId: string;
     }>;
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export default async function TopicEmbedPage({ params }: Props) {
+export default async function TopicEmbedPage({ params, searchParams }: Props) {
     const { topicId: rawTopicId } = await params;
+    const sp = await searchParams;
+    const preferredRationaleId = typeof sp.rationale === 'string' ? sp.rationale : Array.isArray(sp.rationale) ? sp.rationale[0] : undefined;
 
     // Handle both encoded IDs and raw numbers for testing
     let topicId: number;
@@ -43,6 +46,7 @@ export default async function TopicEmbedPage({ params }: Props) {
             <TopicEmbedClient
                 topic={topic}
                 rationales={rationales}
+                preferredRationaleId={preferredRationaleId || undefined}
             />
         );
     } catch (error) {

@@ -6,10 +6,12 @@ interface Props {
     params: Promise<{
         rationaleId: string;
     }>;
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export default async function RationaleEmbedPage({ params }: Props) {
+export default async function RationaleEmbedPage({ params, searchParams }: Props) {
     const { rationaleId } = await params;
+    const { from } = await searchParams;
 
     try {
         const rationale = await fetchViewpointForEmbed(rationaleId);
@@ -25,6 +27,7 @@ export default async function RationaleEmbedPage({ params }: Props) {
         return (
             <RationaleEmbedClient
                 rationale={{ ...rationale, space: 'scroll' }}
+                from={from as string}
             />
         );
     } catch (error) {

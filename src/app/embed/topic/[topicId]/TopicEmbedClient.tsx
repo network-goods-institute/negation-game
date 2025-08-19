@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { encodeId } from '@/lib/negation-game/encodeId';
 
 interface Topic {
@@ -26,13 +26,15 @@ interface Rationale {
 interface Props {
   topic: Topic;
   rationales: Rationale[];
+  preferredRationaleId?: string | null;
 }
 
-export function TopicEmbedClient({ topic, rationales }: Props) {
+export function TopicEmbedClient({ topic, rationales, preferredRationaleId }: Props) {
   const [selectedRationaleId, setSelectedRationaleId] = useState<string | null>(null);
   const [isRationaleLoading, setIsRationaleLoading] = useState<boolean>(false);
   const [spinnerRotation, setSpinnerRotation] = useState<number>(0);
   const [postNumber, setPostNumber] = useState<number>(1);
+  const hasAutoSelected = useRef(false);
 
   useEffect(() => {
     // Try to get post number from URL parameters or parent frame
@@ -60,6 +62,14 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
     window.addEventListener('message', handlePostNumber);
     return () => window.removeEventListener('message', handlePostNumber);
   }, []);
+
+  useEffect(() => {
+    if (!hasAutoSelected.current && preferredRationaleId) {
+      hasAutoSelected.current = true;
+      setIsRationaleLoading(true);
+      setSelectedRationaleId(preferredRationaleId);
+    }
+  }, [preferredRationaleId]);
 
 
   // Spinner animation
@@ -167,7 +177,7 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
   if (selectedRationaleId) {
     return (
       <div style={{ ...containerStyle }}>
-        <div style={{ marginBottom: '4px', borderBottom: '1px solid #EAE8E5', paddingBottom: '3px', flex: '0 0 auto' }}>
+        <div style={{ marginBottom: 0, paddingBottom: 0, borderBottom: '1px solid #EAE8E5', flex: '0 0 auto' }}>
           <button
             onClick={handleBackToList}
             style={{
@@ -253,6 +263,8 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
             </div>
           )}
         </div>
+
+        {/* back button moved above card */}
       </div>
     );
   }
@@ -339,6 +351,16 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
     );
   }
 
+  let displayRationales = rationales;
+  if (preferredRationaleId && rationales.length > 0) {
+    const idx = rationales.findIndex(r => r.id === preferredRationaleId);
+    if (idx > -1) {
+      const picked = rationales[idx];
+      const rest = rationales.filter((_, i) => i !== idx);
+      displayRationales = [picked, ...rest];
+    }
+  }
+
   return (
     <div style={containerStyle}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px', borderBottom: '1px solid #EAE8E5', paddingBottom: '2px' }}>
@@ -353,147 +375,165 @@ export function TopicEmbedClient({ topic, rationales }: Props) {
         </div>
       </div>
 
-      <div style={{ marginBottom: '4px', textAlign: 'center', padding: '4px', background: '#FBF4EA', borderRadius: '3px', border: '1px solid #EAE8E5' }}>
-        <div style={{ fontSize: '16px', marginBottom: '6px', opacity: 0.6 }}>💭</div>
-        <p style={{ margin: '0 0 10px', color: '#64748b', fontSize: '11px', fontWeight: '500' }}>
-          No rationale link found in post.
-        </p>
-        <a
-          href={getFullUrl(`/s/${topic.space}/topic/${encodeId(topic.id)}`)}
-          onClick={(e) => handleLinkClick(e, `/s/${topic.space}/topic/${encodeId(topic.id)}`)}
-          style={{
-            display: 'inline-block',
-            backgroundColor: '#ED7153',
-            color: 'white',
-            border: 'none',
-            padding: '6px 12px',
-            borderRadius: '3px',
-            fontSize: '11px',
-            textDecoration: 'none',
-            fontWeight: '500',
-            boxShadow: '0 1px 2px rgba(237, 113, 83, 0.2)',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.backgroundColor = '#D85F43';
-            e.currentTarget.style.transform = 'translateY(-1px)';
-            e.currentTarget.style.boxShadow = '0 2px 4px rgba(237, 113, 83, 0.3)';
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.backgroundColor = '#ED7153';
-            e.currentTarget.style.transform = 'translateY(0px)';
-            e.currentTarget.style.boxShadow = '0 1px 2px rgba(237, 113, 83, 0.2)';
-          }}
-        >
-          Create Rationale
-        </a>
-      </div>
+      {!preferredRationaleId && (
+        <div style={{ marginBottom: '4px', textAlign: 'center', padding: '4px', background: '#FBF4EA', borderRadius: '3px', border: '1px solid #EAE8E5' }}>
+          <div style={{ fontSize: '16px', marginBottom: '6px', opacity: 0.6 }}>💭</div>
+          <p style={{ margin: '0 0 10px', color: '#64748b', fontSize: '11px', fontWeight: '500' }}>
+            No rationale link found in post.
+          </p>
+          <a
+            href={getFullUrl(`/s/${topic.space}/topic/${encodeId(topic.id)}`)}
+            onClick={(e) => handleLinkClick(e, `/s/${topic.space}/topic/${encodeId(topic.id)}`)}
+            style={{
+              display: 'inline-block',
+              backgroundColor: '#ED7153',
+              color: 'white',
+              border: 'none',
+              padding: '6px 12px',
+              borderRadius: '3px',
+              fontSize: '11px',
+              textDecoration: 'none',
+              fontWeight: '500',
+              boxShadow: '0 1px 2px rgba(237, 113, 83, 0.2)',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = '#D85F43';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = '0 2px 4px rgba(237, 113, 83, 0.3)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = '#ED7153';
+              e.currentTarget.style.transform = 'translateY(0px)';
+              e.currentTarget.style.boxShadow = '0 1px 2px rgba(237, 113, 83, 0.2)';
+            }}
+          >
+            Create Rationale
+          </a>
+        </div>)}
 
       {rationales.length > 0 && (
         <div style={{ marginBottom: '16px' }}>
           <div style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', marginBottom: '12px', letterSpacing: '-0.025em' }}>
             Existing rationales:
           </div>
-          {rationales.slice(0, 3).map((rationale) => (
-            <div key={rationale.id} style={{
-              border: '1px solid #EAE8E5',
-              borderRadius: '4px',
-              padding: '8px',
-              marginBottom: '6px',
-              backgroundColor: '#FFFFFF',
-              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer'
-            }}
-              onClick={(e) => handleViewRationale(rationale, e)}
-              onMouseOver={(e) => {
-                e.currentTarget.style.borderColor = '#D7D4CF';
-                e.currentTarget.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.1)';
-                e.currentTarget.style.transform = 'translateY(-1px)';
+          {displayRationales.slice(0, 3).map((rationale) => {
+            const isPreferred = preferredRationaleId === rationale.id;
+            return (
+              <div key={rationale.id} style={{
+                border: isPreferred ? '2px solid #ED7153' : '1px solid #EAE8E5',
+                borderRadius: '4px',
+                padding: '8px',
+                marginBottom: '6px',
+                backgroundColor: isPreferred ? '#FFEAE3' : '#FFFFFF',
+                boxShadow: isPreferred ? '0 0 0 2px rgba(237, 113, 83, 0.18), 0 4px 10px rgba(0, 0, 0, 0.08)' : '0 1px 3px rgba(0, 0, 0, 0.05)',
+                transition: 'all 0.2s ease',
+                cursor: 'pointer',
+                position: 'relative'
               }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.borderColor = '#EAE8E5';
-                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
-                e.currentTarget.style.transform = 'translateY(0px)';
-              }}>
-              <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '12px', color: '#ED7153', fontWeight: '600', marginBottom: '2px' }}>
-                    {rationale.authorUsername}
-                  </div>
-                  <h4 style={{
-                    margin: '0 0 2px',
-                    fontSize: '11px',
-                    fontWeight: '500',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    color: '#1e293b'
-                  }}>
-                    {rationale.title}
-                  </h4>
-                  <div style={{ fontSize: '9px', color: '#64748b' }}>
-                    {rationale.statistics.views} views • {rationale.statistics.copies} copies
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '4px', marginLeft: '8px' }}>
-                  <button
-                    onClick={(e) => handleViewRationale(rationale, e)}
-                    style={{
-                      display: 'inline-block',
-                      backgroundColor: '#ED7153',
-                      color: 'white',
-                      border: 'none',
-                      padding: '4px 8px',
-                      borderRadius: '3px',
-                      fontSize: '10px',
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
+                onClick={(e) => handleViewRationale(rationale, e)}
+                onMouseOver={(e) => {
+                  if (!isPreferred) {
+                    e.currentTarget.style.borderColor = '#D7D4CF';
+                    e.currentTarget.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.1)';
+                  } else {
+                    e.currentTarget.style.borderColor = '#ED7153';
+                    e.currentTarget.style.boxShadow = '0 0 0 2px rgba(237, 113, 83, 0.22), 0 6px 12px rgba(0, 0, 0, 0.12)';
+                  }
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseOut={(e) => {
+                  if (!isPreferred) {
+                    e.currentTarget.style.borderColor = '#EAE8E5';
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+                  } else {
+                    e.currentTarget.style.borderColor = '#ED7153';
+                    e.currentTarget.style.boxShadow = '0 0 0 2px rgba(237, 113, 83, 0.18), 0 4px 10px rgba(0, 0, 0, 0.08)';
+                  }
+                  e.currentTarget.style.transform = 'translateY(0px)';
+                }}>
+                {isPreferred && (
+                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '3px', backgroundColor: '#ED7153', borderTopLeftRadius: '4px', borderBottomLeftRadius: '4px' }} />
+                )}
+                <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '12px', color: '#ED7153', fontWeight: '600', marginBottom: '2px' }}>
+                      {rationale.authorUsername}
+                    </div>
+                    <h4 style={{
+                      margin: '0 0 2px',
+                      fontSize: '11px',
                       fontWeight: '500',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.backgroundColor = '#D85F43';
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.backgroundColor = '#ED7153';
-                    }}
-                  >
-                    View
-                  </button>
-                  <a
-                    href={`/s/${topic.space}/rationale/${rationale.id}`}
-                    target="_blank"
-                    rel="noopener,noreferrer"
-                    style={{
-                      display: 'inline-block',
-                      backgroundColor: '#EAE8E5',
-                      color: '#3A3835',
-                      border: '1px solid #D7D4CF',
-                      padding: '4px 8px',
-                      borderRadius: '3px',
-                      fontSize: '10px',
-                      textDecoration: 'none',
-                      fontFamily: 'inherit',
-                      fontWeight: '500',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onClick={(e) => handleLinkClick(e, `/s/${topic.space}/rationale/${rationale.id}`)}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.backgroundColor = '#E2DFDA';
-                      e.currentTarget.style.borderColor = '#BDB9B3';
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.backgroundColor = '#EAE8E5';
-                      e.currentTarget.style.borderColor = '#D7D4CF';
-                    }}
-                  >
-                    Open
-                  </a>
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      color: '#1e293b'
+                    }}>
+                      {rationale.title}
+                    </h4>
+                    <div style={{ fontSize: '9px', color: '#64748b' }}>
+                      {rationale.statistics.views} views • {rationale.statistics.copies} copies
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '4px', marginLeft: '8px' }}>
+                    <button
+                      onClick={(e) => handleViewRationale(rationale, e)}
+                      style={{
+                        display: 'inline-block',
+                        backgroundColor: '#ED7153',
+                        color: 'white',
+                        border: 'none',
+                        padding: '4px 8px',
+                        borderRadius: '3px',
+                        fontSize: '10px',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        fontWeight: '500',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.backgroundColor = '#D85F43';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.backgroundColor = '#ED7153';
+                      }}
+                    >
+                      View
+                    </button>
+                    <a
+                      href={`/s/${topic.space}/rationale/${rationale.id}`}
+                      target="_blank"
+                      rel="noopener,noreferrer"
+                      style={{
+                        display: 'inline-block',
+                        backgroundColor: '#EAE8E5',
+                        color: '#3A3835',
+                        border: '1px solid #D7D4CF',
+                        padding: '4px 8px',
+                        borderRadius: '3px',
+                        fontSize: '10px',
+                        textDecoration: 'none',
+                        fontFamily: 'inherit',
+                        fontWeight: '500',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onClick={(e) => handleLinkClick(e, `/s/${topic.space}/rationale/${rationale.id}`)}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.backgroundColor = '#E2DFDA';
+                        e.currentTarget.style.borderColor = '#BDB9B3';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.backgroundColor = '#EAE8E5';
+                        e.currentTarget.style.borderColor = '#D7D4CF';
+                      }}
+                    >
+                      Open
+                    </a>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
 
           {rationales.length > 3 && (
             <div style={{

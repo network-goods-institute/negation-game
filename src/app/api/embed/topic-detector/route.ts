@@ -75,6 +75,26 @@ export async function GET(request: NextRequest) {
     const rationaleMatch = sourceUrl.match(/\/rationale\/([a-zA-Z0-9_-]+)/);
     if (rationaleMatch) {
       const rationaleId = rationaleMatch[1];
+      const vp = await db
+        .select({ topicId: viewpointsTable.topicId })
+        .from(viewpointsTable)
+        .where(and(eq(viewpointsTable.id, rationaleId), activeViewpointsFilter))
+        .limit(1);
+
+      const topicId = vp?.[0]?.topicId as number | null | undefined;
+      if (topicId && Number.isFinite(topicId)) {
+        const response = NextResponse.json({
+          found: true,
+          type: "topic",
+          topicId: encodeId(topicId as number),
+          hasRationales: true,
+          rationaleId,
+        });
+        response.headers.set("Access-Control-Allow-Origin", corsOrigin);
+        response.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+        response.headers.set("Access-Control-Allow-Headers", "Content-Type");
+        return response;
+      }
 
       const response = NextResponse.json({
         found: true,
@@ -82,7 +102,6 @@ export async function GET(request: NextRequest) {
         rationaleId: rationaleId,
         hasRationales: true,
       });
-
       response.headers.set("Access-Control-Allow-Origin", corsOrigin);
       response.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
       response.headers.set("Access-Control-Allow-Headers", "Content-Type");
