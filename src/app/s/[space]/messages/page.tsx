@@ -14,9 +14,9 @@ export default async function SpaceMessagesPage({ params }: SpaceMessagesPagePro
   const spaceId = decodeURIComponent(space);
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
-      {/* Fixed Top Navigation Bar */}
-      <div className="flex-shrink-0 bg-card border-b border-border shadow-sm">
+    <div className="h-[calc(100vh-var(--header-height))] bg-background flex flex-col overflow-hidden">
+      {/* Sub-navigation bar positioned below main header (static) */}
+      <div className="bg-card border-b border-border shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
@@ -37,10 +37,10 @@ export default async function SpaceMessagesPage({ params }: SpaceMessagesPagePro
 
       {/* Main Content Area */}
       <div className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 overflow-hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-          
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full overflow-hidden">
+
           {/* Left Sidebar - New Conversation */}
-          <div className="lg:col-span-1 flex flex-col">
+          <div className="lg:col-span-1 flex flex-col h-full overflow-hidden">
             <div className="bg-card rounded-xl shadow-sm border border-border p-4 flex-shrink-0">
               <h2 className="text-base font-semibold text-card-foreground mb-3">Start New Conversation</h2>
               <UserSearch spaceId={spaceId} />
@@ -48,8 +48,8 @@ export default async function SpaceMessagesPage({ params }: SpaceMessagesPagePro
           </div>
 
           {/* Right Content - Conversations List */}
-          <div className="lg:col-span-2 flex flex-col">
-            <div className="bg-card rounded-xl shadow-sm border border-border h-full flex flex-col">
+          <div className="lg:col-span-2 flex flex-col h-full overflow-hidden">
+            <div className="bg-card rounded-xl shadow-sm border border-border h-full flex flex-col overflow-hidden">
               <div className="p-4 border-b border-border flex-shrink-0">
                 <h2 className="text-base font-semibold text-card-foreground">Your Conversations</h2>
               </div>

@@ -24,6 +24,9 @@ import { PriorityPointsSkeleton } from "@/components/space/skeletons";
 import { SpaceLayout } from "@/components/layouts/SpaceLayout";
 import { QuickActionsBar } from "@/components/space/QuickActionsBar";
 import { SpaceTabs } from "@/components/space/SpaceTabs";
+import { DeltaComparisonWidget } from "@/components/delta/DeltaComparisonWidget";
+import { StatisticsSummaryCard } from "@/components/statistics/StatisticsSummaryCard";
+import { LeaderboardCard } from "@/components/space/LeaderboardCard";
 
 interface PageProps {
     params: { space: string };
@@ -259,10 +262,31 @@ export default function SpacePageClient({ params, searchParams }: PageProps) {
         </Profiler>
     );
 
+    const topRightSidebarContent = (
+        <div className="mb-4">
+            <DeltaComparisonWidget
+                comparison={{ type: "space", spaceId: space }}
+                title="Space Alignment"
+                description="Find aligned users in this space"
+                currentUserId={privyUser?.id}
+                spaceId={space}
+            />
+        </div>
+    );
+
+    const rightSidebarContent = (
+        <div className="space-y-4 h-full">
+            <StatisticsSummaryCard space={space} />
+            <LeaderboardCard space={space} />
+        </div>
+    );
+
     return (
         <SpaceLayout
             space={space}
             header={headerContent}
+            rightSidebarContent={rightSidebarContent}
+            topRightSidebarContent={topRightSidebarContent}
             onCreateRationale={handleNewViewpoint}
             showUserProfilePreview={true}
             topicFilters={topicFilters}

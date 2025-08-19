@@ -128,9 +128,7 @@ export function TopicCard({
                     <div
                         className={cn(
                             "group relative w-full rounded-lg border transition-all duration-200 cursor-pointer",
-                            hasUserRationale
-                                ? "border-green-500/50 bg-green-50 hover:bg-green-100 hover:border-green-500 dark:bg-green-950/30 dark:hover:bg-green-950/50 dark:border-green-400/50 dark:hover:border-green-400"
-                                : "border-border/50 bg-card hover:bg-accent/50 hover:border-primary/50",
+                            "border-border/50 bg-card hover:bg-accent/50 hover:border-primary/50",
                             sizeClasses[size],
                             isLoading && "cursor-wait opacity-50",
                             className
@@ -159,7 +157,7 @@ export function TopicCard({
                                     </div>
                                     <h3 className={cn(
                                         "font-semibold text-sm sm:text-base leading-tight line-clamp-1 transition-colors flex-1",
-                                        hasUserRationale ? "text-green-800 group-hover:text-green-900 dark:text-green-200 dark:group-hover:text-green-100" : "group-hover:text-primary"
+                                        "group-hover:text-primary"
                                     )}>
                                         {topic.name}
                                     </h3>

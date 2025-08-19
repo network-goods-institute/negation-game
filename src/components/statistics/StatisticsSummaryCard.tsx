@@ -35,10 +35,6 @@ export function StatisticsSummaryCard({ space }: StatisticsSummaryCardProps) {
     refetchOnWindowFocus: false,
   });
 
-  const handleDeltaClick = () => {
-    setIsDeltaLoading(true);
-    router.push(`${basePath}/delta`);
-  };
 
   if (isLoading) {
     return (
@@ -81,23 +77,7 @@ export function StatisticsSummaryCard({ space }: StatisticsSummaryCardProps) {
         <StatisticsSummary stats={stats} />
       </div>
 
-      <Link
-        href={`${basePath}/delta`}
-        onClick={handleDeltaClick}
-        className="flex items-center gap-2 px-4 py-2 rounded-md bg-muted/50 hover:bg-muted border border-border text-foreground hover:text-orange-600 transition-colors"
-      >
-        {isDeltaLoading ? (
-          <>
-            <Loader className="size-4" />
-            <span className="text-sm font-medium">Delta Compare</span>
-          </>
-        ) : (
-          <>
-            <Sigma className="size-4" />
-            <span className="text-sm font-medium">Delta Compare</span>
-          </>
-        )}
-      </Link>
+      {/* Delta Compare removed from Stats card */}
 
       <button
         onClick={() => setIsStatisticsOpen(true)}

@@ -19,6 +19,7 @@ interface SpaceLayoutProps {
     children: ReactNode;
     header?: ReactNode;
     rightSidebarContent?: ReactNode;
+    topRightSidebarContent?: ReactNode;
     onCreateRationale?: () => void;
     isCreatingRationale?: boolean;
     topicFilters?: string[];
@@ -37,6 +38,7 @@ export function SpaceLayout({
     children,
     header,
     rightSidebarContent,
+    topRightSidebarContent,
     onCreateRationale,
     isCreatingRationale = false,
     topicFilters = [],
@@ -138,6 +140,8 @@ export function SpaceLayout({
                     <aside className="hidden xl:block w-80 flex-shrink-0">
                         <div className="fixed w-80 top-14 bottom-0 border-l bg-muted/10">
                             <div className="px-4 2xl:px-8 py-4 h-full flex flex-col overflow-hidden">
+                                {/* Top content (e.g., Delta widget) */}
+                                {topRightSidebarContent}
                                 {/* Full-width AI Assistant button for desktop */}
                                 <Suspense fallback={<div className="h-12 animate-pulse bg-muted/20 rounded-lg" />}>
                                     <FullWidthAiButton />

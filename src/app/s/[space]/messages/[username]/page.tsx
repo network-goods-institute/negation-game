@@ -5,28 +5,37 @@ import { Button } from "@/components/ui/button";
 import { LoaderCircleIcon, ArrowLeftIcon } from "lucide-react";
 
 interface SpaceConversationPageProps {
-  params: Promise<{ 
+  params: Promise<{
     space: string;
     username: string;
   }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export default async function SpaceConversationPage({ params }: SpaceConversationPageProps) {
+export default async function SpaceConversationPage({ params, searchParams }: SpaceConversationPageProps) {
   const { space, username: rawUsername } = await params;
+  const { from, ref } = await searchParams;
   const spaceId = decodeURIComponent(space);
   const username = decodeURIComponent(rawUsername);
 
+  const backHref = from === 'delta' && typeof ref === 'string' && ref
+    ? decodeURIComponent(ref as string)
+    : from === 'delta'
+      ? `/s/${space}`
+      : `/s/${space}/messages`;
+  const backText = from === 'delta' ? 'Back' : 'Back to Messages';
+
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
-      {/* Fixed Top Navigation Bar */}
-      <div className="flex-shrink-0 bg-card border-b border-border shadow-sm">
+    <div className="h-[calc(100vh-var(--header-height))] bg-background flex flex-col overflow-hidden">
+      {/* Sub-navigation bar positioned below main header (static) */}
+      <div className="bg-card border-b border-border shadow-sm">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
               <Button variant="ghost" size="sm" asChild>
-                <Link href={`/s/${space}/messages`} className="flex items-center space-x-2 text-muted-foreground hover:text-foreground">
+                <Link href={backHref} className="flex items-center space-x-2 text-muted-foreground hover:text-foreground">
                   <ArrowLeftIcon className="h-4 w-4" />
-                  <span>Back to Messages</span>
+                  <span>{backText}</span>
                 </Link>
               </Button>
             </div>
@@ -34,7 +43,15 @@ export default async function SpaceConversationPage({ params }: SpaceConversatio
               <h1 className="text-xl font-bold text-foreground">@{username}</h1>
               <p className="text-sm text-muted-foreground">{spaceId}</p>
             </div>
-            <div className="w-32"></div>
+            <div className="w-32 flex justify-end">
+              {from === 'delta' && (
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href={`/s/${space}/messages`} className="text-xs text-muted-foreground hover:text-foreground">
+                    All Messages
+                  </Link>
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>

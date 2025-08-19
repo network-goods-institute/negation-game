@@ -11,6 +11,7 @@ import { useUserTopicRationales } from "@/queries/topics/useUserTopicRationales"
 import { SpaceLayout } from "@/components/layouts/SpaceLayout";
 import { SpaceChildHeader } from "@/components/layouts/headers/SpaceChildHeader";
 import { TopicCardSkeleton } from "@/components/space/skeletons";
+import { Badge } from "@/components/ui/badge";
 
 interface Topic {
     id: number;
@@ -36,7 +37,7 @@ export default function TopicsPageClient({ space, topics }: TopicsPageClientProp
 
     const { user: privyUser } = usePrivy();
     const topicIds = useMemo(() => topics.map(topic => topic.id), [topics]);
-    const { data: userTopicRationales, isLoading: userRationalesLoading } = useUserTopicRationales(privyUser?.id, topicIds);
+    const { data: userTopicRationales, isLoading: userRationalesLoading } = useUserTopicRationales(privyUser?.id, topicIds, space);
 
     const filteredAndSortedTopics = useMemo(() => {
         let filtered = topics;
@@ -144,6 +145,32 @@ export default function TopicsPageClient({ space, topics }: TopicsPageClientProp
                     </div>
                 </div>
 
+                {/* Summary stats */}
+                <div className="py-3 flex flex-wrap items-center gap-2 text-xs">
+                    <Badge variant="outline">{topics.length} total</Badge>
+                    <Badge variant="outline">{hasAnyRationalesCount} with rationales</Badge>
+                    <Badge variant="outline">{missingAnyRationalesCount} without rationales</Badge>
+                    {privyUser && !userRationalesLoading && (
+                        <>
+                            <Badge variant="outline">{hasMyRationalesCount} have my rationale</Badge>
+                            <Badge variant="outline">{missingMyRationalesCount} need my rationale</Badge>
+                        </>
+                    )}
+                </div>
+
+                {/* Quick filters */}
+                <div className="py-3 border-b flex flex-wrap gap-2">
+                    <Button size="sm" variant={filterType === "all" ? "default" : "outline"} onClick={() => setFilterType("all")}>All</Button>
+                    {privyUser && !userRationalesLoading && (
+                        <>
+                            <Button size="sm" variant={filterType === "missing-my-rationales" ? "default" : "outline"} onClick={() => setFilterType("missing-my-rationales")}>Missing my rationales</Button>
+                            <Button size="sm" variant={filterType === "has-my-rationales" ? "default" : "outline"} onClick={() => setFilterType("has-my-rationales")}>Has my rationales</Button>
+                        </>
+                    )}
+                    <Button size="sm" variant={filterType === "missing-any-rationales" ? "default" : "outline"} onClick={() => setFilterType("missing-any-rationales")}>Missing any</Button>
+                    <Button size="sm" variant={filterType === "has-any-rationales" ? "default" : "outline"} onClick={() => setFilterType("has-any-rationales")}>Has any</Button>
+                </div>
+
                 {/* Filters panel */}
                 {filtersOpen && (
                     <div className="py-4">
@@ -237,7 +264,6 @@ export default function TopicsPageClient({ space, topics }: TopicsPageClientProp
                 ) : (
                     <div className="space-y-3">
                         {userRationalesLoading ? (
-                            // Show skeleton loaders while user rationales are loading
                             Array.from({ length: Math.min(6, topics.length) }).map((_, index) => (
                                 <TopicCardSkeleton key={index} />
                             ))

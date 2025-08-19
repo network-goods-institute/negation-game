@@ -56,6 +56,18 @@ export const TopicsSidebar = memo(({
         }
     }, [newTopicDialogOpen]);
 
+    useEffect(() => {
+        if (!topics || topics.length === 0) return;
+        try {
+            const toPrefetch = topics.slice(0, 100);
+            for (const t of toPrefetch) {
+                if (!t?.id) continue;
+                const href = `/s/${space}/topic/${encodeId(t.id)}`;
+                try { router.prefetch(href); } catch { }
+            }
+        } catch { }
+    }, [topics, router, space]);
+
     const handleDialogAddTopic = async () => {
         if (!newTopicName.trim()) return;
 
@@ -163,9 +175,9 @@ export const TopicsSidebar = memo(({
                                                             return;
                                                         }
                                                         if (isSelected) {
-                                                            onTopicFiltersChange(topicFilters.filter(t => t !== topicName));
+                                                            onTopicFiltersChange([]);
                                                         } else {
-                                                            onTopicFiltersChange([...topicFilters, topicName]);
+                                                            onTopicFiltersChange([topicName]);
                                                         }
                                                     }}
                                                 >
@@ -182,23 +194,18 @@ export const TopicsSidebar = memo(({
                                         </Tooltip>
 
                                         {topic && (
-                                            <Link href={`/s/${space}/topic/${encodeId(topic.id)}`}>
+                                            <Link href={`/s/${space}/topic/${encodeId(topic.id)}`} prefetch>
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
                                                     className="h-9 w-9 p-0 opacity-50 hover:opacity-100"
                                                     title={`View ${topicName} topic page`}
                                                     onClick={(e) => {
-                                                        // show a quick inline loading indicator
-                                                        const el = (e.currentTarget as HTMLButtonElement);
-                                                        el.disabled = true;
-                                                        el.classList.add('opacity-70');
-                                                        const icon = el.querySelector('svg');
-                                                        if (icon) icon.classList.add('hidden');
-                                                        // inject spinner
-                                                        const spinner = document.createElement('span');
-                                                        spinner.className = 'inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin';
-                                                        el.appendChild(spinner);
+                                                        const href = `/s/${space}/topic/${encodeId(topic.id)}`;
+                                                        if (pathname === href) {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                        }
                                                     }}
                                                 >
                                                     <ChevronRight className="h-3 w-3" />

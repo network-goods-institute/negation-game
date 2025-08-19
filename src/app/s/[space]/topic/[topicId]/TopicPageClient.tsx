@@ -96,7 +96,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
         });
     }, [spaceUsers, viewpoints]);
 
-    const hasCurrentUserRationale = viewpoints.some(vp => vp.authorId === privyUser?.id);
+    const hasCurrentUserRationale = !!(privyUser && viewpoints.some(vp => vp.authorId === privyUser.id));
 
     const canGenerateJointProposal = viewpoints.length >= 1 && privyUser;
 
@@ -156,66 +156,63 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                         </div>
                     ) : sortedDelegates.map((user) => (
                         <div key={user.id} className="flex items-center justify-between p-3 bg-background border rounded-lg hover:bg-accent/50 transition-colors">
-                            <div className="flex flex-col">
-                                <div className="flex items-center gap-1">
-                                    <UsernameDisplay
-                                        username={user.username}
-                                        userId={user.id}
-                                        className="text-sm font-medium"
-                                    />
-                                    {user.isDelegate && (
-                                        <Crown className="h-3 w-3 text-amber-500" />
-                                    )}
+                            <div className="flex items-center gap-3">
+                                <div className={user.hasPublished ? "flex items-center justify-center w-6 h-6 bg-green-100 dark:bg-green-900/30 border-2 border-green-500 rounded-full" : "w-6 h-6 border-2 border-muted-foreground/30 rounded-full"} title={user.hasPublished ? "This delegate published a rationale for this topic" : "This delegate has not published a rationale for this topic yet"}>
+                                    {user.hasPublished && <Check className="w-3 h-3 text-green-600 dark:text-green-400" />}
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xs text-muted-foreground">{Math.round(user.reputation)} cred</span>
-                                    {user.scrollDelegateLink && (
-                                        <a
-                                            href={user.scrollDelegateLink}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-primary text-xs hover:underline"
-                                            title="Scroll Delegate"
-                                        >
-                                            Scroll
-                                        </a>
-                                    )}
-                                    {user.agoraLink && (
-                                        <a
-                                            href={user.agoraLink}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-primary text-xs hover:underline"
-                                            title="Agora Profile"
-                                        >
-                                            Agora
-                                        </a>
-                                    )}
-                                    {user.delegationUrl && !user.scrollDelegateLink && !user.agoraLink && (
-                                        <a
-                                            href={user.delegationUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-primary text-xs hover:underline"
-                                            title="Delegate"
-                                        >
-                                            Delegate
-                                        </a>
-                                    )}
+                                <div className="flex flex-col">
+                                    <div className="flex items-center gap-1">
+                                        <UsernameDisplay
+                                            username={user.username}
+                                            userId={user.id}
+                                            className="text-sm font-medium"
+                                        />
+                                        {user.isDelegate && (
+                                            <Crown className="h-3 w-3 text-amber-500" />
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-muted-foreground">{Math.round(user.reputation)} cred</span>
+                                        {user.scrollDelegateLink && (
+                                            <a
+                                                href={user.scrollDelegateLink}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-primary text-xs hover:underline"
+                                                title="Scroll Delegate"
+                                            >
+                                                Scroll
+                                            </a>
+                                        )}
+                                        {user.agoraLink && (
+                                            <a
+                                                href={user.agoraLink}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-primary text-xs hover:underline"
+                                                title="Agora Profile"
+                                            >
+                                                Agora
+                                            </a>
+                                        )}
+                                        {user.delegationUrl && !user.scrollDelegateLink && !user.agoraLink && (
+                                            <a
+                                                href={user.delegationUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-primary text-xs hover:underline"
+                                                title="Delegate"
+                                            >
+                                                Delegate
+                                            </a>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                {user.hasPublished ? (
-                                    <div className="flex items-center gap-1" title="This delegate already published a rationale for this topic">
-                                        <Check className="w-4 h-4 text-green-600" />
-                                        <span className="text-xs text-green-600">Published</span>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center gap-1" title="This delegate has not published a rationale for this topic yet">
-                                        <div className="w-4 h-4 border-2 border-muted-foreground/30 rounded-full" />
-                                        <span className="text-xs text-muted-foreground">Pending</span>
-                                    </div>
-                                )}
+                            <div className="flex items-center gap-1">
+                                <span className={`text-xs font-medium ${user.hasPublished ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
+                                    {user.hasPublished ? 'Published' : 'Pending'}
+                                </span>
                             </div>
                         </div>
                     ))}

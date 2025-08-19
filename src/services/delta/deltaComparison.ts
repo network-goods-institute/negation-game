@@ -12,6 +12,7 @@ import {
 } from "@/db/schema";
 import { eq, and, sql, inArray, ne } from "drizzle-orm";
 import { computeDelta } from "@/actions/analytics/computeDelta";
+import { computeDeltaBatch } from "@/actions/analytics/computeDeltaBatch";
 import { computeRationaleDelta } from "@/actions/analytics/deltaAggregation";
 
 export interface DeltaComparisonResult {
@@ -912,21 +913,16 @@ export async function handleSpaceComparison({
   const deltaResults = await Promise.all(
     usersWithEngagement.map(async (user) => {
       try {
-        const clusterDeltas = await Promise.all(
-          uniqueRootIds.map(async (rootId) => {
-            const result = await computeDelta({
-              userAId: referenceUserId,
-              userBId: user.userId,
-              rootPointId: rootId,
-              snapDay: snapDay,
-            });
-            return result.delta;
-          })
-        );
+        const batch = await computeDeltaBatch({
+          userAId: referenceUserId,
+          userBId: user.userId,
+          rootPointIds: uniqueRootIds,
+          snapDay,
+        });
 
-        const validDeltas = clusterDeltas.filter(
-          (d): d is number => d !== null
-        );
+        const validDeltas = batch
+          .map((b) => b.delta)
+          .filter((d): d is number => d !== null);
         const avgDelta =
           validDeltas.length > 0
             ? validDeltas.reduce((sum, d) => sum + d, 0) / validDeltas.length

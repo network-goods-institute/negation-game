@@ -364,8 +364,8 @@ export function DeltaComparisonWidget({
                                                                         asChild
                                                                         className="h-6 w-6 p-0"
                                                                     >
-                                                                        {/* Space-aware message routing */}
-                                                                        <Link href={`/s/${encodeURIComponent(spaceId || 'global')}/messages/${encodeURIComponent(user.username)}`}>
+                                                                        {/* Space-aware message routing with referrer */}
+                                                                        <Link href={`/s/${encodeURIComponent(spaceId || 'global')}/messages/${encodeURIComponent(user.username)}?from=delta${typeof window !== 'undefined' && window.location ? `&ref=${encodeURIComponent(window.location.pathname + window.location.search)}` : ''}`}>
                                                                             <MessageCircleIcon className="h-3 w-3" />
                                                                             <span className="sr-only">Message {user.username}</span>
                                                                         </Link>
@@ -403,8 +403,8 @@ export function DeltaComparisonWidget({
                                                                         asChild
                                                                         className="h-6 w-6 p-0"
                                                                     >
-                                                                        {/* Space-aware message routing */}
-                                                                        <Link href={`/s/${encodeURIComponent(spaceId || 'global')}/messages/${encodeURIComponent(user.username)}`}>
+                                                                        {/* Space-aware message routing with referrer */}
+                                                                        <Link href={`/s/${encodeURIComponent(spaceId || 'global')}/messages/${encodeURIComponent(user.username)}?from=delta${typeof window !== 'undefined' && window.location ? `&ref=${encodeURIComponent(window.location.pathname + window.location.search)}` : ''}`}>
                                                                             <MessageCircleIcon className="h-3 w-3" />
                                                                             <span className="sr-only">Message {user.username}</span>
                                                                         </Link>
