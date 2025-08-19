@@ -3,11 +3,11 @@
 import { DaoStatsPanel } from "@/components/statistics/DaoStatsPanel";
 import { Button } from "@/components/ui/button";
 import { ArrowLeftIcon } from "lucide-react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 export default function SpaceStatisticsPage() {
   const params = useParams();
+  const router = useRouter();
   const space = params.space as string;
 
   return (
@@ -21,11 +21,14 @@ export default function SpaceStatisticsPage() {
         <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
           <div className="px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center gap-4">
-              <Link href={`/s/${space}`}>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <ArrowLeftIcon className="size-4" />
-                </Button>
-              </Link>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8" 
+                onClick={() => router.push(`/s/${space}`)}
+              >
+                <ArrowLeftIcon className="size-4" />
+              </Button>
               <div>
                 <h1 className="text-2xl font-bold tracking-tight">Statistics</h1>
                 <p className="text-sm text-muted-foreground">

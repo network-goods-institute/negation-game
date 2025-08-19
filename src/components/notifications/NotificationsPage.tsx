@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNotifications } from "@/queries/notifications/useNotifications";
 import { useMarkAllNotificationsRead, useMarkNotificationRead } from "@/mutations/notifications/useMarkNotificationsRead";
 import { Button } from "@/components/ui/button";
@@ -22,13 +22,15 @@ import Link from "next/link";
 import { useSetAtom } from "jotai";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 import { handleBackNavigation } from "@/lib/negation-game/backButtonUtils";
+import { useUser } from "@/queries/users/useUser";
 
 export const NotificationsPage = () => {
-    const { data: notifications = [], isLoading, error } = useNotifications();
+    const { ready, authenticated } = usePrivy();
+    const { data: user, isLoading: userLoading } = useUser();
+    const { data: notifications = [], isLoading: notificationsLoading, error } = useNotifications();
     const markAllMutation = useMarkAllNotificationsRead();
     const markReadMutation = useMarkNotificationRead();
     const router = useRouter();
-    const { ready, authenticated } = usePrivy();
     const setInitialTab = useSetAtom(initialSpaceTabAtom);
     const [fallbackHref, setFallbackHref] = useState<string>("/s/global");
 
@@ -58,45 +60,51 @@ export const NotificationsPage = () => {
     const [groupingMode, setGroupingMode] = useState<'type' | 'time' | 'space' | 'readStatus'>('type');
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
-    const unreadNotifications = notifications.filter(n => !n.readAt);
-    const readNotifications = notifications.filter(n => n.readAt);
+    const { unreadNotifications, readNotifications, notificationGroups } = useMemo(() => {
+        const unread = notifications.filter(n => !n.readAt);
+        const read = notifications.filter(n => n.readAt);
 
-    const getNotificationGroups = () => {
-        switch (groupingMode) {
-            case 'type':
-                return groupNotificationsByType(notifications);
-            case 'time':
-                return groupNotificationsByTime(notifications);
-            case 'space':
-                return groupNotificationsBySpace(notifications);
-            case 'readStatus':
-            default:
-                return [
-                    ...(unreadNotifications.length > 0 ? [{
-                        id: 'unread',
-                        title: 'Unread',
-                        description: 'Notifications you haven\'t read yet',
-                        count: unreadNotifications.length,
-                        unreadCount: unreadNotifications.length,
-                        icon: '🔴',
-                        items: unreadNotifications,
-                        priority: 1,
-                    }] : []),
-                    ...(readNotifications.length > 0 ? [{
-                        id: 'read',
-                        title: 'Read',
-                        description: 'Notifications you\'ve already read',
-                        count: readNotifications.length,
-                        unreadCount: 0,
-                        icon: '✅',
-                        items: readNotifications,
-                        priority: 2,
-                    }] : []),
-                ];
-        }
-    };
+        const getGroups = () => {
+            switch (groupingMode) {
+                case 'type':
+                    return groupNotificationsByType(notifications);
+                case 'time':
+                    return groupNotificationsByTime(notifications);
+                case 'space':
+                    return groupNotificationsBySpace(notifications);
+                case 'readStatus':
+                default:
+                    return [
+                        ...(unread.length > 0 ? [{
+                            id: 'unread',
+                            title: 'Unread',
+                            description: 'Notifications you haven\'t read yet',
+                            count: unread.length,
+                            unreadCount: unread.length,
+                            icon: '🔴',
+                            items: unread,
+                            priority: 1,
+                        }] : []),
+                        ...(read.length > 0 ? [{
+                            id: 'read',
+                            title: 'Read',
+                            description: 'Notifications you\'ve already read',
+                            count: read.length,
+                            unreadCount: 0,
+                            icon: '✅',
+                            items: read,
+                            priority: 2,
+                        }] : []),
+                    ];
+            }
+        };
 
-    const notificationGroups = getNotificationGroups();
+        return {
+            unreadNotifications: unread,
+            readNotifications: read,
+            notificationGroups: getGroups()
+        };
+    }, [notifications, groupingMode]);
 
     const handleExpandAll = () => {
         setExpandedGroups(new Set(notificationGroups.map(g => g.id)));
@@ -126,8 +134,8 @@ export const NotificationsPage = () => {
         markReadMutation.mutate(notificationId);
     };
 
-    // Show loading while checking authentication or loading notifications
-    if (!ready || isLoading) {
+    // Show loading while Privy initializes OR user is loading OR (user exists but notifications still loading)
+    if (!ready || userLoading || (!user && ready) || (user && notificationsLoading)) {
         return (
             <div className="container max-w-4xl mx-auto p-6">
                 <div className="flex items-center gap-3 mb-6">
@@ -212,7 +220,7 @@ export const NotificationsPage = () => {
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => router.back()}
+                        onClick={onBackClick}
                         className="mr-2"
                     >
                         <ArrowLeftIcon className="w-4 h-4" />
