@@ -231,10 +231,7 @@ export default function PointPageClient({ params, searchParams }: PointPageClien
 
     // Data fetching
     const { data: negations, isLoading: isNegationsLoading, refetch: refetchNegations } = usePointNegations(point?.pointId);
-    const negationSkeletonCount = useMemo(() => {
-        if (!point) return 0;
-        return Math.max(point.amountNegations || 0, 0);
-    }, [point?.pointId, point?.amountNegations]);
+    const negationSkeletonCount = point ? Math.max(point.amountNegations || 0, 0) : 0;
 
     // Query favor history for timeline chart
     const { data: favorHistory, isFetching: isFetchingFavorHistory } = useFavorHistory({
