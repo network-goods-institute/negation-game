@@ -298,11 +298,11 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                             className="text-yellow-600 dark:text-yellow-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded font-medium"
                                         />
                                         {topic && topicId && (
-                                            <a
-                                                href={`/s/${space}/topic/${encodeId(topicId)}`}
+                                            <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     setIsViewTopicClicked(true);
+                                                    router.push(`/s/${space}/topic/${encodeId(topicId)}`);
                                                 }}
                                                 className="ml-2 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline font-medium inline-flex items-center"
                                                 title="View topic and proposal generation features"
@@ -313,7 +313,7 @@ export const ViewpointCard: React.FC<ViewpointCardProps> = ({
                                                     )}
                                                 </span>
                                                 <span>View Topic</span>
-                                            </a>
+                                            </button>
                                         )}
                                     </>
                                 </h3>

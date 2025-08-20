@@ -2,8 +2,8 @@
 
 import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftIcon, LayoutGrid, List, X } from "lucide-react";
-import Link from "next/link";
+import { ArrowLeftIcon, LayoutGrid, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import GlobalTopicGraph from "@/components/topic/GlobalTopicGraph";
 import { Dynamic } from "@/components/utils/Dynamic";
@@ -28,6 +28,7 @@ interface TopicGraphPageClientProps {
 }
 
 function TopicGraphPageClientContent({ topic, space }: TopicGraphPageClientProps) {
+    const router = useRouter();
     const { data: topicPoints, isLoading: pointsLoading } = useTopicPoints(topic.id);
     const [hoveredPointId] = useAtom(hoveredPointIdAtom);
     const points = useMemo(() => {
@@ -54,12 +55,17 @@ function TopicGraphPageClientContent({ topic, space }: TopicGraphPageClientProps
                 {/* Header */}
                 <div className="sticky top-0 z-20 w-full flex items-center justify-between px-4 py-3 bg-background border-b">
                     <div className="flex items-center gap-4">
-                        <Link href={`/s/${space}/topic/${encodeId(topic.id)}`}>
-                            <Button variant="outline" size="sm" className="flex items-center gap-2">
-                                <ArrowLeftIcon className="h-4 w-4" />
-                                Back
-                            </Button>
-                        </Link>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-2"
+                            onClick={() => {
+                                router.push(`/s/${space}/topic/${encodeId(topic.id)}`);
+                            }}
+                        >
+                            <ArrowLeftIcon className="h-4 w-4" />
+                            Back
+                        </Button>
                         <div>
                             <h1 className="text-sm font-semibold">Global Graph: {topic.name}</h1>
                             {topic.discourseUrl && (

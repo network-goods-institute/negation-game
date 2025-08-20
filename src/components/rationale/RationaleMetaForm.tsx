@@ -172,21 +172,18 @@ export default function RationaleMetaForm({
                             <Button
                                 variant="outline"
                                 size="sm"
-                                asChild
                                 className="mt-2 w-fit text-sm"
+                                onClick={() => {
+                                    setIsViewTopicClicked(true);
+                                    router.push(`/s/${spaceSlug}/topic/${encodeId(topicId!)}`);
+                                }}
                             >
-                                <Link
-                                    href={`/s/${spaceSlug}/topic/${encodeId(topicId!)}`}
-                                    onClick={() => setIsViewTopicClicked(true)}
-                                    className="inline-flex items-center justify-center"
-                                >
-                                    {isViewTopicClicked && (
-                                        <span className="w-4 h-4 mr-2 flex items-center justify-center flex-shrink-0">
-                                            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                                        </span>
-                                    )}
-                                    <span>View Topic</span>
-                                </Link>
+                                {isViewTopicClicked && (
+                                    <span className="w-4 h-4 mr-2 flex items-center justify-center flex-shrink-0">
+                                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                    </span>
+                                )}
+                                <span>View Topic</span>
                             </Button>
                         </div>
                     ) : (
@@ -203,21 +200,18 @@ export default function RationaleMetaForm({
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    asChild
                                     className="mt-2 w-fit text-sm"
+                                    onClick={() => {
+                                        setIsViewTopicClicked(true);
+                                        router.push(`/s/${spaceSlug}/topic/${encodeId(topicId)}`);
+                                    }}
                                 >
-                                    <Link
-                                        href={`/s/${spaceSlug}/topic/${encodeId(topicId)}`}
-                                        onClick={() => setIsViewTopicClicked(true)}
-                                        className="inline-flex items-center justify-center"
-                                    >
-                                        {isViewTopicClicked && (
-                                            <span className="w-4 h-4 mr-2 flex items-center justify-center flex-shrink-0">
-                                                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                                            </span>
-                                        )}
-                                        <span>View Topic</span>
-                                    </Link>
+                                    {isViewTopicClicked && (
+                                        <span className="w-4 h-4 mr-2 flex items-center justify-center flex-shrink-0">
+                                            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                        </span>
+                                    )}
+                                    <span>View Topic</span>
                                 </Button>
                             )}
                         </div>
