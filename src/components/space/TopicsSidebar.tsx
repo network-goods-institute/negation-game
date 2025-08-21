@@ -65,6 +65,7 @@ export const TopicsSidebar = memo(({
                 const href = `/s/${space}/topic/${encodeId(t.id)}`;
                 try { router.prefetch(href); } catch { }
             }
+            try { router.prefetch(`/s/${space}/topics`); } catch { }
         } catch { }
     }, [topics, router, space]);
 
@@ -198,23 +199,23 @@ export const TopicsSidebar = memo(({
                                         </Tooltip>
 
                                         {topic && (
-                                            <Link href={`/s/${space}/topic/${encodeId(topic.id)}`} prefetch>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-9 w-9 p-0 opacity-50 hover:opacity-100"
-                                                    title={`View ${topicName} topic page`}
-                                                    onClick={(e) => {
-                                                        const href = `/s/${space}/topic/${encodeId(topic.id)}`;
-                                                        if (pathname === href) {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                        }
-                                                    }}
-                                                >
-                                                    <ChevronRight className="h-3 w-3" />
-                                                </Button>
-                                            </Link>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-9 w-9 p-0 opacity-50 hover:opacity-100"
+                                                title={`View ${topicName} topic page`}
+                                                onClick={(e) => {
+                                                    const href = `/s/${space}/topic/${encodeId(topic.id)}`;
+                                                    if (pathname === href) {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        return;
+                                                    }
+                                                    router.push(href);
+                                                }}
+                                            >
+                                                <ChevronRight className="h-3 w-3" />
+                                            </Button>
                                         )}
                                     </div>
                                 );
