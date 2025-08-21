@@ -16,7 +16,6 @@ export interface PriorityPointItemProps {
     user: any;
     loadingCardId: string | null;
     handleCardClick: (id: string) => void;
-    onPrefetchPoint: (id: number) => void;
 }
 
 const MemoizedPointCard = memo(PointCard);
@@ -29,10 +28,9 @@ export const PriorityPointItem = memo(({
     login,
     user,
     loadingCardId,
-    handleCardClick,
-    onPrefetchPoint
+    handleCardClick
 }: PriorityPointItemProps) => {
-    const handlePrefetch = usePrefetchFavorHistory(point.pointId, onPrefetchPoint);
+    const handlePrefetch = usePrefetchFavorHistory(point.pointId, () => { });
 
     let pinStatus: string | undefined;
     if (point.pinCommands?.length > 1) {
@@ -58,6 +56,7 @@ export const PriorityPointItem = memo(({
                 href={`${basePath}/${encodeId(point.pointId)}`}
                 className="flex border-b cursor-pointer hover:bg-accent transition-colors duration-150"
                 onMouseEnter={handlePrefetch}
+                prefetch={false as any}
             >
                 <MemoizedPointCard
                     className="flex-grow p-6"

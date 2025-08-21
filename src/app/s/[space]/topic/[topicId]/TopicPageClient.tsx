@@ -276,43 +276,43 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                     {viewpoints.length} rationales connected
                                 </p>
                             </div>
-                            <Link href={`/s/${space}/topic/${encodeId(topic.id)}/graph`}>
-                                <Button
-                                    variant="default"
-                                    size="sm"
-                                    disabled={isGlobalGraphLoading}
-                                    onClick={() => setIsGlobalGraphLoading(true)}
-                                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
-                                >
-                                    {isGlobalGraphLoading ? (
-                                        <>
-                                            Opening...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <ExternalLink className="size-4" />
-                                            Open Graph
-                                        </>
-                                    )}
-                                </Button>
-                            </Link>
-                        </div>
-                        <Link href={`/s/${space}/topic/${encodeId(topic.id)}/graph`}>
-                            <div
-                                className="relative h-32 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-950/50 dark:to-indigo-950/50 cursor-pointer hover:from-blue-100 hover:to-indigo-200 dark:hover:from-blue-900/50 dark:hover:to-indigo-900/50 transition-colors flex items-center justify-center overflow-hidden"
-                                onClick={() => setIsGlobalGraphLoading(true)}
+                            <Button
+                                variant="default"
+                                size="sm"
+                                disabled={isGlobalGraphLoading}
+                                onClick={() => {
+                                    setIsGlobalGraphLoading(true);
+                                    router.push(`/s/${space}/topic/${encodeId(topic.id)}/graph`);
+                                }}
+                                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
                             >
-                                {isGlobalGraphLoading && (
-                                    <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
-                                        <Loader className="w-8 h-8 text-primary" />
-                                    </div>
+                                {isGlobalGraphLoading ? (
+                                    <>Opening...</>
+                                ) : (
+                                    <>
+                                        <ExternalLink className="size-4" />
+                                        Open Graph
+                                    </>
                                 )}
-                                <div className="text-center text-muted-foreground">
-                                    <LayoutGrid className="size-8 mx-auto mb-2" />
-                                    <p className="text-sm">See how rationales in {topic.name} interact with each other</p>
+                            </Button>
+                        </div>
+                        <div
+                            className="relative h-32 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-950/50 dark:to-indigo-950/50 cursor-pointer hover:from-blue-100 hover:to-indigo-200 dark:hover:from-blue-900/50 dark:hover:to-indigo-900/50 transition-colors flex items-center justify-center overflow-hidden"
+                            onClick={() => {
+                                setIsGlobalGraphLoading(true);
+                                router.push(`/s/${space}/topic/${encodeId(topic.id)}/graph`);
+                            }}
+                        >
+                            {isGlobalGraphLoading && (
+                                <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
+                                    <Loader className="w-8 h-8 text-primary" />
                                 </div>
+                            )}
+                            <div className="text-center text-muted-foreground">
+                                <LayoutGrid className="size-8 mx-auto mb-2" />
+                                <p className="text-sm">See how rationales in {topic.name} interact with each other</p>
                             </div>
-                        </Link>
+                        </div>
                     </div>
                 </div>
 

@@ -65,6 +65,7 @@ export const TopicsSidebar = memo(({
                 const href = `/s/${space}/topic/${encodeId(t.id)}`;
                 try { router.prefetch(href); } catch { }
             }
+            try { router.prefetch(`/s/${space}/topics`); } catch { }
         } catch { }
     }, [topics, router, space]);
 
@@ -139,11 +140,15 @@ export const TopicsSidebar = memo(({
                 <div className="sticky top-0 z-10 backdrop-blur border-b border-border/50 p-3">
                     <div className="flex items-center justify-between">
                         <h2 className="text-sm font-semibold text-muted-foreground">Topics</h2>
-                        <Link href={`/s/${space}/topics`}>
-                            <button className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
-                                View All
-                            </button>
-                        </Link>
+                        <button
+                            className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                router.push(`/s/${space}/topics`);
+                            }}
+                        >
+                            View All
+                        </button>
                     </div>
                 </div>
 
@@ -194,23 +199,23 @@ export const TopicsSidebar = memo(({
                                         </Tooltip>
 
                                         {topic && (
-                                            <Link href={`/s/${space}/topic/${encodeId(topic.id)}`} prefetch>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-9 w-9 p-0 opacity-50 hover:opacity-100"
-                                                    title={`View ${topicName} topic page`}
-                                                    onClick={(e) => {
-                                                        const href = `/s/${space}/topic/${encodeId(topic.id)}`;
-                                                        if (pathname === href) {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                        }
-                                                    }}
-                                                >
-                                                    <ChevronRight className="h-3 w-3" />
-                                                </Button>
-                                            </Link>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-9 w-9 p-0 opacity-50 hover:opacity-100"
+                                                title={`View ${topicName} topic page`}
+                                                onClick={(e) => {
+                                                    const href = `/s/${space}/topic/${encodeId(topic.id)}`;
+                                                    if (pathname === href) {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        return;
+                                                    }
+                                                    router.push(href);
+                                                }}
+                                            >
+                                                <ChevronRight className="h-3 w-3" />
+                                            </Button>
                                         )}
                                     </div>
                                 );

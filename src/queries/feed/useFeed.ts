@@ -133,8 +133,8 @@ export const useFeed = (options: { enabled?: boolean } = {}) => {
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30000),
     enabled: ready && enabled,
     refetchOnWindowFocus: false,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
     networkMode: "offlineFirst",
     refetchInterval: 120_000,
   });

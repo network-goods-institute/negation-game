@@ -13,7 +13,8 @@ export const useNotifications = (options: UseNotificationsOptions = {}) => {
   const { data: user } = useUser();
   const isVisible = useAppVisibility();
 
-  const stableOptions = useMemo(() => options, [JSON.stringify(options)]);
+  // options is a simple object; rely on caller to pass stable references or memoize shallowly
+  const stableOptions = options;
 
   return useAuthenticatedQuery({
     queryKey: ["notifications", user?.id, stableOptions],

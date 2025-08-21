@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useTopicSuggestions } from "@/queries/topics/useTopicSuggestions";
 import { useUserTopicRationales } from "@/queries/topics/useUserTopicRationales";
 import { usePrivy } from "@privy-io/react-auth";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronDownIcon, ChevronUpIcon, ArrowRightIcon, Circle, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { encodeId } from "@/lib/negation-game/encodeId";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface RationalesConcernsSectionProps {
   spaceId: string;
@@ -18,6 +18,14 @@ const RationalesConcernsSection = React.memo(function RationalesConcernsSection(
   const { user: privyUser } = usePrivy();
   const { data: topics, isLoading: topicsLoading } = useTopicSuggestions(spaceId);
   const [isExpanded, setIsExpanded] = useState(true);
+  const router = useRouter();
+
+  // Prefetch the topics page for faster navigation
+  useEffect(() => {
+    try {
+      router.prefetch(`/s/${spaceId}/topics`);
+    } catch { }
+  }, [router, spaceId]);
 
   const { data: userTopicRationales, isLoading: userRationalesLoading } = useUserTopicRationales(
     privyUser?.id,
@@ -127,32 +135,32 @@ const RationalesConcernsSection = React.memo(function RationalesConcernsSection(
               <div className="grid gap-2 mb-3">
                 {displayTopics.map((topic) => (
                   <div key={topic.id}>
-                    <Link href={`/s/${spaceId}/topic/${encodeId(topic.id)}`}>
-                      <div
-                        className={cn(
-                          "h-auto p-3 bg-white dark:bg-gray-900/50 border border-amber-200 dark:border-amber-700/50",
-                          "hover:border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/10",
-                          "transition-all duration-200 rounded-md cursor-pointer"
-                        )}
-                      >
-                        <div className="flex items-center gap-2 w-full">
-                          {/* Status indicator */}
-                          <div className="flex-shrink-0">
-                            <div className="w-4 h-4 border border-amber-400 rounded-full flex items-center justify-center">
-                              <Circle className="w-1.5 h-1.5 text-amber-400" fill="currentColor" />
-                            </div>
-                          </div>
-                          <div className="flex-1 text-left">
-                            <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-slate-600 dark:hover:text-slate-200">
-                              {topic.name}
-                            </h3>
-                            <p className="text-xs text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200">
-                              Create rationale →
-                            </p>
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/s/${spaceId}/topic/${encodeId(topic.id)}`)}
+                      className={cn(
+                        "w-full text-left h-auto p-3 bg-white dark:bg-gray-900/50 border border-amber-200 dark:border-amber-700/50",
+                        "hover:border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/10",
+                        "transition-all duration-200 rounded-md cursor-pointer"
+                      )}
+                    >
+                      <div className="flex items-center gap-2 w-full">
+                        {/* Status indicator */}
+                        <div className="flex-shrink-0">
+                          <div className="w-4 h-4 border border-amber-400 rounded-full flex items-center justify-center">
+                            <Circle className="w-1.5 h-1.5 text-amber-400" fill="currentColor" />
                           </div>
                         </div>
+                        <div className="flex-1 text-left">
+                          <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-slate-600 dark:hover:text-slate-200">
+                            {topic.name}
+                          </h3>
+                          <p className="text-xs text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200">
+                            Create rationale →
+                          </p>
+                        </div>
                       </div>
-                    </Link>
+                    </button>
                   </div>
                 ))}
               </div>
@@ -163,12 +171,12 @@ const RationalesConcernsSection = React.memo(function RationalesConcernsSection(
                   variant="link"
                   size="sm"
                   className="text-amber-600 hover:text-amber-800 dark:text-amber-300 dark:hover:text-amber-200 text-xs h-auto p-1"
-                  asChild
+                  onClick={() => router.push(`/s/${spaceId}/topics`)}
                 >
-                  <Link href={`/s/${spaceId}/topics`} className="flex items-center gap-1">
+                  <span className="flex items-center gap-1">
                     View all topics
                     <ArrowRightIcon className="h-3 w-3" />
-                  </Link>
+                  </span>
                 </Button>
               </div>
             </div>

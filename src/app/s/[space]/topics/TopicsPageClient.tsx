@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePrivy } from "@privy-io/react-auth";
 import { useUserTopicRationales } from "@/queries/topics/useUserTopicRationales";
+import { useTopics } from "@/queries/topics/useTopics";
 import { SpaceLayout } from "@/components/layouts/SpaceLayout";
 import { SpaceChildHeader } from "@/components/layouts/headers/SpaceChildHeader";
 import { TopicCardSkeleton } from "@/components/space/skeletons";
@@ -26,10 +27,10 @@ interface Topic {
 
 interface TopicsPageClientProps {
     space: string;
-    topics: Topic[];
 }
 
-export default function TopicsPageClient({ space, topics }: TopicsPageClientProps) {
+export default function TopicsPageClient({ space }: TopicsPageClientProps) {
+    const { data: topics = [], isLoading: topicsLoading } = useTopics(space);
     const [searchQuery, setSearchQuery] = useState("");
     const [filterType, setFilterType] = useState<"all" | "missing-my-rationales" | "has-my-rationales" | "missing-any-rationales" | "has-any-rationales">("all");
     const [sortBy, setSortBy] = useState<"name" | "rationales" | "points" | "recent">("name");
@@ -223,7 +224,11 @@ export default function TopicsPageClient({ space, topics }: TopicsPageClientProp
             showUserProfilePreview={true}
         >
             <div className="max-w-2xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
-                {filteredAndSortedTopics.length === 0 ? (
+                {topicsLoading ? (
+                    Array.from({ length: 6 }).map((_, index) => (
+                        <TopicCardSkeleton key={index} />
+                    ))
+                ) : filteredAndSortedTopics.length === 0 ? (
                     <div className="text-center py-12">
                         {searchQuery.trim() || filterType !== "all" ? (
                             <>

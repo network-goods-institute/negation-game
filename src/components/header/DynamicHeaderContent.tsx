@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { fetchSpace } from '@/actions/spaces/fetchSpace';
@@ -9,6 +9,7 @@ import { Loader } from '@/components/ui/loader';
 
 export function DynamicHeaderContent() {
     const pathname = usePathname();
+    const router = useRouter();
     const isSpacePage = pathname.startsWith('/s/');
     const [isNavigating, setIsNavigating] = useState(false);
     let spaceId: string | null = null;
@@ -59,13 +60,16 @@ export function DynamicHeaderContent() {
             e.preventDefault();
             return;
         }
+        e.preventDefault();
         setIsNavigating(true);
+        router.push(targetPath);
     };
 
     return (
         <>
             {isSpacePage && spaceId ? (
                 <Link
+                    prefetch={false}
                     href={`/s/${spaceId}`}
                     className="flex items-center min-w-0 max-w-full"
                     onClick={(e) => handleClick(e, `/s/${spaceId}`)}
@@ -88,6 +92,7 @@ export function DynamicHeaderContent() {
                 </Link>
             ) : (
                 <Link
+                    prefetch={false}
                     href="/"
                     className="text-[11px] md:text-base font-bold whitespace-nowrap"
                     onClick={(e) => handleClick(e, "/")}

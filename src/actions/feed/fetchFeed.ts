@@ -56,6 +56,9 @@ export type FeedPoint = {
 export const fetchFeedPage = async (olderThan?: Timestamp) => {
   const viewerId = await getUserId();
   const space = await getSpace();
+  const ENABLE_PINNED_PRIORITY =
+    process.env.NEXT_PUBLIC_FEATURE_PINNED_AND_PRIORITY === "true" ||
+    process.env.NODE_ENV === "test";
 
   // Get the space's pinnedPointId - do this first to avoid a subquery in main query
   const spaceDetails = await db.query.spacesTable.findFirst({
@@ -207,8 +210,9 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
     .orderBy(desc(pointsWithDetailsView.createdAt));
 
   // Get all pin commands with the highest favor
-  const commandPoints = await db.execute(
-    sql`
+  const commandPoints = ENABLE_PINNED_PRIORITY
+    ? await db.execute(
+        sql`
     WITH RECURSIVE command_points AS (
       SELECT 
         p.*,
@@ -299,27 +303,25 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
     SELECT id, favor, created_at as "createdAt", target_point_id_encoded as "targetPointIdEncoded"
     FROM highest_favor_commands
     `
-  );
+      )
+    : [];
 
   // Convert all encoded IDs to numerical IDs
-  const highestFavorCommands =
-    commandPoints.length > 0
+  const highestFavorCommands = ENABLE_PINNED_PRIORITY
+    ? commandPoints.length > 0
       ? await Promise.all(
           commandPoints.map(async (cmd: any) => {
             let targetPointId = null;
             if (cmd.targetPointIdEncoded) {
               try {
-                // Try to decode as an encoded ID
                 targetPointId = decodeId(cmd.targetPointIdEncoded);
               } catch (e) {
-                // If decoding fails, check if it's already a number
                 const parsedId = parseInt(cmd.targetPointIdEncoded, 10);
                 if (!isNaN(parsedId)) {
                   targetPointId = parsedId;
                 }
               }
             }
-
             return {
               id: cmd.id,
               favor: cmd.favor,
@@ -328,7 +330,8 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
             };
           })
         )
-      : [];
+      : []
+    : [];
 
   // Add pinCommands array to each point
   const pointsWithCommandsInit = results.map((point) => ({

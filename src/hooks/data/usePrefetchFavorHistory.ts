@@ -21,7 +21,6 @@ export function usePrefetchFavorHistory(
   const loadHistory = useCallback(() => {
     if (pointId == null || hasStarted) return;
     setHasStarted(true);
-    onPrefetch(pointId);
     if (!cacheKey) return;
     const existing = queryClient.getQueryData(cacheKey);
     if (existing) return;
@@ -42,7 +41,7 @@ export function usePrefetchFavorHistory(
           );
         }
       });
-  }, [pointId, hasStarted, onPrefetch, cacheKey, queryClient]);
+  }, [pointId, hasStarted, cacheKey, queryClient]);
 
   return loadHistory;
 }

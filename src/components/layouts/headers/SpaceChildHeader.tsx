@@ -28,11 +28,19 @@ export function SpaceChildHeader({
   const handleBack = () => {
     if (onBack) {
       onBack()
-    } else if (backUrl) {
-      router.push(backUrl)
-    } else {
-      router.back()
+      return
     }
+    if (backUrl) {
+      router.push(backUrl)
+      return
+    }
+    // Default: go back to space page if in /s/[space]/...
+    const path = window.location.pathname.split("/").filter(Boolean)
+    if (path[0] === "s" && path[1]) {
+      router.push(`/s/${path[1]}`)
+      return
+    }
+    router.push("/")
   }
 
   return (

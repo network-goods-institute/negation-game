@@ -4,6 +4,8 @@ import { usePrivy } from "@privy-io/react-auth";
 
 export const usePriorityPoints = () => {
   const { user } = usePrivy();
+  const ENABLE_PINNED_PRIORITY =
+    process.env.NEXT_PUBLIC_FEATURE_PINNED_AND_PRIORITY === "true";
 
   return useQuery({
     queryKey: ["priority-points", user?.id],
@@ -26,13 +28,13 @@ export const usePriorityPoints = () => {
         return [];
       }
     },
-    enabled: !!user,
-    staleTime: 15_000, // 15 seconds - make more responsive
-    gcTime: 60_000, // 1 minute
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-    retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Exponential backoff
-    refetchInterval: 30_000, // Refetch every 30 seconds
+    enabled: ENABLE_PINNED_PRIORITY && !!user,
+    staleTime: ENABLE_PINNED_PRIORITY ? 15_000 : Infinity,
+    gcTime: ENABLE_PINNED_PRIORITY ? 60_000 : 60_000,
+    refetchOnWindowFocus: ENABLE_PINNED_PRIORITY,
+    refetchOnMount: ENABLE_PINNED_PRIORITY,
+    retry: ENABLE_PINNED_PRIORITY ? 3 : 0,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+    refetchInterval: ENABLE_PINNED_PRIORITY ? 30_000 : false,
   });
 };

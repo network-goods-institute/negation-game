@@ -4,8 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import React from "react";
 import { decodeId } from "@/lib/negation-game/decodeId";
 import { usePointData } from "@/queries/points/usePointData";
-
-import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
+;
 import { negatedPointIdAtom } from "@/atoms/negatedPointIdAtom";
 import { negationContentAtom } from "@/atoms/negationContentAtom";
 import { CredInput } from "@/components/inputs/CredInput";
@@ -15,7 +14,7 @@ import { RestakeDialog } from "@/components/dialogs/RestakeDialog";
 import { SelectNegationDialog } from "@/components/dialogs/SelectNegationDialog";
 import { PointEditDialog } from "@/components/dialogs/PointEditDialog";
 import { fetchPointHistory } from "@/actions/points/fetchPointHistory";
-import { GraphView } from "@/components/graph/base/GraphView";
+import dynamic from "next/dynamic";
 import { NegateButton } from "@/components/buttons/NegateButton";
 import { PointIcon } from "@/components/icons/AppIcons";
 import { TrashIcon } from "@/components/icons/TrashIcon";
@@ -29,7 +28,6 @@ import useIsMobile from "@/hooks/ui/useIsMobile";
 import { useVisitedPoints } from "@/hooks/points/useVisitedPoints";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import { usePointNegations } from "@/queries/points/usePointNegations";
-import { useRestakeForPoints } from "@/queries/epistemic/useRestakeForPoints";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { useSetAtom, useAtom } from "jotai";
@@ -50,22 +48,26 @@ import { DEFAULT_TIMESCALE } from "@/constants/config";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Separator } from "@/components/ui/separator";
 import { formatDistanceToNow } from "date-fns";
-import {
-    Dot,
-    Line,
-    LineChart,
-    ReferenceLine,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis,
-} from "recharts";
 import { Fragment } from "react";
 import { SpaceLayout } from '@/components/layouts/SpaceLayout';
 import { SpaceChildHeader } from '@/components/layouts/headers/SpaceChildHeader';
 import { useQuery } from "@tanstack/react-query";
-import { ReactFlowProvider } from "@xyflow/react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+const FavorHistoryChart = dynamic(
+    () => import("@/components/cards/pointcard/FavorHistoryChart"),
+    { ssr: false }
+);
+
+const GraphSection = dynamic(
+    () => import("@/app/s/[space]/[encodedPointId]/GraphSection"),
+    {
+        ssr: false,
+        loading: () => (
+            <div className="absolute inset-0 flex items-center justify-center"><Loader className="w-8 h-8" /></div>
+        ),
+    }
+);
 
 interface PointPageClientProps {
     params: {
@@ -229,6 +231,7 @@ export default function PointPageClient({ params, searchParams }: PointPageClien
 
     // Data fetching
     const { data: negations, isLoading: isNegationsLoading, refetch: refetchNegations } = usePointNegations(point?.pointId);
+    const negationSkeletonCount = point ? Math.max(point.amountNegations || 0, 0) : 0;
 
     // Query favor history for timeline chart
     const { data: favorHistory, isFetching: isFetchingFavorHistory } = useFavorHistory({
@@ -446,80 +449,14 @@ export default function PointPageClient({ params, searchParams }: PointPageClien
                                     Limited history available
                                 </div>
                             )}
-                        <ResponsiveContainer
-                            width="100%"
-                            height={100}
-                            className="mt-4"
-                        >
-                            <LineChart
-                                width={300}
-                                height={100}
-                                data={favorHistory && Array.isArray(favorHistory) && favorHistory.length > 0
-                                    ? favorHistory
-                                    : [{ timestamp: new Date(), favor: point?.favor || 50 }]}
-                                className="[&>.recharts-surface]:overflow-visible"
-                            >
-                                <XAxis dataKey="timestamp" hide />
-                                <YAxis domain={[0, 100]} hide />
-                                <ReferenceLine
-                                    y={50}
-                                    className="[&>line]:stroke-muted"
-                                />
-                                <Line
-                                    animationDuration={300}
-                                    dataKey="favor"
-                                    type="stepAfter"
-                                    className="overflow-visible text-endorsed"
-                                    dot={({ key, ...dot }) => {
-                                        // Safely check if we have valid data to render
-                                        if (!favorHistory || !Array.isArray(favorHistory) || favorHistory.length === 0 || dot.index === undefined) {
-                                            // Just render the current point as a single dot if no history
-                                            if (dot.cx && dot.cy) {
-                                                return (
-                                                    <Fragment key={key}>
-                                                        <Dot
-                                                            {...dot}
-                                                            fill={dot.stroke || 'currentColor'}
-                                                            className="animate-pulse"
-                                                            style={{
-                                                                transformOrigin: `${dot.cx}px ${dot.cy}px`,
-                                                            }}
-                                                        />
-                                                    </Fragment>
-                                                );
-                                            }
-                                            return <Fragment key={key} />;
-                                        }
-
-                                        // Otherwise show the last point in the history
-                                        return dot.index === favorHistory.length - 1 ? (
-                                            <Fragment key={key}>
-                                                <Dot
-                                                    {...dot}
-                                                    fill={dot.stroke || 'currentColor'}
-                                                    className="animate-ping"
-                                                    style={{
-                                                        transformOrigin: `${dot.cx}px ${dot.cy}px`,
-                                                    }}
-                                                />
-                                                <Dot {...dot} fill={dot.stroke || 'currentColor'} />
-                                            </Fragment>
-                                        ) : (
-                                            <Fragment key={key} />
-                                        );
-                                    }}
-                                    stroke="currentColor"
-                                    strokeWidth={2}
-                                />
-
-                                <Tooltip
-                                    wrapperClassName="backdrop-blur-sm !bg-transparent !pb-0 rounded-sm"
-                                    labelClassName="-top-3 text-muted-foreground text-xs"
-                                    formatter={(value: number) => value ? value.toFixed(2) : "0.00"}
-                                    labelFormatter={(timestamp: Date) => timestamp ? timestamp.toLocaleString() : new Date().toLocaleString()}
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
+                        <FavorHistoryChart
+                            popoverFavorHistory={favorHistory as any}
+                            initialFavorHistory={favorHistory && Array.isArray(favorHistory) && favorHistory.length > 0
+                                ? favorHistory
+                                : [{ timestamp: new Date(), favor: point?.favor || 50 }] as any}
+                            favor={point.favor}
+                            isLoadingFavorHistory={isFetchingFavorHistory}
+                        />
                         <ToggleGroup
                             type="single"
                             value={timelineScale}
@@ -579,8 +516,7 @@ export default function PointPageClient({ params, searchParams }: PointPageClien
                     </div>
                     {isNegationsLoading ? (
                         <div className="space-y-4">
-                            {/* Show animated skeletons with varying widths for a more realistic appearance */}
-                            {Array.from({ length: 5 }).map((_, i) => (
+                            {Array.from({ length: negationSkeletonCount }).map((_, i) => (
                                 <div
                                     key={`skeleton-${i}`}
                                     className="animate-pulse border border-border rounded-lg p-4"
@@ -782,16 +718,7 @@ export default function PointPageClient({ params, searchParams }: PointPageClien
                     {isPointLoading || isNegationsLoading ? (
                         <div className="absolute inset-0 flex items-center justify-center"><Loader className="w-8 h-8" /></div>
                     ) : point ? (
-                        <ReactFlowProvider>
-                            <GraphView
-                                rootPointId={point.pointId}
-                                className="w-full h-full overflow-hidden"
-                                hideComments
-                                hideSavePanel
-                                hideShareButton
-                                canvasEnabled
-                            />
-                        </ReactFlowProvider>
+                        <GraphSection pointId={point.pointId} />
                     ) : null}
                 </div>
             </div>

@@ -6,6 +6,8 @@ export const usePinnedPoint = (spaceId?: string) => {
   const pathname = usePathname();
   const isInSpecificSpace =
     pathname?.includes("/s/") && !pathname.match(/^\/s\/global\//);
+  const ENABLE_PINNED_PRIORITY =
+    process.env.NEXT_PUBLIC_FEATURE_PINNED_AND_PRIORITY === "true";
 
   return useQuery({
     queryKey: ["pinned-point", spaceId],
@@ -31,13 +33,17 @@ export const usePinnedPoint = (spaceId?: string) => {
         return null;
       }
     },
-    staleTime: 15 * 1000, // 15 seconds - make more responsive to pin changes
-    gcTime: 5 * 60 * 1000, // Keep cached for 5 minutes after unmount
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-    retry: 2,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Exponential backoff
-    refetchInterval: 30 * 1000, // Refetch every 30 seconds
-    enabled: !!spaceId && isInSpecificSpace && spaceId !== "global",
+    staleTime: ENABLE_PINNED_PRIORITY ? 15 * 1000 : Infinity,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: ENABLE_PINNED_PRIORITY,
+    refetchOnMount: ENABLE_PINNED_PRIORITY,
+    retry: ENABLE_PINNED_PRIORITY ? 2 : 0,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+    refetchInterval: ENABLE_PINNED_PRIORITY ? 30 * 1000 : false,
+    enabled:
+      ENABLE_PINNED_PRIORITY &&
+      !!spaceId &&
+      isInSpecificSpace &&
+      spaceId !== "global",
   });
 };
