@@ -256,10 +256,23 @@ export function DeltaComparisonWidget({
                     >
                         <Card className="border-2 shadow-lg max-h-[80vh] overflow-y-auto">
                             <CardHeader className="pb-3">
-                                <CardTitle className="text-base flex items-center gap-2">
-                                    <UsersIcon className="h-4 w-4" />
-                                    {title}
-                                </CardTitle>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <UsersIcon className="h-4 w-4" />
+                                        <CardTitle className="text-base">
+                                            {title}
+                                        </CardTitle>
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setIsOpen(false)}
+                                        className="h-6 w-6 p-0 hover:bg-muted"
+                                    >
+                                        <span className="sr-only">Close</span>
+                                        ×
+                                    </Button>
+                                </div>
                                 <CardDescription className="text-sm">
                                     {description}
                                 </CardDescription>
