@@ -247,7 +247,7 @@ export default function SpacePageClient({ params, searchParams }: PageProps) {
             <DeltaComparisonWidget
                 comparison={{ type: "space", spaceId: space }}
                 title="Space Alignment"
-                description="Find aligned users in this space"
+                description={`Find aligned users in s/${space}`}
                 currentUserId={privyUser?.id}
                 spaceId={space}
             />

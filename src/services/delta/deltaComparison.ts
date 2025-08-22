@@ -860,7 +860,7 @@ export async function handleSpaceComparison({
       mostDifferent: [],
       totalUsers: 0,
       totalEngaged: 0,
-      message: "No points found in this space",
+      message: "No points or rationales found in this space yet",
     };
   }
 
@@ -880,7 +880,8 @@ export async function handleSpaceComparison({
       mostDifferent: [],
       totalUsers: 0,
       totalEngaged: 0,
-      message: "No point clusters found for space points",
+      message:
+        "Space alignment requires point clusters to be built. Contact an administrator if this persists.",
     };
   }
 
@@ -892,6 +893,21 @@ export async function handleSpaceComparison({
     .where(inArray(pointClustersTable.rootId, uniqueRootIds));
 
   const allClusterPointIds = clusterPointIds.map((cp) => cp.pointId);
+
+  // Check user engagement first (fast early exit)
+  const hasEngagement = await checkUserEngagement(
+    referenceUserId,
+    allClusterPointIds
+  );
+  if (!hasEngagement) {
+    return {
+      mostSimilar: [],
+      mostDifferent: [],
+      totalUsers: 0,
+      totalEngaged: 0,
+      message: "You haven't engaged with any points in this space yet",
+    };
+  }
 
   const usersWithEngagement = await getUsersWithEngagement(
     allClusterPointIds,
@@ -906,7 +922,8 @@ export async function handleSpaceComparison({
       mostDifferent: [],
       totalUsers: 0,
       totalEngaged: 0,
-      message: "No other users have engaged with this space's point clusters",
+      message:
+        "No other users have engaged with the same points in this space yet",
     };
   }
 

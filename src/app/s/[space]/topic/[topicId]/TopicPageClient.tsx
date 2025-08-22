@@ -137,7 +137,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
             <DeltaComparisonWidget
                 comparison={{ type: "topic", topicId: topic.id }}
                 title="Topic Alignment"
-                description="Find aligned users"
+                description={`Find aligned users in s/${space}`}
                 currentUserId={privyUser?.id}
                 spaceId={space}
             />
