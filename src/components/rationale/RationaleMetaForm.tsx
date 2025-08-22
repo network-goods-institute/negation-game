@@ -169,14 +169,13 @@ export default function RationaleMetaForm({
                             {showTopicLockedHint && (
                                 <p className="text-sm text-muted-foreground mt-1">Topic locked (copied from original rationale)</p>
                             )}
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="mt-2 w-fit text-sm"
+                            <button
                                 onClick={() => {
                                     setIsViewTopicClicked(true);
                                     router.push(`/s/${spaceSlug}/topic/${encodeId(topicId!)}`);
                                 }}
+                                className="mt-2 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline font-medium inline-flex items-center"
+                                title="View topic and proposal generation features"
                             >
                                 {isViewTopicClicked && (
                                     <span className="w-4 h-4 mr-2 flex items-center justify-center flex-shrink-0">
@@ -184,7 +183,7 @@ export default function RationaleMetaForm({
                                     </span>
                                 )}
                                 <span>View Topic</span>
-                            </Button>
+                            </button>
                         </div>
                     ) : (
                         <div className="mb-4">
@@ -197,14 +196,13 @@ export default function RationaleMetaForm({
                                 </p>
                             ) : null}
                             {spaceSlug && topicId && !isOnTopicPage && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="mt-2 w-fit text-sm"
+                                <button
                                     onClick={() => {
                                         setIsViewTopicClicked(true);
                                         router.push(`/s/${spaceSlug}/topic/${encodeId(topicId)}`);
                                     }}
+                                    className="mt-2 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline font-medium inline-flex items-center"
+                                    title="View topic and proposal generation features"
                                 >
                                     {isViewTopicClicked && (
                                         <span className="w-4 h-4 mr-2 flex items-center justify-center flex-shrink-0">
@@ -212,7 +210,7 @@ export default function RationaleMetaForm({
                                         </span>
                                     )}
                                     <span>View Topic</span>
-                                </Button>
+                                </button>
                             )}
                         </div>
                     )
