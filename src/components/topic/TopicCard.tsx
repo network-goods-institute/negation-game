@@ -21,6 +21,7 @@ interface TopicCardProps {
         latestRationaleAt?: Date | null;
         earliestRationaleAt?: Date | null;
         latestAuthorUsername?: string | null;
+        closed?: boolean | null;
     };
     spaceId: string;
     className?: string;
@@ -160,6 +161,11 @@ export function TopicCard({
                                         "group-hover:text-primary"
                                     )}>
                                         {topic.name}
+                                        {topic.closed && (
+                                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+                                                Closed
+                                            </span>
+                                        )}
                                     </h3>
                                 </div>
                                 <div className="flex items-center justify-between">
@@ -176,7 +182,7 @@ export function TopicCard({
                                                 </p>
                                             )}
                                         </div>
-                                        {userRationalesLoaded && !hasUserRationale && (
+                                        {userRationalesLoaded && !hasUserRationale && !topic.closed && (
                                             <p className="text-xs text-muted-foreground mt-0.5">Missing rationale</p>
                                         )}
                                     </div>

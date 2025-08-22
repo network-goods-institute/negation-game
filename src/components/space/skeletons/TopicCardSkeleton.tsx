@@ -17,11 +17,14 @@ export function TopicCardSkeleton({ size = "md", className }: TopicCardSkeletonP
     };
 
     return (
-        <div className={cn(
-            "relative w-full rounded-lg border border-border/50 bg-card",
-            sizeClasses[size],
-            className
-        )}>
+        <div
+            data-testid="topic-card-skeleton"
+            className={cn(
+                "relative w-full rounded-lg border border-border/50 bg-card",
+                sizeClasses[size],
+                className
+            )}
+        >
             <div className="p-3 h-full flex flex-col justify-between">
                 <div className="space-y-2 flex-1">
                     {/* Topic title */}

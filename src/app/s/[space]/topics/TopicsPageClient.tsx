@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePrivy } from "@privy-io/react-auth";
 import { useUserTopicRationales } from "@/queries/topics/useUserTopicRationales";
-import { useTopics } from "@/queries/topics/useTopics";
+import { useAllTopics } from "@/queries/topics/useAllTopics";
 import { SpaceLayout } from "@/components/layouts/SpaceLayout";
 import { SpaceChildHeader } from "@/components/layouts/headers/SpaceChildHeader";
 import { TopicCardSkeleton } from "@/components/space/skeletons";
@@ -23,6 +23,7 @@ interface Topic {
     latestRationaleAt?: Date | null;
     earliestRationaleAt?: Date | null;
     latestAuthorUsername?: string | null;
+    closed?: boolean | null;
 }
 
 interface TopicsPageClientProps {
@@ -30,9 +31,9 @@ interface TopicsPageClientProps {
 }
 
 export default function TopicsPageClient({ space }: TopicsPageClientProps) {
-    const { data: topics = [], isLoading: topicsLoading } = useTopics(space);
+    const { data: topics = [], isLoading: topicsLoading } = useAllTopics(space);
     const [searchQuery, setSearchQuery] = useState("");
-    const [filterType, setFilterType] = useState<"all" | "missing-my-rationales" | "has-my-rationales" | "missing-any-rationales" | "has-any-rationales">("all");
+    const [filterType, setFilterType] = useState<"all" | "missing-my-rationales" | "has-my-rationales" | "missing-any-rationales" | "has-any-rationales" | "open" | "closed">("all");
     const [sortBy, setSortBy] = useState<"name" | "rationales" | "points" | "recent">("name");
     const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -56,10 +57,14 @@ export default function TopicsPageClient({ space }: TopicsPageClientProps) {
             filtered = filtered.filter(topic => topic.rationalesCount && topic.rationalesCount > 0);
         } else if (filterType === "missing-my-rationales" && userTopicRationales) {
             const myRationaleTopicIds = new Set(userTopicRationales);
-            filtered = filtered.filter(topic => !myRationaleTopicIds.has(topic.id));
+            filtered = filtered.filter(topic => !topic.closed && !myRationaleTopicIds.has(topic.id));
         } else if (filterType === "has-my-rationales" && userTopicRationales) {
             const myRationaleTopicIds = new Set(userTopicRationales);
-            filtered = filtered.filter(topic => myRationaleTopicIds.has(topic.id));
+            filtered = filtered.filter(topic => !topic.closed && myRationaleTopicIds.has(topic.id));
+        } else if (filterType === "open") {
+            filtered = filtered.filter(topic => !topic.closed);
+        } else if (filterType === "closed") {
+            filtered = filtered.filter(topic => topic.closed);
         }
 
         filtered.sort((a, b) => {
@@ -84,6 +89,8 @@ export default function TopicsPageClient({ space }: TopicsPageClientProps) {
 
     const missingAnyRationalesCount = topics.filter(topic => !topic.rationalesCount || topic.rationalesCount === 0).length;
     const hasAnyRationalesCount = topics.filter(topic => topic.rationalesCount && topic.rationalesCount > 0).length;
+    const openTopicsCount = topics.filter(topic => !topic.closed).length;
+    const closedTopicsCount = topics.filter(topic => topic.closed).length;
 
     const { missingMyRationalesCount, hasMyRationalesCount } = useMemo(() => {
         if (!userTopicRationales) return { missingMyRationalesCount: 0, hasMyRationalesCount: 0 };
@@ -99,11 +106,14 @@ export default function TopicsPageClient({ space }: TopicsPageClientProps) {
         const parts: string[] = [`${topics.length} total`];
 
         if (privyUser && !userRationalesLoading) {
-            if (missingMyRationalesCount > 0) {
-                parts.push(`${missingMyRationalesCount} need my rationale`);
+            const openTopicsMissingMyRationale = topics.filter(topic => !topic.closed && !userTopicRationales?.includes(topic.id)).length;
+            const openTopicsWithMyRationale = topics.filter(topic => !topic.closed && userTopicRationales?.includes(topic.id)).length;
+
+            if (openTopicsMissingMyRationale > 0) {
+                parts.push(`${openTopicsMissingMyRationale} need my rationale`);
             }
-            if (hasMyRationalesCount > 0) {
-                parts.push(`${hasMyRationalesCount} have my rationale`);
+            if (openTopicsWithMyRationale > 0) {
+                parts.push(`${openTopicsWithMyRationale} have my rationale`);
             }
         }
 
@@ -153,8 +163,8 @@ export default function TopicsPageClient({ space }: TopicsPageClientProps) {
                     <Badge variant="outline">{missingAnyRationalesCount} without rationales</Badge>
                     {privyUser && !userRationalesLoading && (
                         <>
-                            <Badge variant="outline">{hasMyRationalesCount} have my rationale</Badge>
-                            <Badge variant="outline">{missingMyRationalesCount} need my rationale</Badge>
+                            <Badge variant="outline">{topics.filter(topic => !topic.closed && userTopicRationales?.includes(topic.id)).length} have my rationale</Badge>
+                            <Badge variant="outline">{topics.filter(topic => !topic.closed && !userTopicRationales?.includes(topic.id)).length} need my rationale</Badge>
                         </>
                     )}
                 </div>
@@ -164,8 +174,12 @@ export default function TopicsPageClient({ space }: TopicsPageClientProps) {
                     <Button size="sm" variant={filterType === "all" ? "default" : "outline"} onClick={() => setFilterType("all")}>All</Button>
                     {privyUser && !userRationalesLoading && (
                         <>
-                            <Button size="sm" variant={filterType === "missing-my-rationales" ? "default" : "outline"} onClick={() => setFilterType("missing-my-rationales")}>Missing my rationales</Button>
-                            <Button size="sm" variant={filterType === "has-my-rationales" ? "default" : "outline"} onClick={() => setFilterType("has-my-rationales")}>Has my rationales</Button>
+                            <Button size="sm" variant={filterType === "missing-my-rationales" ? "default" : "outline"} onClick={() => setFilterType("missing-my-rationales")}>
+                                Missing my rationales ({topics.filter(topic => !topic.closed && !userTopicRationales?.includes(topic.id)).length})
+                            </Button>
+                            <Button size="sm" variant={filterType === "has-my-rationales" ? "default" : "outline"} onClick={() => setFilterType("has-my-rationales")}>
+                                Has my rationales ({topics.filter(topic => !topic.closed && userTopicRationales?.includes(topic.id)).length})
+                            </Button>
                         </>
                     )}
                     <Button size="sm" variant={filterType === "missing-any-rationales" ? "default" : "outline"} onClick={() => setFilterType("missing-any-rationales")}>Missing any</Button>
@@ -186,12 +200,14 @@ export default function TopicsPageClient({ space }: TopicsPageClientProps) {
                                         <SelectItem value="all">All topics</SelectItem>
                                         {privyUser && !userRationalesLoading && (
                                             <>
-                                                <SelectItem value="missing-my-rationales">Missing my rationales ({missingMyRationalesCount})</SelectItem>
-                                                <SelectItem value="has-my-rationales">Has my rationales ({hasMyRationalesCount})</SelectItem>
+                                                <SelectItem value="missing-my-rationales">Missing my rationales ({topics.filter(topic => !topic.closed && !userTopicRationales?.includes(topic.id)).length})</SelectItem>
+                                                <SelectItem value="has-my-rationales">Has my rationales ({topics.filter(topic => !topic.closed && userTopicRationales?.includes(topic.id)).length})</SelectItem>
                                             </>
                                         )}
                                         <SelectItem value="missing-any-rationales">Missing any rationales ({missingAnyRationalesCount})</SelectItem>
                                         <SelectItem value="has-any-rationales">Has any rationales ({hasAnyRationalesCount})</SelectItem>
+                                        <SelectItem value="open">Open topics ({openTopicsCount})</SelectItem>
+                                        <SelectItem value="closed">Closed topics ({closedTopicsCount})</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -223,7 +239,7 @@ export default function TopicsPageClient({ space }: TopicsPageClientProps) {
             header={header}
             showUserProfilePreview={true}
         >
-            <div className="max-w-2xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+            <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
                 {topicsLoading ? (
                     Array.from({ length: 6 }).map((_, index) => (
                         <TopicCardSkeleton key={index} />
@@ -242,6 +258,8 @@ export default function TopicsPageClient({ space }: TopicsPageClientProps) {
                                     {filterType === "has-my-rationales" && "having my rationales"}
                                     {filterType === "missing-any-rationales" && "missing any rationales"}
                                     {filterType === "has-any-rationales" && "having any rationales"}
+                                    {filterType === "open" && "open"}
+                                    {filterType === "closed" && "closed"}
                                 </p>
                                 <Button
                                     variant="ghost"
