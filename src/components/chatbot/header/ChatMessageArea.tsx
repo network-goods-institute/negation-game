@@ -18,25 +18,49 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 export const ChatLoadingState = () => {
     return (
         <div className="flex-1 flex flex-col h-full overflow-hidden bg-muted/30">
-            <div className="p-6 space-y-6">
-                <div className="flex flex-col space-y-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-4 w-64" />
-                </div>
-                <div className="flex justify-end space-y-2">
-                    <div className="w-1/2">
-                        <Skeleton className="h-24 w-full rounded-xl" />
+            <div className="h-full flex items-center justify-center p-4 md:p-6">
+                <div className="max-w-2xl w-full space-y-6 md:space-y-8">
+                    <div className="text-center space-y-1">
+                        <h2 className="text-lg md:text-xl font-bold">How can I help?</h2>
+                        <p className="text-muted-foreground text-xs md:text-sm">Select an option or start typing below</p>
                     </div>
-                </div>
-                <div className="flex flex-col space-y-2">
-                    <Skeleton className="h-4 w-40" />
-                    <Skeleton className="h-4 w-80" />
-                    <Skeleton className="h-4 w-64" />
-                </div>
-                <div className="flex justify-end space-y-2">
-                    <div className="w-1/2">
-                        <Skeleton className="h-16 w-full rounded-xl" />
+                    <div className="grid gap-3 md:gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="flex flex-col items-center">
+                            <div className="w-full h-auto min-h-[6rem] p-2 md:min-h-[8rem] md:p-4 flex flex-col items-center justify-center gap-1.5 text-center rounded-lg border border-border bg-card">
+                                <div className="text-sm md:text-lg font-semibold break-words whitespace-normal">
+                                    Write an Essay from your Rationale
+                                </div>
+                                <div className="flex flex-col items-center gap-1.5">
+                                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                    <span className="text-xs text-muted-foreground">Loading Rationales...</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex flex-col items-center">
+                            <div className="w-full h-auto min-h-[6rem] p-2 md:min-h-[8rem] md:p-4 flex flex-col items-center justify-center gap-1.5 text-center rounded-lg border border-border bg-card">
+                                <div className="text-sm md:text-lg font-semibold break-words whitespace-normal">
+                                    Suggest Points
+                                </div>
+                                <p className="text-xs text-muted-foreground text-balance">
+                                    Get suggestions for new points or negations based on your context.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex flex-col items-center">
+                            <div className="w-full h-auto min-h-[6rem] p-2 md:min-h-[8rem] md:p-4 flex flex-col items-center justify-center gap-1.5 text-center rounded-lg border border-border bg-card">
+                                <div className="text-sm md:text-lg font-semibold break-words whitespace-normal">
+                                    Create Rationale
+                                </div>
+                                <p className="text-xs text-muted-foreground text-balance">
+                                    Use AI to help structure and generate a new rationale.
+                                </p>
+                                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-medium">
+                                    Early Access
+                                </span>
+                            </div>
+                        </div>
                     </div>
+                    <p className="text-center text-xs text-muted-foreground">Or, just type your message below to start a general chat.</p>
                 </div>
             </div>
         </div>
@@ -179,21 +203,16 @@ export function ChatMessageArea({
                                                         disabled={isDisabled || option.comingSoon || isGeneratingCurrent}
                                                         aria-disabled={isDisabled || option.comingSoon}
                                                     >
-                                                        {option.id === 'distill' && isInitializing ? (
-                                                            <div className="flex flex-col items-center gap-1.5">
-                                                                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                                                                <span className="text-xs text-muted-foreground">Loading Rationales...</span>
-                                                            </div>
-                                                        ) : option.id === 'distill' && isFetchingRationales ? (
+                                                        <div className="text-sm md:text-lg font-semibold break-words whitespace-normal">
+                                                            {option.title}
+                                                        </div>
+                                                        {option.id === 'distill' && (isInitializing || isFetchingRationales) ? (
                                                             <div className="flex flex-col items-center gap-1.5">
                                                                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                                                                 <span className="text-xs text-muted-foreground">Loading Rationales...</span>
                                                             </div>
                                                         ) : (
                                                             <>
-                                                                <div className="text-sm md:text-lg font-semibold break-words whitespace-normal">
-                                                                    {option.title}
-                                                                </div>
                                                                 <p className="text-xs text-muted-foreground text-balance">
                                                                     {description}
                                                                 </p>

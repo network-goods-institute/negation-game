@@ -228,7 +228,7 @@ export function DeltaComparisonWidget({
     }
 
     return (
-        <div className={className}>
+        <div className={`${className} ${isOpen ? 'bg-muted/50 rounded-lg p-2' : ''}`}>
             <Collapsible open={isOpen} onOpenChange={setIsOpen}>
                 <div className="relative flex justify-center">
                     <CollapsibleTrigger asChild>

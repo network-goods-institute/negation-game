@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import TopicsPageClient from "@/app/s/[space]/topics/TopicsPageClient";
 import { useAllTopics } from "@/queries/topics/useAllTopics";
 import { useUserTopicRationales } from "@/queries/topics/useUserTopicRationales";
+import "@/lib/tests/test-utils";
 
 jest.mock("@/queries/topics/useAllTopics");
 jest.mock("@/queries/topics/useUserTopicRationales");
@@ -27,6 +28,17 @@ jest.mock("@/components/layouts/headers/SpaceChildHeader", () => ({
             {rightActions}
         </div>
     ),
+}));
+jest.mock("@/components/ui/select", () => ({
+    Select: ({ children, value, onValueChange }: any) => (
+        <select value={value} onChange={(e) => onValueChange?.(e.target.value)}>
+            {children}
+        </select>
+    ),
+    SelectContent: ({ children }: any) => <div>{children}</div>,
+    SelectItem: ({ value, children }: any) => <option value={value}>{children}</option>,
+    SelectTrigger: ({ children }: any) => <div>{children}</div>,
+    SelectValue: ({ placeholder }: any) => <span>{placeholder}</span>,
 }));
 jest.mock("@/components/topic/TopicCard", () => ({
     TopicCard: ({ topic, hasUserRationale }: any) => (
