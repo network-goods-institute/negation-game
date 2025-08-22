@@ -252,13 +252,14 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Handle settings, notifications, messages, admin, delta, and embed paths without rewriting
+  // Handle settings, notifications, messages, admin, delta, experiment, and embed paths without rewriting
   if (
     url.pathname.startsWith("/settings") ||
     url.pathname.startsWith("/notifications") ||
     url.pathname.startsWith("/messages") ||
     url.pathname.startsWith("/admin") ||
     url.pathname.startsWith("/delta") ||
+    url.pathname.startsWith("/experiment") ||
     url.pathname.startsWith("/embed")
   ) {
     if (!pathname.startsWith("/s/")) {
