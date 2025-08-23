@@ -54,20 +54,17 @@ export const useYjsMultiplayer = ({
     // Connection event handlers for WebRTC
     // @ts-ignore minimal event API cross-provider
     provider.on("synced", () => {
-      console.log("WebRTC synced with document");
+      console.log("provider synced with document");
     });
 
     // y-websocket has no 'peers' event; guard by feature-detection
     // @ts-ignore
     provider.on?.("peers", (peers: any) => {
       const peerCount = Array.from(peers).length;
-      console.log("WebRTC peers connected:", peerCount);
-
+      console.log("webrtc peers:", peerCount);
       if (peerCount > 0) {
         setIsConnected(true);
-        setConnectionError(
-          `Connected to ${peerCount} other user${peerCount > 1 ? "s" : ""}`
-        );
+        setConnectionError(null);
       } else {
         setIsConnected(false);
         setConnectionError("Waiting for other users to join...");
@@ -79,10 +76,10 @@ export const useYjsMultiplayer = ({
       console.log("provider status:", status);
       const isUp = status?.status === "connected";
       setIsConnected(Boolean(isUp));
-      if (!isUp && !wsUrl) {
+      if (isUp) {
+        setConnectionError(null);
+      } else if (!wsUrl) {
         setConnectionError("Waiting for other users to join...");
-      } else if (isUp && wsUrl) {
-        setConnectionError("Connected");
       }
     });
 
