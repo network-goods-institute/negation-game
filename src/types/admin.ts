@@ -52,9 +52,9 @@ export interface DelegateStats {
   totalCredReceived: number;
   lastActive: string | null;
   joinedDate: string;
+  delegationUrl: string | null;
   agoraLink: string | null;
   scrollDelegateLink: string | null;
-  delegationUrl: string | null;
   isDelegate: boolean;
 }
 

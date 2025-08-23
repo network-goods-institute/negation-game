@@ -93,9 +93,9 @@ describe("fetchDelegateStats", () => {
         totalCredReceived: 750,
         lastActive: "2024-01-15T10:00:00.000Z",
         joinedDate: "2024-01-01T00:00:00.000Z",
+        delegationUrl: null,
         agoraLink: null,
         scrollDelegateLink: null,
-        delegationUrl: null,
         isDelegate: false,
       },
       {
@@ -110,9 +110,9 @@ describe("fetchDelegateStats", () => {
         totalCredReceived: 400,
         lastActive: null,
         joinedDate: "2024-01-02T00:00:00.000Z",
+        delegationUrl: null,
         agoraLink: null,
         scrollDelegateLink: null,
-        delegationUrl: null,
         isDelegate: false,
       },
     ]);
@@ -159,9 +159,9 @@ describe("fetchDelegateStats", () => {
       totalCredReceived: 0,
       lastActive: null,
       joinedDate: "2024-01-01T00:00:00.000Z",
+      delegationUrl: null,
       agoraLink: null,
       scrollDelegateLink: null,
-      delegationUrl: null,
       isDelegate: false,
     });
   });

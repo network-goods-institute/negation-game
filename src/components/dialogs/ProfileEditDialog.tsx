@@ -20,8 +20,6 @@ interface ProfileEditDialogProps {
     onOpenChange: (open: boolean) => void;
     currentBio?: string | null;
     currentDelegationUrl?: string | null;
-    currentAgoraLink?: string | null;
-    currentScrollDelegateLink?: string | null;
     currentDiscourseUsername?: string | null;
     currentDiscourseCommunityUrl?: string | null;
     currentDiscourseConsentGiven?: boolean;
@@ -31,16 +29,12 @@ const ProfileEditDialogContent = ({
     onOpenChange,
     currentBio,
     currentDelegationUrl,
-    currentAgoraLink,
-    currentScrollDelegateLink,
     currentDiscourseUsername,
     currentDiscourseCommunityUrl,
     currentDiscourseConsentGiven = false,
 }: Omit<ProfileEditDialogProps, 'open'>) => {
     const [bio, setBio] = useState(currentBio || "");
     const [delegationUrl, setDelegationUrl] = useState(currentDelegationUrl || "");
-    const [agoraLink, setAgoraLink] = useState(currentAgoraLink || "");
-    const [scrollDelegateLink, setScrollDelegateLink] = useState(currentScrollDelegateLink || "");
     const [discourseUsername, setDiscourseUsername] = useState(currentDiscourseUsername || "");
     const [discourseCommunityUrl, setDiscourseCommunityUrl] = useState(currentDiscourseCommunityUrl || "");
     const [discourseConsentGiven, setDiscourseConsentGiven] = useState(currentDiscourseConsentGiven);
@@ -54,15 +48,11 @@ const ProfileEditDialogContent = ({
 
         try {
             const processedDelegationUrl = safeUrl(delegationUrl);
-            const processedAgoraLink = safeUrl(agoraLink);
-            const processedScrollDelegateLink = safeUrl(scrollDelegateLink);
             const processedDiscourseCommunityUrl = safeUrl(discourseCommunityUrl);
 
             const result = await updateUserProfile({
                 bio: bio.trim() || null,
                 delegationUrl: processedDelegationUrl || null,
-                agoraLink: processedAgoraLink || null,
-                scrollDelegateLink: processedScrollDelegateLink || null,
                 discourseUsername: discourseUsername.trim() || null,
                 discourseCommunityUrl: processedDiscourseCommunityUrl || null,
                 discourseConsentGiven,
@@ -76,8 +66,6 @@ const ProfileEditDialogContent = ({
                     const updateData = {
                         bio: bio.trim() || null,
                         delegationUrl: processedDelegationUrl || null,
-                        agoraLink: processedAgoraLink || null,
-                        scrollDelegateLink: processedScrollDelegateLink || null,
                         discourseUsername: discourseUsername.trim() || null,
                         discourseCommunityUrl: processedDiscourseCommunityUrl || null,
                         discourseConsentGiven,
@@ -193,48 +181,12 @@ const ProfileEditDialogContent = ({
                             <div className="space-y-6 border-t pt-6">
                                 <h3 className="text-lg font-semibold">Governance Links</h3>
 
-                                {/* Agora Link */}
+                                {/* Delegation URL */}
                                 <div className="space-y-2">
                                     <div className="mb-1">
-                                        <Label htmlFor="agoraLink" className="text-base font-medium">Agora Profile URL</Label>
+                                        <Label htmlFor="delegationUrl" className="text-base font-medium">Governance Delegation URL</Label>
                                         <p className="text-xs text-muted-foreground mt-1">
-                                            Your Agora governance profile link
-                                        </p>
-                                    </div>
-                                    <Input
-                                        id="agoraLink"
-                                        value={agoraLink}
-                                        onChange={(e) => setAgoraLink(e.target.value)}
-                                        placeholder="https://agora.xyz/delegates/..."
-                                        type="url"
-                                        className="w-full"
-                                    />
-                                </div>
-
-                                {/* Scroll Delegate Link */}
-                                <div className="space-y-2">
-                                    <div className="mb-1">
-                                        <Label htmlFor="scrollDelegateLink" className="text-base font-medium">Scroll Delegate URL</Label>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            Your Scroll governance delegate link
-                                        </p>
-                                    </div>
-                                    <Input
-                                        id="scrollDelegateLink"
-                                        value={scrollDelegateLink}
-                                        onChange={(e) => setScrollDelegateLink(e.target.value)}
-                                        placeholder="https://gov.scroll.io/delegates/..."
-                                        type="url"
-                                        className="w-full"
-                                    />
-                                </div>
-
-                                {/* Other Delegation URL */}
-                                <div className="space-y-2">
-                                    <div className="mb-1">
-                                        <Label htmlFor="delegationUrl" className="text-base font-medium">Other Delegation URL</Label>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            Other governance delegation link
+                                            Your governance delegation profile link
                                         </p>
                                     </div>
                                     <Input
@@ -268,7 +220,7 @@ const ProfileEditDialogContent = ({
                                 </div>
 
                                 <p className="text-xs text-muted-foreground">
-                                    Adding governance links helps others find and delegate to you. Priority: Scroll Delegate &gt; Agora &gt; Other.
+                                    Adding governance links helps others find and delegate to you.
                                 </p>
                             </div>
 

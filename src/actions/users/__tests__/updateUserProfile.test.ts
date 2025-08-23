@@ -28,8 +28,6 @@ describe('updateUserProfile', () => {
     const profileData = {
       bio: 'Test bio',
       delegationUrl: 'https://example.com/delegate',
-      agoraLink: 'https://agora.xyz/delegates/test',
-      scrollDelegateLink: 'https://gov.scroll.io/delegates/test',
       discourseUsername: 'testuser',
       discourseCommunityUrl: 'https://forum.example.com',
       discourseConsentGiven: true,
@@ -54,14 +52,14 @@ describe('updateUserProfile', () => {
     mockDb.update.mockReturnValue(updateSpy() as any);
 
     const profileData = {
-      agoraLink: 'https://agora.xyz/delegates/test',
+      delegationUrl: 'https://example.com/delegate',
     };
 
     const result = await updateUserProfile(profileData);
 
     expect(result).toEqual({ success: true });
     expect(setSpy).toHaveBeenCalledWith({
-      agoraLink: 'https://agora.xyz/delegates/test',
+      delegationUrl: 'https://example.com/delegate',
     });
   });
 
@@ -79,8 +77,6 @@ describe('updateUserProfile', () => {
 
     const profileData = {
       bio: null,
-      agoraLink: null,
-      scrollDelegateLink: null,
     };
 
     const result = await updateUserProfile(profileData);
@@ -88,8 +84,6 @@ describe('updateUserProfile', () => {
     expect(result).toEqual({ success: true });
     expect(setSpy).toHaveBeenCalledWith({
       bio: null,
-      agoraLink: null,
-      scrollDelegateLink: null,
     });
   });
 
@@ -141,7 +135,6 @@ describe('updateUserProfile', () => {
     mockGetUserId.mockResolvedValue(userId);
 
     const profileData = {
-      agoraLink: 'invalid-url',
     };
 
     const result = await updateUserProfile(profileData);

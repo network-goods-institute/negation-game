@@ -204,29 +204,7 @@ export function DelegateStatsSection({ spaceId }: DelegateStatsSectionProps) {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex items-center justify-end gap-1">
-                                                    {delegate.agoraLink && (
-                                                        <a
-                                                            href={delegate.agoraLink}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-primary hover:underline text-xs"
-                                                            title="Agora Profile"
-                                                        >
-                                                            Agora <ExternalLink className="h-3 w-3 inline" />
-                                                        </a>
-                                                    )}
-                                                    {delegate.scrollDelegateLink && (
-                                                        <a
-                                                            href={delegate.scrollDelegateLink}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-primary hover:underline text-xs"
-                                                            title="Scroll Delegate"
-                                                        >
-                                                            Scroll <ExternalLink className="h-3 w-3 inline" />
-                                                        </a>
-                                                    )}
-                                                    {delegate.delegationUrl && !delegate.agoraLink && !delegate.scrollDelegateLink && (
+                                                    {delegate.delegationUrl && (
                                                         <a
                                                             href={delegate.delegationUrl}
                                                             target="_blank"

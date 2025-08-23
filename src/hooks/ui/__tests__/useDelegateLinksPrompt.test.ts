@@ -75,8 +75,6 @@ describe("useDelegateLinksPrompt", () => {
     mockUseUser.mockReturnValue({
       data: {
         id: "test-user",
-        agoraLink: null,
-        scrollDelegateLink: null,
         delegationUrl: null,
       },
     } as any);
@@ -107,7 +105,7 @@ describe("useDelegateLinksPrompt", () => {
     expect(result.current.isOpen).toBe(false);
   });
 
-  it("does not show prompt when user has all three governance link types", () => {
+  it("does not show prompt when user has delegation URL", () => {
     (localStorage.getItem as jest.Mock).mockReturnValue(null);
 
     mockUsePrivy.mockReturnValue({
@@ -117,8 +115,6 @@ describe("useDelegateLinksPrompt", () => {
     mockUseUser.mockReturnValue({
       data: {
         id: "test-user",
-        agoraLink: "https://agora.xyz/delegates/test-user",
-        scrollDelegateLink: "https://gov.scroll.io/delegates/test-user",
         delegationUrl: "https://example.com/delegate",
       },
     } as any);
@@ -142,8 +138,6 @@ describe("useDelegateLinksPrompt", () => {
     mockUseUser.mockReturnValue({
       data: {
         id: "test-user",
-        agoraLink: null,
-        scrollDelegateLink: null,
         delegationUrl: null,
       },
     } as any);
@@ -160,7 +154,8 @@ describe("useDelegateLinksPrompt", () => {
     expect(result.current.isOpen).toBe(true);
   });
 
-  it("shows prompt when user has only scrollDelegateLink but not others", () => {
+
+  it("does not show prompt when user has delegationUrl", () => {
     (localStorage.getItem as jest.Mock).mockReturnValue(null);
 
     mockUsePrivy.mockReturnValue({
@@ -170,37 +165,6 @@ describe("useDelegateLinksPrompt", () => {
     mockUseUser.mockReturnValue({
       data: {
         id: "test-user",
-        agoraLink: null,
-        scrollDelegateLink: "https://gov.scroll.io/delegates/test-user",
-        delegationUrl: null,
-      },
-    } as any);
-
-    const { result } = renderHook(() => useDelegateLinksPrompt());
-
-    expect(result.current.isOpen).toBe(false);
-
-    // Fast-forward timer
-    act(() => {
-      jest.advanceTimersByTime(2000);
-    });
-
-    expect(result.current.isOpen).toBe(true);
-    expect(localStorage.setItem).not.toHaveBeenCalled();
-  });
-
-  it("shows prompt when user has only delegationUrl but not others", () => {
-    (localStorage.getItem as jest.Mock).mockReturnValue(null);
-
-    mockUsePrivy.mockReturnValue({
-      user: { id: "test-user" },
-      ready: true,
-    } as any);
-    mockUseUser.mockReturnValue({
-      data: {
-        id: "test-user",
-        agoraLink: null,
-        scrollDelegateLink: null,
         delegationUrl: "https://example.com/delegate",
       },
     } as any);
@@ -208,42 +172,10 @@ describe("useDelegateLinksPrompt", () => {
     const { result } = renderHook(() => useDelegateLinksPrompt());
 
     expect(result.current.isOpen).toBe(false);
-
-    // Fast-forward timer
-    act(() => {
-      jest.advanceTimersByTime(2000);
-    });
-
-    expect(result.current.isOpen).toBe(true);
-    expect(localStorage.setItem).not.toHaveBeenCalled();
+    expect(localStorage.setItem).toHaveBeenCalledWith(
+      "hasSeenDelegatePrompt",
+      "true"
+    );
   });
 
-  it("shows prompt when user has only agoraLink but not others", () => {
-    (localStorage.getItem as jest.Mock).mockReturnValue(null);
-
-    mockUsePrivy.mockReturnValue({
-      user: { id: "test-user" },
-      ready: true,
-    } as any);
-    mockUseUser.mockReturnValue({
-      data: {
-        id: "test-user",
-        agoraLink: "https://agora.xyz/delegates/test-user",
-        scrollDelegateLink: null,
-        delegationUrl: null,
-      },
-    } as any);
-
-    const { result } = renderHook(() => useDelegateLinksPrompt());
-
-    expect(result.current.isOpen).toBe(false);
-
-    // Fast-forward timer
-    act(() => {
-      jest.advanceTimersByTime(2000);
-    });
-
-    expect(result.current.isOpen).toBe(true);
-    expect(localStorage.setItem).not.toHaveBeenCalled();
-  });
 });

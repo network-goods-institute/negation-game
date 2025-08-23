@@ -21,12 +21,10 @@ interface DelegateLinksPromptProps {
     onOpenChange: (open: boolean) => void;
 }
 
-type DelegateType = "agora" | "scroll" | "delegation" | "none";
+type DelegateType = "delegation" | "none";
 
 export function DelegateLinksPrompt({ open, onOpenChange }: DelegateLinksPromptProps) {
     const [delegateType, setDelegateType] = useState<DelegateType | null>(null);
-    const [agoraLink, setAgoraLink] = useState("");
-    const [scrollDelegateLink, setScrollDelegateLink] = useState("");
     const [delegationUrl, setDelegationUrl] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const queryClient = useQueryClient();
@@ -44,8 +42,6 @@ export function DelegateLinksPrompt({ open, onOpenChange }: DelegateLinksPromptP
     }, [open, onOpenChange]);
 
     const availableOptions = {
-        agora: !userData?.agoraLink,
-        scroll: !userData?.scrollDelegateLink,
         delegation: !userData?.delegationUrl,
     };
 
@@ -74,8 +70,6 @@ export function DelegateLinksPrompt({ open, onOpenChange }: DelegateLinksPromptP
     };
 
     const getCurrentUrl = (): string => {
-        if (delegateType === "agora") return agoraLink;
-        if (delegateType === "scroll") return scrollDelegateLink;
         if (delegateType === "delegation") return delegationUrl;
         return "";
     };
@@ -98,22 +92,6 @@ export function DelegateLinksPrompt({ open, onOpenChange }: DelegateLinksPromptP
                 onOpenChange(false);
                 setIsSubmitting(false);
                 return;
-            }
-
-            if (delegateType === "agora" && agoraLink.trim()) {
-                let processedAgoraLink = agoraLink.trim();
-                if (!processedAgoraLink.startsWith("http")) {
-                    processedAgoraLink = `https://${processedAgoraLink}`;
-                }
-                updateData.agoraLink = processedAgoraLink;
-            }
-
-            if (delegateType === "scroll" && scrollDelegateLink.trim()) {
-                let processedScrollLink = scrollDelegateLink.trim();
-                if (!processedScrollLink.startsWith("http")) {
-                    processedScrollLink = `https://${processedScrollLink}`;
-                }
-                updateData.scrollDelegateLink = processedScrollLink;
             }
 
             if (delegateType === "delegation" && delegationUrl.trim()) {
@@ -159,25 +137,11 @@ export function DelegateLinksPrompt({ open, onOpenChange }: DelegateLinksPromptP
     }
 
     const options = [
-        ...(availableOptions.agora ? [{
-            value: "agora" as const,
-            icon: Users,
-            label: "Agora Delegate",
-            description: "Connect your Agora governance profile",
-            placeholder: "https://agora.xyz/delegates/..."
-        }] : []),
-        ...(availableOptions.scroll ? [{
-            value: "scroll" as const,
-            icon: Vote,
-            label: "Scroll Delegate",
-            description: "Connect your Scroll governance profile",
-            placeholder: "https://gov.scroll.io/delegates/..."
-        }] : []),
         ...(availableOptions.delegation ? [{
             value: "delegation" as const,
             icon: Link,
-            label: "General Delegation",
-            description: "Connect your general delegation profile",
+            label: "Governance Delegate",
+            description: "Connect your governance delegation profile",
             placeholder: "https://..."
         }] : []),
         {
@@ -245,16 +209,8 @@ export function DelegateLinksPrompt({ open, onOpenChange }: DelegateLinksPromptP
                                                 </Label>
                                                 <div className="space-y-1">
                                                     <Input
-                                                        value={
-                                                            option.value === "agora" ? agoraLink :
-                                                                option.value === "scroll" ? scrollDelegateLink :
-                                                                    delegationUrl
-                                                        }
-                                                        onChange={(e) => {
-                                                            if (option.value === "agora") setAgoraLink(e.target.value);
-                                                            else if (option.value === "scroll") setScrollDelegateLink(e.target.value);
-                                                            else setDelegationUrl(e.target.value);
-                                                        }}
+                                                        value={delegationUrl}
+                                                        onChange={(e) => setDelegationUrl(e.target.value)}
                                                         placeholder={option.placeholder}
                                                         type="url"
                                                         className={cn(

@@ -19,11 +19,9 @@ export function useDelegateLinksPrompt() {
     const hasSeenPrompt = localStorage.getItem("hasSeenDelegatePrompt");
     if (hasSeenPrompt) return;
 
-    const hasAgoraLink = !!userData?.agoraLink;
-    const hasScrollLink = !!userData?.scrollDelegateLink;
     const hasDelegationUrl = !!userData?.delegationUrl;
 
-    if (hasAgoraLink && hasScrollLink && hasDelegationUrl) {
+    if (hasDelegationUrl) {
       localStorage.setItem("hasSeenDelegatePrompt", "true");
       return;
     }

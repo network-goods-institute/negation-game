@@ -18,7 +18,7 @@ describe('fetchAllUsers', () => {
         username: 'alice',
         cred: 1000,
         delegationUrl: 'https://example.com/delegate',
-        agoraLink: 'https://agora.xyz/delegates/alice',
+        agoraLink: null,
         scrollDelegateLink: null,
       },
       {
@@ -26,8 +26,8 @@ describe('fetchAllUsers', () => {
         username: 'bob',
         cred: 800,
         delegationUrl: null,
-        agoraLink: null,
-        scrollDelegateLink: 'https://gov.scroll.io/delegates/bob',
+        agoraLink: 'https://agora.xyz/delegates/bob',
+        scrollDelegateLink: null,
       },
       {
         id: 'user-3',
@@ -35,7 +35,7 @@ describe('fetchAllUsers', () => {
         cred: 600,
         delegationUrl: null,
         agoraLink: null,
-        scrollDelegateLink: null,
+        scrollDelegateLink: 'https://gov.scroll.io/delegates/charlie',
       },
     ];
 

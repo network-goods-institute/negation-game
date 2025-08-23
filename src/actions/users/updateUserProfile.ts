@@ -9,8 +9,6 @@ import { z } from "zod";
 const updateProfileSchema = z.object({
   bio: z.string().max(1000).nullable().optional(),
   delegationUrl: z.string().url().max(255).nullable().optional(),
-  agoraLink: z.string().url().max(255).nullable().optional(),
-  scrollDelegateLink: z.string().url().max(255).nullable().optional(),
   discourseUsername: z.string().max(255).nullable().optional(),
   discourseCommunityUrl: z.string().url().max(255).nullable().optional(),
   discourseConsentGiven: z.boolean().optional(),
@@ -33,10 +31,6 @@ export const updateUserProfile = async (params: UpdateProfileParams) => {
     if (validatedData.bio !== undefined) updateData.bio = validatedData.bio;
     if (validatedData.delegationUrl !== undefined)
       updateData.delegationUrl = validatedData.delegationUrl;
-    if (validatedData.agoraLink !== undefined)
-      updateData.agoraLink = validatedData.agoraLink;
-    if (validatedData.scrollDelegateLink !== undefined)
-      updateData.scrollDelegateLink = validatedData.scrollDelegateLink;
     if (validatedData.discourseUsername !== undefined)
       updateData.discourseUsername = validatedData.discourseUsername;
     if (validatedData.discourseCommunityUrl !== undefined)

@@ -24,9 +24,9 @@ export interface DelegateStats {
   totalCredReceived: number;
   lastActive: string | null;
   joinedDate: string;
+  delegationUrl: string | null;
   agoraLink: string | null;
   scrollDelegateLink: string | null;
-  delegationUrl: string | null;
   isDelegate: boolean;
 }
 
@@ -51,7 +51,7 @@ export async function fetchDelegateStats(
         u.agora_link,
         u.scroll_delegate_link,
         u.delegation_url,
-        (u.agora_link IS NOT NULL OR u.scroll_delegate_link IS NOT NULL OR u.delegation_url IS NOT NULL) as is_delegate,
+        (u.delegation_url IS NOT NULL) as is_delegate,
         -- Points created
         COALESCE(points_created.count, 0) as points_created,
         -- Rationales created
@@ -197,9 +197,9 @@ export async function fetchDelegateStats(
       ? new Date(row.last_active).toISOString()
       : null,
     joinedDate: new Date(row.joined_date).toISOString(),
+    delegationUrl: row.delegation_url,
     agoraLink: row.agora_link,
     scrollDelegateLink: row.scroll_delegate_link,
-    delegationUrl: row.delegation_url,
     isDelegate: Boolean(row.is_delegate),
   }));
 }

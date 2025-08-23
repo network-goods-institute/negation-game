@@ -76,7 +76,7 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
         const delegatesWithStatus = spaceUsers.map(user => {
             const hasPublished = viewpoints.some(vp => vp.authorId === user.id);
             const reputation = user.cred || 50;
-            const isDelegate = !!(user.agoraLink || user.scrollDelegateLink || user.delegationUrl);
+            const isDelegate = !!user.delegationUrl;
             return { ...user, hasPublished, reputation, isDelegate };
         });
 
@@ -173,35 +173,13 @@ export default function TopicPageClient({ topic, viewpoints, space }: TopicPageC
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <span className="text-xs text-muted-foreground">{Math.round(user.reputation)} cred</span>
-                                        {user.scrollDelegateLink && (
-                                            <a
-                                                href={user.scrollDelegateLink}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-primary text-xs hover:underline"
-                                                title="Scroll Delegate"
-                                            >
-                                                Scroll
-                                            </a>
-                                        )}
-                                        {user.agoraLink && (
-                                            <a
-                                                href={user.agoraLink}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-primary text-xs hover:underline"
-                                                title="Agora Profile"
-                                            >
-                                                Agora
-                                            </a>
-                                        )}
-                                        {user.delegationUrl && !user.scrollDelegateLink && !user.agoraLink && (
+                                        {user.delegationUrl && (
                                             <a
                                                 href={user.delegationUrl}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="text-primary text-xs hover:underline"
-                                                title="Delegate"
+                                                title="Governance Delegate"
                                             >
                                                 Delegate
                                             </a>

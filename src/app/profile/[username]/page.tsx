@@ -359,52 +359,25 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                         </div>
                     )}
 
-                    {(userData?.scrollDelegateLink || userData?.agoraLink || userData?.delegationUrl) && (
+                    {userData?.delegationUrl && (
                         <div className="mb-6 p-4 bg-primary/5 border rounded-lg">
                             <div className="flex flex-col items-center text-center space-y-2">
                                 <h3 className="font-medium">
-                                    {userData.scrollDelegateLink || userData.agoraLink ? "Governance Delegate" : "Delegate Your Voting Power"}
+                                    Governance Delegate
                                 </h3>
                                 <p className="text-sm text-muted-foreground max-w-md">
-                                    {userData.scrollDelegateLink || userData.agoraLink
-                                        ? `${username} is a governance delegate. View their profile or delegate your voting power.`
-                                        : `Support ${username}'s governance decisions by delegating your voting power`
-                                    }
+                                    {`${username} is a governance delegate. View their profile or delegate your voting power.`}
                                 </p>
                                 <div className="flex flex-wrap gap-2 justify-center">
-                                    {userData.scrollDelegateLink && (
-                                        <a
-                                            href={userData.scrollDelegateLink}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm"
-                                        >
-                                            <span>Scroll Delegate</span>
-                                            <ExternalLinkIcon className="size-3" />
-                                        </a>
-                                    )}
-                                    {userData.agoraLink && (
-                                        <a
-                                            href={userData.agoraLink}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm"
-                                        >
-                                            <span>Agora Profile</span>
-                                            <ExternalLinkIcon className="size-3" />
-                                        </a>
-                                    )}
-                                    {userData.delegationUrl && !userData.scrollDelegateLink && !userData.agoraLink && (
-                                        <a
-                                            href={userData.delegationUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm"
-                                        >
-                                            <span>Delegate Now</span>
-                                            <ExternalLinkIcon className="size-3" />
-                                        </a>
-                                    )}
+                                    <a
+                                        href={userData.delegationUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm"
+                                    >
+                                        <span>View Delegate Profile</span>
+                                        <ExternalLinkIcon className="size-3" />
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -779,8 +752,6 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                         onOpenChange={setEditProfileOpen}
                         currentBio={userData?.bio}
                         currentDelegationUrl={userData?.delegationUrl}
-                        currentAgoraLink={userData?.agoraLink}
-                        currentScrollDelegateLink={userData?.scrollDelegateLink}
                         currentDiscourseUsername={userData?.discourseUsername}
                         currentDiscourseCommunityUrl={userData?.discourseCommunityUrl}
                         currentDiscourseConsentGiven={userData?.discourseConsentGiven}

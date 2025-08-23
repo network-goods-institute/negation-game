@@ -118,7 +118,7 @@ export default function TopicsPageClient({ space }: TopicsPageClientProps) {
         }
 
         return parts.join(' • ');
-    }, [topics.length, privyUser, userRationalesLoading, missingMyRationalesCount, hasMyRationalesCount]);
+    }, [topics.length, privyUser, userRationalesLoading, missingMyRationalesCount]);
 
     const rightActions = (
         <Button
