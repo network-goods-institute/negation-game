@@ -17,6 +17,27 @@ const nextConfig = {
       isDev ? "'unsafe-eval'" : null,
     ].filter(Boolean).join(' ');
 
+    const yjsWsUrl = process.env.NEXT_PUBLIC_YJS_WS_URL;
+    let yjsWsOrigin = null;
+    try {
+      yjsWsOrigin = yjsWsUrl ? new URL(yjsWsUrl).origin : null;
+    } catch {}
+
+    const connectSrc = [
+      "connect-src 'self'",
+      "https://auth.privy.io",
+      "wss://relay.walletconnect.com",
+      "wss://relay.walletconnect.org",
+      "wss://www.walletlink.org",
+      "https://*.rpc.privy.systems",
+      "https://explorer-api.walletconnect.com",
+      "https://api.web3modal.org",
+      "https://pulse.walletconnect.org",
+      "https://privy.play.negationgame.com",
+      yjsWsOrigin,
+      isDev ? "ws://localhost:8080" : null,
+    ].filter(Boolean).join(' ');
+
     const csp = [
       "default-src 'self'",
       scriptSrc,
@@ -29,7 +50,7 @@ const nextConfig = {
       "form-action 'self'",
       "frame-ancestors 'self' https://negation-game-git-auth-refactor-staging-network-goods-institute.vercel.app https://negation-game-network-goods-institute.vercel.app https://negation-game-git-fork-swaggymar-fb888c-network-goods-institute.vercel.app https://auth.privy.io",
       "frame-src 'self' https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://privy.play.negationgame.com https://www.youtube.com",
-      "connect-src 'self' https://auth.privy.io wss://relay.walletconnect.com wss://relay.walletconnect.org wss://www.walletlink.org https://*.rpc.privy.systems https://explorer-api.walletconnect.com https://api.web3modal.org https://pulse.walletconnect.org https://privy.play.negationgame.com",
+      connectSrc,
       "worker-src 'self' blob:",
       "manifest-src 'self'",
     ].join('; ');
@@ -78,7 +99,7 @@ const nextConfig = {
       "form-action 'self'",
       `frame-ancestors ${embedAllowedAncestors}`,
       "frame-src 'self' https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://privy.play.negationgame.com https://www.youtube.com",
-      "connect-src 'self' https://auth.privy.io wss://relay.walletconnect.com wss://relay.walletconnect.org wss://www.walletlink.org https://*.rpc.privy.systems https://explorer-api.walletconnect.com https://api.web3modal.org https://pulse.walletconnect.org https://privy.play.negationgame.com",
+      connectSrc,
       "worker-src 'self' blob:",
       "manifest-src 'self'",
     ].join('; ');

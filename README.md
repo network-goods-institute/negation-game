@@ -110,6 +110,14 @@ The repository makes several assumptions about the environment it's running in.
 
 - It assumes that you are using postgre, privy for authentication, as well as Gemini and OpenAI for AI features.
 
+### Running the Yjs websocket server
+
+The Negation Game uses Yjs for collaborative editing. The Yjs websocket server is hosted on Fly.io.
+
+ALLOWED_ORIGINS=http://localhost:3001 VERBOSE=1 node server.js is for local development.
+
+
+
 ## Contributing
 
 We welcome contributions to the Negation Game! We have a rough roadmap for the project [here](https://github.com/orgs/network-goods-institute/projects/1/views/1).
