@@ -291,7 +291,8 @@ export default function MultiplayerRationaleDetailPage() {
                                 }
                                 const parentId = connectAnchorId;
                                 const childId = node.id;
-                                const edgeType = nodes.find((n: any) => n.id === parentId)?.type === 'statement' ? 'statement' : 'negation';
+                                const parentType = nodes.find((n: any) => n.id === parentId)?.type;
+                                const edgeType = parentType === 'statement' ? 'statement' : 'negation';
                                 const exists = edges.some((edge: any) => edge.source === childId && edge.target === parentId && edge.type === edgeType);
                                 if (!exists) {
                                     const newEdge: any = { id: generateEdgeId(), type: edgeType, source: childId, target: parentId, sourceHandle: `${childId}-source-handle`, targetHandle: `${parentId}-incoming-handle` };
@@ -327,16 +328,35 @@ export default function MultiplayerRationaleDetailPage() {
                             />
                         )}
                         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
-                            <div className="bg-white border shadow-lg rounded-full px-2 py-1 flex items-center gap-2">
-                                <span className="text-xs text-stone-600 px-2">Tools</span>
+                            <div className="bg-white/95 backdrop-blur border shadow-xl rounded-full px-3 py-1.5 flex items-center gap-3">
+                                <span className="text-xs text-stone-600 px-1">Tools</span>
                                 <button
-                                    onClick={() => setConnectMode((v) => !v)}
-                                    className={`text-xs rounded-full px-2 py-1 ${connectMode ? 'bg-blue-600 text-white' : 'bg-stone-800 text-white'}`}
+                                    onClick={() => {
+                                        setConnectMode((v) => !v);
+                                        setConnectAnchorId(null);
+                                    }}
+                                    className={`text-xs rounded-full px-3 py-1 transition-colors ${connectMode ? 'bg-blue-600 text-white' : 'bg-stone-800 text-white'}`}
                                 >
-                                    Connect
+                                    {connectMode ? 'Connecting' : 'Connect'}
                                 </button>
                                 {connectMode && (
-                                    <span className="text-xs text-stone-600 px-2">Click a parent, then a child</span>
+                                    <>
+                                        <span className="text-xs text-stone-600">
+                                            {connectAnchorId ? `From selected. Now click a child` : 'Click a parent node'}
+                                        </span>
+                                        <button
+                                            onClick={() => setConnectAnchorId(null)}
+                                            className="text-xs rounded-full px-2 py-1 bg-stone-200 text-stone-800"
+                                        >
+                                            Reset
+                                        </button>
+                                        <button
+                                            onClick={() => { setConnectMode(false); setConnectAnchorId(null); }}
+                                            className="text-xs rounded-full px-2 py-1 bg-red-600 text-white"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </>
                                 )}
                             </div>
                         </div>

@@ -11,7 +11,7 @@ interface ObjectionNodeProps {
 }
 
 const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id }) => {
-    const { updateNodeContent, addNegationBelow } = useGraphActions();
+    const { updateNodeContent, addNegationBelow, isConnectingFromNodeId } = useGraphActions();
     const [isEditing, setIsEditing] = useState(false);
     const [value, setValue] = useState(data.content);
     const contentRef = useRef<HTMLDivElement | null>(null);
@@ -95,8 +95,11 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id }) => {
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
                 onClick={onClick}
-                className="px-3 py-2 rounded-lg bg-amber-100 border-2 border-amber-500 inline-block min-w-[180px] max-w-[300px] relative cursor-text node-drag-handle"
+                className={`px-3 py-2 rounded-lg bg-amber-100 border-2 border-amber-500 inline-block min-w-[180px] max-w-[300px] relative cursor-text node-drag-handle ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}`}
             >
+                {isConnectingFromNodeId === id && (
+                    <div className="absolute -top-3 right-0 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
+                )}
                 <div
                     ref={contentRef}
                     contentEditable={isEditing}

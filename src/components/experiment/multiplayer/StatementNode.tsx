@@ -8,7 +8,7 @@ interface StatementNodeProps {
 }
 
 export const StatementNode: React.FC<StatementNodeProps> = ({ id, data }) => {
-    const { updateNodeContent, addNegationBelow } = useGraphActions();
+    const { updateNodeContent, addNegationBelow, isConnectingFromNodeId } = useGraphActions();
     const [isEditing, setIsEditing] = useState(false);
     const [value, setValue] = useState(data?.statement || '');
     const lastClickRef = useRef<number>(0);
@@ -99,8 +99,11 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data }) => {
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
                 onClick={onClick}
-                className="px-5 py-3 rounded-xl bg-blue-50 border-2 border-blue-200 text-blue-900 cursor-text inline-block min-w-[240px] max-w-[360px] relative"
+                className={`px-5 py-3 rounded-xl bg-blue-50 border-2 border-blue-200 text-blue-900 cursor-text inline-block min-w-[240px] max-w-[360px] relative ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}`}
             >
+                {isConnectingFromNodeId === id && (
+                    <div className="absolute -top-3 right-0 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
+                )}
                 <div
                     ref={contentRef}
                     contentEditable={isEditing}

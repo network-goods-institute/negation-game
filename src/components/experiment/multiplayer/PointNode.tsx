@@ -12,7 +12,7 @@ interface PointNodeProps {
 }
 
 export const PointNode: React.FC<PointNodeProps> = ({ data, id }) => {
-  const { updateNodeContent, addNegationBelow } = useGraphActions();
+  const { updateNodeContent, addNegationBelow, isConnectingFromNodeId } = useGraphActions();
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(data.content);
   const lastClickRef = useRef<number>(0);
@@ -103,8 +103,11 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id }) => {
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onClick={onClick}
-        className="px-4 py-3 rounded-lg bg-white border-2 border-stone-200 inline-block min-w-[200px] max-w-[320px] relative cursor-text"
+        className={`px-4 py-3 rounded-lg bg-white border-2 border-stone-200 inline-block min-w-[200px] max-w-[320px] relative cursor-text ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}`}
       >
+        {isConnectingFromNodeId === id && (
+          <div className="absolute -top-3 right-0 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
+        )}
         {/* toolbar moved to global bottom toolbar */}
         <div
           ref={contentRef}
