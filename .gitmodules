@@ -1,3 +1,6 @@
 [submodule "discourse"]
 	path = discourse
 	url = https://github.com/network-goods-institute/discourse
+[submodule "yjs-ws"]
+	path = yjs-ws
+	url = https://github.com/network-goods-institute/negation-game-yjs-ws.git

@@ -131,6 +131,7 @@ export default async function RootLayout({
   const headersList = await headers();
   const pathname = headersList.get("x-pathname") || "";
   const isEmbedRoute = pathname.startsWith("/embed");
+  const isExperimentRoute = pathname.startsWith("/experiment");
 
   const serverUser = await getCurrentUser();
 
@@ -196,7 +197,7 @@ export default async function RootLayout({
                   <OnboardingProvider>
                     <SpaceSearchProvider>
                       <TooltipProvider>
-                        {!isEmbedRoute && (
+                        {!isEmbedRoute && !isExperimentRoute && (
                           <header className="fixed top-0 z-20 border-b py-sm grid grid-cols-3 container-padding items-center w-full bg-background h-[var(--header-height)]">
                             <div className="flex items-center min-w-0" id="header-container">
                               <div className="flex items-center min-w-0" id="dynamic-header-content">
@@ -212,7 +213,7 @@ export default async function RootLayout({
                           </header>
                         )}
 
-                        <div className={isEmbedRoute ? "" : "pt-[var(--header-height)]"}>
+                        <div className={isEmbedRoute || isExperimentRoute ? "" : "pt-[var(--header-height)]"}>
                           {children}
                         </div>
 
