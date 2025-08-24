@@ -44,6 +44,12 @@ export const useYjsMultiplayer = ({
 
   // Initialize Yjs doc/provider once on mount (only if enabled)
   useEffect(() => {
+    if (process.env.NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED !== 'true') {
+      setConnectionError("Multiplayer experiment is disabled");
+      setIsConnected(false);
+      return;
+    }
+    
     if (!enabled) {
       setConnectionError("Initializing...");
       setIsConnected(false);

@@ -9,6 +9,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(_req: Request, ctx: any) {
+  if (process.env.NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED !== 'true') {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   const userId = await getUserId();
   if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
