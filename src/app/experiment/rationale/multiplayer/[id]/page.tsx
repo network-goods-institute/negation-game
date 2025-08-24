@@ -106,8 +106,7 @@ export default function MultiplayerRationaleDetailPage() {
         yEdgesMap,
         ydoc,
         syncYMapFromArray,
-        localOriginRef.current,
-        isDraggingRef
+        localOriginRef.current
     );
 
     const handleNodeDragStart = useCallback((_: any, node: any) => {
