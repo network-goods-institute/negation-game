@@ -2,6 +2,10 @@ import { Node, Edge, NodeTypes } from "@xyflow/react";
 import { PointNode } from "@/components/experiment/multiplayer/PointNode";
 import { NegationEdge } from "@/components/experiment/multiplayer/NegationEdge";
 import { ObjectionEdge } from "@/components/experiment/multiplayer/ObjectionEdge";
+import { StatementEdge } from "@/components/experiment/multiplayer/StatementEdge";
+import { StatementNode } from "@/components/experiment/multiplayer/StatementNode";
+import ObjectionNode from "@/components/experiment/multiplayer/objection/ObjectionNode";
+import EdgeAnchorNode from "@/components/experiment/multiplayer/objection/EdgeAnchorNode";
 
 export const sampleRationale = {
   id: "sample",
@@ -91,12 +95,16 @@ export const initialEdges: Edge[] = [
 ];
 
 export const nodeTypes: NodeTypes = {
+  statement: StatementNode,
   point: PointNode,
+  objection: ObjectionNode,
+  edge_anchor: EdgeAnchorNode,
 };
 
 export const edgeTypes = {
   negation: NegationEdge,
   objection: ObjectionEdge,
+  statement: StatementEdge,
 };
 
 export const generateRandomUser = () => {

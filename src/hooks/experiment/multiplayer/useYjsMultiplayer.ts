@@ -32,13 +32,17 @@ export const useYjsMultiplayer = ({
   // Initialize Yjs doc/provider once on mount (only if enabled)
   useEffect(() => {
     if (!enabled) {
-      setConnectionError("Authentication required for multiplayer features");
+      setConnectionError("Initializing...");
       setIsConnected(false);
       return;
     }
     const doc = new Y.Doc();
 
     const wsUrl = process.env.NEXT_PUBLIC_YJS_WS_URL;
+    console.log("[mp] initializing provider", {
+      wsUrl: Boolean(wsUrl),
+      roomName,
+    });
     const provider = wsUrl
       ? new WebsocketProvider(wsUrl, roomName, doc)
       : new WebrtcProvider(roomName, doc);
@@ -73,7 +77,7 @@ export const useYjsMultiplayer = ({
 
     // @ts-ignore minimal event API
     provider.on("status", (status: any) => {
-      console.log("provider status:", status);
+      console.log("[mp] provider status:", status);
       const isUp = status?.status === "connected";
       setIsConnected(Boolean(isUp));
       if (isUp) {

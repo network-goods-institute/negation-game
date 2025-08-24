@@ -15,6 +15,11 @@ export const ConnectedUsers: React.FC<ConnectedUsersProps> = ({ provider, isConn
 
     const [names, setNames] = useState<string[]>([]);
     const [selfName, setSelfName] = useState<string>("You");
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     useEffect(() => {
         if (!provider) {
@@ -66,14 +71,18 @@ export const ConnectedUsers: React.FC<ConnectedUsersProps> = ({ provider, isConn
     return (
         <div className="flex items-center gap-2 text-xs mt-1">
             <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <span className="text-gray-500 cursor-default">{text}</span>
-                </TooltipTrigger>
-                <TooltipContent>
-                    <div className="max-w-xs whitespace-pre-wrap">{tooltip}</div>
-                </TooltipContent>
-            </Tooltip>
+            {mounted ? (
+                <Tooltip>
+                    <TooltipTrigger>
+                        <div className="text-gray-500 cursor-default select-none">{text}</div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <div className="max-w-xs whitespace-pre-wrap">{tooltip}</div>
+                    </TooltipContent>
+                </Tooltip>
+            ) : (
+                <div className="text-gray-500 cursor-default select-none">{text}</div>
+            )}
         </div>
     );
 };
