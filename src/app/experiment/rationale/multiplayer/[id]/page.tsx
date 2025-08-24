@@ -113,7 +113,7 @@ export default function MultiplayerRationaleDetailPage() {
         if (yNodesMap && ydoc) {
             // Only update local for responsiveness; Yjs sync can be added if needed later
         }
-    }, [setNodes]);
+    }, [setNodes, yNodesMap, ydoc]);
 
 
 

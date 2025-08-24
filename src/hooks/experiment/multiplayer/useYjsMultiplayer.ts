@@ -142,6 +142,7 @@ export const useYjsMultiplayer = ({
       const nextIds = new Set(arr.map((i) => i.id));
       // Delete removed
       for (const key of Array.from(ymap.keys())) {
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
         if (!nextIds.has(key)) ymap.delete(key);
       }
       // Upsert all
