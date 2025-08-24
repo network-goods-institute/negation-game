@@ -1,7 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { Node, Edge, useNodesState, useEdgesState } from "@xyflow/react";
 import * as Y from "yjs";
-import { WebrtcProvider } from "y-webrtc";
 import { WebsocketProvider } from "y-websocket";
 
 interface UseYjsMultiplayerProps {
@@ -25,9 +24,7 @@ export const useYjsMultiplayer = ({
   const [isConnected, setIsConnected] = useState(false);
 
   const ydocRef = useRef<Y.Doc | null>(null);
-  const webrtcProviderRef = useRef<WebrtcProvider | WebsocketProvider | null>(
-    null
-  );
+  const providerRef = useRef<WebsocketProvider | null>(null);
   const yNodesMapRef = useRef<Y.Map<Node> | null>(null);
   const yEdgesMapRef = useRef<Y.Map<Edge> | null>(null);
   const yTextMapRef = useRef<Y.Map<Y.Text> | null>(null);
@@ -169,32 +166,23 @@ export const useYjsMultiplayer = ({
       wsUrl: Boolean(wsUrl),
       roomName,
     });
-    const provider = wsUrl
-      ? new WebsocketProvider(wsUrl, roomName, doc)
-      : new WebrtcProvider(roomName, doc);
-    webrtcProviderRef.current = provider as unknown as
-      | WebrtcProvider
-      | WebsocketProvider;
 
-    // Connection event handlers for WebRTC
+    if (!wsUrl) {
+      console.error("[mp] NEXT_PUBLIC_YJS_WS_URL is required");
+      setConnectionError("WebSocket URL not configured");
+      return;
+    }
+
+    const provider = new WebsocketProvider(wsUrl, roomName, doc);
+    providerRef.current = provider;
+
+    // Connection event handlers for WebSocket
     // @ts-ignore minimal event API cross-provider
     provider.on("synced", () => {
       console.log("provider synced with document");
     });
 
-    // y-websocket has no 'peers' event; guard by feature-detection
-    // @ts-ignore
-    provider.on?.("peers", (peers: any) => {
-      const peerCount = Array.from(peers).length;
-      console.log("webrtc peers:", peerCount);
-      if (peerCount > 0) {
-        setIsConnected(true);
-        setConnectionError(null);
-      } else {
-        setIsConnected(false);
-        setConnectionError("Waiting for other users to join...");
-      }
-    });
+    // y-websocket doesn't have a 'peers' event like y-webrtc
 
     // @ts-ignore minimal event API
     provider.on("status", (status: any) => {
@@ -203,8 +191,8 @@ export const useYjsMultiplayer = ({
       setIsConnected(Boolean(isUp));
       if (isUp) {
         setConnectionError(null);
-      } else if (!wsUrl) {
-        setConnectionError("Waiting for other users to join...");
+      } else {
+        setConnectionError("WebSocket connection lost");
       }
     });
 
@@ -419,10 +407,9 @@ export const useYjsMultiplayer = ({
         }
       } catch {}
 
-      // @ts-ignore both providers expose destroy
-      webrtcProviderRef.current?.destroy?.();
+      providerRef.current?.destroy?.();
       ydocRef.current = null;
-      webrtcProviderRef.current = null;
+      providerRef.current = null;
       undoManagerRef.current = null;
     };
   }, [
@@ -472,7 +459,7 @@ export const useYjsMultiplayer = ({
     edges,
     setNodes,
     setEdges,
-    provider: webrtcProviderRef.current,
+    provider: providerRef.current,
     ydoc: ydocRef.current,
     yNodesMap: yNodesMapRef.current,
     yEdgesMap: yEdgesMapRef.current,
