@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { useGraphActions } from '../GraphContext';
+import * as ContextMenu from '@radix-ui/react-context-menu';
 
 interface ObjectionNodeProps {
     data: {
@@ -11,7 +12,7 @@ interface ObjectionNodeProps {
 }
 
 const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id }) => {
-    const { updateNodeContent, addNegationBelow, isConnectingFromNodeId } = useGraphActions();
+    const { updateNodeContent, addNegationBelow, isConnectingFromNodeId, deleteNode } = useGraphActions();
     const [isEditing, setIsEditing] = useState(false);
     const [value, setValue] = useState(data.content);
     const contentRef = useRef<HTMLDivElement | null>(null);
@@ -19,11 +20,23 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id }) => {
     const draftRef = useRef<string>('');
     const lastClickRef = useRef<number>(0);
     const [hovered, setHovered] = useState(false);
+    const [pillVisible, setPillVisible] = useState(false);
+    const hideTimerRef = useRef<number | null>(null);
+    const updateTimerRef = useRef<number | null>(null);
 
     useEffect(() => {
         setValue(data.content);
         draftRef.current = data.content;
     }, [data.content]);
+
+    const debouncedUpdateNodeContent = useCallback((nodeId: string, content: string) => {
+        if (updateTimerRef.current) {
+            clearTimeout(updateTimerRef.current);
+        }
+        updateTimerRef.current = window.setTimeout(() => {
+            updateNodeContent(nodeId, content);
+        }, 150);
+    }, [updateNodeContent]);
 
     const focusSelectAll = () => {
         const el = contentRef.current;
@@ -48,6 +61,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id }) => {
         sel?.addRange(range);
     };
 
+
     const onClick = (e: React.MouseEvent) => {
         const now = Date.now();
         if (e.detail === 2) {
@@ -67,6 +81,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id }) => {
 
     const onInput = (e: React.FormEvent<HTMLDivElement>) => {
         draftRef.current = (e.target as HTMLDivElement).innerText;
+        debouncedUpdateNodeContent(id, draftRef.current);
         if (wrapperRef.current && contentRef.current) {
             wrapperRef.current.style.minHeight = `${contentRef.current.scrollHeight}px`;
         }
@@ -78,10 +93,43 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id }) => {
         }
     }, [value]);
 
+    useEffect(() => {
+        return () => {
+            if (hideTimerRef.current) {
+                clearTimeout(hideTimerRef.current);
+                hideTimerRef.current = null;
+            }
+            if (updateTimerRef.current) {
+                clearTimeout(updateTimerRef.current);
+                updateTimerRef.current = null;
+            }
+        };
+    }, []);
+
+    const scheduleHide = () => {
+        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = window.setTimeout(() => {
+            setPillVisible(false);
+        }, 180);
+    };
+
+    const cancelHide = () => {
+        if (hideTimerRef.current) {
+            clearTimeout(hideTimerRef.current);
+            hideTimerRef.current = null;
+        }
+    };
+
+    const shouldShowPill = pillVisible && !isEditing;
+
     const commit = () => {
         setIsEditing(false);
         if (draftRef.current !== value) {
             setValue(draftRef.current);
+            if (updateTimerRef.current) {
+                clearTimeout(updateTimerRef.current);
+                updateTimerRef.current = null;
+            }
             updateNodeContent(id, draftRef.current);
         }
     };
@@ -90,10 +138,13 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id }) => {
         <>
             <Handle id={`${id}-source-handle`} type="source" position={Position.Top} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
             <Handle id={`${id}-incoming-handle`} type="target" position={Position.Bottom} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
+            {/* DISABLED: ContextMenu causes infinite PopperAnchor loops in Chrome */}
+            {/* <ContextMenu.Root>
+                <ContextMenu.Trigger asChild> */}
             <div
                 ref={wrapperRef}
-                onMouseEnter={() => setHovered(true)}
-                onMouseLeave={() => setHovered(false)}
+                onMouseEnter={() => { setHovered(true); cancelHide(); setPillVisible(true); }}
+                onMouseLeave={() => { setHovered(false); scheduleHide(); }}
                 onClick={onClick}
                 className={`px-3 py-2 rounded-lg bg-amber-100 border-2 border-amber-500 inline-block min-w-[180px] max-w-[300px] relative cursor-text node-drag-handle ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}`}
             >
@@ -120,14 +171,27 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id }) => {
                 >
                     {value}
                 </div>
+
                 <button
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={(e) => { e.stopPropagation(); addNegationBelow(id); }}
-                    className={`absolute left-1/2 -translate-x-1/2 translate-y-2 bottom-[-22px] rounded-full px-2.5 py-0.5 text-[10px] font-medium bg-stone-800 text-white transition-opacity duration-500 ${hovered ? 'opacity-100' : 'opacity-0'}`}
+                    onMouseEnter={() => { cancelHide(); setPillVisible(true); }}
+                    onMouseLeave={() => { scheduleHide(); }}
+                    className={`absolute left-1/2 -translate-x-1/2 translate-y-2 bottom-[-22px] rounded-full px-2.5 py-0.5 text-[10px] font-medium bg-stone-800 text-white transition-opacity duration-200 ${shouldShowPill ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
                 >
                     Negate
                 </button>
             </div>
+            {/* </ContextMenu.Trigger>
+                <ContextMenu.Content className="min-w-[160px] bg-popover text-popover-foreground rounded-md border shadow-md p-1 z-50">
+                    <ContextMenu.Item
+                        className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent focus:bg-accent hover:text-accent-foreground focus:text-accent-foreground"
+                        onSelect={() => deleteNode(id)}
+                    >
+                        Delete node
+                    </ContextMenu.Item>
+                </ContextMenu.Content>
+            </ContextMenu.Root> */}
         </>
     );
 };

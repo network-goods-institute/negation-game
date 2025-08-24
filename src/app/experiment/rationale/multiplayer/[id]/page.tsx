@@ -34,15 +34,19 @@ export default function MultiplayerRationaleDetailPage() {
     const [connectMode, setConnectMode] = useState<boolean>(false);
     const [connectAnchorId, setConnectAnchorId] = useState<string | null>(null);
     const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
+    const localOriginRef = useRef<object>({});
     const lastAddRef = useRef<Record<string, number>>({});
+    const isDraggingRef = useRef<boolean>(false);
 
     useEffect(() => {
         const colors = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
         setUserColor(colors[Math.floor(Math.random() * colors.length)]);
     }, []);
 
+    const seededRef = useRef(false);
     useEffect(() => {
-        const id = String(routeParams?.id || "");
+        if (seededRef.current) return;
+        seededRef.current = true;
         const statementId = 'statement';
         const pointId = `p-${Date.now()}`;
         setInitialGraph({
@@ -54,7 +58,7 @@ export default function MultiplayerRationaleDetailPage() {
                 { id: generateEdgeId(), type: 'statement', source: pointId, target: statementId, sourceHandle: `${pointId}-source-handle`, targetHandle: `${statementId}-incoming-handle` },
             ],
         });
-    }, [routeParams]);
+    }, []);
 
     const username = user?.username || 'Anonymous';
 
@@ -72,14 +76,21 @@ export default function MultiplayerRationaleDetailPage() {
         ydoc,
         yNodesMap,
         yEdgesMap,
+        yTextMap,
         syncYMapFromArray,
         connectionError,
         isConnected,
+        isSaving,
+        undo,
+        redo,
+        canUndo,
+        canRedo,
     } = useYjsMultiplayer({
         roomName,
         initialNodes: initialGraph?.nodes || [],
         initialEdges: initialGraph?.edges || [],
         enabled: ready && !isUserLoading && !isUserFetching && Boolean(initialGraph),
+        localOrigin: localOriginRef.current,
     });
 
     const cursors = useMultiplayerCursors({
@@ -88,32 +99,69 @@ export default function MultiplayerRationaleDetailPage() {
         userColor,
     });
 
-    const { onNodesChange, onEdgesChange, onConnect } = createGraphChangeHandlers(
+    const { onNodesChange, onEdgesChange, onConnect, commitNodePositions } = createGraphChangeHandlers(
         setNodes,
         setEdges,
         yNodesMap,
         yEdgesMap,
         ydoc,
-        syncYMapFromArray
+        syncYMapFromArray,
+        localOriginRef.current,
+        isDraggingRef
     );
 
-    const handleNodeDrag = createNodeDragHandler(setNodes, username);
+    const handleNodeDragStart = useCallback((_: any, node: any) => {
+        isDraggingRef.current = true;
+        setNodes((nds: any[]) => nds.map((n) => n.id === node.id ? { ...n, data: { ...n.data, editedBy: username } } : n));
+    }, [setNodes, username]);
 
-    const updateEdgeAnchorPosition = useCallback((edgeId: string, x: number, y: number) => {
+    const handleNodeDragStop = useCallback((_: any, node: any) => {
+        isDraggingRef.current = false;
+
+        setTimeout(() => {
+            setNodes((nds: any[]) => nds.map((n) => n.id === node.id ? { ...n, data: { ...n.data, editedBy: undefined } } : n));
+        }, 150);
+    }, [setNodes]);
+
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            const isMod = e.metaKey || e.ctrlKey;
+            if (!isMod) return;
+            const key = e.key.toLowerCase();
+            if (key === 'z') {
+                e.preventDefault();
+                if (e.shiftKey) {
+                    redo?.();
+                } else {
+                    undo?.();
+                }
+            } else if (key === 'y') {
+                e.preventDefault();
+                redo?.();
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [undo, redo]);
+
+    const updateEdgeAnchorPositionRef = useRef<(edgeId: string, x: number, y: number) => void>(() => { });
+    updateEdgeAnchorPositionRef.current = (edgeId: string, x: number, y: number) => {
         setNodes((nds) => {
             let changed = false;
             const updated = nds.map((n: any) => {
                 if (!(n.type === 'edge_anchor' && n.data?.parentEdgeId === edgeId)) return n;
-                if (Math.abs(n.position.x - x) < 0.25 && Math.abs(n.position.y - y) < 0.25) return n;
+                // Only tiny threshold to prevent exact duplicate positions, not visible movement
+                if (Math.abs(n.position.x - x) < 0.01 && Math.abs(n.position.y - y) < 0.01) return n;
                 changed = true;
                 return { ...n, position: { x, y } };
             });
             return changed ? updated : nds;
         });
-        if (yNodesMap && ydoc) {
-            // Only update local for responsiveness; Yjs sync can be added if needed later
-        }
-    }, [setNodes, yNodesMap, ydoc]);
+    };
+
+    const updateEdgeAnchorPosition = useCallback((edgeId: string, x: number, y: number) => {
+        updateEdgeAnchorPositionRef.current?.(edgeId, x, y);
+    }, []);
 
 
 
@@ -150,8 +198,48 @@ export default function MultiplayerRationaleDetailPage() {
     }
 
     const updateNodeContent = (nodeId: string, content: string) => {
-        setNodes((nds) => nds.map((n) => n.id === nodeId ? ({ ...n, data: n.type === 'statement' ? { ...n.data, statement: content } : { ...n.data, content } }) : n));
-        if (yNodesMap && ydoc) ydoc.transact(() => yNodesMap.set(nodeId, (yNodesMap.get(nodeId) ? { ...(yNodesMap.get(nodeId) as any), data: (yNodesMap.get(nodeId) as any).type === 'statement' ? { ...(yNodesMap.get(nodeId) as any).data, statement: content } : { ...(yNodesMap.get(nodeId) as any).data, content } } : (null as any))), 'node-edit');
+        if (yTextMap && ydoc) {
+            ydoc.transact(() => {
+                let t = yTextMap.get(nodeId);
+                if (!t) {
+                    t = new (require('yjs').Text)();
+                    if (t) {
+                        yTextMap.set(nodeId, t);
+                    }
+                }
+                if (t) {
+                    // eslint-disable-next-line drizzle/enforce-delete-with-where
+                    t.delete(0, t.length);
+                    t.insert(0, content);
+                }
+            }, localOriginRef.current);
+        } else {
+            setNodes((nds) => nds.map((n) => n.id === nodeId ? ({ ...n, data: n.type === 'statement' ? { ...n.data, statement: content } : { ...n.data, content } }) : n));
+        }
+    };
+
+    const deleteNode = (nodeId: string) => {
+        const node = nodes.find((n: any) => n.id === nodeId);
+        if (!node) return;
+        if (node.type === 'statement') return;
+        const remainingEdges = edges.filter((e: any) => e.source !== nodeId && e.target !== nodeId);
+        const remainingNodes = nodes.filter((n: any) => n.id !== nodeId);
+        if (yNodesMap && yEdgesMap && ydoc) {
+            ydoc.transact(() => {
+                // delete related edges first
+                for (const e of edges) {
+                    if (e.source === nodeId || e.target === nodeId) {
+                        // eslint-disable-next-line drizzle/enforce-delete-with-where
+                        yEdgesMap.delete(e.id as any);
+                    }
+                }
+                // eslint-disable-next-line drizzle/enforce-delete-with-where
+                yNodesMap.delete(nodeId as any);
+            }, localOriginRef.current);
+        } else {
+            setEdges(() => remainingEdges);
+            setNodes(() => remainingNodes);
+        }
     };
 
     const addNegationBelow = (parentNodeId: string) => {
@@ -167,7 +255,7 @@ export default function MultiplayerRationaleDetailPage() {
         const edgeType = parent.type === 'statement' ? 'statement' : 'negation';
         const newEdge: any = { id: generateEdgeId(), type: edgeType, source: newId, target: parentNodeId, sourceHandle: `${newId}-source-handle`, targetHandle: `${parentNodeId}-incoming-handle` };
         if (yNodesMap && yEdgesMap && ydoc) {
-            ydoc.transact(() => { yNodesMap.set(newId, newNode); yEdgesMap.set(newEdge.id, newEdge); }, 'add-child');
+            ydoc.transact(() => { yNodesMap.set(newId, newNode); yEdgesMap.set(newEdge.id, newEdge); }, localOriginRef.current);
         } else {
             setNodes((curr) => [...curr, newNode]);
             setEdges((eds) => [...eds, newEdge]);
@@ -235,7 +323,7 @@ export default function MultiplayerRationaleDetailPage() {
                 yNodesMap.set(anchorId, anchorNode);
                 yNodesMap.set(objectionId, objectionNode);
                 yEdgesMap.set(objectionEdge.id, objectionEdge);
-            }, 'edge-objection-add');
+            }, localOriginRef.current);
         }
     };
 
@@ -257,11 +345,22 @@ export default function MultiplayerRationaleDetailPage() {
                     </p>
                 )}
             </div>
+            <div className="absolute top-4 right-4 z-10">
+                <div className="flex items-center gap-2 bg-white/90 backdrop-blur rounded-full border px-3 py-1 shadow-sm">
+                    {isSaving ? (
+                        <div className="h-3 w-3 rounded-full border-2 border-stone-300 border-t-stone-600 animate-spin" />
+                    ) : (
+                        <div className="h-2.5 w-2.5 rounded-full bg-green-500" />
+                    )}
+                    <span className="text-xs text-stone-700">{isSaving ? 'Saving…' : 'Saved'}</span>
+                </div>
+            </div>
 
             <ReactFlowProvider>
                 <GraphProvider value={{
                     updateNodeContent,
                     addNegationBelow,
+                    deleteNode,
                     beginConnectFromNode: (id: string) => setConnectAnchorId(id),
                     cancelConnect: () => setConnectAnchorId(null),
                     isConnectingFromNodeId: connectAnchorId,
@@ -297,14 +396,16 @@ export default function MultiplayerRationaleDetailPage() {
                                 if (!exists) {
                                     const newEdge: any = { id: generateEdgeId(), type: edgeType, source: childId, target: parentId, sourceHandle: `${childId}-source-handle`, targetHandle: `${parentId}-incoming-handle` };
                                     if (yEdgesMap && ydoc) {
-                                        ydoc.transact(() => yEdgesMap.set(newEdge.id, newEdge), 'edge-connect');
+                                        ydoc.transact(() => yEdgesMap.set(newEdge.id, newEdge), localOriginRef.current);
                                     } else {
                                         setEdges((eds) => [...eds, newEdge]);
                                     }
                                 }
                                 setConnectAnchorId(null);
                             }}
-                            onNodeDrag={authenticated ? handleNodeDrag : undefined}
+                            onNodeDragStart={authenticated ? handleNodeDragStart : undefined}
+                            onNodeDrag={undefined}
+                            onNodeDragStop={authenticated ? handleNodeDragStop : undefined}
                             nodeTypes={nodeTypes}
                             edgeTypes={edgeTypes}
                             fitView
@@ -339,6 +440,20 @@ export default function MultiplayerRationaleDetailPage() {
                                 >
                                     {connectMode ? 'Connecting' : 'Connect'}
                                 </button>
+                                <button
+                                    onClick={() => { console.log('[undo] click'); undo?.(); }}
+                                    disabled={!canUndo}
+                                    className={`text-xs rounded-full px-2 py-1 bg-stone-200 text-stone-800 ${!canUndo ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                    Undo
+                                </button>
+                                <button
+                                    onClick={() => { console.log('[undo] redo click'); redo?.(); }}
+                                    disabled={!canRedo}
+                                    className={`text-xs rounded-full px-2 py-1 bg-stone-200 text-stone-800 ${!canRedo ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                    Redo
+                                </button>
                                 {connectMode && (
                                     <>
                                         <span className="text-xs text-stone-600">
@@ -358,6 +473,7 @@ export default function MultiplayerRationaleDetailPage() {
                                         </button>
                                     </>
                                 )}
+
                             </div>
                         </div>
                     </div>
@@ -367,5 +483,3 @@ export default function MultiplayerRationaleDetailPage() {
         </div>
     );
 }
-
-

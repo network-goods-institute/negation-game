@@ -4,14 +4,11 @@ import { fetchViewpointForEmbed } from "@/actions/viewpoints/fetchViewpoint";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(
-  _req: Request,
-  ctx: { params: Promise<{ id: string }> } | { params: { id: string } }
-) {
+export async function GET(_req: Request, ctx: any) {
   try {
-    const raw = (ctx as any).params;
+    const raw = ctx?.params;
     const { id } =
-      typeof raw.then === "function"
+      raw && typeof raw.then === "function"
         ? await (raw as Promise<{ id: string }>)
         : (raw as { id: string });
     const vp = await fetchViewpointForEmbed(id);

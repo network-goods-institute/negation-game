@@ -1,17 +1,23 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { StraightEdge, EdgeProps } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 
 export const NegationEdge: React.FC<EdgeProps> = (props) => {
   const { hoveredEdgeId, addObjectionForEdge, setHoveredEdge, updateEdgeAnchorPosition } = useGraphActions();
   const isHovered = hoveredEdgeId === props.id;
-  const cx = (props as any).sourceX != null && (props as any).targetX != null
-    ? ((props as any).sourceX + (props as any).targetX) / 2
-    : 0;
-  const cy = (props as any).sourceY != null && (props as any).targetY != null
-    ? ((props as any).sourceY + (props as any).targetY) / 2
-    : 0;
-  // push live center into anchor so it tracks exactly, but only when values change
+
+  const sourceX = (props as any).sourceX;
+  const sourceY = (props as any).sourceY;
+  const targetX = (props as any).targetX;
+  const targetY = (props as any).targetY;
+
+  const { cx, cy } = useMemo(() => {
+    return {
+      cx: sourceX != null && targetX != null ? (sourceX + targetX) / 2 : 0,
+      cy: sourceY != null && targetY != null ? (sourceY + targetY) / 2 : 0,
+    };
+  }, [sourceX, sourceY, targetX, targetY]);
+
   useEffect(() => {
     if (Number.isFinite(cx) && Number.isFinite(cy)) {
       updateEdgeAnchorPosition(props.id as string, cx, cy);

@@ -67,3 +67,5 @@ export {
 } from "@/db/tables/credEventsTable";
 
 export { rateLimitsTable } from "@/db/tables/rateLimitsTable";
+export { mpDocsTable } from "@/db/tables/mpDocsTable";
+export { mpDocUpdatesTable } from "@/db/tables/mpDocUpdatesTable";

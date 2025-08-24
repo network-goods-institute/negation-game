@@ -3,6 +3,7 @@ import React, { createContext, useContext } from 'react';
 type GraphActions = {
     updateNodeContent: (nodeId: string, content: string) => void;
     addNegationBelow: (parentNodeId: string) => void;
+    deleteNode: (nodeId: string) => void;
     beginConnectFromNode: (nodeId: string) => void;
     cancelConnect: () => void;
     isConnectingFromNodeId: string | null;
@@ -22,6 +23,7 @@ export const useGraphActions = () => {
         return {
             updateNodeContent: () => { },
             addNegationBelow: () => { },
+            deleteNode: () => { },
             beginConnectFromNode: () => { },
             cancelConnect: () => { },
             isConnectingFromNodeId: null,
