@@ -114,7 +114,7 @@ The repository makes several assumptions about the environment it's running in.
 
 The Negation Game uses Yjs for collaborative editing. The Yjs websocket server is hosted on Fly.io.
 
-ALLOWED_ORIGINS=http://localhost:3001 VERBOSE=1 node server.js is for local development.
+`cd yjs-ws && ALLOWED_ORIGINS=http://localhost:3001 VERBOSE=1 node server.js` is for local development.
 
 
 
