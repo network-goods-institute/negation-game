@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { WebsocketProvider } from "y-websocket";
-import { WebrtcProvider } from "y-webrtc";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
-type YProvider = WebsocketProvider | WebrtcProvider | null;
+type YProvider = WebsocketProvider | null;
 
 interface ConnectedUsersProps {
     provider: YProvider;
@@ -27,7 +26,7 @@ export const ConnectedUsers: React.FC<ConnectedUsersProps> = ({ provider, isConn
             setNames([]);
             return;
         }
-        // y-websocket has awareness on provider; y-webrtc also exposes awareness
+        // y-websocket has awareness on provider
         // @ts-ignore
         const awareness = provider.awareness;
         if (!awareness) return;

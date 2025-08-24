@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { WebsocketProvider } from "y-websocket";
-import { WebrtcProvider } from "y-webrtc";
 
 interface CursorData {
   fx?: number;
@@ -9,7 +8,7 @@ interface CursorData {
   color: string;
 }
 
-type YProvider = WebsocketProvider | WebrtcProvider;
+type YProvider = WebsocketProvider;
 
 interface UseMultiplayerCursorsProps {
   provider: YProvider | null;

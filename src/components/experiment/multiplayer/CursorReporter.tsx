@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import { WebsocketProvider } from 'y-websocket';
-import { WebrtcProvider } from 'y-webrtc';
 
-type YProvider = WebsocketProvider | WebrtcProvider;
+type YProvider = WebsocketProvider;
 
 interface CursorReporterProps {
   provider: YProvider | null;
