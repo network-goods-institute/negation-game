@@ -23,6 +23,8 @@ import { VideoIntroDialog } from '@/components/dialogs/VideoIntroDialog';
 import { Loader } from '@/components/ui/loader';
 import { Library, FileText, Keyboard } from 'lucide-react';
 import { usePathname } from 'next/navigation';
+import { usePrivy } from "@privy-io/react-auth";
+import { useUser } from "@/queries/users/useUser";
 
 const LOCAL_STORAGE_KEY = 'onboardingDismissed';
 const LAST_SHOWN_KEY = 'onboardingLastShown';
@@ -151,6 +153,9 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     const [isPermanentlyDismissed, setIsPermanentlyDismissed] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
     const pathname = usePathname();
+    const { user: privyUser } = usePrivy();
+    const { data: appUser, isLoading: userLoading } = useUser(privyUser?.id);
+    const suppressOnboarding = !!privyUser && !appUser; // new-user init state
 
     useEffect(() => {
         if (pathname === '/' || pathname.startsWith('/embed')) {
@@ -161,7 +166,7 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
         const dismissed = localStorage.getItem(LOCAL_STORAGE_KEY) === 'true';
         setIsPermanentlyDismissed(dismissed);
 
-        if (!dismissed) {
+        if (!dismissed && !suppressOnboarding) {
             const lastShown = localStorage.getItem(LAST_SHOWN_KEY);
             const now = Date.now();
             if (!lastShown || now - parseInt(lastShown, 10) > ONE_DAY_MS) {
@@ -170,11 +175,11 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
             }
         }
         setIsInitialized(true);
-    }, [pathname]);
+    }, [pathname, suppressOnboarding]);
 
     const openDialog = useCallback(() => {
-        if (isInitialized) setIsOpen(true);
-    }, [isInitialized]);
+        if (isInitialized && !suppressOnboarding) setIsOpen(true);
+    }, [isInitialized, suppressOnboarding]);
 
     const closeDialog = useCallback(
         (permanently = false) => {
@@ -200,7 +205,7 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     return (
         <OnboardingContext.Provider value={value}>
             {children}
-            {isInitialized && (
+            {isInitialized && !suppressOnboarding && (
                 <OnboardingDialog
                     isOpen={isOpen}
                     onClose={() => closeDialog(false)}

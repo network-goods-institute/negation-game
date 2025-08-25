@@ -7,23 +7,37 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { FC, useState, useEffect } from "react";
 import { clearPrivyCookie } from '@/actions/users/auth';
 import { useInitUser } from '@/mutations/user/useInitUser';
+import { setPrivyToken } from "@/lib/privy/setPrivyToken";
 
 export interface NewUserDialogProps extends DialogProps { }
 
 export const NewUserDialog: FC<NewUserDialogProps> = ({ ...props }) => {
-  const { logout } = usePrivy();
+  const { logout, user: privyUser } = usePrivy();
   const [open, setOpen] = useState(true);
   const { isSuccess } = useInitUser();
 
-  // Close dialog and reload when user creation is successful
+  // Close dialog when user creation is successful
   useEffect(() => {
     if (isSuccess) {
       setOpen(false);
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
     }
   }, [isSuccess]);
+
+  // Proactively ensure server has an HttpOnly Privy token while dialog is open
+  useEffect(() => {
+    if (!open) return;
+    if (!privyUser) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await setPrivyToken();
+      } catch {}
+      if (cancelled) return;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, privyUser]);
 
   return (
     <Dialog {...props} open={open} onOpenChange={setOpen}>

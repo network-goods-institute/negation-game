@@ -27,10 +27,11 @@ import { useUnreadMessageCount } from "@/queries/messages/useUnreadMessageCount"
 import { useIncompleteAssignmentCount } from "@/queries/assignments/useIncompleteAssignmentCount";
 import { Badge } from "@/components/ui/badge";
 import { useRouter, usePathname } from "next/navigation";
+import { setPrivyToken } from "@/lib/privy/setPrivyToken";
 
 export const ConnectButton = () => {
   const { ready, login, logout, user: privyUser } = usePrivy();
-  const { data: user, isLoading } = useUser();
+  const { data: user, isLoading } = useUser(privyUser?.id);
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
   const incompleteAssignmentCount = useIncompleteAssignmentCount();
   const router = useRouter();
@@ -55,6 +56,18 @@ export const ConnectButton = () => {
       setIsLoggingIn(false);
     }
   };
+
+  // Proactively set the HttpOnly Privy token cookie once we have a Privy user
+  const tokenSetRef = useRef(false);
+  useEffect(() => {
+    if (!privyUser || tokenSetRef.current) return;
+    (async () => {
+      try {
+        await setPrivyToken();
+        tokenSetRef.current = true;
+      } catch { }
+    })();
+  }, [privyUser]);
 
   // Check if user is admin of any space or is site admin
   const isAnySpaceAdmin = adminStatus?.siteAdmin || (adminStatus?.adminSpaces && adminStatus.adminSpaces.length > 0);
@@ -141,7 +154,7 @@ export const ConnectButton = () => {
   if (privyUser && !user && !isLoading)
     return (
       <>
-        <NewUserDialog open={true} />
+        <NewUserDialog />
         <Button
           key="connect"
           variant="outline"

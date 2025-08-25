@@ -81,40 +81,41 @@ export const NewUserForm: FC<NewUserFormProps> = ({
     mode: "onBlur",
   });
 
-  // Show success state briefly
+  // No success UI; parent dialog closes immediately on success to keep user on page
   useEffect(() => {
     if (isSuccess) {
-      // Reset form to show success
       form.reset();
     }
   }, [isSuccess, form]);
 
-  if (isSuccess) {
-    return (
-      <div className="space-y-lg">
-        <div className="text-center py-8">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-            </svg>
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Account Created!</h3>
-          <p className="text-sm text-gray-600">Welcome to the platform!</p>
-          <Button
-            onClick={() => window.location.reload()}
-            className="w-full mt-6"
-          >
-            Continue
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(({ username }) => initUser({ username }))}
+        onSubmit={form.handleSubmit(({ username }) =>
+          initUser(
+            { username },
+            {
+              onError: (error: any) => {
+                const message = error?.message || "Unknown error";
+                if (
+                  message === "USERNAME_TAKEN" ||
+                  error?.code === "USERNAME_TAKEN" ||
+                  message.toLowerCase().includes("username")
+                ) {
+                  form.setError("username", {
+                    type: "server",
+                    message: "username taken. choose another one",
+                  });
+                } else {
+                  form.setError("username", {
+                    type: "server",
+                    message: "could not create account — try again",
+                  });
+                }
+              },
+            }
+          )
+        )}
         className={cn("space-y-lg", className)}
         {...props}
       >
@@ -126,7 +127,7 @@ export const NewUserForm: FC<NewUserFormProps> = ({
               <FormLabel>Username</FormLabel>
               <FormControl>
                 <Input
-                  maxLength={USERNAME_MAX_LENGTH + 15}
+                  maxLength={USERNAME_MAX_LENGTH}
                   className="max-w-64"
                   {...field}
                 />
