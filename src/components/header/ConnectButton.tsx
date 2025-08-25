@@ -1,6 +1,4 @@
 "use client";
-
-import { NewUserDialog } from "@/components/dialogs/NewUserDialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -28,10 +26,14 @@ import { useIncompleteAssignmentCount } from "@/queries/assignments/useIncomplet
 import { Badge } from "@/components/ui/badge";
 import { useRouter, usePathname } from "next/navigation";
 import { setPrivyToken } from "@/lib/privy/setPrivyToken";
+import { useEnsureUser } from "@/hooks/auth/useEnsureUser";
+import { UsernameSignupDialog } from "@/components/dialogs/UsernameSignupDialog";
 
 export const ConnectButton = () => {
   const { ready, login, logout, user: privyUser } = usePrivy();
   const { data: user, isLoading } = useUser(privyUser?.id);
+  useEnsureUser();
+  const [signupOpen, setSignupOpen] = useState(true);
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
   const incompleteAssignmentCount = useIncompleteAssignmentCount();
   const router = useRouter();
@@ -151,10 +153,10 @@ export const ConnectButton = () => {
     );
   }
 
-  if (privyUser && !user && !isLoading)
+  if (privyUser && !user)
     return (
       <>
-        <NewUserDialog />
+        <UsernameSignupDialog open={signupOpen} onOpenChange={setSignupOpen} />
         <Button
           key="connect"
           variant="outline"

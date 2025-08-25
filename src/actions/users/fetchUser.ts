@@ -51,10 +51,12 @@ export const fetchUser = async (idOrUsername: string) => {
     const result = await selectQuery.execute();
     const user = result.length === 1 ? result[0] : null;
 
-    userCache.set(idOrUsername, {
-      user,
-      expires: Date.now() + CACHE_DURATION,
-    });
+    if (user) {
+      userCache.set(idOrUsername, {
+        user,
+        expires: Date.now() + CACHE_DURATION,
+      });
+    }
 
     return user;
   } catch (error) {
