@@ -44,6 +44,12 @@ Controlled by `NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED=true/false`
 
 ## Things to deal with later
 
+### Security Scanner False Positives
+- CodeQL flags `Math.random()` for username/color generation as "insecure randomness"
+- **Not a real security issue** - used only for UI display (usernames, colors)
+- No cryptographic or security-sensitive operations involved
+- Can be ignored or suppressed in future
+
 ### TypeScript
 - 26 instances of `any` type usage
 - Weak typing on node/edge data structures

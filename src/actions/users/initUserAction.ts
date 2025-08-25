@@ -4,6 +4,7 @@ import { getUserId } from "@/actions/users/getUserId";
 import { usersTable } from "@/db/schema";
 import { InsertUser, createUserData } from "@/db/tables/usersTable";
 import { db } from "@/services/db";
+import { eq } from "drizzle-orm";
 
 export const initUserAction = async ({
   username,
@@ -20,17 +21,28 @@ export const initUserAction = async ({
     }
 
     const userData = createUserData({ username, id: userId });
-    const query = db
+    
+    let result = await db
       .insert(usersTable)
       .values(userData)
       .onConflictDoNothing()
       .returning();
-    console.warn("[initUserAction] SQL query:", query.toSQL());
 
-    const result = await query;
+    if (result.length === 0) {
+      result = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, userId))
+        .limit(1);
+    }
+
     console.warn("[initUserAction] User creation result:", result);
 
-    return result[0]!;
+    if (result.length === 0) {
+      throw new Error("Failed to create or find user");
+    }
+
+    return result[0];
   } catch (error) {
     console.error("[initUserAction] Error creating user:", error);
     throw error;
