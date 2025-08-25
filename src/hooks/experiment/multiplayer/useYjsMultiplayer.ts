@@ -44,12 +44,12 @@ export const useYjsMultiplayer = ({
 
   // Initialize Yjs doc/provider once on mount (only if enabled)
   useEffect(() => {
-    if (process.env.NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED !== 'true') {
+    if (process.env.NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED !== "true") {
       setConnectionError("Multiplayer experiment is disabled");
       setIsConnected(false);
       return;
     }
-    
+
     if (!enabled) {
       setConnectionError("Initializing...");
       setIsConnected(false);
@@ -80,14 +80,38 @@ export const useYjsMultiplayer = ({
         if (res.ok) {
           const json: { updates: string[] } = await res.json();
           if (Array.isArray(json.updates)) {
+            let appliedUpdates = 0;
             for (const b64 of json.updates) {
-              const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-              Y.applyUpdate(doc, bytes);
+              try {
+                const bytes = Uint8Array.from(atob(b64), (c) =>
+                  c.charCodeAt(0)
+                );
+                Y.applyUpdate(doc, bytes);
+                appliedUpdates++;
+              } catch (updateError) {
+                console.warn(
+                  "[yjs] Skipping corrupted update:",
+                  (updateError as Error).message
+                );
+              }
             }
-            if (json.updates.length > 0)
+
+            if (appliedUpdates > 0) {
               serverVectorRef.current = Y.encodeStateVector(doc);
+              console.log(
+                `[yjs] Successfully applied ${appliedUpdates}/${json.updates.length} updates`
+              );
+            } else if (json.updates.length > 0) {
+              console.warn(
+                `[yjs] Failed to apply any of ${json.updates.length} updates - document may be corrupted`
+              );
+            }
           }
-          if (yNodes.size === 0 && yEdges.size === 0) {
+          if (
+            yNodes.size === 0 &&
+            yEdges.size === 0 &&
+            json.updates.length === 0
+          ) {
             doc.transact(() => {
               for (const n of initialNodes) yNodes.set(n.id, n);
               for (const e of initialEdges) yEdges.set(e.id, e);
@@ -103,11 +127,31 @@ export const useYjsMultiplayer = ({
                 }
               }
             }, "seed");
+          } else if (
+            yNodes.size === 0 &&
+            yEdges.size === 0 &&
+            json.updates.length > 0
+          ) {
+            console.warn(
+              "[yjs] Document appears corrupted - has updates but no content after applying them"
+            );
+            setConnectionError(
+              "Document data appears corrupted. Some content may be missing."
+            );
           }
         }
       } catch (e) {
-        console.warn("[autosave] load state failed", e);
+        console.error("[yjs] Failed to load document state:", e);
+        setConnectionError(
+          `Failed to load document: ${e instanceof Error ? e.message : "Unknown error"}`
+        );
+
+        // Only initialize with default content if we couldn't reach the server at all
+        // Don't overwrite potentially recoverable data
         if (yNodes.size === 0 && yEdges.size === 0) {
+          console.log(
+            "[yjs] Initializing with default content due to load failure"
+          );
           doc.transact(() => {
             for (const n of initialNodes) yNodes.set(n.id, n);
             for (const e of initialEdges) yEdges.set(e.id, e);
@@ -122,7 +166,7 @@ export const useYjsMultiplayer = ({
                 yTextMap.set(n.id, t);
               }
             }
-          }, "seed");
+          }, "fallback-seed");
         }
       }
     })();
@@ -200,6 +244,24 @@ export const useYjsMultiplayer = ({
       } else {
         setConnectionError("WebSocket connection lost");
       }
+    });
+
+    provider.on("connection-error", (error: any) => {
+      console.error("[mp] WebSocket connection error:", error);
+      setConnectionError(
+        `Connection error: ${error?.message || "Unknown error"}`
+      );
+      setIsConnected(false);
+    });
+
+    provider.on("connection-close", (event: any) => {
+      console.log("[mp] WebSocket connection closed:", event);
+      if (event?.code === 1006) {
+        setConnectionError("WebSocket connection closed abnormally");
+      } else {
+        setConnectionError("WebSocket connection closed");
+      }
+      setIsConnected(false);
     });
 
     const updateNodesFromY = (evt?: any) => {
