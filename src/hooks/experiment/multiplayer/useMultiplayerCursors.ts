@@ -12,12 +12,14 @@ type YProvider = WebsocketProvider;
 
 interface UseMultiplayerCursorsProps {
   provider: YProvider | null;
+  userId: string;
   username: string;
   userColor: string;
 }
 
 export const useMultiplayerCursors = ({
   provider,
+  userId,
   username,
   userColor,
 }: UseMultiplayerCursorsProps) => {
@@ -26,13 +28,17 @@ export const useMultiplayerCursors = ({
   // Update awareness identity when username/color ready
   useEffect(() => {
     if (!provider || !username) return;
-
-    provider.awareness.setLocalStateField("user", {
-      name: username,
-      color: userColor,
-      cursor: { fx: 0, fy: 0 },
+    const prev = provider.awareness.getLocalState() || {};
+    provider.awareness.setLocalState({
+      ...prev,
+      user: {
+        id: userId,
+        name: username,
+        color: userColor,
+        cursor: { fx: 0, fy: 0 },
+      },
     });
-  }, [provider, username, userColor]);
+  }, [provider, userId, username, userColor]);
 
   // Listen for awareness changes (other users' cursors)
   useEffect(() => {
@@ -42,15 +48,26 @@ export const useMultiplayerCursors = ({
 
     const updateCursors = () => {
       const states = awareness.getStates();
-      const newCursors = new Map();
+      // Deduplicate by user.id, prefer latest cursor with highest ts if provided
+      const byUser: Map<string, any> = new Map();
       states.forEach((state: any, clientId: number) => {
-        if (clientId !== awareness.clientID && state.user?.cursor) {
-          newCursors.set(clientId, {
-            ...state.user.cursor,
-            name: state.user.name,
-            color: state.user.color,
-          });
+        const u = state?.user;
+        if (!u?.id || !u?.cursor) return;
+        if (u.id === userId) return; // hide local user's own cursor
+        const current = byUser.get(u.id);
+        const ts = u.cursor?.ts || 0;
+        if (!current || ts > (current.user?.cursor?.ts || 0)) {
+          byUser.set(u.id, { clientId, user: u });
         }
+      });
+      const newCursors = new Map<number, CursorData>();
+      byUser.forEach((entry) => {
+        const { clientId, user } = entry;
+        newCursors.set(clientId, {
+          ...user.cursor,
+          name: user.name,
+          color: user.color,
+        });
       });
       setCursors(newCursors);
     };
@@ -60,7 +77,7 @@ export const useMultiplayerCursors = ({
     return () => {
       awareness.off("change", updateCursors);
     };
-  }, [provider]);
+  }, [provider, userId]);
 
   return cursors;
 };

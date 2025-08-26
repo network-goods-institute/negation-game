@@ -34,7 +34,6 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
                         <button
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={(e) => {
-                                console.log('OBJECTION CLICKED FOR EDGE:', props.id);
                                 e.stopPropagation();
                                 addObjectionForEdge(props.id as string, cx, cy);
                             }}
@@ -53,5 +52,3 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
         </>
     );
 };
-
-

@@ -2,27 +2,23 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
-import {
-    ReactFlow,
-    Background,
-    Controls,
-    MiniMap,
-    ReactFlowProvider,
-} from '@xyflow/react';
+import { ReactFlowProvider, } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { usePrivy } from '@privy-io/react-auth';
 import { useUser } from '@/queries/users/useUser';
 
-import { CursorOverlay } from '@/components/experiment/multiplayer/CursorOverlay';
-import { CursorReporter } from '@/components/experiment/multiplayer/CursorReporter';
-import { ConnectedUsers } from '@/components/experiment/multiplayer/ConnectedUsers';
+import { MultiplayerHeader } from '@/components/experiment/multiplayer/MultiplayerHeader';
+import { ToolsBar } from '@/components/experiment/multiplayer/ToolsBar';
+import { GraphCanvas } from '@/components/experiment/multiplayer/GraphCanvas';
 import { useYjsMultiplayer } from '@/hooks/experiment/multiplayer/useYjsMultiplayer';
 import { useMultiplayerCursors } from '@/hooks/experiment/multiplayer/useMultiplayerCursors';
-import { createGraphChangeHandlers, createNodeDragHandler } from '@/utils/experiment/multiplayer/graphSync';
-import { nodeTypes, edgeTypes } from '@/data/experiment/multiplayer/sampleData';
+import { useMultiplayerEditing } from '@/hooks/experiment/multiplayer/useMultiplayerEditing';
+import { useLeaderElection } from '@/hooks/experiment/multiplayer/useLeaderElection';
+import { createGraphChangeHandlers } from '@/utils/experiment/multiplayer/graphSync';
 import { GraphProvider } from '@/components/experiment/multiplayer/GraphContext';
-import { generateEdgeId } from '@/utils/experiment/multiplayer/graphSync';
+import { generateEdgeId, deterministicEdgeId } from '@/utils/experiment/multiplayer/graphSync';
 import { GraphUpdater } from '@/components/experiment/multiplayer/GraphUpdater';
+import { toast } from 'sonner';
 
 export default function MultiplayerRationaleDetailPage() {
     const routeParams = useParams<{ id: string }>();
@@ -40,8 +36,11 @@ export default function MultiplayerRationaleDetailPage() {
 
     useEffect(() => {
         const colors = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
-        setUserColor(colors[Math.floor(Math.random() * colors.length)]);
-    }, []);
+        const idBasis = (user?.id || 'anon') as string;
+        let h = 0;
+        for (let i = 0; i < idBasis.length; i++) h = (h * 31 + idBasis.charCodeAt(i)) >>> 0;
+        setUserColor(colors[h % colors.length]);
+    }, [user?.id]);
 
     const seededRef = useRef(false);
     useEffect(() => {
@@ -61,6 +60,7 @@ export default function MultiplayerRationaleDetailPage() {
     }, []);
 
     const username = user?.username || 'Anonymous';
+    const userId = (user as any)?.id || '';
 
     const roomName = useMemo(() => {
         const id = typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '');
@@ -93,34 +93,37 @@ export default function MultiplayerRationaleDetailPage() {
         localOrigin: localOriginRef.current,
     });
 
-    const cursors = useMultiplayerCursors({
-        provider,
-        username,
-        userColor,
-    });
+    const cursors = useMultiplayerCursors({ provider, userId, username, userColor });
+    const { isLeader } = useLeaderElection(provider, userId);
+
+    const { startEditing, stopEditing, getEditorsForNode, lockNode, unlockNode, isLockedForMe, getLockOwner } = useMultiplayerEditing({ provider, userId, username, userColor });
 
     const { onNodesChange, onEdgesChange, onConnect, commitNodePositions } = createGraphChangeHandlers(
         setNodes,
         setEdges,
-        yNodesMap,
-        yEdgesMap,
-        ydoc,
+        isLeader ? yNodesMap : null,
+        isLeader ? yEdgesMap : null,
+        isLeader ? ydoc : null,
         syncYMapFromArray,
         localOriginRef.current
     );
 
     const handleNodeDragStart = useCallback((_: any, node: any) => {
+        if (isLockedForMe?.(node.id)) {
+            const owner = getLockOwner?.(node.id);
+            toast.warning(`Locked by ${owner?.name || 'another user'}`);
+            return;
+        }
         isDraggingRef.current = true;
-        setNodes((nds: any[]) => nds.map((n) => n.id === node.id ? { ...n, data: { ...n.data, editedBy: username } } : n));
-    }, [setNodes, username]);
+        lockNode(node.id, 'drag');
+    }, [lockNode, isLockedForMe, getLockOwner]);
 
     const handleNodeDragStop = useCallback((_: any, node: any) => {
         isDraggingRef.current = false;
-
         setTimeout(() => {
-            setNodes((nds: any[]) => nds.map((n) => n.id === node.id ? { ...n, data: { ...n.data, editedBy: undefined } } : n));
+            unlockNode(node.id);
         }, 150);
-    }, [setNodes]);
+    }, [unlockNode]);
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
@@ -197,7 +200,7 @@ export default function MultiplayerRationaleDetailPage() {
     }
 
     const updateNodeContent = (nodeId: string, content: string) => {
-        if (yTextMap && ydoc) {
+        if (yTextMap && ydoc && isLeader) {
             ydoc.transact(() => {
                 let t = yTextMap.get(nodeId);
                 if (!t) {
@@ -207,9 +210,18 @@ export default function MultiplayerRationaleDetailPage() {
                     }
                 }
                 if (t) {
+                    const curr = t.toString();
+                    if (curr === content) return;
+                    let start = 0;
+                    while (start < curr.length && start < content.length && curr[start] === content[start]) start++;
+                    let endCurr = curr.length - 1;
+                    let endNew = content.length - 1;
+                    while (endCurr >= start && endNew >= start && curr[endCurr] === content[endNew]) { endCurr--; endNew--; }
+                    const deleteLen = Math.max(0, endCurr - start + 1);
                     // eslint-disable-next-line drizzle/enforce-delete-with-where
-                    t.delete(0, t.length);
-                    t.insert(0, content);
+                    if (deleteLen > 0) t.delete(start, deleteLen);
+                    const insertText = content.slice(start, endNew + 1);
+                    if (insertText.length > 0) t.insert(start, insertText);
                 }
             }, localOriginRef.current);
         } else {
@@ -218,30 +230,103 @@ export default function MultiplayerRationaleDetailPage() {
     };
 
     const deleteNode = (nodeId: string) => {
+        if (isLockedForMe?.(nodeId)) {
+            const owner = getLockOwner?.(nodeId);
+            toast.warning(`Locked by ${owner?.name || 'another user'}`);
+            return;
+        }
         const node = nodes.find((n: any) => n.id === nodeId);
-        if (!node) return;
-        if (node.type === 'statement') return;
-        const remainingEdges = edges.filter((e: any) => e.source !== nodeId && e.target !== nodeId);
-        const remainingNodes = nodes.filter((n: any) => n.id !== nodeId);
-        if (yNodesMap && yEdgesMap && ydoc) {
-            ydoc.transact(() => {
-                // delete related edges first
-                for (const e of edges) {
-                    if (e.source === nodeId || e.target === nodeId) {
-                        // eslint-disable-next-line drizzle/enforce-delete-with-where
-                        yEdgesMap.delete(e.id as any);
+        if (!node) { return; }
+        if (node.type === 'statement') { return; }
+
+        const nodesToDelete = new Set<string>([nodeId]);
+        const edgesToDelete = new Set<string>();
+
+        const getIncidentEdges = (nid: string) => edges.filter((e: any) => e.source === nid || e.target === nid);
+
+        let changed = true;
+        while (changed) {
+            changed = false;
+
+            // For each node marked, mark all incident edges
+            for (const nid of Array.from(nodesToDelete)) {
+                for (const e of getIncidentEdges(nid)) {
+                    if (!edgesToDelete.has(e.id)) {
+                        edgesToDelete.add(e.id);
+                        changed = true;
+
+                        // If this edge has objections, mark their parts
+                        // Find anchors for this base edge
+                        for (const n of nodes) {
+                            if (n.type === 'edge_anchor' && n.data?.parentEdgeId === e.id) {
+                                if (!nodesToDelete.has(n.id)) { nodesToDelete.add(n.id); changed = true; }
+                                // objection nodes tied to this base edge
+                                for (const on of nodes) {
+                                    if (on.type === 'objection' && on.data?.parentEdgeId === e.id) {
+                                        if (!nodesToDelete.has(on.id)) { nodesToDelete.add(on.id); changed = true; }
+                                    }
+                                }
+                                // objection edges pointing from objection to the anchor
+                                for (const oe of edges) {
+                                    if (oe.type === 'objection' && nodesToDelete.has(n.id) && (oe.target === n.id)) {
+                                        if (!edgesToDelete.has(oe.id)) { edgesToDelete.add(oe.id); changed = true; }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
-                // eslint-disable-next-line drizzle/enforce-delete-with-where
-                yNodesMap.delete(nodeId as any);
+            }
+
+            // After marking edges, remove orphan nodes (non-statement) that will have no edges remaining
+            const remainingEdges = edges.filter((e: any) => !edgesToDelete.has(e.id));
+            const degree = new Map<string, number>();
+            for (const e of remainingEdges) {
+                degree.set(e.source, (degree.get(e.source) || 0) + 1);
+                degree.set(e.target, (degree.get(e.target) || 0) + 1);
+            }
+            for (const n of nodes) {
+                if (nodesToDelete.has(n.id)) continue;
+                if (n.type === 'statement') continue;
+                const deg = degree.get(n.id) || 0;
+                if (deg === 0) {
+                    nodesToDelete.add(n.id);
+                    changed = true;
+                }
+            }
+        }
+
+        // Compute final arrays
+        const finalNodes = nodes.filter((n: any) => !nodesToDelete.has(n.id));
+        const finalEdges = edges.filter((e: any) => !edgesToDelete.has(e.id));
+
+        if (yNodesMap && yEdgesMap && ydoc && isLeader) {
+            ydoc.transact(() => {
+                // delete edges first
+                for (const eid of edgesToDelete) {
+                    // eslint-disable-next-line drizzle/enforce-delete-with-where
+                    yEdgesMap.delete(eid as any);
+                }
+                // delete nodes + text entries
+                for (const nid of nodesToDelete) {
+                    // eslint-disable-next-line drizzle/enforce-delete-with-where
+                    yNodesMap.delete(nid as any);
+                    // eslint-disable-next-line drizzle/enforce-delete-with-where
+                    try { yTextMap?.delete(nid as any); } catch { }
+                }
             }, localOriginRef.current);
         } else {
-            setEdges(() => remainingEdges);
-            setNodes(() => remainingNodes);
+            setEdges(() => finalEdges);
+            setNodes(() => finalNodes);
         }
     };
 
     const addNegationBelow = (parentNodeId: string) => {
+        if (isLockedForMe?.(parentNodeId)) {
+            const owner = getLockOwner?.(parentNodeId);
+            toast.warning(`Locked by ${owner?.name || 'another user'}`);
+            return;
+        }
         const now = Date.now();
         const last = lastAddRef.current[parentNodeId] || 0;
         if (now - last < 500) return;
@@ -253,7 +338,7 @@ export default function MultiplayerRationaleDetailPage() {
         const newNode: any = { id: newId, type: 'point', position: newPos, data: { content: 'New point' } };
         const edgeType = parent.type === 'statement' ? 'statement' : 'negation';
         const newEdge: any = { id: generateEdgeId(), type: edgeType, source: newId, target: parentNodeId, sourceHandle: `${newId}-source-handle`, targetHandle: `${parentNodeId}-incoming-handle` };
-        if (yNodesMap && yEdgesMap && ydoc) {
+        if (yNodesMap && yEdgesMap && ydoc && isLeader) {
             ydoc.transact(() => { yNodesMap.set(newId, newNode); yEdgesMap.set(newEdge.id, newEdge); }, localOriginRef.current);
         } else {
             setNodes((curr) => [...curr, newNode]);
@@ -262,24 +347,22 @@ export default function MultiplayerRationaleDetailPage() {
     };
 
     const addObjectionForEdge = (edgeId: string, overrideMidX?: number, overrideMidY?: number) => {
-        console.log('addObjectionForEdge called with:', edgeId);
-        console.log('Current edges:', edges);
-        console.log('Current nodes:', nodes);
-
         const base = edges.find((e: any) => e.id === edgeId);
-        if (!base) {
-            console.log('Base edge not found!');
-            return;
-        }
-        console.log('Found base edge:', base);
+        if (!base) return;
 
         const src = nodes.find((n: any) => n.id === base.source);
         const tgt = nodes.find((n: any) => n.id === base.target);
         if (!src || !tgt) return;
+        if (isLockedForMe?.(src.id) || isLockedForMe?.(tgt.id)) {
+            const lockedNodeId = isLockedForMe?.(src.id) ? src.id : tgt.id;
+            const owner = getLockOwner?.(lockedNodeId);
+            toast.warning(`Locked by ${owner?.name || 'another user'}`);
+            return;
+        }
         const midX = overrideMidX ?? ((src.position.x + tgt.position.x) / 2);
         const midY = overrideMidY ?? ((src.position.y + tgt.position.y) / 2);
 
-        const anchorId = `ea-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+        const anchorId = `anchor:${edgeId}`;
         const objectionId = `o-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
         const anchorNode: any = { id: anchorId, type: 'edge_anchor', position: { x: midX, y: midY }, data: { parentEdgeId: edgeId } };
@@ -291,37 +374,24 @@ export default function MultiplayerRationaleDetailPage() {
             source: objectionId,
             target: anchorId
         };
-
-        console.log('Creating nodes and edge:', { anchorNode, objectionNode, objectionEdge });
-        console.log('Objection edge details:', {
-            id: objectionEdge.id,
-            type: objectionEdge.type,
-            source: objectionEdge.source,
-            target: objectionEdge.target
-        });
-
         // Always update local state immediately for responsiveness
-        console.log('Updating local state immediately');
-
         // Batch updates but avoid recursive setState chains
         setNodes((nds) => {
-            const newNodes = [...nds, anchorNode, objectionNode];
-            console.log('Local nodes update:', newNodes.length);
+            const existsAnchor = nds.some((n: any) => n.id === anchorId);
+            const newNodes = existsAnchor ? [...nds, objectionNode] : [...nds, anchorNode, objectionNode];
             return newNodes;
         });
         setEdges((eds) => {
             const newEdges = [...eds, objectionEdge];
-            console.log('Local edges update:', newEdges.length);
             return newEdges;
         });
 
         // Also sync to Yjs if available
-        if (yNodesMap && yEdgesMap && ydoc) {
-            console.log('Also syncing to Yjs');
+        if (yNodesMap && yEdgesMap && ydoc && isLeader) {
             ydoc.transact(() => {
-                yNodesMap.set(anchorId, anchorNode);
+                if (!yNodesMap.has(anchorId)) yNodesMap.set(anchorId, anchorNode);
                 yNodesMap.set(objectionId, objectionNode);
-                yEdgesMap.set(objectionEdge.id, objectionEdge);
+                if (!yEdgesMap.has(objectionEdge.id)) yEdgesMap.set(objectionEdge.id, objectionEdge);
             }, localOriginRef.current);
         }
     };
@@ -330,30 +400,15 @@ export default function MultiplayerRationaleDetailPage() {
 
     return (
         <div className="fixed inset-0 top-16 bg-gray-50">
-            <div className="absolute top-4 left-4 z-10 bg-white p-4 rounded-lg shadow-lg border">
-                <h1 className="text-xl font-bold text-gray-900 mb-2">
-                    Multiplayer Rationale
-                </h1>
-                <p className="text-sm text-gray-600">
-                    You are: <span className="font-semibold" style={{ color: userColor }}>{username}</span>
-                </p>
-                <ConnectedUsers provider={provider} isConnected={isConnected} />
-                {connectionError && (
-                    <p className="text-xs text-orange-600 mt-1 bg-orange-50 p-2 rounded">
-                        {connectionError}
-                    </p>
-                )}
-            </div>
-            <div className="absolute top-4 right-4 z-10">
-                <div className="flex items-center gap-2 bg-white/90 backdrop-blur rounded-full border px-3 py-1 shadow-sm">
-                    {isSaving ? (
-                        <div className="h-3 w-3 rounded-full border-2 border-stone-300 border-t-stone-600 animate-spin" />
-                    ) : (
-                        <div className="h-2.5 w-2.5 rounded-full bg-green-500" />
-                    )}
-                    <span className="text-xs text-stone-700">{isSaving ? 'Saving…' : 'Saved'}</span>
-                </div>
-            </div>
+            <MultiplayerHeader
+                username={username}
+                userColor={userColor}
+                provider={provider}
+                isConnected={isConnected}
+                connectionError={connectionError}
+                isSaving={isSaving}
+                proxyMode={!isLeader}
+            />
 
             <ReactFlowProvider>
                 <GraphProvider value={{
@@ -367,16 +422,32 @@ export default function MultiplayerRationaleDetailPage() {
                     hoveredEdgeId,
                     setHoveredEdge: setHoveredEdgeId,
                     updateEdgeAnchorPosition,
+                    startEditingNode: startEditing,
+                    stopEditingNode: stopEditing,
+                    getEditorsForNode,
+                    lockNode,
+                    unlockNode,
+                    isLockedForMe,
+                    getLockOwner,
+                    proxyMode: !isLeader,
                 }}>
                     <div className="w-full h-full relative">
-                        <ReactFlow
-                            nodes={nodes}
-                            edges={edges}
-                            onInit={() => console.log('ReactFlow initialized with edges:', edges)}
-                            onNodesChange={authenticated ? onNodesChange : undefined}
-                            onEdgesChange={authenticated ? onEdgesChange : undefined}
-                            onConnect={authenticated ? onConnect : undefined}
-                            onNodeClick={(e, node) => {
+                        {(!nodes || nodes.length === 0) && (
+                            <div className="absolute inset-0 bg-gray-50/80 z-10 flex items-center justify-center">
+                                <div className="text-center bg-white/80 px-6 py-4 rounded-lg border shadow-sm">
+                                    <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                                    <div className="text-sm text-gray-600">Loading graph…</div>
+                                </div>
+                            </div>
+                        )}
+                        <GraphCanvas
+                            nodes={nodes as any}
+                            edges={edges as any}
+                            authenticated={authenticated}
+                            onNodesChange={onNodesChange}
+                            onEdgesChange={onEdgesChange}
+                            onConnect={onConnect}
+                            onNodeClick={(e: any, node: any) => {
                                 if (!connectMode) return;
                                 e.stopPropagation();
                                 if (!connectAnchorId) {
@@ -389,92 +460,46 @@ export default function MultiplayerRationaleDetailPage() {
                                 }
                                 const parentId = connectAnchorId;
                                 const childId = node.id;
+                                if (isLockedForMe?.(parentId) || isLockedForMe?.(childId)) {
+                                    const lockedNodeId = isLockedForMe?.(parentId) ? parentId : childId;
+                                    const owner = getLockOwner?.(lockedNodeId);
+                                    toast.warning(`Locked by ${owner?.name || 'another user'}`);
+                                    setConnectAnchorId(null);
+                                    return;
+                                }
                                 const parentType = nodes.find((n: any) => n.id === parentId)?.type;
                                 const edgeType = parentType === 'statement' ? 'statement' : 'negation';
                                 const exists = edges.some((edge: any) => edge.source === childId && edge.target === parentId && edge.type === edgeType);
                                 if (!exists) {
-                                    const newEdge: any = { id: generateEdgeId(), type: edgeType, source: childId, target: parentId, sourceHandle: `${childId}-source-handle`, targetHandle: `${parentId}-incoming-handle` };
-                                    if (yEdgesMap && ydoc) {
-                                        ydoc.transact(() => yEdgesMap.set(newEdge.id, newEdge), localOriginRef.current);
+                                    const id = deterministicEdgeId(edgeType, childId, parentId, `${childId}-source-handle`, `${parentId}-incoming-handle`);
+                                    const newEdge: any = { id, type: edgeType, source: childId, target: parentId, sourceHandle: `${childId}-source-handle`, targetHandle: `${parentId}-incoming-handle` };
+                                    if (yEdgesMap && ydoc && isLeader) {
+                                        ydoc.transact(() => { if (!yEdgesMap.has(id)) yEdgesMap.set(id, newEdge); }, localOriginRef.current);
                                     } else {
-                                        setEdges((eds) => [...eds, newEdge]);
+                                        setEdges((eds) => (eds.some(e => e.id === id) ? eds : [...eds, newEdge]));
                                     }
                                 }
                                 setConnectAnchorId(null);
                             }}
-                            onNodeDragStart={authenticated ? handleNodeDragStart : undefined}
-                            onNodeDrag={undefined}
-                            onNodeDragStop={authenticated ? handleNodeDragStop : undefined}
-                            nodeTypes={nodeTypes}
-                            edgeTypes={edgeTypes}
-                            fitView
-                            className="w-full h-full bg-gray-50"
-                            onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
+                            onNodeDragStart={handleNodeDragStart}
+                            onNodeDragStop={handleNodeDragStop}
+                            onEdgeMouseEnter={(_: any, edge: any) => setHoveredEdgeId(edge.id)}
                             onEdgeMouseLeave={() => setHoveredEdgeId(null)}
-                        >
-                            <Background />
-                            <Controls />
-                            <MiniMap
-                                nodeColor={() => '#dbeafe'}
-                                className="bg-white"
-                            />
-                        </ReactFlow>
-                        {authenticated && <CursorOverlay cursors={cursors} />}
-                        {authenticated && (
-                            <CursorReporter
-                                provider={provider}
-                                username={username}
-                                userColor={userColor}
-                            />
-                        )}
-                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
-                            <div className="bg-white/95 backdrop-blur border shadow-xl rounded-full px-3 py-1.5 flex items-center gap-3">
-                                <span className="text-xs text-stone-600 px-1">Tools</span>
-                                <button
-                                    onClick={() => {
-                                        setConnectMode((v) => !v);
-                                        setConnectAnchorId(null);
-                                    }}
-                                    className={`text-xs rounded-full px-3 py-1 transition-colors ${connectMode ? 'bg-blue-600 text-white' : 'bg-stone-800 text-white'}`}
-                                >
-                                    {connectMode ? 'Connecting' : 'Connect'}
-                                </button>
-                                <button
-                                    onClick={() => { console.log('[undo] click'); undo?.(); }}
-                                    disabled={!canUndo}
-                                    className={`text-xs rounded-full px-2 py-1 bg-stone-200 text-stone-800 ${!canUndo ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                >
-                                    Undo
-                                </button>
-                                <button
-                                    onClick={() => { console.log('[undo] redo click'); redo?.(); }}
-                                    disabled={!canRedo}
-                                    className={`text-xs rounded-full px-2 py-1 bg-stone-200 text-stone-800 ${!canRedo ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                >
-                                    Redo
-                                </button>
-                                {connectMode && (
-                                    <>
-                                        <span className="text-xs text-stone-600">
-                                            {connectAnchorId ? `From selected. Now click a child` : 'Click a parent node'}
-                                        </span>
-                                        <button
-                                            onClick={() => setConnectAnchorId(null)}
-                                            className="text-xs rounded-full px-2 py-1 bg-stone-200 text-stone-800"
-                                        >
-                                            Reset
-                                        </button>
-                                        <button
-                                            onClick={() => { setConnectMode(false); setConnectAnchorId(null); }}
-                                            className="text-xs rounded-full px-2 py-1 bg-red-600 text-white"
-                                        >
-                                            Cancel
-                                        </button>
-                                    </>
-                                )}
-
-                            </div>
-                        </div>
+                            provider={provider}
+                            cursors={cursors as any}
+                            username={username}
+                            userColor={userColor}
+                        />
+                        <ToolsBar
+                            connectMode={connectMode}
+                            setConnectMode={setConnectMode as any}
+                            setConnectAnchorId={setConnectAnchorId}
+                            canUndo={!!canUndo}
+                            canRedo={!!canRedo}
+                            undo={undo}
+                            redo={redo}
+                            connectAnchorId={connectAnchorId}
+                        />
                     </div>
                     <GraphUpdater nodes={nodes} edges={edges} setNodes={setNodes} />
                 </GraphProvider>

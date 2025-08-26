@@ -10,11 +10,7 @@ interface CursorReporterProps {
   userColor: string;
 }
 
-export const CursorReporter: React.FC<CursorReporterProps> = ({
-  provider,
-  username,
-  userColor,
-}) => {
+export const CursorReporter: React.FC<CursorReporterProps> = ({ provider, username, userColor }) => {
   const rf = useReactFlow();
 
   useEffect(() => {
@@ -22,10 +18,16 @@ export const CursorReporter: React.FC<CursorReporterProps> = ({
 
     const update = (clientX: number, clientY: number) => {
       const { x: fx, y: fy } = rf.screenToFlowPosition({ x: clientX, y: clientY });
-      provider.awareness.setLocalStateField('user', {
-        name: username,
-        color: userColor,
-        cursor: { fx, fy },
+      const prev = provider.awareness.getLocalState() || {};
+      const prevUser = prev.user || {};
+      provider.awareness.setLocalState({
+        ...prev,
+        user: {
+          ...prevUser,
+          name: username,
+          color: userColor,
+          cursor: { fx, fy, ts: Date.now() },
+        },
       });
     };
 

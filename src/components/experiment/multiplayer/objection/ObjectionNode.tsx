@@ -1,7 +1,10 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { useGraphActions } from '../GraphContext';
-import * as ContextMenu from '@radix-ui/react-context-menu';
+import { EditorsBadgeRow } from '../EditorsBadgeRow';
+import { useEditableNode } from '../common/useEditableNode';
+import { ContextMenu } from '../common/ContextMenu';
+import { toast } from 'sonner';
 
 interface ObjectionNodeProps {
     data: {
@@ -12,96 +15,29 @@ interface ObjectionNodeProps {
 }
 
 const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id }) => {
-    const { updateNodeContent, addNegationBelow, isConnectingFromNodeId, deleteNode } = useGraphActions();
-    const [isEditing, setIsEditing] = useState(false);
-    const [value, setValue] = useState(data.content);
-    const contentRef = useRef<HTMLDivElement | null>(null);
-    const wrapperRef = useRef<HTMLDivElement | null>(null);
-    const draftRef = useRef<string>('');
-    const lastClickRef = useRef<number>(0);
+    const { updateNodeContent, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode } = useGraphActions();
+    const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus } = useEditableNode({
+        id,
+        content: data.content,
+        updateNodeContent,
+        startEditingNode,
+        stopEditingNode,
+    });
     const [hovered, setHovered] = useState(false);
     const [pillVisible, setPillVisible] = useState(false);
     const hideTimerRef = useRef<number | null>(null);
-    const updateTimerRef = useRef<number | null>(null);
-
-    useEffect(() => {
-        setValue(data.content);
-        draftRef.current = data.content;
-    }, [data.content]);
-
-    const debouncedUpdateNodeContent = useCallback((nodeId: string, content: string) => {
-        if (updateTimerRef.current) {
-            clearTimeout(updateTimerRef.current);
-        }
-        updateTimerRef.current = window.setTimeout(() => {
-            updateNodeContent(nodeId, content);
-        }, 150);
-    }, [updateNodeContent]);
-
-    const focusSelectAll = () => {
-        const el = contentRef.current;
-        if (!el) return;
-        el.focus();
-        const range = document.createRange();
-        range.selectNodeContents(el);
-        const sel = window.getSelection();
-        sel?.removeAllRanges();
-        sel?.addRange(range);
-    };
-
-    const enterEditWithCaret = () => {
-        const el = contentRef.current;
-        if (!el) return;
-        el.focus();
-        const range = document.createRange();
-        range.selectNodeContents(el);
-        range.collapse(false);
-        const sel = window.getSelection();
-        sel?.removeAllRanges();
-        sel?.addRange(range);
-    };
-
-
-    const onClick = (e: React.MouseEvent) => {
-        const now = Date.now();
-        if (e.detail === 2) {
-            setIsEditing(true);
-            setTimeout(focusSelectAll, 0);
-        } else if (e.detail >= 3) {
-            setIsEditing(true);
-            setTimeout(enterEditWithCaret, 0);
-        } else {
-            if (now - lastClickRef.current > 350 && lastClickRef.current !== 0) {
-                setIsEditing(true);
-                setTimeout(enterEditWithCaret, 0);
-            }
-            lastClickRef.current = now;
-        }
-    };
-
-    const onInput = (e: React.FormEvent<HTMLDivElement>) => {
-        draftRef.current = (e.target as HTMLDivElement).innerText;
-        debouncedUpdateNodeContent(id, draftRef.current);
-        if (wrapperRef.current && contentRef.current) {
-            wrapperRef.current.style.minHeight = `${contentRef.current.scrollHeight}px`;
-        }
-    };
 
     useEffect(() => {
         if (wrapperRef.current && contentRef.current) {
             wrapperRef.current.style.minHeight = `${contentRef.current.scrollHeight}px`;
         }
-    }, [value]);
+    }, [value, contentRef, wrapperRef]);
 
     useEffect(() => {
         return () => {
             if (hideTimerRef.current) {
                 clearTimeout(hideTimerRef.current);
                 hideTimerRef.current = null;
-            }
-            if (updateTimerRef.current) {
-                clearTimeout(updateTimerRef.current);
-                updateTimerRef.current = null;
             }
         };
     }, []);
@@ -120,53 +56,43 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id }) => {
         }
     };
 
-    const shouldShowPill = pillVisible && !isEditing;
+    const locked = isLockedForMe?.(id) || false;
+    const lockOwner = getLockOwner?.(id) || null;
+    const shouldShowPill = pillVisible && !isEditing && !locked;
 
-    const commit = () => {
-        setIsEditing(false);
-        if (draftRef.current !== value) {
-            setValue(draftRef.current);
-            if (updateTimerRef.current) {
-                clearTimeout(updateTimerRef.current);
-                updateTimerRef.current = null;
-            }
-            updateNodeContent(id, draftRef.current);
-        }
-    };
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
     return (
         <>
             <Handle id={`${id}-source-handle`} type="source" position={Position.Top} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
             <Handle id={`${id}-incoming-handle`} type="target" position={Position.Bottom} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
-            {/* DISABLED: ContextMenu causes infinite PopperAnchor loops in Chrome */}
-            {/* <ContextMenu.Root>
-                <ContextMenu.Trigger asChild> */}
             <div
                 ref={wrapperRef}
                 onMouseEnter={() => { setHovered(true); cancelHide(); setPillVisible(true); }}
                 onMouseLeave={() => { setHovered(false); scheduleHide(); }}
-                onClick={onClick}
-                className={`px-3 py-2 rounded-lg bg-amber-100 border-2 border-amber-500 inline-block min-w-[180px] max-w-[300px] relative cursor-text node-drag-handle ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}`}
+                onClick={(e) => { if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } }}
+                onMouseDown={(e) => { if (e.button === 2) { e.preventDefault(); e.stopPropagation(); } }}
+                onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
+                className={`px-3 py-2 rounded-lg bg-amber-100 border-2 border-amber-500 inline-block min-w-[180px] max-w-[300px] relative ${locked ? 'cursor-not-allowed' : 'cursor-text'} node-drag-handle ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}`}
             >
                 {isConnectingFromNodeId === id && (
                     <div className="absolute -top-3 right-0 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
                 )}
+                <EditorsBadgeRow editors={getEditorsForNode?.(id) || []} />
+                {!proxyMode && lockOwner && (
+                    <div className="absolute -top-6 left-0 text-xs px-2 py-1 rounded text-white" style={{ backgroundColor: lockOwner.color }}>
+                        {lockOwner.name}
+                    </div>
+                )}
                 <div
                     ref={contentRef}
-                    contentEditable={isEditing}
+                    contentEditable={isEditing && !locked}
                     suppressContentEditableWarning
                     onInput={onInput}
-                    onBlur={(e) => {
-                        // prevent blur -> state change -> re-render -> blur loops
-                        if (document.activeElement === e.currentTarget) return;
-                        commit();
-                    }}
-                    onKeyDown={(e) => {
-                        if ((e as React.KeyboardEvent<HTMLDivElement>).key === 'Enter' && !(e as React.KeyboardEvent<HTMLDivElement>).shiftKey) {
-                            e.preventDefault();
-                            commit();
-                        }
-                    }}
+                    onFocus={onFocus}
+                    onBlur={onBlur}
+                    onKeyDown={onKeyDown}
                     className="text-xs text-amber-900 leading-relaxed whitespace-pre-wrap break-words outline-none"
                 >
                     {value}
@@ -182,20 +108,15 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id }) => {
                     Negate
                 </button>
             </div>
-            {/* </ContextMenu.Trigger>
-                <ContextMenu.Content className="min-w-[160px] bg-popover text-popover-foreground rounded-md border shadow-md p-1 z-50">
-                    <ContextMenu.Item
-                        className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent focus:bg-accent hover:text-accent-foreground focus:text-accent-foreground"
-                        onSelect={() => deleteNode(id)}
-                    >
-                        Delete node
-                    </ContextMenu.Item>
-                </ContextMenu.Content>
-            </ContextMenu.Root> */}
+            <ContextMenu
+                open={menuOpen}
+                x={menuPos.x}
+                y={menuPos.y}
+                onClose={() => setMenuOpen(false)}
+                items={[{ label: 'Delete node', danger: true, onClick: () => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } else { deleteNode(id); } } }]}
+            />
         </>
     );
 };
 
 export default ObjectionNode;
-
-

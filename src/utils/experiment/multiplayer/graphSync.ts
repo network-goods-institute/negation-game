@@ -14,6 +14,18 @@ export const generateEdgeId = (): string => {
     : `e-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 };
 
+export const deterministicEdgeId = (
+  type: string,
+  source: string,
+  target: string,
+  sourceHandle?: string | null,
+  targetHandle?: string | null
+) => {
+  const sh = sourceHandle || "";
+  const th = targetHandle || "";
+  return `edge:${type}:${source}:${sh}->${target}:${th}`;
+};
+
 export const createNegationEdge = (
   source: string,
   target: string,
@@ -21,7 +33,13 @@ export const createNegationEdge = (
   targetHandle?: string | null
 ): Edge => {
   return {
-    id: generateEdgeId(),
+    id: deterministicEdgeId(
+      "negation",
+      source,
+      target,
+      sourceHandle,
+      targetHandle
+    ),
     source,
     target,
     sourceHandle: sourceHandle || null,
@@ -160,7 +178,10 @@ export const createGraphChangeHandlers = (
     // Sync to Yjs map
     const m = yEdgesMap;
     const d = ydoc;
-    if (m && d) d.transact(() => m.set(edge.id, edge), localOrigin);
+    if (m && d)
+      d.transact(() => {
+        if (!m.has(edge.id)) m.set(edge.id, edge);
+      }, localOrigin);
   };
 
   const commitNodePositions = (nodes: Node[]) => {

@@ -2,6 +2,15 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { Node, Edge, useNodesState, useEdgesState } from "@xyflow/react";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
+import {
+  createOnTextMapChange,
+  createScheduleSave,
+  createUpdateEdgesFromY,
+  createUpdateNodesFromText,
+  createUpdateNodesFromY,
+} from "./yjs/handlers";
+import { addTextToUndoScope, createUndoManager } from "./yjs/undo";
+import { syncYMapFromArray as syncYMapFromArrayHelper } from "./yjs/sync";
 
 interface UseYjsMultiplayerProps {
   roomName: string;
@@ -172,41 +181,14 @@ export const useYjsMultiplayer = ({
     })();
 
     // Autosave: throttle Y updates to API
-    const scheduleSave = () => {
-      if (saveTimerRef.current || savingRef.current) return;
-      saveTimerRef.current = window.setTimeout(async () => {
-        saveTimerRef.current = null;
-        if (!ydocRef.current) return;
-        try {
-          savingRef.current = true;
-          setIsSaving(true);
-          const update = serverVectorRef.current
-            ? Y.encodeStateAsUpdate(ydocRef.current, serverVectorRef.current)
-            : Y.encodeStateAsUpdate(ydocRef.current);
-
-          // Guard: only save if there's actual content to save
-          if (!update || !update.byteLength) {
-            savingRef.current = false;
-            setIsSaving(false);
-            return;
-          }
-
-          await fetch(
-            `/api/experimental/rationales/${encodeURIComponent(persistId)}/updates`,
-            {
-              method: "POST",
-              body: update,
-            }
-          );
-          serverVectorRef.current = Y.encodeStateVector(ydocRef.current);
-        } catch (e) {
-          console.error("[autosave] failed", e);
-        } finally {
-          savingRef.current = false;
-          setIsSaving(false);
-        }
-      }, 1000);
-    };
+    const scheduleSave = createScheduleSave(
+      ydocRef,
+      serverVectorRef,
+      setIsSaving,
+      savingRef,
+      saveTimerRef,
+      persistId
+    );
 
     const onDocUpdate = () => scheduleSave();
     doc.on("update", onDocUpdate);
@@ -264,133 +246,48 @@ export const useYjsMultiplayer = ({
       setIsConnected(false);
     });
 
-    const updateNodesFromY = (evt?: any) => {
-      // Allow all node updates to process for immediate feedback
-      const arr: Node[] = [];
-      // @ts-ignore
-      for (const [, v] of yNodes) arr.push(v);
+    const updateNodesFromY = createUpdateNodesFromY(
+      yNodes as any,
+      yTextMapRef as any,
+      lastNodesSigRef,
+      setNodes as any
+    );
 
-      // Stable sort to avoid unnecessary reference changes
-      const sorted = arr.slice().sort((a, b) => {
-        const aId = a.id || "";
-        const bId = b.id || "";
-        return aId.localeCompare(bId);
-      });
-
-      const sig = JSON.stringify(
-        sorted.map((n) => ({
-          id: n.id,
-          t: (n as any).type,
-          d: (n as any).data,
-          p: (n as any).position,
-        }))
-      );
-      if (sig === lastNodesSigRef.current) {
-        return;
-      }
-      lastNodesSigRef.current = sig;
-
-      setNodes(sorted);
-    };
-
-    const updateEdgesFromY = (evt?: any) => {
-      const arr: Edge[] = [];
-      // @ts-ignore
-      for (const [, v] of yEdges) arr.push(v);
-
-      // Avoid sorting that changes refs - preserve original order when IDs are equal
-      const sorted = arr.slice().sort((a, b) => {
-        const aId = a.id || "";
-        const bId = b.id || "";
-        return aId.localeCompare(bId);
-      });
-
-      const sig = JSON.stringify(
-        sorted.map((e) => ({
-          id: e.id,
-          s: (e as any).source,
-          t: (e as any).target,
-          ty: (e as any).type,
-          sh: (e as any).sourceHandle,
-          th: (e as any).targetHandle,
-        }))
-      );
-      if (sig === lastEdgesSigRef.current) return;
-      lastEdgesSigRef.current = sig;
-
-      setEdges(sorted);
-    };
+    const updateEdgesFromY = createUpdateEdgesFromY(
+      yEdges as any,
+      lastEdgesSigRef,
+      setEdges as any
+    );
 
     yNodes.observe(updateNodesFromY);
     yEdges.observe(updateEdgesFromY);
-    const updateNodesFromText = (events?: any[]) => {
-      if (Array.isArray(events)) {
-        // If all events are from our local origin, ignore to avoid text echo
-        const allLocal = events.every(
-          (e) => e?.transaction?.origin === localOriginRef.current
-        );
-        if (allLocal && events.length > 0) return;
-      }
-      const yText = yTextMapRef.current;
-      if (!yText) return;
-      let changed = false;
-      setNodes((nds) => {
-        const next = (nds as any[]).map((n: any) => {
-          const t = yText.get(n.id);
-          if (!t) return n;
-          const textVal = t.toString();
-          if (n.type === "statement") {
-            if (n.data?.statement === textVal) return n;
-            changed = true;
-            return { ...n, data: { ...n.data, statement: textVal } };
-          }
-          if (n.data?.content === textVal) return n;
-          changed = true;
-          return { ...n, data: { ...n.data, content: textVal } };
-        }) as any;
-        return changed ? next : nds;
-      });
-    };
-    yTextMap.observeDeep(updateNodesFromText);
+    const updateNodesFromText = createUpdateNodesFromText(
+      yTextMapRef as any,
+      localOriginRef as any,
+      setNodes as any
+    );
+    yTextMap.observeDeep(updateNodesFromText as any);
 
     // Initialize per-user undo manager and restrict to local origin
     const trackedOrigins = new Set<any>();
     if (localOrigin) trackedOrigins.add(localOrigin);
     // Also capture transactions without an explicit origin
     trackedOrigins.add(null as any);
-    undoManagerRef.current = new Y.UndoManager([yNodes, yEdges], {
-      trackedOrigins,
-    });
+    undoManagerRef.current = createUndoManager(
+      yNodes as any,
+      yEdges as any,
+      localOriginRef.current
+    );
 
     // Ensure existing Y.Text instances are added to the undo scope
-    try {
-      for (const [key, val] of yTextMap as any) {
-        if (val instanceof Y.Text) {
-          undoManagerRef.current.addToScope(val);
-        }
-      }
-    } catch {}
+    if (yTextMap) addTextToUndoScope(undoManagerRef.current!, yTextMap as any);
 
     // Track future additions/updates of Y.Text in the map
-    const onTextMapChange = (events: any) => {
-      // events.changes.keys: Map<key, { action, oldValue }>
-      // Collect new/current values from the map by keys that changed
-      try {
-        // @ts-ignore
-        const changedKeys = Array.from(
-          events.changes.keys.keys
-            ? events.changes.keys.keys()
-            : events.keys?.keys?.() || []
-        );
-        for (const k of changedKeys) {
-          const t = yTextMap.get(k as any);
-          if (t instanceof Y.Text) {
-            undoManagerRef.current?.addToScope(t);
-          }
-        }
-      } catch {}
-    };
-    yTextMap.observe(onTextMapChange);
+    const onTextMapChange = createOnTextMapChange(
+      yTextMap as any,
+      undoManagerRef.current
+    );
+    yTextMap.observe(onTextMapChange as any);
     console.log(
       "[undo] UndoManager initialized with scoped origins and Y.Text tracking"
     );
@@ -491,34 +388,8 @@ export const useYjsMultiplayer = ({
   ]);
 
   const syncYMapFromArray = useCallback(
-    <T extends { id: string }>(ymap: Y.Map<T>, arr: T[]) => {
-      const sanitize = (item: any) => {
-        if (item && typeof item === "object" && "data" in item) {
-          const d = (item as any).data || {};
-          if (d && typeof d === "object" && "editedBy" in d) {
-            const { editedBy, ...rest } = d as any;
-            return { ...(item as any), data: rest } as T;
-          }
-        }
-        return item as T;
-      };
-      const nextIds = new Set(arr.map((i) => i.id));
-      // Delete removed
-      for (const key of Array.from(ymap.keys())) {
-        // eslint-disable-next-line drizzle/enforce-delete-with-where
-        if (!nextIds.has(key)) ymap.delete(key);
-      }
-      // Upsert all
-      for (const item of arr) {
-        const existing = ymap.get(item.id);
-        const sanitizedItem = sanitize(item);
-        const sanitizedExisting = existing ? sanitize(existing) : undefined;
-        const same =
-          sanitizedExisting &&
-          JSON.stringify(sanitizedExisting) === JSON.stringify(sanitizedItem);
-        if (!same) ymap.set(item.id, sanitizedItem);
-      }
-    },
+    <T extends { id: string }>(ymap: Y.Map<T>, arr: T[]) =>
+      syncYMapFromArrayHelper(ymap, arr),
     []
   );
 

@@ -118,7 +118,8 @@ export default function TopicsPageClient({ space }: TopicsPageClientProps) {
         }
 
         return parts.join(' • ');
-    }, [topics.length, privyUser, userRationalesLoading, missingMyRationalesCount]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [topics.length, privyUser, userRationalesLoading, missingMyRationalesCount, topics, userTopicRationales]);
 
     const rightActions = (
         <Button

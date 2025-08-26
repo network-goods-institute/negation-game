@@ -34,15 +34,19 @@ export const ConnectedUsers: React.FC<ConnectedUsersProps> = ({ provider, isConn
         const update = () => {
             try {
                 const states = awareness.getStates();
-                const size = states?.size ?? 0;
-                setCount(size);
-                const list: string[] = [];
+                const unique = new Map<string, string>();
                 states?.forEach((state: any, clientId: number) => {
-                    if (clientId !== awareness.clientID && state?.user?.name) list.push(state.user.name);
+                    const u = state?.user;
+                    if (!u) return;
+                    const id = u.id || u.name;
+                    if (!unique.has(id)) unique.set(id, u.name);
                 });
-                setNames(list);
                 const ln = awareness.getLocalState?.()?.user?.name;
                 if (ln) setSelfName(ln);
+                // Exclude self name from others
+                const others = Array.from(unique.values()).filter((n) => n !== ln);
+                setNames(others);
+                setCount(unique.size);
             } catch {
                 setCount(0);
                 setNames([]);
@@ -85,5 +89,3 @@ export const ConnectedUsers: React.FC<ConnectedUsersProps> = ({ provider, isConn
         </div>
     );
 };
-
-
