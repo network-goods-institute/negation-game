@@ -18,16 +18,27 @@ export const useEditableNode = ({
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(content);
   const draftRef = useRef<string>("");
+  const justCommittedRef = useRef<number>(0);
   const lastClickRef = useRef<number>(0);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const updateTimerRef = useRef<number | null>(null);
 
-  // sync incoming content
+  // Sync incoming content when NOT actively editing to avoid caret jumps.
   useEffect(() => {
-    setValue(content);
+    if (isEditing) return;
+    const now = Date.now();
+    const recentlyCommitted = now - justCommittedRef.current < 1500;
+    if (recentlyCommitted) {
+      // Skip syncing from props briefly after a local commit to prevent flicker
+      return;
+    }
+    if (value !== content) setValue(content);
     draftRef.current = content;
-  }, [content]);
+    if (contentRef.current && contentRef.current.innerText !== content) {
+      contentRef.current.innerText = content;
+    }
+  }, [content, isEditing, value]);
 
   // autosize height
   useEffect(() => {
@@ -111,6 +122,7 @@ export const useEditableNode = ({
     setIsEditing(false);
     stopEditingNode?.(id);
     if (draftRef.current !== value) {
+      // After finishing edit, reflect the latest draft locally.
       setValue(draftRef.current);
       if (updateTimerRef.current) {
         clearTimeout(updateTimerRef.current);
@@ -118,6 +130,17 @@ export const useEditableNode = ({
       }
       updateNodeContent(id, draftRef.current);
     }
+    // Force DOM to reflect final value so text updates immediately for the editor
+    if (contentRef.current) {
+      contentRef.current.innerText = draftRef.current;
+    }
+    // Prevent immediate prop-sync from clobbering our local commit
+    justCommittedRef.current = Date.now();
+    window.setTimeout(() => {
+      if (Date.now() - justCommittedRef.current >= 1400) {
+        justCommittedRef.current = 0;
+      }
+    }, 1500);
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {

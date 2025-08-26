@@ -1,4 +1,5 @@
 import { generateEdgeId } from './graphSync';
+import * as Y from 'yjs';
 import { toast } from 'sonner';
 
 export const createUpdateNodeContent = (
@@ -18,7 +19,7 @@ export const createUpdateNodeContent = (
       ydoc.transact(() => {
         let t = yTextMap.get(nodeId);
         if (!t) {
-          t = new (require('yjs').Text)();
+          t = new Y.Text();
           if (t) {
             yTextMap.set(nodeId, t);
           }

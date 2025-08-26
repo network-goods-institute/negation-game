@@ -31,12 +31,14 @@ export const useYjsMultiplayer = ({
   const [edges, setEdges, rawOnEdgesChange] = useEdgesState(initialEdges);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [nextSaveTime, setNextSaveTime] = useState<number | null>(null);
 
   const ydocRef = useRef<Y.Doc | null>(null);
   const providerRef = useRef<WebsocketProvider | null>(null);
   const yNodesMapRef = useRef<Y.Map<Node> | null>(null);
   const yEdgesMapRef = useRef<Y.Map<Edge> | null>(null);
   const yTextMapRef = useRef<Y.Map<Y.Text> | null>(null);
+  const yMetaMapRef = useRef<Y.Map<any> | null>(null);
   const saveTimerRef = useRef<number | null>(null);
   const savingRef = useRef(false);
   const serverVectorRef = useRef<Uint8Array | null>(null);
@@ -45,11 +47,18 @@ export const useYjsMultiplayer = ({
   const lastNodesSigRef = useRef<string>("");
   const lastEdgesSigRef = useRef<string>("");
   const localOriginRef = useRef<any>(localOrigin);
+  const forceSaveRef = useRef<(() => Promise<void>) | null>(null);
   useEffect(() => {
     localOriginRef.current = localOrigin;
   }, [localOrigin]);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+
+  const handleForceSave = useCallback(async () => {
+    if (forceSaveRef.current) {
+      await forceSaveRef.current();
+    }
+  }, []);
 
   // Initialize Yjs doc/provider once on mount (only if enabled)
   useEffect(() => {
@@ -73,9 +82,11 @@ export const useYjsMultiplayer = ({
     const yNodes = doc.getMap<Node>("nodes");
     const yEdges = doc.getMap<Edge>("edges");
     const yTextMap = doc.getMap<Y.Text>("node_text");
+    const yMetaMap = doc.getMap<any>("meta");
     yNodesMapRef.current = yNodes;
     yEdgesMapRef.current = yEdges;
     yTextMapRef.current = yTextMap;
+    yMetaMapRef.current = yMetaMap;
 
     // Hydrate from server before provider connect
     const persistId = roomName.includes(":")
@@ -87,39 +98,52 @@ export const useYjsMultiplayer = ({
           `/api/experimental/rationales/${encodeURIComponent(persistId)}/state`
         );
         if (res.ok) {
-          const json: { updates: string[] } = await res.json();
-          if (Array.isArray(json.updates)) {
-            let appliedUpdates = 0;
-            for (const b64 of json.updates) {
+          let hadContent = false;
+          const ct = res.headers.get("content-type") || "";
+          if (ct.includes("application/octet-stream")) {
+            try {
+              const buf = new Uint8Array(await res.arrayBuffer());
+              if (buf.byteLength > 0) {
+                Y.applyUpdate(doc, buf);
+                hadContent = true;
+              }
+            } catch (error) {
+              console.warn("[yjs] Failed to apply binary snapshot:", (error as Error).message);
+            }
+          } else {
+            const json: any = await res.json().catch(() => ({}));
+            if (json?.snapshot) {
               try {
-                const bytes = Uint8Array.from(atob(b64), (c) =>
-                  c.charCodeAt(0)
-                );
+                const bytes = Uint8Array.from(atob(json.snapshot), (c) => c.charCodeAt(0));
                 Y.applyUpdate(doc, bytes);
-                appliedUpdates++;
+                hadContent = true;
               } catch (updateError) {
-                console.warn(
-                  "[yjs] Skipping corrupted update:",
-                  (updateError as Error).message
-                );
+                console.warn("[yjs] Failed to apply snapshot:", (updateError as Error).message);
+              }
+            } else if (Array.isArray(json?.updates)) {
+              let appliedUpdates = 0;
+              for (const b64 of json.updates) {
+                try {
+                  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+                  Y.applyUpdate(doc, bytes);
+                  appliedUpdates++;
+                } catch (updateError) {
+                  console.warn("[yjs] Skipping corrupted update:", (updateError as Error).message);
+                }
+              }
+              if (appliedUpdates > 0) {
+                hadContent = true;
+                console.log(`[yjs] Applied ${appliedUpdates}/${json.updates.length} updates`);
               }
             }
-
-            if (appliedUpdates > 0) {
-              serverVectorRef.current = Y.encodeStateVector(doc);
-              console.log(
-                `[yjs] Successfully applied ${appliedUpdates}/${json.updates.length} updates`
-              );
-            } else if (json.updates.length > 0) {
-              console.warn(
-                `[yjs] Failed to apply any of ${json.updates.length} updates - document may be corrupted`
-              );
-            }
+          }
+          if (hadContent) {
+            serverVectorRef.current = Y.encodeStateVector(doc);
           }
           if (
             yNodes.size === 0 &&
             yEdges.size === 0 &&
-            json.updates.length === 0
+            !hadContent
           ) {
             doc.transact(() => {
               for (const n of initialNodes) yNodes.set(n.id, n);
@@ -136,11 +160,7 @@ export const useYjsMultiplayer = ({
                 }
               }
             }, "seed");
-          } else if (
-            yNodes.size === 0 &&
-            yEdges.size === 0 &&
-            json.updates.length > 0
-          ) {
+          } else if (yNodes.size === 0 && yEdges.size === 0 && hadContent) {
             console.warn(
               "[yjs] Document appears corrupted - has updates but no content after applying them"
             );
@@ -181,16 +201,24 @@ export const useYjsMultiplayer = ({
     })();
 
     // Autosave: throttle Y updates to API
-    const scheduleSave = createScheduleSave(
+    const { scheduleSave, forceSave, syncFromMeta } = createScheduleSave(
       ydocRef,
       serverVectorRef,
       setIsSaving,
       savingRef,
       saveTimerRef,
-      persistId
+      persistId,
+      setNextSaveTime,
+      yMetaMapRef,
+      localOriginRef
     );
 
-    const onDocUpdate = () => scheduleSave();
+    forceSaveRef.current = forceSave;
+
+    const onDocUpdate = (_update: Uint8Array, origin: any) => {
+      // Only schedule on local-origin transactions to avoid multiple clients saving
+      if (origin === localOriginRef.current) scheduleSave();
+    };
     doc.on("update", onDocUpdate);
 
     const wsUrl = process.env.NEXT_PUBLIC_YJS_WS_URL;
@@ -288,6 +316,14 @@ export const useYjsMultiplayer = ({
       undoManagerRef.current
     );
     yTextMap.observe(onTextMapChange as any);
+
+    // Observe shared meta for nextSaveAt/saving across peers and align timer
+    const onMetaChange = () => {
+      try { syncFromMeta(); } catch {}
+    };
+    // initial alignment
+    onMetaChange();
+    yMetaMap.observe(onMetaChange as any);
     console.log(
       "[undo] UndoManager initialized with scoped origins and Y.Text tracking"
     );
@@ -360,6 +396,7 @@ export const useYjsMultiplayer = ({
       yTextMap.unobserveDeep(updateNodesFromText);
       // @ts-ignore
       yTextMap.unobserve(onTextMapChange);
+      yMetaMap.unobserve(onMetaChange as any);
       // Detach UndoManager listeners before destroy
       try {
         if (undoManagerRef.current) {
@@ -448,5 +485,7 @@ export const useYjsMultiplayer = ({
     },
     canUndo,
     canRedo,
+    forceSave: handleForceSave,
+    nextSaveTime,
   };
 };

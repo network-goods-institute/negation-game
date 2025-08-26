@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -58,6 +59,9 @@ export default function SiteAdminPage() {
 
   const [cleanupJobRunning, setCleanupJobRunning] = useState(false);
   const [cleanupJobResult, setCleanupJobResult] = useState<JobExecution | null>(null);
+  const [yjsCompactRunning, setYjsCompactRunning] = useState(false);
+  const [yjsCompactResult, setYjsCompactResult] = useState<JobExecution | null>(null);
+  const yjsStatsLink = "/api/admin/compact-docs/stats";
 
   useEffect(() => {
     if (!user) {
@@ -201,6 +205,33 @@ export default function SiteAdminPage() {
       });
     } finally {
       setCleanupJobRunning(false);
+    }
+  };
+
+  const runYjsCompactionJob = async () => {
+    setYjsCompactRunning(true);
+    setYjsCompactResult(null);
+
+    try {
+      const response = await fetch("/api/admin/compact-docs?threshold=30&keepLast=0", {
+        method: "POST",
+      });
+      const data = await response.json();
+      setYjsCompactResult({
+        success: response.ok && !!data?.success,
+        message: data?.summary ? `Compacted ${data.summary.docsCompacted}/${data.summary.docsProcessed}` : data?.message,
+        duration: data?.summary?.duration,
+        timestamp: new Date().toISOString(),
+        details: JSON.stringify(data, null, 2),
+      });
+    } catch (error) {
+      setYjsCompactResult({
+        success: false,
+        error: "Failed to run Yjs compaction",
+        details: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setYjsCompactRunning(false);
     }
   };
 
@@ -488,6 +519,46 @@ export default function SiteAdminPage() {
             <JobResultDisplay result={cleanupJobResult} title="Rate Limit Cleanup Job" />
           </CardContent>
         </Card>
+
+        {/* Yjs Document Compaction */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <DatabaseIcon className="h-5 w-5" />
+              Yjs Document Compaction
+            </CardTitle>
+            <CardDescription>
+              Merge historical multiplayer updates to reduce load and egress
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Scheduled: Every 30 minutes</span>
+              <Badge variant="outline">
+                <ClockIcon className="h-3 w-3 mr-1" />
+                */30 * * * *
+              </Badge>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Link href={yjsStatsLink} target="_blank" className="text-xs text-blue-600 hover:text-blue-800 underline">View Yjs Stats (JSON)</Link>
+              <Link href="/api/admin/compact-docs?threshold=0&keepLast=0" className="text-xs text-blue-600 hover:text-blue-800 underline">Compact All Now</Link>
+            </div>
+
+            <Button onClick={runYjsCompactionJob} disabled={yjsCompactRunning} className="w-full">
+              {yjsCompactRunning ? (
+                <>
+                  <LoaderIcon className="h-4 w-4 mr-2 animate-spin" />
+                  Running...
+                </>
+              ) : (
+                "Run Now"
+              )}
+            </Button>
+
+            <JobResultDisplay result={yjsCompactResult} title="Yjs Compaction" />
+          </CardContent>
+        </Card>
       </div>
 
       <Separator />
@@ -509,7 +580,7 @@ export default function SiteAdminPage() {
             </div>
             <div>
               <p className="text-sm font-medium">Active Cron Jobs</p>
-              <p className="font-bold">4</p>
+              <p className="font-bold">5</p>
             </div>
           </div>
         </CardContent>

@@ -68,6 +68,8 @@ export default function MultiplayerRationaleDetailPage() {
         connectionError,
         isConnected,
         isSaving,
+        forceSave,
+        nextSaveTime,
         undo,
         redo,
         canUndo,
@@ -180,6 +182,8 @@ export default function MultiplayerRationaleDetailPage() {
                 isConnected={isConnected}
                 connectionError={connectionError}
                 isSaving={isSaving}
+                forceSave={forceSave}
+                nextSaveTime={nextSaveTime}
                 proxyMode={!isLeader}
                 userId={userId}
             />

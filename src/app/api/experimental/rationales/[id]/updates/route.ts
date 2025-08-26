@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/services/db";
 import { mpDocsTable } from "@/db/tables/mpDocsTable";
 import { mpDocUpdatesTable } from "@/db/tables/mpDocUpdatesTable";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { getUserId } from "@/actions/users/getUserId";
+import { compactDocUpdates } from "@/services/yjsCompaction";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,20 +23,37 @@ export async function POST(req: Request, ctx: any) {
     return NextResponse.json({ error: "Invalid doc id" }, { status: 400 });
   }
   const body = await req.arrayBuffer();
-  const update = Buffer.from(body).toString("base64");
+  const updateBuf = Buffer.from(body);
 
   // basic size cap ~ 1MB
-  if (update.length > 1_400_000) {
+  if (updateBuf.byteLength > 1_000_000) {
     return NextResponse.json({ error: "Payload too large" }, { status: 413 });
   }
 
   await db.insert(mpDocsTable).values({ id }).onConflictDoNothing();
 
-  await db.insert(mpDocUpdatesTable).values({ docId: id, update, userId });
+  await db.insert(mpDocUpdatesTable).values({ docId: id, updateBin: updateBuf, userId });
   await db
     .update(mpDocsTable)
     .set({ updatedAt: new Date() })
     .where(eq(mpDocsTable.id, id));
+
+  // Inline fast compaction when threshold exceeded
+  try {
+    const countRows = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(mpDocUpdatesTable)
+      .where(eq(mpDocUpdatesTable.docId, id));
+    const count = Number(countRows?.[0]?.count || 0);
+    const threshold = 30;
+    if (count > threshold) {
+      // Keep a small tail to avoid losing very recent fine-grained deltas
+      await compactDocUpdates(id, { keepLast: 3 });
+    }
+  } catch (e) {
+    // Non-fatal; cron/admin job will catch up
+    console.warn("[yjs] Inline compaction skipped:", e instanceof Error ? e.message : e);
+  }
 
   return NextResponse.json({ ok: true });
 }

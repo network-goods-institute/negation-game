@@ -17,6 +17,11 @@
       "path": "/api/cron/cleanup-rate-limits",
       "schedule": "0 */4 * * *"
     }
+    ,
+    {
+      "path": "/api/cron/compact-docs",
+      "schedule": "*/30 * * * *"
+    }
   ],
   "functions": {
     "src/app/api/notifications/detect-scroll-proposals/route.ts": {
@@ -46,6 +51,10 @@
     "src/app/api/cron/cleanup-rate-limits/route.ts": {
       "runtime": "vercel-nodejs@20.0.0",
       "maxDuration": 799
+    },
+    "src/app/api/cron/compact-docs/route.ts": {
+      "runtime": "vercel-nodejs@20.0.0",
+      "maxDuration": 799
     }
   }
-} 
+}

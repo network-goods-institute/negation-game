@@ -1,10 +1,22 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
 /** @type {import('next').NextConfig} */
 const isDev = process.env.NODE_ENV !== 'production';
 const nextConfig = {
   transpilePackages: ["next-mdx-remote"],
+  // Avoid bundling multiple copies of yjs in server builds (Next 15+)
+  serverExternalPackages: ["yjs", "y-websocket"],
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.output.globalObject = 'self';
+    }
+    // Force a single yjs implementation on the server to prevent double-import warnings
+    if (isServer) {
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = path.dirname(__filename);
+      const yjsCjsPath = path.resolve(__dirname, 'node_modules/yjs/dist/yjs.cjs');
+      config.resolve.alias = config.resolve.alias || {};
+      config.resolve.alias['yjs'] = yjsCjsPath;
     }
     return config;
   },

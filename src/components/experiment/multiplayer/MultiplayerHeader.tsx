@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ConnectedUsers } from './ConnectedUsers';
 import { WebsocketProvider } from 'y-websocket';
 
@@ -11,6 +11,8 @@ interface MultiplayerHeaderProps {
   isConnected: boolean;
   connectionError: string | null;
   isSaving: boolean;
+  forceSave?: () => Promise<void>;
+  nextSaveTime?: number | null;
   proxyMode?: boolean;
   userId?: string;
 }
@@ -22,9 +24,38 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   isConnected,
   connectionError,
   isSaving,
+  forceSave,
+  nextSaveTime,
   proxyMode,
   userId,
 }) => {
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!nextSaveTime) {
+      setTimeLeft(null);
+      return;
+    }
+
+    const updateTimer = () => {
+      const now = Date.now();
+      const remaining = Math.max(0, Math.ceil((nextSaveTime - now) / 1000));
+      setTimeLeft(remaining);
+      if (remaining === 0) {
+        setTimeLeft(null);
+      }
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [nextSaveTime]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
   return (
     <>
       <div className="absolute top-4 left-4 z-10 bg-white p-4 rounded-lg shadow-lg border">
@@ -54,7 +85,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
           <p className="text-xs text-orange-600 mt-1 bg-orange-50 p-2 rounded">{connectionError}</p>
         )}
       </div>
-      <div className="absolute top-4 right-4 z-10">
+      <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2">
         <div className="flex items-center gap-2 bg-white/90 backdrop-blur rounded-full border px-3 py-1 shadow-sm">
           {proxyMode ? (
             <>
@@ -68,7 +99,18 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
               ) : (
                 <div className="h-2.5 w-2.5 rounded-full bg-green-500" />
               )}
-              <span className="text-xs text-stone-700">{isSaving ? 'Saving…' : 'Saved'}</span>
+              <span className="text-xs text-stone-700">
+                {isSaving ? 'Saving…' : (timeLeft !== null ? `Next save in ${formatTime(timeLeft)}` : 'Saved')}
+              </span>
+              {forceSave && !isSaving && (
+                <button
+                  onClick={() => forceSave()}
+                  className="text-xs text-blue-600 hover:text-blue-800 border-l border-stone-200 pl-2 ml-1"
+                  title="Force save now"
+                >
+                  Save now
+                </button>
+              )}
             </>
           )}
         </div>
