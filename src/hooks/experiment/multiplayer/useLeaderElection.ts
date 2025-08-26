@@ -1,43 +1,56 @@
-import { useEffect, useState } from 'react';
-import { WebsocketProvider } from 'y-websocket';
-
+import { useEffect, useState, useCallback } from "react";
+import { WebsocketProvider } from "y-websocket";
 type YProvider = WebsocketProvider | null;
 
 export const useLeaderElection = (provider: YProvider, userId: string) => {
   const [isLeader, setIsLeader] = useState(true);
 
+  const calculate = useCallback(() => {
+    if (!provider || !userId) {
+      setIsLeader(true);
+      return;
+    }
+
+    try {
+      const awareness = provider.awareness;
+      const states = awareness.getStates();
+      const myClientId = awareness.clientID;
+
+      let lowestClientId: number | null = null;
+
+      states.forEach((state: any, clientId: number) => {
+        const user = state?.user;
+        if (!user) return;
+
+        if ((user.id || user.name) === userId) {
+          if (lowestClientId === null || clientId < lowestClientId) {
+            lowestClientId = clientId;
+          }
+        }
+      });
+
+      const shouldBeLeader = lowestClientId === myClientId;
+
+      setIsLeader(shouldBeLeader);
+    } catch (error) {
+      console.warn("[leader-election] Error:", error);
+      setIsLeader(true);
+    }
+  }, [provider, userId]);
+
   useEffect(() => {
-    if (!provider || !userId) { setIsLeader(true); return; }
+    if (!provider || !userId) return;
+
     const awareness = provider.awareness;
 
-    const recalc = () => {
-      try {
-        const states = awareness.getStates();
-        const myId = awareness.clientID;
-        let minClient: number | null = null;
-        states?.forEach((state: any, clientId: number) => {
-          const u = state?.user;
-          if (!u) return;
-          if ((u.id || u.name) === userId) {
-            if (minClient === null || clientId < minClient) minClient = clientId;
-          }
-        });
-        if (minClient == null) { setIsLeader(true); return; }
-        setIsLeader(myId === minClient);
-      } catch {
-        setIsLeader(true);
-      }
-    };
+    setTimeout(calculate, 1000);
 
-    recalc();
-    awareness.on?.('change', recalc);
-    awareness.on?.('update', recalc);
+    awareness.on?.("change", calculate);
+
     return () => {
-      awareness.off?.('change', recalc);
-      awareness.off?.('update', recalc);
+      awareness.off?.("change", calculate);
     };
-  }, [provider, userId]);
+  }, [provider, userId, calculate]);
 
   return { isLeader };
 };
-

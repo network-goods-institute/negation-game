@@ -21,6 +21,7 @@ interface UseMultiplayerEditingProps {
   userId: string;
   username: string;
   userColor: string;
+  isLeader?: boolean;
 }
 
 export const useMultiplayerEditing = ({
@@ -28,6 +29,7 @@ export const useMultiplayerEditing = ({
   userId,
   username,
   userColor,
+  isLeader = true,
 }: UseMultiplayerEditingProps) => {
   const [editors, setEditors] = useState<EditorsMap>(new Map());
   const [locks, setLocks] = useState<LockMap>(new Map());
@@ -37,11 +39,17 @@ export const useMultiplayerEditing = ({
     if (!provider || !username) return;
     const awareness = provider.awareness;
     const prev = awareness.getLocalState() || {};
+    
+    if (!isLeader) {
+      // In proxy mode, don't set user awareness to hide from others
+      return;
+    }
+    
     awareness.setLocalState({
       ...prev,
       user: { id: userId, name: username, color: userColor },
     });
-  }, [provider, userId, username, userColor]);
+  }, [provider, userId, username, userColor, isLeader]);
 
   useEffect(() => {
     if (!provider) return;
@@ -105,7 +113,7 @@ export const useMultiplayerEditing = ({
   }, [provider]);
 
   const startEditing = (nodeId: string) => {
-    if (!provider) return;
+    if (!provider || !isLeader) return;
     localEditingRef.current.add(nodeId);
     const awareness = provider.awareness;
     const prev = awareness.getLocalState() || {};
@@ -117,7 +125,7 @@ export const useMultiplayerEditing = ({
   };
 
   const stopEditing = (nodeId: string) => {
-    if (!provider) return;
+    if (!provider || !isLeader) return;
     // eslint-disable-next-line drizzle/enforce-delete-with-where
     localEditingRef.current.delete(nodeId);
     const awareness = provider.awareness;
@@ -133,7 +141,7 @@ export const useMultiplayerEditing = ({
   };
 
   const lockNode = (nodeId: string, kind: "edit" | "drag") => {
-    if (!provider) return;
+    if (!provider || !isLeader) return;
     const awareness = provider.awareness;
     const prev = awareness.getLocalState() || {};
     awareness.setLocalState({
@@ -143,7 +151,7 @@ export const useMultiplayerEditing = ({
   };
 
   const unlockNode = (nodeId: string) => {
-    if (!provider) return;
+    if (!provider || !isLeader) return;
     const awareness = provider.awareness;
     const prev = awareness.getLocalState() || {};
     if (prev?.lock?.nodeId === nodeId) {

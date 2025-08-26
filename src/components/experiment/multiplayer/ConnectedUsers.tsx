@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { WebsocketProvider } from "y-websocket";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
@@ -7,9 +7,11 @@ type YProvider = WebsocketProvider | null;
 interface ConnectedUsersProps {
     provider: YProvider;
     isConnected: boolean;
+    currentUserId?: string;
+    isLeader?: boolean;
 }
 
-export const ConnectedUsers: React.FC<ConnectedUsersProps> = ({ provider, isConnected }) => {
+export const ConnectedUsers: React.FC<ConnectedUsersProps> = ({ provider, isConnected, currentUserId, isLeader = true }) => {
     const [count, setCount] = useState<number>(0);
 
     const [names, setNames] = useState<string[]>([]);
@@ -34,21 +36,30 @@ export const ConnectedUsers: React.FC<ConnectedUsersProps> = ({ provider, isConn
         const update = () => {
             try {
                 const states = awareness.getStates();
-                const unique = new Map<string, string>();
-                states?.forEach((state: any, clientId: number) => {
-                    const u = state?.user;
-                    if (!u) return;
-                    const id = u.id || u.name;
-                    if (!unique.has(id)) unique.set(id, u.name);
+                const localState = awareness.getLocalState?.();
+                const myName = localState?.user?.name;
+
+                const allNames: string[] = [];
+                states?.forEach((state: any) => {
+                    const user = state?.user;
+                    if (user?.name) {
+                        allNames.push(user.name);
+                    }
                 });
-                const ln = awareness.getLocalState?.()?.user?.name;
-                if (ln) setSelfName(ln);
-                // Exclude self name from others
-                const others = Array.from(unique.values()).filter((n) => n !== ln);
-                setNames(others);
-                setCount(unique.size);
-            } catch {
-                setCount(0);
+
+                const uniqueNames = [...new Set(allNames)];
+                const otherNames = uniqueNames.filter(name => name !== myName);
+
+                if (myName) setSelfName(myName);
+                setNames(otherNames);
+
+                // Count: others + self if leader
+                const totalCount = otherNames.length + (isLeader ? 1 : 0);
+                setCount(totalCount);
+
+            } catch (error) {
+                console.warn('ConnectedUsers update error:', error);
+                setCount(isLeader ? 1 : 0);
                 setNames([]);
             }
         };
@@ -61,14 +72,16 @@ export const ConnectedUsers: React.FC<ConnectedUsersProps> = ({ provider, isConn
             awareness.off?.("update", update);
             awareness.off?.("change", update);
         };
-    }, [provider]);
+    }, [provider, isLeader, currentUserId]);
 
-    const others = Math.max(count - 1, 0);
-    const text = isConnected ? (others > 0 ? `Connected • ${others} others` : 'Connected') : 'Offline';
+    const others = names.length;
+    const statusText = isLeader ? 'Connected' : 'Connected (Read-only)';
+    const text = isConnected ? (others > 0 ? `${statusText} • ${others} others` : statusText) : 'Offline';
+
     const tooltip = isConnected
         ? (others > 0
-            ? `Connected as ${selfName}. Others here (${others}): ${names.join(', ')}`
-            : `Connected as ${selfName}. No other users currently here.`)
+            ? `${statusText} as ${selfName}. Others editing: ${names.join(', ')}`
+            : `${statusText} as ${selfName}. ${isLeader ? 'No other users currently here.' : 'You\'re viewing in read-only mode.'}`)
         : 'Offline';
 
     return (

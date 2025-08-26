@@ -15,6 +15,7 @@ interface UseMultiplayerCursorsProps {
   userId: string;
   username: string;
   userColor: string;
+  isLeader?: boolean;
 }
 
 export const useMultiplayerCursors = ({
@@ -22,12 +23,22 @@ export const useMultiplayerCursors = ({
   userId,
   username,
   userColor,
+  isLeader = true,
 }: UseMultiplayerCursorsProps) => {
   const [cursors, setCursors] = useState<Map<number, CursorData>>(new Map());
 
-  // Update awareness identity when username/color ready
+  // Update awareness identity when username/color ready (only if leader)
   useEffect(() => {
     if (!provider || !username) return;
+
+    if (!isLeader) {
+      // In proxy mode, clear any awareness state to hide from others
+      const prev = provider.awareness.getLocalState() || {};
+      const { user, editing, lock, ...rest } = prev as any;
+      provider.awareness.setLocalState(rest);
+      return;
+    }
+
     const prev = provider.awareness.getLocalState() || {};
     provider.awareness.setLocalState({
       ...prev,
@@ -38,7 +49,7 @@ export const useMultiplayerCursors = ({
         cursor: { fx: 0, fy: 0 },
       },
     });
-  }, [provider, userId, username, userColor]);
+  }, [provider, userId, username, userColor, isLeader]);
 
   // Listen for awareness changes (other users' cursors)
   useEffect(() => {
