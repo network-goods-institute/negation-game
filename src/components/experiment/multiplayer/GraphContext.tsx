@@ -5,8 +5,10 @@ type GraphActions = {
     addNegationBelow: (parentNodeId: string) => void;
     deleteNode: (nodeId: string) => void;
     beginConnectFromNode: (nodeId: string) => void;
+    completeConnectToNode?: (nodeId: string) => void;
     cancelConnect: () => void;
     isConnectingFromNodeId: string | null;
+    connectMode?: boolean;
     addObjectionForEdge: (edgeId: string, midX?: number, midY?: number) => void;
     hoveredEdgeId: string | null;
     setHoveredEdge: (edgeId: string | null) => void;
@@ -19,6 +21,8 @@ type GraphActions = {
     isLockedForMe?: (nodeId: string) => boolean;
     getLockOwner?: (nodeId: string) => { name: string; color: string; kind: 'edit' | 'drag' } | null;
     proxyMode?: boolean;
+    undo?: () => void;
+    redo?: () => void;
 };
 
 const GraphContext = createContext<GraphActions | null>(null);
@@ -33,8 +37,10 @@ export const useGraphActions = () => {
             addNegationBelow: () => { },
             deleteNode: () => { },
             beginConnectFromNode: () => { },
+            completeConnectToNode: () => { },
             cancelConnect: () => { },
             isConnectingFromNodeId: null,
+            connectMode: false,
             addObjectionForEdge: () => { },
             hoveredEdgeId: null,
             setHoveredEdge: () => { },
@@ -47,6 +53,8 @@ export const useGraphActions = () => {
             isLockedForMe: () => false,
             getLockOwner: () => null,
             proxyMode: false,
+            undo: () => {},
+            redo: () => {},
         } as GraphActions;
     }
     return ctx;

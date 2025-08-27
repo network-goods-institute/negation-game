@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useGraphActions } from "../GraphContext";
 
 interface UseEditableNodeArgs {
   id: string;
@@ -18,6 +19,7 @@ export const useEditableNode = ({
   stopEditingNode,
   isSelected,
 }: UseEditableNodeArgs) => {
+  const graph = useGraphActions();
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(content);
   const draftRef = useRef<string>("");
@@ -243,6 +245,17 @@ export const useEditableNode = ({
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // Intercept global undo/redo while editing to avoid native contentEditable undo
+    if ((e.metaKey || e.ctrlKey) && (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y')) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.shiftKey || e.key.toLowerCase() === 'y') {
+        graph?.redo?.();
+      } else {
+        graph?.undo?.();
+      }
+      return;
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       commit();

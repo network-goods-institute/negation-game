@@ -3,6 +3,7 @@ import { Handle, Position } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 import { useEditableNode } from './common/useEditableNode';
 import { EditorsBadgeRow } from './EditorsBadgeRow';
+import { useConnectableNode } from './common/useConnectableNode';
 import { toast } from 'sonner';
 
 interface StatementNodeProps {
@@ -12,7 +13,7 @@ interface StatementNodeProps {
 }
 
 export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected }) => {
-  const { updateNodeContent, addNegationBelow, isConnectingFromNodeId, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode } = useGraphActions();
+  const { updateNodeContent, addNegationBelow, isConnectingFromNodeId, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode } = useGraphActions();
   const content = data?.statement || '';
 
   const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus } = useEditableNode({
@@ -54,6 +55,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
   const locked = isLockedForMe?.(id) || false;
   const lockOwner = getLockOwner?.(id) || null;
   const shouldShowPill = pillVisible && !isEditing && !locked;
+  const connect = useConnectableNode({ id, locked });
 
   return (
     <>
@@ -76,7 +78,12 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           ref={wrapperRef}
           onMouseEnter={() => { setHovered(true); cancelHide(); setPillVisible(true); }}
           onMouseLeave={() => { setHovered(false); scheduleHide(); }}
-          onClick={(e) => { if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } }}
+          onMouseDown={connect.onMouseDown}
+          onMouseUp={connect.onMouseUp}
+          onClick={(e) => {
+            connect.onClick(e as any);
+            if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
+          }}
           className={`px-5 py-3 rounded-xl bg-blue-50 border-2 border-blue-200 text-blue-900 cursor-text min-w-[240px] max-w-[360px] relative z-10 ${
             isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''
           }`}

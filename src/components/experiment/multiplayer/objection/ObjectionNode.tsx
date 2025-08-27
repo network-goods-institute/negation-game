@@ -3,6 +3,7 @@ import { Handle, Position } from '@xyflow/react';
 import { useGraphActions } from '../GraphContext';
 import { EditorsBadgeRow } from '../EditorsBadgeRow';
 import { useEditableNode } from '../common/useEditableNode';
+import { useConnectableNode } from '../common/useConnectableNode';
 import { ContextMenu } from '../common/ContextMenu';
 import { toast } from 'sonner';
 
@@ -16,7 +17,7 @@ interface ObjectionNodeProps {
 }
 
 const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => {
-    const { updateNodeContent, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode } = useGraphActions();
+    const { updateNodeContent, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode } = useGraphActions();
     const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus } = useEditableNode({
         id,
         content: data.content,
@@ -64,6 +65,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
 
     const [menuOpen, setMenuOpen] = useState(false);
     const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+    const connect = useConnectableNode({ id, locked });
 
     return (
         <>
@@ -85,8 +87,12 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                     ref={wrapperRef}
                     onMouseEnter={() => { setHovered(true); cancelHide(); setPillVisible(true); }}
                     onMouseLeave={() => { setHovered(false); scheduleHide(); }}
-                    onClick={(e) => { if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } }}
-                    onMouseDown={(e) => { if (e.button === 2) { e.preventDefault(); e.stopPropagation(); } }}
+                    onMouseDown={connect.onMouseDown}
+                    onMouseUp={connect.onMouseUp}
+                    onClick={(e) => {
+                        connect.onClick(e as any);
+                        if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
+                    }}
                     onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
                     className={`px-3 py-2 rounded-lg bg-amber-100 border-2 border-amber-500 min-w-[180px] max-w-[300px] relative z-10 ${locked ? 'cursor-not-allowed' : 'cursor-text'} node-drag-handle ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''
                         }`}

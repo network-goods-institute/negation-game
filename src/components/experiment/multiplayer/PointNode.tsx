@@ -3,6 +3,7 @@ import { Handle, Position } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 import { EditorsBadgeRow } from './EditorsBadgeRow';
 import { useEditableNode } from './common/useEditableNode';
+import { useConnectableNode } from './common/useConnectableNode';
 import { ContextMenu } from './common/ContextMenu';
 import { toast } from 'sonner';
 
@@ -16,7 +17,7 @@ interface PointNodeProps {
 }
 
 export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
-  const { updateNodeContent, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode } = useGraphActions();
+  const { updateNodeContent, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode } = useGraphActions();
 
   const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus } = useEditableNode({
     id,
@@ -60,6 +61,8 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
   const lockOwner = getLockOwner?.(id) || null;
   const shouldShowPill = pillVisible && !isEditing && !locked;
 
+  const connect = useConnectableNode({ id, locked });
+
   return (
     <>
       <Handle id={`${id}-source-handle`} type="source" position={Position.Top} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
@@ -81,8 +84,12 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
           ref={wrapperRef}
           onMouseEnter={() => { setHovered(true); cancelHide(); setPillVisible(true); }}
           onMouseLeave={() => { setHovered(false); scheduleHide(); }}
-          onClick={(e) => { if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } }}
-          onMouseDown={(e) => { if (e.button === 2) { e.preventDefault(); e.stopPropagation(); } }}
+          onMouseDown={connect.onMouseDown}
+          onMouseUp={connect.onMouseUp}
+          onClick={(e) => {
+            connect.onClick(e as any);
+            if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
+          }}
           onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
           className={`px-4 py-3 rounded-lg bg-white border-2 border-stone-200 min-w-[200px] max-w-[320px] relative z-10 ${locked ? 'cursor-not-allowed' : 'cursor-text'} ${
             isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''

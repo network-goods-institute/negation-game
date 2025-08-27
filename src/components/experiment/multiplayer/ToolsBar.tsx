@@ -1,4 +1,7 @@
 import React from 'react';
+import { Pointer as PointerIcon, Link as LinkIcon, Hand as HandIcon, Undo2, Redo2 } from 'lucide-react';
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { ToolbarButton } from "./ToolbarButton";
 
 interface ToolsBarProps {
   connectMode: boolean;
@@ -9,6 +12,9 @@ interface ToolsBarProps {
   undo?: () => void;
   redo?: () => void;
   connectAnchorId: string | null;
+  readOnly?: boolean;
+  grabMode?: boolean;
+  setGrabMode?: (v: boolean) => void;
 }
 
 export const ToolsBar: React.FC<ToolsBarProps> = ({
@@ -20,62 +26,101 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
   undo,
   redo,
   connectAnchorId,
+  readOnly,
+  grabMode,
+  setGrabMode,
 }) => {
-  // Default toolbar (idle) vs. focused (connect) mode UI
+  // Focused (connect) mode UI
   if (connectMode) {
     return (
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
-        <div className="bg-white/95 backdrop-blur border shadow-xl rounded-full px-3 py-1.5 flex items-center gap-2 transition-all">
-          <div className="flex items-center gap-2 px-1">
-            <span className="inline-flex h-2 w-2 rounded-full bg-blue-600" />
-            <span className="text-xs font-medium text-stone-800">Connecting</span>
+        <div className="bg-white/90 backdrop-blur border-2 border-blue-200 shadow-xl rounded-full px-4 py-2 flex items-center gap-3 transition-all">
+          <div className="flex items-center gap-2 px-1 text-blue-700">
+            <LinkIcon className="h-5 w-5" />
+            <span className="text-sm font-medium">Connecting</span>
           </div>
-          <span className="text-xs text-stone-600">
-            {connectAnchorId ? 'Now click a child' : 'Click a parent node'}
+          <span className="text-sm text-stone-700">
+            {connectAnchorId ? 'Drag to a child node' : 'Hold-drag from a parent node'}
           </span>
-          <div className="h-4 w-px bg-stone-200 mx-1" />
+          <div className="h-5 w-px bg-stone-200 mx-2" />
           <button
             onClick={() => setConnectAnchorId(null)}
-            className="text-xs rounded-full px-2 py-1 bg-stone-200 text-stone-800 hover:bg-stone-300"
+            className="text-sm rounded-full px-3 py-1 bg-stone-100 text-stone-900 hover:bg-stone-200"
           >
             Reset
           </button>
           <button
             onClick={() => { setConnectMode(false as any); setConnectAnchorId(null); }}
-            className="text-xs rounded-full px-2 py-1 bg-red-600 text-white hover:bg-red-700"
+            className="text-sm rounded-full px-3 py-1 bg-blue-600 text-white hover:bg-blue-700"
           >
-            Done
+            Done (Esc)
           </button>
         </div>
       </div>
     );
   }
 
+  // Default toolbar (idle)
   return (
     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
-      <div className="bg-white/95 backdrop-blur border shadow-xl rounded-full px-3 py-1.5 flex items-center gap-2 transition-all">
-        <button
-          onClick={() => { setConnectMode((v) => !v as any); setConnectAnchorId(null); }}
-          className="text-xs rounded-full px-3 py-1 bg-stone-800 text-white hover:bg-stone-900"
-        >
-          Connect
-        </button>
-        <div className="h-4 w-px bg-stone-200" />
-        <button
-          onClick={() => undo?.()}
-          disabled={!canUndo}
-          className={`text-xs rounded-full px-2 py-1 bg-stone-200 text-stone-800 hover:bg-stone-300 ${!canUndo ? 'opacity-50 cursor-not-allowed hover:bg-stone-200' : ''}`}
-        >
-          Undo
-        </button>
-        <button
-          onClick={() => redo?.()}
-          disabled={!canRedo}
-          className={`text-xs rounded-full px-2 py-1 bg-stone-200 text-stone-800 hover:bg-stone-300 ${!canRedo ? 'opacity-50 cursor-not-allowed hover:bg-stone-200' : ''}`}
-        >
-          Redo
-        </button>
-      </div>
+      <TooltipProvider>
+        <div className="bg-white/90 backdrop-blur border-2 border-blue-200 shadow-xl rounded-full px-4 py-2 flex items-center gap-2 transition-all">
+          {/* Select (pointer) */}
+          <ToolbarButton
+            label="Select"
+            shortcut="V"
+            active={!connectMode && !grabMode}
+            onClick={() => { setConnectMode(false as any); setConnectAnchorId(null); setGrabMode?.(false); }}
+          >
+            <PointerIcon className="h-5 w-5" />
+          </ToolbarButton>
+
+          {/* Connect (line) */}
+          <ToolbarButton
+            label={readOnly ? "Read-only" : "Connect"}
+            shortcut={readOnly ? undefined : "L"}
+            disabled={!!readOnly}
+            active={!!connectMode}
+            onClick={() => { if (!readOnly) { setGrabMode?.(false); setConnectMode(true as any); setConnectAnchorId(null); } }}
+          >
+            <LinkIcon className="h-5 w-5" />
+          </ToolbarButton>
+
+          {/* Hand (grab/pan) */}
+          <ToolbarButton
+            label="Hand"
+            shortcut="H"
+            active={!!grabMode}
+            onClick={() => { setConnectMode(false as any); setConnectAnchorId(null); setGrabMode?.(!grabMode); }}
+          >
+            <HandIcon className="h-5 w-5" />
+          </ToolbarButton>
+
+          <div className="h-6 w-px bg-stone-200 mx-2" />
+
+          {/* Undo */}
+          <ToolbarButton
+            label="Undo"
+            shortcut="⌘Z / Ctrl+Z"
+            disabled={!canUndo}
+            onClick={() => undo?.()}
+            className="!bg-white !text-blue-700 !border-blue-200 hover:!bg-blue-50"
+          >
+            <Undo2 className="h-5 w-5" />
+          </ToolbarButton>
+
+          {/* Redo */}
+          <ToolbarButton
+            label="Redo"
+            shortcut="⇧⌘Z / Ctrl+Y"
+            disabled={!canRedo}
+            onClick={() => redo?.()}
+            className="!bg-white !text-blue-700 !border-blue-200 hover:!bg-blue-50"
+          >
+            <Redo2 className="h-5 w-5" />
+          </ToolbarButton>
+        </div>
+      </TooltipProvider>
     </div>
   );
 };
