@@ -19,11 +19,12 @@ import { useYjsMultiplayer } from '@/hooks/experiment/multiplayer/useYjsMultipla
 import { useMultiplayerCursors } from '@/hooks/experiment/multiplayer/useMultiplayerCursors';
 import { useMultiplayerEditing } from '@/hooks/experiment/multiplayer/useMultiplayerEditing';
 import { useLeaderElection } from '@/hooks/experiment/multiplayer/useLeaderElection';
+import { useLeaderPromotionSync } from '@/hooks/experiment/multiplayer/useLeaderPromotionSync';
 import { createGraphChangeHandlers } from '@/utils/experiment/multiplayer/graphSync';
 import { GraphProvider } from '@/components/experiment/multiplayer/GraphContext';
-import { deterministicEdgeId } from '@/utils/experiment/multiplayer/graphSync';
 import { GraphUpdater } from '@/components/experiment/multiplayer/GraphUpdater';
 import { toast } from 'sonner';
+import { buildConnectionEdge } from '@/utils/experiment/multiplayer/connectUtils';
 import {
     createUpdateNodeContent,
     createDeleteNode,
@@ -146,12 +147,28 @@ export default function MultiplayerRationaleDetailPage() {
 
     const updateEdgeAnchorPosition = createUpdateEdgeAnchorPosition(setNodes);
 
+    const clearConnect = React.useCallback(() => {
+        setConnectMode(false);
+        setConnectAnchorId(null);
+        setConnectCursor(null);
+    }, []);
+
+    const leaderSynced = useLeaderPromotionSync({
+        isLeader,
+        yNodesMap: yNodesMap as any,
+        yEdgesMap: yEdgesMap as any,
+        yTextMap: yTextMap as any,
+        setNodes: setNodes as any,
+        setEdges: setEdges as any,
+        clearConnect,
+    });
+
     const { onNodesChange, onEdgesChange, onConnect, commitNodePositions } = createGraphChangeHandlers(
         setNodes,
         setEdges,
-        isLeader ? yNodesMap : null,
-        isLeader ? yEdgesMap : null,
-        isLeader ? ydoc : null,
+        isLeader && leaderSynced ? yNodesMap : null,
+        isLeader && leaderSynced ? yEdgesMap : null,
+        isLeader && leaderSynced ? ydoc : null,
         syncYMapFromArray,
         localOriginRef.current
     );
@@ -222,8 +239,43 @@ export default function MultiplayerRationaleDetailPage() {
                     addNegationBelow,
                     deleteNode,
                     beginConnectFromNode: (id: string) => setConnectAnchorId(id),
+                    completeConnectToNode: (nodeId: string) => {
+                        if (!connectMode) return;
+                        if (!isLeader) {
+                            toast.warning('Read-only mode: Changes won\'t be saved');
+                            return;
+                        }
+                        if (!connectAnchorId) return;
+                        if (nodeId === connectAnchorId) {
+                            setConnectAnchorId(null);
+                            setConnectCursor(null);
+                            return;
+                        }
+                        const parentId = connectAnchorId;
+                        const childId = nodeId;
+                        if (isLockedForMe?.(parentId) || isLockedForMe?.(childId)) {
+                            const lockedNodeId = isLockedForMe?.(parentId) ? parentId : childId;
+                            const owner = getLockOwner?.(lockedNodeId);
+                            toast.warning(`Locked by ${owner?.name || 'another user'}`);
+                            setConnectAnchorId(null);
+                            setConnectCursor(null);
+                            return;
+                        }
+                        const { id, edge } = buildConnectionEdge(nodes as any, parentId, childId) as any;
+                        const exists = edges.some((edge: any) => edge.id === id);
+                        if (!exists) {
+                            if (yEdgesMap && ydoc && isLeader) {
+                                ydoc.transact(() => { if (!yEdgesMap.has(id)) yEdgesMap.set(id, edge as any); }, localOriginRef.current);
+                            } else {
+                                setEdges((eds) => (eds.some(e => e.id === id) ? eds : [...eds, edge as any]));
+                            }
+                        }
+                        setConnectAnchorId(null);
+                        setConnectCursor(null);
+                    },
                     cancelConnect: () => setConnectAnchorId(null),
                     isConnectingFromNodeId: connectAnchorId,
+                    connectMode,
                     addObjectionForEdge,
                     hoveredEdgeId,
                     setHoveredEdge: setHoveredEdgeId,
@@ -236,6 +288,8 @@ export default function MultiplayerRationaleDetailPage() {
                     isLockedForMe,
                     getLockOwner,
                     proxyMode: !isLeader,
+                    undo,
+                    redo,
                 }}>
                     <div className="w-full h-full relative">
                         {(!nodes || nodes.length === 0) && (
@@ -253,48 +307,7 @@ export default function MultiplayerRationaleDetailPage() {
                             onNodesChange={onNodesChange}
                             onEdgesChange={onEdgesChange}
                             onConnect={onConnect}
-                            onNodeClick={(e: any, node: any) => {
-                                if (!connectMode) return;
-                                if (!isLeader) {
-                                    toast.warning('Read-only mode: Changes won\'t be saved');
-                                    return;
-                                }
-                                e.stopPropagation();
-                                if (!connectAnchorId) {
-                                    setConnectAnchorId(node.id);
-                                    setConnectCursor(null);
-                                    return;
-                                }
-                                if (node.id === connectAnchorId) {
-                                    setConnectAnchorId(null);
-                                    setConnectCursor(null);
-                                    return;
-                                }
-                                const parentId = connectAnchorId;
-                                const childId = node.id;
-                                if (isLockedForMe?.(parentId) || isLockedForMe?.(childId)) {
-                                    const lockedNodeId = isLockedForMe?.(parentId) ? parentId : childId;
-                                    const owner = getLockOwner?.(lockedNodeId);
-                                    toast.warning(`Locked by ${owner?.name || 'another user'}`);
-                                    setConnectAnchorId(null);
-                                    setConnectCursor(null);
-                                    return;
-                                }
-                                const parentType = nodes.find((n: any) => n.id === parentId)?.type;
-                                const edgeType = parentType === 'statement' ? 'statement' : 'negation';
-                                const exists = edges.some((edge: any) => edge.source === childId && edge.target === parentId && edge.type === edgeType);
-                                if (!exists) {
-                                    const id = deterministicEdgeId(edgeType, childId, parentId, `${childId}-source-handle`, `${parentId}-incoming-handle`);
-                                    const newEdge: any = { id, type: edgeType, source: childId, target: parentId, sourceHandle: `${childId}-source-handle`, targetHandle: `${parentId}-incoming-handle` };
-                                    if (yEdgesMap && ydoc && isLeader) {
-                                        ydoc.transact(() => { if (!yEdgesMap.has(id)) yEdgesMap.set(id, newEdge); }, localOriginRef.current);
-                                    } else {
-                                        setEdges((eds) => (eds.some(e => e.id === id) ? eds : [...eds, newEdge]));
-                                    }
-                                }
-                                setConnectAnchorId(null);
-                                setConnectCursor(null);
-                            }}
+                            onNodeClick={() => { /* selection/editing handled inside nodes; do not link on click */ }}
                             onNodeDragStart={handleNodeDragStart}
                             onNodeDragStop={handleNodeDragStop}
                             onEdgeMouseEnter={(_: any, edge: any) => setHoveredEdgeId(edge.id)}
@@ -310,6 +323,9 @@ export default function MultiplayerRationaleDetailPage() {
                             connectAnchorId={connectAnchorId}
                             onFlowMouseMove={(x,y) => setConnectCursor({ x, y })}
                             connectCursor={connectCursor}
+                            onBackgroundMouseUp={() => {
+                                // No-op: edge connections by drag are disabled
+                            }}
                         />
                         <ToolsBar
                             connectMode={connectMode}

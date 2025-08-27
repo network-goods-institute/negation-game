@@ -1,5 +1,7 @@
 import React from 'react';
 import { Pointer as PointerIcon, Link as LinkIcon, Hand as HandIcon, Undo2, Redo2 } from 'lucide-react';
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { ToolbarButton } from "./ToolbarButton";
 
 interface ToolsBarProps {
   connectMode: boolean;
@@ -38,7 +40,7 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
             <span className="text-sm font-medium">Connecting</span>
           </div>
           <span className="text-sm text-stone-700">
-            {connectAnchorId ? 'Now click a child' : 'Click a parent node'}
+            {connectAnchorId ? 'Drag to a child node' : 'Hold-drag from a parent node'}
           </span>
           <div className="h-5 w-px bg-stone-200 mx-2" />
           <button
@@ -61,52 +63,64 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
   // Default toolbar (idle)
   return (
     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
-      <div className="bg-white/90 backdrop-blur border-2 border-blue-200 shadow-xl rounded-full px-4 py-2 flex items-center gap-2 transition-all">
-        {/* Pointer */}
-        <button
-          onClick={() => { setConnectMode(false as any); setConnectAnchorId(null); setGrabMode?.(false); }}
-          title="Pointer"
-          className={`h-10 w-10 inline-flex items-center justify-center rounded-full border ${!connectMode && !grabMode ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-50'}`}
-        >
-          <PointerIcon className="h-5 w-5" />
-        </button>
-        {/* Connect (line) */}
-        <button
-          onClick={() => { if (!readOnly) { setGrabMode?.(false); setConnectMode(true as any); setConnectAnchorId(null); } }}
-          disabled={!!readOnly}
-          title={readOnly ? 'Read-only' : 'Connect (L)'}
-          className={`h-10 w-10 inline-flex items-center justify-center rounded-full border ${connectMode ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-50'} ${readOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          <LinkIcon className="h-5 w-5" />
-        </button>
-        {/* Grab (hand) */}
-        <button
-          onClick={() => { setConnectMode(false as any); setConnectAnchorId(null); setGrabMode?.(!grabMode); }}
-          title="Grab (pan)"
-          className={`h-10 w-10 inline-flex items-center justify-center rounded-full border ${grabMode ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-50'}`}
-        >
-          <HandIcon className="h-5 w-5" />
-        </button>
-        <div className="h-6 w-px bg-stone-200 mx-2" />
-        {/* Undo */}
-        <button
-          onClick={() => undo?.()}
-          disabled={!canUndo}
-          title="Undo"
-          className={`h-10 w-10 inline-flex items-center justify-center rounded-full border bg-white text-blue-700 border-blue-200 hover:bg-blue-50 ${!canUndo ? 'opacity-50 cursor-not-allowed hover:bg-white' : ''}`}
-        >
-          <Undo2 className="h-5 w-5" />
-        </button>
-        {/* Redo */}
-        <button
-          onClick={() => redo?.()}
-          disabled={!canRedo}
-          title="Redo"
-          className={`h-10 w-10 inline-flex items-center justify-center rounded-full border bg-white text-blue-700 border-blue-200 hover:bg-blue-50 ${!canRedo ? 'opacity-50 cursor-not-allowed hover:bg-white' : ''}`}
-        >
-          <Redo2 className="h-5 w-5" />
-        </button>
-      </div>
+      <TooltipProvider>
+        <div className="bg-white/90 backdrop-blur border-2 border-blue-200 shadow-xl rounded-full px-4 py-2 flex items-center gap-2 transition-all">
+          {/* Select (pointer) */}
+          <ToolbarButton
+            label="Select"
+            shortcut="V"
+            active={!connectMode && !grabMode}
+            onClick={() => { setConnectMode(false as any); setConnectAnchorId(null); setGrabMode?.(false); }}
+          >
+            <PointerIcon className="h-5 w-5" />
+          </ToolbarButton>
+
+          {/* Connect (line) */}
+          <ToolbarButton
+            label={readOnly ? "Read-only" : "Connect"}
+            shortcut={readOnly ? undefined : "L"}
+            disabled={!!readOnly}
+            active={!!connectMode}
+            onClick={() => { if (!readOnly) { setGrabMode?.(false); setConnectMode(true as any); setConnectAnchorId(null); } }}
+          >
+            <LinkIcon className="h-5 w-5" />
+          </ToolbarButton>
+
+          {/* Hand (grab/pan) */}
+          <ToolbarButton
+            label="Hand"
+            shortcut="H"
+            active={!!grabMode}
+            onClick={() => { setConnectMode(false as any); setConnectAnchorId(null); setGrabMode?.(!grabMode); }}
+          >
+            <HandIcon className="h-5 w-5" />
+          </ToolbarButton>
+
+          <div className="h-6 w-px bg-stone-200 mx-2" />
+
+          {/* Undo */}
+          <ToolbarButton
+            label="Undo"
+            shortcut="⌘Z / Ctrl+Z"
+            disabled={!canUndo}
+            onClick={() => undo?.()}
+            className="!bg-white !text-blue-700 !border-blue-200 hover:!bg-blue-50"
+          >
+            <Undo2 className="h-5 w-5" />
+          </ToolbarButton>
+
+          {/* Redo */}
+          <ToolbarButton
+            label="Redo"
+            shortcut="⇧⌘Z / Ctrl+Y"
+            disabled={!canRedo}
+            onClick={() => redo?.()}
+            className="!bg-white !text-blue-700 !border-blue-200 hover:!bg-blue-50"
+          >
+            <Redo2 className="h-5 w-5" />
+          </ToolbarButton>
+        </div>
+      </TooltipProvider>
     </div>
   );
 };
