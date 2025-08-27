@@ -38,7 +38,9 @@ export default function MultiplayerRationaleDetailPage() {
     const { data: user, isLoading: isUserLoading, isFetching: isUserFetching } = useUser();
 
     const [connectMode, setConnectMode] = useState<boolean>(false);
+    const [grabMode, setGrabMode] = useState<boolean>(false);
     const [connectAnchorId, setConnectAnchorId] = useState<string | null>(null);
+    const [connectCursor, setConnectCursor] = useState<{ x: number; y: number } | null>(null);
     const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
     const localOriginRef = useRef<object>({});
     const lastAddRef = useRef<Record<string, number>>({});
@@ -164,7 +166,27 @@ export default function MultiplayerRationaleDetailPage() {
     );
 
 
-    useKeyboardShortcuts(undo, redo);
+    useKeyboardShortcuts(undo, redo, {
+        onToggleConnect: () => {
+            if (!isLeader) return;
+            setConnectMode((v) => !v);
+            setConnectAnchorId(null);
+        },
+        onExitConnect: () => {
+            setConnectMode(false);
+            setConnectAnchorId(null);
+        },
+        onPointerMode: () => {
+            setConnectMode(false);
+            setGrabMode(false);
+            setConnectAnchorId(null);
+        },
+        onToggleGrab: () => {
+            setConnectMode(false);
+            setGrabMode((g) => !g);
+            setConnectAnchorId(null);
+        }
+    });
 
 
 
@@ -240,10 +262,12 @@ export default function MultiplayerRationaleDetailPage() {
                                 e.stopPropagation();
                                 if (!connectAnchorId) {
                                     setConnectAnchorId(node.id);
+                                    setConnectCursor(null);
                                     return;
                                 }
                                 if (node.id === connectAnchorId) {
                                     setConnectAnchorId(null);
+                                    setConnectCursor(null);
                                     return;
                                 }
                                 const parentId = connectAnchorId;
@@ -253,6 +277,7 @@ export default function MultiplayerRationaleDetailPage() {
                                     const owner = getLockOwner?.(lockedNodeId);
                                     toast.warning(`Locked by ${owner?.name || 'another user'}`);
                                     setConnectAnchorId(null);
+                                    setConnectCursor(null);
                                     return;
                                 }
                                 const parentType = nodes.find((n: any) => n.id === parentId)?.type;
@@ -268,6 +293,7 @@ export default function MultiplayerRationaleDetailPage() {
                                     }
                                 }
                                 setConnectAnchorId(null);
+                                setConnectCursor(null);
                             }}
                             onNodeDragStart={handleNodeDragStart}
                             onNodeDragStop={handleNodeDragStop}
@@ -277,6 +303,13 @@ export default function MultiplayerRationaleDetailPage() {
                             cursors={cursors as any}
                             username={username}
                             userColor={userColor}
+                            panOnDrag={grabMode ? [0,1,2] : [1,2]}
+                            panOnScroll={true}
+                            zoomOnScroll={false}
+                            connectMode={connectMode}
+                            connectAnchorId={connectAnchorId}
+                            onFlowMouseMove={(x,y) => setConnectCursor({ x, y })}
+                            connectCursor={connectCursor}
                         />
                         <ToolsBar
                             connectMode={connectMode}
@@ -287,6 +320,9 @@ export default function MultiplayerRationaleDetailPage() {
                             undo={undo}
                             redo={redo}
                             connectAnchorId={connectAnchorId}
+                            readOnly={!isLeader}
+                            grabMode={grabMode}
+                            setGrabMode={setGrabMode}
                         />
                     </div>
                     <GraphUpdater nodes={nodes} edges={edges} setNodes={setNodes} />
