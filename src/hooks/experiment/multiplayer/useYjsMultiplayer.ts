@@ -53,6 +53,7 @@ export const useYjsMultiplayer = ({
   }, [localOrigin]);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+  const isUndoRedoRef = useRef(false);
 
   const handleForceSave = useCallback(async () => {
     if (forceSaveRef.current) {
@@ -108,43 +109,54 @@ export const useYjsMultiplayer = ({
                 hadContent = true;
               }
             } catch (error) {
-              console.warn("[yjs] Failed to apply binary snapshot:", (error as Error).message);
+              console.warn(
+                "[yjs] Failed to apply binary snapshot:",
+                (error as Error).message
+              );
             }
           } else {
             const json: any = await res.json().catch(() => ({}));
             if (json?.snapshot) {
               try {
-                const bytes = Uint8Array.from(atob(json.snapshot), (c) => c.charCodeAt(0));
+                const bytes = Uint8Array.from(atob(json.snapshot), (c) =>
+                  c.charCodeAt(0)
+                );
                 Y.applyUpdate(doc, bytes);
                 hadContent = true;
               } catch (updateError) {
-                console.warn("[yjs] Failed to apply snapshot:", (updateError as Error).message);
+                console.warn(
+                  "[yjs] Failed to apply snapshot:",
+                  (updateError as Error).message
+                );
               }
             } else if (Array.isArray(json?.updates)) {
               let appliedUpdates = 0;
               for (const b64 of json.updates) {
                 try {
-                  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+                  const bytes = Uint8Array.from(atob(b64), (c) =>
+                    c.charCodeAt(0)
+                  );
                   Y.applyUpdate(doc, bytes);
                   appliedUpdates++;
                 } catch (updateError) {
-                  console.warn("[yjs] Skipping corrupted update:", (updateError as Error).message);
+                  console.warn(
+                    "[yjs] Skipping corrupted update:",
+                    (updateError as Error).message
+                  );
                 }
               }
               if (appliedUpdates > 0) {
                 hadContent = true;
-                console.log(`[yjs] Applied ${appliedUpdates}/${json.updates.length} updates`);
+                console.log(
+                  `[yjs] Applied ${appliedUpdates}/${json.updates.length} updates`
+                );
               }
             }
           }
           if (hadContent) {
             serverVectorRef.current = Y.encodeStateVector(doc);
           }
-          if (
-            yNodes.size === 0 &&
-            yEdges.size === 0 &&
-            !hadContent
-          ) {
+          if (yNodes.size === 0 && yEdges.size === 0 && !hadContent) {
             doc.transact(() => {
               for (const n of initialNodes) yNodes.set(n.id, n);
               for (const e of initialEdges) yEdges.set(e.id, e);
@@ -292,7 +304,8 @@ export const useYjsMultiplayer = ({
     const updateNodesFromText = createUpdateNodesFromText(
       yTextMapRef as any,
       localOriginRef as any,
-      setNodes as any
+      setNodes as any,
+      isUndoRedoRef
     );
     yTextMap.observeDeep(updateNodesFromText as any);
 
@@ -304,6 +317,7 @@ export const useYjsMultiplayer = ({
     undoManagerRef.current = createUndoManager(
       yNodes as any,
       yEdges as any,
+      yTextMap as any,
       localOriginRef.current
     );
 
@@ -319,7 +333,9 @@ export const useYjsMultiplayer = ({
 
     // Observe shared meta for nextSaveAt/saving across peers and align timer
     const onMetaChange = () => {
-      try { syncFromMeta(); } catch {}
+      try {
+        syncFromMeta();
+      } catch {}
     };
     // initial alignment
     onMetaChange();
@@ -452,7 +468,13 @@ export const useYjsMultiplayer = ({
         redo: undoManagerRef.current.redoStack.length,
       } as any;
       console.log("[undo] stack sizes before", before);
+
+      isUndoRedoRef.current = true;
       undoManagerRef.current.undo();
+      setTimeout(() => {
+        isUndoRedoRef.current = false;
+      }, 100);
+
       // reflect current state
       try {
         setCanUndo(undoManagerRef.current.undoStack.length > 0);
@@ -472,7 +494,13 @@ export const useYjsMultiplayer = ({
         redo: undoManagerRef.current.redoStack.length,
       } as any;
       console.log("[undo] stack sizes before", before);
+
+      isUndoRedoRef.current = true;
       undoManagerRef.current.redo();
+      setTimeout(() => {
+        isUndoRedoRef.current = false;
+      }, 100);
+
       try {
         setCanUndo(undoManagerRef.current.undoStack.length > 0);
         setCanRedo(undoManagerRef.current.redoStack.length > 0);
@@ -487,5 +515,14 @@ export const useYjsMultiplayer = ({
     canRedo,
     forceSave: handleForceSave,
     nextSaveTime,
+    registerTextInUndoScope: (t: any) => {
+      try {
+        if (undoManagerRef.current && t) {
+          undoManagerRef.current.addToScope(t);
+        }
+      } catch (error) {
+        console.warn("[undo] Failed to manually register Y.Text:", error);
+      }
+    },
   };
 };

@@ -96,7 +96,8 @@ export const createScheduleSave = (
       if (m && ydocRef.current) {
         ydocRef.current.transact(() => {
           if (!m.has("nextSaveAt")) m.set("nextSaveAt", saveTime);
-          if (!m.has("saveId")) m.set("saveId", Math.random().toString(36).slice(2));
+          if (!m.has("saveId"))
+            m.set("saveId", Math.random().toString(36).slice(2));
         }, localOriginRef?.current);
       }
     } catch {}
@@ -201,14 +202,19 @@ export const createUpdateEdgesFromY = (
 export const createUpdateNodesFromText = (
   yTextMapRef: React.MutableRefObject<Y.Map<Y.Text> | null>,
   localOriginRef: React.MutableRefObject<any>,
-  setNodes: (updater: (nodes: Node[]) => Node[]) => void
+  setNodes: (updater: (nodes: Node[]) => Node[]) => void,
+  isUndoRedoRef?: React.MutableRefObject<boolean>
 ) => {
   return (events?: any[]) => {
     if (Array.isArray(events)) {
       const allLocal = events.every(
         (e) => e?.transaction?.origin === localOriginRef.current
       );
-      if (allLocal && events.length > 0) return;
+      const isUndoRedo = isUndoRedoRef?.current || false;
+
+      if (allLocal && events.length > 0 && !isUndoRedo) {
+        return;
+      }
     }
     const yText = yTextMapRef.current;
     if (!yText) return;

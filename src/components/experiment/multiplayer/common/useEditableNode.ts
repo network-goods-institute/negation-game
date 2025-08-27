@@ -6,6 +6,8 @@ interface UseEditableNodeArgs {
   updateNodeContent: (nodeId: string, content: string) => void;
   startEditingNode?: (nodeId: string) => void;
   stopEditingNode?: (nodeId: string) => void;
+  // Whether the node is currently selected in the canvas (for click semantics)
+  isSelected?: boolean;
 }
 
 export const useEditableNode = ({
@@ -14,29 +16,71 @@ export const useEditableNode = ({
   updateNodeContent,
   startEditingNode,
   stopEditingNode,
+  isSelected,
 }: UseEditableNodeArgs) => {
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(content);
   const draftRef = useRef<string>("");
+  const originalBeforeEditRef = useRef<string>("");
   const justCommittedRef = useRef<number>(0);
   const lastClickRef = useRef<number>(0);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const updateTimerRef = useRef<number | null>(null);
 
-  // Sync incoming content when NOT actively editing to avoid caret jumps.
+  // Sync incoming content, allowing updates during editing for undo/redo
   useEffect(() => {
-    if (isEditing) return;
     const now = Date.now();
     const recentlyCommitted = now - justCommittedRef.current < 1500;
-    if (recentlyCommitted) {
-      // Skip syncing from props briefly after a local commit to prevent flicker
+
+    if (!isEditing) {
+      if (recentlyCommitted) {
+        // Skip syncing from props briefly after a local commit to prevent flicker
+        return;
+      }
+      if (value !== content) setValue(content);
+      draftRef.current = content;
+      if (contentRef.current && contentRef.current.innerText !== content) {
+        contentRef.current.innerText = content;
+      }
       return;
     }
-    if (value !== content) setValue(content);
-    draftRef.current = content;
-    if (contentRef.current && contentRef.current.innerText !== content) {
-      contentRef.current.innerText = content;
+
+    // While editing: Allow external updates (like undo/redo) but preserve caret
+    if (content !== value && content !== draftRef.current) {
+      setValue(content);
+      draftRef.current = content;
+
+      if (contentRef.current && contentRef.current.innerText !== content) {
+        const selection = window.getSelection();
+        const range = selection?.getRangeAt(0);
+        const caretPos = range?.startOffset || 0;
+
+        contentRef.current.innerText = content;
+
+        // Restore caret position if possible
+        try {
+          const newRange = document.createRange();
+          const textNode = contentRef.current.firstChild;
+          if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+            const maxPos = Math.min(
+              caretPos,
+              textNode.textContent?.length || 0
+            );
+            newRange.setStart(textNode, maxPos);
+            newRange.collapse(true);
+            selection?.removeAllRanges();
+            selection?.addRange(newRange);
+          }
+        } catch (e) {
+          // Fallback: place caret at end
+          const newRange = document.createRange();
+          newRange.selectNodeContents(contentRef.current);
+          newRange.collapse(false);
+          selection?.removeAllRanges();
+          selection?.addRange(newRange);
+        }
+      }
     }
   }, [content, isEditing, value]);
 
@@ -80,6 +124,44 @@ export const useEditableNode = ({
     sel?.addRange(range);
   };
 
+  const enterEditWithCaretAtPoint = (clientX: number, clientY: number) => {
+    const el = contentRef.current;
+    if (!el) return enterEditWithCaret();
+    el.focus();
+    let range: Range | null = null;
+    const anyDoc: any = document as any;
+    try {
+      if (typeof (document as any).caretRangeFromPoint === "function") {
+        range = (document as any).caretRangeFromPoint(
+          clientX,
+          clientY
+        ) as Range | null;
+      } else if (typeof anyDoc.caretPositionFromPoint === "function") {
+        const pos = anyDoc.caretPositionFromPoint(clientX, clientY);
+        if (pos) {
+          range = document.createRange();
+          range.setStart(
+            pos.offsetNode,
+            Math.min(
+              pos.offset,
+              (pos.offsetNode?.textContent?.length ?? pos.offset) as number
+            )
+          );
+          range.collapse(true);
+        }
+      }
+    } catch {}
+    const sel = window.getSelection();
+    if (range && el.contains(range.startContainer)) {
+      try {
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+        return;
+      } catch {}
+    }
+    enterEditWithCaret();
+  };
+
   const debouncedUpdateNodeContent = useCallback(
     (nodeId: string, content: string) => {
       if (updateTimerRef.current) clearTimeout(updateTimerRef.current);
@@ -92,22 +174,39 @@ export const useEditableNode = ({
 
   const onClick = (e: React.MouseEvent) => {
     const now = Date.now();
-    if (e.detail === 2) {
+
+    // Triple-click: select all (explicit only)
+    if (e.detail >= 3) {
+      e.preventDefault();
+      if (!isEditing) originalBeforeEditRef.current = value;
       setIsEditing(true);
       setTimeout(focusSelectAll, 0);
       startEditingNode?.(id);
-    } else if (e.detail >= 3) {
-      setIsEditing(true);
-      setTimeout(enterEditWithCaret, 0);
-      startEditingNode?.(id);
-    } else {
-      if (now - lastClickRef.current > 350 && lastClickRef.current !== 0) {
-        setIsEditing(true);
-        setTimeout(enterEditWithCaret, 0);
-        startEditingNode?.(id);
-      }
       lastClickRef.current = now;
+      return;
     }
+
+    // Double-click: enter edit with caret at click (do NOT select-all)
+    if (e.detail === 2) {
+      e.preventDefault();
+      if (!isEditing) originalBeforeEditRef.current = value;
+      setIsEditing(true);
+      const { clientX, clientY } = e;
+      setTimeout(() => enterEditWithCaretAtPoint(clientX, clientY), 0);
+      startEditingNode?.(id);
+      lastClickRef.current = now;
+      return;
+    }
+
+    // Single click: only enter edit if this is the "second click" within threshold while selected
+    if (isSelected && now - lastClickRef.current <= 600) {
+      if (!isEditing) originalBeforeEditRef.current = value;
+      setIsEditing(true);
+      const { clientX, clientY } = e;
+      setTimeout(() => enterEditWithCaretAtPoint(clientX, clientY), 0);
+      startEditingNode?.(id);
+    }
+    lastClickRef.current = now;
   };
 
   const onInput = (e: React.FormEvent<HTMLDivElement>) => {
@@ -147,6 +246,18 @@ export const useEditableNode = ({
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       commit();
+      return;
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      // Cancel: restore pre-edit content (since onInput pushes live changes)
+      const original = originalBeforeEditRef.current;
+      if (contentRef.current) contentRef.current.innerText = original;
+      draftRef.current = original;
+      setValue(original);
+      updateNodeContent(id, original);
+      setIsEditing(false);
+      stopEditingNode?.(id);
     }
   };
 

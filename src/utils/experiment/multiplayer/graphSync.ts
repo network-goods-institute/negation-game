@@ -192,11 +192,44 @@ export const createGraphChangeHandlers = (
     }
   };
 
+  const flushPendingChanges = () => {
+    const mN = yNodesMap;
+    const mE = yEdgesMap;
+    const d = ydoc;
+    if (typeof window !== "undefined") {
+      if (rafNodesId != null) {
+        window.cancelAnimationFrame(rafNodesId);
+        rafNodesId = null;
+      }
+      if (rafEdgesId != null) {
+        window.cancelAnimationFrame(rafEdgesId);
+        rafEdgesId = null;
+      }
+    }
+    if (d) {
+      if (mN && pendingNodes) {
+        d.transact(
+          () => syncYMapFromArray(mN, pendingNodes as Node[]),
+          localOrigin
+        );
+        pendingNodes = null;
+      }
+      if (mE && pendingEdges) {
+        d.transact(
+          () => syncYMapFromArray(mE, pendingEdges as Edge[]),
+          localOrigin
+        );
+        pendingEdges = null;
+      }
+    }
+  };
+
   return {
     onNodesChange,
     onEdgesChange,
     onConnect,
     commitNodePositions,
+    flushPendingChanges,
   };
 };
 

@@ -74,6 +74,7 @@ export default function MultiplayerRationaleDetailPage() {
         redo,
         canUndo,
         canRedo,
+        registerTextInUndoScope,
     } = useYjsMultiplayer({
         roomName,
         initialNodes: initialGraph?.nodes || [],
@@ -94,14 +95,6 @@ export default function MultiplayerRationaleDetailPage() {
         getLockOwner
     });
 
-    const updateNodeContent = createUpdateNodeContent(
-        yTextMap,
-        ydoc,
-        isLeader,
-        localOriginRef.current,
-        setNodes
-    );
-
     const deleteNode = createDeleteNode(
         nodes,
         edges,
@@ -121,12 +114,14 @@ export default function MultiplayerRationaleDetailPage() {
         nodes,
         yNodesMap,
         yEdgesMap,
+        yTextMap,
         ydoc,
         isLeader,
         localOriginRef.current,
         lastAddRef,
         setNodes,
         setEdges,
+        registerTextInUndoScope,
         isLockedForMe,
         getLockOwner
     );
@@ -136,11 +131,13 @@ export default function MultiplayerRationaleDetailPage() {
         edges,
         yNodesMap,
         yEdgesMap,
+        yTextMap,
         ydoc,
         isLeader,
         localOriginRef.current,
         setNodes,
         setEdges,
+        registerTextInUndoScope,
         isLockedForMe,
         getLockOwner
     );
@@ -155,6 +152,15 @@ export default function MultiplayerRationaleDetailPage() {
         isLeader ? ydoc : null,
         syncYMapFromArray,
         localOriginRef.current
+    );
+
+    const updateNodeContent = createUpdateNodeContent(
+        yTextMap,
+        ydoc,
+        isLeader,
+        localOriginRef.current,
+        setNodes,
+        registerTextInUndoScope
     );
 
 
