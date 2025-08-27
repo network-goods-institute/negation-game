@@ -17,19 +17,22 @@ export const useLeaderElection = (provider: YProvider, userId: string) => {
       const myClientId = awareness.clientID;
 
       let lowestClientId: number | null = null;
+      let matches = 0;
 
       states.forEach((state: any, clientId: number) => {
         const user = state?.user;
         if (!user) return;
 
         if ((user.id || user.name) === userId) {
+          matches++;
           if (lowestClientId === null || clientId < lowestClientId) {
             lowestClientId = clientId;
           }
         }
       });
 
-      const shouldBeLeader = lowestClientId === myClientId;
+      // If no matching entries for this user are present, prefer local as leader
+      const shouldBeLeader = matches === 0 ? true : lowestClientId === myClientId;
 
       setIsLeader(shouldBeLeader);
     } catch (error) {
@@ -43,6 +46,7 @@ export const useLeaderElection = (provider: YProvider, userId: string) => {
 
     const awareness = provider.awareness;
 
+    // Initial grace period to allow stale peers to disappear after reload
     setTimeout(calculate, 1000);
 
     awareness.on?.("change", calculate);

@@ -95,11 +95,29 @@ export const useYjsMultiplayer = ({
       : roomName;
     (async () => {
       try {
-        const res = await fetch(
+        let hadContent = false;
+        // Try diff-first load using last known state vector from localStorage
+        try {
+          const svB64 = typeof window !== 'undefined' ? window.localStorage.getItem(`yjs:sv:${persistId}`) : null;
+          if (svB64) {
+            const diffRes = await fetch(`/api/experimental/rationales/${encodeURIComponent(persistId)}/state?sv=${encodeURIComponent(svB64)}`);
+            if (diffRes.ok && (diffRes.headers.get('content-type') || '').includes('application/octet-stream')) {
+              const buf = new Uint8Array(await diffRes.arrayBuffer());
+              if (buf.byteLength > 0) {
+                Y.applyUpdate(doc, buf);
+                hadContent = true;
+              }
+            } else if (diffRes.status === 204) {
+              hadContent = true;
+            }
+          }
+        } catch {}
+
+        // If diff load did not produce content, fall back to snapshot/updates
+        const res = hadContent ? null : await fetch(
           `/api/experimental/rationales/${encodeURIComponent(persistId)}/state`
         );
-        if (res.ok) {
-          let hadContent = false;
+        if (!hadContent && res && res.ok) {
           const ct = res.headers.get("content-type") || "";
           if (ct.includes("application/octet-stream")) {
             try {
@@ -155,6 +173,15 @@ export const useYjsMultiplayer = ({
           }
           if (hadContent) {
             serverVectorRef.current = Y.encodeStateVector(doc);
+            try {
+              if (typeof window !== 'undefined' && serverVectorRef.current) {
+                // @ts-ignore Buffer available in browser bundlers via polyfill; fallback to btoa
+                const b64 = (typeof Buffer !== 'undefined')
+                  ? Buffer.from(serverVectorRef.current).toString('base64')
+                  : btoa(String.fromCharCode(...Array.from(serverVectorRef.current)));
+                window.localStorage.setItem(`yjs:sv:${persistId}`, b64);
+              }
+            } catch {}
           }
           if (yNodes.size === 0 && yEdges.size === 0 && !hadContent) {
             doc.transact(() => {
@@ -230,6 +257,17 @@ export const useYjsMultiplayer = ({
     const onDocUpdate = (_update: Uint8Array, origin: any) => {
       // Only schedule on local-origin transactions to avoid multiple clients saving
       if (origin === localOriginRef.current) scheduleSave();
+      // Update local SV cache opportunistically
+      try {
+        serverVectorRef.current = Y.encodeStateVector(doc);
+        if (typeof window !== 'undefined' && serverVectorRef.current) {
+          // @ts-ignore Buffer may not exist; provide fallback
+          const b64 = (typeof Buffer !== 'undefined')
+            ? Buffer.from(serverVectorRef.current).toString('base64')
+            : btoa(String.fromCharCode(...Array.from(serverVectorRef.current)));
+          window.localStorage.setItem(`yjs:sv:${persistId}`, b64);
+        }
+      } catch {}
     };
     doc.on("update", onDocUpdate);
 

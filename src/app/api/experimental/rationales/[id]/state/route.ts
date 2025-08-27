@@ -145,6 +145,8 @@ export async function GET(req: Request, ctx: any) {
       buffer.byteLength ?? (buffer as any).length ?? 0
     ),
   };
+  // Encourage client caches to revalidate with ETag/Last-Modified quickly
+  headers["cache-control"] = "public, max-age=60";
   if (etag) headers["etag"] = etag;
   if (lastModified) headers["last-modified"] = lastModified.toUTCString();
   if (url.searchParams.get("debug") === "1") {
