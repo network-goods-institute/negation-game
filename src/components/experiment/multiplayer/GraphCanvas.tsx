@@ -22,6 +22,7 @@ interface GraphCanvasProps {
   onNodeDragStop?: any;
   onEdgeMouseEnter?: any;
   onEdgeMouseLeave?: any;
+  onEdgeClick?: any;
   provider: YProvider;
   cursors: Map<number, { fx?: number; fy?: number; name: string; color: string }>;
   username: string;
@@ -48,6 +49,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   onNodeDragStop,
   onEdgeMouseEnter,
   onEdgeMouseLeave,
+  onEdgeClick,
   provider,
   cursors,
   username,
@@ -143,6 +145,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         onEdgesChange={authenticated ? onEdgesChange : undefined}
         onConnect={authenticated ? onConnect : undefined}
         onNodeClick={onNodeClick}
+        onPaneClick={() => { try { graph.setSelectedEdge?.(null); } catch {} }}
+        onEdgeClick={(e, edge) => { e.stopPropagation(); graph.setSelectedEdge?.(edge.id); onEdgeClick?.(e, edge); }}
         onNodeDragStart={authenticated ? onNodeDragStart : undefined}
         onNodeDragStop={authenticated ? onNodeDragStop : undefined}
         nodeTypes={nodeTypes}

@@ -149,9 +149,16 @@ export const createUpdateNodesFromY = (
   yNodes: Y.Map<Node>,
   yTextMapRef: React.MutableRefObject<Y.Map<Y.Text> | null>,
   lastNodesSigRef: React.MutableRefObject<string>,
-  setNodes: (updater: (nodes: Node[]) => Node[]) => void
+  setNodes: (updater: (nodes: Node[]) => Node[]) => void,
+  localOriginRef?: React.MutableRefObject<any>
 ) => {
-  return () => {
+  return (_evt?: any, txn?: any) => {
+    try {
+      if (txn && localOriginRef && txn.origin === localOriginRef.current) {
+        // Ignore local-origin Yjs node map updates; local state already applied
+        return;
+      }
+    } catch {}
     const arr: Node[] = [];
     for (const [, v] of yNodes as any) arr.push(v as Node);
     const sorted = arr

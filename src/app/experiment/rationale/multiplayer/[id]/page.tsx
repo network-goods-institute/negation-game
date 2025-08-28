@@ -48,6 +48,7 @@ export default function MultiplayerRationaleDetailPage() {
     const [connectAnchorId, setConnectAnchorId] = useState<string | null>(null);
     const [connectCursor, setConnectCursor] = useState<{ x: number; y: number } | null>(null);
     const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
+    const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
     const localOriginRef = useRef<object>({});
     const lastAddRef = useRef<Record<string, number>>({});
 
@@ -291,6 +292,8 @@ export default function MultiplayerRationaleDetailPage() {
                     addObjectionForEdge,
                     hoveredEdgeId,
                     setHoveredEdge: setHoveredEdgeId,
+                    selectedEdgeId,
+                    setSelectedEdge: setSelectedEdgeId,
                 updateEdgeAnchorPosition,
                 startEditingNode: startEditing,
                 stopEditingNode: stopEditing,

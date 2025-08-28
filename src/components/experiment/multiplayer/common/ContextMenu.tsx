@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 interface MenuItem {
@@ -17,18 +17,33 @@ interface ContextMenuProps {
 
 export const ContextMenu: React.FC<ContextMenuProps> = ({ open, x, y, onClose, items }) => {
   const root = typeof document !== 'undefined' ? document.body : null;
+  const onCloseRef = useRef(onClose);
+  const readyRef = useRef(false);
+  const openedAtRef = useRef<number>(0);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
-    const onGlobalClick = () => onClose();
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('click', onGlobalClick);
+    readyRef.current = false;
+    openedAtRef.current = Date.now();
+    const enable = () => { readyRef.current = true; };
+    const t = window.setTimeout(enable, 0);
+    const onPointerDown = (e: PointerEvent) => {
+      if (!readyRef.current || Date.now() - openedAtRef.current < 16) return;
+      const target = e.target as Node | null;
+      if (menuRef.current && target && menuRef.current.contains(target)) return;
+      onCloseRef.current?.();
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseRef.current?.(); };
+    window.addEventListener('pointerdown', onPointerDown, { capture: true } as any);
     window.addEventListener('keydown', onKey as any);
     return () => {
-      window.removeEventListener('click', onGlobalClick as any);
+      window.clearTimeout(t);
+      window.removeEventListener('pointerdown', onPointerDown as any, { capture: true } as any);
       window.removeEventListener('keydown', onKey as any);
     };
-  }, [open, onClose]);
+  }, [open]);
 
   const style = useMemo(() => ({
     position: 'fixed' as const,
@@ -40,7 +55,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ open, x, y, onClose, i
   if (!open || !root) return null;
 
   const menu = (
-    <div style={style} onClick={(e) => e.stopPropagation()} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+    <div ref={menuRef} style={style} onClick={(e) => e.stopPropagation()} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}>
       <div className="bg-white border shadow-md rounded-md py-1 min-w-[160px]">
         {items.map((it, idx) => (
           <button

@@ -169,110 +169,42 @@ export const createDeleteNode = (
       toast.warning(`Locked by ${owner?.name || "another user"}`);
       return;
     }
+    const edge = edges.find((e: any) => e.id === nodeId);
+    if (edge) {
+      // Optimistic local update for client responsiveness
+      setEdges((eds) => eds.filter((e: any) => e.id !== edge.id));
+      if (yEdgesMap && ydoc) {
+        ydoc.transact(() => {
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
+          yEdgesMap.delete(edge.id as any);
+        }, localOrigin);
+      }
+      return;
+    }
+
     const node = nodes.find((n: any) => n.id === nodeId);
     if (!node) {
       return;
     }
-
-    const nodesToDelete = new Set<string>([nodeId]);
-    const edgesToDelete = new Set<string>();
-
-    const getIncidentEdges = (nid: string) =>
-      edges.filter((e: any) => e.source === nid || e.target === nid);
-
-    let changed = true;
-    while (changed) {
-      changed = false;
-
-      // For each node marked, mark all incident edges
-      for (const nid of Array.from(nodesToDelete)) {
-        for (const e of getIncidentEdges(nid)) {
-          if (!edgesToDelete.has(e.id)) {
-            edgesToDelete.add(e.id);
-            changed = true;
-
-            // If this edge has objections, mark their parts
-            // Find anchors for this base edge
-            for (const n of nodes) {
-              if (n.type === "edge_anchor" && n.data?.parentEdgeId === e.id) {
-                if (!nodesToDelete.has(n.id)) {
-                  nodesToDelete.add(n.id);
-                  changed = true;
-                }
-                // objection nodes tied to this base edge
-                for (const on of nodes) {
-                  if (
-                    on.type === "objection" &&
-                    on.data?.parentEdgeId === e.id
-                  ) {
-                    if (!nodesToDelete.has(on.id)) {
-                      nodesToDelete.add(on.id);
-                      changed = true;
-                    }
-                  }
-                }
-                // objection edges pointing from objection to the anchor
-                for (const oe of edges) {
-                  if (
-                    oe.type === "objection" &&
-                    nodesToDelete.has(n.id) &&
-                    oe.target === n.id
-                  ) {
-                    if (!edgesToDelete.has(oe.id)) {
-                      edgesToDelete.add(oe.id);
-                      changed = true;
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-
-      // After marking edges, remove orphan nodes (non-statement) that will have no edges remaining
-      const remainingEdges = edges.filter((e: any) => !edgesToDelete.has(e.id));
-      const degree = new Map<string, number>();
-      for (const e of remainingEdges) {
-        degree.set(e.source, (degree.get(e.source) || 0) + 1);
-        degree.set(e.target, (degree.get(e.target) || 0) + 1);
-      }
-      for (const n of nodes) {
-        if (nodesToDelete.has(n.id)) continue;
-        if (n.type === "statement") continue;
-        const deg = degree.get(n.id) || 0;
-        if (deg === 0) {
-          nodesToDelete.add(n.id);
-          changed = true;
-        }
-      }
-    }
-
-    // Compute final arrays
-    const finalNodes = nodes.filter((n: any) => !nodesToDelete.has(n.id));
-    const finalEdges = edges.filter((e: any) => !edgesToDelete.has(e.id));
-
-    if (yNodesMap && yEdgesMap && ydoc && isLeader) {
+    const incidentEdges = edges.filter(
+      (e: any) => e.source === nodeId || e.target === nodeId
+    );
+    // Optimistic local update
+    setEdges((eds) => eds.filter((e: any) => !(e.source === nodeId || e.target === nodeId)));
+    setNodes((nds) => nds.filter((n: any) => n.id !== nodeId));
+    if (yNodesMap && yEdgesMap && ydoc) {
       ydoc.transact(() => {
-        // delete edges first
-        for (const eid of edgesToDelete) {
+        for (const e of incidentEdges) {
           // eslint-disable-next-line drizzle/enforce-delete-with-where
-          yEdgesMap.delete(eid as any);
+          yEdgesMap.delete(e.id as any);
         }
-        // delete nodes + text entries
-        for (const nid of nodesToDelete) {
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        yNodesMap.delete(nodeId as any);
+        try {
           // eslint-disable-next-line drizzle/enforce-delete-with-where
-          yNodesMap.delete(nid as any);
-          // eslint-disable-next-line drizzle/enforce-delete-with-where
-          try {
-            // eslint-disable-next-line drizzle/enforce-delete-with-where
-            yTextMap?.delete(nid as any);
-          } catch {}
-        }
+          yTextMap?.delete(nodeId as any);
+        } catch {}
       }, localOrigin);
-    } else {
-      setEdges(() => finalEdges);
-      setNodes(() => finalNodes);
     }
   };
 };
@@ -326,6 +258,10 @@ export const createAddNegationBelow = (
       sourceHandle: `${newId}-source-handle`,
       targetHandle: `${parentNodeId}-incoming-handle`,
     };
+    // Always update local state immediately for responsiveness
+    setNodes((curr) => [...curr, newNode]);
+    setEdges((eds) => [...eds, newEdge]);
+
     if (yNodesMap && yEdgesMap && ydoc && isLeader) {
       ydoc.transact(() => {
         yNodesMap.set(newId, newNode);
@@ -443,16 +379,23 @@ export const createAddObjectionForEdge = (
 export const createUpdateEdgeAnchorPosition = (
   setNodes: (updater: (nodes: any[]) => any[]) => void
 ) => {
+  // Cache last positions to avoid redundant state updates from repeated effects
+  const lastPos = new Map<string, { x: number; y: number }>();
+  const eps = 0.01;
   return (edgeId: string, x: number, y: number) => {
+    const prev = lastPos.get(edgeId);
+    if (prev && Math.abs(prev.x - x) < eps && Math.abs(prev.y - y) < eps) {
+      return;
+    }
+    lastPos.set(edgeId, { x, y });
     setNodes((nds) => {
       let changed = false;
       const updated = nds.map((n: any) => {
         if (!(n.type === "edge_anchor" && n.data?.parentEdgeId === edgeId))
           return n;
-        // Only tiny threshold to prevent exact duplicate positions, not visible movement
         if (
-          Math.abs(n.position.x - x) < 0.01 &&
-          Math.abs(n.position.y - y) < 0.01
+          Math.abs((n.position?.x ?? 0) - x) < eps &&
+          Math.abs((n.position?.y ?? 0) - y) < eps
         )
           return n;
         changed = true;

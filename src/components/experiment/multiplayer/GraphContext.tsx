@@ -13,6 +13,8 @@ type GraphActions = {
     addObjectionForEdge: (edgeId: string, midX?: number, midY?: number) => void;
     hoveredEdgeId: string | null;
     setHoveredEdge: (edgeId: string | null) => void;
+    selectedEdgeId?: string | null;
+    setSelectedEdge?: (edgeId: string | null) => void;
     updateEdgeAnchorPosition: (edgeId: string, x: number, y: number) => void;
     startEditingNode?: (nodeId: string) => void;
     stopEditingNode?: (nodeId: string) => void;
@@ -47,6 +49,8 @@ export const useGraphActions = () => {
             addObjectionForEdge: () => { },
             hoveredEdgeId: null,
             setHoveredEdge: () => { },
+            selectedEdgeId: null,
+            setSelectedEdge: () => { },
             updateEdgeAnchorPosition: () => { },
             startEditingNode: () => { },
             stopEditingNode: () => { },

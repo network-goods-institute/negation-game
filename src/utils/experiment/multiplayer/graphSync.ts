@@ -60,8 +60,7 @@ export const createGraphChangeHandlers = (
   ) => void,
   localOrigin?: any
 ) => {
-  let rafNodesId: number | null = null;
-  let pendingNodes: Node[] | null = null;
+  // Delta-based node sync: only write changed positions to Yjs during drags
   let rafEdgesId: number | null = null;
   let pendingEdges: Edge[] | null = null;
   const isSameNodes = (a: Node[], b: Node[]) => {
@@ -101,26 +100,31 @@ export const createGraphChangeHandlers = (
     const d = ydoc;
     setNodes((nds) => {
       const next = applyNodeChanges(changes, nds);
-
-      if (m && d) {
-        pendingNodes = next as Node[];
-        if (rafNodesId == null) {
-          rafNodesId =
-            typeof window !== "undefined"
-              ? window.requestAnimationFrame(() => {
-                  if (pendingNodes && m && d) {
-                    d.transact(
-                      () => syncYMapFromArray(m, pendingNodes as Node[]),
-                      localOrigin
-                    );
-                  }
-                  pendingNodes = null;
-                  if (rafNodesId != null && typeof window !== "undefined") {
-                    window.cancelAnimationFrame(rafNodesId);
-                  }
-                  rafNodesId = null;
-                })
-              : null;
+      // Targeted Yjs updates for position/dimensions only
+      if (m && d && Array.isArray(changes) && changes.length > 0) {
+        const idsToUpdate = new Set<string>();
+        for (const ch of changes) {
+          if (!ch || typeof ch !== 'object') continue;
+          const t = (ch as any).type;
+          if (t === 'position' || t === 'dimensions') {
+            const id = (ch as any).id as string;
+            if (id) idsToUpdate.add(id);
+          }
+        }
+        if (idsToUpdate.size > 0) {
+          d.transact(() => {
+            for (const id of idsToUpdate) {
+              if (!m.has(id)) continue;
+              const nextNode = (next as Node[]).find((n) => n.id === id);
+              const existing = m.get(id) as Node | undefined;
+              if (!nextNode || !existing) continue;
+              const samePos =
+                (existing.position?.x ?? 0) === (nextNode.position?.x ?? 0) &&
+                (existing.position?.y ?? 0) === (nextNode.position?.y ?? 0);
+              if (samePos) continue;
+              m.set(id, { ...existing, position: nextNode.position } as Node);
+            }
+          }, localOrigin);
         }
       }
       return next;
@@ -188,7 +192,19 @@ export const createGraphChangeHandlers = (
     const m = yNodesMap;
     const d = ydoc;
     if (m && d) {
-      d.transact(() => syncYMapFromArray(m, nodes), localOrigin);
+      // Merge-only: update positions for known ids
+      d.transact(() => {
+        for (const n of nodes) {
+          if (!m.has(n.id)) continue;
+          const curr = m.get(n.id) as Node | undefined;
+          if (!curr) continue;
+          const samePos =
+            (curr.position?.x ?? 0) === (n.position?.x ?? 0) &&
+            (curr.position?.y ?? 0) === (n.position?.y ?? 0);
+          if (samePos) continue;
+          m.set(n.id, { ...curr, position: n.position } as Node);
+        }
+      }, localOrigin);
     }
   };
 
@@ -197,23 +213,12 @@ export const createGraphChangeHandlers = (
     const mE = yEdgesMap;
     const d = ydoc;
     if (typeof window !== "undefined") {
-      if (rafNodesId != null) {
-        window.cancelAnimationFrame(rafNodesId);
-        rafNodesId = null;
-      }
       if (rafEdgesId != null) {
         window.cancelAnimationFrame(rafEdgesId);
         rafEdgesId = null;
       }
     }
     if (d) {
-      if (mN && pendingNodes) {
-        d.transact(
-          () => syncYMapFromArray(mN, pendingNodes as Node[]),
-          localOrigin
-        );
-        pendingNodes = null;
-      }
       if (mE && pendingEdges) {
         d.transact(
           () => syncYMapFromArray(mE, pendingEdges as Edge[]),

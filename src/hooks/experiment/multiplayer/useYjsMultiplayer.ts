@@ -328,7 +328,8 @@ export const useYjsMultiplayer = ({
       yNodes as any,
       yTextMapRef as any,
       lastNodesSigRef,
-      setNodes as any
+      setNodes as any,
+      localOriginRef as any
     );
 
     const updateEdgesFromY = createUpdateEdgesFromY(
@@ -337,7 +338,7 @@ export const useYjsMultiplayer = ({
       setEdges as any
     );
 
-    yNodes.observe(updateNodesFromY);
+    yNodes.observe(updateNodesFromY as any);
     yEdges.observe(updateEdgesFromY);
     const updateNodesFromText = createUpdateNodesFromText(
       yTextMapRef as any,
