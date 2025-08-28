@@ -1,0 +1,44 @@
+import React from 'react';
+
+interface NodeActionPillProps {
+  label: string;
+  visible: boolean;
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  colorClass?: string; // e.g., 'bg-blue-700'
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
+}
+
+// A shared pill that animates as if emerging from beneath the node.
+// No timers; visibility/hover are controlled by the parent.
+export const NodeActionPill: React.FC<NodeActionPillProps> = ({
+  label,
+  visible,
+  onClick,
+  colorClass = 'bg-stone-800',
+  onMouseEnter,
+  onMouseLeave,
+}) => {
+  return (
+    <div
+      className={`absolute left-1/2 -translate-x-1/2 bottom-[-44px] transition-transform duration-300 ease-out ${visible ? 'translate-y-0' : '-translate-y-2'}`}
+      style={{ zIndex: visible ? 60 : 0 }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      {/* Hover bridge to avoid gap causing flicker */}
+      <div
+        className={`absolute left-1/2 -translate-x-1/2 -top-5 h-5 w-[140px] ${visible ? 'pointer-events-auto' : 'pointer-events-none'}`}
+        onMouseEnter={onMouseEnter}
+      />
+      <button
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={(e) => { e.stopPropagation(); onClick(e); }}
+        className={`${colorClass} rounded-full px-2.5 py-0.5 text-[10px] font-medium text-white shadow-sm ${visible ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}
+        aria-label={label}
+      >
+        {label}
+      </button>
+    </div>
+  );
+};

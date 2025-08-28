@@ -88,6 +88,13 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
 
       if (key === 'delete' || key === 'backspace') {
         const sel = rf.getNodes().filter((n) => (n as any).selected);
+        const selectedEdgeId = (graph as any)?.selectedEdgeId as string | null;
+        if (selectedEdgeId) {
+          e.preventDefault();
+          graph.deleteNode?.(selectedEdgeId);
+          graph.setSelectedEdge?.(null);
+          return;
+        }
         if (sel.length > 0) {
           e.preventDefault();
           sel.forEach((n) => graph.deleteNode?.(n.id));

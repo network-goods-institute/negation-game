@@ -7,6 +7,7 @@ import { useConnectableNode } from './common/useConnectableNode';
 import { ContextMenu } from './common/ContextMenu';
 import { toast } from 'sonner';
 import { Eye, EyeOff } from 'lucide-react';
+import { NodeActionPill } from './common/NodeActionPill';
 
 interface StatementNodeProps {
   id: string;
@@ -133,18 +134,16 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
               </div>
             )}
 
-            {!hidden && (
-              <button
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={(e) => { e.stopPropagation(); addNegationBelow(id); }}
-                onMouseEnter={() => { cancelHide(); setPillVisible(true); }}
-                onMouseLeave={() => { scheduleHide(); }}
-                className={`absolute left-1/2 -translate-x-1/2 translate-y-2 bottom-[-22px] rounded-full px-2.5 py-0.5 text-[10px] font-medium bg-blue-700 text-white transition-opacity duration-200 ${shouldShowPill ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-                style={{ zIndex: 50 }}
-              >
-                Make option
-              </button>
-            )}
+        {!hidden && (
+          <NodeActionPill
+            label="Make option"
+            visible={shouldShowPill}
+            onClick={() => addNegationBelow(id)}
+            colorClass="bg-blue-700"
+            onMouseEnter={() => { cancelHide(); setPillVisible(true); }}
+            onMouseLeave={() => { scheduleHide(); }}
+          />
+        )}
           </div>
         </div>
       </div>

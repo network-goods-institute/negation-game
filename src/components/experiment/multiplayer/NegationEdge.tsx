@@ -22,10 +22,13 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
     };
   }, [sourceX, sourceY, targetX, targetY]);
 
+  const lastPosRef = React.useRef<{x:number;y:number}|null>(null);
   useEffect(() => {
-    if (Number.isFinite(cx) && Number.isFinite(cy)) {
-      updateEdgeAnchorPosition(props.id as string, cx, cy);
-    }
+    if (!Number.isFinite(cx) || !Number.isFinite(cy)) return;
+    const last = lastPosRef.current;
+    if (last && Math.abs(last.x - cx) < 0.5 && Math.abs(last.y - cy) < 0.5) return;
+    lastPosRef.current = { x: cx, y: cy };
+    updateEdgeAnchorPosition(props.id as string, cx, cy);
   }, [cx, cy, props.id, updateEdgeAnchorPosition]);
 
   // Hide objection affordances if either endpoint is hidden

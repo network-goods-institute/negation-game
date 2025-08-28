@@ -6,6 +6,7 @@ import { useEditableNode } from '../common/useEditableNode';
 import { useConnectableNode } from '../common/useConnectableNode';
 import { ContextMenu } from '../common/ContextMenu';
 import { toast } from 'sonner';
+import { NodeActionPill } from '../common/NodeActionPill';
 
 interface ObjectionNodeProps {
     data: {
@@ -120,15 +121,14 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                             {value}
                         </div>
 
-                        <button
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={(e) => { e.stopPropagation(); addNegationBelow(id); }}
+                        <NodeActionPill
+                            label="Negate"
+                            visible={shouldShowPill}
+                            onClick={() => addNegationBelow(id)}
+                            colorClass="bg-stone-800"
                             onMouseEnter={() => { cancelHide(); setPillVisible(true); }}
                             onMouseLeave={() => { scheduleHide(); }}
-                            className={`absolute left-1/2 -translate-x-1/2 translate-y-2 bottom-[-22px] rounded-full px-2.5 py-0.5 text-[10px] font-medium bg-stone-800 text-white transition-opacity duration-200 ${shouldShowPill ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-                        >
-                            Negate
-                        </button>
+                        />
                     </div>
                 </div>
             </div>

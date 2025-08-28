@@ -29,10 +29,13 @@ export const ObjectionEdge = (props: ObjectionEdgeProps) => {
     curvature: 0.35,
   });
 
+  const lastPosRef = React.useRef<{x:number;y:number}|null>(null);
   useEffect(() => {
-    if (Number.isFinite(labelX) && Number.isFinite(labelY)) {
-      updateEdgeAnchorPosition(props.id as string, labelX, labelY);
-    }
+    if (!Number.isFinite(labelX) || !Number.isFinite(labelY)) return;
+    const last = lastPosRef.current;
+    if (last && Math.abs(last.x - labelX) < 0.5 && Math.abs(last.y - labelY) < 0.5) return;
+    lastPosRef.current = { x: labelX, y: labelY };
+    updateEdgeAnchorPosition(props.id as string, labelX, labelY);
   }, [labelX, labelY, props.id, updateEdgeAnchorPosition]);
 
   const selected = (selectedEdgeId || null) === (props.id as any);
@@ -114,5 +117,4 @@ export const ObjectionEdge = (props: ObjectionEdgeProps) => {
     </>
   );
 };
-
 

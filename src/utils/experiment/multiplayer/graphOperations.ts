@@ -225,15 +225,14 @@ export const createAddNegationBelow = (
   getLockOwner?: (nodeId: string) => { name?: string } | null
 ) => {
   return (parentNodeId: string) => {
-    if (!isLeader) {
-      toast.warning("Read-only mode: Changes won't be saved");
-      return;
-    }
-
     if (isLockedForMe?.(parentNodeId)) {
       const owner = getLockOwner?.(parentNodeId);
       toast.warning(`Locked by ${owner?.name || "another user"}`);
       return;
+    }
+    if (!isLeader) {
+      // Allow local-only preview; will not sync to Yjs
+      toast.warning("Read-only mode: Changes won't be saved");
     }
     const now = Date.now();
     const last = lastAddRef.current[parentNodeId] || 0;
@@ -276,9 +275,6 @@ export const createAddNegationBelow = (
           } catch {}
         }
       }, localOrigin);
-    } else {
-      setNodes((curr) => [...curr, newNode]);
-      setEdges((eds) => [...eds, newEdge]);
     }
   };
 };
