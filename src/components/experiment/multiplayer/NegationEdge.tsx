@@ -24,12 +24,17 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
   }, [sourceX, sourceY, targetX, targetY]);
 
   const lastPosRef = React.useRef<{x:number;y:number}|null>(null);
+  const rafRef = React.useRef<number>(0);
   useEffect(() => {
     if (!Number.isFinite(cx) || !Number.isFinite(cy)) return;
     const last = lastPosRef.current;
     if (last && Math.abs(last.x - cx) < 0.5 && Math.abs(last.y - cy) < 0.5) return;
-    lastPosRef.current = { x: cx, y: cy };
-    updateEdgeAnchorPosition(props.id as string, cx, cy);
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      lastPosRef.current = { x: cx, y: cy };
+      updateEdgeAnchorPosition(props.id as string, cx, cy);
+    });
+    return () => cancelAnimationFrame(rafRef.current);
   }, [cx, cy, props.id, updateEdgeAnchorPosition]);
 
   // Hide objection affordances if either endpoint is hidden
@@ -50,7 +55,7 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
     <>
       {/* Selection highlight behind edge */}
       {Number.isFinite(sourceX) && Number.isFinite(sourceY) && Number.isFinite(targetX) && Number.isFinite(targetY) && selected && (
-        <line x1={sourceX} y1={sourceY} x2={targetX} y2={targetY} stroke="rgba(251,191,36,0.8)" strokeWidth={8} strokeLinecap="round" opacity={0.6} />
+        <line x1={sourceX} y1={sourceY} x2={targetX} y2={targetY} stroke="#000" strokeWidth={8} strokeLinecap="round" opacity={0.85} />
       )}
       <StraightEdge
         {...props}
@@ -71,7 +76,7 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
           fill: '#ef4444',
         }}
       />
-      {importanceSim && showAffordance && (
+      {showAffordance && (
         <>
           {/* Midpoint control: circle with minus */}
           <foreignObject x={cx - 8} y={cy - 8} width={16} height={16} style={{ pointerEvents: 'all' }}>
@@ -82,7 +87,9 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
           {null}
         </>
       )}
-      {importanceSim && (
+      {
+      /* Always render the overlay; show stars only in importanceSim mode */
+      (
       <EdgeLabelRenderer>
         <div
           style={{ position: 'absolute', transform: `translate(-50%, -50%) translate(${cx}px, ${cy + 18}px)`, zIndex: 1000, pointerEvents: 'all' }}
@@ -91,13 +98,15 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
           className={`transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
         >
           <div className="flex items-center justify-center gap-2 bg-white/95 backdrop-blur-sm border rounded-md shadow px-2 py-1">
-            <div className="flex items-center gap-1 text-[11px] select-none" title="Set edge relevance (simulation). 1 = low, 5 = high.">
-              {[1,2,3,4,5].map((i) => (
-                <button key={`rel-${i}`} title={`Set relevance to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateEdgeRelevance?.(props.id as string, i as any); }}>
-                  <span className={i <= relevance ? 'text-red-600' : 'text-stone-300'}>★</span>
-                </button>
-              ))}
-            </div>
+            {importanceSim && (
+              <div className="flex items-center gap-1 text-[11px] select-none" title="Set edge relevance (simulation). 1 = low, 5 = high.">
+                {[1,2,3,4,5].map((i) => (
+                  <button key={`rel-${i}`} title={`Set relevance to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateEdgeRelevance?.(props.id as string, i as any); }}>
+                    <span className={i <= relevance ? 'text-red-600' : 'text-stone-300'}>★</span>
+                  </button>
+                ))}
+              </div>
+            )}
             <button
               onMouseDown={(e) => e.preventDefault()}
               onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); }}

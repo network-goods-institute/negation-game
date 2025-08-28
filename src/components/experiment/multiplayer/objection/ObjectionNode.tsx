@@ -7,6 +7,7 @@ import { useConnectableNode } from '../common/useConnectableNode';
 import { ContextMenu } from '../common/ContextMenu';
 import { toast } from 'sonner';
 import { NodeActionPill } from '../common/NodeActionPill';
+import { Eye, EyeOff } from 'lucide-react';
 
 interface ObjectionNodeProps {
     data: {
@@ -18,7 +19,7 @@ interface ObjectionNodeProps {
 }
 
 const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => {
-    const { updateNodeContent, updateNodeFavor, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, importanceSim } = useGraphActions() as any;
+    const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, importanceSim, selectedEdgeId } = useGraphActions() as any;
     const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus } = useEditableNode({
         id,
         content: data.content,
@@ -67,23 +68,13 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const [menuOpen, setMenuOpen] = useState(false);
     const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
     const connect = useConnectableNode({ id, locked });
+    const hidden = (data as any)?.hidden === true;
 
     return (
         <>
             <Handle id={`${id}-source-handle`} type="source" position={Position.Top} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
             <Handle id={`${id}-incoming-handle`} type="target" position={Position.Bottom} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
             <div className="relative inline-block">
-                {selected && (
-                    <div
-                        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 blur-xl"
-                        style={{
-                            width: '185%',
-                            height: '135%',
-                            background: 'radial-gradient(60% 80% at 50% 52%, rgba(251,191,36,0.44), rgba(251,191,36,0) 72%)',
-                            zIndex: 0,
-                        }}
-                    />
-                )}
                 <div
                     ref={wrapperRef}
                     onMouseEnter={() => { setHovered(true); cancelHide(); setPillVisible(true); }}
@@ -95,7 +86,8 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                         if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
                     }}
                     onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
-                    className={`px-3 py-2 rounded-lg bg-amber-100 border-2 border-amber-500 min-w-[180px] max-w-[300px] relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} node-drag-handle ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''
+                    className={`px-3 py-2 rounded-lg bg-amber-100 border-2 min-w-[180px] max-w-[300px] relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} node-drag-handle ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
+                        ${selected ? 'border-black' : 'border-amber-500'}
                         }`}
                 >
                     <div className="relative z-10">
@@ -103,14 +95,17 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                             <div className="absolute -top-3 right-0 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
                         )}
                         <EditorsBadgeRow editors={getEditorsForNode?.(id) || []} />
-                        {importanceSim && (
-                            <div className="mt-1 mb-1 flex items-center gap-1 select-none" title="Set favor/veracity (simulation). 1 = low, 5 = high.">
-                                {[1,2,3,4,5].map((i) => (
-                                    <button key={i} title={`Set favor to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateNodeFavor?.(id, i as any); }} className="text-[12px] leading-none">
-                                        <span className={i <= ((data as any)?.favor ?? 3) ? 'text-amber-500' : 'text-stone-300'}>★</span>
-                                    </button>
-                                ))}
-                            </div>
+                        {selected && (
+                            <button
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={(e) => { e.stopPropagation(); updateNodeHidden?.(id, !hidden); }}
+                                className="group absolute -top-2 -right-2 bg-white border rounded-full shadow hover:bg-stone-50 transition h-5 w-5 flex items-center justify-center"
+                                title={hidden ? 'Show' : 'Hide'}
+                                style={{ zIndex: 20 }}
+                            >
+                                <Eye className={`transition-opacity duration-150 ${hidden ? 'opacity-0' : 'opacity-100 group-hover:opacity-0'}`} size={14} />
+                                <EyeOff className={`absolute transition-opacity duration-150 ${hidden ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} size={14} />
+                            </button>
                         )}
                         {!proxyMode && lockOwner && (
                             <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs px-2 py-1 rounded text-white shadow" style={{ backgroundColor: lockOwner.color }}>
@@ -119,7 +114,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                         )}
                         <div
                             ref={contentRef}
-                            contentEditable={isEditing && !locked}
+                            contentEditable={isEditing && !locked && !hidden}
                             suppressContentEditableWarning
                             onInput={onInput}
                             onFocus={onFocus}
@@ -129,7 +124,22 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                         >
                             {value}
                         </div>
+                        {hidden && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+                                <div className="text-xs text-amber-700 italic animate-fade-in">Hidden</div>
+                            </div>
+                        )}
+                        {importanceSim && selected && !selectedEdgeId && (
+                            <div className="mt-1 mb-1 flex items-center gap-1 select-none" title="Set favor/veracity (simulation). 1 = low, 5 = high.">
+                                {[1,2,3,4,5].map((i) => (
+                                    <button key={i} title={`Set favor to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateNodeFavor?.(id, i as any); }} className="text-[12px] leading-none">
+                                        <span className={i <= ((data as any)?.favor ?? 3) ? 'text-amber-500' : 'text-stone-300'}>★</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
 
+                        {!hidden && (
                         <NodeActionPill
                             label="Negate"
                             visible={shouldShowPill}
@@ -138,6 +148,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                             onMouseEnter={() => { cancelHide(); setPillVisible(true); }}
                             onMouseLeave={() => { scheduleHide(); }}
                         />
+                        )}
                     </div>
                 </div>
             </div>

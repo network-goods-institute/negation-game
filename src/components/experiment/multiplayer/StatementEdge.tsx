@@ -17,12 +17,17 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
         : 0;
     // push live center into anchor so it tracks exactly, but only when values change
     const lastPosRef = React.useRef<{x:number;y:number}|null>(null);
+    const rafRef = React.useRef<number>(0);
     useEffect(() => {
         if (!Number.isFinite(cx) || !Number.isFinite(cy)) return;
         const last = lastPosRef.current;
         if (last && Math.abs(last.x - cx) < 0.5 && Math.abs(last.y - cy) < 0.5) return;
-        lastPosRef.current = { x: cx, y: cy };
-        updateEdgeAnchorPosition(props.id as string, cx, cy);
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = requestAnimationFrame(() => {
+            lastPosRef.current = { x: cx, y: cy };
+            updateEdgeAnchorPosition(props.id as string, cx, cy);
+        });
+        return () => cancelAnimationFrame(rafRef.current);
     }, [cx, cy, props.id, updateEdgeAnchorPosition]);
 
     // Hide objection affordances if either endpoint is hidden
@@ -54,7 +59,7 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
                 />
             )}
             {Number.isFinite((props as any).sourceX) && Number.isFinite((props as any).sourceY) && Number.isFinite((props as any).targetX) && Number.isFinite((props as any).targetY) && selected && (
-                <line x1={(props as any).sourceX} y1={(props as any).sourceY} x2={(props as any).targetX} y2={(props as any).targetY} stroke="rgba(251,191,36,0.8)" strokeWidth={8} strokeLinecap="round" opacity={0.6} />
+                <line x1={(props as any).sourceX} y1={(props as any).sourceY} x2={(props as any).targetX} y2={(props as any).targetY} stroke="#000" strokeWidth={8} strokeLinecap="round" opacity={0.85} />
             )}
             <StraightEdge
                 {...props}
@@ -64,19 +69,19 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
                 }}
                 interactionWidth={8}
             />
-            {importanceSim && showAffordance && (
+            {showAffordance && (
                 <>
                     {/* Midpoint dot to hint objection affordance */}
                     <foreignObject x={cx - 8} y={cy - 8} width={16} height={16} style={{ pointerEvents: 'all' }}>
                         <div onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); }} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedEdge?.(props.id as string); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }} title="Edge controls" className="w-4 h-4 rounded-full bg-white border flex items-center justify-center" style={{ borderColor: '#6b7280', cursor: 'pointer' }}>
-                            <div className="w-2 h-[2px] rounded-sm" style={{ backgroundColor: '#6b7280' }} />
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#6b7280' }} />
                         </div>
                     </foreignObject>
                     {null}
                 </>
             )}
             {/* Overlay controls rendered above nodes */}
-            {importanceSim && (
+            {(
             <EdgeLabelRenderer>
               <div
                 style={{ position: 'absolute', transform: `translate(-50%, -50%) translate(${cx}px, ${cy + 18}px)`, zIndex: 1000, pointerEvents: 'all' }}
@@ -85,13 +90,15 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
                 className={`transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
               >
                 <div className="flex items-center justify-center gap-2 bg-white/95 backdrop-blur-sm border rounded-md shadow px-2 py-1">
-                  <div className="flex items-center gap-1 text-[11px] select-none" title="Set edge relevance (simulation). 1 = low, 5 = high.">
-                    {[1,2,3,4,5].map((i) => (
-                      <button key={`rel-${i}`} title={`Set relevance to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateEdgeRelevance?.(props.id as string, i as any); }}>
-                        <span className={i <= (props as any).data?.relevance ? 'text-blue-600' : 'text-stone-300'}>★</span>
-                      </button>
-                    ))}
-                  </div>
+                  {importanceSim && (
+                    <div className="flex items-center gap-1 text-[11px] select-none" title="Set edge relevance (simulation). 1 = low, 5 = high.">
+                      {[1,2,3,4,5].map((i) => (
+                        <button key={`rel-${i}`} title={`Set relevance to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateEdgeRelevance?.(props.id as string, i as any); }}>
+                          <span className={i <= (props as any).data?.relevance ? 'text-blue-600' : 'text-stone-300'}>★</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <button
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); }}

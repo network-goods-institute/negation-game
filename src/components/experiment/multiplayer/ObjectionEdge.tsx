@@ -31,12 +31,17 @@ export const ObjectionEdge = (props: ObjectionEdgeProps) => {
   });
 
   const lastPosRef = React.useRef<{x:number;y:number}|null>(null);
+  const rafRef = React.useRef<number>(0);
   useEffect(() => {
     if (!Number.isFinite(labelX) || !Number.isFinite(labelY)) return;
     const last = lastPosRef.current;
     if (last && Math.abs(last.x - labelX) < 0.5 && Math.abs(last.y - labelY) < 0.5) return;
-    lastPosRef.current = { x: labelX, y: labelY };
-    updateEdgeAnchorPosition(props.id as string, labelX, labelY);
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      lastPosRef.current = { x: labelX, y: labelY };
+      updateEdgeAnchorPosition(props.id as string, labelX, labelY);
+    });
+    return () => cancelAnimationFrame(rafRef.current);
   }, [labelX, labelY, props.id, updateEdgeAnchorPosition]);
 
   const selected = (selectedEdgeId || null) === (props.id as any);
@@ -45,7 +50,7 @@ export const ObjectionEdge = (props: ObjectionEdgeProps) => {
     <>
       {/* Selection highlight following curve */}
       {Number.isFinite(sourceX) && Number.isFinite(sourceY) && Number.isFinite(targetX) && Number.isFinite(targetY) && selected && (
-        <path d={pathD} stroke="rgba(251,191,36,0.85)" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.6} />
+        <path d={pathD} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />
       )}
       <BezierEdge
         {...props}
@@ -111,7 +116,9 @@ export const ObjectionEdge = (props: ObjectionEdgeProps) => {
           style={{ backgroundColor: '#f97316', boxShadow: '0 0 0 1px #fff', cursor: 'pointer' }}
         />
       </foreignObject>
-      {importanceSim && (
+      {
+      /* Always render overlay; show stars only when simulation is on */
+      (
       <EdgeLabelRenderer>
         <div
           style={{ position: 'absolute', transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY + 18}px)`, zIndex: 1000, pointerEvents: 'all' }}
@@ -120,13 +127,15 @@ export const ObjectionEdge = (props: ObjectionEdgeProps) => {
           className={`transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
         >
           <div className="flex items-center justify-center gap-2">
-            <div className="flex items-center gap-1 text-[11px] select-none" title="Set edge relevance (simulation). 1 = low, 5 = high.">
-              {[1,2,3,4,5].map((i) => (
-                <button key={`rel-${i}`} title={`Set relevance to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateEdgeRelevance?.(props.id as string, i as any); }}>
-                  <span className={i <= ((props as any).data?.relevance ?? 3) ? 'text-orange-600' : 'text-stone-300'}>★</span>
-                </button>
-              ))}
-            </div>
+            {importanceSim && (
+              <div className="flex items-center gap-1 text-[11px] select-none" title="Set edge relevance (simulation). 1 = low, 5 = high.">
+                {[1,2,3,4,5].map((i) => (
+                  <button key={`rel-${i}`} title={`Set relevance to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateEdgeRelevance?.(props.id as string, i as any); }}>
+                    <span className={i <= ((props as any).data?.relevance ?? 3) ? 'text-orange-600' : 'text-stone-300'}>★</span>
+                  </button>
+                ))}
+              </div>
+            )}
             <button
               onMouseDown={(e) => e.preventDefault()}
               onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, labelX, labelY); }}

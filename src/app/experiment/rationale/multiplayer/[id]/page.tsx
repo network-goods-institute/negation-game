@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { ReactFlowProvider, } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -46,6 +46,8 @@ export default function MultiplayerRationaleDetailPage() {
     const [connectMode, setConnectMode] = useState<boolean>(false);
     const [grabMode, setGrabMode] = useState<boolean>(false);
     const [connectAnchorId, setConnectAnchorId] = useState<string | null>(null);
+    const connectAnchorRef = useRef<string | null>(null);
+    useEffect(() => { if (!connectAnchorId) connectAnchorRef.current = null; }, [connectAnchorId]);
     const [connectCursor, setConnectCursor] = useState<{ x: number; y: number } | null>(null);
     const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
     const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
@@ -153,22 +155,22 @@ export default function MultiplayerRationaleDetailPage() {
         getLockOwner
     );
 
-    const updateEdgeAnchorPosition = createUpdateEdgeAnchorPosition(setNodes);
-    const updateNodeFavor = (nodeId: string, favor: 1|2|3|4|5) => {
-        setNodes((nds: any[]) => nds.map(n => n.id === nodeId ? { ...n, data: { ...(n.data||{}), favor } } : n));
+    const updateEdgeAnchorPosition = React.useMemo(() => createUpdateEdgeAnchorPosition(setNodes), [setNodes]);
+    const updateNodeFavor = (nodeId: string, favor: 1 | 2 | 3 | 4 | 5) => {
+        setNodes((nds: any[]) => nds.map(n => n.id === nodeId ? { ...n, data: { ...(n.data || {}), favor } } : n));
         if (yNodesMap && ydoc && isLeader) {
             ydoc.transact(() => {
                 const base = (yNodesMap as any).get(nodeId);
-                if (base) (yNodesMap as any).set(nodeId, { ...base, data: { ...(base.data||{}), favor } });
+                if (base) (yNodesMap as any).set(nodeId, { ...base, data: { ...(base.data || {}), favor } });
             }, localOriginRef.current);
         }
     };
-    const updateEdgeRelevance = (edgeId: string, relevance: 1|2|3|4|5) => {
-        setEdges((eds: any[]) => eds.map(e => e.id === edgeId ? { ...e, data: { ...(e.data||{}), relevance } } : e));
+    const updateEdgeRelevance = (edgeId: string, relevance: 1 | 2 | 3 | 4 | 5) => {
+        setEdges((eds: any[]) => eds.map(e => e.id === edgeId ? { ...e, data: { ...(e.data || {}), relevance } } : e));
         if (yEdgesMap && ydoc && isLeader) {
             ydoc.transact(() => {
                 const base = (yEdgesMap as any).get(edgeId);
-                if (base) (yEdgesMap as any).set(edgeId, { ...base, data: { ...(base.data||{}), relevance } });
+                if (base) (yEdgesMap as any).set(edgeId, { ...base, data: { ...(base.data || {}), relevance } });
             }, localOriginRef.current);
         }
     };
@@ -181,12 +183,12 @@ export default function MultiplayerRationaleDetailPage() {
             try {
                 const val = m.get('importanceSim');
                 if (typeof val === 'boolean') setImportanceSim(val);
-            } catch {}
+            } catch { }
         };
         apply();
         const obs = () => apply();
         m.observe(obs);
-        return () => { try { m.unobserve(obs); } catch {} };
+        return () => { try { m.unobserve(obs); } catch { } };
     }, [yMetaMap]);
 
     const clearConnect = React.useCallback(() => {
@@ -288,31 +290,34 @@ export default function MultiplayerRationaleDetailPage() {
                     updateNodeFavor,
                     addNegationBelow,
                     deleteNode,
-                    beginConnectFromNode: (id: string) => setConnectAnchorId(id),
+                    beginConnectFromNode: (id: string) => { connectAnchorRef.current = id; setConnectAnchorId(id); },
                     completeConnectToNode: (nodeId: string) => {
                         if (!connectMode) return;
                         if (!isLeader) {
                             toast.warning('Read-only mode: Changes won\'t be saved');
                             return;
                         }
-                        if (!connectAnchorId) return;
-                        if (nodeId === connectAnchorId) {
+                        const anchorId = connectAnchorId || connectAnchorRef.current;
+                        if (!anchorId) return;
+                        if (nodeId === anchorId) {
                             setConnectAnchorId(null);
+                            connectAnchorRef.current = null;
                             setConnectCursor(null);
                             return;
                         }
-                        const parentId = connectAnchorId;
+                        const parentId = anchorId;
                         const childId = nodeId;
                         if (isLockedForMe?.(parentId) || isLockedForMe?.(childId)) {
                             const lockedNodeId = isLockedForMe?.(parentId) ? parentId : childId;
                             const owner = getLockOwner?.(lockedNodeId);
                             toast.warning(`Locked by ${owner?.name || 'another user'}`);
                             setConnectAnchorId(null);
+                            connectAnchorRef.current = null;
                             setConnectCursor(null);
                             return;
                         }
                         const { id, edge } = buildConnectionEdge(nodes as any, parentId, childId) as any;
-                        const exists = edges.some((edge: any) => edge.id === id);
+                        const exists = edges.some((e: any) => e.id === id);
                         if (!exists) {
                             if (yEdgesMap && ydoc && isLeader) {
                                 ydoc.transact(() => { if (!yEdgesMap.has(id)) yEdgesMap.set(id, edge as any); }, localOriginRef.current);
@@ -321,9 +326,11 @@ export default function MultiplayerRationaleDetailPage() {
                             }
                         }
                         setConnectAnchorId(null);
+                        connectAnchorRef.current = null;
                         setConnectCursor(null);
+                        setConnectMode(false);
                     },
-                    cancelConnect: () => setConnectAnchorId(null),
+                    cancelConnect: () => { setConnectAnchorId(null); connectAnchorRef.current = null; },
                     isConnectingFromNodeId: connectAnchorId,
                     connectMode,
                     addObjectionForEdge,
@@ -332,27 +339,27 @@ export default function MultiplayerRationaleDetailPage() {
                     updateEdgeRelevance,
                     selectedEdgeId,
                     setSelectedEdge: setSelectedEdgeId,
-                updateEdgeAnchorPosition,
-                startEditingNode: startEditing,
-                stopEditingNode: stopEditing,
-                getEditorsForNode,
-                lockNode,
-                unlockNode,
-                isLockedForMe,
-                getLockOwner,
-                proxyMode: !isLeader,
-                importanceSim,
-                undo,
-                redo,
-                addNodeAtPosition: createAddNodeAtPosition(
-                    yNodesMap as any,
-                    yTextMap as any,
-                    ydoc as any,
-                    isLeader,
-                    localOriginRef.current,
-                    setNodes as any,
-                ),
-            }}>
+                    updateEdgeAnchorPosition,
+                    startEditingNode: startEditing,
+                    stopEditingNode: stopEditing,
+                    getEditorsForNode,
+                    lockNode,
+                    unlockNode,
+                    isLockedForMe,
+                    getLockOwner,
+                    proxyMode: !isLeader,
+                    importanceSim,
+                    undo,
+                    redo,
+                    addNodeAtPosition: createAddNodeAtPosition(
+                        yNodesMap as any,
+                        yTextMap as any,
+                        ydoc as any,
+                        isLeader,
+                        localOriginRef.current,
+                        setNodes as any,
+                    ),
+                }}>
                     <div className="w-full h-full relative">
                         {(!nodes || nodes.length === 0) && (
                             <div className="absolute inset-0 bg-gray-50/80 z-10 flex items-center justify-center">
@@ -378,12 +385,12 @@ export default function MultiplayerRationaleDetailPage() {
                             cursors={cursors as any}
                             username={username}
                             userColor={userColor}
-                            panOnDrag={grabMode ? [0,1,2] : [1,2]}
+                            panOnDrag={grabMode ? [0, 1, 2] : [1, 2]}
                             panOnScroll={true}
                             zoomOnScroll={false}
                             connectMode={connectMode}
                             connectAnchorId={connectAnchorId}
-                            onFlowMouseMove={(x,y) => setConnectCursor({ x, y })}
+                            onFlowMouseMove={(x, y) => setConnectCursor({ x, y })}
                             connectCursor={connectCursor}
                             onBackgroundMouseUp={() => {
                                 // No-op: edge connections by drag are disabled
@@ -411,7 +418,7 @@ export default function MultiplayerRationaleDetailPage() {
                                             (yMetaMap as any).set('importanceSim', Boolean(next));
                                         }, localOriginRef.current);
                                     }
-                                } catch {}
+                                } catch { }
                             }}
                         />
                     </div>

@@ -68,18 +68,6 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
       <Handle id={`${id}-source-handle`} type="source" position={Position.Bottom} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
       <Handle id={`${id}-incoming-handle`} type="target" position={Position.Top} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
       <div className="relative inline-block">
-        {selected && (
-          <div
-            className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 blur-xl"
-            style={{
-              width: '185%',
-              height: '135%',
-              background:
-                'radial-gradient(60% 80% at 50% 52%, rgba(251,191,36,0.5), rgba(251,191,36,0) 70%)',
-              zIndex: 0,
-            }}
-          />
-        )}
         <div
           ref={wrapperRef}
           onMouseEnter={() => { setHovered(true); cancelHide(); setPillVisible(true); }}
@@ -91,7 +79,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
             if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
           }}
           onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
-          className={`px-5 py-3 rounded-xl ${hidden ? 'bg-stone-200 border-stone-300 text-stone-600' : 'bg-blue-50 border-blue-200 text-blue-900'} border-2 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} min-w-[240px] max-w-[360px] relative z-10 ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''
+          className={`px-5 py-3 rounded-xl ${hidden ? 'bg-stone-200 border-stone-300 text-stone-600' : 'bg-blue-50 border-blue-200 text-blue-900'} border-2 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} min-w-[240px] max-w-[360px] relative z-10 ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''} ${selected ? 'border-black' : ''}
             }`}
         >
           <div className="relative z-10">
@@ -100,16 +88,18 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
             )}
             <EditorsBadgeRow editors={getEditorsForNode?.(id) || []} />
             {/* Eye toggle */}
-            <button
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={(e) => { e.stopPropagation(); updateNodeHidden?.(id, !hidden); }}
-              className="group absolute -top-2 -right-2 bg-white border rounded-full shadow hover:bg-stone-50 transition h-5 w-5 flex items-center justify-center"
-              title={hidden ? 'Show' : 'Hide'}
-              style={{ zIndex: 20 }}
-            >
-              <Eye className={`transition-opacity duration-150 ${hidden ? 'opacity-0' : 'opacity-100 group-hover:opacity-0'}`} size={14} />
-              <EyeOff className={`absolute transition-opacity duration-150 ${hidden ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} size={14} />
-            </button>
+            {selected && (
+              <button
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => { e.stopPropagation(); updateNodeHidden?.(id, !hidden); }}
+                className="group absolute -top-2 -right-2 bg-white border rounded-full shadow hover:bg-stone-50 transition h-5 w-5 flex items-center justify-center"
+                title={hidden ? 'Show' : 'Hide'}
+                style={{ zIndex: 20 }}
+              >
+                <Eye className={`transition-opacity duration-150 ${hidden ? 'opacity-0' : 'opacity-100 group-hover:opacity-0'}`} size={14} />
+                <EyeOff className={`absolute transition-opacity duration-150 ${hidden ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} size={14} />
+              </button>
+            )}
         {!proxyMode && lockOwner && (
           <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs px-2 py-1 rounded text-white shadow" style={{ backgroundColor: lockOwner.color }}>
             {lockOwner.name}
