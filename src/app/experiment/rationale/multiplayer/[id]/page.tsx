@@ -27,11 +27,16 @@ import { toast } from 'sonner';
 import { buildConnectionEdge } from '@/utils/experiment/multiplayer/connectUtils';
 import {
     createUpdateNodeContent,
+    createUpdateNodeHidden,
     createDeleteNode,
     createAddNegationBelow,
     createAddObjectionForEdge,
-    createUpdateEdgeAnchorPosition
+    createUpdateEdgeAnchorPosition,
+    createAddNodeAtPosition
 } from '@/utils/experiment/multiplayer/graphOperations';
+import { Roboto_Slab } from 'next/font/google';
+
+const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
 export default function MultiplayerRationaleDetailPage() {
     const routeParams = useParams<{ id: string }>();
@@ -219,7 +224,7 @@ export default function MultiplayerRationaleDetailPage() {
 
 
     return (
-        <div className="fixed inset-0 top-16 bg-gray-50">
+        <div className={`fixed inset-0 top-16 bg-gray-50 ${robotoSlab.className}`}>
             <MultiplayerHeader
                 username={username}
                 userColor={userColor}
@@ -236,6 +241,13 @@ export default function MultiplayerRationaleDetailPage() {
             <ReactFlowProvider>
                 <GraphProvider value={{
                     updateNodeContent,
+                    updateNodeHidden: createUpdateNodeHidden(
+                        yNodesMap as any,
+                        ydoc as any,
+                        isLeader,
+                        localOriginRef.current,
+                        setNodes as any,
+                    ),
                     addNegationBelow,
                     deleteNode,
                     beginConnectFromNode: (id: string) => setConnectAnchorId(id),
@@ -279,18 +291,26 @@ export default function MultiplayerRationaleDetailPage() {
                     addObjectionForEdge,
                     hoveredEdgeId,
                     setHoveredEdge: setHoveredEdgeId,
-                    updateEdgeAnchorPosition,
-                    startEditingNode: startEditing,
-                    stopEditingNode: stopEditing,
-                    getEditorsForNode,
-                    lockNode,
-                    unlockNode,
-                    isLockedForMe,
-                    getLockOwner,
-                    proxyMode: !isLeader,
-                    undo,
-                    redo,
-                }}>
+                updateEdgeAnchorPosition,
+                startEditingNode: startEditing,
+                stopEditingNode: stopEditing,
+                getEditorsForNode,
+                lockNode,
+                unlockNode,
+                isLockedForMe,
+                getLockOwner,
+                proxyMode: !isLeader,
+                undo,
+                redo,
+                addNodeAtPosition: createAddNodeAtPosition(
+                    yNodesMap as any,
+                    yTextMap as any,
+                    ydoc as any,
+                    isLeader,
+                    localOriginRef.current,
+                    setNodes as any,
+                ),
+            }}>
                     <div className="w-full h-full relative">
                         {(!nodes || nodes.length === 0) && (
                             <div className="absolute inset-0 bg-gray-50/80 z-10 flex items-center justify-center">

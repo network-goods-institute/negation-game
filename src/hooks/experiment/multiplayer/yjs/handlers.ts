@@ -157,8 +157,15 @@ export const createUpdateNodesFromY = (
     const sorted = arr
       .slice()
       .sort((a, b) => (a.id || "").localeCompare(b.id || ""));
+    // Include non-textual data in signature so data changes (e.g., hidden)
+    // trigger updates across peers. We intentionally exclude content/statement
+    // because those are synced via Y.Text.
     const sig = JSON.stringify(
-      sorted.map((n: any) => ({ id: n.id, t: n.type, p: n.position }))
+      sorted.map((n: any) => {
+        const data = (n && n.data) || {};
+        const { content, statement, ...rest } = data as any;
+        return { id: n.id, t: n.type, p: n.position, d: rest } as any;
+      })
     );
     if (sig === lastNodesSigRef.current) return;
     lastNodesSigRef.current = sig;

@@ -6,6 +6,7 @@ import { useEditableNode } from './common/useEditableNode';
 import { useConnectableNode } from './common/useConnectableNode';
 import { ContextMenu } from './common/ContextMenu';
 import { toast } from 'sonner';
+import { Eye, EyeOff } from 'lucide-react';
 
 interface PointNodeProps {
   data: {
@@ -17,7 +18,7 @@ interface PointNodeProps {
 }
 
 export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
-  const { updateNodeContent, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode } = useGraphActions();
+  const { updateNodeContent, updateNodeHidden, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode } = useGraphActions();
 
   const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus } = useEditableNode({
     id,
@@ -62,6 +63,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
   const shouldShowPill = pillVisible && !isEditing && !locked;
 
   const connect = useConnectableNode({ id, locked });
+  const hidden = (data as any)?.hidden === true;
 
   return (
     <>
@@ -91,51 +93,72 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
             if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
           }}
           onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
-          className={`px-4 py-3 rounded-lg bg-white border-2 border-stone-200 min-w-[200px] max-w-[320px] relative z-10 ${locked ? 'cursor-not-allowed' : 'cursor-text'} ${
-            isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''
-          }`}
+          className={`px-4 py-3 rounded-lg ${hidden ? 'bg-stone-200 border-stone-300 text-stone-600' : 'bg-white border-stone-200'} border-2 min-w-[200px] max-w-[320px] relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''
+            }`}
         >
-        <div className="relative z-10">
-        {isConnectingFromNodeId === id && (
-          <div className="absolute -top-3 right-0 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
-        )}
-        {!proxyMode && lockOwner && (
-          <div className="absolute -top-6 left-0 text-xs px-2 py-1 rounded text-white" style={{ backgroundColor: lockOwner.color }}>
-            {lockOwner.name}
-          </div>
-        )}
-        <div
-          ref={contentRef}
-          contentEditable={isEditing && !locked}
-          suppressContentEditableWarning
-          onInput={onInput}
-          onFocus={onFocus}
-          onBlur={onBlur}
-          onKeyDown={onKeyDown}
-          className="text-sm text-gray-900 leading-relaxed whitespace-pre-wrap break-words outline-none"
-        >
-          {value}
-        </div>
+          <div className="relative z-10">
+            {/* Eye toggle top-right */}
+            <button
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => { e.stopPropagation(); updateNodeHidden?.(id, !hidden); }}
+              className="group absolute -top-2 -right-2 bg-white border rounded-full shadow hover:bg-stone-50 transition h-5 w-5 flex items-center justify-center"
+              title={hidden ? 'Show' : 'Hide'}
+              style={{ zIndex: 20 }}
+            >
+              <Eye className={`transition-opacity duration-150 ${hidden ? 'opacity-0' : 'opacity-100 group-hover:opacity-0'}`} size={14} />
+              <EyeOff className={`absolute transition-opacity duration-150 ${hidden ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} size={14} />
+            </button>
+            {isConnectingFromNodeId === id && (
+              <div className="absolute -top-3 right-0 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
+            )}
+            {!proxyMode && lockOwner && (
+              <div className="absolute -top-6 left-0 text-xs px-2 py-1 rounded text-white" style={{ backgroundColor: lockOwner.color }}>
+                {lockOwner.name}
+              </div>
+            )}
+            {/* Keep content element for stable height; overlay Hidden label */}
+            <div
+              ref={contentRef}
+              contentEditable={isEditing && !locked && !hidden}
+              suppressContentEditableWarning
+              onInput={onInput}
+              onFocus={onFocus}
+              onBlur={onBlur}
+              onKeyDown={onKeyDown}
+              className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-gray-900'}`}
+            >
+              {value}
+            </div>
+            {hidden && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+                <div className="text-sm text-stone-500 italic animate-fade-in">Hidden</div>
+              </div>
+            )}
 
-        <EditorsBadgeRow editors={getEditorsForNode?.(id) || []} />
-        <button
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={(e) => { e.stopPropagation(); addNegationBelow(id); }}
-          onMouseEnter={() => { cancelHide(); setPillVisible(true); }}
-          onMouseLeave={() => { scheduleHide(); }}
-          className={`absolute left-1/2 -translate-x-1/2 translate-y-2 bottom-[-22px] rounded-full px-2.5 py-0.5 text-[10px] font-medium bg-stone-800 text-white transition-opacity duration-200 ${shouldShowPill ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-        >
-          Negate
-        </button>
+            <EditorsBadgeRow editors={getEditorsForNode?.(id) || []} />
+            {!hidden && (
+              <button
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => { e.stopPropagation(); addNegationBelow(id); }}
+                onMouseEnter={() => { cancelHide(); setPillVisible(true); }}
+                onMouseLeave={() => { scheduleHide(); }}
+                className={`absolute left-1/2 -translate-x-1/2 translate-y-2 bottom-[-22px] rounded-full px-2.5 py-0.5 text-[10px] font-medium bg-stone-800 text-white transition-opacity duration-200 ${shouldShowPill ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                style={{ zIndex: 50 }}
+              >
+                Negate
+              </button>
+            )}
+          </div>
         </div>
-        </div>
-        </div>
+      </div>
       <ContextMenu
         open={menuOpen}
         x={menuPos.x}
         y={menuPos.y}
         onClose={() => setMenuOpen(false)}
-        items={[{ label: 'Delete node', danger: true, onClick: () => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } else { deleteNode(id); } } }]}
+        items={[
+          { label: 'Delete node', danger: true, onClick: () => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } else { deleteNode(id); } } },
+        ]}
       />
     </>
   );

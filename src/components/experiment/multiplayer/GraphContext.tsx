@@ -2,6 +2,7 @@ import { createContext, useContext } from 'react';
 
 type GraphActions = {
     updateNodeContent: (nodeId: string, content: string) => void;
+    updateNodeHidden?: (nodeId: string, hidden: boolean) => void;
     addNegationBelow: (parentNodeId: string) => void;
     deleteNode: (nodeId: string) => void;
     beginConnectFromNode: (nodeId: string) => void;
@@ -23,6 +24,7 @@ type GraphActions = {
     proxyMode?: boolean;
     undo?: () => void;
     redo?: () => void;
+    addNodeAtPosition?: (type: 'point' | 'statement' | 'objection', x: number, y: number) => void;
 };
 
 const GraphContext = createContext<GraphActions | null>(null);
@@ -34,6 +36,7 @@ export const useGraphActions = () => {
     if (!ctx) {
         return {
             updateNodeContent: () => { },
+            updateNodeHidden: () => { },
             addNegationBelow: () => { },
             deleteNode: () => { },
             beginConnectFromNode: () => { },

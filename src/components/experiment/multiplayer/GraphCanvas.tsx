@@ -5,6 +5,8 @@ import { CursorOverlay } from './CursorOverlay';
 import { CursorReporter } from './CursorReporter';
 import { nodeTypes, edgeTypes } from '@/data/experiment/multiplayer/sampleData';
 import { WebsocketProvider } from 'y-websocket';
+import { ContextMenu } from './common/ContextMenu';
+import { useGraphActions } from './GraphContext';
 
 type YProvider = WebsocketProvider | null;
 
@@ -61,8 +63,38 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
 }) => {
   const rf = useReactFlow();
   const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const graph = useGraphActions();
+  const [cmOpen, setCmOpen] = React.useState(false);
+  const [cmPos, setCmPos] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [cmFlow, setCmFlow] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [subOpen, setSubOpen] = React.useState(false);
+  const [subPos, setSubPos] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [edgesLayer, setEdgesLayer] = React.useState<SVGElement | null>(null);
-  const { x: vx, y: vy, zoom } = useViewport();
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      const target = e.target as HTMLElement | null;
+      const active = (document.activeElement as HTMLElement | null) || null;
+      const isEditable = (el: HTMLElement | null) => {
+        if (!el) return false;
+        const tag = el.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return true;
+        if (el.isContentEditable) return true;
+        return false;
+      };
+      if (isEditable(target) || isEditable(active)) return;
+
+      if (key === 'delete' || key === 'backspace') {
+        const sel = rf.getNodes().filter((n) => (n as any).selected);
+        if (sel.length > 0) {
+          e.preventDefault();
+          sel.forEach((n) => graph.deleteNode?.(n.id));
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [rf, graph]);
   React.useEffect(() => {
     if (!connectMode || !onFlowMouseMove) return;
     const handler = (e: MouseEvent) => {
@@ -89,8 +121,21 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     setEdgesLayer(el);
   }, [nodes, edges]);
 
+  const onCanvasContextMenu = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    const isNode = target.closest('.react-flow__node');
+    const isEdge = target.closest('.react-flow__edge');
+    if (isNode || isEdge) return;
+    e.preventDefault();
+    const flowP = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+    setCmPos({ x: e.clientX, y: e.clientY });
+    setCmFlow(flowP);
+    setCmOpen(true);
+    setSubOpen(false);
+  };
+
   return (
-    <div ref={containerRef} className="w-full h-full relative" onMouseMove={connectMode ? handleMouseMove : undefined} onMouseUp={handleMouseUp}>
+    <div ref={containerRef} className="w-full h-full relative" onMouseMove={connectMode ? handleMouseMove : undefined} onMouseUp={handleMouseUp} onContextMenu={onCanvasContextMenu}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -115,6 +160,27 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         <Controls />
         <MiniMap nodeColor={() => '#dbeafe'} className="bg-white" />
       </ReactFlow>
+      {/* Canvas context menu */}
+      <ContextMenu
+        open={cmOpen}
+        x={cmPos.x}
+        y={cmPos.y}
+        onClose={() => setCmOpen(false)}
+        items={[
+          { label: 'Add point…', onClick: () => { setSubPos(cmPos); setSubOpen(true); } },
+        ]}
+      />
+      <ContextMenu
+        open={subOpen}
+        x={subPos.x}
+        y={subPos.y}
+        onClose={() => setSubOpen(false)}
+        items={[
+          { label: 'Statement', onClick: () => graph.addNodeAtPosition?.('statement', cmFlow.x, cmFlow.y) },
+          { label: 'Point', onClick: () => graph.addNodeAtPosition?.('point', cmFlow.x, cmFlow.y) },
+          { label: 'Objection', onClick: () => graph.addNodeAtPosition?.('objection', cmFlow.x, cmFlow.y) },
+        ]}
+      />
       {/* Connect overlay: draw a line from anchor node center to cursor */}
       {connectMode && connectAnchorId && connectCursor && edgesLayer && createPortal((() => {
         const n = rf.getNode(connectAnchorId);

@@ -94,7 +94,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                         if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
                     }}
                     onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
-                    className={`px-3 py-2 rounded-lg bg-amber-100 border-2 border-amber-500 min-w-[180px] max-w-[300px] relative z-10 ${locked ? 'cursor-not-allowed' : 'cursor-text'} node-drag-handle ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''
+                    className={`px-3 py-2 rounded-lg bg-amber-100 border-2 border-amber-500 min-w-[180px] max-w-[300px] relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} node-drag-handle ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''
                         }`}
                 >
                     <div className="relative z-10">

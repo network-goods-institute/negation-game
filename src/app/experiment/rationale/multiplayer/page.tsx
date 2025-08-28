@@ -3,6 +3,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { nanoid } from "nanoid";
 import { usePrivy } from "@privy-io/react-auth";
+import { Roboto_Slab } from 'next/font/google';
+
+const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
 type MpDoc = { id: string; updatedAt: string; createdAt: string };
 
@@ -96,7 +99,7 @@ export default function MultiplayerRationaleIndexPage() {
   }
 
   return (
-    <div className="fixed inset-0 top-16 bg-gray-50">
+    <div className={`fixed inset-0 top-16 bg-gray-50 ${robotoSlab.className}`}>
       <div className="container mx-auto p-6">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold">Multiplayer Rationales</h1>

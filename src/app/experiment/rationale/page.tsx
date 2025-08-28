@@ -20,6 +20,9 @@ import {
   Position,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { Roboto_Slab } from 'next/font/google';
+
+const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
 const PointNode = ({ data, id }: { data: any; id: string }) => {
   return (
@@ -211,7 +214,7 @@ export default function ExperimentalRationalePage() {
   );
 
   return (
-    <div className="fixed inset-0 top-16 bg-gray-50">
+    <div className={`fixed inset-0 top-16 bg-gray-50 ${robotoSlab.className}`}>
       <ReactFlow
         nodes={nodes}
         edges={edges}

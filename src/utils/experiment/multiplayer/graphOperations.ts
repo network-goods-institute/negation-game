@@ -74,6 +74,76 @@ export const createUpdateNodeContent = (
   };
 };
 
+export const createUpdateNodeHidden = (
+  yNodesMap: any,
+  ydoc: any,
+  isLeader: boolean,
+  localOrigin: object,
+  setNodes: (updater: (nodes: any[]) => any[]) => void
+) => {
+  return (nodeId: string, hidden: boolean) => {
+    let nextFromState: any | null = null;
+    setNodes((nds) => {
+      const updated = nds.map((n: any) => {
+        if (n.id !== nodeId) return n;
+        const nn = { ...n, data: { ...(n.data || {}), hidden } };
+        nextFromState = nn;
+        return nn;
+      });
+      return updated;
+    });
+    if (yNodesMap && ydoc && isLeader) {
+      const base = nextFromState || yNodesMap.get(nodeId);
+      if (base) {
+        ydoc.transact(() => {
+          yNodesMap.set(nodeId, base);
+        }, localOrigin);
+      }
+    }
+  };
+};
+
+export const createAddNodeAtPosition = (
+  yNodesMap: any,
+  yTextMap: any,
+  ydoc: any,
+  isLeader: boolean,
+  localOrigin: object,
+  setNodes: (updater: (nodes: any[]) => any[]) => void
+) => {
+  return (type: "point" | "statement" | "objection", x: number, y: number) => {
+    const idBase =
+      type === "statement" ? "s" : type === "objection" ? "o" : "p";
+    const id = `${idBase}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    const data: any =
+      type === "statement"
+        ? { statement: "New Statement" }
+        : type === "objection"
+          ? { content: "New objection" }
+          : { content: "New point" };
+    const node: any = { id, type, position: { x, y }, data };
+
+    // local UI responsiveness
+    setNodes((nds) => [...nds, node]);
+
+    if (yNodesMap && ydoc && isLeader) {
+      ydoc.transact(() => {
+        yNodesMap.set(id, node);
+        if (
+          yTextMap &&
+          (type === "point" || type === "objection" || type === "statement")
+        ) {
+          const t = new Y.Text();
+          const initial =
+            type === "statement" ? data.statement || "" : data.content || "";
+          if (initial) t.insert(0, initial);
+          yTextMap.set(id, t);
+        }
+      }, localOrigin);
+    }
+  };
+};
+
 export const createDeleteNode = (
   nodes: any[],
   edges: any[],
@@ -101,9 +171,6 @@ export const createDeleteNode = (
     }
     const node = nodes.find((n: any) => n.id === nodeId);
     if (!node) {
-      return;
-    }
-    if (node.type === "statement") {
       return;
     }
 
