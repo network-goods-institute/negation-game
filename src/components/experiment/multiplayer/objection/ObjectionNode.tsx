@@ -130,7 +130,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                             </div>
                         )}
                         {importanceSim && selected && !selectedEdgeId && (
-                            <div className="mt-1 mb-1 flex items-center gap-1 select-none" title="Set favor/veracity (simulation). 1 = low, 5 = high.">
+                            <div className="mt-1 mb-1 flex items-center gap-1 select-none" title="Set favor (speed). 1 = low, 5 = high.">
                                 {[1,2,3,4,5].map((i) => (
                                     <button key={i} title={`Set favor to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateNodeFavor?.(id, i as any); }} className="text-[12px] leading-none">
                                         <span className={i <= ((data as any)?.favor ?? 3) ? 'text-amber-500' : 'text-stone-300'}>★</span>

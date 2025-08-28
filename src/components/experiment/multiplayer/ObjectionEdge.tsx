@@ -74,7 +74,7 @@ export const ObjectionEdge = (props: ObjectionEdgeProps) => {
         />
       )}
       {/* marching dots overlay on top for visibility (render last for z-order) */}
-      {importanceSim && Number.isFinite(sourceX) && Number.isFinite(sourceY) && Number.isFinite(targetX) && Number.isFinite(targetY) && (
+      {Number.isFinite(sourceX) && Number.isFinite(sourceY) && Number.isFinite(targetX) && Number.isFinite(targetY) && (
         <>
           <defs>
             <style>{`@keyframes edge-dots-${props.id} { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 100; } }`}</style>

@@ -35,6 +35,9 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
     const tNode = rf.getNode((props as any).target as string);
     const sHidden = !!(sNode as any)?.data?.hidden;
     const tHidden = !!(tNode as any)?.data?.hidden;
+    const srcFavor = (sNode as any)?.data?.favor ?? 3;
+    const tgtFavor = (tNode as any)?.data?.favor ?? 3;
+    const favorAvg = (srcFavor + tgtFavor) / 2;
     const showAffordance = !(sHidden || tHidden);
 
     const selected = (selectedEdgeId || null) === (props.id as any);
@@ -42,8 +45,65 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
     const speedFactor = (relevance / 3) * (isHovered ? 1.5 : 1);
     const dashDuration = Math.max(1.5, 6 / Math.max(0.5, speedFactor));
 
+    // Strap geometry (variable-width band along straight centerline)
+    const strapMeta = React.useMemo(() => {
+        if (!Number.isFinite((props as any).sourceX) || !Number.isFinite((props as any).sourceY) || !Number.isFinite((props as any).targetX) || !Number.isFinite((props as any).targetY)) return null as string | null;
+        const sx = (props as any).sourceX as number, sy = (props as any).sourceY as number;
+        const ex = (props as any).targetX as number, ey = (props as any).targetY as number;
+        const dx = ex - sx, dy = ey - sy; const L = Math.hypot(dx, dy);
+        if (!L || L < 4) return null;
+        const ux = dx / L, uy = dy / L; const nx = -dy / L, ny = dx / L;
+        const N = 64; const NECK_PX = 24; const MIN_CORE_PX = 2.0;
+        const areaPx = 800 * (relevance / 3);
+        const smoothStep = (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+        const g: number[] = [];
+        for (let i = 0; i <= N; i++) {
+            const t = i / N; const r1 = smoothStep((L * t) / NECK_PX); const r2 = smoothStep((L * (1 - t)) / NECK_PX);
+            const base = Math.min(1, r1) * Math.min(1, r2);
+            const bell = Math.exp(-Math.pow((t - 0.5) / 0.6, 2));
+            g.push(Math.max(0, base * (0.85 + 0.15 * bell)));
+        }
+        let gInt = 0; const dt = 1 / N; for (let i = 1; i <= N; i++) gInt += 0.5 * (g[i - 1] + g[i]) * dt;
+        const scale = Math.max(0, areaPx / (L * Math.max(1e-6, gInt)));
+        const edgeSigma = 0.08; let bumpMax = 0; const bump: number[] = [];
+        for (let i = 0; i <= N; i++) { const t = i / N; const b = Math.exp(-Math.pow(t / edgeSigma, 2)) + Math.exp(-Math.pow((1 - t) / edgeSigma, 2)); bump[i] = b; if (b > bumpMax) bumpMax = b; }
+        for (let i = 0; i <= N; i++) bump[i] = bump[i] / (bumpMax || 1);
+        const coreMask: number[] = []; for (let i = 0; i <= N; i++) { const t = i / N; const r1 = smoothStep((L * t) / NECK_PX); const r2 = smoothStep((L * (1 - t)) / NECK_PX); coreMask.push(Math.min(1, r1) * Math.min(1, r2)); }
+        const midIndex = Math.floor(N / 2); const predMid = scale * g[midIndex]; const bulbGain = Math.max(0, MIN_CORE_PX - predMid) * 1.25;
+        const topPts: string[] = []; const botPts: string[] = []; const widths: number[] = [];
+        for (let i = 0; i <= N; i++) {
+            const t = i / N; const cx = sx + dx * t; const cy = sy + dy * t;
+            let w = Math.max(0, scale * g[i]); w *= (0.8 + 0.2 * (relevance / 3));
+            w = Math.max(w, MIN_CORE_PX * coreMask[i]); w += bulbGain * bump[i];
+            widths.push(w);
+            const ox = (w / 2) * nx, oy = (w / 2) * ny;
+            topPts.push(`${cx + ox},${cy + oy}`); botPts.push(`${cx - ox},${cy - oy}`);
+        }
+        const path = `M ${topPts.join(' L ')} L ${botPts.reverse().join(' L ')} Z`;
+        const widthAt = (u: number) => {
+            const t = Math.max(0, Math.min(1, u));
+            const idx = t * N; const i0 = Math.floor(idx); const i1 = Math.min(N, i0 + 1); const frac = idx - i0;
+            return widths[i0] * (1 - frac) + widths[i1] * frac;
+        };
+        const posAt = (u: number) => ({ x: sx + dx * Math.max(0, Math.min(1, u)), y: sy + dy * Math.max(0, Math.min(1, u)) });
+        return { path, widthAt, posAt, L, sx, sy, ex, ey };
+    }, [(props as any).sourceX, (props as any).sourceY, (props as any).targetX, (props as any).targetY, relevance]);
+
     return (
         <>
+            {/* Strap (background band) */}
+            {strapMeta?.path && (
+                <>
+                    <defs>
+                        <linearGradient id={`stmt-strap-${props.id}`} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#111827" stopOpacity={0.22} />
+                            <stop offset="100%" stopColor="#374151" stopOpacity={0.22} />
+                        </linearGradient>
+                    </defs>
+                    <path d={strapMeta.path} fill={`url(#stmt-strap-${props.id})`} />
+                    <path d={strapMeta.path} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth={1} />
+                </>
+            )}
             {/* Invisible interaction overlay along the whole edge for selection/context menu */}
             {Number.isFinite((props as any).sourceX) && Number.isFinite((props as any).sourceY) && Number.isFinite((props as any).targetX) && Number.isFinite((props as any).targetY) && (
                 <line
@@ -111,33 +171,14 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
               </div>
             </EdgeLabelRenderer>
             )}
-            {/* marching dots inward from both ends (top overlay) */}
-            {importanceSim && Number.isFinite((props as any).sourceX) && Number.isFinite((props as any).sourceY) && Number.isFinite((props as any).targetX) && Number.isFinite((props as any).targetY) && (
+            {strapMeta && (
                 <>
                     <defs>
-                        <style>{`@keyframes edge-dots-${props.id} { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 100; } }`}</style>
+                        <filter id={`stmt-dotShadow-${props.id}`} x="-50%" y="-50%" width="200%" height="200%">
+                            <feDropShadow dx="0" dy="0" stdDeviation="0.7" floodOpacity="0.2" />
+                        </filter>
                     </defs>
-                    <line x1={(props as any).sourceX} y1={(props as any).sourceY} x2={cx} y2={cy}
-                        stroke="#000" strokeWidth={2} strokeLinecap="round" strokeDasharray="2 10"
-                        style={{
-                          animationName: `edge-dots-${props.id}`,
-                          animationDuration: `${dashDuration}s`,
-                          animationTimingFunction: 'linear',
-                          animationIterationCount: 'infinite',
-                          opacity: 0.8,
-                          pointerEvents: 'none',
-                        }} />
-                    <line x1={cx} y1={cy} x2={(props as any).targetX} y2={(props as any).targetY}
-                        stroke="#000" strokeWidth={2} strokeLinecap="round" strokeDasharray="2 10"
-                        style={{
-                          animationName: `edge-dots-${props.id}`,
-                          animationDuration: `${dashDuration}s`,
-                          animationTimingFunction: 'linear',
-                          animationIterationCount: 'infinite',
-                          animationDirection: 'reverse',
-                          opacity: 0.8,
-                          pointerEvents: 'none',
-                        }} />
+                    <DotsAlongStmt id={String(props.id)} meta={strapMeta} favorAvg={favorAvg} />
                 </>
             )}
             <ContextMenu
@@ -157,3 +198,55 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
         </>
     );
 };
+
+function DotsAlongStmt({ id, meta, favorAvg }: { id: string; meta: { L:number; sx:number; sy:number; ex:number; ey:number; widthAt:(u:number)=>number; posAt:(u:number)=>{x:number;y:number} }; favorAvg: number }) {
+  const [reduced, setReduced] = React.useState(false);
+  React.useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReduced(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+  React.useEffect(() => {
+    if (reduced) return;
+    let raf = 0;
+    const loop = () => { raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [reduced]);
+  const halfLen = meta.L / 2;
+  const spacingBase = 28;
+  const nTop = Math.max(3, Math.floor(halfLen / spacingBase));
+  const nBot = nTop;
+  const speedPx = 16 + (Math.max(1, Math.min(5, favorAvg)) - 1) * 14; // px/s driven by favor
+  const now = (performance.now ? performance.now() : Date.now()) / 1000;
+  const topDots = Array.from({ length: nTop }).map((_, j) => {
+    const spacing = halfLen / nTop;
+    const dist = reduced ? (j + 0.5) * spacing : ((now * speedPx) + j * spacing) % halfLen;
+    const u = Math.min(0.5, dist / meta.L);
+    const p = meta.posAt(u);
+    const w = meta.widthAt(u);
+    const r = Math.max(1.6, Math.min(7, w * 0.28));
+    return { key: `t${j}`, cx: p.x, cy: p.y, r };
+  });
+  const botDots = Array.from({ length: nBot }).map((_, j) => {
+    const spacing = halfLen / nBot;
+    const dist = reduced ? (j + 0.5) * spacing : ((now * speedPx) + j * spacing) % halfLen;
+    const u = Math.max(0.5, 1 - dist / meta.L);
+    const p = meta.posAt(u);
+    const w = meta.widthAt(u);
+    const r = Math.max(1.6, Math.min(7, w * 0.28));
+    return { key: `b${j}`, cx: p.x, cy: p.y, r };
+  });
+  return (
+    <g filter={`url(#stmt-dotShadow-${id})`}>
+      {topDots.map((d) => (
+        <circle key={d.key} cx={d.cx} cy={d.cy} r={d.r} fill="#fff" stroke="#0b1220" strokeWidth={1.5} />
+      ))}
+      {botDots.map((d) => (
+        <circle key={d.key} cx={d.cx} cy={d.cy} r={d.r} fill="#fff" stroke="#0b1220" strokeWidth={1.5} />
+      ))}
+    </g>
+  );
+}
