@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { BezierEdge, Edge, EdgeProps, useReactFlow, getBezierPath } from "@xyflow/react";
 import { EdgeLabelRenderer } from "@xyflow/react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useGraphActions } from "./GraphContext";
 import { ContextMenu } from "./common/ContextMenu";
 
@@ -8,7 +9,7 @@ export type ObjectionEdgeType = Edge<any, "objection">;
 export interface ObjectionEdgeProps extends EdgeProps<ObjectionEdgeType> { }
 
 export const ObjectionEdge = (props: ObjectionEdgeProps) => {
-  const { hoveredEdgeId, selectedEdgeId, setSelectedEdge, addObjectionForEdge, setHoveredEdge, updateEdgeAnchorPosition, deleteNode, updateEdgeRelevance, importanceSim } = useGraphActions() as any;
+  const { hoveredEdgeId, selectedEdgeId, setSelectedEdge, addObjectionForEdge, setHoveredEdge, updateEdgeAnchorPosition, deleteNode, updateEdgeRelevance } = useGraphActions() as any;
   const isHovered = hoveredEdgeId === props.id;
   const rf = useReactFlow();
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -73,48 +74,18 @@ export const ObjectionEdge = (props: ObjectionEdgeProps) => {
           onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedEdge?.(props.id as string); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
         />
       )}
-      {/* marching dots overlay on top for visibility (render last for z-order) */}
-      {Number.isFinite(sourceX) && Number.isFinite(sourceY) && Number.isFinite(targetX) && Number.isFinite(targetY) && (
-        <>
-          <defs>
-            <style>{`@keyframes edge-dots-${props.id} { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 100; } }`}</style>
-            <clipPath id={`edge-left-${props.id}`}>
-              <rect x={Math.min(sourceX!, targetX!)} y={Math.min(sourceY!, targetY!)} width={Math.abs((labelX||0) - Math.min(sourceX!, targetX!))} height={Math.abs(targetY! - sourceY!) + 200} />
-            </clipPath>
-            <clipPath id={`edge-right-${props.id}`}>
-              <rect x={(labelX||0)} y={Math.min(sourceY!, targetY!)} width={Math.abs(Math.max(sourceX!, targetX!) - (labelX||0))} height={Math.abs(targetY! - sourceY!) + 200} />
-            </clipPath>
-          </defs>
-          {/* from source side toward center */}
-          <path d={pathD} stroke="#000" strokeWidth={2} fill="none" strokeLinecap="round" strokeDasharray="2 10" clipPath={`url(#edge-left-${props.id})`} style={{
-            animationName: `edge-dots-${props.id}`,
-            animationDuration: `4s`,
-            animationTimingFunction: 'linear',
-            animationIterationCount: 'infinite',
-            opacity: 0.8,
-            pointerEvents: 'none',
-          }} />
-          {/* from target side toward center (reverse) */}
-          <path d={pathD} stroke="#000" strokeWidth={2} fill="none" strokeLinecap="round" strokeDasharray="2 10" clipPath={`url(#edge-right-${props.id})`} style={{
-            animationName: `edge-dots-${props.id}`,
-            animationDuration: `4s`,
-            animationTimingFunction: 'linear',
-            animationIterationCount: 'infinite',
-            animationDirection: 'reverse',
-            opacity: 0.8,
-            pointerEvents: 'none',
-          }} />
-        </>
-      )}
-      {/* Always-visible small midpoint dot to hint objection affordance */}
-      <foreignObject x={(labelX || 0) - 4} y={(labelY || 0) - 4} width={8} height={8} style={{ pointerEvents: 'all' }}>
+      {/* Single dashed stroke only (no additional black overlays) */}
+      {/* Midpoint control (match negation style, but orange, diagonal stroke) */}
+      <foreignObject x={(labelX || 0) - 8} y={(labelY || 0) - 8} width={16} height={16} style={{ pointerEvents: 'all' }}>
         <div
           onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, labelX, labelY); }}
           onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedEdge?.(props.id as string); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
-          title="Add objection"
-          className="w-2 h-2 rounded-full"
-          style={{ backgroundColor: '#f97316', boxShadow: '0 0 0 1px #fff', cursor: 'pointer' }}
-        />
+          title="Edge controls"
+          className="w-4 h-4 rounded-full bg-white border flex items-center justify-center"
+          style={{ borderColor: '#f97316', cursor: 'pointer' }}
+        >
+          <div className="w-2 h-[2px] rounded-sm" style={{ backgroundColor: '#f97316', transform: 'rotate(45deg)' }} />
+        </div>
       </foreignObject>
       {
       /* Always render overlay; show stars only when simulation is on */
@@ -126,16 +97,24 @@ export const ObjectionEdge = (props: ObjectionEdgeProps) => {
           onMouseLeave={() => setHoveredEdge(null)}
           className={`transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
         >
-          <div className="flex items-center justify-center gap-2">
-            {importanceSim && (
-              <div className="flex items-center gap-1 text-[11px] select-none" title="Set edge relevance (simulation). 1 = low, 5 = high.">
-                {[1,2,3,4,5].map((i) => (
-                  <button key={`rel-${i}`} title={`Set relevance to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateEdgeRelevance?.(props.id as string, i as any); }}>
-                    <span className={i <= ((props as any).data?.relevance ?? 3) ? 'text-orange-600' : 'text-stone-300'}>★</span>
-                  </button>
-                ))}
-              </div>
-            )}
+          <div className="flex items-center justify-center gap-2 bg-white/95 backdrop-blur-sm border rounded-md shadow px-2 py-1">
+            <div className="flex items-center gap-2 text-[11px] select-none">
+              <span className="uppercase tracking-wide text-stone-500">Relevance</span>
+              <TooltipProvider>
+                <div className="flex items-center gap-1">
+                  {[1,2,3,4,5].map((i) => (
+                    <Tooltip key={`rel-${i}`}>
+                      <TooltipTrigger asChild>
+                        <button title={`Set relevance to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateEdgeRelevance?.(props.id as string, i as any); }}>
+                          <span className={i <= ((props as any).data?.relevance ?? 3) ? 'text-orange-600' : 'text-stone-300'}>★</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">Relevance: {i}/5</TooltipContent>
+                    </Tooltip>
+                  ))}
+                </div>
+              </TooltipProvider>
+            </div>
             <button
               onMouseDown={(e) => e.preventDefault()}
               onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, labelX, labelY); }}
@@ -155,6 +134,74 @@ export const ObjectionEdge = (props: ObjectionEdgeProps) => {
         onClose={() => setMenuOpen(false)}
         items={[{ label: 'Delete edge', danger: true, onClick: () => deleteNode?.(props.id as string) }]}
       />
+      {/* Circle dots along the Bezier (center → both ends, with lag, smaller) */}
+      <BezierDots id={String(props.id)} pathD={pathD} sId={(props as any).source} tId={(props as any).target} />
     </>
   );
 };
+
+function BezierDots({ id, pathD, sId, tId }: { id: string; pathD: string; sId: string; tId: string }) {
+  const rf = useReactFlow();
+  const [reduced, setReduced] = React.useState(false);
+  const [tick, setTick] = React.useState(0);
+  const pathRef = React.useRef<SVGPathElement | null>(null);
+  const smoothedRef = React.useRef<Record<string, { x: number; y: number }>>({});
+  React.useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReduced(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+  React.useEffect(() => {
+    if (reduced) return;
+    let raf = 0;
+    const loop = () => { setTick((v) => (v + 1) % 1_000_000); raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [reduced]);
+  const sNode = rf.getNode(sId as any);
+  const tNode = rf.getNode(tId as any);
+  const srcFavor = (sNode as any)?.data?.favor ?? 3;
+  const tgtFavor = (tNode as any)?.data?.favor ?? 3;
+  const favorAvg = (srcFavor + tgtFavor) / 2;
+  const baseSpeed = 16 + (Math.max(1, Math.min(5, favorAvg)) - 1) * 14;
+  const spacingBase = 24;
+  const now = reduced ? 0 : (performance.now ? performance.now() : Date.now()) / 1000;
+  const L = (() => { try { return pathRef.current?.getTotalLength() || 0; } catch { return 0; } })();
+  const nHalf = L > 0 ? Math.max(3, Math.floor((L/2) / spacingBase)) : 0;
+  const center = L / 2;
+  const build = () => {
+    const dots: { key: string; cx: number; cy: number; r: number }[] = [];
+    for (let j = 0; j < nHalf; j++) {
+      const step = reduced ? (j + 0.5) * ((L/2) / nHalf) : (now * baseSpeed + j * spacingBase) % (L/2);
+      const dL = Math.max(0, Math.min(L, center - step));
+      const dR = Math.max(0, Math.min(L, center + step));
+      try {
+        const pL = pathRef.current!.getPointAtLength(dL);
+        const pR = pathRef.current!.getPointAtLength(dR);
+        const r = Math.max(1.0, Math.min(3.0, 1.3 + 0.3 * favorAvg)); // smaller, tighter
+        dots.push({ key: `l${j}`, cx: pL.x, cy: pL.y, r });
+        dots.push({ key: `r${j}`, cx: pR.x, cy: pR.y, r });
+      } catch {}
+    }
+    return dots;
+  };
+  const dots = build();
+  if (!pathD) return null as any;
+  return (
+    <g style={{ pointerEvents: 'none' }}>
+      <defs>
+        <filter id={`obj-dotShadow-${id}`} x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="0" dy="0" stdDeviation="0.7" floodOpacity="0.2" />
+        </filter>
+      </defs>
+      <path ref={pathRef as any} d={pathD} fill="none" stroke="transparent" strokeWidth={1} />
+      <g filter={`url(#obj-dotShadow-${id})`}>
+        {dots.map((d) => (
+          <circle key={d.key} cx={d.cx} cy={d.cy} r={d.r} fill="#fff" stroke="#0b1220" strokeWidth={1.5} />
+        ))}
+      </g>
+    </g>
+  );
+}

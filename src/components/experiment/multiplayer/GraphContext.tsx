@@ -29,7 +29,6 @@ type GraphActions = {
     undo?: () => void;
     redo?: () => void;
     addNodeAtPosition?: (type: 'point' | 'statement' | 'objection', x: number, y: number) => void;
-    importanceSim?: boolean;
 };
 
 const GraphContext = createContext<GraphActions | null>(null);
@@ -67,7 +66,6 @@ export const useGraphActions = () => {
             proxyMode: false,
             undo: () => {},
             redo: () => {},
-            importanceSim: false,
         } as GraphActions;
     }
     return ctx;

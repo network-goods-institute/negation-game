@@ -96,27 +96,68 @@ export const useYjsMultiplayer = ({
     (async () => {
       try {
         let hadContent = false;
+        let authError = false;
         // Try diff-first load using last known state vector from localStorage
         try {
           const svB64 = typeof window !== 'undefined' ? window.localStorage.getItem(`yjs:sv:${persistId}`) : null;
-          if (svB64) {
+          const svTsStr = typeof window !== 'undefined' ? window.localStorage.getItem(`yjs:sv:${persistId}:ts`) : null;
+          const svTs = svTsStr ? Number(svTsStr) : 0;
+          const maxAgeMs = 1000 * 60 * 60 * 24 * 14; // 14 days TTL
+          const isFresh = !!svB64 && !!svTs && Date.now() - svTs < maxAgeMs;
+          if (svB64 && isFresh) {
             const diffRes = await fetch(`/api/experimental/rationales/${encodeURIComponent(persistId)}/state?sv=${encodeURIComponent(svB64)}`);
-            if (diffRes.ok && (diffRes.headers.get('content-type') || '').includes('application/octet-stream')) {
+            if (diffRes.status === 401) {
+              authError = true;
+              setConnectionError('You need to be logged in to load this document');
+            } else if (diffRes.ok && (diffRes.headers.get('content-type') || '').includes('application/octet-stream')) {
               const buf = new Uint8Array(await diffRes.arrayBuffer());
               if (buf.byteLength > 0) {
                 Y.applyUpdate(doc, buf);
-                hadContent = true;
+                // Only consider hydrated if content actually appeared
+                if (yNodes.size > 0 || yEdges.size > 0) {
+                  hadContent = true;
+                }
               }
             } else if (diffRes.status === 204) {
-              hadContent = true;
+              // No missing updates vs provided SV. If local doc is empty, the SV is likely stale.
+              if (yNodes.size > 0 || yEdges.size > 0) {
+                hadContent = true;
+              } else if (typeof window !== 'undefined') {
+                // Clear stale SV to force a full snapshot fetch
+                try {
+                  window.localStorage.removeItem(`yjs:sv:${persistId}`);
+                  window.localStorage.removeItem(`yjs:sv:${persistId}:ts`);
+                } catch {}
+              }
             }
+          } else if (svB64 && !isFresh) {
+            // Stale SV present: clear it so we don't take the diff path
+            try {
+              if (typeof window !== 'undefined') {
+                window.localStorage.removeItem(`yjs:sv:${persistId}`);
+                window.localStorage.removeItem(`yjs:sv:${persistId}:ts`);
+              }
+            } catch {}
           }
         } catch {}
 
         // If diff load did not produce content, fall back to snapshot/updates
-        const res = hadContent ? null : await fetch(
-          `/api/experimental/rationales/${encodeURIComponent(persistId)}/state`
-        );
+        let res: Response | null = hadContent
+          ? null
+          : await fetch(`/api/experimental/rationales/${encodeURIComponent(persistId)}/state`);
+        if (!hadContent && res && res.status === 401) {
+          authError = true;
+          setConnectionError('You need to be logged in to load this document');
+        }
+        if (!hadContent && res && !res.ok && res.status === 304) {
+          // Revalidate returned 304; fetch again with cache-buster and no-store
+          try {
+            res = await fetch(
+              `/api/experimental/rationales/${encodeURIComponent(persistId)}/state?t=${Date.now()}`,
+              { cache: 'no-store' as RequestCache }
+            );
+          } catch {}
+        }
         if (!hadContent && res && res.ok) {
           const ct = res.headers.get("content-type") || "";
           if (ct.includes("application/octet-stream")) {
@@ -124,7 +165,7 @@ export const useYjsMultiplayer = ({
               const buf = new Uint8Array(await res.arrayBuffer());
               if (buf.byteLength > 0) {
                 Y.applyUpdate(doc, buf);
-                hadContent = true;
+                if (yNodes.size > 0 || yEdges.size > 0) hadContent = true;
               }
             } catch (error) {
               console.warn(
@@ -140,7 +181,7 @@ export const useYjsMultiplayer = ({
                   c.charCodeAt(0)
                 );
                 Y.applyUpdate(doc, bytes);
-                hadContent = true;
+                if (yNodes.size > 0 || yEdges.size > 0) hadContent = true;
               } catch (updateError) {
                 console.warn(
                   "[yjs] Failed to apply snapshot:",
@@ -164,7 +205,7 @@ export const useYjsMultiplayer = ({
                 }
               }
               if (appliedUpdates > 0) {
-                hadContent = true;
+                if (yNodes.size > 0 || yEdges.size > 0) hadContent = true;
                 console.log(
                   `[yjs] Applied ${appliedUpdates}/${json.updates.length} updates`
                 );
@@ -180,10 +221,11 @@ export const useYjsMultiplayer = ({
                   ? Buffer.from(serverVectorRef.current).toString('base64')
                   : btoa(String.fromCharCode(...Array.from(serverVectorRef.current)));
                 window.localStorage.setItem(`yjs:sv:${persistId}`, b64);
+                window.localStorage.setItem(`yjs:sv:${persistId}:ts`, String(Date.now()));
               }
             } catch {}
           }
-          if (yNodes.size === 0 && yEdges.size === 0 && !hadContent) {
+          if (!authError && yNodes.size === 0 && yEdges.size === 0 && !hadContent) {
             doc.transact(() => {
               for (const n of initialNodes) yNodes.set(n.id, n);
               for (const e of initialEdges) yEdges.set(e.id, e);
@@ -199,7 +241,7 @@ export const useYjsMultiplayer = ({
                 }
               }
             }, "seed");
-          } else if (yNodes.size === 0 && yEdges.size === 0 && hadContent) {
+          } else if (!authError && yNodes.size === 0 && yEdges.size === 0 && hadContent) {
             console.warn(
               "[yjs] Document appears corrupted - has updates but no content after applying them"
             );
@@ -266,6 +308,7 @@ export const useYjsMultiplayer = ({
             ? Buffer.from(serverVectorRef.current).toString('base64')
             : btoa(String.fromCharCode(...Array.from(serverVectorRef.current)));
           window.localStorage.setItem(`yjs:sv:${persistId}`, b64);
+          window.localStorage.setItem(`yjs:sv:${persistId}:ts`, String(Date.now()));
         }
       } catch {}
     };

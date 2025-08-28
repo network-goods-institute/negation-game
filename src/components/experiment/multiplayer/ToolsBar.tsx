@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pointer as PointerIcon, Link as LinkIcon, Hand as HandIcon, Undo2, Redo2, Sparkles } from 'lucide-react';
+import { Pointer as PointerIcon, Link as LinkIcon, Hand as HandIcon, Undo2, Redo2 } from 'lucide-react';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ToolbarButton } from "./ToolbarButton";
 
@@ -15,8 +15,6 @@ interface ToolsBarProps {
   readOnly?: boolean;
   grabMode?: boolean;
   setGrabMode?: (v: boolean) => void;
-  importanceSim?: boolean;
-  setImportanceSim?: (v: boolean) => void;
 }
 
 export const ToolsBar: React.FC<ToolsBarProps> = ({
@@ -31,8 +29,6 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
   readOnly,
   grabMode,
   setGrabMode,
-  importanceSim,
-  setImportanceSim,
 }) => {
   // Focused (connect) mode UI
   if (connectMode) {
@@ -124,16 +120,7 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
             <Redo2 className="h-5 w-5" />
           </ToolbarButton>
 
-          {/* Simulation toggle */}
-          <ToolbarButton
-            label={"Simulation (rough preview of importance UI — shared across participants)"}
-            active={!!importanceSim}
-            onClick={() => setImportanceSim?.(!importanceSim)}
-            className={importanceSim ? undefined : '!bg-white !text-blue-700 !border-blue-200 hover:!bg-blue-50'}
-            title="Toggle importance simulation (shared)"
-          >
-            <Sparkles className="h-5 w-5" />
-          </ToolbarButton>
+          {null}
         </div>
       </TooltipProvider>
     </div>

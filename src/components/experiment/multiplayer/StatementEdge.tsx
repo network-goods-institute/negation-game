@@ -1,19 +1,26 @@
 import React, { useEffect } from 'react';
 import { StraightEdge, EdgeProps, useReactFlow, EdgeLabelRenderer } from '@xyflow/react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useGraphActions } from './GraphContext';
 import { ContextMenu } from './common/ContextMenu';
 
 export const StatementEdge: React.FC<EdgeProps> = (props) => {
-    const { hoveredEdgeId, selectedEdgeId, setSelectedEdge, addObjectionForEdge, setHoveredEdge, updateEdgeAnchorPosition, deleteNode, updateEdgeRelevance, importanceSim } = useGraphActions() as any;
+    const { hoveredEdgeId, selectedEdgeId, setSelectedEdge, addObjectionForEdge, setHoveredEdge, updateEdgeAnchorPosition, deleteNode, updateEdgeRelevance } = useGraphActions() as any;
     const isHovered = hoveredEdgeId === props.id;
     const rf = useReactFlow();
     const [menuOpen, setMenuOpen] = React.useState(false);
     const [menuPos, setMenuPos] = React.useState<{x:number;y:number}>({x:0,y:0});
-    const cx = (props as any).sourceX != null && (props as any).targetX != null
-        ? ((props as any).sourceX + (props as any).targetX) / 2
+    
+    const sourceX = (props as any).sourceX;
+    const sourceY = (props as any).sourceY;
+    const targetX = (props as any).targetX;
+    const targetY = (props as any).targetY;
+    
+    const cx = sourceX != null && targetX != null
+        ? (sourceX + targetX) / 2
         : 0;
-    const cy = (props as any).sourceY != null && (props as any).targetY != null
-        ? ((props as any).sourceY + (props as any).targetY) / 2
+    const cy = sourceY != null && targetY != null
+        ? (sourceY + targetY) / 2
         : 0;
     // push live center into anchor so it tracks exactly, but only when values change
     const lastPosRef = React.useRef<{x:number;y:number}|null>(null);
@@ -45,11 +52,12 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
     const speedFactor = (relevance / 3) * (isHovered ? 1.5 : 1);
     const dashDuration = Math.max(1.5, 6 / Math.max(0.5, speedFactor));
 
+
     // Strap geometry (variable-width band along straight centerline)
     const strapMeta = React.useMemo(() => {
-        if (!Number.isFinite((props as any).sourceX) || !Number.isFinite((props as any).sourceY) || !Number.isFinite((props as any).targetX) || !Number.isFinite((props as any).targetY)) return null as string | null;
-        const sx = (props as any).sourceX as number, sy = (props as any).sourceY as number;
-        const ex = (props as any).targetX as number, ey = (props as any).targetY as number;
+        if (!Number.isFinite(sourceX) || !Number.isFinite(sourceY) || !Number.isFinite(targetX) || !Number.isFinite(targetY)) return null as string | null;
+        const sx = sourceX as number, sy = sourceY as number;
+        const ex = targetX as number, ey = targetY as number;
         const dx = ex - sx, dy = ey - sy; const L = Math.hypot(dx, dy);
         if (!L || L < 4) return null;
         const ux = dx / L, uy = dy / L; const nx = -dy / L, ny = dx / L;
@@ -87,12 +95,12 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
         };
         const posAt = (u: number) => ({ x: sx + dx * Math.max(0, Math.min(1, u)), y: sy + dy * Math.max(0, Math.min(1, u)) });
         return { path, widthAt, posAt, L, sx, sy, ex, ey };
-    }, [(props as any).sourceX, (props as any).sourceY, (props as any).targetX, (props as any).targetY, relevance]);
+    }, [sourceX, sourceY, targetX, targetY, relevance]);
 
     return (
         <>
             {/* Strap (background band) */}
-            {strapMeta?.path && (
+            {strapMeta && typeof strapMeta === 'object' && strapMeta.path && (
                 <>
                     <defs>
                         <linearGradient id={`stmt-strap-${props.id}`} x1="0" y1="0" x2="0" y2="1">
@@ -100,17 +108,17 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
                             <stop offset="100%" stopColor="#374151" stopOpacity={0.22} />
                         </linearGradient>
                     </defs>
-                    <path d={strapMeta.path} fill={`url(#stmt-strap-${props.id})`} />
-                    <path d={strapMeta.path} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth={1} />
+                    <path d={(strapMeta as any).path} fill={`url(#stmt-strap-${props.id})`} />
+                    <path d={(strapMeta as any).path} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth={1} />
                 </>
             )}
             {/* Invisible interaction overlay along the whole edge for selection/context menu */}
-            {Number.isFinite((props as any).sourceX) && Number.isFinite((props as any).sourceY) && Number.isFinite((props as any).targetX) && Number.isFinite((props as any).targetY) && (
+            {Number.isFinite(sourceX) && Number.isFinite(sourceY) && Number.isFinite(targetX) && Number.isFinite(targetY) && (
                 <line
-                    x1={(props as any).sourceX}
-                    y1={(props as any).sourceY}
-                    x2={(props as any).targetX}
-                    y2={(props as any).targetY}
+                    x1={sourceX}
+                    y1={sourceY}
+                    x2={targetX}
+                    y2={targetY}
                     stroke="rgba(0,0,0,0)"
                     strokeWidth={16}
                     style={{ pointerEvents: 'stroke' }}
@@ -118,15 +126,12 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
                     onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedEdge?.(props.id as string); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
                 />
             )}
-            {Number.isFinite((props as any).sourceX) && Number.isFinite((props as any).sourceY) && Number.isFinite((props as any).targetX) && Number.isFinite((props as any).targetY) && selected && (
-                <line x1={(props as any).sourceX} y1={(props as any).sourceY} x2={(props as any).targetX} y2={(props as any).targetY} stroke="#000" strokeWidth={8} strokeLinecap="round" opacity={0.85} />
+            {Number.isFinite(sourceX) && Number.isFinite(sourceY) && Number.isFinite(targetX) && Number.isFinite(targetY) && selected && (
+                <line x1={sourceX} y1={sourceY} x2={targetX} y2={targetY} stroke="#000" strokeWidth={8} strokeLinecap="round" opacity={0.85} />
             )}
             <StraightEdge
                 {...props}
-                style={{
-                    strokeWidth: importanceSim ? (1 + relevance) : 2,
-                    stroke: '#6b7280',
-                }}
+                style={{ strokeWidth: 2, stroke: '#6b7280' }}
                 interactionWidth={8}
             />
             {showAffordance && (
@@ -150,15 +155,23 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
                 className={`transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
               >
                 <div className="flex items-center justify-center gap-2 bg-white/95 backdrop-blur-sm border rounded-md shadow px-2 py-1">
-                  {importanceSim && (
-                    <div className="flex items-center gap-1 text-[11px] select-none" title="Set edge relevance (simulation). 1 = low, 5 = high.">
-                      {[1,2,3,4,5].map((i) => (
-                        <button key={`rel-${i}`} title={`Set relevance to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateEdgeRelevance?.(props.id as string, i as any); }}>
-                          <span className={i <= (props as any).data?.relevance ? 'text-blue-600' : 'text-stone-300'}>★</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2 text-[11px] select-none">
+                    <span className="uppercase tracking-wide text-stone-500">Relevance</span>
+                    <TooltipProvider>
+                      <div className="flex items-center gap-1">
+                        {[1,2,3,4,5].map((i) => (
+                          <Tooltip key={`rel-${i}`}>
+                            <TooltipTrigger asChild>
+                              <button title={`Set relevance to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateEdgeRelevance?.(props.id as string, i as any); }}>
+                                <span className={i <= (props as any).data?.relevance ? 'text-blue-600' : 'text-stone-300'}>★</span>
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">Relevance: {i}/5</TooltipContent>
+                          </Tooltip>
+                        ))}
+                      </div>
+                    </TooltipProvider>
+                  </div>
                   <button
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); }}
@@ -178,7 +191,7 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
                             <feDropShadow dx="0" dy="0" stdDeviation="0.7" floodOpacity="0.2" />
                         </filter>
                     </defs>
-                    <DotsAlongStmt id={String(props.id)} meta={strapMeta} favorAvg={favorAvg} />
+                    <DotsAlongStmt id={String(props.id)} meta={strapMeta as any} favorAvg={favorAvg} />
                 </>
             )}
             <ContextMenu
@@ -201,6 +214,7 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
 
 function DotsAlongStmt({ id, meta, favorAvg }: { id: string; meta: { L:number; sx:number; sy:number; ex:number; ey:number; widthAt:(u:number)=>number; posAt:(u:number)=>{x:number;y:number} }; favorAvg: number }) {
   const [reduced, setReduced] = React.useState(false);
+  const [tick, setTick] = React.useState(0);
   React.useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
     const update = () => setReduced(mq.matches);
@@ -210,41 +224,43 @@ function DotsAlongStmt({ id, meta, favorAvg }: { id: string; meta: { L:number; s
   }, []);
   React.useEffect(() => {
     if (reduced) return;
-    let raf = 0;
-    const loop = () => { raf = requestAnimationFrame(loop); };
+    let raf = 0; let last = performance.now();
+    const loop = (t: number) => {
+      if (t - last > 1000/30) { // ~30fps to reduce stutter
+        setTick((v) => (v + 1) % 1_000_000);
+        last = t;
+      }
+      raf = requestAnimationFrame(loop);
+    };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, [reduced]);
-  const halfLen = meta.L / 2;
+
   const spacingBase = 28;
-  const nTop = Math.max(3, Math.floor(halfLen / spacingBase));
-  const nBot = nTop;
+  const halfLen = meta.L / 2;
+  const nHalf = Math.max(3, Math.floor(halfLen / spacingBase));
   const speedPx = 16 + (Math.max(1, Math.min(5, favorAvg)) - 1) * 14; // px/s driven by favor
-  const now = (performance.now ? performance.now() : Date.now()) / 1000;
-  const topDots = Array.from({ length: nTop }).map((_, j) => {
-    const spacing = halfLen / nTop;
-    const dist = reduced ? (j + 0.5) * spacing : ((now * speedPx) + j * spacing) % halfLen;
-    const u = Math.min(0.5, dist / meta.L);
+  const now = reduced ? 0 : ((performance.now ? performance.now() : Date.now()) / 1000);
+
+  const outLeft = Array.from({ length: nHalf }).map((_, j) => {
+    const dist = reduced ? (j + 0.5) * (halfLen / nHalf) : (now * speedPx + j * spacingBase) % halfLen;
+    const u = Math.max(0, Math.min(0.5, 0.5 - dist / meta.L));
     const p = meta.posAt(u);
     const w = meta.widthAt(u);
     const r = Math.max(1.6, Math.min(7, w * 0.28));
-    return { key: `t${j}`, cx: p.x, cy: p.y, r };
+    return { key: `l${j}`, cx: p.x, cy: p.y, r };
   });
-  const botDots = Array.from({ length: nBot }).map((_, j) => {
-    const spacing = halfLen / nBot;
-    const dist = reduced ? (j + 0.5) * spacing : ((now * speedPx) + j * spacing) % halfLen;
-    const u = Math.max(0.5, 1 - dist / meta.L);
+  const outRight = Array.from({ length: nHalf }).map((_, j) => {
+    const dist = reduced ? (j + 0.5) * (halfLen / nHalf) : (now * speedPx + j * spacingBase) % halfLen;
+    const u = Math.min(1, Math.max(0.5, 0.5 + dist / meta.L));
     const p = meta.posAt(u);
     const w = meta.widthAt(u);
     const r = Math.max(1.6, Math.min(7, w * 0.28));
-    return { key: `b${j}`, cx: p.x, cy: p.y, r };
+    return { key: `r${j}`, cx: p.x, cy: p.y, r };
   });
   return (
     <g filter={`url(#stmt-dotShadow-${id})`}>
-      {topDots.map((d) => (
-        <circle key={d.key} cx={d.cx} cy={d.cy} r={d.r} fill="#fff" stroke="#0b1220" strokeWidth={1.5} />
-      ))}
-      {botDots.map((d) => (
+      {[...outLeft, ...outRight].map((d) => (
         <circle key={d.key} cx={d.cx} cy={d.cy} r={d.r} fill="#fff" stroke="#0b1220" strokeWidth={1.5} />
       ))}
     </g>

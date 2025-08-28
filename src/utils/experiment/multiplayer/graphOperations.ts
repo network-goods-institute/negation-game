@@ -374,7 +374,11 @@ export const createAddObjectionForEdge = (
 };
 
 export const createUpdateEdgeAnchorPosition = (
-  setNodes: (updater: (nodes: any[]) => any[]) => void
+  setNodes: (updater: (nodes: any[]) => any[]) => void,
+  yNodesMap?: any,
+  ydoc?: any,
+  isLeader?: boolean,
+  localOrigin?: object,
 ) => {
   // Cache last positions to avoid redundant state updates from repeated effects
   const lastPos = new Map<string, { x: number; y: number }>();
@@ -385,20 +389,27 @@ export const createUpdateEdgeAnchorPosition = (
       return;
     }
     lastPos.set(edgeId, { x, y });
+    let changedAnchorId: string | null = null;
     setNodes((nds) => {
       let changed = false;
       const updated = nds.map((n: any) => {
-        if (!(n.type === "edge_anchor" && n.data?.parentEdgeId === edgeId))
-          return n;
-        if (
-          Math.abs((n.position?.x ?? 0) - x) < eps &&
-          Math.abs((n.position?.y ?? 0) - y) < eps
-        )
-          return n;
+        if (!(n.type === "edge_anchor" && n.data?.parentEdgeId === edgeId)) return n;
+        const px = (n.position?.x ?? 0), py = (n.position?.y ?? 0);
+        if (Math.abs(px - x) < eps && Math.abs(py - y) < eps) return n;
         changed = true;
+        changedAnchorId = n.id;
         return { ...n, position: { x, y } };
       });
       return changed ? updated : nds;
     });
+    // Sync to Yjs so peers get the anchor update without requiring local recompute
+    try {
+      if (changedAnchorId && yNodesMap && ydoc && isLeader) {
+        (ydoc as any).transact(() => {
+          const base = (yNodesMap as any).get(changedAnchorId as any);
+          if (base) (yNodesMap as any).set(changedAnchorId as any, { ...base, position: { x, y } });
+        }, localOrigin || {});
+      }
+    } catch {}
   };
 };

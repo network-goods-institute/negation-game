@@ -8,6 +8,7 @@ import { ContextMenu } from '../common/ContextMenu';
 import { toast } from 'sonner';
 import { NodeActionPill } from '../common/NodeActionPill';
 import { Eye, EyeOff } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ObjectionNodeProps {
     data: {
@@ -19,7 +20,7 @@ interface ObjectionNodeProps {
 }
 
 const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => {
-    const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, importanceSim, selectedEdgeId } = useGraphActions() as any;
+    const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, selectedEdgeId } = useGraphActions() as any;
     const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus } = useEditableNode({
         id,
         content: data.content,
@@ -69,6 +70,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
     const connect = useConnectableNode({ id, locked });
     const hidden = (data as any)?.hidden === true;
+    const favor = Math.max(1, Math.min(5, (data as any)?.favor ?? 3));
 
     return (
         <>
@@ -129,13 +131,28 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                                 <div className="text-xs text-amber-700 italic animate-fade-in">Hidden</div>
                             </div>
                         )}
-                        {importanceSim && selected && !selectedEdgeId && (
-                            <div className="mt-1 mb-1 flex items-center gap-1 select-none" title="Set favor (speed). 1 = low, 5 = high.">
-                                {[1,2,3,4,5].map((i) => (
-                                    <button key={i} title={`Set favor to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateNodeFavor?.(id, i as any); }} className="text-[12px] leading-none">
-                                        <span className={i <= ((data as any)?.favor ?? 3) ? 'text-amber-500' : 'text-stone-300'}>★</span>
-                                    </button>
-                                ))}
+                        {selected && (
+                            <div className="mt-1 mb-1 flex items-center gap-2 select-none">
+                                <span className="text-[10px] uppercase tracking-wide text-stone-500">Favor</span>
+                                <TooltipProvider>
+                                  <div className="flex items-center gap-1">
+                                    {[1,2,3,4,5].map((i) => (
+                                      <Tooltip key={`fv-${i}`}>
+                                        <TooltipTrigger asChild>
+                                          <button
+                                            title={`Set favor to ${i}`}
+                                            onMouseDown={(e) => e.preventDefault()}
+                                            onClick={(e) => { e.stopPropagation(); updateNodeFavor?.(id, i as any); }}
+                                            className="text-[12px] leading-none"
+                                          >
+                                            <span className={i <= favor ? 'text-amber-600' : 'text-stone-300'}>★</span>
+                                          </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="text-xs">Favor: {i}/5</TooltipContent>
+                                      </Tooltip>
+                                    ))}
+                                  </div>
+                                </TooltipProvider>
                             </div>
                         )}
 

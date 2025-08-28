@@ -8,6 +8,7 @@ import { ContextMenu } from './common/ContextMenu';
 import { toast } from 'sonner';
 import { Eye, EyeOff } from 'lucide-react';
 import { NodeActionPill } from './common/NodeActionPill';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface StatementNodeProps {
   id: string;
@@ -16,7 +17,7 @@ interface StatementNodeProps {
 }
 
 export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected }) => {
-  const { updateNodeContent, updateNodeHidden, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode } = useGraphActions();
+  const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode } = useGraphActions() as any;
   const content = data?.statement || '';
 
   const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus } = useEditableNode({
@@ -60,6 +61,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
   const shouldShowPill = pillVisible && !isEditing && !locked;
   const connect = useConnectableNode({ id, locked });
   const hidden = (data as any)?.hidden === true;
+  const favor = Math.max(1, Math.min(5, (data as any)?.favor ?? 3));
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
@@ -79,7 +81,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
             if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
           }}
           onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
-          className={`px-5 py-3 rounded-xl ${hidden ? 'bg-stone-200 border-stone-300 text-stone-600' : 'bg-blue-50 border-blue-200 text-blue-900'} border-2 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} min-w-[240px] max-w-[360px] relative z-10 ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''} ${selected ? 'border-black' : ''}
+          className={`px-5 py-3 rounded-xl ${hidden ? 'bg-stone-200 text-stone-600' : 'bg-blue-50 text-blue-900'} border-2 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} min-w-[240px] max-w-[360px] relative z-10 ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''} ${selected ? 'border-black' : (hidden ? 'border-stone-300' : 'border-blue-200')}
             }`}
         >
           <div className="relative z-10">
@@ -121,6 +123,30 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
             {hidden && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
                 <div className="text-sm font-semibold text-stone-600 italic animate-fade-in">Hidden</div>
+              </div>
+            )}
+            {selected && (
+              <div className="mt-1 mb-1 flex items-center gap-2 select-none">
+                <span className="text-[10px] uppercase tracking-wide text-stone-500">Favor</span>
+                <TooltipProvider>
+                  <div className="flex items-center gap-1">
+                    {[1,2,3,4,5].map((i) => (
+                      <Tooltip key={`fv-${i}`}>
+                        <TooltipTrigger asChild>
+                          <button
+                            title={`Set favor to ${i}`}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={(e) => { e.stopPropagation(); updateNodeFavor?.(id, i as any); }}
+                            className="text-[12px] leading-none"
+                          >
+                            <span className={i <= favor ? 'text-blue-600' : 'text-stone-300'}>★</span>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs">Favor: {i}/5</TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </div>
+                </TooltipProvider>
               </div>
             )}
 

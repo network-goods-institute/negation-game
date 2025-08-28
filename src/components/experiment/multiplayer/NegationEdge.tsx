@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo } from 'react';
 import { StraightEdge, EdgeProps, useReactFlow } from '@xyflow/react';
 import { EdgeLabelRenderer } from '@xyflow/react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useGraphActions } from './GraphContext';
 import { ContextMenu } from './common/ContextMenu';
 
 export const NegationEdge: React.FC<EdgeProps> = (props) => {
-  const { hoveredEdgeId, selectedEdgeId, setSelectedEdge, addObjectionForEdge, setHoveredEdge, updateEdgeAnchorPosition, deleteNode, updateEdgeRelevance, importanceSim } = useGraphActions() as any;
+  const { hoveredEdgeId, selectedEdgeId, setSelectedEdge, addObjectionForEdge, setHoveredEdge, updateEdgeAnchorPosition, deleteNode, updateEdgeRelevance } = useGraphActions() as any;
   const isHovered = hoveredEdgeId === props.id;
   const rf = useReactFlow();
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -123,7 +124,7 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
   return (
     <>
       {/* Strap (background band) */}
-      {strapMeta?.path && (
+      {strapMeta && typeof strapMeta === 'object' && strapMeta.path && (
         <>
           <defs>
             <linearGradient id={`neg-strap-${props.id}`} x1="0" y1="0" x2="0" y2="1">
@@ -131,8 +132,8 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
               <stop offset="100%" stopColor="#374151" stopOpacity={0.22} />
             </linearGradient>
           </defs>
-          <path d={strapMeta.path} fill={`url(#neg-strap-${props.id})`} />
-          <path d={strapMeta.path} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth={1} />
+          <path d={(strapMeta as any).path} fill={`url(#neg-strap-${props.id})`} />
+          <path d={(strapMeta as any).path} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth={1} />
         </>
       )}
       {/* Selection highlight behind edge */}
@@ -141,10 +142,7 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
       )}
       <StraightEdge
         {...props}
-        style={{
-          strokeWidth: importanceSim ? (1 + relevance) : 2,
-          stroke: '#ef4444',
-        }}
+        style={{ strokeWidth: 2, stroke: '#ef4444' }}
         label="-"
         labelShowBg={false}
         labelStyle={{
@@ -180,15 +178,23 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
           className={`transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
         >
           <div className="flex items-center justify-center gap-2 bg-white/95 backdrop-blur-sm border rounded-md shadow px-2 py-1">
-            {importanceSim && (
-              <div className="flex items-center gap-1 text-[11px] select-none" title="Set edge relevance (simulation). 1 = low, 5 = high.">
-                {[1,2,3,4,5].map((i) => (
-                  <button key={`rel-${i}`} title={`Set relevance to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateEdgeRelevance?.(props.id as string, i as any); }}>
-                    <span className={i <= relevance ? 'text-red-600' : 'text-stone-300'}>★</span>
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="flex items-center gap-2 text-[11px] select-none">
+              <span className="uppercase tracking-wide text-stone-500">Relevance</span>
+              <TooltipProvider>
+                <div className="flex items-center gap-1">
+                  {[1,2,3,4,5].map((i) => (
+                    <Tooltip key={`rel-${i}`}>
+                      <TooltipTrigger asChild>
+                        <button title={`Set relevance to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateEdgeRelevance?.(props.id as string, i as any); }}>
+                          <span className={i <= relevance ? 'text-red-600' : 'text-stone-300'}>★</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">Relevance: {i}/5</TooltipContent>
+                    </Tooltip>
+                  ))}
+                </div>
+              </TooltipProvider>
+            </div>
             <button
               onMouseDown={(e) => e.preventDefault()}
               onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); }}
@@ -223,7 +229,7 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
               <feDropShadow dx="0" dy="0" stdDeviation="0.7" floodOpacity="0.2" />
             </filter>
           </defs>
-      <DotsAlongEdge id={String(props.id)} meta={strapMeta} favorAvg={favorAvg} />
+      <DotsAlongEdge id={String(props.id)} meta={strapMeta as any} favorAvg={favorAvg} />
         </>
       )}
       <ContextMenu
@@ -246,7 +252,7 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
 
 function DotsAlongEdge({ id, meta, favorAvg }: { id: string; meta: { L:number; sx:number; sy:number; ex:number; ey:number; widthAt:(u:number)=>number; posAt:(u:number)=>{x:number;y:number} }; favorAvg: number }) {
   const [reduced, setReduced] = React.useState(false);
-  const [t, setT] = React.useState(0);
+  const [tick, setTick] = React.useState(0);
   React.useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
     const update = () => setReduced(mq.matches);
@@ -256,41 +262,43 @@ function DotsAlongEdge({ id, meta, favorAvg }: { id: string; meta: { L:number; s
   }, []);
   React.useEffect(() => {
     if (reduced) return;
-    let raf = 0;
-    const loop = () => { setT((v) => (v + 1) % 1_000_000); raf = requestAnimationFrame(loop); };
+    let raf = 0; let last = performance.now();
+    const loop = (t: number) => {
+      if (t - last > 1000/30) { // ~30fps
+        setTick((v) => (v + 1) % 1_000_000);
+        last = t;
+      }
+      raf = requestAnimationFrame(loop);
+    };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, [reduced]);
-  const halfLen = meta.L / 2;
+
   const spacingBase = 28;
-  const nTop = Math.max(3, Math.floor(halfLen / spacingBase));
-  const nBot = nTop;
+  const halfLen = meta.L / 2;
+  const nHalf = Math.max(3, Math.floor(halfLen / spacingBase));
   const speedPx = 16 + (Math.max(1, Math.min(5, favorAvg)) - 1) * 14; // px/s driven by favor
-  const now = (performance.now ? performance.now() : Date.now()) / 1000;
-  const topDots = Array.from({ length: nTop }).map((_, j) => {
-    const spacing = halfLen / nTop;
-    const dist = reduced ? (j + 0.5) * spacing : ((now * speedPx) + j * spacing) % halfLen;
-    const u = Math.min(0.5, dist / meta.L);
+  const now = reduced ? 0 : ((performance.now ? performance.now() : Date.now()) / 1000);
+
+  const outLeft = Array.from({ length: nHalf }).map((_, j) => {
+    const dist = reduced ? (j + 0.5) * (halfLen / nHalf) : (now * speedPx + j * spacingBase) % halfLen;
+    const u = Math.max(0, Math.min(0.5, 0.5 - dist / meta.L));
     const p = meta.posAt(u);
     const w = meta.widthAt(u);
     const r = Math.max(1.6, Math.min(7, w * 0.28));
-    return { key: `t${j}`, cx: p.x, cy: p.y, r };
+    return { key: `l${j}`, cx: p.x, cy: p.y, r };
   });
-  const botDots = Array.from({ length: nBot }).map((_, j) => {
-    const spacing = halfLen / nBot;
-    const dist = reduced ? (j + 0.5) * spacing : ((now * speedPx) + j * spacing) % halfLen;
-    const u = Math.max(0.5, 1 - dist / meta.L);
+  const outRight = Array.from({ length: nHalf }).map((_, j) => {
+    const dist = reduced ? (j + 0.5) * (halfLen / nHalf) : (now * speedPx + j * spacingBase) % halfLen;
+    const u = Math.min(1, Math.max(0.5, 0.5 + dist / meta.L));
     const p = meta.posAt(u);
     const w = meta.widthAt(u);
     const r = Math.max(1.6, Math.min(7, w * 0.28));
-    return { key: `b${j}`, cx: p.x, cy: p.y, r };
+    return { key: `r${j}`, cx: p.x, cy: p.y, r };
   });
   return (
     <g filter={`url(#neg-dotShadow-${id})`}>
-      {topDots.map((d) => (
-        <circle key={d.key} cx={d.cx} cy={d.cy} r={d.r} fill="#fff" stroke="#0b1220" strokeWidth={1.5} />
-      ))}
-      {botDots.map((d) => (
+      {[...outLeft, ...outRight].map((d) => (
         <circle key={d.key} cx={d.cx} cy={d.cy} r={d.r} fill="#fff" stroke="#0b1220" strokeWidth={1.5} />
       ))}
     </g>
