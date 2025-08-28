@@ -205,6 +205,7 @@ export const createUpdateEdgesFromY = (
         ty: e.type,
         sh: e.sourceHandle,
         th: e.targetHandle,
+        d: e.data || {},
       }))
     );
     if (sig === lastEdgesSigRef.current) return;
@@ -220,16 +221,6 @@ export const createUpdateNodesFromText = (
   isUndoRedoRef?: React.MutableRefObject<boolean>
 ) => {
   return (events?: any[]) => {
-    if (Array.isArray(events)) {
-      const allLocal = events.every(
-        (e) => e?.transaction?.origin === localOriginRef.current
-      );
-      const isUndoRedo = isUndoRedoRef?.current || false;
-
-      if (allLocal && events.length > 0 && !isUndoRedo) {
-        return;
-      }
-    }
     const yText = yTextMapRef.current;
     if (!yText) return;
     let changed = false;

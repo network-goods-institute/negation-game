@@ -45,7 +45,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     hideTimerRef.current = window.setTimeout(() => {
       setPillVisible(false);
-    }, 180);
+    }, 400);
   };
 
   const cancelHide = () => {
@@ -110,11 +110,11 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
               <Eye className={`transition-opacity duration-150 ${hidden ? 'opacity-0' : 'opacity-100 group-hover:opacity-0'}`} size={14} />
               <EyeOff className={`absolute transition-opacity duration-150 ${hidden ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} size={14} />
             </button>
-            {!proxyMode && lockOwner && (
-              <div className="absolute -top-6 left-0 text-xs px-2 py-1 rounded text-white" style={{ backgroundColor: lockOwner.color }}>
-                {lockOwner.name}
-              </div>
-            )}
+        {!proxyMode && lockOwner && (
+          <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs px-2 py-1 rounded text-white shadow" style={{ backgroundColor: lockOwner.color }}>
+            {lockOwner.name}
+          </div>
+        )}
             {/* Keep content for stable height; overlay Hidden label */}
             <div
               ref={contentRef}

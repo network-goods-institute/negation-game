@@ -18,7 +18,7 @@ interface ObjectionNodeProps {
 }
 
 const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => {
-    const { updateNodeContent, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode } = useGraphActions();
+    const { updateNodeContent, updateNodeFavor, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, importanceSim } = useGraphActions() as any;
     const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus } = useEditableNode({
         id,
         content: data.content,
@@ -50,7 +50,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
         if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
         hideTimerRef.current = window.setTimeout(() => {
             setPillVisible(false);
-        }, 180);
+        }, 400);
     };
 
     const cancelHide = () => {
@@ -103,8 +103,17 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                             <div className="absolute -top-3 right-0 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
                         )}
                         <EditorsBadgeRow editors={getEditorsForNode?.(id) || []} />
+                        {importanceSim && (
+                            <div className="mt-1 mb-1 flex items-center gap-1 select-none" title="Set favor/veracity (simulation). 1 = low, 5 = high.">
+                                {[1,2,3,4,5].map((i) => (
+                                    <button key={i} title={`Set favor to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateNodeFavor?.(id, i as any); }} className="text-[12px] leading-none">
+                                        <span className={i <= ((data as any)?.favor ?? 3) ? 'text-amber-500' : 'text-stone-300'}>★</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                         {!proxyMode && lockOwner && (
-                            <div className="absolute -top-6 left-0 text-xs px-2 py-1 rounded text-white" style={{ backgroundColor: lockOwner.color }}>
+                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs px-2 py-1 rounded text-white shadow" style={{ backgroundColor: lockOwner.color }}>
                                 {lockOwner.name}
                             </div>
                         )}

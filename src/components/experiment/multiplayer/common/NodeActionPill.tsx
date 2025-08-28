@@ -28,7 +28,7 @@ export const NodeActionPill: React.FC<NodeActionPillProps> = ({
     >
       {/* Hover bridge to avoid gap causing flicker */}
       <div
-        className={`absolute left-1/2 -translate-x-1/2 -top-5 h-5 w-[140px] ${visible ? 'pointer-events-auto' : 'pointer-events-none'}`}
+        className={`absolute left-1/2 -translate-x-1/2 -top-6 h-6 w-[180px] ${visible ? 'pointer-events-auto' : 'pointer-events-none'}`}
         onMouseEnter={onMouseEnter}
       />
       <button

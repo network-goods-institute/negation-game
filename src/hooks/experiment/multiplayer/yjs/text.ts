@@ -9,34 +9,60 @@ export const mergeNodesWithText = (
   if (!yTextMap) return nodes;
   return nodes.map((n: any) => {
     const t = yTextMap.get(n.id) as Y.Text | undefined;
+    const prev = prevById?.get(n.id);
+    // Start from a sanitized base: never take 'selected' from incoming Yjs node or bad shit happens
+    const base = (() => {
+      const { selected: _sel, dragging: _drag, ...rest } = n as any;
+      return rest as any;
+    })();
     if (t) {
       const textVal = t.toString();
-      if (n.type === "statement") {
-        const curr = n.data?.statement ?? "";
-        return curr === textVal
-          ? (n as Node)
-          : ({ ...n, data: { ...n.data, statement: textVal } } as Node);
+      if (base.type === "statement") {
+        const curr = base.data?.statement ?? "";
+        const nn =
+          curr === textVal
+            ? (base as Node)
+            : ({ ...base, data: { ...base.data, statement: textVal } } as Node);
+        return prev && prev.selected
+          ? ({ ...(nn as any), selected: true } as Node)
+          : ({ ...(nn as any), selected: false } as Node);
       }
-      const curr = n.data?.content ?? "";
-      return curr === textVal
-        ? (n as Node)
-        : ({ ...n, data: { ...n.data, content: textVal } } as Node);
+      const curr = base.data?.content ?? "";
+      const nn =
+        curr === textVal
+          ? (base as Node)
+          : ({ ...base, data: { ...base.data, content: textVal } } as Node);
+      return prev && prev.selected
+        ? ({ ...(nn as any), selected: true } as Node)
+        : ({ ...(nn as any), selected: false } as Node);
     }
     if (prevById) {
-      const prev = prevById.get(n.id);
       if (prev && prev.data) {
-        if (n.type === "statement") {
+        if (base.type === "statement") {
           const prevText = prev.data?.statement;
-          return prevText == null
-            ? (n as Node)
-            : ({ ...n, data: { ...n.data, statement: prevText } } as Node);
+          const nn =
+            prevText == null
+              ? (base as Node)
+              : ({
+                  ...base,
+                  data: { ...base.data, statement: prevText },
+                } as Node);
+          return prev && prev.selected
+            ? ({ ...(nn as any), selected: true } as Node)
+            : ({ ...(nn as any), selected: false } as Node);
         }
         const prevText = prev.data?.content;
-        return prevText == null
-          ? (n as Node)
-          : ({ ...n, data: { ...n.data, content: prevText } } as Node);
+        const nn =
+          prevText == null
+            ? (base as Node)
+            : ({ ...base, data: { ...base.data, content: prevText } } as Node);
+        return prev && prev.selected
+          ? ({ ...(nn as any), selected: true } as Node)
+          : ({ ...(nn as any), selected: false } as Node);
       }
     }
-    return n as Node;
+    return prev && prev.selected
+      ? ({ ...(base as any), selected: true } as Node)
+      : ({ ...(base as any), selected: false } as Node);
   });
 };

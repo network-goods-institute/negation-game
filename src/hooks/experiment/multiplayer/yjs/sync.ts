@@ -5,12 +5,17 @@ export const syncYMapFromArray = <T extends { id: string }>(
   arr: T[]
 ) => {
   const sanitize = (item: any) => {
-    if (item && typeof item === "object" && "data" in item) {
-      const d = (item as any).data || {};
-      if (d && typeof d === "object" && "editedBy" in d) {
-        const { editedBy, ...rest } = d as any;
-        return { ...(item as any), data: rest } as T;
+    if (item && typeof item === "object") {
+      // strip local-only runtime flags
+      const { selected: _selected, dragging: _dragging, ...restNode } = item as any;
+      if ("data" in restNode) {
+        const d = (restNode as any).data || {};
+        if (d && typeof d === "object" && "editedBy" in d) {
+          const { editedBy, ...rest } = d as any;
+          return { ...(restNode as any), data: rest } as T;
+        }
       }
+      return restNode as T;
     }
     return item as T;
   };

@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo } from 'react';
 import { StraightEdge, EdgeProps, useReactFlow } from '@xyflow/react';
+import { EdgeLabelRenderer } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 import { ContextMenu } from './common/ContextMenu';
 
 export const NegationEdge: React.FC<EdgeProps> = (props) => {
-  const { hoveredEdgeId, selectedEdgeId, setSelectedEdge, addObjectionForEdge, setHoveredEdge, updateEdgeAnchorPosition, deleteNode } = useGraphActions() as any;
+  const { hoveredEdgeId, selectedEdgeId, setSelectedEdge, addObjectionForEdge, setHoveredEdge, updateEdgeAnchorPosition, deleteNode, updateEdgeRelevance, importanceSim } = useGraphActions() as any;
   const isHovered = hoveredEdgeId === props.id;
   const rf = useReactFlow();
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -38,6 +39,12 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
   const tHidden = !!(tNode as any)?.data?.hidden;
   const showAffordance = !(sHidden || tHidden);
   const selected = (selectedEdgeId || null) === (props.id as any);
+  const relevance = Math.max(1, Math.min(5, ((props as any).data?.relevance ?? 3)));
+  const srcFavor = (sNode as any)?.data?.favor ?? 3;
+  const tgtFavor = (tNode as any)?.data?.favor ?? 3;
+  const favorAvg = (srcFavor + tgtFavor) / 2;
+  const speedFactor = (relevance / 3) * (isHovered ? 1.5 : 1) * (favorAvg / 3);
+  const dashDuration = Math.max(1.5, 6 / Math.max(0.5, speedFactor));
 
   return (
     <>
@@ -48,7 +55,7 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
       <StraightEdge
         {...props}
         style={{
-          strokeWidth: 2,
+          strokeWidth: importanceSim ? (1 + relevance) : 2,
           stroke: '#ef4444',
         }}
         label="-"
@@ -64,51 +71,44 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
           fill: '#ef4444',
         }}
       />
-      {showAffordance && (
+      {importanceSim && showAffordance && (
         <>
-          {/* Always-visible small midpoint dot to hint objection affordance */}
-          <foreignObject
-            x={cx - 4}
-            y={cy - 4}
-            width={8}
-            height={8}
-            style={{ pointerEvents: 'all' }}
-          >
-            <div
-              onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); }}
-              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedEdge?.(props.id as string); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
-              title="Add objection"
-              className="w-2 h-2 rounded-full"
-              style={{
-                backgroundColor: '#ef4444',
-                boxShadow: '0 0 0 1px #fff',
-                cursor: 'pointer',
-              }}
-            />
-          </foreignObject>
-          <foreignObject x={cx - 45} y={cy + 14} width={150} height={40} style={{ pointerEvents: 'all' }} onMouseEnter={() => setHoveredEdge(props.id as string)} onMouseLeave={() => setHoveredEdge(null)}>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <div className={`transition-opacity duration-500 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-                <button
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    addObjectionForEdge(props.id as string, cx, cy);
-                  }}
-                  onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedEdge?.(props.id as string); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
-                  className="rounded-full px-2.5 py-0.5 text-[10px] font-medium bg-stone-800 text-white"
-                >
-                  Object
-                </button>
-                {((props as any).data?.objectionsCount || 0) > 0 && (
-                  <span className="ml-2 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-amber-500 text-white text-[10px] px-1">
-                    {(props as any).data.objectionsCount}
-                  </span>
-                )}
-              </div>
+          {/* Midpoint control: circle with minus */}
+          <foreignObject x={cx - 8} y={cy - 8} width={16} height={16} style={{ pointerEvents: 'all' }}>
+            <div onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); }} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedEdge?.(props.id as string); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }} title="Edge controls" className="w-4 h-4 rounded-full bg-white border flex items-center justify-center" style={{ borderColor: '#ef4444', cursor: 'pointer' }}>
+              <div className="w-2 h-[2px] rounded-sm" style={{ backgroundColor: '#ef4444' }} />
             </div>
           </foreignObject>
+          {null}
         </>
+      )}
+      {importanceSim && (
+      <EdgeLabelRenderer>
+        <div
+          style={{ position: 'absolute', transform: `translate(-50%, -50%) translate(${cx}px, ${cy + 18}px)`, zIndex: 1000, pointerEvents: 'all' }}
+          onMouseEnter={() => setHoveredEdge(props.id as string)}
+          onMouseLeave={() => setHoveredEdge(null)}
+          className={`transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
+        >
+          <div className="flex items-center justify-center gap-2 bg-white/95 backdrop-blur-sm border rounded-md shadow px-2 py-1">
+            <div className="flex items-center gap-1 text-[11px] select-none" title="Set edge relevance (simulation). 1 = low, 5 = high.">
+              {[1,2,3,4,5].map((i) => (
+                <button key={`rel-${i}`} title={`Set relevance to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateEdgeRelevance?.(props.id as string, i as any); }}>
+                  <span className={i <= relevance ? 'text-red-600' : 'text-stone-300'}>★</span>
+                </button>
+              ))}
+            </div>
+            <button
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); }}
+              className="rounded-full px-2.5 py-0.5 text-[10px] font-medium bg-stone-800 text-white"
+              title="Add objection to this relation"
+            >
+              Object
+            </button>
+          </div>
+        </div>
+      </EdgeLabelRenderer>
       )}
       {/* Invisible interaction overlay along the whole edge for selection/context menu (on top) */}
       {Number.isFinite(sourceX) && Number.isFinite(sourceY) && Number.isFinite(targetX) && Number.isFinite(targetY) && (
@@ -124,12 +124,48 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
           onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedEdge?.(props.id as string); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
         />
       )}
+      {/* marching dots overlay on top */}
+      {importanceSim && Number.isFinite(sourceX) && Number.isFinite(sourceY) && Number.isFinite(targetX) && Number.isFinite(targetY) && (
+        <>
+          <defs>
+            <style>{`@keyframes edge-dots-${props.id} { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 100; } }`}</style>
+          </defs>
+          {/* source -> mid */}
+          <line x1={sourceX} y1={sourceY} x2={cx} y2={cy}
+            stroke="#000" strokeWidth={2} strokeLinecap="round" strokeDasharray="2 10"
+            style={{
+              animationName: `edge-dots-${props.id}`,
+              animationDuration: `${dashDuration}s`,
+              animationTimingFunction: 'linear',
+              animationIterationCount: 'infinite',
+              opacity: 0.8,
+              pointerEvents: 'none',
+            }} />
+          {/* target -> mid reversed */}
+          <line x1={cx} y1={cy} x2={targetX} y2={targetY}
+            stroke="#000" strokeWidth={2} strokeLinecap="round" strokeDasharray="2 10"
+            style={{
+              animationName: `edge-dots-${props.id}`,
+              animationDuration: `${dashDuration}s`,
+              animationTimingFunction: 'linear',
+              animationIterationCount: 'infinite',
+              animationDirection: 'reverse',
+              opacity: 0.8,
+              pointerEvents: 'none',
+            }} />
+        </>
+      )}
       <ContextMenu
         open={menuOpen}
         x={menuPos.x}
         y={menuPos.y}
         onClose={() => setMenuOpen(false)}
         items={[
+          { label: 'Relevance: ★☆☆☆☆', onClick: () => updateEdgeRelevance?.(props.id as string, 1) },
+          { label: 'Relevance: ★★☆☆☆', onClick: () => updateEdgeRelevance?.(props.id as string, 2) },
+          { label: 'Relevance: ★★★☆☆', onClick: () => updateEdgeRelevance?.(props.id as string, 3) },
+          { label: 'Relevance: ★★★★☆', onClick: () => updateEdgeRelevance?.(props.id as string, 4) },
+          { label: 'Relevance: ★★★★★', onClick: () => updateEdgeRelevance?.(props.id as string, 5) },
           { label: 'Delete edge', danger: true, onClick: () => deleteNode?.(props.id as string) },
         ]}
       />

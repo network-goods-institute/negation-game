@@ -495,6 +495,7 @@ export const useYjsMultiplayer = ({
     yNodesMap: yNodesMapRef.current,
     yEdgesMap: yEdgesMapRef.current,
     yTextMap: yTextMapRef.current,
+    yMetaMap: yMetaMapRef.current,
     syncYMapFromArray,
     connectionError,
     isConnected,

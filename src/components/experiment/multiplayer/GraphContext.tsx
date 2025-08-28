@@ -3,6 +3,7 @@ import { createContext, useContext } from 'react';
 type GraphActions = {
     updateNodeContent: (nodeId: string, content: string) => void;
     updateNodeHidden?: (nodeId: string, hidden: boolean) => void;
+    updateNodeFavor?: (nodeId: string, favor: 1|2|3|4|5) => void;
     addNegationBelow: (parentNodeId: string) => void;
     deleteNode: (nodeId: string) => void;
     beginConnectFromNode: (nodeId: string) => void;
@@ -13,6 +14,7 @@ type GraphActions = {
     addObjectionForEdge: (edgeId: string, midX?: number, midY?: number) => void;
     hoveredEdgeId: string | null;
     setHoveredEdge: (edgeId: string | null) => void;
+    updateEdgeRelevance?: (edgeId: string, relevance: 1|2|3|4|5) => void;
     selectedEdgeId?: string | null;
     setSelectedEdge?: (edgeId: string | null) => void;
     updateEdgeAnchorPosition: (edgeId: string, x: number, y: number) => void;
@@ -27,6 +29,7 @@ type GraphActions = {
     undo?: () => void;
     redo?: () => void;
     addNodeAtPosition?: (type: 'point' | 'statement' | 'objection', x: number, y: number) => void;
+    importanceSim?: boolean;
 };
 
 const GraphContext = createContext<GraphActions | null>(null);
@@ -39,6 +42,7 @@ export const useGraphActions = () => {
         return {
             updateNodeContent: () => { },
             updateNodeHidden: () => { },
+            updateNodeFavor: () => { },
             addNegationBelow: () => { },
             deleteNode: () => { },
             beginConnectFromNode: () => { },
@@ -49,6 +53,7 @@ export const useGraphActions = () => {
             addObjectionForEdge: () => { },
             hoveredEdgeId: null,
             setHoveredEdge: () => { },
+            updateEdgeRelevance: () => { },
             selectedEdgeId: null,
             setSelectedEdge: () => { },
             updateEdgeAnchorPosition: () => { },
@@ -62,6 +67,7 @@ export const useGraphActions = () => {
             proxyMode: false,
             undo: () => {},
             redo: () => {},
+            importanceSim: false,
         } as GraphActions;
     }
     return ctx;

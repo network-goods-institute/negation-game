@@ -246,7 +246,7 @@ export const createAddNegationBelow = (
       id: newId,
       type: "point",
       position: newPos,
-      data: { content: "New point" },
+      data: { content: "New point", favor: 3 },
     };
     const edgeType = parent.type === "statement" ? "statement" : "negation";
     const newEdge: any = {
@@ -256,6 +256,7 @@ export const createAddNegationBelow = (
       target: parentNodeId,
       sourceHandle: `${newId}-source-handle`,
       targetHandle: `${parentNodeId}-incoming-handle`,
+      data: { relevance: 3 },
     };
     // Always update local state immediately for responsiveness
     setNodes((curr) => [...curr, newNode]);
