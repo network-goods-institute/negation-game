@@ -30,6 +30,8 @@ import {
     createUpdateNodeHidden,
     createDeleteNode,
     createAddNegationBelow,
+    createAddAnswerBelow,
+    createAddQuestionBelow,
     createAddObjectionForEdge,
     createUpdateEdgeAnchorPosition,
     createAddNodeAtPosition
@@ -138,6 +140,38 @@ export default function MultiplayerRationaleDetailPage() {
         getLockOwner
     );
 
+    const addAnswerBelow = createAddAnswerBelow(
+        nodes,
+        yNodesMap,
+        yEdgesMap,
+        yTextMap,
+        ydoc,
+        isLeader,
+        localOriginRef.current,
+        lastAddRef,
+        setNodes,
+        setEdges,
+        registerTextInUndoScope,
+        isLockedForMe,
+        getLockOwner
+    );
+
+    const addQuestionBelow = createAddQuestionBelow(
+        nodes,
+        yNodesMap,
+        yEdgesMap,
+        yTextMap,
+        ydoc,
+        isLeader,
+        localOriginRef.current,
+        lastAddRef,
+        setNodes,
+        setEdges,
+        registerTextInUndoScope,
+        isLockedForMe,
+        getLockOwner
+    );
+
     const addObjectionForEdge = createAddObjectionForEdge(
         nodes,
         edges,
@@ -208,7 +242,8 @@ export default function MultiplayerRationaleDetailPage() {
         isLeader && leaderSynced ? yEdgesMap : null,
         isLeader && leaderSynced ? ydoc : null,
         syncYMapFromArray,
-        localOriginRef.current
+        localOriginRef.current,
+        () => nodes as any[]
     );
 
     const updateNodeContent = createUpdateNodeContent(
@@ -283,6 +318,8 @@ export default function MultiplayerRationaleDetailPage() {
                     ),
                     updateNodeFavor,
                     addNegationBelow,
+                    addAnswerBelow,
+                    addQuestionBelow,
                     deleteNode,
                     beginConnectFromNode: (id: string) => { connectAnchorRef.current = id; setConnectAnchorId(id); },
                     completeConnectToNode: (nodeId: string) => {

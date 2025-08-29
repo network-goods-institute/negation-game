@@ -1,28 +1,29 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
-import { useEditableNode } from './common/useEditableNode';
 import { EditorsBadgeRow } from './EditorsBadgeRow';
+import { useEditableNode } from './common/useEditableNode';
 import { useConnectableNode } from './common/useConnectableNode';
 import { ContextMenu } from './common/ContextMenu';
 import { toast } from 'sonner';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle } from 'lucide-react';
 import { NodeActionPill } from './common/NodeActionPill';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-interface StatementNodeProps {
+interface AnswerNodeProps {
+  data: {
+    content: string;
+    editedBy?: string;
+  };
   id: string;
-  data: { statement?: string };
   selected?: boolean;
 }
 
-export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected }) => {
-  const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode } = useGraphActions() as any;
-  const content = data?.statement || '';
+export const AnswerNode: React.FC<AnswerNodeProps> = ({ data, id, selected }) => {
+  const { updateNodeContent, updateNodeHidden, addNegationBelow, addQuestionBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, selectedEdgeId } = useGraphActions() as any;
 
   const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus } = useEditableNode({
     id,
-    content,
+    content: data.content,
     updateNodeContent,
     startEditingNode,
     stopEditingNode,
@@ -32,6 +33,8 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
   const [hovered, setHovered] = useState(false);
   const [pillVisible, setPillVisible] = useState(false);
   const hideTimerRef = useRef<number | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   useEffect(() => {
     return () => {
@@ -59,15 +62,14 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
   const locked = isLockedForMe?.(id) || false;
   const lockOwner = getLockOwner?.(id) || null;
   const shouldShowPill = pillVisible && !isEditing && !locked;
+
   const connect = useConnectableNode({ id, locked });
   const hidden = (data as any)?.hidden === true;
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   return (
     <>
-      <Handle id={`${id}-source-handle`} type="source" position={Position.Bottom} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
-      <Handle id={`${id}-incoming-handle`} type="target" position={Position.Top} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
+      <Handle id={`${id}-source-handle`} type="source" position={Position.Top} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
+      <Handle id={`${id}-incoming-handle`} type="target" position={Position.Bottom} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
       <div className="relative inline-block">
         <div
           ref={wrapperRef}
@@ -80,15 +82,15 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
             if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
           }}
           onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
-          className={`px-5 py-3 rounded-xl ${hidden ? 'bg-blue-100 text-blue-700' : 'bg-blue-50 text-blue-900'} border-2 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} min-w-[240px] max-w-[360px] relative z-10 ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''} ${selected ? 'border-black' : (hidden ? 'border-blue-300' : 'border-blue-200')}
+          className={`px-4 py-3 rounded-lg ${hidden ? 'bg-orange-100 text-orange-700' : 'bg-orange-50 text-orange-900'} border-2 min-w-[200px] max-w-[320px] relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} ${isConnectingFromNodeId === id ? 'ring-2 ring-orange-500 ring-offset-2 ring-offset-white shadow-md' : ''}
+            ${selected ? 'border-black' : (hidden ? 'border-orange-300' : 'border-orange-200')}
             `}
         >
           <div className="relative z-10">
-            {isConnectingFromNodeId === id && (
-              <div className="absolute -top-3 right-0 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
-            )}
-            <EditorsBadgeRow editors={getEditorsForNode?.(id) || []} />
-            {/* Eye toggle */}
+            {/* Check mark icon */}
+            {!hidden && <CheckCircle className="absolute -top-1 -left-1 text-orange-600" size={16} />}
+            
+            {/* Eye toggle top-right */}
             {selected && (
               <button
                 onMouseDown={(e) => e.preventDefault()}
@@ -101,12 +103,15 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
                 <EyeOff className={`absolute transition-opacity duration-150 ${hidden ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} size={14} />
               </button>
             )}
+            {isConnectingFromNodeId === id && (
+              <div className="absolute -top-3 right-0 text-[10px] bg-orange-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
+            )}
         {!proxyMode && lockOwner && (
           <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs px-2 py-1 rounded text-white shadow" style={{ backgroundColor: lockOwner.color }}>
             {lockOwner.name}
           </div>
         )}
-            {/* Keep content for stable height; overlay Hidden label */}
+            {/* Keep content element for stable height; overlay Hidden label */}
             <div
               ref={contentRef}
               contentEditable={isEditing && !locked && !hidden}
@@ -115,22 +120,23 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
               onFocus={onFocus}
               onBlur={onBlur}
               onKeyDown={onKeyDown}
-              className={`text-sm font-semibold whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}`}
+              className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ml-5 ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-orange-900'}`}
             >
-              {value || 'Statement'}
+              {value || 'Answer: ...'}
             </div>
             {hidden && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-                <div className="text-sm font-semibold text-stone-600 italic animate-fade-in">Hidden</div>
+                <div className="text-sm text-stone-500 italic animate-fade-in">Hidden</div>
               </div>
             )}
 
+        <EditorsBadgeRow editors={getEditorsForNode?.(id) || []} />
         {!hidden && (
           <NodeActionPill
-            label="Make option"
+            label="Elaborate"
             visible={shouldShowPill}
-            onClick={() => addNegationBelow(id)}
-            colorClass="bg-blue-700"
+            onClick={() => addQuestionBelow(id)}
+            colorClass="bg-orange-700"
             onMouseEnter={() => { cancelHide(); setPillVisible(true); }}
             onMouseLeave={() => { scheduleHide(); }}
           />

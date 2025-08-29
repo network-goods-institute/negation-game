@@ -67,6 +67,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
   const connect = useConnectableNode({ id, locked });
   const hidden = (data as any)?.hidden === true;
   const favor = Math.max(1, Math.min(5, (data as any)?.favor ?? 3));
+  const favorOpacity = selected || hovered ? 1 : Math.max(0.3, Math.min(1, favor / 5));
 
   return (
     <>
@@ -84,9 +85,10 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
             if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
           }}
           onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
-          className={`px-4 py-3 rounded-lg ${hidden ? 'bg-stone-200 text-stone-600' : 'bg-white text-gray-900'} border-2 min-w-[200px] max-w-[320px] relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
-            ${selected ? 'border-black' : (hidden ? 'border-stone-300' : 'border-stone-200')}
+          className={`px-4 py-3 rounded-lg ${hidden ? 'bg-gray-200 text-gray-600' : 'bg-white text-gray-900'} border-2 min-w-[200px] max-w-[320px] relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
+            ${selected ? 'border-black' : (hidden ? 'border-gray-300' : 'border-stone-200')}
             `}
+          style={{ opacity: hidden ? undefined : favorOpacity }}
         >
           <div className="relative z-10">
             {/* Eye toggle top-right */}
@@ -130,7 +132,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
             )}
 
         <EditorsBadgeRow editors={getEditorsForNode?.(id) || []} />
-        {selected && (
+        {selected && !hidden && (
           <div className="mt-1 mb-1 flex items-center gap-2 select-none">
             <span className="text-[10px] uppercase tracking-wide text-stone-500">Favor</span>
             <TooltipProvider>

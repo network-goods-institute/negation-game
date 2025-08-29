@@ -1,4 +1,5 @@
 import { generateEdgeId } from "./graphSync";
+import { chooseEdgeType } from "./connectUtils";
 import * as Y from "yjs";
 import { toast } from "sonner";
 
@@ -111,16 +112,20 @@ export const createAddNodeAtPosition = (
   localOrigin: object,
   setNodes: (updater: (nodes: any[]) => any[]) => void
 ) => {
-  return (type: "point" | "statement" | "objection", x: number, y: number) => {
+  return (type: "point" | "statement" | "objection" | "question" | "answer", x: number, y: number) => {
     const idBase =
-      type === "statement" ? "s" : type === "objection" ? "o" : "p";
+      type === "statement" ? "s" : type === "objection" ? "o" : type === "question" ? "q" : type === "answer" ? "a" : "p";
     const id = `${idBase}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const data: any =
       type === "statement"
         ? { statement: "New Statement" }
         : type === "objection"
           ? { content: "New objection" }
-          : { content: "New point" };
+          : type === "question"
+            ? { content: "What about...?" }
+            : type === "answer"
+              ? { content: "Answer: ..." }
+              : { content: "New point" };
     const node: any = { id, type, position: { x, y }, data };
 
     // local UI responsiveness
@@ -131,7 +136,7 @@ export const createAddNodeAtPosition = (
         yNodesMap.set(id, node);
         if (
           yTextMap &&
-          (type === "point" || type === "objection" || type === "statement")
+          (type === "point" || type === "objection" || type === "statement" || type === "question" || type === "answer")
         ) {
           const t = new Y.Text();
           const initial =
@@ -248,7 +253,7 @@ export const createAddNegationBelow = (
       position: newPos,
       data: { content: "New point", favor: 3 },
     };
-    const edgeType = parent.type === "statement" ? "statement" : "negation";
+    const edgeType = chooseEdgeType(newNode.type, parent.type);
     const newEdge: any = {
       id: generateEdgeId(),
       type: edgeType,
@@ -273,6 +278,142 @@ export const createAddNegationBelow = (
           yTextMap.set(newId, t);
           try {
             registerTextInUndoScope?.(t);
+          } catch {}
+        }
+      }, localOrigin);
+    }
+  };
+};
+
+export const createAddAnswerBelow = (
+  nodes: any[],
+  yNodesMap: any,
+  yEdgesMap: any,
+  yTextMap: any,
+  ydoc: any,
+  isLeader: boolean,
+  localOrigin: object,
+  lastAddRef: React.MutableRefObject<Record<string, number>>,
+  setNodes: (updater: (nodes: any[]) => any[]) => void,
+  setEdges: (updater: (edges: any[]) => any[]) => void,
+  registerTextInUndoScope?: (t: any) => void,
+  isLockedForMe?: (nodeId: string) => boolean,
+  getLockOwner?: (nodeId: string) => { name?: string } | null
+) => {
+  return (parentNodeId: string) => {
+    if (isLockedForMe?.(parentNodeId)) {
+      const owner = getLockOwner?.(parentNodeId);
+      toast.warning(`Locked by ${owner?.name || "another user"}`);
+      return;
+    }
+    if (!isLeader) {
+      toast.warning("Read-only mode: Changes won't be saved");
+    }
+    const now = Date.now();
+    const last = lastAddRef.current[parentNodeId] || 0;
+    if (now - last < 500) return;
+    lastAddRef.current[parentNodeId] = now;
+    const parent = nodes.find((n: any) => n.id === parentNodeId);
+    if (!parent) return;
+    const newId = `a-${now}-${Math.floor(Math.random() * 1e6)}`;
+    const newPos = { x: parent.position.x, y: parent.position.y + 180 };
+    const newNode: any = {
+      id: newId,
+      type: "answer",
+      position: newPos,
+      data: { content: "Answer: ...", favor: 3 },
+    };
+    const edgeType = chooseEdgeType(newNode.type, parent.type);
+    const newEdge: any = {
+      id: generateEdgeId(),
+      type: edgeType,
+      source: newId,
+      target: parentNodeId,
+      sourceHandle: `${newId}-source-handle`,
+      targetHandle: `${parentNodeId}-incoming-handle`,
+      data: { relevance: 3 },
+    };
+
+    setNodes((prev) => [...prev, newNode]);
+    setEdges((prev) => [...prev, newEdge]);
+
+    if (isLeader && yNodesMap && yEdgesMap && ydoc) {
+      ydoc.transact(() => {
+        if (!yNodesMap.has(newId)) yNodesMap.set(newId, newNode);
+        if (!yEdgesMap.has(newEdge.id)) yEdgesMap.set(newEdge.id, newEdge);
+        if (yTextMap && registerTextInUndoScope) {
+          const yText = new Y.Text(newNode.data.content || "");
+          yTextMap.set(newId, yText);
+          try {
+            registerTextInUndoScope?.(yText);
+          } catch {}
+        }
+      }, localOrigin);
+    }
+  };
+};
+
+export const createAddQuestionBelow = (
+  nodes: any[],
+  yNodesMap: any,
+  yEdgesMap: any,
+  yTextMap: any,
+  ydoc: any,
+  isLeader: boolean,
+  localOrigin: object,
+  lastAddRef: React.MutableRefObject<Record<string, number>>,
+  setNodes: (updater: (nodes: any[]) => any[]) => void,
+  setEdges: (updater: (edges: any[]) => any[]) => void,
+  registerTextInUndoScope?: (t: any) => void,
+  isLockedForMe?: (nodeId: string) => boolean,
+  getLockOwner?: (nodeId: string) => { name?: string } | null
+) => {
+  return (parentNodeId: string) => {
+    if (isLockedForMe?.(parentNodeId)) {
+      const owner = getLockOwner?.(parentNodeId);
+      toast.warning(`Locked by ${owner?.name || "another user"}`);
+      return;
+    }
+    if (!isLeader) {
+      toast.warning("Read-only mode: Changes won't be saved");
+    }
+    const now = Date.now();
+    const last = lastAddRef.current[parentNodeId] || 0;
+    if (now - last < 500) return;
+    lastAddRef.current[parentNodeId] = now;
+    const parent = nodes.find((n: any) => n.id === parentNodeId);
+    if (!parent) return;
+    const newId = `q-${now}-${Math.floor(Math.random() * 1e6)}`;
+    const newPos = { x: parent.position.x, y: parent.position.y + 180 };
+    const newNode: any = {
+      id: newId,
+      type: "question",
+      position: newPos,
+      data: { content: "What about...?", favor: 3 },
+    };
+    const edgeType = chooseEdgeType(newNode.type, parent.type);
+    const newEdge: any = {
+      id: generateEdgeId(),
+      type: edgeType,
+      source: newId,
+      target: parentNodeId,
+      sourceHandle: `${newId}-source-handle`,
+      targetHandle: `${parentNodeId}-incoming-handle`,
+      data: { relevance: 3 },
+    };
+
+    setNodes((prev) => [...prev, newNode]);
+    setEdges((prev) => [...prev, newEdge]);
+
+    if (isLeader && yNodesMap && yEdgesMap && ydoc) {
+      ydoc.transact(() => {
+        if (!yNodesMap.has(newId)) yNodesMap.set(newId, newNode);
+        if (!yEdgesMap.has(newEdge.id)) yEdgesMap.set(newEdge.id, newEdge);
+        if (yTextMap && registerTextInUndoScope) {
+          const yText = new Y.Text(newNode.data.content || "");
+          yTextMap.set(newId, yText);
+          try {
+            registerTextInUndoScope?.(yText);
           } catch {}
         }
       }, localOrigin);

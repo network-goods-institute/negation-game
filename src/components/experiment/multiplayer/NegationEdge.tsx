@@ -4,18 +4,28 @@ import { EdgeLabelRenderer } from '@xyflow/react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useGraphActions } from './GraphContext';
 import { ContextMenu } from './common/ContextMenu';
+import { useEdgePerformanceOptimization } from './common/useEdgePerformanceOptimization';
 
 export const NegationEdge: React.FC<EdgeProps> = (props) => {
   const { hoveredEdgeId, selectedEdgeId, setSelectedEdge, addObjectionForEdge, setHoveredEdge, updateEdgeAnchorPosition, deleteNode, updateEdgeRelevance } = useGraphActions() as any;
   const isHovered = hoveredEdgeId === props.id;
   const rf = useReactFlow();
   const [menuOpen, setMenuOpen] = React.useState(false);
-  const [menuPos, setMenuPos] = React.useState<{x:number;y:number}>({x:0,y:0});
+  const [menuPos, setMenuPos] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const sourceX = (props as any).sourceX;
   const sourceY = (props as any).sourceY;
   const targetX = (props as any).targetX;
   const targetY = (props as any).targetY;
+
+  const { isHighFrequencyUpdates, sourceNode, targetNode, shouldRenderEllipses } = useEdgePerformanceOptimization({
+    sourceId: (props as any).source as string,
+    targetId: (props as any).target as string,
+    sourceX,
+    sourceY,
+    targetX,
+    targetY
+  });
 
   const { cx, cy } = useMemo(() => {
     return {
@@ -24,7 +34,7 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
     };
   }, [sourceX, sourceY, targetX, targetY]);
 
-  const lastPosRef = React.useRef<{x:number;y:number}|null>(null);
+  const lastPosRef = React.useRef<{ x: number; y: number } | null>(null);
   const rafRef = React.useRef<number>(0);
   useEffect(() => {
     if (!Number.isFinite(cx) || !Number.isFinite(cy)) return;
@@ -38,19 +48,24 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
     return () => cancelAnimationFrame(rafRef.current);
   }, [cx, cy, props.id, updateEdgeAnchorPosition]);
 
-  // Hide objection affordances if either endpoint is hidden
-  const sNode = rf.getNode((props as any).source as string);
-  const tNode = rf.getNode((props as any).target as string);
-  const sHidden = !!(sNode as any)?.data?.hidden;
-  const tHidden = !!(tNode as any)?.data?.hidden;
+  const sHidden = !!(sourceNode as any)?.data?.hidden;
+  const tHidden = !!(targetNode as any)?.data?.hidden;
   const showAffordance = !(sHidden || tHidden);
   const selected = (selectedEdgeId || null) === (props.id as any);
   const relevance = Math.max(1, Math.min(5, ((props as any).data?.relevance ?? 3)));
-  const srcFavor = (sNode as any)?.data?.favor ?? 3;
-  const tgtFavor = (tNode as any)?.data?.favor ?? 3;
-  const favorAvg = (srcFavor + tgtFavor) / 2;
-  const speedFactor = (relevance / 3) * (isHovered ? 1.5 : 1) * (favorAvg / 3);
-  const dashDuration = Math.max(1.5, 6 / Math.max(0.5, speedFactor));
+  const edgeOpacity = selected || isHovered ? 1 : Math.max(0.3, Math.min(1, relevance / 5));
+
+  // Check if ANY connected node is low opacity (should hide edges underneath)
+  const srcHasFavor = (sourceNode as any)?.type === 'point' || (sourceNode as any)?.type === 'objection';
+  const tgtHasFavor = (targetNode as any)?.type === 'point' || (targetNode as any)?.type === 'objection';
+  const srcFavor = Math.max(1, Math.min(5, (sourceNode as any)?.data?.favor ?? 3));
+  const tgtFavor = Math.max(1, Math.min(5, (targetNode as any)?.data?.favor ?? 3));
+  const srcIsQuestion = (sourceNode as any)?.type === 'question';
+  const tgtIsQuestion = (targetNode as any)?.type === 'question';
+  const srcIsAnswer = (sourceNode as any)?.type === 'answer';
+  const tgtIsAnswer = (targetNode as any)?.type === 'answer';
+  const srcLowOpacity = (srcHasFavor && srcFavor <= 3) || srcIsQuestion || srcIsAnswer;
+  const tgtLowOpacity = (tgtHasFavor && tgtFavor <= 3) || tgtIsQuestion || tgtIsAnswer;
 
   // Strap geometry (variable-width band along straight centerline)
   const strapMeta = React.useMemo(() => {
@@ -123,39 +138,68 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
 
   return (
     <>
-      {/* Strap (background band) */}
-      {strapMeta && typeof strapMeta === 'object' && strapMeta.path && (
-        <>
-          <defs>
-            <linearGradient id={`neg-strap-${props.id}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#111827" stopOpacity={0.22} />
-              <stop offset="100%" stopColor="#374151" stopOpacity={0.22} />
-            </linearGradient>
-          </defs>
-          <path d={(strapMeta as any).path} fill={`url(#neg-strap-${props.id})`} />
-          <path d={(strapMeta as any).path} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth={1} />
-        </>
-      )}
-      {/* Selection highlight behind edge */}
-      {Number.isFinite(sourceX) && Number.isFinite(sourceY) && Number.isFinite(targetX) && Number.isFinite(targetY) && selected && (
-        <line x1={sourceX} y1={sourceY} x2={targetX} y2={targetY} stroke="#000" strokeWidth={8} strokeLinecap="round" opacity={0.85} />
-      )}
-      <StraightEdge
-        {...props}
-        style={{ strokeWidth: 2, stroke: '#ef4444' }}
-        label="-"
-        labelShowBg={false}
-        labelStyle={{
-          padding: 0,
-          width: 20,
-          height: 20,
-          stroke: 'white',
-          strokeWidth: 2,
-          fontSize: 36,
-          fontWeight: 600,
-          fill: '#ef4444',
-        }}
-      />
+      {/* Edge elements with opacity and node masking */}
+      <g style={{ opacity: edgeOpacity }}>
+        <defs>
+          <linearGradient id={`neg-strap-${props.id}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#111827" stopOpacity={0.22} />
+            <stop offset="100%" stopColor="#374151" stopOpacity={0.22} />
+          </linearGradient>
+          <mask id={`neg-mask-${props.id}`}>
+            <rect x="-10000" y="-10000" width="20000" height="20000" fill="white" />
+            {shouldRenderEllipses && srcLowOpacity && sourceNode && sourceNode.measured && typeof sourceNode.measured.width === 'number' && typeof sourceNode.measured.height === 'number' && (
+              <rect
+                x={(sourceNode as any).position?.x - 2}
+                y={(sourceNode as any).position?.y - 2}
+                width={sourceNode.measured.width + 4}
+                height={sourceNode.measured.height + 4}
+                fill="black"
+              />
+            )}
+            {shouldRenderEllipses && tgtLowOpacity && targetNode && targetNode.measured && typeof targetNode.measured.width === 'number' && typeof targetNode.measured.height === 'number' && (
+              <rect
+                x={(targetNode as any).position?.x - 2}
+                y={(targetNode as any).position?.y - 2}
+                width={targetNode.measured.width + 4}
+                height={targetNode.measured.height + 4}
+                fill="black"
+              />
+            )}
+          </mask>
+        </defs>
+        <g mask={`url(#neg-mask-${props.id})`}>
+          {/* Strap (background band) */}
+          {strapMeta && typeof strapMeta === 'object' && strapMeta.path && (
+            <>
+              <path d={(strapMeta as any).path} fill={`url(#neg-strap-${props.id})`} />
+              <path d={(strapMeta as any).path} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth={1} />
+            </>
+          )}
+          {/* Selection highlight behind edge */}
+          {Number.isFinite(sourceX) && Number.isFinite(sourceY) && Number.isFinite(targetX) && Number.isFinite(targetY) && selected && (
+            <line x1={sourceX} y1={sourceY} x2={targetX} y2={targetY} stroke="#000" strokeWidth={8} strokeLinecap="round" opacity={0.85} />
+          )}
+        </g>
+        {/* Main edge line - now properly masked */}
+        <g mask={`url(#neg-mask-${props.id})`}>
+          <StraightEdge
+            {...props}
+            style={{ strokeWidth: Math.max(1, Math.min(8, relevance * 1.6)), stroke: '#ef4444' }}
+            label="-"
+            labelShowBg={false}
+            labelStyle={{
+              padding: 0,
+              width: 20,
+              height: 20,
+              stroke: 'white',
+              strokeWidth: 2,
+              fontSize: 36,
+              fontWeight: 600,
+              fill: '#ef4444',
+            }}
+          />
+        </g>
+      </g>
       {showAffordance && (
         <>
           {/* Midpoint control: circle with minus */}
@@ -168,45 +212,45 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
         </>
       )}
       {
-      /* Always render the overlay; show stars only in importanceSim mode */
-      (
-      <EdgeLabelRenderer>
-        <div
-          style={{ position: 'absolute', transform: `translate(-50%, -50%) translate(${cx}px, ${cy + 18}px)`, zIndex: 1000, pointerEvents: 'all' }}
-          onMouseEnter={() => setHoveredEdge(props.id as string)}
-          onMouseLeave={() => setHoveredEdge(null)}
-          className={`transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
-        >
-          <div className="flex items-center justify-center gap-2 bg-white/95 backdrop-blur-sm border rounded-md shadow px-2 py-1">
-            <div className="flex items-center gap-2 text-[11px] select-none">
-              <span className="uppercase tracking-wide text-stone-500">Relevance</span>
-              <TooltipProvider>
-                <div className="flex items-center gap-1">
-                  {[1,2,3,4,5].map((i) => (
-                    <Tooltip key={`rel-${i}`}>
-                      <TooltipTrigger asChild>
-                        <button title={`Set relevance to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateEdgeRelevance?.(props.id as string, i as any); }}>
-                          <span className={i <= relevance ? 'text-red-600' : 'text-stone-300'}>★</span>
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="text-xs">Relevance: {i}/5</TooltipContent>
-                    </Tooltip>
-                  ))}
-                </div>
-              </TooltipProvider>
-            </div>
-            <button
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); }}
-              className="rounded-full px-2.5 py-0.5 text-[10px] font-medium bg-stone-800 text-white"
-              title="Add objection to this relation"
+        /* Always render the overlay; show stars only in importanceSim mode */
+        (
+          <EdgeLabelRenderer>
+            <div
+              style={{ position: 'absolute', transform: `translate(-50%, -50%) translate(${cx}px, ${cy + 18}px)`, zIndex: 1000, pointerEvents: 'all' }}
+              onMouseEnter={() => setHoveredEdge(props.id as string)}
+              onMouseLeave={() => setHoveredEdge(null)}
+              className={`transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
             >
-              Object
-            </button>
-          </div>
-        </div>
-      </EdgeLabelRenderer>
-      )}
+              <div className="flex items-center justify-center gap-2 bg-white/95 backdrop-blur-sm border rounded-md shadow px-2 py-1">
+                <div className="flex items-center gap-2 text-[11px] select-none">
+                  <span className="uppercase tracking-wide text-stone-500">Relevance</span>
+                  <TooltipProvider>
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <Tooltip key={`rel-${i}`}>
+                          <TooltipTrigger asChild>
+                            <button title={`Set relevance to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateEdgeRelevance?.(props.id as string, i as any); }}>
+                              <span className={i <= relevance ? 'text-red-600' : 'text-stone-300'}>★</span>
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs">Relevance: {i}/5</TooltipContent>
+                        </Tooltip>
+                      ))}
+                    </div>
+                  </TooltipProvider>
+                </div>
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); }}
+                  className="rounded-full px-2.5 py-0.5 text-[10px] font-medium bg-stone-800 text-white"
+                  title="Add objection to this relation"
+                >
+                  Object
+                </button>
+              </div>
+            </div>
+          </EdgeLabelRenderer>
+        )}
       {/* Invisible interaction overlay along the whole edge for selection/context menu (on top) */}
       {Number.isFinite(sourceX) && Number.isFinite(sourceY) && Number.isFinite(targetX) && Number.isFinite(targetY) && (
         <line
@@ -220,17 +264,6 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
           onClick={(e) => { e.stopPropagation(); setSelectedEdge?.(props.id as string); }}
           onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedEdge?.(props.id as string); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
         />
-      )}
-      {/* marching dots overlay on top (circles) */}
-      {strapMeta && (
-        <>
-          <defs>
-            <filter id={`neg-dotShadow-${props.id}`} x="-50%" y="-50%" width="200%" height="200%">
-              <feDropShadow dx="0" dy="0" stdDeviation="0.7" floodOpacity="0.2" />
-            </filter>
-          </defs>
-      <DotsAlongEdge id={String(props.id)} meta={strapMeta as any} favorAvg={favorAvg} />
-        </>
       )}
       <ContextMenu
         open={menuOpen}
@@ -250,57 +283,3 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
   );
 };
 
-function DotsAlongEdge({ id, meta, favorAvg }: { id: string; meta: { L:number; sx:number; sy:number; ex:number; ey:number; widthAt:(u:number)=>number; posAt:(u:number)=>{x:number;y:number} }; favorAvg: number }) {
-  const [reduced, setReduced] = React.useState(false);
-  const [tick, setTick] = React.useState(0);
-  React.useEffect(() => {
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const update = () => setReduced(mq.matches);
-    update();
-    mq.addEventListener('change', update);
-    return () => mq.removeEventListener('change', update);
-  }, []);
-  React.useEffect(() => {
-    if (reduced) return;
-    let raf = 0; let last = performance.now();
-    const loop = (t: number) => {
-      if (t - last > 1000/30) { // ~30fps
-        setTick((v) => (v + 1) % 1_000_000);
-        last = t;
-      }
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [reduced]);
-
-  const spacingBase = 28;
-  const halfLen = meta.L / 2;
-  const nHalf = Math.max(3, Math.floor(halfLen / spacingBase));
-  const speedPx = 16 + (Math.max(1, Math.min(5, favorAvg)) - 1) * 14; // px/s driven by favor
-  const now = reduced ? 0 : ((performance.now ? performance.now() : Date.now()) / 1000);
-
-  const outLeft = Array.from({ length: nHalf }).map((_, j) => {
-    const dist = reduced ? (j + 0.5) * (halfLen / nHalf) : (now * speedPx + j * spacingBase) % halfLen;
-    const u = Math.max(0, Math.min(0.5, 0.5 - dist / meta.L));
-    const p = meta.posAt(u);
-    const w = meta.widthAt(u);
-    const r = Math.max(1.6, Math.min(7, w * 0.28));
-    return { key: `l${j}`, cx: p.x, cy: p.y, r };
-  });
-  const outRight = Array.from({ length: nHalf }).map((_, j) => {
-    const dist = reduced ? (j + 0.5) * (halfLen / nHalf) : (now * speedPx + j * spacingBase) % halfLen;
-    const u = Math.min(1, Math.max(0.5, 0.5 + dist / meta.L));
-    const p = meta.posAt(u);
-    const w = meta.widthAt(u);
-    const r = Math.max(1.6, Math.min(7, w * 0.28));
-    return { key: `r${j}`, cx: p.x, cy: p.y, r };
-  });
-  return (
-    <g filter={`url(#neg-dotShadow-${id})`}>
-      {[...outLeft, ...outRight].map((d) => (
-        <circle key={d.key} cx={d.cx} cy={d.cy} r={d.r} fill="#fff" stroke="#0b1220" strokeWidth={1.5} />
-      ))}
-    </g>
-  );
-}

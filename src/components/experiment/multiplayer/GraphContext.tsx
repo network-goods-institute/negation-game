@@ -5,6 +5,8 @@ type GraphActions = {
     updateNodeHidden?: (nodeId: string, hidden: boolean) => void;
     updateNodeFavor?: (nodeId: string, favor: 1|2|3|4|5) => void;
     addNegationBelow: (parentNodeId: string) => void;
+    addAnswerBelow: (parentNodeId: string) => void;
+    addQuestionBelow: (parentNodeId: string) => void;
     deleteNode: (nodeId: string) => void;
     beginConnectFromNode: (nodeId: string) => void;
     completeConnectToNode?: (nodeId: string) => void;
@@ -28,7 +30,7 @@ type GraphActions = {
     proxyMode?: boolean;
     undo?: () => void;
     redo?: () => void;
-    addNodeAtPosition?: (type: 'point' | 'statement' | 'objection', x: number, y: number) => void;
+    addNodeAtPosition?: (type: 'point' | 'statement' | 'question' | 'answer' | 'objection', x: number, y: number) => void;
 };
 
 const GraphContext = createContext<GraphActions | null>(null);
@@ -43,6 +45,8 @@ export const useGraphActions = () => {
             updateNodeHidden: () => { },
             updateNodeFavor: () => { },
             addNegationBelow: () => { },
+            addAnswerBelow: () => { },
+            addQuestionBelow: () => { },
             deleteNode: () => { },
             beginConnectFromNode: () => { },
             completeConnectToNode: () => { },

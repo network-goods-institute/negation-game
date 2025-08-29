@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo } from 'react';
-import { StraightEdge, EdgeProps, EdgeLabelRenderer } from '@xyflow/react';
+import { StraightEdge, EdgeProps, useReactFlow, EdgeLabelRenderer } from '@xyflow/react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useGraphActions } from './GraphContext';
 import { ContextMenu } from './common/ContextMenu';
 import { useEdgePerformanceOptimization } from './common/useEdgePerformanceOptimization';
 
-export const StatementEdge: React.FC<EdgeProps> = (props) => {
+export const QuestionEdge: React.FC<EdgeProps> = (props) => {
     const { hoveredEdgeId, selectedEdgeId, setSelectedEdge, addObjectionForEdge, setHoveredEdge, updateEdgeAnchorPosition, deleteNode, updateEdgeRelevance } = useGraphActions() as any;
     const isHovered = hoveredEdgeId === props.id;
     const [menuOpen, setMenuOpen] = React.useState(false);
@@ -31,7 +31,7 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
     const cy = sourceY != null && targetY != null
         ? (sourceY + targetY) / 2
         : 0;
-    // push live center into anchor so it tracks exactly, but only when values change
+
     const lastPosRef = React.useRef<{ x: number; y: number } | null>(null);
     const rafRef = React.useRef<number>(0);
     useEffect(() => {
@@ -65,7 +65,6 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
     const tgtIsAnswer = (targetNode as any)?.type === 'answer';
     const srcLowOpacity = (srcHasFavor && srcFavor <= 3) || srcIsQuestion || srcIsAnswer;
     const tgtLowOpacity = (tgtHasFavor && tgtFavor <= 3) || tgtIsQuestion || tgtIsAnswer;
-
 
     // Strap geometry (variable-width band along straight centerline)
     const strapMeta = React.useMemo(() => {
@@ -116,11 +115,11 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
             {/* Edge elements with opacity */}
             <g style={{ opacity: edgeOpacity }}>
                 <defs>
-                    <linearGradient id={`stmt-strap-${props.id}`} x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id={`quest-strap-${props.id}`} x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#111827" stopOpacity={0.22} />
                         <stop offset="100%" stopColor="#374151" stopOpacity={0.22} />
                     </linearGradient>
-                    <mask id={`stmt-mask-${props.id}`}>
+                    <mask id={`quest-mask-${props.id}`}>
                         <rect x="-10000" y="-10000" width="20000" height="20000" fill="white" />
                         {shouldRenderEllipses && srcLowOpacity && sourceNode && sourceNode.measured && typeof sourceNode.measured.width === 'number' && typeof sourceNode.measured.height === 'number' && (
                             <ellipse
@@ -142,11 +141,11 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
                         )}
                     </mask>
                 </defs>
-                <g mask={`url(#stmt-mask-${props.id})`}>
+                <g mask={`url(#quest-mask-${props.id})`}>
                     {/* Strap (background band) */}
                     {strapMeta && typeof strapMeta === 'object' && strapMeta.path && (
                         <>
-                            <path d={(strapMeta as any).path} fill={`url(#stmt-strap-${props.id})`} />
+                            <path d={(strapMeta as any).path} fill={`url(#quest-strap-${props.id})`} />
                             <path d={(strapMeta as any).path} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth={1} />
                         </>
                     )}
@@ -156,7 +155,7 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
                     )}
                     <StraightEdge
                         {...props}
-                        style={{ strokeWidth: Math.max(1, Math.min(8, relevance * 1.6)), stroke: '#6b7280' }}
+                        style={{ strokeWidth: Math.max(1, Math.min(8, relevance * 1.6)), stroke: '#16a34a' }}
                         interactionWidth={8}
                     />
                 </g>
@@ -179,52 +178,49 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
                 <>
                     {/* Midpoint dot to hint objection affordance */}
                     <foreignObject x={cx - 8} y={cy - 8} width={16} height={16} style={{ pointerEvents: 'all' }}>
-                        <div onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); }} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedEdge?.(props.id as string); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }} title="Edge controls" className="w-4 h-4 rounded-full bg-white border flex items-center justify-center" style={{ borderColor: '#6b7280', cursor: 'pointer' }}>
-                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#6b7280' }} />
+                        <div onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); }} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedEdge?.(props.id as string); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }} title="Edge controls" className="w-4 h-4 rounded-full bg-white border flex items-center justify-center text-[8px] font-bold" style={{ borderColor: '#16a34a', cursor: 'pointer', color: '#16a34a' }}>
+                            ?
                         </div>
                     </foreignObject>
-                    {null}
                 </>
             )}
             {/* Overlay controls rendered above nodes */}
-            {(
-                <EdgeLabelRenderer>
-                    <div
-                        style={{ position: 'absolute', transform: `translate(-50%, -50%) translate(${cx}px, ${cy + 18}px)`, zIndex: 1000, pointerEvents: 'all' }}
-                        onMouseEnter={() => setHoveredEdge(props.id as string)}
-                        onMouseLeave={() => setHoveredEdge(null)}
-                        className={`transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
-                    >
-                        <div className="flex items-center justify-center gap-2 bg-white/95 backdrop-blur-sm border rounded-md shadow px-2 py-1">
-                            <div className="flex items-center gap-2 text-[11px] select-none">
-                                <span className="uppercase tracking-wide text-stone-500">Relevance</span>
-                                <TooltipProvider>
-                                    <div className="flex items-center gap-1">
-                                        {[1, 2, 3, 4, 5].map((i) => (
-                                            <Tooltip key={`rel-${i}`}>
-                                                <TooltipTrigger asChild>
-                                                    <button title={`Set relevance to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateEdgeRelevance?.(props.id as string, i as any); }}>
-                                                        <span className={i <= (props as any).data?.relevance ? 'text-blue-600' : 'text-stone-300'}>★</span>
-                                                    </button>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="top" className="text-xs">Relevance: {i}/5</TooltipContent>
-                                            </Tooltip>
-                                        ))}
-                                    </div>
-                                </TooltipProvider>
-                            </div>
-                            <button
-                                onMouseDown={(e) => e.preventDefault()}
-                                onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); }}
-                                className="rounded-full px-2.5 py-0.5 text-[10px] font-medium bg-stone-800 text-white"
-                                title="Add objection to this relation"
-                            >
-                                Object
-                            </button>
+            <EdgeLabelRenderer>
+                <div
+                    style={{ position: 'absolute', transform: `translate(-50%, -50%) translate(${cx}px, ${cy + 18}px)`, zIndex: 1000, pointerEvents: 'all' }}
+                    onMouseEnter={() => setHoveredEdge(props.id as string)}
+                    onMouseLeave={() => setHoveredEdge(null)}
+                    className={`transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
+                >
+                    <div className="flex items-center justify-center gap-2 bg-white/95 backdrop-blur-sm border rounded-md shadow px-2 py-1">
+                        <div className="flex items-center gap-2 text-[11px] select-none">
+                            <span className="uppercase tracking-wide text-stone-500">Relevance</span>
+                            <TooltipProvider>
+                                <div className="flex items-center gap-1">
+                                    {[1, 2, 3, 4, 5].map((i) => (
+                                        <Tooltip key={`rel-${i}`}>
+                                            <TooltipTrigger asChild>
+                                                <button title={`Set relevance to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateEdgeRelevance?.(props.id as string, i as any); }}>
+                                                    <span className={i <= (props as any).data?.relevance ? 'text-green-600' : 'text-stone-300'}>★</span>
+                                                </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="text-xs">Relevance: {i}/5</TooltipContent>
+                                        </Tooltip>
+                                    ))}
+                                </div>
+                            </TooltipProvider>
                         </div>
+                        <button
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); }}
+                            className="rounded-full px-2.5 py-0.5 text-[10px] font-medium bg-stone-800 text-white"
+                            title="Add objection to this relation"
+                        >
+                            Object
+                        </button>
                     </div>
-                </EdgeLabelRenderer>
-            )}
+                </div>
+            </EdgeLabelRenderer>
             <ContextMenu
                 open={menuOpen}
                 x={menuPos.x}
@@ -242,4 +238,3 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
         </>
     );
 };
-
