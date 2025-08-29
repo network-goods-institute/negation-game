@@ -30,6 +30,8 @@ import {
     createUpdateNodeHidden,
     createDeleteNode,
     createAddNegationBelow,
+    createAddAnswerBelow,
+    createAddQuestionBelow,
     createAddObjectionForEdge,
     createUpdateEdgeAnchorPosition,
     createAddNodeAtPosition
@@ -51,7 +53,6 @@ export default function MultiplayerRationaleDetailPage() {
     const [connectCursor, setConnectCursor] = useState<{ x: number; y: number } | null>(null);
     const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
     const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
-    const [importanceSim, setImportanceSim] = useState<boolean>(false);
     const localOriginRef = useRef<object>({});
     const lastAddRef = useRef<Record<string, number>>({});
 
@@ -92,7 +93,7 @@ export default function MultiplayerRationaleDetailPage() {
         roomName,
         initialNodes: initialGraph?.nodes || [],
         initialEdges: initialGraph?.edges || [],
-        enabled: ready && !isUserLoading && !isUserFetching && Boolean(initialGraph),
+        enabled: ready && authenticated && !isUserLoading && !isUserFetching && Boolean(initialGraph),
         localOrigin: localOriginRef.current,
     });
 
@@ -139,6 +140,38 @@ export default function MultiplayerRationaleDetailPage() {
         getLockOwner
     );
 
+    const addAnswerBelow = createAddAnswerBelow(
+        nodes,
+        yNodesMap,
+        yEdgesMap,
+        yTextMap,
+        ydoc,
+        isLeader,
+        localOriginRef.current,
+        lastAddRef,
+        setNodes,
+        setEdges,
+        registerTextInUndoScope,
+        isLockedForMe,
+        getLockOwner
+    );
+
+    const addQuestionBelow = createAddQuestionBelow(
+        nodes,
+        yNodesMap,
+        yEdgesMap,
+        yTextMap,
+        ydoc,
+        isLeader,
+        localOriginRef.current,
+        lastAddRef,
+        setNodes,
+        setEdges,
+        registerTextInUndoScope,
+        isLockedForMe,
+        getLockOwner
+    );
+
     const addObjectionForEdge = createAddObjectionForEdge(
         nodes,
         edges,
@@ -155,7 +188,6 @@ export default function MultiplayerRationaleDetailPage() {
         getLockOwner
     );
 
-    const updateEdgeAnchorPosition = React.useMemo(() => createUpdateEdgeAnchorPosition(setNodes), [setNodes]);
     const updateNodeFavor = (nodeId: string, favor: 1 | 2 | 3 | 4 | 5) => {
         setNodes((nds: any[]) => nds.map(n => n.id === nodeId ? { ...n, data: { ...(n.data || {}), favor } } : n));
         if (yNodesMap && ydoc && isLeader) {
@@ -175,21 +207,6 @@ export default function MultiplayerRationaleDetailPage() {
         }
     };
 
-    // Sync importanceSim across clients using yMetaMap
-    React.useEffect(() => {
-        const m = yMetaMap as any;
-        if (!m) return;
-        const apply = () => {
-            try {
-                const val = m.get('importanceSim');
-                if (typeof val === 'boolean') setImportanceSim(val);
-            } catch { }
-        };
-        apply();
-        const obs = () => apply();
-        m.observe(obs);
-        return () => { try { m.unobserve(obs); } catch { } };
-    }, [yMetaMap]);
 
     const clearConnect = React.useCallback(() => {
         setConnectMode(false);
@@ -207,6 +224,17 @@ export default function MultiplayerRationaleDetailPage() {
         clearConnect,
     });
 
+    const updateEdgeAnchorPosition = React.useMemo(
+        () => createUpdateEdgeAnchorPosition(
+            setNodes as any,
+            isLeader && leaderSynced ? (yNodesMap as any) : null,
+            isLeader && leaderSynced ? (ydoc as any) : null,
+            isLeader && leaderSynced,
+            localOriginRef.current,
+        ),
+        [setNodes, yNodesMap, ydoc, isLeader, leaderSynced]
+    );
+
     const { onNodesChange, onEdgesChange, onConnect, commitNodePositions } = createGraphChangeHandlers(
         setNodes,
         setEdges,
@@ -214,7 +242,8 @@ export default function MultiplayerRationaleDetailPage() {
         isLeader && leaderSynced ? yEdgesMap : null,
         isLeader && leaderSynced ? ydoc : null,
         syncYMapFromArray,
-        localOriginRef.current
+        localOriginRef.current,
+        () => nodes as any[]
     );
 
     const updateNodeContent = createUpdateNodeContent(
@@ -289,6 +318,8 @@ export default function MultiplayerRationaleDetailPage() {
                     ),
                     updateNodeFavor,
                     addNegationBelow,
+                    addAnswerBelow,
+                    addQuestionBelow,
                     deleteNode,
                     beginConnectFromNode: (id: string) => { connectAnchorRef.current = id; setConnectAnchorId(id); },
                     completeConnectToNode: (nodeId: string) => {
@@ -348,7 +379,7 @@ export default function MultiplayerRationaleDetailPage() {
                     isLockedForMe,
                     getLockOwner,
                     proxyMode: !isLeader,
-                    importanceSim,
+                    
                     undo,
                     redo,
                     addNodeAtPosition: createAddNodeAtPosition(
@@ -408,18 +439,7 @@ export default function MultiplayerRationaleDetailPage() {
                             readOnly={!isLeader}
                             grabMode={grabMode}
                             setGrabMode={setGrabMode}
-                            importanceSim={importanceSim}
-                            setImportanceSim={(v: any) => {
-                                const next = typeof v === 'function' ? (v as any)(importanceSim) : v;
-                                setImportanceSim(next);
-                                try {
-                                    if (ydoc && (yMetaMap as any)) {
-                                        (ydoc as any).transact(() => {
-                                            (yMetaMap as any).set('importanceSim', Boolean(next));
-                                        }, localOriginRef.current);
-                                    }
-                                } catch { }
-                            }}
+                            
                         />
                     </div>
                     <GraphUpdater nodes={nodes} edges={edges} setNodes={setNodes} />

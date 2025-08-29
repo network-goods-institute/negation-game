@@ -189,6 +189,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         items={[
           { label: 'Statement', onClick: () => graph.addNodeAtPosition?.('statement', cmFlow.x, cmFlow.y) },
           { label: 'Point', onClick: () => graph.addNodeAtPosition?.('point', cmFlow.x, cmFlow.y) },
+          { label: 'Question', onClick: () => graph.addNodeAtPosition?.('question', cmFlow.x, cmFlow.y) },
+          { label: 'Answer', onClick: () => graph.addNodeAtPosition?.('answer', cmFlow.x, cmFlow.y) },
           { label: 'Objection', onClick: () => graph.addNodeAtPosition?.('objection', cmFlow.x, cmFlow.y) },
         ]}
       />

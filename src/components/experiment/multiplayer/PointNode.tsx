@@ -8,6 +8,7 @@ import { ContextMenu } from './common/ContextMenu';
 import { toast } from 'sonner';
 import { Eye, EyeOff } from 'lucide-react';
 import { NodeActionPill } from './common/NodeActionPill';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface PointNodeProps {
   data: {
@@ -19,7 +20,7 @@ interface PointNodeProps {
 }
 
 export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
-  const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, importanceSim, selectedEdgeId } = useGraphActions() as any;
+  const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, selectedEdgeId } = useGraphActions() as any;
 
   const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus } = useEditableNode({
     id,
@@ -66,6 +67,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
   const connect = useConnectableNode({ id, locked });
   const hidden = (data as any)?.hidden === true;
   const favor = Math.max(1, Math.min(5, (data as any)?.favor ?? 3));
+  const favorOpacity = selected || hovered ? 1 : Math.max(0.3, Math.min(1, favor / 5));
 
   return (
     <>
@@ -83,9 +85,10 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
             if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
           }}
           onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
-          className={`px-4 py-3 rounded-lg ${hidden ? 'bg-stone-200 text-stone-600' : 'bg-white text-gray-900'} border-2 min-w-[200px] max-w-[320px] relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
-            ${selected ? 'border-black' : (hidden ? 'border-stone-300' : 'border-stone-200')}
+          className={`px-4 py-3 rounded-lg ${hidden ? 'bg-gray-200 text-gray-600' : 'bg-white text-gray-900'} border-2 min-w-[200px] max-w-[320px] relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
+            ${selected ? 'border-black' : (hidden ? 'border-gray-300' : 'border-stone-200')}
             `}
+          style={{ opacity: hidden ? undefined : favorOpacity }}
         >
           <div className="relative z-10">
             {/* Eye toggle top-right */}
@@ -129,13 +132,28 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
             )}
 
         <EditorsBadgeRow editors={getEditorsForNode?.(id) || []} />
-        {importanceSim && selected && !selectedEdgeId && (
-          <div className="mt-1 mb-1 flex items-center gap-1 select-none" title="Set favor/veracity (simulation). 1 = low, 5 = high.">
-            {[1,2,3,4,5].map((i) => (
-              <button key={i} title={`Set favor to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateNodeFavor?.(id, i as any); }} className="text-[12px] leading-none">
-                <span className={i <= favor ? 'text-amber-500' : 'text-stone-300'}>★</span>
-              </button>
-            ))}
+        {selected && !hidden && (
+          <div className="mt-1 mb-1 flex items-center gap-2 select-none">
+            <span className="text-[10px] uppercase tracking-wide text-stone-500">Favor</span>
+            <TooltipProvider>
+              <div className="flex items-center gap-1">
+                {[1,2,3,4,5].map((i) => (
+                  <Tooltip key={`fv-${i}`}>
+                    <TooltipTrigger asChild>
+                      <button
+                        title={`Set favor to ${i}`}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={(e) => { e.stopPropagation(); updateNodeFavor?.(id, i as any); }}
+                        className="text-[12px] leading-none"
+                      >
+                        <span className={i <= favor ? 'text-amber-500' : 'text-stone-300'}>★</span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">Favor: {i}/5</TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
+            </TooltipProvider>
           </div>
         )}
         {!hidden && (

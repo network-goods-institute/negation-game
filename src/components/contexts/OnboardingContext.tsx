@@ -158,7 +158,8 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     const suppressOnboarding = !!privyUser && !appUser; // new-user init state
 
     useEffect(() => {
-        if (pathname === '/' || pathname.startsWith('/embed')) {
+        const suppressed = pathname === '/' || pathname.startsWith('/embed') || pathname.startsWith('/experiment/rationale/multiplayer');
+        if (suppressed) {
             setIsInitialized(true);
             return;
         }
@@ -202,10 +203,12 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
         isPermanentlyDismissed,
     };
 
+    const suppressed = pathname === '/' || pathname.startsWith('/embed') || pathname.startsWith('/experiment/rationale/multiplayer');
+
     return (
         <OnboardingContext.Provider value={value}>
             {children}
-            {isInitialized && !suppressOnboarding && (
+            {isInitialized && !suppressOnboarding && !suppressed && (
                 <OnboardingDialog
                     isOpen={isOpen}
                     onClose={() => closeDialog(false)}

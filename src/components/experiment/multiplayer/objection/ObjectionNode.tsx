@@ -8,6 +8,7 @@ import { ContextMenu } from '../common/ContextMenu';
 import { toast } from 'sonner';
 import { NodeActionPill } from '../common/NodeActionPill';
 import { Eye, EyeOff } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ObjectionNodeProps {
     data: {
@@ -19,7 +20,7 @@ interface ObjectionNodeProps {
 }
 
 const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => {
-    const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, importanceSim, selectedEdgeId } = useGraphActions() as any;
+    const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, selectedEdgeId } = useGraphActions() as any;
     const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus } = useEditableNode({
         id,
         content: data.content,
@@ -69,6 +70,8 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
     const connect = useConnectableNode({ id, locked });
     const hidden = (data as any)?.hidden === true;
+    const favor = Math.max(1, Math.min(5, (data as any)?.favor ?? 3));
+    const favorOpacity = selected || hovered ? 1 : Math.max(0.3, Math.min(1, favor / 5));
 
     return (
         <>
@@ -86,9 +89,10 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                         if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
                     }}
                     onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
-                    className={`px-3 py-2 rounded-lg bg-amber-100 border-2 min-w-[180px] max-w-[300px] relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} node-drag-handle ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
-                        ${selected ? 'border-black' : 'border-amber-500'}
+                    className={`px-3 py-2 rounded-lg ${hidden ? 'bg-amber-200 text-amber-700' : 'bg-amber-100 text-amber-900'} border-2 min-w-[180px] max-w-[300px] relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} node-drag-handle ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
+                        ${selected ? 'border-black' : (hidden ? 'border-amber-400' : 'border-amber-500')}
                         }`}
+                    style={{ opacity: hidden ? undefined : favorOpacity }}
                 >
                     <div className="relative z-10">
                         {isConnectingFromNodeId === id && (
@@ -120,34 +124,49 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                             onFocus={onFocus}
                             onBlur={onBlur}
                             onKeyDown={onKeyDown}
-                            className="text-xs text-amber-900 leading-relaxed whitespace-pre-wrap break-words outline-none"
+                            className={`text-xs leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-amber-900'}`}
                         >
                             {value}
                         </div>
                         {hidden && (
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-                                <div className="text-xs text-amber-700 italic animate-fade-in">Hidden</div>
+                                <div className="text-xs text-amber-600 italic animate-fade-in">Hidden</div>
                             </div>
                         )}
-                        {importanceSim && selected && !selectedEdgeId && (
-                            <div className="mt-1 mb-1 flex items-center gap-1 select-none" title="Set favor/veracity (simulation). 1 = low, 5 = high.">
-                                {[1,2,3,4,5].map((i) => (
-                                    <button key={i} title={`Set favor to ${i}`} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); updateNodeFavor?.(id, i as any); }} className="text-[12px] leading-none">
-                                        <span className={i <= ((data as any)?.favor ?? 3) ? 'text-amber-500' : 'text-stone-300'}>★</span>
-                                    </button>
-                                ))}
+                        {selected && !hidden && (
+                            <div className="mt-1 mb-1 flex items-center gap-2 select-none">
+                                <span className="text-[10px] uppercase tracking-wide text-stone-500">Favor</span>
+                                <TooltipProvider>
+                                    <div className="flex items-center gap-1">
+                                        {[1, 2, 3, 4, 5].map((i) => (
+                                            <Tooltip key={`fv-${i}`}>
+                                                <TooltipTrigger asChild>
+                                                    <button
+                                                        title={`Set favor to ${i}`}
+                                                        onMouseDown={(e) => e.preventDefault()}
+                                                        onClick={(e) => { e.stopPropagation(); updateNodeFavor?.(id, i as any); }}
+                                                        className="text-[12px] leading-none"
+                                                    >
+                                                        <span className={i <= favor ? 'text-amber-600' : 'text-stone-300'}>★</span>
+                                                    </button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top" className="text-xs">Favor: {i}/5</TooltipContent>
+                                            </Tooltip>
+                                        ))}
+                                    </div>
+                                </TooltipProvider>
                             </div>
                         )}
 
                         {!hidden && (
-                        <NodeActionPill
-                            label="Negate"
-                            visible={shouldShowPill}
-                            onClick={() => addNegationBelow(id)}
-                            colorClass="bg-stone-800"
-                            onMouseEnter={() => { cancelHide(); setPillVisible(true); }}
-                            onMouseLeave={() => { scheduleHide(); }}
-                        />
+                            <NodeActionPill
+                                label="Negate"
+                                visible={shouldShowPill}
+                                onClick={() => addNegationBelow(id)}
+                                colorClass="bg-stone-800"
+                                onMouseEnter={() => { cancelHide(); setPillVisible(true); }}
+                                onMouseLeave={() => { scheduleHide(); }}
+                            />
                         )}
                     </div>
                 </div>

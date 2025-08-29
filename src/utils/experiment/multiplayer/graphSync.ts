@@ -7,6 +7,7 @@ import {
   applyEdgeChanges,
 } from "@xyflow/react";
 import * as Y from "yjs";
+import { chooseEdgeType } from './connectUtils';
 
 export const generateEdgeId = (): string => {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -26,7 +27,8 @@ export const deterministicEdgeId = (
   return `edge:${type}:${source}:${sh}->${target}:${th}`;
 };
 
-export const createNegationEdge = (
+export const createEdgeByType = (
+  edgeType: string,
   source: string,
   target: string,
   sourceHandle?: string | null,
@@ -34,7 +36,7 @@ export const createNegationEdge = (
 ): Edge => {
   return {
     id: deterministicEdgeId(
-      "negation",
+      edgeType,
       source,
       target,
       sourceHandle,
@@ -44,7 +46,7 @@ export const createNegationEdge = (
     target,
     sourceHandle: sourceHandle || null,
     targetHandle: targetHandle || null,
-    type: "negation",
+    type: edgeType,
   };
 };
 
@@ -58,7 +60,8 @@ export const createGraphChangeHandlers = (
     ymap: Y.Map<T>,
     arr: T[]
   ) => void,
-  localOrigin?: any
+  localOrigin?: any,
+  getCurrentNodes?: () => Node[]
 ) => {
   // Delta-based node sync: only write changed positions to Yjs during drags
   let rafEdgesId: number | null = null;
@@ -169,7 +172,13 @@ export const createGraphChangeHandlers = (
   }) => {
     if (!params.source || !params.target) return;
 
-    const edge = createNegationEdge(
+    const currentNodes = getCurrentNodes?.() || [];
+    const sourceNode = currentNodes.find((n: any) => n.id === params.source);
+    const targetNode = currentNodes.find((n: any) => n.id === params.target);
+    const edgeType = chooseEdgeType(sourceNode?.type, targetNode?.type);
+    
+    const edge = createEdgeByType(
+      edgeType,
       params.source,
       params.target,
       params.sourceHandle,
