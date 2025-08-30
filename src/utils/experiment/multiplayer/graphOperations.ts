@@ -3,6 +3,18 @@ import { chooseEdgeType } from "./connectUtils";
 import * as Y from "yjs";
 import { toast } from "sonner";
 
+const calculateNodePositionBelow = (
+  parentPosition: { x: number; y: number },
+  getViewportOffset?: () => { x: number; y: number }
+) => {
+  const viewportOffset = getViewportOffset?.() || { x: 0, y: 0 };
+  const baseOffset = 30; // Base vertical offset in flow coordinates
+  return {
+    x: parentPosition.x + viewportOffset.x,
+    y: parentPosition.y + baseOffset + viewportOffset.y,
+  };
+};
+
 export const createUpdateNodeContent = (
   yTextMap: any,
   ydoc: any,
@@ -354,7 +366,8 @@ export const createAddNegationBelow = (
   setEdges: (updater: (edges: any[]) => any[]) => void,
   registerTextInUndoScope?: (t: any) => void,
   isLockedForMe?: (nodeId: string) => boolean,
-  getLockOwner?: (nodeId: string) => { name?: string } | null
+  getLockOwner?: (nodeId: string) => { name?: string } | null,
+  getViewportOffset?: () => { x: number; y: number }
 ) => {
   return (parentNodeId: string) => {
     if (isLockedForMe?.(parentNodeId)) {
@@ -373,7 +386,11 @@ export const createAddNegationBelow = (
     const parent = nodes.find((n: any) => n.id === parentNodeId);
     if (!parent) return;
     const newId = `p-${now}-${Math.floor(Math.random() * 1e6)}`;
-    const newPos = { x: parent.position.x, y: parent.position.y + 180 };
+
+    const newPos = calculateNodePositionBelow(
+      parent.position,
+      getViewportOffset
+    );
     const newNode: any = {
       id: newId,
       type: "point",
@@ -425,7 +442,8 @@ export const createAddPointBelow = (
   setEdges: (updater: (edges: any[]) => any[]) => void,
   registerTextInUndoScope?: (t: any) => void,
   isLockedForMe?: (nodeId: string) => boolean,
-  getLockOwner?: (nodeId: string) => { name?: string } | null
+  getLockOwner?: (nodeId: string) => { name?: string } | null,
+  getViewportOffset?: () => { x: number; y: number }
 ) => {
   return (parentNodeId: string) => {
     if (isLockedForMe?.(parentNodeId)) {
@@ -443,7 +461,11 @@ export const createAddPointBelow = (
     const parent = nodes.find((n: any) => n.id === parentNodeId);
     if (!parent) return;
     const newId = `p-${now}-${Math.floor(Math.random() * 1e6)}`;
-    const newPos = { x: parent.position.x, y: parent.position.y + 180 };
+
+    const newPos = calculateNodePositionBelow(
+      parent.position,
+      getViewportOffset
+    );
     const newNode: any = {
       id: newId,
       type: "point",
@@ -493,7 +515,8 @@ export const createAddQuestionBelow = (
   setEdges: (updater: (edges: any[]) => any[]) => void,
   registerTextInUndoScope?: (t: any) => void,
   isLockedForMe?: (nodeId: string) => boolean,
-  getLockOwner?: (nodeId: string) => { name?: string } | null
+  getLockOwner?: (nodeId: string) => { name?: string } | null,
+  getViewportOffset?: () => { x: number; y: number }
 ) => {
   return (parentNodeId: string) => {
     if (isLockedForMe?.(parentNodeId)) {
@@ -511,7 +534,11 @@ export const createAddQuestionBelow = (
     const parent = nodes.find((n: any) => n.id === parentNodeId);
     if (!parent) return;
     const newId = `q-${now}-${Math.floor(Math.random() * 1e6)}`;
-    const newPos = { x: parent.position.x, y: parent.position.y + 180 };
+
+    const newPos = calculateNodePositionBelow(
+      parent.position,
+      getViewportOffset
+    );
     const newNode: any = {
       id: newId,
       type: "question",

@@ -125,6 +125,11 @@ export default function MultiplayerRationaleDetailPage() {
         getLockOwner
     );
 
+    const getViewportOffset = React.useCallback(() => {
+        const nodeSpacing = 80;
+        return { x: Math.random() * 40 - 20, y: nodeSpacing };
+    }, []);
+
     const addNegationBelow = createAddNegationBelow(
         nodes,
         yNodesMap,
@@ -138,7 +143,8 @@ export default function MultiplayerRationaleDetailPage() {
         setEdges,
         registerTextInUndoScope,
         isLockedForMe,
-        getLockOwner
+        getLockOwner,
+        getViewportOffset
     );
 
     const addPointBelow = createAddPointBelow(
@@ -154,7 +160,8 @@ export default function MultiplayerRationaleDetailPage() {
         setEdges,
         registerTextInUndoScope,
         isLockedForMe,
-        getLockOwner
+        getLockOwner,
+        getViewportOffset
     );
 
     const addQuestionBelow = createAddQuestionBelow(
@@ -170,7 +177,8 @@ export default function MultiplayerRationaleDetailPage() {
         setEdges,
         registerTextInUndoScope,
         isLockedForMe,
-        getLockOwner
+        getLockOwner,
+        getViewportOffset
     );
 
     const addObjectionForEdge = createAddObjectionForEdge(
