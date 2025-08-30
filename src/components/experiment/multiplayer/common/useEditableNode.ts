@@ -200,8 +200,8 @@ export const useEditableNode = ({
       return;
     }
 
-    // Single click: only enter edit if this is the "second click" within threshold while selected
-    if (isSelected && now - lastClickRef.current <= 600) {
+    // Single click: enter edit mode if node is selected, or if it's a quick second click
+    if (isSelected || now - lastClickRef.current <= 600) {
       if (!isEditing) originalBeforeEditRef.current = value;
       setIsEditing(true);
       const { clientX, clientY } = e;
@@ -246,10 +246,13 @@ export const useEditableNode = ({
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     // Intercept global undo/redo while editing to avoid native contentEditable undo
-    if ((e.metaKey || e.ctrlKey) && (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y')) {
+    if (
+      (e.metaKey || e.ctrlKey) &&
+      (e.key.toLowerCase() === "z" || e.key.toLowerCase() === "y")
+    ) {
       e.preventDefault();
       e.stopPropagation();
-      if (e.shiftKey || e.key.toLowerCase() === 'y') {
+      if (e.shiftKey || e.key.toLowerCase() === "y") {
         graph?.redo?.();
       } else {
         graph?.undo?.();
@@ -283,6 +286,26 @@ export const useEditableNode = ({
     startEditingNode?.(id);
   };
 
+  const startEditingProgrammatically = () => {
+    if (!isEditing) {
+      setIsEditing(true);
+      startEditingNode?.(id);
+      // Focus and place cursor at the end
+      setTimeout(() => {
+        const el = contentRef.current;
+        if (el) {
+          el.focus();
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          range.collapse(false); // Move cursor to end
+          const sel = window.getSelection();
+          sel?.removeAllRanges();
+          sel?.addRange(range);
+        }
+      }, 0);
+    }
+  };
+
   return {
     isEditing,
     value,
@@ -295,5 +318,6 @@ export const useEditableNode = ({
     onBlur,
     onFocus,
     commit,
+    startEditingProgrammatically,
   };
 };

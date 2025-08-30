@@ -125,7 +125,7 @@ export const createAddNodeAtPosition = (
   setNodes: (updater: (nodes: any[]) => any[]) => void
 ) => {
   return (
-    type: "point" | "statement" | "objection" | "question",
+    type: "point" | "statement" | "title" | "objection",
     x: number,
     y: number
   ) => {
@@ -134,8 +134,8 @@ export const createAddNodeAtPosition = (
         ? "s"
         : type === "objection"
           ? "o"
-          : type === "question"
-            ? "q"
+          : type === "title"
+            ? "t"
             : "p";
     const id = `${idBase}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const data: any =
@@ -143,10 +143,16 @@ export const createAddNodeAtPosition = (
         ? { statement: "New Statement" }
         : type === "objection"
           ? { content: "New objection" }
-          : type === "question"
-            ? { content: "What about...?" }
+          : type === "title"
+            ? { content: "New Title" }
             : { content: "New point" };
-    const node: any = { id, type, position: { x, y }, data };
+    const node: any = {
+      id,
+      type,
+      position: { x, y },
+      data: { ...data, createdAt: Date.now() },
+      selected: true,
+    };
 
     // local UI responsiveness
     setNodes((nds) => [...nds, node]);
@@ -156,10 +162,7 @@ export const createAddNodeAtPosition = (
         yNodesMap.set(id, node);
         if (
           yTextMap &&
-          (type === "point" ||
-            type === "objection" ||
-            type === "statement" ||
-            type === "question")
+          (type === "point" || type === "objection" || type === "statement")
         ) {
           const t = new Y.Text();
           const initial =
@@ -395,7 +398,8 @@ export const createAddNegationBelow = (
       id: newId,
       type: "point",
       position: newPos,
-      data: { content: "New point", favor: 3 },
+      data: { content: "New point", favor: 3, createdAt: Date.now() },
+      selected: true, // Auto-select newly created negation nodes
     };
     const edgeType = chooseEdgeType(newNode.type, parent.type);
     const newEdge: any = {
@@ -470,7 +474,8 @@ export const createAddPointBelow = (
       id: newId,
       type: "point",
       position: newPos,
-      data: { content: "New point", favor: 3 },
+      data: { content: "New Option", favor: 3, createdAt: Date.now() },
+      selected: true, // Auto-select newly created negation nodes
     };
     const edgeType = chooseEdgeType(newNode.type, parent.type);
     const newEdge: any = {
@@ -495,79 +500,6 @@ export const createAddPointBelow = (
           yTextMap.set(newId, t);
           try {
             registerTextInUndoScope?.(t);
-          } catch {}
-        }
-      }, localOrigin);
-    }
-  };
-};
-
-export const createAddQuestionBelow = (
-  nodes: any[],
-  yNodesMap: any,
-  yEdgesMap: any,
-  yTextMap: any,
-  ydoc: any,
-  isLeader: boolean,
-  localOrigin: object,
-  lastAddRef: React.MutableRefObject<Record<string, number>>,
-  setNodes: (updater: (nodes: any[]) => any[]) => void,
-  setEdges: (updater: (edges: any[]) => any[]) => void,
-  registerTextInUndoScope?: (t: any) => void,
-  isLockedForMe?: (nodeId: string) => boolean,
-  getLockOwner?: (nodeId: string) => { name?: string } | null,
-  getViewportOffset?: () => { x: number; y: number }
-) => {
-  return (parentNodeId: string) => {
-    if (isLockedForMe?.(parentNodeId)) {
-      const owner = getLockOwner?.(parentNodeId);
-      toast.warning(`Locked by ${owner?.name || "another user"}`);
-      return;
-    }
-    if (!isLeader) {
-      toast.warning("Read-only mode: Changes won't be saved");
-    }
-    const now = Date.now();
-    const last = lastAddRef.current[parentNodeId] || 0;
-    if (now - last < 500) return;
-    lastAddRef.current[parentNodeId] = now;
-    const parent = nodes.find((n: any) => n.id === parentNodeId);
-    if (!parent) return;
-    const newId = `q-${now}-${Math.floor(Math.random() * 1e6)}`;
-
-    const newPos = calculateNodePositionBelow(
-      parent.position,
-      getViewportOffset
-    );
-    const newNode: any = {
-      id: newId,
-      type: "question",
-      position: newPos,
-      data: { content: "What about...?", favor: 3 },
-    };
-    const edgeType = chooseEdgeType(newNode.type, parent.type);
-    const newEdge: any = {
-      id: generateEdgeId(),
-      type: edgeType,
-      source: newId,
-      target: parentNodeId,
-      sourceHandle: `${newId}-source-handle`,
-      targetHandle: `${parentNodeId}-incoming-handle`,
-      data: { relevance: 3 },
-    };
-
-    setNodes((prev) => [...prev, newNode]);
-    setEdges((prev) => [...prev, newEdge]);
-
-    if (isLeader && yNodesMap && yEdgesMap && ydoc) {
-      ydoc.transact(() => {
-        if (!yNodesMap.has(newId)) yNodesMap.set(newId, newNode);
-        if (!yEdgesMap.has(newEdge.id)) yEdgesMap.set(newEdge.id, newEdge);
-        if (yTextMap && registerTextInUndoScope) {
-          const yText = new Y.Text(newNode.data.content || "");
-          yTextMap.set(newId, yText);
-          try {
-            registerTextInUndoScope?.(yText);
           } catch {}
         }
       }, localOrigin);
@@ -624,7 +556,12 @@ export const createAddObjectionForEdge = (
       id: objectionId,
       type: "objection",
       position: { x: midX, y: midY + 60 },
-      data: { content: "New objection", parentEdgeId: edgeId },
+      data: {
+        content: "New objection",
+        parentEdgeId: edgeId,
+        createdAt: Date.now(),
+      },
+      selected: true, // Auto-select newly created objection nodes
     };
 
     const objectionEdge: any = {

@@ -34,7 +34,7 @@ export const useInitialGraph = () => {
       edges: [
         {
           id: generateEdgeId(),
-          type: "question",
+          type: "option",
           source: optionId,
           target: questionId,
           sourceHandle: `${optionId}-source-handle`,

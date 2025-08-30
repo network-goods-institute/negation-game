@@ -1,14 +1,8 @@
 import { deterministicEdgeId } from "./graphSync";
 
 export const chooseEdgeType = (sourceType?: string, targetType?: string) => {
-  // Question or title nodes always use question edges
-  if (
-    sourceType === "question" ||
-    targetType === "question" ||
-    sourceType === "title" ||
-    targetType === "title"
-  ) {
-    return "question";
+  if (sourceType === "title" || targetType === "title") {
+    return "option";
   }
 
   // Any connection TO a statement node uses statement edge

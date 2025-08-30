@@ -3,9 +3,8 @@ import { PointNode } from "@/components/experiment/multiplayer/PointNode";
 import { NegationEdge } from "@/components/experiment/multiplayer/NegationEdge";
 import { ObjectionEdge } from "@/components/experiment/multiplayer/ObjectionEdge";
 import { StatementEdge } from "@/components/experiment/multiplayer/StatementEdge";
-import { QuestionEdge } from "@/components/experiment/multiplayer/QuestionEdge";
+import { OptionEdge } from "@/components/experiment/multiplayer/OptionEdge";
 import { StatementNode } from "@/components/experiment/multiplayer/StatementNode";
-import { QuestionNode } from "@/components/experiment/multiplayer/QuestionNode";
 import { TitleNode } from "@/components/experiment/multiplayer/TitleNode";
 import ObjectionNode from "@/components/experiment/multiplayer/objection/ObjectionNode";
 import EdgeAnchorNode from "@/components/experiment/multiplayer/objection/EdgeAnchorNode";
@@ -100,7 +99,6 @@ export const initialEdges: Edge[] = [
 export const nodeTypes: NodeTypes = {
   statement: StatementNode,
   point: PointNode,
-  question: QuestionNode,
   title: TitleNode,
   objection: ObjectionNode,
   edge_anchor: EdgeAnchorNode,
@@ -110,7 +108,7 @@ export const edgeTypes = {
   negation: NegationEdge,
   objection: ObjectionEdge,
   statement: StatementEdge,
-  question: QuestionEdge,
+  option: OptionEdge,
 };
 
 export const generateRandomUser = () => {

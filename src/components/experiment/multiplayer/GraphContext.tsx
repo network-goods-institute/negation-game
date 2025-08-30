@@ -2,11 +2,12 @@ import { createContext, useContext } from 'react';
 
 type GraphActions = {
     updateNodeContent: (nodeId: string, content: string) => void;
+    autoFocusNodeId?: string | null;
+    setAutoFocusNodeId?: (nodeId: string | null) => void;
     updateNodeHidden?: (nodeId: string, hidden: boolean) => void;
     updateNodeFavor?: (nodeId: string, favor: 1 | 2 | 3 | 4 | 5) => void;
     addNegationBelow: (parentNodeId: string) => void;
     addPointBelow?: (parentNodeId: string) => void;
-    addQuestionBelow: (parentNodeId: string) => void;
     deleteNode: (nodeId: string) => void;
     beginConnectFromNode: (nodeId: string) => void;
     completeConnectToNode?: (nodeId: string) => void;
@@ -22,6 +23,7 @@ type GraphActions = {
     updateEdgeAnchorPosition: (edgeId: string, x: number, y: number) => void;
     startEditingNode?: (nodeId: string) => void;
     stopEditingNode?: (nodeId: string) => void;
+    startEditingNodeProgrammatically?: (nodeId: string) => void;
     getEditorsForNode?: (nodeId: string) => { name: string; color: string }[];
     lockNode?: (nodeId: string, kind: 'edit' | 'drag') => void;
     unlockNode?: (nodeId: string) => void;
@@ -30,7 +32,7 @@ type GraphActions = {
     proxyMode?: boolean;
     undo?: () => void;
     redo?: () => void;
-    addNodeAtPosition?: (type: 'point' | 'statement' | 'question' | 'objection', x: number, y: number) => void;
+    addNodeAtPosition?: (type: 'point' | 'statement' | 'title' | 'objection', x: number, y: number) => void;
 };
 
 const GraphContext = createContext<GraphActions | null>(null);
@@ -62,6 +64,7 @@ export const useGraphActions = () => {
             updateEdgeAnchorPosition: () => { },
             startEditingNode: () => { },
             stopEditingNode: () => { },
+            startEditingNodeProgrammatically: () => { },
             getEditorsForNode: () => [],
             lockNode: () => { },
             unlockNode: () => { },

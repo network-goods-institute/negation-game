@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
+import { usePillVisibility } from './common/usePillVisibility';
 import { EditorsBadgeRow } from './EditorsBadgeRow';
 import { NodeActionPill } from './common/NodeActionPill';
 import { Eye, EyeOff, HelpCircle } from 'lucide-react';
@@ -19,33 +20,10 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
     const { updateNodeHidden, updateNodeFavor, addPointBelow, isConnectingFromNodeId, deleteNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode } = useGraphActions() as any;
 
     const [hovered, setHovered] = useState(false);
-    const [pillVisible, setPillVisible] = useState(false);
-    const hideTimerRef = useRef<number | null>(null);
     const [menuOpen, setMenuOpen] = useState(false);
     const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
-    useEffect(() => {
-        return () => {
-            if (hideTimerRef.current) {
-                clearTimeout(hideTimerRef.current);
-                hideTimerRef.current = null;
-            }
-        };
-    }, []);
-
-    const scheduleHide = () => {
-        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-        hideTimerRef.current = window.setTimeout(() => {
-            setPillVisible(false);
-        }, 400);
-    };
-
-    const cancelHide = () => {
-        if (hideTimerRef.current) {
-            clearTimeout(hideTimerRef.current);
-            hideTimerRef.current = null;
-        }
-    };
+    const { pillVisible, handleMouseEnter, handleMouseLeave } = usePillVisibility();
 
     const locked = isLockedForMe?.(id) || false;
     const lockOwner = getLockOwner?.(id) || null;
@@ -59,19 +37,22 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
             <Handle id={`${id}-incoming-handle`} type="target" position={Position.Bottom} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
             <div className="relative inline-block">
                 <div
-                    onMouseEnter={() => { setHovered(true); cancelHide(); setPillVisible(true); }}
-                    onMouseLeave={() => { setHovered(false); scheduleHide(); }}
+                    onMouseEnter={() => { setHovered(true); handleMouseEnter(); }}
+                    onMouseLeave={() => { setHovered(false); handleMouseLeave(); }}
                     onMouseDown={(e) => { if (!locked) beginConnectFromNode?.(id); }}
                     onMouseUp={(e) => { if (!locked) completeConnectToNode?.(id); }}
                     onClick={(e) => { if (locked) { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } }}
                     onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
-                    className={`px-4 py-3 rounded-lg ${hidden ? 'bg-green-100 text-green-700' : 'bg-green-50 text-green-900'} border-2 min-w-[220px] max-w-[360px] relative z-10 ${locked ? 'cursor-not-allowed' : 'cursor-pointer'} ${isConnectingFromNodeId === id ? 'ring-2 ring-green-500 ring-offset-2 ring-offset-white shadow-md' : ''}
-            ${selected ? 'border-black' : (hidden ? 'border-green-300' : 'border-green-200')}
+                    data-selected={selected}
+                    className={`px-4 py-3 rounded-lg ${hidden ? 'bg-blue-100 text-blue-700' : 'bg-blue-50 text-blue-900'} border-2 min-w-[220px] max-w-[360px] relative z-10 ${locked ? 'cursor-not-allowed' : 'cursor-pointer'} ring-0
+            ${hidden ? 'border-blue-300' : 'border-blue-200'}
+            ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
+            data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white
             `}
                     style={{ opacity: hidden ? undefined : 1 }}
                 >
                     <div className="relative z-10">
-                        {!hidden && <HelpCircle className="absolute -top-1 -left-1 text-green-600" size={16} />}
+                        {!hidden && <HelpCircle className="absolute -top-1 -left-1 text-blue-600" size={16} />}
                         {selected && (
                             <button
                                 onMouseDown={(e) => e.preventDefault()}
@@ -102,9 +83,9 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
                                 label="Make option"
                                 visible={shouldShowPill}
                                 onClick={() => addPointBelow?.(id)}
-                                colorClass="bg-green-700"
-                                onMouseEnter={() => { cancelHide(); setPillVisible(true); }}
-                                onMouseLeave={() => { scheduleHide(); }}
+                                colorClass="bg-blue-700"
+                                onMouseEnter={handleMouseEnter}
+                                onMouseLeave={handleMouseLeave}
                             />
                         )}
                     </div>

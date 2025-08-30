@@ -1,8 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 import { EditorsBadgeRow } from './EditorsBadgeRow';
 import { useEditableNode } from './common/useEditableNode';
+import { useAutoFocusNode } from './common/useAutoFocusNode';
+import { usePillVisibility } from './common/usePillVisibility';
 import { useConnectableNode } from './common/useConnectableNode';
 import { ContextMenu } from './common/ContextMenu';
 import { toast } from 'sonner';
@@ -14,6 +16,7 @@ interface PointNodeProps {
   data: {
     content: string;
     editedBy?: string;
+    createdAt?: number;
   };
   id: string;
   selected?: boolean;
@@ -22,7 +25,7 @@ interface PointNodeProps {
 export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
   const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, selectedEdgeId } = useGraphActions() as any;
 
-  const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus } = useEditableNode({
+  const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus, startEditingProgrammatically } = useEditableNode({
     id,
     content: data.content,
     updateNodeContent,
@@ -32,33 +35,20 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
   });
 
   const [hovered, setHovered] = useState(false);
-  const [pillVisible, setPillVisible] = useState(false);
-  const hideTimerRef = useRef<number | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  useEffect(() => {
-    return () => {
-      if (hideTimerRef.current) {
-        clearTimeout(hideTimerRef.current);
-        hideTimerRef.current = null;
-      }
-    };
-  }, []);
+  // Use the reusable hooks
+  useAutoFocusNode({
+    content: data.content,
+    createdAt: data.createdAt,
+    isEditing,
+    selected,
+    startEditingProgrammatically,
+    isQuestionNode: false, // Not a question node
+  });
 
-  const scheduleHide = () => {
-    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-    hideTimerRef.current = window.setTimeout(() => {
-      setPillVisible(false);
-    }, 400);
-  };
-
-  const cancelHide = () => {
-    if (hideTimerRef.current) {
-      clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = null;
-    }
-  };
+  const { pillVisible, handleMouseEnter, handleMouseLeave } = usePillVisibility();
 
   const locked = isLockedForMe?.(id) || false;
   const lockOwner = getLockOwner?.(id) || null;
@@ -76,8 +66,8 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
       <div className="relative inline-block">
         <div
           ref={wrapperRef}
-          onMouseEnter={() => { setHovered(true); cancelHide(); setPillVisible(true); }}
-          onMouseLeave={() => { setHovered(false); scheduleHide(); }}
+          onMouseEnter={() => { setHovered(true); handleMouseEnter(); }}
+          onMouseLeave={() => { setHovered(false); handleMouseLeave(); }}
           onMouseDown={connect.onMouseDown}
           onMouseUp={connect.onMouseUp}
           onClick={(e) => {
@@ -85,8 +75,11 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
             if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
           }}
           onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
-          className={`px-4 py-3 rounded-lg ${hidden ? 'bg-gray-200 text-gray-600' : 'bg-white text-gray-900'} border-2 min-w-[200px] max-w-[320px] relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
-            ${selected ? 'border-black' : (hidden ? 'border-gray-300' : 'border-stone-200')}
+          data-selected={selected}
+          className={`px-4 py-3 rounded-lg ${hidden ? 'bg-gray-200 text-gray-600' : 'bg-white text-gray-900'} border-2 min-w-[200px] max-w-[320px] relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} ring-0
+            ${hidden ? 'border-gray-300' : 'border-stone-200'}
+            ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
+            data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white
             `}
           style={{ opacity: hidden ? undefined : favorOpacity }}
         >
@@ -107,11 +100,11 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
             {isConnectingFromNodeId === id && (
               <div className="absolute -top-3 right-0 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
             )}
-        {!proxyMode && lockOwner && (
-          <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs px-2 py-1 rounded text-white shadow" style={{ backgroundColor: lockOwner.color }}>
-            {lockOwner.name}
-          </div>
-        )}
+            {!proxyMode && lockOwner && (
+              <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs px-2 py-1 rounded text-white shadow" style={{ backgroundColor: lockOwner.color }}>
+                {lockOwner.name}
+              </div>
+            )}
             {/* Keep content element for stable height; overlay Hidden label */}
             <div
               ref={contentRef}
@@ -131,41 +124,41 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
               </div>
             )}
 
-        <EditorsBadgeRow editors={getEditorsForNode?.(id) || []} />
-        {selected && !hidden && (
-          <div className="mt-1 mb-1 flex items-center gap-2 select-none">
-            <span className="text-[10px] uppercase tracking-wide text-stone-500">Favor</span>
-            <TooltipProvider>
-              <div className="flex items-center gap-1">
-                {[1,2,3,4,5].map((i) => (
-                  <Tooltip key={`fv-${i}`}>
-                    <TooltipTrigger asChild>
-                      <button
-                        title={`Set favor to ${i}`}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={(e) => { e.stopPropagation(); updateNodeFavor?.(id, i as any); }}
-                        className="text-[12px] leading-none"
-                      >
-                        <span className={i <= favor ? 'text-amber-500' : 'text-stone-300'}>★</span>
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="text-xs">Favor: {i}/5</TooltipContent>
-                  </Tooltip>
-                ))}
+            <EditorsBadgeRow editors={getEditorsForNode?.(id) || []} />
+            {selected && !hidden && (
+              <div className="mt-1 mb-1 flex items-center gap-2 select-none">
+                <span className="text-[10px] uppercase tracking-wide text-stone-500">Favor</span>
+                <TooltipProvider>
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <Tooltip key={`fv-${i}`}>
+                        <TooltipTrigger asChild>
+                          <button
+                            title={`Set favor to ${i}`}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={(e) => { e.stopPropagation(); updateNodeFavor?.(id, i as any); }}
+                            className="text-[12px] leading-none"
+                          >
+                            <span className={i <= favor ? 'text-amber-500' : 'text-stone-300'}>★</span>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs">Favor: {i}/5</TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </div>
+                </TooltipProvider>
               </div>
-            </TooltipProvider>
-          </div>
-        )}
-        {!hidden && (
-          <NodeActionPill
-            label="Negate"
-            visible={shouldShowPill}
-            onClick={() => addNegationBelow(id)}
-            colorClass="bg-stone-800"
-            onMouseEnter={() => { cancelHide(); setPillVisible(true); }}
-            onMouseLeave={() => { scheduleHide(); }}
-          />
-        )}
+            )}
+            {!hidden && (
+              <NodeActionPill
+                label="Negate"
+                visible={shouldShowPill}
+                onClick={() => addNegationBelow(id)}
+                colorClass="bg-stone-800"
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+              />
+            )}
           </div>
         </div>
       </div>

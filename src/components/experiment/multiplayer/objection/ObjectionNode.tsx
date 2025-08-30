@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Handle, Position, useStore } from '@xyflow/react';
 import { useGraphActions } from '../GraphContext';
 import { EditorsBadgeRow } from '../EditorsBadgeRow';
 import { useEditableNode } from '../common/useEditableNode';
+import { usePillVisibility } from '../common/usePillVisibility';
 import { useConnectableNode } from '../common/useConnectableNode';
 import { ContextMenu } from '../common/ContextMenu';
 import { toast } from 'sonner';
@@ -32,37 +33,13 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     // Subscribe to global edge changes so this node re-renders when connections change
     const pointLike = useStore((s: any) => (s.edges || []).some((e: any) => (e.type || '') === 'negation' && (e.source === id || e.target === id)));
     const [hovered, setHovered] = useState(false);
-    const [pillVisible, setPillVisible] = useState(false);
-    const hideTimerRef = useRef<number | null>(null);
+    const { pillVisible, handleMouseEnter, handleMouseLeave } = usePillVisibility();
 
     useEffect(() => {
         if (wrapperRef.current && contentRef.current) {
             wrapperRef.current.style.minHeight = `${contentRef.current.scrollHeight}px`;
         }
     }, [value, contentRef, wrapperRef]);
-
-    useEffect(() => {
-        return () => {
-            if (hideTimerRef.current) {
-                clearTimeout(hideTimerRef.current);
-                hideTimerRef.current = null;
-            }
-        };
-    }, []);
-
-    const scheduleHide = () => {
-        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-        hideTimerRef.current = window.setTimeout(() => {
-            setPillVisible(false);
-        }, 400);
-    };
-
-    const cancelHide = () => {
-        if (hideTimerRef.current) {
-            clearTimeout(hideTimerRef.current);
-            hideTimerRef.current = null;
-        }
-    };
 
     const locked = isLockedForMe?.(id) || false;
     const lockOwner = getLockOwner?.(id) || null;
@@ -94,8 +71,8 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
             <div className="relative inline-block">
                 <div
                     ref={wrapperRef}
-                    onMouseEnter={() => { setHovered(true); cancelHide(); setPillVisible(true); }}
-                    onMouseLeave={() => { setHovered(false); scheduleHide(); }}
+                    onMouseEnter={() => { setHovered(true); handleMouseEnter(); }}
+                    onMouseLeave={() => { setHovered(false); handleMouseLeave(); }}
                     onMouseDown={connect.onMouseDown}
                     onMouseUp={connect.onMouseUp}
                     onClick={(e) => {
@@ -103,11 +80,14 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                         if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
                     }}
                     onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
+                    data-selected={selected}
                     className={`px-3 py-2 rounded-lg ${pointLike
                         ? (hidden ? 'bg-gray-200 text-gray-600' : 'bg-white text-gray-900')
                         : (hidden ? 'bg-amber-200 text-amber-700' : 'bg-amber-100 text-amber-900')
-                        } border-2 ${pointLike ? 'min-w-[200px] max-w-[320px]' : 'min-w-[180px] max-w-[300px]'} relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} node-drag-handle ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
-                        ${selected ? 'border-black' : (hidden ? (pointLike ? 'border-gray-300' : 'border-amber-400') : (pointLike ? 'border-stone-200' : 'border-amber-500'))}
+                        } border-2 ${pointLike ? 'min-w-[200px] max-w-[320px]' : 'min-w-[180px] max-w-[300px]'} relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} node-drag-handle ring-0
+                        ${hidden ? (pointLike ? 'border-gray-300' : 'border-amber-400') : (pointLike ? 'border-stone-200' : 'border-amber-500')}
+                        ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
+                        data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white
                         }`}
                     style={{ opacity: hidden ? undefined : favorOpacity }}
                 >
@@ -181,8 +161,8 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                                 visible={shouldShowPill}
                                 onClick={() => addNegationBelow(id)}
                                 colorClass="bg-stone-800"
-                                onMouseEnter={() => { cancelHide(); setPillVisible(true); }}
-                                onMouseLeave={() => { scheduleHide(); }}
+                                onMouseEnter={handleMouseEnter}
+                                onMouseLeave={handleMouseLeave}
                             />
                         )}
                     </div>

@@ -31,7 +31,6 @@ import {
     createDeleteNode,
     createAddNegationBelow,
     createAddPointBelow,
-    createAddQuestionBelow,
     createAddObjectionForEdge,
     createUpdateEdgeAnchorPosition,
     createAddNodeAtPosition
@@ -148,23 +147,6 @@ export default function MultiplayerRationaleDetailPage() {
     );
 
     const addPointBelow = createAddPointBelow(
-        nodes,
-        yNodesMap,
-        yEdgesMap,
-        yTextMap,
-        ydoc,
-        isLeader,
-        localOriginRef.current,
-        lastAddRef,
-        setNodes,
-        setEdges,
-        registerTextInUndoScope,
-        isLockedForMe,
-        getLockOwner,
-        getViewportOffset
-    );
-
-    const addQuestionBelow = createAddQuestionBelow(
         nodes,
         yNodesMap,
         yEdgesMap,
@@ -392,7 +374,6 @@ export default function MultiplayerRationaleDetailPage() {
                     ),
                     updateNodeFavor,
                     addNegationBelow,
-                    addQuestionBelow,
                     addPointBelow,
                     deleteNode,
                     beginConnectFromNode: (id: string) => { connectAnchorRef.current = id; setConnectAnchorId(id); },

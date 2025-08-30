@@ -161,7 +161,21 @@ export const createUpdateNodesFromY = (
       }
     } catch {}
     const arr: Node[] = [];
-    for (const [, v] of yNodes as any) arr.push(v as Node);
+    for (const [, raw] of yNodes as any) {
+      const n = raw as Node;
+      // Live migration: convert legacy question nodes to statement
+      if ((n as any).type === "question") {
+        const migrated = { ...n, type: "statement" } as Node;
+        try {
+          (yNodes as any).set(migrated.id, migrated);
+          arr.push(migrated);
+        } catch {
+          arr.push(migrated);
+        }
+      } else {
+        arr.push(n);
+      }
+    }
     const sorted = arr
       .slice()
       .sort((a, b) => (a.id || "").localeCompare(b.id || ""));
@@ -194,7 +208,22 @@ export const createUpdateEdgesFromY = (
 ) => {
   return () => {
     const arr: Edge[] = [];
-    for (const [, v] of yEdges as any) arr.push(v as Edge);
+    for (const [, raw] of yEdges as any) {
+      const e = raw as Edge;
+      // Live migration: convert legacy question edges to option
+      if ((e as any).type === "question") {
+        const migrated = { ...e, type: "option" } as Edge;
+        try {
+          // write back into Yjs so peers converge
+          (yEdges as any).set(migrated.id, migrated);
+          arr.push(migrated);
+        } catch {
+          arr.push(migrated);
+        }
+      } else {
+        arr.push(e);
+      }
+    }
     const sorted = arr
       .slice()
       .sort((a, b) => (a.id || "").localeCompare(b.id || ""));
