@@ -213,11 +213,7 @@ export const createDeleteNode = (
         }
       }
 
-      setEdges((eds) =>
-        eds.filter((e: any) => !edgesToDelete.some((del) => del.id === e.id))
-      );
-      setNodes((nds) => nds.filter((n: any) => !nodesToDelete.includes(n.id)));
-
+      // First sync to Yjs, then update local state
       if (yEdgesMap && yNodesMap && ydoc) {
         ydoc.transact(() => {
           for (const e of edgesToDelete) {
@@ -233,6 +229,22 @@ export const createDeleteNode = (
             } catch {}
           }
         }, localOrigin);
+
+        // Update local state after Yjs sync
+        setEdges((eds) =>
+          eds.filter((e: any) => !edgesToDelete.some((del) => del.id === e.id))
+        );
+        setNodes((nds) =>
+          nds.filter((n: any) => !nodesToDelete.includes(n.id))
+        );
+      } else {
+        // Fallback for non-multiplayer mode
+        setEdges((eds) =>
+          eds.filter((e: any) => !edgesToDelete.some((del) => del.id === e.id))
+        );
+        setNodes((nds) =>
+          nds.filter((n: any) => !nodesToDelete.includes(n.id))
+        );
       }
       return;
     }
@@ -275,22 +287,19 @@ export const createDeleteNode = (
       }
     }
 
-    // Optimistic local update
-    setEdges((eds) =>
-      eds.filter((e: any) => !allEdgesToDelete.some((del) => del.id === e.id))
-    );
-    setNodes((nds) =>
-      nds.filter(
-        (n: any) => n.id !== nodeId && !allNodesToDelete.includes(n.id)
-      )
-    );
-
+    // First sync to Yjs, then update local state to ensure consistency
     if (yNodesMap && yEdgesMap && ydoc) {
+      console.log(
+        `[mp] Deleting node ${nodeId} with edges:`,
+        allEdgesToDelete.map((e) => e.id)
+      );
       ydoc.transact(() => {
         for (const e of allEdgesToDelete) {
+          console.log(`[mp] Deleting edge ${e.id}`);
           // eslint-disable-next-line drizzle/enforce-delete-with-where
           yEdgesMap.delete(e.id as any);
         }
+        console.log(`[mp] Deleting main node ${nodeId}`);
         // eslint-disable-next-line drizzle/enforce-delete-with-where
         yNodesMap.delete(nodeId as any);
         try {
@@ -299,6 +308,7 @@ export const createDeleteNode = (
         } catch {}
         // Delete objection nodes
         for (const objectionNodeId of allNodesToDelete) {
+          console.log(`[mp] Deleting objection node ${objectionNodeId}`);
           // eslint-disable-next-line drizzle/enforce-delete-with-where
           yNodesMap.delete(objectionNodeId as any);
           try {
@@ -307,6 +317,26 @@ export const createDeleteNode = (
           } catch {}
         }
       }, localOrigin);
+
+      // Update local state after Yjs sync
+      setEdges((eds) =>
+        eds.filter((e: any) => !allEdgesToDelete.some((del) => del.id === e.id))
+      );
+      setNodes((nds) =>
+        nds.filter(
+          (n: any) => n.id !== nodeId && !allNodesToDelete.includes(n.id)
+        )
+      );
+    } else {
+      // Fallback for non-multiplayer mode
+      setEdges((eds) =>
+        eds.filter((e: any) => !allEdgesToDelete.some((del) => del.id === e.id))
+      );
+      setNodes((nds) =>
+        nds.filter(
+          (n: any) => n.id !== nodeId && !allNodesToDelete.includes(n.id)
+        )
+      );
     }
   };
 };

@@ -156,6 +156,7 @@ export const createUpdateNodesFromY = (
     try {
       if (txn && localOriginRef && txn.origin === localOriginRef.current) {
         // Ignore local-origin Yjs node map updates; local state already applied
+        // This prevents double-application of local changes
         return;
       }
     } catch {}
