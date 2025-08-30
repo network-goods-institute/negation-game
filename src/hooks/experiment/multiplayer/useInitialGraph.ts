@@ -1,32 +1,48 @@
-import { useState, useEffect } from 'react';
-import { generateEdgeId } from '@/utils/experiment/multiplayer/graphSync';
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import { generateEdgeId } from "@/utils/experiment/multiplayer/graphSync";
 
 export const useInitialGraph = () => {
-  const [initialGraph, setInitialGraph] = useState<{ nodes: any[]; edges: any[] } | null>(null);
-  
+  const sp = useSearchParams();
+  const requestedTitle = (sp?.get("title") || "").trim();
+  const [initialGraph, setInitialGraph] = useState<{
+    nodes: any[];
+    edges: any[];
+  } | null>(null);
+
   useEffect(() => {
     if (initialGraph) return;
-    
-    const statementId = 'statement';
-    const pointId = `p-${Date.now()}`;
-    
+
+    const questionId = "title";
+    const optionId = `p-${Date.now()}`;
+
     setInitialGraph({
       nodes: [
-        { id: statementId, type: 'statement', position: { x: 250, y: 200 }, data: { statement: 'New Rationale' } },
-        { id: pointId, type: 'point', position: { x: 250, y: 360 }, data: { content: 'First point' } },
+        {
+          id: questionId,
+          type: "title",
+          position: { x: 250, y: 160 },
+          data: { content: requestedTitle || "New Rationale" },
+        },
+        {
+          id: optionId,
+          type: "point",
+          position: { x: 250, y: 320 },
+          data: { content: "First point" },
+        },
       ],
       edges: [
-        { 
-          id: generateEdgeId(), 
-          type: 'statement', 
-          source: pointId, 
-          target: statementId, 
-          sourceHandle: `${pointId}-source-handle`, 
-          targetHandle: `${statementId}-incoming-handle` 
+        {
+          id: generateEdgeId(),
+          type: "question",
+          source: optionId,
+          target: questionId,
+          sourceHandle: `${optionId}-source-handle`,
+          targetHandle: `${questionId}-incoming-handle`,
         },
       ],
     });
-  }, [initialGraph]);
-  
+  }, [initialGraph, requestedTitle]);
+
   return initialGraph;
 };

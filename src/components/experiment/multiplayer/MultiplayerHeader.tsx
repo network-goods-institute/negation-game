@@ -15,6 +15,9 @@ interface MultiplayerHeaderProps {
   nextSaveTime?: number | null;
   proxyMode?: boolean;
   userId?: string;
+  title?: string;
+  onTitleCommit?: (title: string) => void;
+  onTitleInput?: (title: string) => void;
 }
 
 export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
@@ -28,8 +31,26 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   nextSaveTime,
   proxyMode,
   userId,
+  title,
+  onTitleCommit,
+  onTitleInput,
 }) => {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [titleDraft, setTitleDraft] = useState('');
+
+  useEffect(() => {
+    if (typeof (title as any) === 'string') setTitleDraft(title as string);
+  }, [title]);
+
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value;
+    setTitleDraft(v);
+    onTitleInput?.(v);
+  };
+
+  const handleTitleBlur = () => {
+    onTitleCommit?.(titleDraft);
+  };
 
   useEffect(() => {
     if (!nextSaveTime) {
@@ -59,7 +80,16 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   return (
     <>
       <div className="absolute top-4 left-4 z-10 bg-white p-4 rounded-lg shadow-lg border">
-        <h1 className="text-xl font-bold text-gray-900 mb-2">Multiplayer Rationale</h1>
+        <div className="mb-2">
+          <label className="block text-xs text-stone-600 mb-1">Title</label>
+          <input
+            value={titleDraft}
+            onChange={handleTitleChange}
+            onBlur={handleTitleBlur}
+            placeholder="Enter title"
+            className="w-full border rounded px-2 py-1 text-sm"
+          />
+        </div>
         <p className="text-sm text-gray-600">
           You are: <span className="font-semibold" style={{ color: userColor }}>{username}</span>
         </p>
@@ -70,14 +100,14 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
               Read-Only Mode
             </div>
             <p className="text-xs text-amber-700">
-              You&apos;re viewing changes from others but your edits won&apos;t sync to prevent conflicts. 
+              You&apos;re viewing changes from others but your edits won&apos;t sync to prevent conflicts.
               If you believe you should be able to edit, reload the window.
             </p>
           </div>
         )}
-        <ConnectedUsers 
-          provider={provider} 
-          isConnected={isConnected} 
+        <ConnectedUsers
+          provider={provider}
+          isConnected={isConnected}
           currentUserId={userId}
           isLeader={!proxyMode}
         />

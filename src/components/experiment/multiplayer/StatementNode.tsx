@@ -8,7 +8,6 @@ import { ContextMenu } from './common/ContextMenu';
 import { toast } from 'sonner';
 import { Eye, EyeOff } from 'lucide-react';
 import { NodeActionPill } from './common/NodeActionPill';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface StatementNodeProps {
   id: string;
@@ -101,11 +100,11 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
                 <EyeOff className={`absolute transition-opacity duration-150 ${hidden ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} size={14} />
               </button>
             )}
-        {!proxyMode && lockOwner && (
-          <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs px-2 py-1 rounded text-white shadow" style={{ backgroundColor: lockOwner.color }}>
-            {lockOwner.name}
-          </div>
-        )}
+            {!proxyMode && lockOwner && (
+              <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs px-2 py-1 rounded text-white shadow" style={{ backgroundColor: lockOwner.color }}>
+                {lockOwner.name}
+              </div>
+            )}
             {/* Keep content for stable height; overlay Hidden label */}
             <div
               ref={contentRef}
@@ -125,16 +124,16 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
               </div>
             )}
 
-        {!hidden && (
-          <NodeActionPill
-            label="Make option"
-            visible={shouldShowPill}
-            onClick={() => addNegationBelow(id)}
-            colorClass="bg-blue-700"
-            onMouseEnter={() => { cancelHide(); setPillVisible(true); }}
-            onMouseLeave={() => { scheduleHide(); }}
-          />
-        )}
+            {!hidden && (
+              <NodeActionPill
+                label="Make point"
+                visible={shouldShowPill}
+                onClick={() => addNegationBelow(id)}
+                colorClass="bg-blue-700"
+                onMouseEnter={() => { cancelHide(); setPillVisible(true); }}
+                onMouseLeave={() => { scheduleHide(); }}
+              />
+            )}
           </div>
         </div>
       </div>

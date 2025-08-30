@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Handle, Position } from '@xyflow/react';
+import { Handle, Position, useStore } from '@xyflow/react';
 import { useGraphActions } from '../GraphContext';
 import { EditorsBadgeRow } from '../EditorsBadgeRow';
 import { useEditableNode } from '../common/useEditableNode';
@@ -20,7 +20,7 @@ interface ObjectionNodeProps {
 }
 
 const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => {
-    const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, selectedEdgeId } = useGraphActions() as any;
+    const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode } = useGraphActions() as any;
     const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus } = useEditableNode({
         id,
         content: data.content,
@@ -29,6 +29,8 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
         stopEditingNode,
         isSelected: selected,
     });
+    // Subscribe to global edge changes so this node re-renders when connections change
+    const pointLike = useStore((s: any) => (s.edges || []).some((e: any) => (e.type || '') === 'negation' && (e.source === id || e.target === id)));
     const [hovered, setHovered] = useState(false);
     const [pillVisible, setPillVisible] = useState(false);
     const hideTimerRef = useRef<number | null>(null);
@@ -89,8 +91,11 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                         if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
                     }}
                     onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
-                    className={`px-3 py-2 rounded-lg ${hidden ? 'bg-amber-200 text-amber-700' : 'bg-amber-100 text-amber-900'} border-2 min-w-[180px] max-w-[300px] relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} node-drag-handle ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
-                        ${selected ? 'border-black' : (hidden ? 'border-amber-400' : 'border-amber-500')}
+                    className={`px-3 py-2 rounded-lg ${pointLike
+                        ? (hidden ? 'bg-gray-200 text-gray-600' : 'bg-white text-gray-900')
+                        : (hidden ? 'bg-amber-200 text-amber-700' : 'bg-amber-100 text-amber-900')
+                        } border-2 ${pointLike ? 'min-w-[200px] max-w-[320px]' : 'min-w-[180px] max-w-[300px]'} relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} node-drag-handle ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
+                        ${selected ? 'border-black' : (hidden ? (pointLike ? 'border-gray-300' : 'border-amber-400') : (pointLike ? 'border-stone-200' : 'border-amber-500'))}
                         }`}
                     style={{ opacity: hidden ? undefined : favorOpacity }}
                 >
@@ -124,9 +129,9 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                             onFocus={onFocus}
                             onBlur={onBlur}
                             onKeyDown={onKeyDown}
-                            className={`text-xs leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-amber-900'}`}
+                            className={`${pointLike ? 'text-sm text-gray-900' : 'text-xs text-amber-900'} leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}`}
                         >
-                            {value}
+                            {value || (pointLike ? 'New point' : 'New objection')}
                         </div>
                         {hidden && (
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">

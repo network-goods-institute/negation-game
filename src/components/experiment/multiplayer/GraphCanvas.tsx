@@ -152,7 +152,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         onEdgesChange={authenticated ? onEdgesChange : undefined}
         onConnect={authenticated ? onConnect : undefined}
         onNodeClick={onNodeClick}
-        onPaneClick={() => { try { graph.setSelectedEdge?.(null); } catch {} }}
+        onPaneClick={() => { try { graph.setSelectedEdge?.(null); } catch { } }}
         onEdgeClick={(e, edge) => { e.stopPropagation(); graph.setSelectedEdge?.(edge.id); onEdgeClick?.(e, edge); }}
         onNodeDragStart={authenticated ? onNodeDragStart : undefined}
         onNodeDragStop={authenticated ? onNodeDragStop : undefined}
@@ -178,7 +178,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         y={cmPos.y}
         onClose={() => setCmOpen(false)}
         items={[
-          { label: 'Add point…', onClick: () => { setSubPos(cmPos); setSubOpen(true); } },
+          { label: 'Make point…', onClick: () => { setSubPos(cmPos); setSubOpen(true); } },
         ]}
       />
       <ContextMenu
@@ -187,10 +187,9 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         y={subPos.y}
         onClose={() => setSubOpen(false)}
         items={[
-          { label: 'Statement', onClick: () => graph.addNodeAtPosition?.('statement', cmFlow.x, cmFlow.y) },
           { label: 'Point', onClick: () => graph.addNodeAtPosition?.('point', cmFlow.x, cmFlow.y) },
+          { label: 'Statement', onClick: () => graph.addNodeAtPosition?.('statement', cmFlow.x, cmFlow.y) },
           { label: 'Question', onClick: () => graph.addNodeAtPosition?.('question', cmFlow.x, cmFlow.y) },
-          { label: 'Answer', onClick: () => graph.addNodeAtPosition?.('answer', cmFlow.x, cmFlow.y) },
           { label: 'Objection', onClick: () => graph.addNodeAtPosition?.('objection', cmFlow.x, cmFlow.y) },
         ]}
       />

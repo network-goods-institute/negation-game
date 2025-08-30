@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import type * as Y from 'yjs';
-import type { Node, Edge } from '@xyflow/react';
-import { mergeNodesWithText } from '@/hooks/experiment/multiplayer/yjs/text';
+import { useEffect, useState } from "react";
+import type * as Y from "yjs";
+import type { Node, Edge } from "@xyflow/react";
+import { mergeNodesWithText } from "@/hooks/experiment/multiplayer/yjs/text";
 
 interface UseLeaderPromotionSyncParams {
   isLeader: boolean;
@@ -40,22 +40,51 @@ export const useLeaderPromotionSync = ({
       const ye = yEdgesMap;
       const yt = yTextMap;
       if (!yn || !ye) return;
-      const nextNodes = Array.from(yn as any as Map<string, any>).map(([, v]) => v as any);
-      nextNodes.sort((a: any, b: any) => (a.id || '').localeCompare(b.id || ''));
-      const nextEdges = Array.from(ye as any as Map<string, any>).map(([, v]) => v as any);
-      nextEdges.sort((a: any, b: any) => (a.id || '').localeCompare(b.id || ''));
+      let nextNodes = Array.from(yn as any as Map<string, any>).map(
+        ([, v]) => v as any
+      );
+      nextNodes.sort((a: any, b: any) =>
+        (a.id || "").localeCompare(b.id || "")
+      );
+      const nextEdges = Array.from(ye as any as Map<string, any>).map(
+        ([, v]) => v as any
+      );
+      nextEdges.sort((a: any, b: any) =>
+        (a.id || "").localeCompare(b.id || "")
+      );
+      // Legacy conversion: answer -> point (objections are rendered dynamically as point-like when negating)
+      nextNodes = nextNodes.map((n: any) => {
+        if (n.type === "answer") return { ...n, type: "point" };
+        return n;
+      });
       setEdges(() => nextEdges as any);
-      setNodes((prev) => mergeNodesWithText(nextNodes as any, yt as any, new Map((prev as any[]).map((p: any) => [p.id, p]))) as any);
+      setNodes(
+        (prev) =>
+          mergeNodesWithText(
+            nextNodes as any,
+            yt as any,
+            new Map((prev as any[]).map((p: any) => [p.id, p]))
+          ) as any
+      );
     } catch {}
 
     // Reset any in-progress connect state to avoid ambiguous transitions
-    try { clearConnect?.(); } catch {}
+    try {
+      clearConnect?.();
+    } catch {}
 
     setLeaderSynced(true);
-  }, [isLeader, yNodesMap, yEdgesMap, yTextMap, setNodes, setEdges, clearConnect]);
+  }, [
+    isLeader,
+    yNodesMap,
+    yEdgesMap,
+    yTextMap,
+    setNodes,
+    setEdges,
+    clearConnect,
+  ]);
 
   return leaderSynced;
 };
 
 export default useLeaderPromotionSync;
-

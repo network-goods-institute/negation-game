@@ -1,19 +1,24 @@
-import { deterministicEdgeId } from './graphSync';
+import { deterministicEdgeId } from "./graphSync";
 
 export const chooseEdgeType = (sourceType?: string, targetType?: string) => {
-  // Question or answer nodes always use question edges
-  if (sourceType === 'question' || targetType === 'question' || sourceType === 'answer' || targetType === 'answer') {
-    return 'question';
+  // Question or title nodes always use question edges
+  if (
+    sourceType === "question" ||
+    targetType === "question" ||
+    sourceType === "title" ||
+    targetType === "title"
+  ) {
+    return "question";
   }
-  
+
   // Any connection TO a statement node uses statement edge
-  if (targetType === 'statement') {
-    return 'statement';
+  if (targetType === "statement") {
+    return "statement";
   }
-  
+
   // Edge-to-edge connections use objection edge (handled separately)
   // All other cases use negation edge
-  return 'negation';
+  return "negation";
 };
 
 export const buildConnectionEdge = (
@@ -42,4 +47,3 @@ export const buildConnectionEdge = (
   } as const;
   return { id, edge, edgeType };
 };
-

@@ -61,10 +61,8 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
     const tgtFavor = Math.max(1, Math.min(5, (targetNode as any)?.data?.favor ?? 3));
     const srcIsQuestion = (sourceNode as any)?.type === 'question';
     const tgtIsQuestion = (targetNode as any)?.type === 'question';
-    const srcIsAnswer = (sourceNode as any)?.type === 'answer';
-    const tgtIsAnswer = (targetNode as any)?.type === 'answer';
-    const srcLowOpacity = (srcHasFavor && srcFavor <= 3) || srcIsQuestion || srcIsAnswer;
-    const tgtLowOpacity = (tgtHasFavor && tgtFavor <= 3) || tgtIsQuestion || tgtIsAnswer;
+    const srcLowOpacity = (srcHasFavor && srcFavor <= 3) || srcIsQuestion;
+    const tgtLowOpacity = (tgtHasFavor && tgtFavor <= 3) || tgtIsQuestion;
 
 
     // Strap geometry (variable-width band along straight centerline)

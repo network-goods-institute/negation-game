@@ -19,7 +19,7 @@ interface QuestionNodeProps {
 }
 
 export const QuestionNode: React.FC<QuestionNodeProps> = ({ data, id, selected }) => {
-  const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, addAnswerBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, selectedEdgeId } = useGraphActions() as any;
+  const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, selectedEdgeId, addPointBelow } = useGraphActions() as any;
 
   const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus } = useEditableNode({
     id,
@@ -133,9 +133,9 @@ export const QuestionNode: React.FC<QuestionNodeProps> = ({ data, id, selected }
             <EditorsBadgeRow editors={getEditorsForNode?.(id) || []} />
             {!hidden && (
               <NodeActionPill
-                label="Answer"
+                label="Make point"
                 visible={shouldShowPill}
-                onClick={() => addAnswerBelow(id)}
+                onClick={() => addPointBelow?.(id)}
                 colorClass="bg-green-700"
                 onMouseEnter={() => { cancelHide(); setPillVisible(true); }}
                 onMouseLeave={() => { scheduleHide(); }}

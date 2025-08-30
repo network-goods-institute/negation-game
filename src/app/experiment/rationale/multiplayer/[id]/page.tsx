@@ -30,13 +30,14 @@ import {
     createUpdateNodeHidden,
     createDeleteNode,
     createAddNegationBelow,
-    createAddAnswerBelow,
+    createAddPointBelow,
     createAddQuestionBelow,
     createAddObjectionForEdge,
     createUpdateEdgeAnchorPosition,
     createAddNodeAtPosition
 } from '@/utils/experiment/multiplayer/graphOperations';
 import { Roboto_Slab } from 'next/font/google';
+import * as Y from 'yjs';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
@@ -140,7 +141,7 @@ export default function MultiplayerRationaleDetailPage() {
         getLockOwner
     );
 
-    const addAnswerBelow = createAddAnswerBelow(
+    const addPointBelow = createAddPointBelow(
         nodes,
         yNodesMap,
         yEdgesMap,
@@ -304,6 +305,71 @@ export default function MultiplayerRationaleDetailPage() {
                 nextSaveTime={nextSaveTime}
                 proxyMode={!isLeader}
                 userId={userId}
+                title={(() => { const t = (((nodes as any[]).find(n => n.type === 'title')?.data?.content) as string) || ''; return (t || '').trim() || (typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '')); })()}
+                onTitleInput={(newTitle: string) => {
+                    try {
+                        const t = (nodes as any[]).find(n => n.type === 'title');
+                        if (!t) return;
+                        const id = (t as any).id as string;
+                        setNodes((nds: any[]) => nds.map((n: any) => n.id === id ? { ...n, data: { ...(n.data || {}), content: newTitle } } : n));
+                        if (yNodesMap && ydoc && isLeader) {
+                            (ydoc as any).transact(() => {
+                                const base = (yNodesMap as any).get(id);
+                                if (base) (yNodesMap as any).set(id, { ...base, data: { ...(base.data || {}), content: newTitle } });
+                                try {
+                                    let tnode = (yTextMap as any)?.get?.(id);
+                                    if (!tnode) {
+                                        tnode = new (Y as any).Text();
+                                        (yTextMap as any).set(id, tnode);
+                                    }
+                                    const curr = tnode.toString();
+                                    if (curr !== newTitle) {
+                                        // eslint-disable-next-line drizzle/enforce-delete-with-where
+                                        if (curr && curr.length) tnode.delete(0, curr.length);
+                                        if (newTitle) tnode.insert(0, newTitle);
+                                    }
+                                } catch { }
+                            }, localOriginRef.current);
+                        }
+                    } catch { }
+                }}
+                onTitleCommit={(newTitle: string) => {
+                    try {
+                        const t = (nodes as any[]).find(n => n.type === 'title');
+                        if (!t) return;
+                        const id = (t as any).id as string;
+                        setNodes((nds: any[]) => nds.map((n: any) => n.id === id ? { ...n, data: { ...(n.data || {}), content: newTitle } } : n));
+                        if (yNodesMap && ydoc && isLeader) {
+                            (ydoc as any).transact(() => {
+                                const base = (yNodesMap as any).get(id);
+                                if (base) (yNodesMap as any).set(id, { ...base, data: { ...(base.data || {}), content: newTitle } });
+                                // Ensure Y.Text entry exists for title id and update text so peers sync
+                                try {
+                                    let tnode = (yTextMap as any)?.get?.(id);
+                                    if (!tnode) {
+                                        tnode = new (Y as any).Text();
+                                        (yTextMap as any).set(id, tnode);
+                                    }
+                                    const curr = tnode.toString();
+                                    if (curr !== newTitle) {
+                                        // eslint-disable-next-line drizzle/enforce-delete-with-where
+                                        if (curr && curr.length) tnode.delete(0, curr.length);
+                                        if (newTitle) tnode.insert(0, newTitle);
+                                    }
+                                } catch { }
+                            }, localOriginRef.current);
+                        }
+                        // Also persist to db so listing shows updated title
+                        try {
+                            const rid = typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '');
+                            fetch(`/api/experimental/rationales/${encodeURIComponent(rid)}`, {
+                                method: 'PATCH',
+                                headers: { 'content-type': 'application/json' },
+                                body: JSON.stringify({ title: newTitle })
+                            }).catch(() => { });
+                        } catch { }
+                    } catch { }
+                }}
             />
 
             <ReactFlowProvider>
@@ -318,8 +384,8 @@ export default function MultiplayerRationaleDetailPage() {
                     ),
                     updateNodeFavor,
                     addNegationBelow,
-                    addAnswerBelow,
                     addQuestionBelow,
+                    addPointBelow,
                     deleteNode,
                     beginConnectFromNode: (id: string) => { connectAnchorRef.current = id; setConnectAnchorId(id); },
                     completeConnectToNode: (nodeId: string) => {
@@ -356,6 +422,7 @@ export default function MultiplayerRationaleDetailPage() {
                                 setEdges((eds) => (eds.some(e => e.id === id) ? eds : [...eds, edge as any]));
                             }
                         }
+                        // Objection nodes render as point-like dynamically based on negation edges; do not flip types
                         setConnectAnchorId(null);
                         connectAnchorRef.current = null;
                         setConnectCursor(null);
@@ -379,7 +446,7 @@ export default function MultiplayerRationaleDetailPage() {
                     isLockedForMe,
                     getLockOwner,
                     proxyMode: !isLeader,
-                    
+
                     undo,
                     redo,
                     addNodeAtPosition: createAddNodeAtPosition(
@@ -439,7 +506,7 @@ export default function MultiplayerRationaleDetailPage() {
                             readOnly={!isLeader}
                             grabMode={grabMode}
                             setGrabMode={setGrabMode}
-                            
+
                         />
                     </div>
                     <GraphUpdater nodes={nodes} edges={edges} setNodes={setNodes} />

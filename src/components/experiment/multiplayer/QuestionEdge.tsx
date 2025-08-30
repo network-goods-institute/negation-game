@@ -59,12 +59,10 @@ export const QuestionEdge: React.FC<EdgeProps> = (props) => {
     const tgtHasFavor = (targetNode as any)?.type === 'point' || (targetNode as any)?.type === 'objection';
     const srcFavor = Math.max(1, Math.min(5, (sourceNode as any)?.data?.favor ?? 3));
     const tgtFavor = Math.max(1, Math.min(5, (targetNode as any)?.data?.favor ?? 3));
-    const srcIsQuestion = (sourceNode as any)?.type === 'question';
-    const tgtIsQuestion = (targetNode as any)?.type === 'question';
-    const srcIsAnswer = (sourceNode as any)?.type === 'answer';
-    const tgtIsAnswer = (targetNode as any)?.type === 'answer';
-    const srcLowOpacity = (srcHasFavor && srcFavor <= 3) || srcIsQuestion || srcIsAnswer;
-    const tgtLowOpacity = (tgtHasFavor && tgtFavor <= 3) || tgtIsQuestion || tgtIsAnswer;
+    const srcIsQuestion = (sourceNode as any)?.type === 'question' || (sourceNode as any)?.type === 'title';
+    const tgtIsQuestion = (targetNode as any)?.type === 'question' || (targetNode as any)?.type === 'title';
+    const srcLowOpacity = (srcHasFavor && srcFavor <= 3) || srcIsQuestion;
+    const tgtLowOpacity = (tgtHasFavor && tgtFavor <= 3) || tgtIsQuestion;
 
     // Strap geometry (variable-width band along straight centerline)
     const strapMeta = React.useMemo(() => {

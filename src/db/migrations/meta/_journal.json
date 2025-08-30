@@ -582,6 +582,13 @@
       "when": 1756027291225,
       "tag": "0082_careless_ricochet",
       "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1756558431518,
+      "tag": "0083_brief_patriot",
+      "breakpoints": true
     }
   ]
 }

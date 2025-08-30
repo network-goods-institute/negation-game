@@ -7,6 +7,7 @@ export async function fetchMpDocs(limit = 50) {
   const rows = await db
     .select({
       id: mpDocsTable.id,
+      title: mpDocsTable.title,
       updatedAt: mpDocsTable.updatedAt,
       createdAt: mpDocsTable.createdAt,
     })

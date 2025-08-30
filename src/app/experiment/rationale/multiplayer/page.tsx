@@ -7,7 +7,7 @@ import { Roboto_Slab } from 'next/font/google';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
-type MpDoc = { id: string; updatedAt: string; createdAt: string };
+type MpDoc = { id: string; title: string | null; updatedAt: string; createdAt: string };
 
 export default function MultiplayerRationaleIndexPage() {
   const { authenticated, ready, login } = usePrivy();
@@ -22,7 +22,7 @@ export default function MultiplayerRationaleIndexPage() {
 
   const deleteDoc = async (docId: string) => {
     if (!confirm(`Delete rationale ${docId}? This cannot be undone.`)) return;
-    
+
     try {
       const res = await fetch(`/api/experimental/rationales/${docId}`, {
         method: 'DELETE'
@@ -34,6 +34,27 @@ export default function MultiplayerRationaleIndexPage() {
       }
     } catch (e) {
       alert('Failed to delete rationale');
+    }
+  };
+
+  const renameDoc = async (docId: string, currentTitle: string | null) => {
+    const next = window.prompt('Enter new title', (currentTitle || '').trim());
+    if (next == null) return;
+    const title = next.trim();
+    if (!title) return;
+    try {
+      const res = await fetch(`/api/experimental/rationales/${encodeURIComponent(docId)}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ title })
+      });
+      if (res.ok) {
+        setDocs((prev) => prev.map((d) => d.id === docId ? { ...d, title } : d));
+      } else {
+        alert('Failed to rename');
+      }
+    } catch (e) {
+      alert('Failed to rename');
     }
   };
 
@@ -126,12 +147,21 @@ export default function MultiplayerRationaleIndexPage() {
             {docs.map((d) => (
               <li key={d.id} className="bg-white border rounded p-3 flex items-center justify-between">
                 <div>
-                  <div className="font-mono text-sm">{d.id}</div>
+                  <div className="text-sm font-semibold">
+                    {d.title?.trim() || d.id}
+                  </div>
+                  <div className="font-mono text-xs text-gray-500">{d.id}</div>
                   <div className="text-xs text-gray-500">Updated {new Date(d.updatedAt).toLocaleString()}</div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Link href={`/experiment/rationale/multiplayer/${d.id}`} className="px-3 py-1 rounded bg-stone-800 text-white text-xs">Open</Link>
-                  <button 
+                  <button
+                    onClick={() => renameDoc(d.id, d.title || null)}
+                    className="px-3 py-1 rounded bg-blue-600 text-white text-xs hover:bg-blue-700"
+                  >
+                    Rename
+                  </button>
+                  <button
                     onClick={() => deleteDoc(d.id)}
                     className="px-3 py-1 rounded bg-red-600 text-white text-xs hover:bg-red-700"
                   >

@@ -5,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useGraphActions } from "./GraphContext";
 import { ContextMenu } from "./common/ContextMenu";
 import { useEdgePerformanceOptimization } from "./common/useEdgePerformanceOptimization";
+import { edgeIsObjectionStyle } from "./common/edgeStyle";
 
 export type ObjectionEdgeType = Edge<any, "objection">;
 export interface ObjectionEdgeProps extends EdgeProps<ObjectionEdgeType> { }
@@ -83,10 +84,10 @@ export const ObjectionEdge = (props: ObjectionEdgeProps) => {
   const tgtFavor = Math.max(1, Math.min(5, (targetNode as any)?.data?.favor ?? 3));
   const srcIsQuestion = (sourceNode as any)?.type === 'question';
   const tgtIsQuestion = (targetNode as any)?.type === 'question';
-  const srcIsAnswer = (sourceNode as any)?.type === 'answer';
-  const tgtIsAnswer = (targetNode as any)?.type === 'answer';
-  const srcLowOpacity = (srcHasFavor && srcFavor <= 3) || srcIsQuestion || srcIsAnswer;
-  const tgtLowOpacity = (tgtHasFavor && tgtFavor <= 3) || tgtIsQuestion || tgtIsAnswer;
+  const srcLowOpacity = (srcHasFavor && srcFavor <= 3) || srcIsQuestion;
+  const tgtLowOpacity = (tgtHasFavor && tgtFavor <= 3) || tgtIsQuestion;
+
+  const useDotted = edgeIsObjectionStyle((targetNode as any)?.type as string | undefined);
 
   return (
     <>
@@ -124,9 +125,9 @@ export const ObjectionEdge = (props: ObjectionEdgeProps) => {
             {...props}
             style={useMemo(() => ({
               strokeWidth: Math.max(1, Math.min(8, relevance * 1.6)),
-              strokeDasharray: "8,4",
+              strokeDasharray: useDotted ? "8,4" : undefined,
               stroke: "#f97316",
-            }), [relevance])}
+            }), [relevance, useDotted])}
             pathOptions={useMemo(() => ({ curvature: 0.35 }), [])}
           />
         </g>

@@ -112,9 +112,19 @@ export const createAddNodeAtPosition = (
   localOrigin: object,
   setNodes: (updater: (nodes: any[]) => any[]) => void
 ) => {
-  return (type: "point" | "statement" | "objection" | "question" | "answer", x: number, y: number) => {
+  return (
+    type: "point" | "statement" | "objection" | "question",
+    x: number,
+    y: number
+  ) => {
     const idBase =
-      type === "statement" ? "s" : type === "objection" ? "o" : type === "question" ? "q" : type === "answer" ? "a" : "p";
+      type === "statement"
+        ? "s"
+        : type === "objection"
+          ? "o"
+          : type === "question"
+            ? "q"
+            : "p";
     const id = `${idBase}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const data: any =
       type === "statement"
@@ -123,9 +133,7 @@ export const createAddNodeAtPosition = (
           ? { content: "New objection" }
           : type === "question"
             ? { content: "What about...?" }
-            : type === "answer"
-              ? { content: "Answer: ..." }
-              : { content: "New point" };
+            : { content: "New point" };
     const node: any = { id, type, position: { x, y }, data };
 
     // local UI responsiveness
@@ -136,7 +144,10 @@ export const createAddNodeAtPosition = (
         yNodesMap.set(id, node);
         if (
           yTextMap &&
-          (type === "point" || type === "objection" || type === "statement" || type === "question" || type === "answer")
+          (type === "point" ||
+            type === "objection" ||
+            type === "statement" ||
+            type === "question")
         ) {
           const t = new Y.Text();
           const initial =
@@ -195,7 +206,9 @@ export const createDeleteNode = (
       (e: any) => e.source === nodeId || e.target === nodeId
     );
     // Optimistic local update
-    setEdges((eds) => eds.filter((e: any) => !(e.source === nodeId || e.target === nodeId)));
+    setEdges((eds) =>
+      eds.filter((e: any) => !(e.source === nodeId || e.target === nodeId))
+    );
     setNodes((nds) => nds.filter((n: any) => n.id !== nodeId));
     if (yNodesMap && yEdgesMap && ydoc) {
       ydoc.transact(() => {
@@ -285,7 +298,7 @@ export const createAddNegationBelow = (
   };
 };
 
-export const createAddAnswerBelow = (
+export const createAddPointBelow = (
   nodes: any[],
   yNodesMap: any,
   yEdgesMap: any,
@@ -315,13 +328,13 @@ export const createAddAnswerBelow = (
     lastAddRef.current[parentNodeId] = now;
     const parent = nodes.find((n: any) => n.id === parentNodeId);
     if (!parent) return;
-    const newId = `a-${now}-${Math.floor(Math.random() * 1e6)}`;
+    const newId = `p-${now}-${Math.floor(Math.random() * 1e6)}`;
     const newPos = { x: parent.position.x, y: parent.position.y + 180 };
     const newNode: any = {
       id: newId,
-      type: "answer",
+      type: "point",
       position: newPos,
-      data: { content: "Answer: ...", favor: 3 },
+      data: { content: "New point", favor: 3 },
     };
     const edgeType = chooseEdgeType(newNode.type, parent.type);
     const newEdge: any = {
@@ -333,19 +346,19 @@ export const createAddAnswerBelow = (
       targetHandle: `${parentNodeId}-incoming-handle`,
       data: { relevance: 3 },
     };
+    setNodes((curr) => [...curr, newNode]);
+    setEdges((eds) => [...eds, newEdge]);
 
-    setNodes((prev) => [...prev, newNode]);
-    setEdges((prev) => [...prev, newEdge]);
-
-    if (isLeader && yNodesMap && yEdgesMap && ydoc) {
+    if (yNodesMap && yEdgesMap && ydoc && isLeader) {
       ydoc.transact(() => {
-        if (!yNodesMap.has(newId)) yNodesMap.set(newId, newNode);
-        if (!yEdgesMap.has(newEdge.id)) yEdgesMap.set(newEdge.id, newEdge);
-        if (yTextMap && registerTextInUndoScope) {
-          const yText = new Y.Text(newNode.data.content || "");
-          yTextMap.set(newId, yText);
+        yNodesMap.set(newId, newNode);
+        yEdgesMap.set(newEdge.id, newEdge);
+        if (yTextMap && !yTextMap.get(newId)) {
+          const t = new Y.Text();
+          t.insert(0, "New point");
+          yTextMap.set(newId, t);
           try {
-            registerTextInUndoScope?.(yText);
+            registerTextInUndoScope?.(t);
           } catch {}
         }
       }, localOrigin);
@@ -519,7 +532,7 @@ export const createUpdateEdgeAnchorPosition = (
   yNodesMap?: any,
   ydoc?: any,
   isLeader?: boolean,
-  localOrigin?: object,
+  localOrigin?: object
 ) => {
   // Cache last positions to avoid redundant state updates from repeated effects
   const lastPos = new Map<string, { x: number; y: number }>();
@@ -534,8 +547,10 @@ export const createUpdateEdgeAnchorPosition = (
     setNodes((nds) => {
       let changed = false;
       const updated = nds.map((n: any) => {
-        if (!(n.type === "edge_anchor" && n.data?.parentEdgeId === edgeId)) return n;
-        const px = (n.position?.x ?? 0), py = (n.position?.y ?? 0);
+        if (!(n.type === "edge_anchor" && n.data?.parentEdgeId === edgeId))
+          return n;
+        const px = n.position?.x ?? 0,
+          py = n.position?.y ?? 0;
         if (Math.abs(px - x) < eps && Math.abs(py - y) < eps) return n;
         changed = true;
         changedAnchorId = n.id;
@@ -548,7 +563,11 @@ export const createUpdateEdgeAnchorPosition = (
       if (changedAnchorId && yNodesMap && ydoc && isLeader) {
         (ydoc as any).transact(() => {
           const base = (yNodesMap as any).get(changedAnchorId as any);
-          if (base) (yNodesMap as any).set(changedAnchorId as any, { ...base, position: { x, y } });
+          if (base)
+            (yNodesMap as any).set(changedAnchorId as any, {
+              ...base,
+              position: { x, y },
+            });
         }, localOrigin || {});
       }
     } catch {}
