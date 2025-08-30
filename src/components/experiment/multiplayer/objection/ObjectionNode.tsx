@@ -75,9 +75,21 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const favor = Math.max(1, Math.min(5, (data as any)?.favor ?? 3));
     const favorOpacity = selected || hovered ? 1 : Math.max(0.3, Math.min(1, favor / 5));
 
+    const sourceHandlePosition = useStore((s: any) => {
+        const edges: any[] = s.edges || [];
+        const obj = edges.find((e: any) => e.type === 'objection' && e.source === id);
+        if (!obj) return Position.Top;
+        const anchor: any = s.nodeInternals?.get?.(obj.target);
+        const self: any = s.nodeInternals?.get?.(id);
+        if (!anchor || !self) return Position.Top;
+        const anchorY = anchor.position?.y ?? 0;
+        const selfY = self.position?.y ?? 0;
+        return anchorY > selfY ? Position.Bottom : Position.Top;
+    });
+
     return (
         <>
-            <Handle id={`${id}-source-handle`} type="source" position={Position.Top} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
+            <Handle id={`${id}-source-handle`} type="source" position={sourceHandlePosition} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
             <Handle id={`${id}-incoming-handle`} type="target" position={Position.Bottom} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
             <div className="relative inline-block">
                 <div

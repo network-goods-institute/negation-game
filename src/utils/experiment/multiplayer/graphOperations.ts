@@ -187,12 +187,51 @@ export const createDeleteNode = (
     }
     const edge = edges.find((e: any) => e.id === nodeId);
     if (edge) {
-      // Optimistic local update for client responsiveness
-      setEdges((eds) => eds.filter((e: any) => e.id !== edge.id));
-      if (yEdgesMap && ydoc) {
+      const edgesToDelete = [edge];
+      const nodesToDelete: string[] = [];
+
+      const anchorNode = nodes.find((n: any) => n.id === `anchor:${edge.id}`);
+      if (anchorNode) {
+        nodesToDelete.push(anchorNode.id);
+
+        const objectionEdges = edges.filter(
+          (e: any) =>
+            e.type === "objection" &&
+            (e.source === anchorNode.id || e.target === anchorNode.id)
+        );
+        edgesToDelete.push(...objectionEdges);
+
+        for (const objEdge of objectionEdges) {
+          const objectionNodeId =
+            objEdge.source === anchorNode.id ? objEdge.target : objEdge.source;
+          const objectionNode = nodes.find(
+            (n: any) => n.id === objectionNodeId && n.type === "objection"
+          );
+          if (objectionNode) {
+            nodesToDelete.push(objectionNode.id);
+          }
+        }
+      }
+
+      setEdges((eds) =>
+        eds.filter((e: any) => !edgesToDelete.some((del) => del.id === e.id))
+      );
+      setNodes((nds) => nds.filter((n: any) => !nodesToDelete.includes(n.id)));
+
+      if (yEdgesMap && yNodesMap && ydoc) {
         ydoc.transact(() => {
-          // eslint-disable-next-line drizzle/enforce-delete-with-where
-          yEdgesMap.delete(edge.id as any);
+          for (const e of edgesToDelete) {
+            // eslint-disable-next-line drizzle/enforce-delete-with-where
+            yEdgesMap.delete(e.id as any);
+          }
+          for (const nodeId of nodesToDelete) {
+            // eslint-disable-next-line drizzle/enforce-delete-with-where
+            yNodesMap.delete(nodeId as any);
+            try {
+              // eslint-disable-next-line drizzle/enforce-delete-with-where
+              yTextMap?.delete(nodeId as any);
+            } catch {}
+          }
         }, localOrigin);
       }
       return;
@@ -205,14 +244,50 @@ export const createDeleteNode = (
     const incidentEdges = edges.filter(
       (e: any) => e.source === nodeId || e.target === nodeId
     );
+
+    const allEdgesToDelete = [...incidentEdges];
+    const allNodesToDelete: string[] = [];
+
+    for (const incidentEdge of incidentEdges) {
+      const anchorNode = nodes.find(
+        (n: any) => n.id === `anchor:${incidentEdge.id}`
+      );
+      if (anchorNode) {
+        allNodesToDelete.push(anchorNode.id);
+
+        const objectionEdges = edges.filter(
+          (e: any) =>
+            e.type === "objection" &&
+            (e.source === anchorNode.id || e.target === anchorNode.id)
+        );
+        allEdgesToDelete.push(...objectionEdges);
+
+        for (const objEdge of objectionEdges) {
+          const objectionNodeId =
+            objEdge.source === anchorNode.id ? objEdge.target : objEdge.source;
+          const objectionNode = nodes.find(
+            (n: any) => n.id === objectionNodeId && n.type === "objection"
+          );
+          if (objectionNode) {
+            allNodesToDelete.push(objectionNode.id);
+          }
+        }
+      }
+    }
+
     // Optimistic local update
     setEdges((eds) =>
-      eds.filter((e: any) => !(e.source === nodeId || e.target === nodeId))
+      eds.filter((e: any) => !allEdgesToDelete.some((del) => del.id === e.id))
     );
-    setNodes((nds) => nds.filter((n: any) => n.id !== nodeId));
+    setNodes((nds) =>
+      nds.filter(
+        (n: any) => n.id !== nodeId && !allNodesToDelete.includes(n.id)
+      )
+    );
+
     if (yNodesMap && yEdgesMap && ydoc) {
       ydoc.transact(() => {
-        for (const e of incidentEdges) {
+        for (const e of allEdgesToDelete) {
           // eslint-disable-next-line drizzle/enforce-delete-with-where
           yEdgesMap.delete(e.id as any);
         }
@@ -222,6 +297,15 @@ export const createDeleteNode = (
           // eslint-disable-next-line drizzle/enforce-delete-with-where
           yTextMap?.delete(nodeId as any);
         } catch {}
+        // Delete objection nodes
+        for (const objectionNodeId of allNodesToDelete) {
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
+          yNodesMap.delete(objectionNodeId as any);
+          try {
+            // eslint-disable-next-line drizzle/enforce-delete-with-where
+            yTextMap?.delete(objectionNodeId as any);
+          } catch {}
+        }
       }, localOrigin);
     }
   };
