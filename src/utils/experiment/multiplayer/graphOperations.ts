@@ -166,7 +166,8 @@ export const createAddNodeAtPosition = (
           (type === "point" || type === "objection" || type === "statement")
         ) {
           const t = new Y.Text();
-          const initialContent = type === "statement" ? data.statement : data.content;
+          const initialContent =
+            type === "statement" ? data.statement : data.content;
           if (initialContent) t.insert(0, initialContent);
           yTextMap.set(id, t);
           try {
@@ -175,7 +176,7 @@ export const createAddNodeAtPosition = (
         }
       }, localOrigin);
     }
-    
+
     return id;
   };
 };
@@ -666,7 +667,10 @@ export const createUpdateNodeType = (
   setNodes: (updater: (nodes: any[]) => any[]) => void,
   registerTextInUndoScope?: (t: any) => void
 ) => {
-  return (nodeId: string, newType: 'point' | 'statement' | 'title' | 'objection') => {
+  return (
+    nodeId: string,
+    newType: "point" | "statement" | "title" | "objection"
+  ) => {
     if (!isLeader) {
       toast.warning("Read-only mode: Changes won't be saved");
       return;
@@ -675,16 +679,26 @@ export const createUpdateNodeType = (
     setNodes((nds) =>
       nds.map((n: any) => {
         if (n.id !== nodeId) return n;
-        
-        const currentContent = n.type === 'statement' ? n.data?.statement : n.data?.content;
-        const newData = newType === 'statement' 
-          ? { statement: currentContent || '', content: undefined, nodeType: undefined }
-          : { content: currentContent || '', statement: undefined, nodeType: undefined };
-        
+
+        const currentContent =
+          n.type === "statement" ? n.data?.statement : n.data?.content;
+        const newData =
+          newType === "statement"
+            ? {
+                statement: currentContent || "",
+                content: undefined,
+                nodeType: undefined,
+              }
+            : {
+                content: currentContent || "",
+                statement: undefined,
+                nodeType: undefined,
+              };
+
         return {
           ...n,
           type: newType,
-          data: newData
+          data: newData,
         };
       })
     );
@@ -693,15 +707,27 @@ export const createUpdateNodeType = (
       ydoc.transact(() => {
         const base = yNodesMap.get(nodeId);
         if (base) {
-          const currentContent = base.type === 'statement' ? base.data?.statement : base.data?.content;
-          const newData = newType === 'statement'
-            ? { statement: currentContent || '', content: undefined, nodeType: undefined }
-            : { content: currentContent || '', statement: undefined, nodeType: undefined };
-          
+          const currentContent =
+            base.type === "statement"
+              ? base.data?.statement
+              : base.data?.content;
+          const newData =
+            newType === "statement"
+              ? {
+                  statement: currentContent || "",
+                  content: undefined,
+                  nodeType: undefined,
+                }
+              : {
+                  content: currentContent || "",
+                  statement: undefined,
+                  nodeType: undefined,
+                };
+
           yNodesMap.set(nodeId, {
             ...base,
             type: newType,
-            data: newData
+            data: newData,
           });
 
           // Update Y.Text content if needed
@@ -714,9 +740,11 @@ export const createUpdateNodeType = (
                 registerTextInUndoScope?.(t);
               } catch {}
             }
-            const newContent = newType === 'statement' ? newData.statement : newData.content;
+            const newContent =
+              newType === "statement" ? newData.statement : newData.content;
             const curr = t.toString();
             if (curr !== newContent) {
+              // eslint-disable-next-line drizzle/enforce-delete-with-where
               if (curr && curr.length) t.delete(0, curr.length);
               if (newContent) t.insert(0, newContent);
             }
@@ -724,16 +752,22 @@ export const createUpdateNodeType = (
         }
       }, localOrigin);
     }
-    
   };
 };
 
-const getDefaultContentForType = (type: 'point' | 'statement' | 'title' | 'objection'): string => {
+const getDefaultContentForType = (
+  type: "point" | "statement" | "title" | "objection"
+): string => {
   switch (type) {
-    case 'point': return 'New point';
-    case 'statement': return 'New Statement';
-    case 'title': return 'New Title';
-    case 'objection': return 'New objection';
-    default: return 'New point';
+    case "point":
+      return "New point";
+    case "statement":
+      return "New Statement";
+    case "title":
+      return "New Title";
+    case "objection":
+      return "New objection";
+    default:
+      return "New point";
   }
 };
