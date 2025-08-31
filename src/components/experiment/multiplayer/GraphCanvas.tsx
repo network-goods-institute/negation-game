@@ -35,6 +35,7 @@ interface GraphCanvasProps {
   onFlowMouseMove?: (flowX: number, flowY: number) => void;
   connectCursor?: { x: number; y: number } | null;
   onBackgroundMouseUp?: () => void;
+  onBackgroundDoubleClick?: (flowX: number, flowY: number) => void;
 }
 
 export const GraphCanvas: React.FC<GraphCanvasProps> = ({
@@ -62,15 +63,11 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   onFlowMouseMove,
   connectCursor,
   onBackgroundMouseUp,
+  onBackgroundDoubleClick,
 }) => {
   const rf = useReactFlow();
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const graph = useGraphActions();
-  const [cmOpen, setCmOpen] = React.useState(false);
-  const [cmPos, setCmPos] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [cmFlow, setCmFlow] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [subOpen, setSubOpen] = React.useState(false);
-  const [subPos, setSubPos] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [edgesLayer, setEdgesLayer] = React.useState<SVGElement | null>(null);
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -130,21 +127,19 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     setEdgesLayer(el);
   }, [nodes, edges]);
 
-  const onCanvasContextMenu = (e: React.MouseEvent) => {
+
+  const onCanvasDoubleClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     const isNode = target.closest('.react-flow__node');
     const isEdge = target.closest('.react-flow__edge');
     if (isNode || isEdge) return;
     e.preventDefault();
     const flowP = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
-    setCmPos({ x: e.clientX, y: e.clientY });
-    setCmFlow(flowP);
-    setCmOpen(true);
-    setSubOpen(false);
+    onBackgroundDoubleClick?.(flowP.x, flowP.y);
   };
 
   return (
-    <div ref={containerRef} className="w-full h-full relative" onMouseMove={connectMode ? handleMouseMove : undefined} onMouseUp={handleMouseUp} onContextMenu={onCanvasContextMenu}>
+    <div ref={containerRef} className="w-full h-full relative" onMouseMove={connectMode ? handleMouseMove : undefined} onMouseUp={handleMouseUp} onDoubleClick={onCanvasDoubleClick}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -165,34 +160,13 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         panOnDrag={panOnDrag}
         panOnScroll={panOnScroll as any}
         zoomOnScroll={zoomOnScroll}
+        zoomOnDoubleClick={false}
         nodesDraggable={!connectMode}
       >
         <Background />
         <Controls />
         <MiniMap nodeColor={() => '#dbeafe'} className="bg-white" />
       </ReactFlow>
-      {/* Canvas context menu */}
-      <ContextMenu
-        open={cmOpen}
-        x={cmPos.x}
-        y={cmPos.y}
-        onClose={() => setCmOpen(false)}
-        items={[
-          { label: 'Make point…', onClick: () => { setSubPos(cmPos); setSubOpen(true); } },
-        ]}
-      />
-      <ContextMenu
-        open={subOpen}
-        x={subPos.x}
-        y={subPos.y}
-        onClose={() => setSubOpen(false)}
-        items={[
-          { label: 'Point', onClick: () => graph.addNodeAtPosition?.('point', cmFlow.x, cmFlow.y) },
-          { label: 'Statement', onClick: () => graph.addNodeAtPosition?.('statement', cmFlow.x, cmFlow.y) },
-          { label: 'Title', onClick: () => graph.addNodeAtPosition?.('title', cmFlow.x, cmFlow.y) },
-          { label: 'Objection', onClick: () => graph.addNodeAtPosition?.('objection', cmFlow.x, cmFlow.y) },
-        ]}
-      />
       {/* Connect overlay: draw a line from anchor node center to cursor */}
       {connectMode && connectAnchorId && connectCursor && edgesLayer && createPortal((() => {
         const n = rf.getNode(connectAnchorId);

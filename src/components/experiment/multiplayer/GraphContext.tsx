@@ -32,7 +32,8 @@ type GraphActions = {
     proxyMode?: boolean;
     undo?: () => void;
     redo?: () => void;
-    addNodeAtPosition?: (type: 'point' | 'statement' | 'title' | 'objection', x: number, y: number) => void;
+    addNodeAtPosition?: (type: 'point' | 'statement' | 'title' | 'objection', x: number, y: number) => string;
+    updateNodeType?: (nodeId: string, newType: 'point' | 'statement' | 'title' | 'objection') => void;
 };
 
 const GraphContext = createContext<GraphActions | null>(null);

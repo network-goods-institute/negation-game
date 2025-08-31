@@ -122,13 +122,14 @@ export const createAddNodeAtPosition = (
   ydoc: any,
   isLeader: boolean,
   localOrigin: object,
-  setNodes: (updater: (nodes: any[]) => any[]) => void
+  setNodes: (updater: (nodes: any[]) => any[]) => void,
+  registerTextInUndoScope?: (t: any) => void
 ) => {
   return (
     type: "point" | "statement" | "title" | "objection",
     x: number,
     y: number
-  ) => {
+  ): string => {
     const idBase =
       type === "statement"
         ? "s"
@@ -142,10 +143,10 @@ export const createAddNodeAtPosition = (
       type === "statement"
         ? { statement: "New Statement" }
         : type === "objection"
-          ? { content: "New objection" }
+          ? { content: "New Objection" }
           : type === "title"
             ? { content: "New Title" }
-            : { content: "New point" };
+            : { content: "New Point" };
     const node: any = {
       id,
       type,
@@ -165,13 +166,17 @@ export const createAddNodeAtPosition = (
           (type === "point" || type === "objection" || type === "statement")
         ) {
           const t = new Y.Text();
-          const initial =
-            type === "statement" ? data.statement || "" : data.content || "";
-          if (initial) t.insert(0, initial);
+          const initialContent = type === "statement" ? data.statement : data.content;
+          if (initialContent) t.insert(0, initialContent);
           yTextMap.set(id, t);
+          try {
+            registerTextInUndoScope?.(t);
+          } catch {}
         }
       }, localOrigin);
     }
+    
+    return id;
   };
 };
 
@@ -650,4 +655,85 @@ export const createUpdateEdgeAnchorPosition = (
       }
     } catch {}
   };
+};
+
+export const createUpdateNodeType = (
+  yNodesMap: any,
+  yTextMap: any,
+  ydoc: any,
+  isLeader: boolean,
+  localOrigin: object,
+  setNodes: (updater: (nodes: any[]) => any[]) => void,
+  registerTextInUndoScope?: (t: any) => void
+) => {
+  return (nodeId: string, newType: 'point' | 'statement' | 'title' | 'objection') => {
+    if (!isLeader) {
+      toast.warning("Read-only mode: Changes won't be saved");
+      return;
+    }
+
+    setNodes((nds) =>
+      nds.map((n: any) => {
+        if (n.id !== nodeId) return n;
+        
+        const currentContent = n.type === 'statement' ? n.data?.statement : n.data?.content;
+        const newData = newType === 'statement' 
+          ? { statement: currentContent || '', content: undefined, nodeType: undefined }
+          : { content: currentContent || '', statement: undefined, nodeType: undefined };
+        
+        return {
+          ...n,
+          type: newType,
+          data: newData
+        };
+      })
+    );
+
+    if (yNodesMap && ydoc && isLeader) {
+      ydoc.transact(() => {
+        const base = yNodesMap.get(nodeId);
+        if (base) {
+          const currentContent = base.type === 'statement' ? base.data?.statement : base.data?.content;
+          const newData = newType === 'statement'
+            ? { statement: currentContent || '', content: undefined, nodeType: undefined }
+            : { content: currentContent || '', statement: undefined, nodeType: undefined };
+          
+          yNodesMap.set(nodeId, {
+            ...base,
+            type: newType,
+            data: newData
+          });
+
+          // Update Y.Text content if needed
+          if (yTextMap) {
+            let t = yTextMap.get(nodeId);
+            if (!t) {
+              t = new Y.Text();
+              yTextMap.set(nodeId, t);
+              try {
+                registerTextInUndoScope?.(t);
+              } catch {}
+            }
+            const newContent = newType === 'statement' ? newData.statement : newData.content;
+            const curr = t.toString();
+            if (curr !== newContent) {
+              if (curr && curr.length) t.delete(0, curr.length);
+              if (newContent) t.insert(0, newContent);
+            }
+          }
+        }
+      }, localOrigin);
+    }
+    
+  };
+};
+
+const getDefaultContentForType = (type: 'point' | 'statement' | 'title' | 'objection'): string => {
+  switch (type) {
+    case 'point': return 'New point';
+    case 'statement': return 'New Statement';
+    case 'title': return 'New Title';
+    case 'objection': return 'New objection';
+    default: return 'New point';
+  }
 };

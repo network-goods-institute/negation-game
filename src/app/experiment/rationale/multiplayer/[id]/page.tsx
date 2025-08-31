@@ -23,6 +23,7 @@ import { useLeaderPromotionSync } from '@/hooks/experiment/multiplayer/useLeader
 import { createGraphChangeHandlers } from '@/utils/experiment/multiplayer/graphSync';
 import { GraphProvider } from '@/components/experiment/multiplayer/GraphContext';
 import { GraphUpdater } from '@/components/experiment/multiplayer/GraphUpdater';
+import { TypeSelectorDropdown } from '@/components/experiment/multiplayer/TypeSelectorDropdown';
 import { toast } from 'sonner';
 import { buildConnectionEdge } from '@/utils/experiment/multiplayer/connectUtils';
 import {
@@ -33,7 +34,8 @@ import {
     createAddPointBelow,
     createAddObjectionForEdge,
     createUpdateEdgeAnchorPosition,
-    createAddNodeAtPosition
+    createAddNodeAtPosition,
+    createUpdateNodeType
 } from '@/utils/experiment/multiplayer/graphOperations';
 import { Roboto_Slab } from 'next/font/google';
 import * as Y from 'yjs';
@@ -53,6 +55,7 @@ export default function MultiplayerRationaleDetailPage() {
     const [connectCursor, setConnectCursor] = useState<{ x: number; y: number } | null>(null);
     const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
     const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+    const [newNodeWithDropdown, setNewNodeWithDropdown] = useState<{ id: string, x: number, y: number } | null>(null);
     const localOriginRef = useRef<object>({});
     const lastAddRef = useRef<Record<string, number>>({});
 
@@ -445,6 +448,16 @@ export default function MultiplayerRationaleDetailPage() {
                         isLeader,
                         localOriginRef.current,
                         setNodes as any,
+                        registerTextInUndoScope,
+                    ),
+                    updateNodeType: createUpdateNodeType(
+                        yNodesMap as any,
+                        yTextMap as any,
+                        ydoc as any,
+                        isLeader,
+                        localOriginRef.current,
+                        setNodes as any,
+                        registerTextInUndoScope,
                     ),
                 }}>
                     <div className="w-full h-full relative">
@@ -482,6 +495,40 @@ export default function MultiplayerRationaleDetailPage() {
                             onBackgroundMouseUp={() => {
                                 // No-op: edge connections by drag are disabled
                             }}
+                            onBackgroundDoubleClick={(flowX, flowY) => {
+                                if (!isLeader) {
+                                    toast.warning("Read-only mode: Changes won't be saved");
+                                    return;
+                                }
+                                const addNodeAtPosition = createAddNodeAtPosition(
+                                    yNodesMap as any,
+                                    yTextMap as any,
+                                    ydoc as any,
+                                    isLeader,
+                                    localOriginRef.current,
+                                    setNodes as any,
+                                    registerTextInUndoScope,
+                                );
+                                const nodeId = addNodeAtPosition('point', flowX, flowY);
+
+                                setTimeout(() => {
+                                    const element = document.querySelector(`[data-id="${nodeId}"]`);
+                                    if (element) {
+                                        const rect = element.getBoundingClientRect();
+                                        setNewNodeWithDropdown({
+                                            id: nodeId,
+                                            x: rect.left - 130,
+                                            y: rect.top
+                                        });
+                                    } else {
+                                        setNewNodeWithDropdown({
+                                            id: nodeId,
+                                            x: window.innerWidth / 2 - 130,
+                                            y: window.innerHeight / 2
+                                        });
+                                    }
+                                }, 50);
+                            }}
                         />
                         <ToolsBar
                             connectMode={connectMode}
@@ -500,6 +547,29 @@ export default function MultiplayerRationaleDetailPage() {
                     </div>
                     <GraphUpdater nodes={nodes} edges={edges} setNodes={setNodes} />
                 </GraphProvider>
+
+                {newNodeWithDropdown && (
+                    <TypeSelectorDropdown
+                        open={true}
+                        x={newNodeWithDropdown.x}
+                        y={newNodeWithDropdown.y}
+                        currentType="point"
+                        onClose={() => setNewNodeWithDropdown(null)}
+                        onSelect={(type) => {
+                            const updateNodeType = createUpdateNodeType(
+                                yNodesMap as any,
+                                yTextMap as any,
+                                ydoc as any,
+                                isLeader,
+                                localOriginRef.current,
+                                setNodes as any,
+                                registerTextInUndoScope,
+                            );
+                            updateNodeType(newNodeWithDropdown.id, type);
+                            setNewNodeWithDropdown(null);
+                        }}
+                    />
+                )}
             </ReactFlowProvider>
         </div>
     );
