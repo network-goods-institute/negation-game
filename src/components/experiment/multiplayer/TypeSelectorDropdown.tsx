@@ -11,7 +11,7 @@ interface TypeSelectorDropdownProps {
 }
 
 const typeOptions = [
-  { type: 'point' as const, label: 'Point', color: 'bg-green-50 hover:bg-green-100 text-green-800', dot: 'bg-green-500' },
+  { type: 'point' as const, label: 'Point', color: 'bg-gray-50 hover:bg-gray-100 text-gray-800', dot: 'bg-gray-500' },
   { type: 'statement' as const, label: 'Statement', color: 'bg-blue-50 hover:bg-blue-100 text-blue-800', dot: 'bg-blue-500' },
   { type: 'objection' as const, label: 'Objection', color: 'bg-red-50 hover:bg-red-100 text-red-800', dot: 'bg-red-500' },
 ];
