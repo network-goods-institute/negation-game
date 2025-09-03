@@ -203,6 +203,9 @@ export default async function middleware(req: NextRequest) {
     const space = getSpaceFromPathname(url.pathname);
     if (space) {
       response.headers.set(SPACE_HEADER, space);
+    } else {
+      // Default embed routes to scroll space
+      response.headers.set(SPACE_HEADER, "scroll");
     }
 
     return response;

@@ -1,6 +1,6 @@
 import { TopicEmbedClient } from './TopicEmbedClient';
 import { fetchTopicById } from '@/actions/topics/fetchTopicById';
-import { fetchViewpointsByTopic } from '@/actions/viewpoints/fetchViewpointsByTopic';
+import { fetchTopicEmbedViewpoints } from '@/actions/viewpoints/fetchTopicEmbedViewpoints';
 import { decodeId } from '@/lib/negation-game/decodeId';
 import { notFound } from 'next/navigation';
 
@@ -40,7 +40,7 @@ export default async function TopicEmbedPage({ params, searchParams }: Props) {
         if (topic.space !== 'scroll') {
             notFound();
         }
-        const rationales = await fetchViewpointsByTopic('scroll', topicId);
+        const rationales = await fetchTopicEmbedViewpoints('scroll', topicId, preferredRationaleId);
 
         return (
             <TopicEmbedClient
