@@ -99,17 +99,32 @@ export const useYjsMultiplayer = ({
         let authError = false;
         // Try diff-first load using last known state vector from localStorage
         try {
-          const svB64 = typeof window !== 'undefined' ? window.localStorage.getItem(`yjs:sv:${persistId}`) : null;
-          const svTsStr = typeof window !== 'undefined' ? window.localStorage.getItem(`yjs:sv:${persistId}:ts`) : null;
+          const svB64 =
+            typeof window !== "undefined"
+              ? window.localStorage.getItem(`yjs:sv:${persistId}`)
+              : null;
+          const svTsStr =
+            typeof window !== "undefined"
+              ? window.localStorage.getItem(`yjs:sv:${persistId}:ts`)
+              : null;
           const svTs = svTsStr ? Number(svTsStr) : 0;
           const maxAgeMs = 1000 * 60 * 60 * 24 * 14; // 14 days TTL
           const isFresh = !!svB64 && !!svTs && Date.now() - svTs < maxAgeMs;
           if (svB64 && isFresh) {
-            const diffRes = await fetch(`/api/experimental/rationales/${encodeURIComponent(persistId)}/state?sv=${encodeURIComponent(svB64)}`);
+            const diffRes = await fetch(
+              `/api/experimental/rationales/${encodeURIComponent(persistId)}/state?sv=${encodeURIComponent(svB64)}`
+            );
             if (diffRes.status === 401) {
               authError = true;
-              setConnectionError('You need to be logged in to load this document');
-            } else if (diffRes.ok && (diffRes.headers.get('content-type') || '').includes('application/octet-stream')) {
+              setConnectionError(
+                "You need to be logged in to load this document"
+              );
+            } else if (
+              diffRes.ok &&
+              (diffRes.headers.get("content-type") || "").includes(
+                "application/octet-stream"
+              )
+            ) {
               const buf = new Uint8Array(await diffRes.arrayBuffer());
               if (buf.byteLength > 0) {
                 Y.applyUpdate(doc, buf);
@@ -122,7 +137,7 @@ export const useYjsMultiplayer = ({
               // No missing updates vs provided SV. If local doc is empty, the SV is likely stale.
               if (yNodes.size > 0 || yEdges.size > 0) {
                 hadContent = true;
-              } else if (typeof window !== 'undefined') {
+              } else if (typeof window !== "undefined") {
                 // Clear stale SV to force a full snapshot fetch
                 try {
                   window.localStorage.removeItem(`yjs:sv:${persistId}`);
@@ -133,7 +148,7 @@ export const useYjsMultiplayer = ({
           } else if (svB64 && !isFresh) {
             // Stale SV present: clear it so we don't take the diff path
             try {
-              if (typeof window !== 'undefined') {
+              if (typeof window !== "undefined") {
                 window.localStorage.removeItem(`yjs:sv:${persistId}`);
                 window.localStorage.removeItem(`yjs:sv:${persistId}:ts`);
               }
@@ -144,17 +159,22 @@ export const useYjsMultiplayer = ({
         // If diff load did not produce content, fall back to snapshot/updates
         let res: Response | null = hadContent
           ? null
-          : await fetch(`/api/experimental/rationales/${encodeURIComponent(persistId)}/state`);
+          : await fetch(
+              `/api/experimental/rationales/${encodeURIComponent(persistId)}/state`
+            );
         if (!hadContent && res && res.status === 401) {
           authError = true;
-          setConnectionError('You need to be logged in to load this document');
+          setConnectionError("You need to be logged in to load this document");
         }
-        if (!hadContent && res && !res.ok && res.status === 304) {
-          // Revalidate returned 304; fetch again with cache-buster and no-store
+        if (!hadContent && res && res.status === 304) {
+          // 304 is success (not modified), treat as having content
+          hadContent = true;
+        } else if (!hadContent && res && !res.ok && res.status !== 304) {
+          // Only refetch on actual errors, not 304
           try {
             res = await fetch(
               `/api/experimental/rationales/${encodeURIComponent(persistId)}/state?t=${Date.now()}`,
-              { cache: 'no-store' as RequestCache }
+              { cache: "no-store" as RequestCache }
             );
           } catch {}
         }
@@ -215,17 +235,31 @@ export const useYjsMultiplayer = ({
           if (hadContent) {
             serverVectorRef.current = Y.encodeStateVector(doc);
             try {
-              if (typeof window !== 'undefined' && serverVectorRef.current) {
+              if (typeof window !== "undefined" && serverVectorRef.current) {
                 // @ts-ignore Buffer available in browser bundlers via polyfill; fallback to btoa
-                const b64 = (typeof Buffer !== 'undefined')
-                  ? Buffer.from(serverVectorRef.current).toString('base64')
-                  : btoa(String.fromCharCode(...Array.from(serverVectorRef.current)));
+                const b64 =
+                  typeof Buffer !== "undefined"
+                    ? Buffer.from(serverVectorRef.current).toString("base64")
+                    : btoa(
+                        String.fromCharCode(
+                          ...Array.from(serverVectorRef.current)
+                        )
+                      );
                 window.localStorage.setItem(`yjs:sv:${persistId}`, b64);
-                window.localStorage.setItem(`yjs:sv:${persistId}:ts`, String(Date.now()));
+                window.localStorage.setItem(
+                  `yjs:sv:${persistId}:ts`,
+                  String(Date.now())
+                );
               }
             } catch {}
           }
-          if (!authError && yNodes.size === 0 && yEdges.size === 0 && !hadContent) {
+          if (
+            !authError &&
+            yNodes.size === 0 &&
+            yEdges.size === 0 &&
+            !hadContent
+          ) {
+            console.log("[yjs] Initializing new document with default content");
             doc.transact(() => {
               for (const n of initialNodes) yNodes.set(n.id, n);
               for (const e of initialEdges) yEdges.set(e.id, e);
@@ -241,7 +275,12 @@ export const useYjsMultiplayer = ({
                 }
               }
             }, "seed");
-          } else if (!authError && yNodes.size === 0 && yEdges.size === 0 && hadContent) {
+          } else if (
+            !authError &&
+            yNodes.size === 0 &&
+            yEdges.size === 0 &&
+            hadContent
+          ) {
             console.warn(
               "[yjs] Document appears corrupted - has updates but no content after applying them"
             );
@@ -256,28 +295,14 @@ export const useYjsMultiplayer = ({
           `Failed to load document: ${e instanceof Error ? e.message : "Unknown error"}`
         );
 
-        // Only initialize with default content if we couldn't reach the server at all
-        // Don't overwrite potentially recoverable data
-        if (yNodes.size === 0 && yEdges.size === 0) {
-          console.log(
-            "[yjs] Initializing with default content due to load failure"
-          );
-          doc.transact(() => {
-            for (const n of initialNodes) yNodes.set(n.id, n);
-            for (const e of initialEdges) yEdges.set(e.id, e);
-            for (const n of initialNodes) {
-              if (!yTextMap.get(n.id)) {
-                const t = new Y.Text();
-                const initial =
-                  (n as any).type === "statement"
-                    ? (n as any).data?.statement || ""
-                    : (n as any).data?.content || "";
-                if (initial) t.insert(0, initial);
-                yTextMap.set(n.id, t);
-              }
-            }
-          }, "fallback-seed");
-        }
+        // Never initialize default content on load failures
+        // Existing documents that fail to load should remain empty to prevent data loss
+        console.warn(
+          "[yjs] Document load failed - keeping empty state to prevent overwriting existing data"
+        );
+        setConnectionError(
+          "Document failed to load. Try refreshing the page or check your connection."
+        );
       }
     })();
 
@@ -302,13 +327,19 @@ export const useYjsMultiplayer = ({
       // Update local SV cache opportunistically
       try {
         serverVectorRef.current = Y.encodeStateVector(doc);
-        if (typeof window !== 'undefined' && serverVectorRef.current) {
+        if (typeof window !== "undefined" && serverVectorRef.current) {
           // @ts-ignore Buffer may not exist; provide fallback
-          const b64 = (typeof Buffer !== 'undefined')
-            ? Buffer.from(serverVectorRef.current).toString('base64')
-            : btoa(String.fromCharCode(...Array.from(serverVectorRef.current)));
+          const b64 =
+            typeof Buffer !== "undefined"
+              ? Buffer.from(serverVectorRef.current).toString("base64")
+              : btoa(
+                  String.fromCharCode(...Array.from(serverVectorRef.current))
+                );
           window.localStorage.setItem(`yjs:sv:${persistId}`, b64);
-          window.localStorage.setItem(`yjs:sv:${persistId}:ts`, String(Date.now()));
+          window.localStorage.setItem(
+            `yjs:sv:${persistId}:ts`,
+            String(Date.now())
+          );
         }
       } catch {}
     };
@@ -326,46 +357,73 @@ export const useYjsMultiplayer = ({
       return;
     }
 
-    const provider = new WebsocketProvider(wsUrl, roomName, doc);
-    providerRef.current = provider;
+    (async () => {
+      let wsUrlWithAuth: string;
+      try {
+        const tokenRes = await fetch("/api/yjs/token", { method: "POST" });
+        if (!tokenRes.ok) {
+          throw new Error(`Token fetch failed: ${tokenRes.status}`);
+        }
+        const { token } = await tokenRes.json();
+        console.log(
+          "[mp] Auth token received:",
+          token?.substring(0, 50) + "..."
+        );
+        console.log("[mp] Auth token obtained");
 
-    // Connection event handlers for WebSocket
-    // @ts-ignore minimal event API cross-provider
-    provider.on("synced", () => {
-      console.log("provider synced with document");
-    });
+        const provider = new WebsocketProvider(wsUrl, roomName, doc, {
+          WebSocketPolyfill: class extends WebSocket {
+            constructor(url: string, protocols?: string | string[]) {
+              const urlWithAuth = `${url}?auth=${encodeURIComponent(token)}`;
+              super(urlWithAuth, protocols);
+            }
+          } as any,
+        });
 
-    // y-websocket doesn't have a 'peers' event like y-webrtc
+        providerRef.current = provider;
 
-    // @ts-ignore minimal event API
-    provider.on("status", (status: any) => {
-      console.log("[mp] provider status:", status);
-      const isUp = status?.status === "connected";
-      setIsConnected(Boolean(isUp));
-      if (isUp) {
-        setConnectionError(null);
-      } else {
-        setConnectionError("WebSocket connection lost");
+        // @ts-ignore minimal event API cross-provider
+        provider.on("synced", () => {
+          console.log("provider synced with document");
+        });
+
+        // y-websocket doesn't have a 'peers' event like y-webrtc because life sucks
+
+        // @ts-ignore minimal event API
+        provider.on("status", (status: any) => {
+          console.log("[mp] provider status:", status);
+          const isUp = status?.status === "connected";
+          setIsConnected(Boolean(isUp));
+          if (isUp) {
+            setConnectionError(null);
+          } else {
+            setConnectionError("WebSocket connection lost");
+          }
+        });
+
+        provider.on("connection-error", (error: any) => {
+          console.error("[mp] WebSocket connection error:", error);
+          setConnectionError(
+            `Connection error: ${error?.message || "Unknown error"}`
+          );
+          setIsConnected(false);
+        });
+
+        provider.on("connection-close", (event: any) => {
+          console.log("[mp] WebSocket connection closed:", event);
+          if (event?.code === 1006) {
+            setConnectionError("WebSocket connection closed abnormally");
+          } else {
+            setConnectionError("WebSocket connection closed");
+          }
+          setIsConnected(false);
+        });
+      } catch (error) {
+        console.error("[mp] Failed to get auth token:", error);
+        setConnectionError("Failed to authenticate WebSocket connection");
+        return;
       }
-    });
-
-    provider.on("connection-error", (error: any) => {
-      console.error("[mp] WebSocket connection error:", error);
-      setConnectionError(
-        `Connection error: ${error?.message || "Unknown error"}`
-      );
-      setIsConnected(false);
-    });
-
-    provider.on("connection-close", (event: any) => {
-      console.log("[mp] WebSocket connection closed:", event);
-      if (event?.code === 1006) {
-        setConnectionError("WebSocket connection closed abnormally");
-      } else {
-        setConnectionError("WebSocket connection closed");
-      }
-      setIsConnected(false);
-    });
+    })();
 
     const updateNodesFromY = createUpdateNodesFromY(
       yNodes as any,
