@@ -35,8 +35,10 @@ import {
     createAddObjectionForEdge,
     createUpdateEdgeAnchorPosition,
     createAddNodeAtPosition,
-    createUpdateNodeType
-} from '@/utils/experiment/multiplayer/graphOperations';
+    createUpdateNodeType,
+    createInversePair,
+    createDeleteInversePair
+  } from '@/utils/experiment/multiplayer/graphOperations';
 import { Roboto_Slab } from 'next/font/google';
 import * as Y from 'yjs';
 
@@ -58,6 +60,8 @@ export default function MultiplayerRationaleDetailPage() {
     const [newNodeWithDropdown, setNewNodeWithDropdown] = useState<{ id: string, x: number, y: number } | null>(null);
     const localOriginRef = useRef<object>({});
     const lastAddRef = useRef<Record<string, number>>({});
+    const [pairNodeHeights, setPairNodeHeights] = useState<Record<string, Record<string, number>>>({});
+    const [pairHeights, setPairHeights] = useState<Record<string, number>>({});
 
     const userColor = useUserColor(user?.id);
     const initialGraph = useInitialGraph();
@@ -86,6 +90,7 @@ export default function MultiplayerRationaleDetailPage() {
         isConnected,
         isSaving,
         forceSave,
+        interruptSave,
         nextSaveTime,
         undo,
         redo,
@@ -182,6 +187,19 @@ export default function MultiplayerRationaleDetailPage() {
         getLockOwner
     );
 
+    const deleteInversePair = React.useMemo(() => (
+        createDeleteInversePair(
+            nodes as any,
+            edges as any,
+            yNodesMap as any,
+            yEdgesMap as any,
+            yTextMap as any,
+            ydoc as any,
+            isLeader,
+            localOriginRef.current,
+        )
+    ), [nodes, edges, yNodesMap, yEdgesMap, yTextMap, ydoc, isLeader]);
+
     const updateNodeFavor = (nodeId: string, favor: 1 | 2 | 3 | 4 | 5) => {
         setNodes((nds: any[]) => nds.map(n => n.id === nodeId ? { ...n, data: { ...(n.data || {}), favor } } : n));
         if (yNodesMap && ydoc && isLeader) {
@@ -249,6 +267,35 @@ export default function MultiplayerRationaleDetailPage() {
         registerTextInUndoScope
     );
 
+    const inversePair = createInversePair(
+        nodes,
+        yNodesMap,
+        yTextMap,
+        yEdgesMap,
+        ydoc,
+        isLeader,
+        localOriginRef.current,
+        setNodes,
+        setEdges,
+        registerTextInUndoScope,
+        isLockedForMe,
+        getLockOwner
+    );
+
+    const setPairNodeHeight = React.useCallback((groupId: string, nodeId: string, height: number) => {
+        const nextH = Math.max(0, Math.floor(height));
+        setPairNodeHeights((prev) => {
+            const prevGroup = prev[groupId] || {};
+            const prevH = prevGroup[nodeId] ?? 0;
+            if (prevH === nextH) return prev;
+            const group = { ...prevGroup, [nodeId]: nextH } as Record<string, number>;
+            const next = { ...prev, [groupId]: group } as Record<string, Record<string, number>>;
+            const maxH = Object.values(group).reduce((m, h) => Math.max(m, h || 0), 0);
+            setPairHeights((ph) => (ph[groupId] === maxH ? ph : { ...ph, [groupId]: maxH }));
+            return next;
+        });
+    }, []);
+
 
     useKeyboardShortcuts(undo, redo, {
         onToggleConnect: () => {
@@ -295,6 +342,7 @@ export default function MultiplayerRationaleDetailPage() {
                 connectionError={connectionError}
                 isSaving={isSaving}
                 forceSave={forceSave}
+                interruptSave={interruptSave || undefined}
                 nextSaveTime={nextSaveTime}
                 proxyMode={!isLeader}
                 userId={userId}
@@ -378,6 +426,7 @@ export default function MultiplayerRationaleDetailPage() {
                     updateNodeFavor,
                     addNegationBelow,
                     addPointBelow,
+                    createInversePair: inversePair,
                     deleteNode,
                     beginConnectFromNode: (id: string) => { connectAnchorRef.current = id; setConnectAnchorId(id); },
                     completeConnectToNode: (nodeId: string) => {
@@ -459,6 +508,9 @@ export default function MultiplayerRationaleDetailPage() {
                         setNodes as any,
                         registerTextInUndoScope,
                     ),
+                    deleteInversePair,
+                    setPairNodeHeight,
+                    pairHeights,
                 }}>
                     <div className="w-full h-full relative">
                         {(!nodes || nodes.length === 0) && (

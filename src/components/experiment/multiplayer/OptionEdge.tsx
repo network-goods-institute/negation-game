@@ -4,9 +4,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useGraphActions } from './GraphContext';
 import { ContextMenu } from './common/ContextMenu';
 import { useEdgePerformanceOptimization } from './common/useEdgePerformanceOptimization';
+import { useAbsoluteNodePosition } from './common/useAbsoluteNodePosition';
 
 export const OptionEdge: React.FC<EdgeProps> = (props) => {
     const { hoveredEdgeId, selectedEdgeId, setSelectedEdge, addObjectionForEdge, setHoveredEdge, updateEdgeAnchorPosition, deleteNode, updateEdgeRelevance } = useGraphActions() as any;
+    const { getEllipsePosition } = useAbsoluteNodePosition();
     const isHovered = hoveredEdgeId === props.id;
     const [menuOpen, setMenuOpen] = React.useState(false);
     const [menuPos, setMenuPos] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -119,24 +121,30 @@ export const OptionEdge: React.FC<EdgeProps> = (props) => {
                     </linearGradient>
                     <mask id={`quest-mask-${props.id}`}>
                         <rect x="-10000" y="-10000" width="20000" height="20000" fill="white" />
-                        {shouldRenderEllipses && srcLowOpacity && sourceNode && sourceNode.measured && typeof sourceNode.measured.width === 'number' && typeof sourceNode.measured.height === 'number' && (
-                            <ellipse
-                                cx={(sourceNode as any).position?.x + (sourceNode.measured.width / 2)}
-                                cy={(sourceNode as any).position?.y + (sourceNode.measured.height / 2)}
-                                rx={(sourceNode.measured.width / 2) + 4}
-                                ry={(sourceNode.measured.height / 2) + 4}
-                                fill="black"
-                            />
-                        )}
-                        {shouldRenderEllipses && tgtLowOpacity && targetNode && targetNode.measured && typeof targetNode.measured.width === 'number' && typeof targetNode.measured.height === 'number' && (
-                            <ellipse
-                                cx={(targetNode as any).position?.x + (targetNode.measured.width / 2)}
-                                cy={(targetNode as any).position?.y + (targetNode.measured.height / 2)}
-                                rx={(targetNode.measured.width / 2) + 4}
-                                ry={(targetNode.measured.height / 2) + 4}
-                                fill="black"
-                            />
-                        )}
+                        {shouldRenderEllipses && srcLowOpacity && (() => {
+                            const ellipsePos = getEllipsePosition(sourceNode, true);
+                            return ellipsePos ? (
+                                <ellipse
+                                    cx={ellipsePos.cx}
+                                    cy={ellipsePos.cy}
+                                    rx={ellipsePos.rx}
+                                    ry={ellipsePos.ry}
+                                    fill="black"
+                                />
+                            ) : null;
+                        })()}
+                        {shouldRenderEllipses && tgtLowOpacity && (() => {
+                            const ellipsePos = getEllipsePosition(targetNode, true);
+                            return ellipsePos ? (
+                                <ellipse
+                                    cx={ellipsePos.cx}
+                                    cy={ellipsePos.cy}
+                                    rx={ellipsePos.rx}
+                                    ry={ellipsePos.ry}
+                                    fill="black"
+                                />
+                            ) : null;
+                        })()}
                     </mask>
                 </defs>
                 <g mask={`url(#quest-mask-${props.id})`}>
@@ -190,7 +198,7 @@ export const OptionEdge: React.FC<EdgeProps> = (props) => {
                     onMouseLeave={() => setHoveredEdge(null)}
                     className={`transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
                 >
-                    <div className="flex items-center justify-center gap-2 bg-white/95 backdrop-blur-sm border rounded-md shadow px-2 py-1">
+                        <div className="flex items-center justify-center gap-2 bg-white/95 backdrop-blur-sm border rounded-md shadow px-2 py-1">
                         <div className="flex items-center gap-2 text-[11px] select-none">
                             <span className="uppercase tracking-wide text-stone-500">Relevance</span>
                             <TooltipProvider>
@@ -211,7 +219,7 @@ export const OptionEdge: React.FC<EdgeProps> = (props) => {
                         <button
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); }}
-                            className="rounded-full px-2.5 py-0.5 text-[10px] font-medium bg-stone-800 text-white"
+                            className="rounded-full min-h-8 min-w-8 px-3 py-1 text-[11px] font-medium bg-stone-800 text-white"
                             title="Add objection to this relation"
                         >
                             Object

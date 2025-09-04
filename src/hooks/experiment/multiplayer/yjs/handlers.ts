@@ -24,6 +24,7 @@ export const createScheduleSave = (
         if (m && ydocRef.current) {
           ydocRef.current.transact(() => {
             m.set("saving", true);
+            m.set("savingSince", Date.now());
           }, localOriginRef?.current);
         }
       } catch {}
@@ -31,12 +32,24 @@ export const createScheduleSave = (
         ? Y.encodeStateAsUpdate(ydocRef.current, serverVectorRef.current)
         : Y.encodeStateAsUpdate(ydocRef.current);
       if (!update || !update.byteLength) {
-        return;
+        console.log("[save] No changes to save");
+      } else {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 20000);
+        
+        try {
+          await fetch(
+            `/api/experimental/rationales/${encodeURIComponent(persistId)}/updates`,
+            { 
+              method: "POST", 
+              body: update,
+              signal: controller.signal
+            }
+          );
+        } finally {
+          clearTimeout(timeoutId);
+        }
       }
-      await fetch(
-        `/api/experimental/rationales/${encodeURIComponent(persistId)}/updates`,
-        { method: "POST", body: update }
-      );
       serverVectorRef.current = Y.encodeStateVector(ydocRef.current);
     } catch {
     } finally {
@@ -55,7 +68,9 @@ export const createScheduleSave = (
             // eslint-disable-next-line drizzle/enforce-delete-with-where
             m.delete("saverId");
             m.set("saving", false);
-          }, localOriginRef?.current);
+            // eslint-disable-next-line drizzle/enforce-delete-with-where
+            m.delete("savingSince");
+          }, "cleanup-save");
         }
       } catch {}
     }
@@ -120,6 +135,25 @@ export const createScheduleSave = (
     if (!m) return;
     try {
       const saving = m.get("saving") === true;
+      const since = m.get("savingSince");
+      if (saving && typeof since === 'number' && Date.now() - since > 120000) {
+        // Recover from a stuck saving flag (e.g., saver disconnected)
+        try {
+          if (ydocRef.current) {
+            ydocRef.current.transact(() => {
+              m.set("saving", false);
+              // eslint-disable-next-line drizzle/enforce-delete-with-where
+              m.delete("nextSaveAt");
+              // eslint-disable-next-line drizzle/enforce-delete-with-where
+              m.delete("saveId");
+              // eslint-disable-next-line drizzle/enforce-delete-with-where
+              m.delete("saverId");
+              // eslint-disable-next-line drizzle/enforce-delete-with-where
+              m.delete("savingSince");
+            }, localOriginRef?.current);
+          }
+        } catch {}
+      }
       setIsSaving(Boolean(saving));
       const ts = m.get("nextSaveAt");
       const nextTs = typeof ts === "number" ? ts : null;
@@ -142,7 +176,41 @@ export const createScheduleSave = (
     } catch {}
   };
 
-  return { scheduleSave, forceSave, syncFromMeta };
+  const interruptSave = () => {
+    console.log("[save] Interrupting save");
+    try {
+      // Clear local state
+      savingRef.current = false;
+      setIsSaving(false);
+      setNextSaveTime?.(null);
+      
+      // Clear any timers
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      
+      // Clear meta state
+      const m = yMetaMapRef?.current;
+      if (m && ydocRef.current) {
+        ydocRef.current.transact(() => {
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
+          m.delete("nextSaveAt");
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
+          m.delete("saveId");
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
+          m.delete("saverId");
+          m.set("saving", false);
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
+          m.delete("savingSince");
+        }, "interrupt-save");
+      }
+    } catch (e) {
+      console.error("[save] Error interrupting save:", e);
+    }
+  };
+
+  return { scheduleSave, forceSave, syncFromMeta, interruptSave };
 };
 
 export const createUpdateNodesFromY = (
@@ -176,7 +244,9 @@ export const createUpdateNodesFromY = (
         arr.push(n);
       }
     }
-    const sorted = arr
+    const visibleArr = arr;
+
+    const sorted = visibleArr
       .slice()
       .sort((a, b) => (a.id || "").localeCompare(b.id || ""));
     // Include non-textual data in signature so data changes (e.g., hidden)
@@ -186,7 +256,9 @@ export const createUpdateNodesFromY = (
       sorted.map((n: any) => {
         const data = (n && n.data) || {};
         const { content, statement, ...rest } = data as any;
-        return { id: n.id, t: n.type, p: n.position, d: rest } as any;
+        const w = (n as any).width ?? (n as any).style?.width ?? null;
+        const h = (n as any).height ?? (n as any).style?.height ?? null;
+        return { id: n.id, t: n.type, p: n.position, w, h, d: rest } as any;
       })
     );
     if (sig === lastNodesSigRef.current) return;
@@ -224,7 +296,9 @@ export const createUpdateEdgesFromY = (
         arr.push(e);
       }
     }
-    const sorted = arr
+    // Hide edges marked as removed due to dismissed group
+    const visibleEdges = arr;
+    const sorted = visibleEdges
       .slice()
       .sort((a, b) => (a.id || "").localeCompare(b.id || ""));
     const sig = JSON.stringify(

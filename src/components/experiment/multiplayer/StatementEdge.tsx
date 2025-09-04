@@ -1,15 +1,18 @@
-import React, { useEffect, useMemo } from 'react';
-import { StraightEdge, EdgeProps, EdgeLabelRenderer } from '@xyflow/react';
+import React, { useEffect } from 'react';
+import { StraightEdge, EdgeProps, EdgeLabelRenderer, useReactFlow } from '@xyflow/react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useGraphActions } from './GraphContext';
 import { ContextMenu } from './common/ContextMenu';
 import { useEdgePerformanceOptimization } from './common/useEdgePerformanceOptimization';
+import { useAbsoluteNodePosition } from './common/useAbsoluteNodePosition';
 
 export const StatementEdge: React.FC<EdgeProps> = (props) => {
     const { hoveredEdgeId, selectedEdgeId, setSelectedEdge, addObjectionForEdge, setHoveredEdge, updateEdgeAnchorPosition, deleteNode, updateEdgeRelevance } = useGraphActions() as any;
     const isHovered = hoveredEdgeId === props.id;
     const [menuOpen, setMenuOpen] = React.useState(false);
     const [menuPos, setMenuPos] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+    const { getEllipsePosition } = useAbsoluteNodePosition();
 
     const sourceX = (props as any).sourceX;
     const sourceY = (props as any).sourceY;
@@ -118,24 +121,30 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
                     </linearGradient>
                     <mask id={`stmt-mask-${props.id}`}>
                         <rect x="-10000" y="-10000" width="20000" height="20000" fill="white" />
-                        {shouldRenderEllipses && srcLowOpacity && sourceNode && sourceNode.measured && typeof sourceNode.measured.width === 'number' && typeof sourceNode.measured.height === 'number' && (
-                            <ellipse
-                                cx={(sourceNode as any).position?.x + (sourceNode.measured.width / 2)}
-                                cy={(sourceNode as any).position?.y + (sourceNode.measured.height / 2)}
-                                rx={(sourceNode.measured.width / 2) + 4}
-                                ry={(sourceNode.measured.height / 2) + 4}
-                                fill="black"
-                            />
-                        )}
-                        {shouldRenderEllipses && tgtLowOpacity && targetNode && targetNode.measured && typeof targetNode.measured.width === 'number' && typeof targetNode.measured.height === 'number' && (
-                            <ellipse
-                                cx={(targetNode as any).position?.x + (targetNode.measured.width / 2)}
-                                cy={(targetNode as any).position?.y + (targetNode.measured.height / 2)}
-                                rx={(targetNode.measured.width / 2) + 4}
-                                ry={(targetNode.measured.height / 2) + 4}
-                                fill="black"
-                            />
-                        )}
+                        {shouldRenderEllipses && srcLowOpacity && (() => {
+                            const ellipsePos = getEllipsePosition(sourceNode, true);
+                            return ellipsePos ? (
+                                <ellipse
+                                    cx={ellipsePos.cx}
+                                    cy={ellipsePos.cy}
+                                    rx={ellipsePos.rx}
+                                    ry={ellipsePos.ry}
+                                    fill="black"
+                                />
+                            ) : null;
+                        })()}
+                        {shouldRenderEllipses && tgtLowOpacity && (() => {
+                            const ellipsePos = getEllipsePosition(targetNode, true);
+                            return ellipsePos ? (
+                                <ellipse
+                                    cx={ellipsePos.cx}
+                                    cy={ellipsePos.cy}
+                                    rx={ellipsePos.rx}
+                                    ry={ellipsePos.ry}
+                                    fill="black"
+                                />
+                            ) : null;
+                        })()}
                     </mask>
                 </defs>
                 <g mask={`url(#stmt-mask-${props.id})`}>
@@ -212,7 +221,7 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
                             <button
                                 onMouseDown={(e) => e.preventDefault()}
                                 onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); }}
-                                className="rounded-full px-2.5 py-0.5 text-[10px] font-medium bg-stone-800 text-white"
+                                className="rounded-full min-h-8 min-w-8 px-3 py-1 text-[11px] font-medium bg-stone-800 text-white"
                                 title="Add objection to this relation"
                             >
                                 Object

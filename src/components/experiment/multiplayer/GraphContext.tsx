@@ -8,6 +8,7 @@ type GraphActions = {
     updateNodeFavor?: (nodeId: string, favor: 1 | 2 | 3 | 4 | 5) => void;
     addNegationBelow: (parentNodeId: string) => void;
     addPointBelow?: (parentNodeId: string) => void;
+    createInversePair: (pointNodeId: string) => void;
     deleteNode: (nodeId: string) => void;
     beginConnectFromNode: (nodeId: string) => void;
     completeConnectToNode?: (nodeId: string) => void;
@@ -34,6 +35,9 @@ type GraphActions = {
     redo?: () => void;
     addNodeAtPosition?: (type: 'point' | 'statement' | 'title' | 'objection', x: number, y: number) => string;
     updateNodeType?: (nodeId: string, newType: 'point' | 'statement' | 'title' | 'objection') => void;
+    deleteInversePair?: (inverseNodeId: string) => void;
+    setPairNodeHeight?: (groupId: string, nodeId: string, height: number) => void;
+    pairHeights?: Record<string, number>;
 };
 
 const GraphContext = createContext<GraphActions | null>(null);
@@ -49,7 +53,7 @@ export const useGraphActions = () => {
             updateNodeFavor: () => { },
             addNegationBelow: () => { },
             addPointBelow: () => { },
-            addQuestionBelow: () => { },
+            createInversePair: () => { },
             deleteNode: () => { },
             beginConnectFromNode: () => { },
             completeConnectToNode: () => { },

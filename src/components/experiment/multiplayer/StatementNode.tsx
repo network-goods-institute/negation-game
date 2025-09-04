@@ -29,6 +29,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
   });
 
   const [hovered, setHovered] = useState(false);
+  const rootRef = React.useRef<HTMLDivElement | null>(null);
   const { pillVisible, handleMouseEnter, handleMouseLeave } = usePillVisibility();
 
   const locked = isLockedForMe?.(id) || false;
@@ -45,13 +46,21 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
       <Handle id={`${id}-source-handle`} type="source" position={Position.Bottom} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
       <Handle id={`${id}-incoming-handle`} type="target" position={Position.Top} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
       <div
+        ref={rootRef}
         className="relative inline-block"
+        onMouseEnter={() => { setHovered(true); handleMouseEnter(); }}
+        onMouseLeave={(e) => {
+          const next = e.relatedTarget as EventTarget | null;
+          const root = rootRef.current;
+          if (root && next && next instanceof Node && root.contains(next)) return;
+          setHovered(false);
+          handleMouseLeave();
+        }}
       >
         <div className="relative inline-block">
           <div
             ref={wrapperRef}
-            onMouseEnter={() => { setHovered(true); handleMouseEnter(); }}
-            onMouseLeave={() => { setHovered(false); handleMouseLeave(); }}
+            // hover handled on root container to avoid flicker when approaching from bottom
             onMouseDown={connect.onMouseDown}
             onMouseUp={connect.onMouseUp}
             onClick={(e) => {

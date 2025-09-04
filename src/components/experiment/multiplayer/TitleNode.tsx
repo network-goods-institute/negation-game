@@ -4,7 +4,7 @@ import { useGraphActions } from './GraphContext';
 import { usePillVisibility } from './common/usePillVisibility';
 
 import { NodeActionPill } from './common/NodeActionPill';
-import { Eye, EyeOff, HelpCircle } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface TitleNodeProps {
@@ -20,6 +20,7 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
     const { updateNodeHidden, updateNodeFavor, addPointBelow, isConnectingFromNodeId, deleteNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode } = useGraphActions() as any;
 
     const [hovered, setHovered] = useState(false);
+    const rootRef = React.useRef<HTMLDivElement | null>(null);
     const [menuOpen, setMenuOpen] = useState(false);
     const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
@@ -37,12 +38,19 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
             <Handle id={`${id}-source-handle`} type="source" position={Position.Top} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
             <Handle id={`${id}-incoming-handle`} type="target" position={Position.Bottom} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
             <div
+                ref={rootRef}
                 className="relative inline-block"
+                onMouseEnter={() => { setHovered(true); handleMouseEnter(); }}
+                onMouseLeave={(e) => {
+                    const next = e.relatedTarget as EventTarget | null;
+                    const root = rootRef.current;
+                    if (root && next && next instanceof Node && root.contains(next)) return;
+                    setHovered(false);
+                    handleMouseLeave();
+                }}
             >
                 <div className="relative inline-block">
                     <div
-                        onMouseEnter={() => { setHovered(true); handleMouseEnter(); }}
-                        onMouseLeave={() => { setHovered(false); handleMouseLeave(); }}
                         onMouseDown={(e) => { if (!locked) beginConnectFromNode?.(id); }}
                         onMouseUp={(e) => { if (!locked) completeConnectToNode?.(id); }}
                         onClick={(e) => { if (locked) { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } }}
@@ -57,7 +65,6 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
                         style={{ opacity: hidden ? undefined : 1 }}
                     >
                         <div className="relative z-10">
-                            {!hidden && <HelpCircle className="absolute -top-1 -left-1 text-blue-600" size={16} />}
                             {selected && (
                                 <button
                                     onMouseDown={(e) => e.preventDefault()}
@@ -74,7 +81,7 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
                                 <div className="absolute -top-3 right-0 text-[10px] bg-green-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
                             )}
                             {/* Immutable title content */}
-                            <div className={`text-sm leading-relaxed whitespace-pre-wrap break-words ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-green-900'} ml-5`}>
+                            <div className={`text-sm leading-relaxed whitespace-pre-wrap break-words ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-green-900'}`}>
                                 {data.content}
                             </div>
                             {hidden && (

@@ -5,9 +5,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useGraphActions } from './GraphContext';
 import { ContextMenu } from './common/ContextMenu';
 import { useEdgePerformanceOptimization } from './common/useEdgePerformanceOptimization';
+import { useAbsoluteNodePosition } from './common/useAbsoluteNodePosition';
 
 export const NegationEdge: React.FC<EdgeProps> = (props) => {
   const { hoveredEdgeId, selectedEdgeId, setSelectedEdge, addObjectionForEdge, setHoveredEdge, updateEdgeAnchorPosition, deleteNode, updateEdgeRelevance } = useGraphActions() as any;
+  const { getRectPosition } = useAbsoluteNodePosition();
   const isHovered = hoveredEdgeId === props.id;
   const rf = useReactFlow();
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -145,24 +147,30 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
           </linearGradient>
           <mask id={`neg-mask-${props.id}`}>
             <rect x="-10000" y="-10000" width="20000" height="20000" fill="white" />
-            {shouldRenderEllipses && srcLowOpacity && sourceNode && sourceNode.measured && typeof sourceNode.measured.width === 'number' && typeof sourceNode.measured.height === 'number' && (
-              <rect
-                x={(sourceNode as any).position?.x - 2}
-                y={(sourceNode as any).position?.y - 2}
-                width={sourceNode.measured.width + 4}
-                height={sourceNode.measured.height + 4}
-                fill="black"
-              />
-            )}
-            {shouldRenderEllipses && tgtLowOpacity && targetNode && targetNode.measured && typeof targetNode.measured.width === 'number' && typeof targetNode.measured.height === 'number' && (
-              <rect
-                x={(targetNode as any).position?.x - 2}
-                y={(targetNode as any).position?.y - 2}
-                width={targetNode.measured.width + 4}
-                height={targetNode.measured.height + 4}
-                fill="black"
-              />
-            )}
+            {shouldRenderEllipses && srcLowOpacity && (() => {
+              const rectPos = getRectPosition(sourceNode, true);
+              return rectPos ? (
+                <rect
+                  x={rectPos.x}
+                  y={rectPos.y}
+                  width={rectPos.width}
+                  height={rectPos.height}
+                  fill="black"
+                />
+              ) : null;
+            })()}
+            {shouldRenderEllipses && tgtLowOpacity && (() => {
+              const rectPos = getRectPosition(targetNode, true);
+              return rectPos ? (
+                <rect
+                  x={rectPos.x}
+                  y={rectPos.y}
+                  width={rectPos.width}
+                  height={rectPos.height}
+                  fill="black"
+                />
+              ) : null;
+            })()}
           </mask>
         </defs>
         <g mask={`url(#neg-mask-${props.id})`}>
@@ -240,7 +248,7 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
                 <button
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); }}
-                  className="rounded-full px-2.5 py-0.5 text-[10px] font-medium bg-stone-800 text-white"
+                  className="rounded-full min-h-8 min-w-8 px-3 py-1 text-[11px] font-medium bg-stone-800 text-white"
                   title="Add objection to this relation"
                 >
                   Object

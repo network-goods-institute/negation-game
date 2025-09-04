@@ -2,6 +2,7 @@ import { generateEdgeId } from "./graphSync";
 import { chooseEdgeType } from "./connectUtils";
 import * as Y from "yjs";
 import { toast } from "sonner";
+import { generateInversePoint } from "@/actions/ai/generateInversePoint";
 
 const calculateNodePositionBelow = (
   parentPosition: { x: number; y: number },
@@ -13,6 +14,17 @@ const calculateNodePositionBelow = (
     x: parentPosition.x + viewportOffset.x,
     y: parentPosition.y + baseOffset + viewportOffset.y,
   };
+};
+
+const getAbsolutePosition = (node: any, allNodes: any[]) => {
+  if (!node) return { x: 0, y: 0 };
+  const pos = node.position || { x: 0, y: 0 };
+  if (node.parentId) {
+    const parent = allNodes.find((n: any) => n.id === node.parentId);
+    const ppos = parent?.position || { x: 0, y: 0 };
+    return { x: (ppos.x || 0) + (pos.x || 0), y: (ppos.y || 0) + (pos.y || 0) };
+  }
+  return pos;
 };
 
 export const createUpdateNodeContent = (
@@ -274,6 +286,63 @@ export const createDeleteNode = (
     if (!node) {
       return;
     }
+
+    // Handle container deletion - convert children back to standalone nodes
+    if (node.type === "group") {
+      const children = nodes.filter((n: any) => n.parentId === nodeId);
+      const childrenToStandalone = children.map((child: any) => {
+        const parent = nodes.find((n: any) => n.id === nodeId);
+        const absoluteX = (parent?.position?.x || 0) + (child.position?.x || 0);
+        const absoluteY = (parent?.position?.y || 0) + (child.position?.y || 0);
+
+        return {
+          id: child.id,
+          type: child.type,
+          data: { ...child.data },
+          position: { x: absoluteX, y: absoluteY },
+          parentId: undefined,
+          extent: undefined,
+          expandParent: undefined,
+          selected: false,
+          measured: undefined,
+          width: undefined,
+          height: undefined,
+          positionAbsolute: undefined,
+        };
+      });
+
+      // Update local state immediately
+      setNodes((nds) =>
+        nds
+          .filter((n: any) => n.id !== nodeId)
+          .map((n: any) => {
+            const standalone = childrenToStandalone.find(
+              (s: any) => s.id === n.id
+            );
+            return standalone || n;
+          })
+      );
+
+      // Sync to Yjs
+      if (yNodesMap && ydoc) {
+        ydoc.transact(() => {
+          // Delete the container
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
+          yNodesMap.delete(nodeId as any);
+          try {
+            // eslint-disable-next-line drizzle/enforce-delete-with-where
+            yTextMap?.delete(nodeId as any);
+          } catch {}
+
+          // Update children to standalone
+          for (const child of childrenToStandalone) {
+            yNodesMap.set(child.id, child);
+          }
+        }, localOrigin);
+      }
+      return;
+    }
+
     const incidentEdges = edges.filter(
       (e: any) => e.source === nodeId || e.target === nodeId
     );
@@ -396,10 +465,8 @@ export const createAddNegationBelow = (
     if (!parent) return;
     const newId = `p-${now}-${Math.floor(Math.random() * 1e6)}`;
 
-    const newPos = calculateNodePositionBelow(
-      parent.position,
-      getViewportOffset
-    );
+    const parentAbs = getAbsolutePosition(parent, nodes);
+    const newPos = calculateNodePositionBelow(parentAbs, getViewportOffset);
     const newNode: any = {
       id: newId,
       type: "point",
@@ -472,10 +539,8 @@ export const createAddPointBelow = (
     if (!parent) return;
     const newId = `p-${now}-${Math.floor(Math.random() * 1e6)}`;
 
-    const newPos = calculateNodePositionBelow(
-      parent.position,
-      getViewportOffset
-    );
+    const parentAbs = getAbsolutePosition(parent, nodes);
+    const newPos = calculateNodePositionBelow(parentAbs, getViewportOffset);
     const newNode: any = {
       id: newId,
       type: "point",
@@ -657,6 +722,311 @@ export const createUpdateEdgeAnchorPosition = (
     } catch {}
   };
 };
+
+export const createInversePair = (
+  nodes: any[],
+  yNodesMap: any,
+  yTextMap: any,
+  yEdgesMap: any,
+  ydoc: any,
+  isLeader: boolean,
+  localOrigin: object,
+  setNodes: (updater: (nodes: any[]) => any[]) => void,
+  setEdges: (updater: (edges: any[]) => any[]) => void,
+  registerTextInUndoScope?: (t: any) => void,
+  isLockedForMe?: (nodeId: string) => boolean,
+  getLockOwner?: (nodeId: string) => { name?: string } | null
+) => {
+  return (pointNodeId: string) => {
+    if (isLockedForMe?.(pointNodeId)) {
+      const owner = getLockOwner?.(pointNodeId);
+      toast.warning(`Locked by ${owner?.name || "another user"}`);
+      return;
+    }
+    if (!isLeader) {
+      toast.warning("Read-only mode: Changes won't be saved");
+      return;
+    }
+
+    const pointNode = nodes.find((n: any) => n.id === pointNodeId);
+    if (!pointNode) return;
+
+    if (pointNode.parentId) {
+      toast.warning("Point is already in a container");
+      return;
+    }
+
+    const now = Date.now();
+    const groupId = `group-${now}-${Math.floor(Math.random() * 1e6)}`;
+    const inverseId = `inverse-${now}-${Math.floor(Math.random() * 1e6)}`;
+
+    const originalContent = pointNode.data?.content || "";
+    const inverseContent = "Generating...";
+
+    const padding = 40;
+    const nodeWidth = 250;
+    const nodeHeight = 200;
+    const containerWidth = nodeWidth * 2 + padding * 3;
+    const containerHeight = nodeHeight + padding * 2;
+
+    const groupPosition = {
+      x: pointNode.position.x - padding,
+      y: pointNode.position.y - padding,
+    };
+
+    const groupNode: any = {
+      id: groupId,
+      type: "group",
+      position: groupPosition,
+      data: { label: "", isNew: true },
+      width: containerWidth,
+      height: containerHeight,
+      style: { width: containerWidth, height: containerHeight, padding: 8 },
+      draggable: false,
+    };
+
+    const inverseNode: any = {
+      id: inverseId,
+      type: "point",
+      parentId: groupId,
+      position: { x: nodeWidth + padding, y: padding },
+      extent: "parent",
+      expandParent: true,
+      draggable: false,
+      data: {
+        content: inverseContent,
+        favor: 3,
+        createdAt: now,
+        directInverse: true,
+        groupId,
+      },
+      selected: false,
+    };
+
+    const updatedOriginalNode = {
+      id: pointNode.id,
+      type: pointNode.type,
+      data: { ...pointNode.data, originalInPair: true, groupId },
+      parentId: groupId,
+      position: { x: padding, y: padding },
+      extent: "parent",
+      expandParent: true,
+      draggable: false,
+      selected: false,
+      measured: undefined,
+      width: undefined,
+      height: undefined,
+      positionAbsolute: undefined,
+    };
+
+    // Delete and recreate approach: remove original node, add group + both children
+    setNodes(
+      (nds) =>
+        nds
+          .filter((n: any) => n.id !== pointNodeId) // Delete original
+          .concat([groupNode, updatedOriginalNode, inverseNode]) // Add all new nodes
+    );
+
+    // DON'T FUCKING DO ANYTHING BUT THAT OR STUFF GOES POORLY
+
+    // Sync to Yjs in correct order
+    if (yNodesMap && ydoc && isLeader) {
+      ydoc.transact(() => {
+        // Add group first
+        yNodesMap.set(groupId, groupNode);
+
+        // Then add/update children with parentId references
+        yNodesMap.set(pointNodeId, updatedOriginalNode);
+        yNodesMap.set(inverseId, inverseNode);
+
+        // Create Y.Text for the new inverse node
+        if (yTextMap && !yTextMap.get(inverseId)) {
+          const t = new Y.Text();
+          t.insert(0, inverseContent);
+          yTextMap.set(inverseId, t);
+          try {
+            registerTextInUndoScope?.(t);
+          } catch {}
+        }
+      }, localOrigin);
+    }
+
+    // Create negation edge between original and inverse
+    const negEdge = {
+      id: `edge:negation:${pointNodeId}->${inverseId}`,
+      source: pointNodeId,
+      target: inverseId,
+      sourceHandle: null,
+      targetHandle: null,
+      type: "negation",
+      data: {},
+    } as any;
+
+    setEdges((eds: any[]) =>
+      eds.some((e: any) => e.id === negEdge.id) ? eds : [...eds, negEdge]
+    );
+
+    if (yEdgesMap && ydoc && isLeader) {
+      ydoc.transact(() => {
+        if (!yEdgesMap.has(negEdge.id)) yEdgesMap.set(negEdge.id, negEdge);
+      }, localOrigin);
+    }
+
+    // Generate AI content and update text
+    generateInversePoint(originalContent)
+      .then((aiContent) => {
+        if (yTextMap && ydoc && isLeader) {
+          ydoc.transact(() => {
+            const t = yTextMap.get(inverseId);
+            if (t) {
+              const curr = t.toString();
+              if (curr !== aiContent) {
+                // eslint-disable-next-line drizzle/enforce-delete-with-where
+                if (curr && curr.length) t.delete(0, curr.length);
+                if (aiContent) t.insert(0, aiContent);
+              }
+            }
+          }, localOrigin);
+        }
+      })
+      .catch(() => {
+        // Fallback to "Not X"
+        if (yTextMap && ydoc && isLeader) {
+          ydoc.transact(() => {
+            const t = yTextMap.get(inverseId);
+            if (t) {
+              const fallback = `Not ${originalContent}`;
+              const curr = t.toString();
+              if (curr !== fallback) {
+                // eslint-disable-next-line drizzle/enforce-delete-with-where
+                if (curr && curr.length) t.delete(0, curr.length);
+                if (fallback) t.insert(0, fallback);
+              }
+            }
+          }, localOrigin);
+        }
+      });
+
+    // One-time equalize heights after initial render
+    try {
+      setTimeout(() => {
+        const origEl = document.querySelector(
+          `[data-id="${pointNodeId}"]`
+        ) as HTMLElement | null;
+        const invEl = document.querySelector(
+          `[data-id="${inverseId}"]`
+        ) as HTMLElement | null;
+        if (!origEl || !invEl) return;
+        const h1 = origEl.getBoundingClientRect().height;
+        const h2 = invEl.getBoundingClientRect().height;
+        const maxH = Math.max(Math.floor(h1), Math.floor(h2));
+        if (
+          yNodesMap &&
+          ydoc &&
+          isLeader &&
+          Number.isFinite(maxH) &&
+          maxH > 0
+        ) {
+          ydoc.transact(() => {
+            const oBase = yNodesMap.get(pointNodeId);
+            const iBase = yNodesMap.get(inverseId);
+            if (oBase)
+              yNodesMap.set(pointNodeId, {
+                ...oBase,
+                data: { ...(oBase.data || {}), pairHeight: maxH },
+              });
+            if (iBase)
+              yNodesMap.set(inverseId, {
+                ...iBase,
+                data: { ...(iBase.data || {}), pairHeight: maxH },
+              });
+          }, localOrigin);
+        }
+      }, 0);
+    } catch {}
+  };
+};
+
+export const createDeleteInversePair = (
+  nodes: any[],
+  edges: any[],
+  yNodesMap: any,
+  yEdgesMap: any,
+  yTextMap: any,
+  ydoc: any,
+  isLeader: boolean,
+  localOrigin: object
+) => {
+  return (inverseNodeId: string) => {
+    const inverse = nodes.find((n: any) => n.id === inverseNodeId);
+    const groupId = inverse?.parentId;
+    if (!inverse || !groupId) return;
+    // find original child in group
+    const children = nodes.filter((n: any) => n.parentId === groupId);
+    const original = children.find((n: any) => n.id !== inverseNodeId) || null;
+    const group = nodes.find((n: any) => n.id === groupId);
+    const groupPos = group?.position || { x: 0, y: 0 };
+    const origRel = original?.position || { x: 0, y: 0 };
+    const abs = {
+      x: (groupPos.x || 0) + (origRel.x || 0),
+      y: (groupPos.y || 0) + (origRel.y || 0),
+    };
+
+    if (yNodesMap && yEdgesMap && ydoc && isLeader) {
+      const origin = { action: "deleteInversePair" } as any;
+      ydoc.transact(() => {
+        // Update original node to stand-alone
+        if (original && yNodesMap.has(original.id)) {
+          const base = yNodesMap.get(original.id);
+          const updated = {
+            ...base,
+            parentId: undefined,
+            position: abs,
+            extent: undefined,
+            expandParent: undefined,
+            draggable: true,
+            data: {
+              ...(base?.data || {}),
+              originalInPair: undefined,
+              directInverse: undefined,
+              groupId: undefined,
+              originalDetached: undefined,
+              pairHeight: undefined,
+            },
+          } as any;
+          yNodesMap.set(original.id, updated);
+        }
+
+        // Remove inverse node and its Y.Text (if any)
+        if (yNodesMap.has(inverseNodeId)) {
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
+          yNodesMap.delete(inverseNodeId);
+        }
+        if (yTextMap && yTextMap.get(inverseNodeId)) {
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
+          yTextMap.delete(inverseNodeId);
+        }
+
+        // Remove group node
+        if (yNodesMap.has(groupId)) {
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
+          yNodesMap.delete(groupId);
+        }
+
+        // Remove edges connected to inverse
+        for (const [eid, e] of yEdgesMap as any) {
+          if (!e) continue;
+          if (e.source === inverseNodeId || e.target === inverseNodeId) {
+            // eslint-disable-next-line drizzle/enforce-delete-with-where
+            (yEdgesMap as any).delete(eid);
+          }
+        }
+      }, origin);
+    }
+  };
+};
+
+// ALL THESE COMMENTS EXIST AS I SUFFERED FOR IT
 
 export const createUpdateNodeType = (
   yNodesMap: any,

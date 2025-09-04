@@ -34,6 +34,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const pointLike = useStore((s: any) => (s.edges || []).some((e: any) => (e.type || '') === 'negation' && (e.source === id || e.target === id)));
     const [hovered, setHovered] = useState(false);
     const { pillVisible, handleMouseEnter, handleMouseLeave } = usePillVisibility();
+    const rootRef = React.useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
         if (wrapperRef.current && contentRef.current) {
@@ -70,13 +71,21 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
             <Handle id={`${id}-source-handle`} type="source" position={sourceHandlePosition} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
             <Handle id={`${id}-incoming-handle`} type="target" position={Position.Bottom} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
             <div
+                ref={rootRef}
                 className="relative inline-block"
+                onMouseEnter={() => { setHovered(true); handleMouseEnter(); }}
+                onMouseLeave={(e) => {
+                    const next = e.relatedTarget as EventTarget | null;
+                    const root = rootRef.current;
+                    if (root && next && next instanceof Node && root.contains(next)) return;
+                    setHovered(false);
+                    handleMouseLeave();
+                }}
             >
                 <div className="relative inline-block">
                     <div
                         ref={wrapperRef}
-                        onMouseEnter={() => { setHovered(true); handleMouseEnter(); }}
-                        onMouseLeave={() => { setHovered(false); handleMouseLeave(); }}
+                        // hover handled on root container to avoid flicker when approaching from bottom
                         onMouseDown={connect.onMouseDown}
                         onMouseUp={connect.onMouseUp}
                         onClick={(e) => {

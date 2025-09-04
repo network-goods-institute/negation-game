@@ -12,6 +12,7 @@ interface MultiplayerHeaderProps {
   connectionError: string | null;
   isSaving: boolean;
   forceSave?: () => Promise<void>;
+  interruptSave?: () => void;
   nextSaveTime?: number | null;
   proxyMode?: boolean;
   userId?: string;
@@ -28,6 +29,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   connectionError,
   isSaving,
   forceSave,
+  interruptSave,
   nextSaveTime,
   proxyMode,
   userId,
@@ -139,6 +141,15 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
                   title="Force save now"
                 >
                   Save now
+                </button>
+              )}
+              {isSaving && interruptSave && (
+                <button
+                  onClick={() => interruptSave()}
+                  className="text-xs text-red-600 hover:text-red-800 border-l border-stone-200 pl-2 ml-1"
+                  title="Stop saving"
+                >
+                  Stop
                 </button>
               )}
             </>

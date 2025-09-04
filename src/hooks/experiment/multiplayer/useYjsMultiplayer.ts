@@ -48,6 +48,7 @@ export const useYjsMultiplayer = ({
   const lastEdgesSigRef = useRef<string>("");
   const localOriginRef = useRef<any>(localOrigin);
   const forceSaveRef = useRef<(() => Promise<void>) | null>(null);
+  const interruptSaveRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     localOriginRef.current = localOrigin;
   }, [localOrigin]);
@@ -307,7 +308,7 @@ export const useYjsMultiplayer = ({
     })();
 
     // Autosave: throttle Y updates to API
-    const { scheduleSave, forceSave, syncFromMeta } = createScheduleSave(
+    const { scheduleSave, forceSave, syncFromMeta, interruptSave } = createScheduleSave(
       ydocRef,
       serverVectorRef,
       setIsSaving,
@@ -320,6 +321,7 @@ export const useYjsMultiplayer = ({
     );
 
     forceSaveRef.current = forceSave;
+    interruptSaveRef.current = interruptSave;
 
     const onDocUpdate = (_update: Uint8Array, origin: any) => {
       // Only schedule on local-origin transactions to avoid multiple clients saving
@@ -655,6 +657,7 @@ export const useYjsMultiplayer = ({
     canUndo,
     canRedo,
     forceSave: handleForceSave,
+    interruptSave: interruptSaveRef.current,
     nextSaveTime,
     registerTextInUndoScope: (t: any) => {
       try {

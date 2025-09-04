@@ -124,8 +124,40 @@ export const createGraphChangeHandlers = (
               const samePos =
                 (existing.position?.x ?? 0) === (nextNode.position?.x ?? 0) &&
                 (existing.position?.y ?? 0) === (nextNode.position?.y ?? 0);
-              if (samePos) continue;
-              m.set(id, { ...existing, position: nextNode.position } as Node);
+
+              const nextW = (nextNode as any).width ?? (nextNode as any).measured?.width;
+              const nextH = (nextNode as any).height ?? (nextNode as any).measured?.height;
+              const existW = (existing as any).width ?? (existing as any).style?.width;
+              const existH = (existing as any).height ?? (existing as any).style?.height;
+              const dimsChanged = (
+                (typeof nextW === 'number' && nextW !== existW) ||
+                (typeof nextH === 'number' && nextH !== existH)
+              );
+
+              if (!samePos && !dimsChanged) {
+                m.set(id, { ...existing, position: nextNode.position } as Node);
+                continue;
+              }
+
+              if (samePos && !dimsChanged) {
+                // nothing to write
+                continue;
+              }
+
+              const updated: any = { ...existing };
+              if (!samePos) {
+                updated.position = nextNode.position as any;
+              }
+              if (dimsChanged) {
+                if (typeof nextW === 'number') updated.width = nextW;
+                if (typeof nextH === 'number') updated.height = nextH;
+                updated.style = {
+                  ...(existing as any).style,
+                  ...(typeof nextW === 'number' ? { width: nextW } : {}),
+                  ...(typeof nextH === 'number' ? { height: nextH } : {}),
+                } as any;
+              }
+              m.set(id, updated as Node);
             }
           }, localOrigin);
         }

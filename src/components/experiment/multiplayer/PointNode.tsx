@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Handle, Position } from '@xyflow/react';
+import { Handle, Position, useStore } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEditableNode } from './common/useEditableNode';
@@ -8,7 +8,7 @@ import { usePillVisibility } from './common/usePillVisibility';
 import { useConnectableNode } from './common/useConnectableNode';
 import { ContextMenu } from './common/ContextMenu';
 import { toast } from 'sonner';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, X as XIcon } from 'lucide-react';
 import { NodeActionPill } from './common/NodeActionPill';
 
 interface PointNodeProps {
@@ -19,10 +19,11 @@ interface PointNodeProps {
   };
   id: string;
   selected?: boolean;
+  parentId?: string;
 }
 
-export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
-  const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, selectedEdgeId } = useGraphActions() as any;
+export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parentId }) => {
+  const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, createInversePair, deleteInversePair, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, selectedEdgeId } = useGraphActions() as any;
 
   const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus, startEditingProgrammatically } = useEditableNode({
     id,
@@ -36,6 +37,23 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [sliverHovered, setSliverHovered] = useState(false);
+  const holdTimerRef = React.useRef<number | null>(null);
+  const clearHoldTimer = React.useCallback(() => {
+    if (holdTimerRef.current) {
+      window.clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+  }, []);
+  const scheduleOpacityHoldRelease = React.useCallback(() => {
+    clearHoldTimer();
+    holdTimerRef.current = window.setTimeout(() => {
+      setHovered(false);
+      setSliverHovered(false);
+      holdTimerRef.current = null;
+    }, 100);
+  }, [clearHoldTimer]);
+  const [sliverAnimating, setSliverAnimating] = useState(false);
 
   // Use the reusable hooks
   useAutoFocusNode({
@@ -56,21 +74,47 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
   const connect = useConnectableNode({ id, locked });
   const hidden = (data as any)?.hidden === true;
   const favor = Math.max(1, Math.min(5, (data as any)?.favor ?? 3));
-  const favorOpacity = selected || hovered ? 1 : Math.max(0.3, Math.min(1, favor / 5));
+  const isDirectInverse = Boolean((data as any)?.directInverse);
+  const favorOpacity = selected || hovered || sliverHovered || sliverAnimating ? 1 : Math.max(0.3, Math.min(1, favor / 5));
+
+  const isInContainer = !!parentId;
+
+
+
 
 
   return (
     <>
       <Handle id={`${id}-source-handle`} type="source" position={Position.Top} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
       <Handle id={`${id}-incoming-handle`} type="target" position={Position.Bottom} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
-      <div
-        className="relative inline-block"
-      >
-        <div className="relative inline-block">
+      <div className="relative inline-block">
+        <div className="relative inline-block group">
+          {/* Hover sliver: empty card edge appearing from behind (hidden when selected or in container) */}
+          {!selected && !isInContainer && (
+            <div
+              className="group/sliver absolute left-full top-1/2 translate-y-[calc(-50%+2px)] h-full w-[36px] -ml-[18px] z-0 pointer-events-auto nodrag nopan transition-all duration-200 ease-in hover:w-[54px] hover:-ml-[27px]"
+              role="button"
+              aria-label={'More'}
+              tabIndex={0}
+              onMouseDown={(e) => { e.stopPropagation(); }}
+              onClick={(e) => { e.stopPropagation(); createInversePair(id); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); }
+              }}
+              onDragStart={(e) => { e.preventDefault(); }}
+              onMouseEnter={() => { clearHoldTimer(); setSliverHovered(true); setHovered(true); }}
+              onMouseLeave={() => { setSliverHovered(false); scheduleOpacityHoldRelease(); }}
+            >
+              <div
+                className="w-full h-full bg-white border-2 border-stone-200 rounded-lg shadow-lg overflow-hidden origin-left opacity-0 transition-opacity duration-200 ease-in group-hover:opacity-100 group-hover/sliver:opacity-100"
+                style={{ willChange: 'transform, opacity' }}
+              />
+            </div>
+          )}
           <div
             ref={wrapperRef}
-            onMouseEnter={() => { setHovered(true); handleMouseEnter(); }}
-            onMouseLeave={() => { setHovered(false); handleMouseLeave(); }}
+            onMouseEnter={() => { clearHoldTimer(); setHovered(true); handleMouseEnter(); }}
+            onMouseLeave={() => { scheduleOpacityHoldRelease(); handleMouseLeave(); }}
             onMouseDown={connect.onMouseDown}
             onMouseUp={connect.onMouseUp}
             onClick={(e) => {
@@ -80,16 +124,14 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
             onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
             data-selected={selected}
 
-            className={`px-4 py-3 rounded-lg ${hidden ? 'bg-gray-200 text-gray-600' : 'bg-white text-gray-900'} border-2 min-w-[200px] max-w-[320px] relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} ring-0
-            ${hidden ? 'border-gray-300' : 'border-stone-200'}
-            ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
-            data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white
+            className={`px-4 py-3 rounded-lg ${hidden ? 'bg-gray-200 text-gray-600' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 shadow-md' : 'bg-white text-gray-900')} border-2 min-w-[200px] max-w-[320px] relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} ring-0
+            ${hidden ? 'border-gray-300' : (selected ? 'border-black' : 'border-stone-200')}
             `}
             style={{ opacity: hidden ? undefined : favorOpacity }}
           >
             <div className="relative z-10">
               {/* Eye toggle top-right */}
-              {selected && (
+              {selected && !isDirectInverse && (
                 <button
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={(e) => { e.stopPropagation(); updateNodeHidden?.(id, !hidden); }}
@@ -99,6 +141,18 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
                 >
                   <Eye className={`transition-opacity duration-150 ${hidden ? 'opacity-0' : 'opacity-100 group-hover:opacity-0'}`} size={14} />
                   <EyeOff className={`absolute transition-opacity duration-150 ${hidden ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} size={14} />
+                </button>
+              )}
+              {selected && isDirectInverse && (
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => { e.stopPropagation(); deleteInversePair?.(id); }}
+                  className="absolute -top-2 -right-2 bg-white border rounded-full shadow hover:bg-stone-50 transition h-6 w-6 flex items-center justify-center"
+                  title="Remove inverse pair"
+                  aria-label="Remove inverse pair"
+                  style={{ zIndex: 20 }}
+                >
+                  <XIcon size={14} />
                 </button>
               )}
               {isConnectingFromNodeId === id && (
@@ -113,7 +167,8 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected }) => {
                 onFocus={onFocus}
                 onBlur={onBlur}
                 onKeyDown={onKeyDown}
-                className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-gray-900'}`}
+                className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-gray-900'} ${isInContainer ? 'overflow-auto' : ''}`}
+                title={typeof value === 'string' ? value : undefined}
               >
                 {value}
               </div>
