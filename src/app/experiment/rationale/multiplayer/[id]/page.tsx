@@ -65,6 +65,26 @@ export default function MultiplayerRationaleDetailPage() {
 
     const userColor = useUserColor(user?.id);
     const initialGraph = useInitialGraph();
+    const [dbTitle, setDbTitle] = useState<string | null>(null);
+
+    // Load title from database on mount
+    useEffect(() => {
+        if (!routeParams?.id) return;
+        const loadDbTitle = async () => {
+            try {
+                const rid = typeof routeParams.id === 'string' ? routeParams.id : String(routeParams.id);
+                const res = await fetch(`/api/experimental/rationales/${encodeURIComponent(rid)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setDbTitle(data.title || null);
+                }
+            } catch (e) {
+                console.error('[title] Failed to load DB title:', e);
+            }
+        };
+        loadDbTitle();
+    }, [routeParams?.id]);
+
 
     const username = user?.username || 'Anonymous';
     const userId = (user as any)?.id || '';
@@ -200,6 +220,7 @@ export default function MultiplayerRationaleDetailPage() {
         )
     ), [nodes, edges, yNodesMap, yEdgesMap, yTextMap, ydoc, isLeader]);
 
+
     const updateNodeFavor = (nodeId: string, favor: 1 | 2 | 3 | 4 | 5) => {
         setNodes((nds: any[]) => nds.map(n => n.id === nodeId ? { ...n, data: { ...(n.data || {}), favor } } : n));
         if (yNodesMap && ydoc && isLeader) {
@@ -266,6 +287,20 @@ export default function MultiplayerRationaleDetailPage() {
         setNodes,
         registerTextInUndoScope
     );
+
+    // Sync DB title to Yjs title node when both are available
+    useEffect(() => {
+        if (!dbTitle || !isLeader || !yTextMap || !ydoc || !nodes.length) return;
+        
+        const titleNode = nodes.find(n => n.type === 'title');
+        if (!titleNode) return;
+        
+        const currentContent = (titleNode.data?.content as string) || '';
+        if (currentContent.trim() !== dbTitle.trim()) {
+            console.log('[title] Syncing DB title to Yjs:', dbTitle);
+            updateNodeContent(titleNode.id, dbTitle);
+        }
+    }, [dbTitle, isLeader, yTextMap, ydoc, nodes, updateNodeContent]);
 
     const inversePair = createInversePair(
         nodes,
@@ -348,58 +383,13 @@ export default function MultiplayerRationaleDetailPage() {
                 userId={userId}
                 title={(() => { const t = (((nodes as any[]).find(n => n.type === 'title')?.data?.content) as string) || ''; return (t || '').trim() || (typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '')); })()}
                 onTitleInput={(newTitle: string) => {
-                    try {
-                        const t = (nodes as any[]).find(n => n.type === 'title');
-                        if (!t) return;
-                        const id = (t as any).id as string;
-                        setNodes((nds: any[]) => nds.map((n: any) => n.id === id ? { ...n, data: { ...(n.data || {}), content: newTitle } } : n));
-                        if (yNodesMap && ydoc && isLeader) {
-                            (ydoc as any).transact(() => {
-                                const base = (yNodesMap as any).get(id);
-                                if (base) (yNodesMap as any).set(id, { ...base, data: { ...(base.data || {}), content: newTitle } });
-                                try {
-                                    let tnode = (yTextMap as any)?.get?.(id);
-                                    if (!tnode) {
-                                        tnode = new (Y as any).Text();
-                                        (yTextMap as any).set(id, tnode);
-                                    }
-                                    const curr = tnode.toString();
-                                    if (curr !== newTitle) {
-                                        // eslint-disable-next-line drizzle/enforce-delete-with-where
-                                        if (curr && curr.length) tnode.delete(0, curr.length);
-                                        if (newTitle) tnode.insert(0, newTitle);
-                                    }
-                                } catch { }
-                            }, localOriginRef.current);
-                        }
-                    } catch { }
+                    const t = nodes.find(n => n.type === 'title');
+                    if (t) updateNodeContent(t.id, newTitle);
                 }}
                 onTitleCommit={(newTitle: string) => {
                     try {
-                        const t = (nodes as any[]).find(n => n.type === 'title');
-                        if (!t) return;
-                        const id = (t as any).id as string;
-                        setNodes((nds: any[]) => nds.map((n: any) => n.id === id ? { ...n, data: { ...(n.data || {}), content: newTitle } } : n));
-                        if (yNodesMap && ydoc && isLeader) {
-                            (ydoc as any).transact(() => {
-                                const base = (yNodesMap as any).get(id);
-                                if (base) (yNodesMap as any).set(id, { ...base, data: { ...(base.data || {}), content: newTitle } });
-                                // Ensure Y.Text entry exists for title id and update text so peers sync
-                                try {
-                                    let tnode = (yTextMap as any)?.get?.(id);
-                                    if (!tnode) {
-                                        tnode = new (Y as any).Text();
-                                        (yTextMap as any).set(id, tnode);
-                                    }
-                                    const curr = tnode.toString();
-                                    if (curr !== newTitle) {
-                                        // eslint-disable-next-line drizzle/enforce-delete-with-where
-                                        if (curr && curr.length) tnode.delete(0, curr.length);
-                                        if (newTitle) tnode.insert(0, newTitle);
-                                    }
-                                } catch { }
-                            }, localOriginRef.current);
-                        }
+                        const t = nodes.find(n => n.type === 'title');
+                        if (t) updateNodeContent(t.id, newTitle);
                         // Also persist to db so listing shows updated title
                         try {
                             const rid = typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '');

@@ -287,6 +287,12 @@ export const createDeleteNode = (
       return;
     }
 
+    // Prevent deletion of title nodes
+    if (node.type === 'title') {
+      toast?.warning?.("Cannot delete the title node");
+      return;
+    }
+
     // Handle container deletion - convert children back to standalone nodes
     if (node.type === "group") {
       const children = nodes.filter((n: any) => n.parentId === nodeId);
