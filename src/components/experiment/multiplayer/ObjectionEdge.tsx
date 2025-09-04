@@ -148,7 +148,6 @@ export const ObjectionEdge = (props: ObjectionEdgeProps) => {
         style={useMemo(() => ({ pointerEvents: 'all' }), [])}
       >
         <div
-          onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, labelX, labelY); }}
           onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedEdge?.(props.id as string); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
           title="Edge controls"
           className="w-4 h-4 rounded-full bg-white border flex items-center justify-center"

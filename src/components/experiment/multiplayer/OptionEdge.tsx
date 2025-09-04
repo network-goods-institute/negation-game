@@ -184,7 +184,7 @@ export const OptionEdge: React.FC<EdgeProps> = (props) => {
                 <>
                     {/* Midpoint dot to hint objection affordance */}
                     <foreignObject x={cx - 8} y={cy - 8} width={16} height={16} style={{ pointerEvents: 'all' }}>
-                        <div onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); }} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedEdge?.(props.id as string); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }} title="Edge controls" className="w-4 h-4 rounded-full bg-white border flex items-center justify-center text-[8px] font-bold" style={{ borderColor: '#2563eb', cursor: 'pointer', color: '#2563eb' }}>
+                        <div onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedEdge?.(props.id as string); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }} title="Edge controls" className="w-4 h-4 rounded-full bg-white border flex items-center justify-center text-[8px] font-bold" style={{ borderColor: '#2563eb', cursor: 'pointer', color: '#2563eb' }}>
                             ?
                         </div>
                     </foreignObject>
