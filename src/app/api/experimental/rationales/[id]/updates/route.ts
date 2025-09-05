@@ -24,6 +24,9 @@ export async function POST(req: Request, ctx: any) {
   }
   const body = await req.arrayBuffer();
   const updateBuf = Buffer.from(body);
+  try {
+    console.log("[api][yjs.updates] incoming", { docId: id, userId, bytes: updateBuf.byteLength });
+  } catch {}
 
   // basic size cap ~ 1MB
   if (updateBuf.byteLength > 1_000_000) {
@@ -37,6 +40,14 @@ export async function POST(req: Request, ctx: any) {
     .update(mpDocsTable)
     .set({ updatedAt: new Date() })
     .where(eq(mpDocsTable.id, id));
+  try {
+    const countRows = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(mpDocUpdatesTable)
+      .where(eq(mpDocUpdatesTable.docId, id));
+    const count = Number(countRows?.[0]?.count || 0);
+    console.log("[api][yjs.updates] stored", { docId: id, userId, count });
+  } catch {}
 
   // Inline fast compaction when threshold exceeded
   try {

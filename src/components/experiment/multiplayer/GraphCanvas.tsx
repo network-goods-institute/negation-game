@@ -140,33 +140,63 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
 
   return (
     <div ref={containerRef} className="w-full h-full relative" onMouseMove={connectMode ? handleMouseMove : undefined} onMouseUp={handleMouseUp} onDoubleClick={onCanvasDoubleClick}>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={authenticated ? onNodesChange : undefined}
-        onEdgesChange={authenticated ? onEdgesChange : undefined}
-        onConnect={authenticated ? onConnect : undefined}
-        onNodeClick={onNodeClick}
-        onPaneClick={() => { try { graph.setSelectedEdge?.(null); } catch { } }}
-        onEdgeClick={(e, edge) => { e.stopPropagation(); graph.setSelectedEdge?.(edge.id); onEdgeClick?.(e, edge); }}
-        onNodeDragStart={authenticated ? onNodeDragStart : undefined}
-        onNodeDragStop={authenticated ? onNodeDragStop : undefined}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        fitView
-        className="w-full h-full bg-gray-50"
-        onEdgeMouseEnter={onEdgeMouseEnter}
-        onEdgeMouseLeave={onEdgeMouseLeave}
-        panOnDrag={panOnDrag}
-        panOnScroll={panOnScroll as any}
-        zoomOnScroll={zoomOnScroll}
-        zoomOnDoubleClick={false}
-        nodesDraggable={!connectMode}
-      >
-        <Background />
-        <Controls />
-        <MiniMap nodeColor={() => '#dbeafe'} className="bg-white" />
-      </ReactFlow>
+      {(() => {
+        // Wrap changes to intercept removals and route through multiplayer delete
+        const handleNodesChange = (changes: any[]) => {
+          if (!authenticated) return onNodesChange?.(changes);
+          const passthrough: any[] = [];
+          for (const c of changes || []) {
+            if (c?.type === 'remove' && c?.id) {
+              try { graph.deleteNode?.(c.id); } catch {}
+            } else {
+              passthrough.push(c);
+            }
+          }
+          if (passthrough.length) onNodesChange?.(passthrough);
+        };
+        const handleEdgesChange = (changes: any[]) => {
+          if (!authenticated) return onEdgesChange?.(changes);
+          const passthrough: any[] = [];
+          for (const c of changes || []) {
+            if (c?.type === 'remove' && c?.id) {
+              try { graph.deleteNode?.(c.id); } catch {}
+            } else {
+              passthrough.push(c);
+            }
+          }
+          if (passthrough.length) onEdgesChange?.(passthrough);
+        };
+        // Render ReactFlow with wrapped handlers
+        return (
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={handleNodesChange}
+            onEdgesChange={handleEdgesChange}
+            onConnect={authenticated ? onConnect : undefined}
+            onNodeClick={onNodeClick}
+            onPaneClick={() => { try { graph.setSelectedEdge?.(null); } catch { } }}
+            onEdgeClick={(e, edge) => { e.stopPropagation(); graph.setSelectedEdge?.(edge.id); onEdgeClick?.(e, edge); }}
+            onNodeDragStart={authenticated ? onNodeDragStart : undefined}
+            onNodeDragStop={authenticated ? onNodeDragStop : undefined}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            fitView
+            className="w-full h-full bg-gray-50"
+            onEdgeMouseEnter={onEdgeMouseEnter}
+            onEdgeMouseLeave={onEdgeMouseLeave}
+            panOnDrag={panOnDrag}
+            panOnScroll={panOnScroll as any}
+            zoomOnScroll={zoomOnScroll}
+            zoomOnDoubleClick={false}
+            nodesDraggable={!connectMode}
+          >
+            <Background />
+            <Controls />
+            <MiniMap nodeColor={() => '#dbeafe'} className="bg-white" />
+          </ReactFlow>
+        );
+      })()}
       {/* Connect overlay: draw a line from anchor node center to cursor */}
       {connectMode && connectAnchorId && connectCursor && edgesLayer && createPortal((() => {
         const n = rf.getNode(connectAnchorId);

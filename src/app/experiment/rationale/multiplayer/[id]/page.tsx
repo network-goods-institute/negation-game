@@ -41,6 +41,8 @@ import {
   } from '@/utils/experiment/multiplayer/graphOperations';
 import { Roboto_Slab } from 'next/font/google';
 import * as Y from 'yjs';
+import { inversePairEnabled } from '@/config/experiments';
+import { DebugPanel } from '@/components/experiment/multiplayer/DebugPanel';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
@@ -112,6 +114,7 @@ export default function MultiplayerRationaleDetailPage() {
         forceSave,
         interruptSave,
         nextSaveTime,
+        resyncNow,
         undo,
         redo,
         canUndo,
@@ -217,8 +220,12 @@ export default function MultiplayerRationaleDetailPage() {
             ydoc as any,
             isLeader,
             localOriginRef.current,
+            setNodes as any,
+            setEdges as any,
+            isLockedForMe,
+            getLockOwner,
         )
-    ), [nodes, edges, yNodesMap, yEdgesMap, yTextMap, ydoc, isLeader]);
+    ), [nodes, edges, yNodesMap, yEdgesMap, yTextMap, ydoc, isLeader, setNodes, setEdges, isLockedForMe, getLockOwner]);
 
 
     const updateNodeFavor = (nodeId: string, favor: 1 | 2 | 3 | 4 | 5) => {
@@ -379,6 +386,7 @@ export default function MultiplayerRationaleDetailPage() {
                 forceSave={forceSave}
                 interruptSave={interruptSave || undefined}
                 nextSaveTime={nextSaveTime}
+                onResyncNow={resyncNow}
                 proxyMode={!isLeader}
                 userId={userId}
                 title={(() => { const t = (((nodes as any[]).find(n => n.type === 'title')?.data?.content) as string) || ''; return (t || '').trim() || (typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '')); })()}
@@ -416,7 +424,7 @@ export default function MultiplayerRationaleDetailPage() {
                     updateNodeFavor,
                     addNegationBelow,
                     addPointBelow,
-                    createInversePair: inversePair,
+                    createInversePair: inversePairEnabled ? inversePair : (() => { }),
                     deleteNode,
                     beginConnectFromNode: (id: string) => { connectAnchorRef.current = id; setConnectAnchorId(id); },
                     completeConnectToNode: (nodeId: string) => {
@@ -498,7 +506,7 @@ export default function MultiplayerRationaleDetailPage() {
                         setNodes as any,
                         registerTextInUndoScope,
                     ),
-                    deleteInversePair,
+                    deleteInversePair: inversePairEnabled ? deleteInversePair : undefined,
                     setPairNodeHeight,
                     pairHeights,
                 }}>
@@ -613,6 +621,7 @@ export default function MultiplayerRationaleDetailPage() {
                     />
                 )}
             </ReactFlowProvider>
+            <DebugPanel />
         </div>
     );
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { Node, Edge, useNodesState, useEdgesState } from "@xyflow/react";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
+import { fetchYjsAuthToken, getRefreshDelayMs } from "./yjs/auth";
 import {
   createOnTextMapChange,
   createScheduleSave,
@@ -49,6 +50,9 @@ export const useYjsMultiplayer = ({
   const localOriginRef = useRef<any>(localOrigin);
   const forceSaveRef = useRef<(() => Promise<void>) | null>(null);
   const interruptSaveRef = useRef<(() => void) | null>(null);
+  const tokenRefreshTimerRef = useRef<number | null>(null);
+  const isRefreshingTokenRef = useRef(false);
+  const didResyncOnConnectRef = useRef(false);
   useEffect(() => {
     localOriginRef.current = localOrigin;
   }, [localOrigin]);
@@ -61,6 +65,42 @@ export const useYjsMultiplayer = ({
       await forceSaveRef.current();
     }
   }, []);
+
+  const persistId = roomName.includes(":")
+    ? roomName.slice(roomName.indexOf(":") + 1)
+    : roomName;
+
+  const resyncNow = useCallback(async () => {
+    try {
+      const doc = ydocRef.current;
+      if (!doc) return;
+      const sv = Y.encodeStateVector(doc);
+      const b64 =
+        typeof Buffer !== "undefined"
+          ? Buffer.from(sv).toString("base64")
+          : btoa(String.fromCharCode(...Array.from(sv)));
+      const res = await fetch(
+        `/api/experimental/rationales/${encodeURIComponent(persistId)}/state?sv=${encodeURIComponent(b64)}&t=${Date.now()}`,
+        { cache: "no-store" as RequestCache }
+      );
+      if (res.status === 204) {
+        console.log("[yjs][resync] up-to-date");
+        return;
+      }
+      if (res.ok && (res.headers.get("content-type") || "").includes("application/octet-stream")) {
+        const buf = new Uint8Array(await res.arrayBuffer());
+        if (buf.byteLength > 0) {
+          Y.applyUpdate(doc, buf);
+          serverVectorRef.current = Y.encodeStateVector(doc);
+          console.log("[yjs][resync] applied", { bytes: buf.byteLength });
+        }
+      } else {
+        console.warn("[yjs][resync] failed", { status: res.status });
+      }
+    } catch (e) {
+      console.warn("[yjs][resync] error", (e as Error).message);
+    }
+  }, [persistId]);
 
   // Initialize Yjs doc/provider once on mount (only if enabled)
   useEffect(() => {
@@ -324,8 +364,13 @@ export const useYjsMultiplayer = ({
     interruptSaveRef.current = interruptSave;
 
     const onDocUpdate = (_update: Uint8Array, origin: any) => {
+      const isLocal = origin === localOriginRef.current;
+      console.log("[yjs][doc.update]", {
+        localOrigin: Boolean(isLocal),
+        updateBytes: _update?.byteLength ?? 0,
+      });
       // Only schedule on local-origin transactions to avoid multiple clients saving
-      if (origin === localOriginRef.current) scheduleSave();
+      if (isLocal) scheduleSave();
       // Update local SV cache opportunistically
       try {
         serverVectorRef.current = Y.encodeStateVector(doc);
@@ -359,20 +404,129 @@ export const useYjsMultiplayer = ({
       return;
     }
 
-    (async () => {
-      let wsUrlWithAuth: string;
+    const applyServerDiffIfAny = async () => {
       try {
-        const tokenRes = await fetch("/api/yjs/token", { method: "POST" });
-        if (!tokenRes.ok) {
-          throw new Error(`Token fetch failed: ${tokenRes.status}`);
-        }
-        const { token } = await tokenRes.json();
-        console.log(
-          "[mp] Auth token received:",
-          token?.substring(0, 50) + "..."
+        const doc = ydocRef.current;
+        if (!doc) return;
+        const persistId = roomName.includes(":")
+          ? roomName.slice(roomName.indexOf(":") + 1)
+          : roomName;
+        const sv = Y.encodeStateVector(doc);
+        const b64 =
+          typeof Buffer !== "undefined"
+            ? Buffer.from(sv).toString("base64")
+            : btoa(String.fromCharCode(...Array.from(sv)));
+        const res = await fetch(
+          `/api/experimental/rationales/${encodeURIComponent(persistId)}/state?sv=${encodeURIComponent(b64)}`
         );
-        console.log("[mp] Auth token obtained");
+        if (res.status === 204) return;
+        if (res.ok && (res.headers.get("content-type") || "").includes("application/octet-stream")) {
+          const buf = new Uint8Array(await res.arrayBuffer());
+          if (buf.byteLength > 0) {
+            Y.applyUpdate(doc, buf);
+            serverVectorRef.current = Y.encodeStateVector(doc);
+          }
+        }
+      } catch (e) {
+        console.warn("[yjs] Resync diff fetch failed:", (e as Error).message);
+      }
+    };
 
+    const attachProviderListeners = (p: WebsocketProvider) => {
+      // @ts-ignore minimal event API cross-provider
+      p.on("synced", () => {
+        console.log("provider synced with document");
+        if (!didResyncOnConnectRef.current) {
+          didResyncOnConnectRef.current = true;
+          void applyServerDiffIfAny();
+        }
+      });
+      // @ts-ignore minimal event API
+      p.on("status", (status: any) => {
+        console.log("[mp] provider status:", status);
+        const isUp = status?.status === "connected";
+        setIsConnected(Boolean(isUp));
+        if (isUp) setConnectionError(null);
+        if (isUp && !didResyncOnConnectRef.current) {
+          didResyncOnConnectRef.current = true;
+          void applyServerDiffIfAny();
+        }
+        else setConnectionError("WebSocket connection lost");
+      });
+      p.on("connection-error", async (error: any) => {
+        console.error("[mp] WebSocket connection error:", error);
+        setConnectionError(`Connection error: ${error?.message || "Unknown error"}`);
+        setIsConnected(false);
+        if (!isRefreshingTokenRef.current) {
+          isRefreshingTokenRef.current = true;
+          try {
+            await restartProviderWithNewToken();
+          } finally {
+            isRefreshingTokenRef.current = false;
+          }
+        }
+      });
+      p.on("connection-close", async (_event: any) => {
+        if (!isRefreshingTokenRef.current) {
+          isRefreshingTokenRef.current = true;
+          try {
+            await restartProviderWithNewToken();
+          } finally {
+            isRefreshingTokenRef.current = false;
+          }
+        }
+      });
+    };
+
+    const clearTokenTimer = () => {
+      if (tokenRefreshTimerRef.current != null) {
+        clearTimeout(tokenRefreshTimerRef.current);
+        tokenRefreshTimerRef.current = null;
+      }
+    };
+
+    const scheduleRefresh = (expiresAt: number) => {
+      clearTokenTimer();
+      const delay = getRefreshDelayMs(expiresAt);
+      tokenRefreshTimerRef.current = window.setTimeout(async () => {
+        try {
+          await restartProviderWithNewToken();
+        } catch (e) {
+          console.error("[mp] Token refresh failed:", e);
+        }
+      }, delay) as unknown as number;
+    };
+
+    const restartProviderWithNewToken = async () => {
+      try {
+        const { token, expiresAt } = await fetchYjsAuthToken();
+        console.log("[mp] Auth token refreshed");
+        const wsProvider = new WebsocketProvider(wsUrl, roomName, doc, {
+          WebSocketPolyfill: class extends WebSocket {
+            constructor(url: string, protocols?: string | string[]) {
+              const urlWithAuth = `${url}?auth=${encodeURIComponent(token)}`;
+              super(urlWithAuth, protocols);
+            }
+          } as any,
+        });
+        const prev = providerRef.current;
+        providerRef.current = wsProvider;
+        attachProviderListeners(wsProvider);
+        didResyncOnConnectRef.current = false;
+        if (prev) {
+          try { prev.destroy?.(); } catch {}
+        }
+        scheduleRefresh(expiresAt);
+      } catch (error) {
+        console.error("[mp] Failed to refresh auth token:", error);
+        setConnectionError("Failed to authenticate WebSocket connection");
+      }
+    };
+
+    (async () => {
+      try {
+        const { token, expiresAt } = await fetchYjsAuthToken();
+        console.log("[mp] Auth token obtained");
         const provider = new WebsocketProvider(wsUrl, roomName, doc, {
           WebSocketPolyfill: class extends WebSocket {
             constructor(url: string, protocols?: string | string[]) {
@@ -381,45 +535,10 @@ export const useYjsMultiplayer = ({
             }
           } as any,
         });
-
         providerRef.current = provider;
-
-        // @ts-ignore minimal event API cross-provider
-        provider.on("synced", () => {
-          console.log("provider synced with document");
-        });
-
-        // y-websocket doesn't have a 'peers' event like y-webrtc because life sucks
-
-        // @ts-ignore minimal event API
-        provider.on("status", (status: any) => {
-          console.log("[mp] provider status:", status);
-          const isUp = status?.status === "connected";
-          setIsConnected(Boolean(isUp));
-          if (isUp) {
-            setConnectionError(null);
-          } else {
-            setConnectionError("WebSocket connection lost");
-          }
-        });
-
-        provider.on("connection-error", (error: any) => {
-          console.error("[mp] WebSocket connection error:", error);
-          setConnectionError(
-            `Connection error: ${error?.message || "Unknown error"}`
-          );
-          setIsConnected(false);
-        });
-
-        provider.on("connection-close", (event: any) => {
-          console.log("[mp] WebSocket connection closed:", event);
-          if (event?.code === 1006) {
-            setConnectionError("WebSocket connection closed abnormally");
-          } else {
-            setConnectionError("WebSocket connection closed");
-          }
-          setIsConnected(false);
-        });
+        attachProviderListeners(provider);
+        didResyncOnConnectRef.current = false;
+        scheduleRefresh(expiresAt);
       } catch (error) {
         console.error("[mp] Failed to get auth token:", error);
         setConnectionError("Failed to authenticate WebSocket connection");
@@ -535,6 +654,10 @@ export const useYjsMultiplayer = ({
         clearTimeout(saveTimerRef.current);
         saveTimerRef.current = null;
       }
+      if (tokenRefreshTimerRef.current) {
+        clearTimeout(tokenRefreshTimerRef.current);
+        tokenRefreshTimerRef.current = null;
+      }
       if (ydocRef.current) {
         // flush a final save
         try {
@@ -603,6 +726,7 @@ export const useYjsMultiplayer = ({
     connectionError,
     isConnected,
     isSaving,
+    resyncNow,
     undo: () => {
       console.log("[undo] requested");
       if (!undoManagerRef.current) return;

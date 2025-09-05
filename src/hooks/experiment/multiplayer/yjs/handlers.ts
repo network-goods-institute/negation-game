@@ -16,6 +16,7 @@ export const createScheduleSave = (
   const performSave = async () => {
     if (!ydocRef.current || savingRef.current) return;
     try {
+      console.log("[save] performSave:start");
       savingRef.current = true;
       setIsSaving(true);
       // broadcast saving flag for other peers
@@ -34,11 +35,12 @@ export const createScheduleSave = (
       if (!update || !update.byteLength) {
         console.log("[save] No changes to save");
       } else {
+        console.log("[save] sending update", { bytes: update.byteLength });
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 20000);
         
         try {
-          await fetch(
+          const res = await fetch(
             `/api/experimental/rationales/${encodeURIComponent(persistId)}/updates`,
             { 
               method: "POST", 
@@ -46,6 +48,7 @@ export const createScheduleSave = (
               signal: controller.signal
             }
           );
+          console.log("[save] server response", { ok: res.ok, status: res.status });
         } finally {
           clearTimeout(timeoutId);
         }
@@ -53,6 +56,7 @@ export const createScheduleSave = (
       serverVectorRef.current = Y.encodeStateVector(ydocRef.current);
     } catch {
     } finally {
+      console.log("[save] performSave:end");
       savingRef.current = false;
       setIsSaving(false);
       setNextSaveTime?.(null);
@@ -104,6 +108,7 @@ export const createScheduleSave = (
     // Throttle: only schedule if no timer is pending; do NOT reset on every change
     if (saveTimerRef.current || savingRef.current) return;
     const saveTime = Date.now() + 300000; // 5 minutes from now
+    console.log("[save] scheduleSave", { at: saveTime });
     setNextSaveTime?.(saveTime);
     // share the scheduled save time with peers
     try {
@@ -220,6 +225,7 @@ export const createUpdateNodesFromY = (
   setNodes: (updater: (nodes: Node[]) => Node[]) => void,
   localOriginRef?: React.MutableRefObject<any>
 ) => {
+  const lastIds = new Set<string>();
   return (_evt?: any, txn?: any) => {
     try {
       if (txn && localOriginRef && txn.origin === localOriginRef.current) {
@@ -227,6 +233,9 @@ export const createUpdateNodesFromY = (
         // This prevents double-application of local changes
         return;
       }
+    } catch {}
+    try {
+      console.log("[yjs][nodes.observe] start", { size: (yNodes as any).size ?? 0 });
     } catch {}
     const arr: Node[] = [];
     for (const [, raw] of yNodes as any) {
@@ -245,6 +254,18 @@ export const createUpdateNodesFromY = (
       }
     }
     const visibleArr = arr;
+    try {
+      const currIds = new Set(visibleArr.map((n: any) => n.id));
+      const added: string[] = [];
+      const removed: string[] = [];
+      currIds.forEach((id) => { if (!lastIds.has(id)) added.push(id); });
+      lastIds.forEach((id) => { if (!currIds.has(id)) removed.push(id); });
+      if (added.length || removed.length) {
+        console.log("[yjs][nodes.observe] diff", { added, removed });
+      }
+      // Update lastIds snapshot
+      (function syncIds(){ lastIds.clear(); currIds.forEach((id) => lastIds.add(id)); })();
+    } catch {}
 
     const sorted = visibleArr
       .slice()
@@ -270,6 +291,9 @@ export const createUpdateNodesFromY = (
         new Map((prev as any[]).map((p: any) => [p.id, p]))
       )
     );
+    try {
+      console.log("[yjs][nodes.observe] applied", { count: sorted.length });
+    } catch {}
   };
 };
 
@@ -279,6 +303,7 @@ export const createUpdateEdgesFromY = (
   setEdges: (updater: (edges: Edge[]) => Edge[]) => void
 ) => {
   return () => {
+    try { console.log("[yjs][edges.observe] start", { size: (yEdges as any).size ?? 0 }); } catch {}
     const arr: Edge[] = [];
     for (const [, raw] of yEdges as any) {
       const e = raw as Edge;
@@ -315,6 +340,7 @@ export const createUpdateEdgesFromY = (
     if (sig === lastEdgesSigRef.current) return;
     lastEdgesSigRef.current = sig;
     setEdges(() => sorted);
+    try { console.log("[yjs][edges.observe] applied", { count: sorted.length }); } catch {}
   };
 };
 

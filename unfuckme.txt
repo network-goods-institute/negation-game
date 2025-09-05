@@ -1,0 +1,52 @@
+
+Summary
+- Fixes deployed. Multiplayer deletion stabilized. Inverse-pair experiment disabled by flag. “Resync now” control added. Client/API/WS logging enabled. CSP/WS settings hardened.
+
+Problem
+- Peer views not reflecting deletions consistently. Deleted nodes sometimes reappearing.
+- Keyboard Delete/Backspace removing nodes locally via React Flow without Yjs transaction.
+- Occasional drift requiring explicit state-vector diff reconciliation.
+- Ancillary issues: WS CSP restrictions, analytics CSP blocks, WS token mismatch/expiry in earlier logs.
+
+Changes
+- Keyboard deletion routing: React Flow remove-change interception implemented; deletions now executed via Yjs delete function. Broadcast and persistence ensured.
+- Resync control: On-demand anti-entropy added. State vector computed; server diff fetched and applied. One-shot auto-resync tied to connect/synced events.
+- Inverse-pair feature: Disabled by default via NEXT_PUBLIC_MULTIPLAYER_INVERSE_PAIR_ENABLED=false. UI/actions gated.
+- Logging/instrumentation: Client (doc.update, observer apply, node add/remove diffs, autosave lifecycle), API (updates incoming/stored, state diff/snapshot), WS (room size, ping/pong).
+- CSP/WS hygiene: connect-src includes production WSS endpoint and dynamic NEXT_PUBLIC_YJS_WS_URL; WS auth token rotation + HMAC/expiry validation with YJS_AUTH_SECRET.
+
+Verification procedure
+- Two-browser test on same rationale.
+- Deletion via context menu and via keyboard (Delete/Backspace).
+- Initiator: [yjs][doc.update] localOrigin:true; autosave logs present; /updates returns 200.
+- Peer: [yjs][doc.update] localOrigin:false; [yjs][nodes.observe] diff includes removed node id.
+- Recovery: “Resync now” invokes diff fetch/apply; no-op if up-to-date.
+
+Tests
+- Token endpoint coverage.
+- Feature-flag behavior for inverse pair.
+- Multiplayer inverse-pair delete scenario.
+
+Embedding and CSP
+- Third-party analytics scripts blocked by default. Allow only explicitly required hosts in script-src (e.g. https://va.vercel-scripts.com, https://www.googletagmanager.com) if needed.
+- Iframe embedding controlled via frame-ancestors on embed routes; allowlist explicit parent origins only.
+
+Operations
+- Feature flag: NEXT_PUBLIC_MULTIPLAYER_INVERSE_PAIR_ENABLED=true re-enables inverse-pair.
+- WS config: YJS_AUTH_SECRET must match between app and yjs-ws; short-lived tokens recommended.
+- Resync control: Header action triggers immediate diff reconciliation; useful for suspected drift.
+
+Outcomes
+- Deletion via any path uses Yjs transaction. Real-time broadcast, autosave persistence, and diff-based recovery guaranteed.
+- Experimental path disabled to reduce surface area.
+- Sufficient diagnostics available via in-page Debug Panel and server logs for production troubleshooting.
+
+Post-deploy checklist
+- Typecheck/tests: pnpm compile && pnpm test.
+- Two-browser verification: create > delete (keyboard + UI) > confirm peer removal; ensure no reappearance.
+- CSP adjustments (if analytics required): update next.config.mjs script-src with explicit hosts.
+
+Troubleshooting
+- Debug Panel filters: [yjs][nodes.observe] diff, [yjs][doc.update], [save], [api].
+- Server logs: [api][yjs.updates] counts, WS room size, token validation messages.
+- Resync control: If drift suspected, invoke once; persistent fixes indicate upstream broadcast and storage healthy, with client previously out of date.
