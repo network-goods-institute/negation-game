@@ -30,6 +30,7 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
     });
 
     const [hovered, setHovered] = useState(false);
+    const isActive = Boolean(selected || hovered);
     const [menuOpen, setMenuOpen] = useState(false);
     const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
@@ -76,13 +77,17 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
                         onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
                         data-selected={selected}
 
-                        className={`px-4 py-3 rounded-lg ${hidden ? 'bg-blue-100 text-blue-700' : 'bg-blue-50 text-blue-900'} border-2 min-w-[220px] max-w-[360px] relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} ring-0
+                        className={`px-4 py-3 rounded-lg ${hidden ? 'bg-blue-100 text-blue-700' : 'bg-blue-50 text-blue-900'} border-2 min-w-[220px] max-w-[360px] relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} ring-0 transition-transform duration-300 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
             ${hidden ? 'border-blue-300' : 'border-blue-200'}
             ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
             data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white
             `}
                         style={{ opacity: hidden ? undefined : 1 }}
                     >
+                        <span
+                            aria-hidden
+                            className={`pointer-events-none absolute -inset-1 rounded-lg border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
+                        />
                         <div className="relative z-10">
                             {selected && (
                                 <button

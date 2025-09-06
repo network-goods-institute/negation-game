@@ -35,6 +35,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const [hovered, setHovered] = useState(false);
     const { pillVisible, handleMouseEnter, handleMouseLeave, hideNow } = usePillVisibility();
     const rootRef = React.useRef<HTMLDivElement | null>(null);
+    const isActive = Boolean(selected || hovered);
 
     useEffect(() => {
         if (wrapperRef.current && contentRef.current) {
@@ -99,13 +100,17 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                         className={`px-3 py-2 rounded-lg ${pointLike
                             ? (hidden ? 'bg-gray-200 text-gray-600' : 'bg-white text-gray-900')
                             : (hidden ? 'bg-amber-200 text-amber-700' : 'bg-amber-100 text-amber-900')
-                            } border-2 ${pointLike ? 'min-w-[200px] max-w-[320px]' : 'min-w-[180px] max-w-[300px]'} relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} node-drag-handle ring-0
+                            } border-2 ${pointLike ? 'min-w-[200px] max-w-[320px]' : 'min-w-[180px] max-w-[300px]'} relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} node-drag-handle ring-0 transition-transform duration-300 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
                         ${hidden ? (pointLike ? 'border-gray-300' : 'border-amber-400') : (pointLike ? 'border-stone-200' : 'border-amber-500')}
                         ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
                         data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white
                         }`}
                         style={{ opacity: hidden ? undefined : favorOpacity }}
                     >
+                        <span
+                            aria-hidden
+                            className={`pointer-events-none absolute -inset-1 rounded-lg border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
+                        />
                         <div className="relative z-10">
                             {isConnectingFromNodeId === id && (
                                 <div className="absolute -top-3 right-0 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>

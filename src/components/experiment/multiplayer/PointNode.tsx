@@ -79,11 +79,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const favorOpacity = selected || hovered || sliverHovered || sliverAnimating ? 1 : Math.max(0.3, Math.min(1, favor / 5));
 
   const isInContainer = !!parentId;
-
-
-
-
-
+  const isActive = Boolean(selected || hovered);
 
   return (
     <>
@@ -126,11 +122,15 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
             onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
             data-selected={selected}
 
-            className={`px-4 py-3 rounded-lg ${hidden ? 'bg-gray-200 text-gray-600' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 shadow-md' : 'bg-white text-gray-900')} border-2 min-w-[200px] max-w-[320px] relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} ring-0
+            className={`px-4 py-3 rounded-lg ${hidden ? 'bg-gray-200 text-gray-600' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 shadow-md' : 'bg-white text-gray-900')} border-2 min-w-[200px] max-w-[320px] relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} ring-0 transition-transform duration-300 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
             ${hidden ? 'border-gray-300' : (selected ? 'border-black' : 'border-stone-200')}
             `}
             style={{ opacity: hidden ? undefined : favorOpacity }}
           >
+            <span
+              aria-hidden
+              className={`pointer-events-none absolute -inset-1 rounded-lg border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
+            />
             <div className="relative z-10">
               {/* Eye toggle top-right */}
               {selected && !isDirectInverse && (
