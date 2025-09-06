@@ -42,7 +42,6 @@ import {
 import { Roboto_Slab } from 'next/font/google';
 import * as Y from 'yjs';
 import { inversePairEnabled } from '@/config/experiments';
-import { DebugPanel } from '@/components/experiment/multiplayer/DebugPanel';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
@@ -621,7 +620,7 @@ export default function MultiplayerRationaleDetailPage() {
                     />
                 )}
             </ReactFlowProvider>
-            <DebugPanel />
+            {null}
         </div>
     );
 }

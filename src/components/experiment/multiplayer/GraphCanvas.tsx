@@ -5,7 +5,6 @@ import { CursorOverlay } from './CursorOverlay';
 import { CursorReporter } from './CursorReporter';
 import { nodeTypes, edgeTypes } from '@/data/experiment/multiplayer/sampleData';
 import { WebsocketProvider } from 'y-websocket';
-import { ContextMenu } from './common/ContextMenu';
 import { useGraphActions } from './GraphContext';
 
 type YProvider = WebsocketProvider | null;
@@ -147,7 +146,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           const passthrough: any[] = [];
           for (const c of changes || []) {
             if (c?.type === 'remove' && c?.id) {
-              try { graph.deleteNode?.(c.id); } catch {}
+              try { graph.deleteNode?.(c.id); } catch { }
             } else {
               passthrough.push(c);
             }
@@ -159,7 +158,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           const passthrough: any[] = [];
           for (const c of changes || []) {
             if (c?.type === 'remove' && c?.id) {
-              try { graph.deleteNode?.(c.id); } catch {}
+              try { graph.deleteNode?.(c.id); } catch { }
             } else {
               passthrough.push(c);
             }

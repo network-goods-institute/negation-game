@@ -178,10 +178,25 @@ export const createGraphChangeHandlers = (
             typeof window !== "undefined"
               ? window.requestAnimationFrame(() => {
                   if (pendingEdges && m && d) {
-                    d.transact(
-                      () => syncYMapFromArray(m, pendingEdges as Edge[]),
-                      localOrigin
-                    );
+                    // Upsert-only: write/update known edges without deleting unknown keys
+                    const byId = new Map<string, Edge>();
+                    for (const e of pendingEdges as Edge[]) byId.set(e.id, e);
+                    d.transact(() => {
+                      byId.forEach((e, id) => {
+                        const curr = (m as any).get(id) as Edge | undefined;
+                        const normalized = (x: any) => ({
+                          id: x?.id,
+                          s: x?.source,
+                          t: x?.target,
+                          ty: x?.type,
+                          sh: x?.sourceHandle ?? null,
+                          th: x?.targetHandle ?? null,
+                          d: x?.data || {},
+                        });
+                        const same = curr && JSON.stringify(normalized(curr)) === JSON.stringify(normalized(e));
+                        if (!same) (m as any).set(id, e);
+                      });
+                    }, localOrigin);
                   }
                   pendingEdges = null;
                   if (rafEdgesId != null && typeof window !== "undefined") {
@@ -261,10 +276,25 @@ export const createGraphChangeHandlers = (
     }
     if (d) {
       if (mE && pendingEdges) {
-        d.transact(
-          () => syncYMapFromArray(mE, pendingEdges as Edge[]),
-          localOrigin
-        );
+        // Upsert-only write of pending edges
+        const byId = new Map<string, Edge>();
+        for (const e of pendingEdges as Edge[]) byId.set(e.id, e);
+        d.transact(() => {
+          byId.forEach((e, id) => {
+            const curr = (mE as any).get(id) as Edge | undefined;
+            const normalized = (x: any) => ({
+              id: x?.id,
+              s: x?.source,
+              t: x?.target,
+              ty: x?.type,
+              sh: x?.sourceHandle ?? null,
+              th: x?.targetHandle ?? null,
+              d: x?.data || {},
+            });
+            const same = curr && JSON.stringify(normalized(curr)) === JSON.stringify(normalized(e));
+            if (!same) (mE as any).set(id, e);
+          });
+        }, localOrigin);
         pendingEdges = null;
       }
     }

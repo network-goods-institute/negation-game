@@ -48,7 +48,7 @@ export async function GET(req: Request, ctx: any) {
   // If client provides a state vector (sv=base64), return only missing updates
   const svB64 = url.searchParams.get("sv");
   if (svB64) {
-    try { console.log("[api][yjs.state] sv diff requested", { id }); } catch {}
+    try { } catch {}
     let baseDocBuf: Buffer | null = null;
     try {
       const snap = (await db.execute(
@@ -86,7 +86,7 @@ export async function GET(req: Request, ctx: any) {
     const diff = Y.encodeStateAsUpdate(ydoc, sv);
     if (!diff || diff.byteLength === 0)
       return new NextResponse(new Uint8Array(), { status: 204 });
-    try { console.log("[api][yjs.state] returning diff", { id, bytes: diff.byteLength }); } catch {}
+    try { } catch {}
     return new NextResponse(Buffer.from(diff), {
       headers: {
         "content-type": "application/octet-stream",
@@ -162,7 +162,7 @@ export async function GET(req: Request, ctx: any) {
     headers["x-yjs-updates-count"] = String(updates.length);
     headers["x-yjs-prev-base64-bytes"] = String(prevBytes);
   }
-  try { console.log("[api][yjs.state] returning snapshot", { id, bytes: buffer?.byteLength || 0 }); } catch {}
+  try { } catch {}
   const res = new NextResponse(buffer, { headers });
   return res;
 }

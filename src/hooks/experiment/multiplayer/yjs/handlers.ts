@@ -16,7 +16,6 @@ export const createScheduleSave = (
   const performSave = async () => {
     if (!ydocRef.current || savingRef.current) return;
     try {
-      console.log("[save] performSave:start");
       savingRef.current = true;
       setIsSaving(true);
       // broadcast saving flag for other peers
@@ -35,7 +34,6 @@ export const createScheduleSave = (
       if (!update || !update.byteLength) {
         console.log("[save] No changes to save");
       } else {
-        console.log("[save] sending update", { bytes: update.byteLength });
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 20000);
         
@@ -48,7 +46,6 @@ export const createScheduleSave = (
               signal: controller.signal
             }
           );
-          console.log("[save] server response", { ok: res.ok, status: res.status });
         } finally {
           clearTimeout(timeoutId);
         }
@@ -56,7 +53,6 @@ export const createScheduleSave = (
       serverVectorRef.current = Y.encodeStateVector(ydocRef.current);
     } catch {
     } finally {
-      console.log("[save] performSave:end");
       savingRef.current = false;
       setIsSaving(false);
       setNextSaveTime?.(null);
@@ -108,7 +104,6 @@ export const createScheduleSave = (
     // Throttle: only schedule if no timer is pending; do NOT reset on every change
     if (saveTimerRef.current || savingRef.current) return;
     const saveTime = Date.now() + 300000; // 5 minutes from now
-    console.log("[save] scheduleSave", { at: saveTime });
     setNextSaveTime?.(saveTime);
     // share the scheduled save time with peers
     try {
@@ -182,7 +177,6 @@ export const createScheduleSave = (
   };
 
   const interruptSave = () => {
-    console.log("[save] Interrupting save");
     try {
       // Clear local state
       savingRef.current = false;
@@ -234,24 +228,31 @@ export const createUpdateNodesFromY = (
         return;
       }
     } catch {}
-    try {
-      console.log("[yjs][nodes.observe] start", { size: (yNodes as any).size ?? 0 });
-    } catch {}
+    try {} catch {}
     const arr: Node[] = [];
+    const toMigrate: Node[] = [];
     for (const [, raw] of yNodes as any) {
       const n = raw as Node;
       // Live migration: convert legacy question nodes to statement
       if ((n as any).type === "question") {
         const migrated = { ...n, type: "statement" } as Node;
-        try {
-          (yNodes as any).set(migrated.id, migrated);
-          arr.push(migrated);
-        } catch {
-          arr.push(migrated);
-        }
+        toMigrate.push(migrated);
+        arr.push(migrated);
       } else {
         arr.push(n);
       }
+    }
+    if (toMigrate.length > 0) {
+      try {
+        const doc: Y.Doc | undefined = (yNodes as any).doc;
+        if (doc) {
+          doc.transact(() => {
+            for (const mig of toMigrate) (yNodes as any).set(mig.id, mig);
+          }, localOriginRef?.current ?? "migration:nodes");
+        } else {
+          for (const mig of toMigrate) (yNodes as any).set(mig.id, mig);
+        }
+      } catch {}
     }
     const visibleArr = arr;
     try {
@@ -260,9 +261,7 @@ export const createUpdateNodesFromY = (
       const removed: string[] = [];
       currIds.forEach((id) => { if (!lastIds.has(id)) added.push(id); });
       lastIds.forEach((id) => { if (!currIds.has(id)) removed.push(id); });
-      if (added.length || removed.length) {
-        console.log("[yjs][nodes.observe] diff", { added, removed });
-      }
+      if (added.length || removed.length) {}
       // Update lastIds snapshot
       (function syncIds(){ lastIds.clear(); currIds.forEach((id) => lastIds.add(id)); })();
     } catch {}
@@ -291,35 +290,42 @@ export const createUpdateNodesFromY = (
         new Map((prev as any[]).map((p: any) => [p.id, p]))
       )
     );
-    try {
-      console.log("[yjs][nodes.observe] applied", { count: sorted.length });
-    } catch {}
+    try {} catch {}
   };
 };
 
 export const createUpdateEdgesFromY = (
   yEdges: Y.Map<Edge>,
   lastEdgesSigRef: React.MutableRefObject<string>,
-  setEdges: (updater: (edges: Edge[]) => Edge[]) => void
+  setEdges: (updater: (edges: Edge[]) => Edge[]) => void,
+  localOriginRef?: React.MutableRefObject<any>
 ) => {
   return () => {
-    try { console.log("[yjs][edges.observe] start", { size: (yEdges as any).size ?? 0 }); } catch {}
+    try {} catch {}
     const arr: Edge[] = [];
+    const toMigrate: Edge[] = [];
     for (const [, raw] of yEdges as any) {
       const e = raw as Edge;
       // Live migration: convert legacy question edges to option
       if ((e as any).type === "question") {
         const migrated = { ...e, type: "option" } as Edge;
-        try {
-          // write back into Yjs so peers converge
-          (yEdges as any).set(migrated.id, migrated);
-          arr.push(migrated);
-        } catch {
-          arr.push(migrated);
-        }
+        toMigrate.push(migrated);
+        arr.push(migrated);
       } else {
         arr.push(e);
       }
+    }
+    if (toMigrate.length > 0) {
+      try {
+        const doc: Y.Doc | undefined = (yEdges as any).doc;
+        if (doc) {
+          doc.transact(() => {
+            for (const mig of toMigrate) (yEdges as any).set(mig.id, mig);
+          }, localOriginRef?.current ?? "migration:edges");
+        } else {
+          for (const mig of toMigrate) (yEdges as any).set(mig.id, mig);
+        }
+      } catch {}
     }
     // Hide edges marked as removed due to dismissed group
     const visibleEdges = arr;
@@ -340,7 +346,7 @@ export const createUpdateEdgesFromY = (
     if (sig === lastEdgesSigRef.current) return;
     lastEdgesSigRef.current = sig;
     setEdges(() => sorted);
-    try { console.log("[yjs][edges.observe] applied", { count: sorted.length }); } catch {}
+    try {} catch {}
   };
 };
 

@@ -84,7 +84,7 @@ export const useYjsMultiplayer = ({
         { cache: "no-store" as RequestCache }
       );
       if (res.status === 204) {
-        console.log("[yjs][resync] up-to-date");
+        
         return;
       }
       if (res.ok && (res.headers.get("content-type") || "").includes("application/octet-stream")) {
@@ -92,13 +92,13 @@ export const useYjsMultiplayer = ({
         if (buf.byteLength > 0) {
           Y.applyUpdate(doc, buf);
           serverVectorRef.current = Y.encodeStateVector(doc);
-          console.log("[yjs][resync] applied", { bytes: buf.byteLength });
+          
         }
       } else {
-        console.warn("[yjs][resync] failed", { status: res.status });
+        
       }
     } catch (e) {
-      console.warn("[yjs][resync] error", (e as Error).message);
+      
     }
   }, [persistId]);
 
@@ -229,10 +229,7 @@ export const useYjsMultiplayer = ({
                 if (yNodes.size > 0 || yEdges.size > 0) hadContent = true;
               }
             } catch (error) {
-              console.warn(
-                "[yjs] Failed to apply binary snapshot:",
-                (error as Error).message
-              );
+              
             }
           } else {
             const json: any = await res.json().catch(() => ({}));
@@ -259,17 +256,12 @@ export const useYjsMultiplayer = ({
                   Y.applyUpdate(doc, bytes);
                   appliedUpdates++;
                 } catch (updateError) {
-                  console.warn(
-                    "[yjs] Skipping corrupted update:",
-                    (updateError as Error).message
-                  );
+                
                 }
               }
               if (appliedUpdates > 0) {
                 if (yNodes.size > 0 || yEdges.size > 0) hadContent = true;
-                console.log(
-                  `[yjs] Applied ${appliedUpdates}/${json.updates.length} updates`
-                );
+                
               }
             }
           }
@@ -300,7 +292,7 @@ export const useYjsMultiplayer = ({
             yEdges.size === 0 &&
             !hadContent
           ) {
-            console.log("[yjs] Initializing new document with default content");
+            
             doc.transact(() => {
               for (const n of initialNodes) yNodes.set(n.id, n);
               for (const e of initialEdges) yEdges.set(e.id, e);
@@ -322,25 +314,21 @@ export const useYjsMultiplayer = ({
             yEdges.size === 0 &&
             hadContent
           ) {
-            console.warn(
-              "[yjs] Document appears corrupted - has updates but no content after applying them"
-            );
+            
             setConnectionError(
               "Document data appears corrupted. Some content may be missing."
             );
           }
         }
       } catch (e) {
-        console.error("[yjs] Failed to load document state:", e);
+        
         setConnectionError(
           `Failed to load document: ${e instanceof Error ? e.message : "Unknown error"}`
         );
 
         // Never initialize default content on load failures
         // Existing documents that fail to load should remain empty to prevent data loss
-        console.warn(
-          "[yjs] Document load failed - keeping empty state to prevent overwriting existing data"
-        );
+        
         setConnectionError(
           "Document failed to load. Try refreshing the page or check your connection."
         );
@@ -365,10 +353,7 @@ export const useYjsMultiplayer = ({
 
     const onDocUpdate = (_update: Uint8Array, origin: any) => {
       const isLocal = origin === localOriginRef.current;
-      console.log("[yjs][doc.update]", {
-        localOrigin: Boolean(isLocal),
-        updateBytes: _update?.byteLength ?? 0,
-      });
+      
       // Only schedule on local-origin transactions to avoid multiple clients saving
       if (isLocal) scheduleSave();
       // Update local SV cache opportunistically
@@ -393,10 +378,7 @@ export const useYjsMultiplayer = ({
     doc.on("update", onDocUpdate);
 
     const wsUrl = process.env.NEXT_PUBLIC_YJS_WS_URL;
-    console.log("[mp] initializing provider", {
-      wsUrl: Boolean(wsUrl),
-      roomName,
-    });
+    
 
     if (!wsUrl) {
       console.error("[mp] NEXT_PUBLIC_YJS_WS_URL is required");
@@ -428,14 +410,14 @@ export const useYjsMultiplayer = ({
           }
         }
       } catch (e) {
-        console.warn("[yjs] Resync diff fetch failed:", (e as Error).message);
+        
       }
     };
 
     const attachProviderListeners = (p: WebsocketProvider) => {
       // @ts-ignore minimal event API cross-provider
       p.on("synced", () => {
-        console.log("provider synced with document");
+        
         if (!didResyncOnConnectRef.current) {
           didResyncOnConnectRef.current = true;
           void applyServerDiffIfAny();
@@ -443,7 +425,7 @@ export const useYjsMultiplayer = ({
       });
       // @ts-ignore minimal event API
       p.on("status", (status: any) => {
-        console.log("[mp] provider status:", status);
+        
         const isUp = status?.status === "connected";
         setIsConnected(Boolean(isUp));
         if (isUp) setConnectionError(null);
@@ -454,7 +436,7 @@ export const useYjsMultiplayer = ({
         else setConnectionError("WebSocket connection lost");
       });
       p.on("connection-error", async (error: any) => {
-        console.error("[mp] WebSocket connection error:", error);
+        
         setConnectionError(`Connection error: ${error?.message || "Unknown error"}`);
         setIsConnected(false);
         if (!isRefreshingTokenRef.current) {
@@ -492,7 +474,7 @@ export const useYjsMultiplayer = ({
         try {
           await restartProviderWithNewToken();
         } catch (e) {
-          console.error("[mp] Token refresh failed:", e);
+          
         }
       }, delay) as unknown as number;
     };
@@ -500,7 +482,7 @@ export const useYjsMultiplayer = ({
     const restartProviderWithNewToken = async () => {
       try {
         const { token, expiresAt } = await fetchYjsAuthToken();
-        console.log("[mp] Auth token refreshed");
+        
         const wsProvider = new WebsocketProvider(wsUrl, roomName, doc, {
           WebSocketPolyfill: class extends WebSocket {
             constructor(url: string, protocols?: string | string[]) {
@@ -518,7 +500,7 @@ export const useYjsMultiplayer = ({
         }
         scheduleRefresh(expiresAt);
       } catch (error) {
-        console.error("[mp] Failed to refresh auth token:", error);
+        
         setConnectionError("Failed to authenticate WebSocket connection");
       }
     };
@@ -526,7 +508,7 @@ export const useYjsMultiplayer = ({
     (async () => {
       try {
         const { token, expiresAt } = await fetchYjsAuthToken();
-        console.log("[mp] Auth token obtained");
+        
         const provider = new WebsocketProvider(wsUrl, roomName, doc, {
           WebSocketPolyfill: class extends WebSocket {
             constructor(url: string, protocols?: string | string[]) {
@@ -540,7 +522,7 @@ export const useYjsMultiplayer = ({
         didResyncOnConnectRef.current = false;
         scheduleRefresh(expiresAt);
       } catch (error) {
-        console.error("[mp] Failed to get auth token:", error);
+        
         setConnectionError("Failed to authenticate WebSocket connection");
         return;
       }
@@ -557,7 +539,8 @@ export const useYjsMultiplayer = ({
     const updateEdgesFromY = createUpdateEdgesFromY(
       yEdges as any,
       lastEdgesSigRef,
-      setEdges as any
+      setEdges as any,
+      localOriginRef as any
     );
 
     yNodes.observe(updateNodesFromY as any);
@@ -601,9 +584,7 @@ export const useYjsMultiplayer = ({
     // initial alignment
     onMetaChange();
     yMetaMap.observe(onMetaChange as any);
-    console.log(
-      "[undo] UndoManager initialized with scoped origins and Y.Text tracking"
-    );
+    
 
     // Wire undo manager events to reflect canUndo/canRedo state
     const recalcStacks = () => {
@@ -627,23 +608,11 @@ export const useYjsMultiplayer = ({
     // @ts-ignore
     undoManagerRef.current.on("stack-cleared", onCleared);
     // @ts-ignore events are untyped
-    undoManagerRef.current.on("stack-item-added", (evt: any) => {
-      console.log("[undo] stack-item-added", {
-        source: evt?.source,
-        type: evt?.type,
-      });
-    });
+    undoManagerRef.current.on("stack-item-added", (_evt: any) => {});
     // @ts-ignore
-    undoManagerRef.current.on("stack-item-popped", (evt: any) => {
-      console.log("[undo] stack-item-popped", {
-        source: evt?.source,
-        type: evt?.type,
-      });
-    });
+    undoManagerRef.current.on("stack-item-popped", (_evt: any) => {});
     // @ts-ignore
-    undoManagerRef.current.on("stack-cleared", () => {
-      console.log("[undo] stack-cleared");
-    });
+    undoManagerRef.current.on("stack-cleared", () => {});
 
     // Initial sync to local state
     updateNodesFromY();
@@ -728,13 +697,12 @@ export const useYjsMultiplayer = ({
     isSaving,
     resyncNow,
     undo: () => {
-      console.log("[undo] requested");
       if (!undoManagerRef.current) return;
       const before = {
         undo: undoManagerRef.current.undoStack.length,
         redo: undoManagerRef.current.redoStack.length,
       } as any;
-      console.log("[undo] stack sizes before", before);
+      
 
       isUndoRedoRef.current = true;
       undoManagerRef.current.undo();
@@ -751,16 +719,15 @@ export const useYjsMultiplayer = ({
         undo: undoManagerRef.current.undoStack.length,
         redo: undoManagerRef.current.redoStack.length,
       } as any;
-      console.log("[undo] stack sizes after", after);
+      
     },
     redo: () => {
-      console.log("[undo] redo requested");
       if (!undoManagerRef.current) return;
       const before = {
         undo: undoManagerRef.current.undoStack.length,
         redo: undoManagerRef.current.redoStack.length,
       } as any;
-      console.log("[undo] stack sizes before", before);
+      
 
       isUndoRedoRef.current = true;
       undoManagerRef.current.redo();
@@ -776,7 +743,7 @@ export const useYjsMultiplayer = ({
         undo: undoManagerRef.current.undoStack.length,
         redo: undoManagerRef.current.redoStack.length,
       } as any;
-      console.log("[undo] stack sizes after", after);
+      
     },
     canUndo,
     canRedo,
