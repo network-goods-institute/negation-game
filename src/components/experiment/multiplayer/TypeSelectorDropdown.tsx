@@ -6,14 +6,13 @@ interface TypeSelectorDropdownProps {
   x: number;
   y: number;
   onClose: () => void;
-  onSelect: (type: 'point' | 'statement' | 'objection') => void;
-  currentType: 'point' | 'statement' | 'objection';
+  onSelect: (type: 'point' | 'statement') => void;
+  currentType: 'point' | 'statement';
 }
 
 const typeOptions = [
   { type: 'point' as const, label: 'Point', color: 'bg-gray-50 hover:bg-gray-100 text-gray-800', dot: 'bg-gray-500' },
-  { type: 'statement' as const, label: 'Statement', color: 'bg-blue-50 hover:bg-blue-100 text-blue-800', dot: 'bg-blue-500' },
-  { type: 'objection' as const, label: 'Objection', color: 'bg-red-50 hover:bg-red-100 text-red-800', dot: 'bg-red-500' },
+  { type: 'statement' as const, label: 'Question', color: 'bg-blue-50 hover:bg-blue-100 text-blue-800', dot: 'bg-blue-500' },
 ];
 
 export const TypeSelectorDropdown: React.FC<TypeSelectorDropdownProps> = ({ 

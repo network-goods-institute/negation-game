@@ -30,7 +30,7 @@ export const useAutoFocusNode = ({
     const isDefaultContent =
       content === "New point" ||
       content === "New Option" ||
-      content === "New objection";
+      content === "New objection" || content === "New negation";
 
     // Check if node was recently created (within last 2 seconds)
     const wasRecentlyCreated = createdAt && Date.now() - createdAt < 2000;

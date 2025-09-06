@@ -66,7 +66,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     isQuestionNode: false, // Not a question node
   });
 
-  const { pillVisible, handleMouseEnter, handleMouseLeave } = usePillVisibility();
+  const { pillVisible, handleMouseEnter, handleMouseLeave, hideNow } = usePillVisibility();
 
   const locked = isLockedForMe?.(id) || false;
   const lockOwner = getLockOwner?.(id) || null;
@@ -207,7 +207,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
                 <NodeActionPill
                   label="Negate"
                   visible={shouldShowPill}
-                  onClick={() => addNegationBelow(id)}
+                  onClick={() => { addNegationBelow(id); hideNow(); setHovered(false); setSliverHovered(false); }}
                   colorClass="bg-stone-800"
                   onMouseEnter={handleMouseEnter}
                   onMouseLeave={handleMouseLeave}

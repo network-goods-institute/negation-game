@@ -37,11 +37,20 @@ export const usePillVisibility = (hideDelay: number = 400) => {
     scheduleHide();
   };
 
+  const hideNow = () => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+    setPillVisible(false);
+  };
+
   return {
     pillVisible,
     scheduleHide,
     cancelHide,
     handleMouseEnter,
     handleMouseLeave,
+    hideNow,
   };
 };

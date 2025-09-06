@@ -194,3 +194,15 @@
     background-color: hsl(var(--background)) !important;
   }
 }
+
+/* Ensure edge labels and controls are always above nodes for interaction */
+.react-flow__edge-labels {
+  position: relative !important;
+  z-index: 9999 !important;
+}
+
+/* Ensure node layer stays below edge labels */
+.react-flow__nodes {
+  position: relative !important;
+  z-index: 100 !important;
+}

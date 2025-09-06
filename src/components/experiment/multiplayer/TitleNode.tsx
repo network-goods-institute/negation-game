@@ -42,7 +42,7 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
         isQuestionNode: true,
     });
 
-    const { pillVisible, handleMouseEnter, handleMouseLeave } = usePillVisibility();
+    const { pillVisible, handleMouseEnter, handleMouseLeave, hideNow } = usePillVisibility();
 
     const locked = isLockedForMe?.(id) || false;
     const lockOwner = getLockOwner?.(id) || null;
@@ -120,7 +120,7 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
                                 <NodeActionPill
                                     label="Make option"
                                     visible={shouldShowPill}
-                                    onClick={() => addPointBelow?.(id)}
+                                    onClick={() => { addPointBelow?.(id); hideNow(); setHovered(false); }}
                                     colorClass="bg-blue-700"
                                     onMouseEnter={handleMouseEnter}
                                     onMouseLeave={handleMouseLeave}
@@ -136,5 +136,4 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
 };
 
 export default TitleNode;
-
 

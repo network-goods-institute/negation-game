@@ -33,7 +33,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     // Subscribe to global edge changes so this node re-renders when connections change
     const pointLike = useStore((s: any) => (s.edges || []).some((e: any) => (e.type || '') === 'negation' && (e.source === id || e.target === id)));
     const [hovered, setHovered] = useState(false);
-    const { pillVisible, handleMouseEnter, handleMouseLeave } = usePillVisibility();
+    const { pillVisible, handleMouseEnter, handleMouseLeave, hideNow } = usePillVisibility();
     const rootRef = React.useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
@@ -131,7 +131,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                                 onKeyDown={onKeyDown}
                                 className={`${pointLike ? 'text-sm text-gray-900' : 'text-xs text-amber-900'} leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}`}
                             >
-                                {value || (pointLike ? 'New point' : 'New objection')}
+                                {value || (pointLike ? 'New point' : 'New negation')}
                             </div>
                             {hidden && (
                                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
@@ -167,7 +167,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                                 <NodeActionPill
                                     label="Negate"
                                     visible={shouldShowPill}
-                                    onClick={() => addNegationBelow(id)}
+                                    onClick={() => { addNegationBelow(id); hideNow(); setHovered(false); }}
                                     colorClass="bg-stone-800"
                                     onMouseEnter={handleMouseEnter}
                                     onMouseLeave={handleMouseLeave}

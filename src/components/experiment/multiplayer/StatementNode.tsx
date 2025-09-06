@@ -30,7 +30,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
 
   const [hovered, setHovered] = useState(false);
   const rootRef = React.useRef<HTMLDivElement | null>(null);
-  const { pillVisible, handleMouseEnter, handleMouseLeave } = usePillVisibility();
+  const { pillVisible, handleMouseEnter, handleMouseLeave, hideNow } = usePillVisibility();
 
   const locked = isLockedForMe?.(id) || false;
   const lockOwner = getLockOwner?.(id) || null;
@@ -104,7 +104,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
                 onKeyDown={onKeyDown}
                 className={`text-sm font-semibold whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}`}
               >
-                {value || 'Statement'}
+                {value || 'Question'}
               </div>
               {hidden && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
@@ -116,7 +116,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
                 <NodeActionPill
                   label="Make point"
                   visible={shouldShowPill}
-                  onClick={() => addNegationBelow(id)}
+                  onClick={() => { addNegationBelow(id); hideNow(); setHovered(false); }}
                   colorClass="bg-blue-700"
                   onMouseEnter={handleMouseEnter}
                   onMouseLeave={handleMouseLeave}

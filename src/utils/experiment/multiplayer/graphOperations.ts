@@ -153,7 +153,7 @@ export const createAddNodeAtPosition = (
     const id = `${idBase}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const data: any =
       type === "statement"
-        ? { statement: "New Statement" }
+        ? { statement: "New Question" }
         : type === "objection"
           ? { content: "New Objection" }
           : type === "title"
@@ -639,7 +639,7 @@ export const createAddObjectionForEdge = (
       type: "objection",
       position: { x: midX, y: midY + 60 },
       data: {
-        content: "New objection",
+        content: "New negation",
         parentEdgeId: edgeId,
         createdAt: Date.now(),
       },
@@ -676,7 +676,7 @@ export const createAddObjectionForEdge = (
         // Create and register Y.Text for the new objection node immediately
         if (yTextMap && !yTextMap.get(objectionId)) {
           const t = new Y.Text();
-          t.insert(0, "New objection");
+          t.insert(0, "New negation");
           yTextMap.set(objectionId, t);
           try {
             registerTextInUndoScope?.(t);
@@ -1211,11 +1211,11 @@ const getDefaultContentForType = (
     case "point":
       return "New point";
     case "statement":
-      return "New Statement";
+      return "New Question";
     case "title":
       return "New Title";
     case "objection":
-      return "New objection";
+      return "New negation";
     default:
       return "New point";
   }

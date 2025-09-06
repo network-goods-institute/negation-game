@@ -247,11 +247,11 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
                 </div>
                 <button
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); }}
+                  onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); setHoveredEdge(null); setSelectedEdge?.(null); }}
                   className="rounded-full min-h-8 min-w-8 px-3 py-1 text-[11px] font-medium bg-stone-800 text-white"
-                  title="Add objection to this relation"
+                  title="Add negation to this relation"
                 >
-                  Object
+                  Negate
                 </button>
               </div>
             </div>
