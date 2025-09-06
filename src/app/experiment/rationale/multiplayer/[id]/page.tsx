@@ -440,7 +440,7 @@ export default function MultiplayerRationaleDetailPage() {
                     updateNodeFavor,
                     addNegationBelow,
                     addPointBelow,
-                    createInversePair: inversePairEnabled ? inversePair : (() => { }),
+                    createInversePair: inversePair,
                     deleteNode,
                     startEditingNode: startEditingNodeCtx,
                     stopEditingNode: stopEditingNodeCtx,
@@ -523,7 +523,7 @@ export default function MultiplayerRationaleDetailPage() {
                         setNodes as any,
                         registerTextInUndoScope,
                     ),
-                    deleteInversePair: inversePairEnabled ? deleteInversePair : undefined,
+                    deleteInversePair,
                     setPairNodeHeight,
                     pairHeights,
                 }}>

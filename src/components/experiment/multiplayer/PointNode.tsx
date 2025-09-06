@@ -90,7 +90,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           {/* Hover sliver: empty card edge appearing from behind (hidden when selected or in container) */}
           {!selected && !isInContainer && inversePairEnabled && (
             <div
-              className="group/sliver absolute left-full top-1/2 translate-y-[calc(-50%+2px)] h-full w-[36px] -ml-[18px] z-0 pointer-events-auto nodrag nopan transition-all duration-200 ease-in hover:w-[54px] hover:-ml-[27px]"
+              className={`group/sliver absolute left-full top-1/2 translate-y-[calc(-50%+2px)] h-full z-0 pointer-events-auto nodrag nopan transition-all duration-700 ease-out ${sliverHovered ? 'w-[64px] -ml-[32px]' : (hovered ? 'w-[48px] -ml-[24px]' : 'w-[36px] -ml-[18px]')}`}
               role="button"
               aria-label={'More'}
               tabIndex={0}
@@ -104,7 +104,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
               onMouseLeave={() => { setSliverHovered(false); scheduleOpacityHoldRelease(); }}
             >
               <div
-                className="w-full h-full bg-white border-2 border-stone-200 rounded-lg shadow-lg overflow-hidden origin-left opacity-0 transition-opacity duration-200 ease-in group-hover:opacity-100 group-hover/sliver:opacity-100"
+                className={`w-full h-full bg-white border-2 border-stone-200 rounded-lg shadow-lg overflow-hidden origin-left transition-opacity duration-700 ease-out ${hovered ? 'opacity-100' : 'opacity-0'}`}
                 style={{ willChange: 'transform, opacity' }}
               />
             </div>

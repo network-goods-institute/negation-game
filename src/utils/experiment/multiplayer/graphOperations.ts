@@ -766,9 +766,20 @@ export const createInversePair = (
     const originalContent = pointNode.data?.content || "";
     const inverseContent = "Generating...";
 
-    const padding = 40;
-    const nodeWidth = 250;
-    const nodeHeight = 200;
+    let nodeWidth = 220; // fallback
+    let nodeHeight = 80; // fallback
+    try {
+      const el = document.querySelector(
+        `.react-flow__node[data-id="${pointNodeId}"]`
+      ) as HTMLElement | null;
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        nodeWidth = Math.ceil(rect.width);
+        nodeHeight = Math.ceil(rect.height);
+      }
+    } catch {}
+
+    const padding = 12;
     const containerWidth = nodeWidth * 2 + padding * 3;
     const containerHeight = nodeHeight + padding * 2;
 
