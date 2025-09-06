@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Handle, Position, useStore } from '@xyflow/react';
+import { Handle, Position } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEditableNode } from './common/useEditableNode';
@@ -10,6 +10,7 @@ import { ContextMenu } from './common/ContextMenu';
 import { toast } from 'sonner';
 import { Eye, EyeOff, X as XIcon } from 'lucide-react';
 import { NodeActionPill } from './common/NodeActionPill';
+import { inversePairEnabled } from '@/config/experiments';
 
 interface PointNodeProps {
   data: {
@@ -90,7 +91,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
       <div className="relative inline-block">
         <div className="relative inline-block group">
           {/* Hover sliver: empty card edge appearing from behind (hidden when selected or in container) */}
-          {!selected && !isInContainer && (
+          {!selected && !isInContainer && inversePairEnabled && (
             <div
               className="group/sliver absolute left-full top-1/2 translate-y-[calc(-50%+2px)] h-full w-[36px] -ml-[18px] z-0 pointer-events-auto nodrag nopan transition-all duration-200 ease-in hover:w-[54px] hover:-ml-[27px]"
               role="button"
@@ -143,7 +144,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
                   <EyeOff className={`absolute transition-opacity duration-150 ${hidden ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} size={14} />
                 </button>
               )}
-              {selected && isDirectInverse && (
+              {selected && isDirectInverse && inversePairEnabled && (
                 <button
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={(e) => { e.stopPropagation(); deleteInversePair?.(id); }}

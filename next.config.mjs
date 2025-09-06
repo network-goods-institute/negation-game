@@ -46,6 +46,7 @@ const nextConfig = {
       "https://api.web3modal.org",
       "https://pulse.walletconnect.org",
       "https://privy.play.negationgame.com",
+      "wss://rationalesync.negationgame.com",
       yjsWsOrigin,
       isDev ? "ws://localhost:8080" : null,
     ].filter(Boolean).join(' ');
