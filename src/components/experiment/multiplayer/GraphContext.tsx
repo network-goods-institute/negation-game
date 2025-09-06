@@ -38,6 +38,7 @@ type GraphActions = {
     deleteInversePair?: (inverseNodeId: string) => void;
     setPairNodeHeight?: (groupId: string, nodeId: string, height: number) => void;
     pairHeights?: Record<string, number>;
+    isAnyNodeEditing?: boolean;
 };
 
 const GraphContext = createContext<GraphActions | null>(null);

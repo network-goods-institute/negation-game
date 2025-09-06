@@ -10,8 +10,27 @@ import { useAbsoluteNodePosition } from './common/useAbsoluteNodePosition';
 export const NegationEdge: React.FC<EdgeProps> = (props) => {
   const { hoveredEdgeId, selectedEdgeId, setSelectedEdge, addObjectionForEdge, setHoveredEdge, updateEdgeAnchorPosition, deleteNode, updateEdgeRelevance } = useGraphActions() as any;
   const { getRectPosition } = useAbsoluteNodePosition();
-  const isHovered = hoveredEdgeId === props.id;
   const rf = useReactFlow();
+
+  const getPointBaseRect = (node: any) => {
+    try {
+      if (!node?.id) return null;
+      const el = document.querySelector(`.react-flow__node[data-id="${node.id}"] [data-role="content"]`) as HTMLElement | null;
+      if (!el) return null;
+      const rect = el.getBoundingClientRect();
+      const tl = rf.screenToFlowPosition({ x: rect.left, y: rect.top });
+      const br = rf.screenToFlowPosition({ x: rect.right, y: rect.bottom });
+      const x = Math.min(tl.x, br.x) - 2;
+      const y = Math.min(tl.y, br.y) - 2;
+      const width = Math.abs(br.x - tl.x) + 4;
+      const height = Math.abs(br.y - tl.y) + 4;
+      if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+        return { x, y, width, height };
+      }
+    } catch { }
+    return null;
+  };
+  const isHovered = hoveredEdgeId === props.id;
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [menuPos, setMenuPos] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
@@ -148,28 +167,38 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
           <mask id={`neg-mask-${props.id}`}>
             <rect x="-10000" y="-10000" width="20000" height="20000" fill="white" />
             {shouldRenderEllipses && srcLowOpacity && (() => {
-              const rectPos = getRectPosition(sourceNode, true);
-              return rectPos ? (
+              const baseRect = (sourceNode as any)?.type === 'point' ? getPointBaseRect(sourceNode) : null;
+              const rectPos = baseRect || getRectPosition(sourceNode, true);
+              if (!rectPos) return null;
+              const padY = 10;
+              const y = rectPos.y - padY;
+              const h = rectPos.height + padY * 2;
+              return (
                 <rect
                   x={rectPos.x}
-                  y={rectPos.y}
+                  y={y}
                   width={rectPos.width}
-                  height={rectPos.height}
+                  height={h}
                   fill="black"
                 />
-              ) : null;
+              );
             })()}
             {shouldRenderEllipses && tgtLowOpacity && (() => {
-              const rectPos = getRectPosition(targetNode, true);
-              return rectPos ? (
+              const baseRect = (targetNode as any)?.type === 'point' ? getPointBaseRect(targetNode) : null;
+              const rectPos = baseRect || getRectPosition(targetNode, true);
+              if (!rectPos) return null;
+              const padY = 10;
+              const y = rectPos.y - padY;
+              const h = rectPos.height + padY * 2;
+              return (
                 <rect
                   x={rectPos.x}
-                  y={rectPos.y}
+                  y={y}
                   width={rectPos.width}
-                  height={rectPos.height}
+                  height={h}
                   fill="black"
                 />
-              ) : null;
+              );
             })()}
           </mask>
         </defs>
@@ -227,8 +256,8 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
               onMouseLeave={() => setHoveredEdge(null)}
               className={`transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
             >
-              <div className="flex items-center justify-center gap-2 bg-white/95 backdrop-blur-sm border rounded-md shadow px-2 py-1">
-                <div className="flex items-center gap-2 text-[11px] select-none">
+              <div className="flex items-center justify-center gap-3 bg-white/95 backdrop-blur-sm border rounded-md shadow px-2 py-1">
+                <div className="flex items-center gap-2 text-[11px] select-none relative z-10">
                   <span className="uppercase tracking-wide text-stone-500">Relevance</span>
                   <TooltipProvider>
                     <div className="flex items-center gap-1">
@@ -248,7 +277,7 @@ export const NegationEdge: React.FC<EdgeProps> = (props) => {
                 <button
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); setHoveredEdge(null); setSelectedEdge?.(null); }}
-                  className="rounded-full min-h-8 min-w-8 px-3 py-1 text-[11px] font-medium bg-stone-800 text-white"
+                  className="rounded-full min-h-8 min-w-8 px-3 py-1 text-[11px] font-medium bg-stone-800 text-white relative z-0 ml-2"
                   title="Add negation to this relation"
                 >
                   Negate

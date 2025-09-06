@@ -9,6 +9,8 @@ export const createUndoManager = (
   // Per-user undo: only track this client's origin; merge quick edits together.
   const trackedOrigins = new Set<any>();
   if (localOrigin) trackedOrigins.add(localOrigin);
+  // Also track null-origin transactions so programmatic inserts/initial states are undoable when needed
+  trackedOrigins.add(null as any);
   const scope: any[] = [yNodes, yEdges];
   if (yTextMap) scope.push(yTextMap);
   const um = new Y.UndoManager(scope as any, {

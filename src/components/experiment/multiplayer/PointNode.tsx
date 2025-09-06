@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Handle, Position } from '@xyflow/react';
+import { Handle, Position, useReactFlow } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEditableNode } from './common/useEditableNode';
@@ -26,7 +26,7 @@ interface PointNodeProps {
 export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parentId }) => {
   const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, createInversePair, deleteInversePair, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, selectedEdgeId } = useGraphActions() as any;
 
-  const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus, startEditingProgrammatically } = useEditableNode({
+  const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus, startEditingProgrammatically, onContentMouseDown, onContentMouseMove } = useEditableNode({
     id,
     content: data.content,
     updateNodeContent,
@@ -84,6 +84,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
 
 
 
+
   return (
     <>
       <Handle id={`${id}-source-handle`} type="source" position={Position.Top} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
@@ -116,8 +117,8 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
             ref={wrapperRef}
             onMouseEnter={() => { clearHoldTimer(); setHovered(true); handleMouseEnter(); }}
             onMouseLeave={() => { scheduleOpacityHoldRelease(); handleMouseLeave(); }}
-            onMouseDown={connect.onMouseDown}
-            onMouseUp={connect.onMouseUp}
+            onMouseDown={(e) => { if (isEditing) return; connect.onMouseDown(e); }}
+            onMouseUp={(e) => { if (isEditing) return; connect.onMouseUp(e); }}
             onClick={(e) => {
               connect.onClick(e as any);
               if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
@@ -165,9 +166,12 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
                 contentEditable={isEditing && !locked && !hidden}
                 suppressContentEditableWarning
                 onInput={onInput}
+                onMouseDown={onContentMouseDown}
+                onMouseMove={onContentMouseMove}
                 onFocus={onFocus}
                 onBlur={onBlur}
                 onKeyDown={onKeyDown}
+                data-role="content"
                 className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-gray-900'} ${isInContainer ? 'overflow-auto' : ''}`}
                 title={typeof value === 'string' ? value : undefined}
               >
@@ -180,7 +184,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
               )}
 
               {selected && !hidden && (
-                <div className="mt-1 mb-1 flex items-center gap-2 select-none">
+                <div className="mt-1 mb-1 flex items-center gap-2 select-none" style={{ position: 'relative', zIndex: 20 }}>
                   <span className="text-[10px] uppercase tracking-wide text-stone-500">Favor</span>
                   <TooltipProvider>
                     <div className="flex items-center gap-1">

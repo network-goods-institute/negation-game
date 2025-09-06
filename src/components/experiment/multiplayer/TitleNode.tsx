@@ -20,7 +20,7 @@ interface TitleNodeProps {
 export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
     const { updateNodeContent, updateNodeHidden, updateNodeFavor, addPointBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode } = useGraphActions() as any;
 
-    const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus, startEditingProgrammatically } = useEditableNode({
+    const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus, startEditingProgrammatically, onContentMouseDown, onContentMouseMove } = useEditableNode({
         id,
         content: data.content,
         updateNodeContent,
@@ -63,8 +63,8 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
             >
                 <div className="relative inline-block">
                     <div
-                        onMouseDown={(e) => { if (!locked) beginConnectFromNode?.(id); }}
-                        onMouseUp={(e) => { if (!locked) completeConnectToNode?.(id); }}
+                        onMouseDown={(e) => { if (!locked && !isEditing) beginConnectFromNode?.(id); }}
+                        onMouseUp={(e) => { if (!locked && !isEditing) completeConnectToNode?.(id); }}
                         onClick={(e) => {
                             if (locked) {
                                 e.stopPropagation();
@@ -104,6 +104,8 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
                                 contentEditable={isEditing && !locked && !hidden}
                                 suppressContentEditableWarning
                                 onInput={onInput}
+                                onMouseDown={onContentMouseDown}
+                                onMouseMove={onContentMouseMove}
                                 onFocus={onFocus}
                                 onBlur={onBlur}
                                 onKeyDown={onKeyDown}

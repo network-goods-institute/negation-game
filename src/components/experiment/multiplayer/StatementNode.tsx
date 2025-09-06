@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Handle, Position } from '@xyflow/react';
+import { Handle, Position, useReactFlow } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 import { useEditableNode } from './common/useEditableNode';
 import { usePillVisibility } from './common/usePillVisibility';
@@ -19,7 +19,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
   const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode } = useGraphActions() as any;
   const content = data?.statement || '';
 
-  const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus } = useEditableNode({
+  const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus, onContentMouseDown, onContentMouseMove } = useEditableNode({
     id,
     content,
     updateNodeContent,
@@ -61,8 +61,8 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           <div
             ref={wrapperRef}
             // hover handled on root container to avoid flicker when approaching from bottom
-            onMouseDown={connect.onMouseDown}
-            onMouseUp={connect.onMouseUp}
+            onMouseDown={(e) => { if (isEditing) return; connect.onMouseDown(e); }}
+            onMouseUp={(e) => { if (isEditing) return; connect.onMouseUp(e); }}
             onClick={(e) => {
               connect.onClick(e as any);
               if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
@@ -99,6 +99,8 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
                 contentEditable={isEditing && !locked && !hidden}
                 suppressContentEditableWarning
                 onInput={onInput}
+                onMouseDown={onContentMouseDown}
+                onMouseMove={onContentMouseMove}
                 onFocus={onFocus}
                 onBlur={onBlur}
                 onKeyDown={onKeyDown}
@@ -113,14 +115,19 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
               )}
 
               {!hidden && (
-                <NodeActionPill
-                  label="Make point"
-                  visible={shouldShowPill}
-                  onClick={() => { addNegationBelow(id); hideNow(); setHovered(false); }}
-                  colorClass="bg-blue-700"
-                  onMouseEnter={handleMouseEnter}
-                  onMouseLeave={handleMouseLeave}
-                />
+                <>
+                  <div className="mt-1 mb-1 flex items-center gap-2 select-none" style={{ position: 'relative', zIndex: 20 }}>
+                    <span className="text-[10px] uppercase tracking-wide text-stone-500">Favor</span>
+                  </div>
+                  <NodeActionPill
+                    label="Make point"
+                    visible={shouldShowPill}
+                    onClick={() => { addNegationBelow(id); hideNow(); setHovered(false); }}
+                    colorClass="bg-blue-700"
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                  />
+                </>
               )}
             </div>
           </div>

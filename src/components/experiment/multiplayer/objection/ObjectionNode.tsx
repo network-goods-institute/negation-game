@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Handle, Position, useStore } from '@xyflow/react';
+import { Handle, Position, useStore, useReactFlow } from '@xyflow/react';
 import { useGraphActions } from '../GraphContext';
 
 import { useEditableNode } from '../common/useEditableNode';
@@ -22,7 +22,7 @@ interface ObjectionNodeProps {
 
 const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => {
     const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode } = useGraphActions() as any;
-    const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus } = useEditableNode({
+    const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus, onContentMouseDown, onContentMouseMove } = useEditableNode({
         id,
         content: data.content,
         updateNodeContent,
@@ -52,6 +52,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const hidden = (data as any)?.hidden === true;
     const favor = Math.max(1, Math.min(5, (data as any)?.favor ?? 3));
     const favorOpacity = selected || hovered ? 1 : Math.max(0.3, Math.min(1, favor / 5));
+
 
 
     const sourceHandlePosition = useStore((s: any) => {
@@ -86,8 +87,8 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                     <div
                         ref={wrapperRef}
                         // hover handled on root container to avoid flicker when approaching from bottom
-                        onMouseDown={connect.onMouseDown}
-                        onMouseUp={connect.onMouseUp}
+                        onMouseDown={(e) => { if (isEditing) return; connect.onMouseDown(e); }}
+                        onMouseUp={(e) => { if (isEditing) return; connect.onMouseUp(e); }}
                         onClick={(e) => {
                             connect.onClick(e as any);
                             if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
@@ -126,6 +127,8 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                                 contentEditable={isEditing && !locked && !hidden}
                                 suppressContentEditableWarning
                                 onInput={onInput}
+                                onMouseDown={onContentMouseDown}
+                                onMouseMove={onContentMouseMove}
                                 onFocus={onFocus}
                                 onBlur={onBlur}
                                 onKeyDown={onKeyDown}
@@ -139,7 +142,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                                 </div>
                             )}
                             {selected && !hidden && (
-                                <div className="mt-1 mb-1 flex items-center gap-2 select-none">
+                                <div className="mt-1 mb-1 flex items-center gap-2 select-none" style={{ position: 'relative', zIndex: 20 }}>
                                     <span className="text-[10px] uppercase tracking-wide text-stone-500">Favor</span>
                                     <TooltipProvider>
                                         <div className="flex items-center gap-1">

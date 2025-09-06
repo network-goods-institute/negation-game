@@ -213,7 +213,10 @@ export const useEditableNode = ({
 
   const onInput = (e: React.FormEvent<HTMLDivElement>) => {
     draftRef.current = (e.target as HTMLDivElement).innerText;
-    updateNodeContent(id, draftRef.current);
+    if (updateTimerRef.current) clearTimeout(updateTimerRef.current);
+    updateTimerRef.current = window.setTimeout(() => {
+      updateNodeContent(id, draftRef.current);
+    }, 120);
     if (wrapperRef.current && contentRef.current) {
       wrapperRef.current.style.minHeight = `${contentRef.current.scrollHeight}px`;
     }
@@ -319,5 +322,12 @@ export const useEditableNode = ({
     onFocus,
     commit,
     startEditingProgrammatically,
+    // Prevent node drag/connect while interacting with the content
+    onContentMouseDown: (e: React.MouseEvent<HTMLDivElement>) => {
+      e.stopPropagation();
+    },
+    onContentMouseMove: (e: React.MouseEvent<HTMLDivElement>) => {
+      e.stopPropagation();
+    },
   };
 };

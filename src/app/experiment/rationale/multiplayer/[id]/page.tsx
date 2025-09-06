@@ -38,9 +38,8 @@ import {
     createUpdateNodeType,
     createInversePair,
     createDeleteInversePair
-  } from '@/utils/experiment/multiplayer/graphOperations';
+} from '@/utils/experiment/multiplayer/graphOperations';
 import { Roboto_Slab } from 'next/font/google';
-import * as Y from 'yjs';
 import { inversePairEnabled } from '@/config/experiments';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
@@ -119,6 +118,7 @@ export default function MultiplayerRationaleDetailPage() {
         canUndo,
         canRedo,
         registerTextInUndoScope,
+        isUndoRedoRef,
     } = useYjsMultiplayer({
         roomName,
         initialNodes: initialGraph?.nodes || [],
@@ -131,6 +131,17 @@ export default function MultiplayerRationaleDetailPage() {
 
     const cursors = useMultiplayerCursors({ provider, userId, username, userColor, isLeader });
     const { startEditing, stopEditing, getEditorsForNode, lockNode, unlockNode, isLockedForMe, getLockOwner } = useMultiplayerEditing({ provider, userId, username, userColor, isLeader });
+    const [editingSet, setEditingSet] = useState<Set<string>>(new Set());
+    const startEditingNodeCtx = React.useCallback((nodeId: string) => {
+        setEditingSet((prev) => { const ns = new Set(prev); ns.add(nodeId); return ns; });
+        try { startEditing(nodeId); } catch { }
+    }, [startEditing]);
+    const stopEditingNodeCtx = React.useCallback((nodeId: string) => {
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        setEditingSet((prev) => { const ns = new Set(prev); ns.delete(nodeId); return ns; });
+        try { stopEditing(nodeId); } catch { }
+    }, [stopEditing]);
+    const isAnyNodeEditing = editingSet.size > 0;
 
     const { handleNodeDragStart, handleNodeDragStop } = useNodeDragHandlers({
         lockNode,
@@ -270,6 +281,8 @@ export default function MultiplayerRationaleDetailPage() {
             isLeader && leaderSynced ? (ydoc as any) : null,
             isLeader && leaderSynced,
             localOriginRef.current,
+            undefined,
+            undefined
         ),
         [setNodes, yNodesMap, ydoc, isLeader, leaderSynced]
     );
@@ -297,10 +310,10 @@ export default function MultiplayerRationaleDetailPage() {
     // Sync DB title to Yjs title node when both are available
     useEffect(() => {
         if (!dbTitle || !isLeader || !yTextMap || !ydoc || !nodes.length) return;
-        
+
         const titleNode = nodes.find(n => n.type === 'title');
         if (!titleNode) return;
-        
+
         const currentContent = (titleNode.data?.content as string) || '';
         if (currentContent.trim() !== dbTitle.trim()) {
             console.log('[title] Syncing DB title to Yjs:', dbTitle);
@@ -411,6 +424,10 @@ export default function MultiplayerRationaleDetailPage() {
             />
 
             <ReactFlowProvider>
+                {/** Track local editing set to disable dragging across the canvas */}
+                {(() => {
+                    return null as any;
+                })()}
                 <GraphProvider value={{
                     updateNodeContent,
                     updateNodeHidden: createUpdateNodeHidden(
@@ -425,6 +442,12 @@ export default function MultiplayerRationaleDetailPage() {
                     addPointBelow,
                     createInversePair: inversePairEnabled ? inversePair : (() => { }),
                     deleteNode,
+                    startEditingNode: startEditingNodeCtx,
+                    stopEditingNode: stopEditingNodeCtx,
+                    getEditorsForNode,
+                    isLockedForMe,
+                    getLockOwner,
+                    isAnyNodeEditing,
                     beginConnectFromNode: (id: string) => { connectAnchorRef.current = id; setConnectAnchorId(id); },
                     completeConnectToNode: (nodeId: string) => {
                         if (!connectMode) return;
@@ -476,13 +499,8 @@ export default function MultiplayerRationaleDetailPage() {
                     selectedEdgeId,
                     setSelectedEdge: setSelectedEdgeId,
                     updateEdgeAnchorPosition,
-                    startEditingNode: startEditing,
-                    stopEditingNode: stopEditing,
-                    getEditorsForNode,
                     lockNode,
                     unlockNode,
-                    isLockedForMe,
-                    getLockOwner,
                     proxyMode: !isLeader,
 
                     undo,

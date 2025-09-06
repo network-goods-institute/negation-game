@@ -39,22 +39,14 @@ export const NodeActionPill: React.FC<NodeActionPillProps> = ({
 
   return (
     <div
-      className={`absolute left-1/2 -translate-x-1/2 bottom-[-48px] transition-transform duration-300 ease-out ${visible ? 'translate-y-0' : '-translate-y-2'}`}
-      style={{ zIndex: visible ? 60 : 0 }}
+      className={`absolute left-1/2 -translate-x-1/2 bottom-[-56px] transition-transform duration-300 ease-out ${visible ? 'translate-y-0' : '-translate-y-2'}`}
+      style={{ zIndex: visible ? 5 : 0 }}
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
     >
-      {/* Hover bridge to avoid gap causing flicker */}
-      <div
-        className={`absolute left-1/2 -translate-x-1/2 -top-6 h-6 w-[200px] ${visible ? 'pointer-events-auto' : 'pointer-events-none'}`}
-        onMouseEnter={handleEnter}
-      />
-      {/* Safe zone below to keep pill visible when approaching from bottom */}
-      <div
-        className={`absolute left-1/2 -translate-x-1/2 top-full h-3 w-[200px] ${visible ? 'pointer-events-auto' : 'pointer-events-none'}`}
-        onMouseEnter={handleEnter}
-        onMouseLeave={handleLeave}
-      />
+      {/* Bridge surfaces do not intercept clicks to underlying stars */}
+      <div className="absolute left-1/2 -translate-x-1/2 -top-6 h-6 w-[200px] pointer-events-none" />
+      <div className="absolute left-1/2 -translate-x-1/2 top-full h-3 w-[200px] pointer-events-none" />
       <button
         onMouseDown={(e) => e.preventDefault()}
         onClick={(e) => { e.stopPropagation(); onClick(e); }}

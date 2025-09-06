@@ -200,8 +200,8 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
                         onMouseLeave={() => setHoveredEdge(null)}
                         className={`transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
                     >
-                        <div className="flex items-center justify-center gap-2 bg-white/95 backdrop-blur-sm border rounded-md shadow px-2 py-1">
-                            <div className="flex items-center gap-2 text-[11px] select-none">
+                        <div className="flex items-center justify-center gap-3 bg-white/95 backdrop-blur-sm border rounded-md shadow px-2 py-1">
+                            <div className="flex items-center gap-2 text-[11px] select-none relative z-10">
                                 <span className="uppercase tracking-wide text-stone-500">Relevance</span>
                                 <TooltipProvider>
                                     <div className="flex items-center gap-1">
@@ -221,7 +221,7 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
                             <button
                                 onMouseDown={(e) => e.preventDefault()}
                                 onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); setHoveredEdge(null); setSelectedEdge?.(null); }}
-                                className="rounded-full min-h-8 min-w-8 px-3 py-1 text-[11px] font-medium bg-stone-800 text-white"
+                                className="rounded-full min-h-8 min-w-8 px-3 py-1 text-[11px] font-medium bg-stone-800 text-white relative z-0 ml-2"
                                 title="Add negation to this relation"
                             >
                                 Negate

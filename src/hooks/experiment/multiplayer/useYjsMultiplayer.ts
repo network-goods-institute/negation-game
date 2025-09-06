@@ -50,6 +50,7 @@ export const useYjsMultiplayer = ({
   const localOriginRef = useRef<any>(localOrigin);
   const forceSaveRef = useRef<(() => Promise<void>) | null>(null);
   const interruptSaveRef = useRef<(() => void) | null>(null);
+  const scheduleSaveRef = useRef<(() => void) | null>(null);
   const tokenRefreshTimerRef = useRef<number | null>(null);
   const isRefreshingTokenRef = useRef(false);
   const didResyncOnConnectRef = useRef(false);
@@ -84,22 +85,22 @@ export const useYjsMultiplayer = ({
         { cache: "no-store" as RequestCache }
       );
       if (res.status === 204) {
-        
         return;
       }
-      if (res.ok && (res.headers.get("content-type") || "").includes("application/octet-stream")) {
+      if (
+        res.ok &&
+        (res.headers.get("content-type") || "").includes(
+          "application/octet-stream"
+        )
+      ) {
         const buf = new Uint8Array(await res.arrayBuffer());
         if (buf.byteLength > 0) {
           Y.applyUpdate(doc, buf);
           serverVectorRef.current = Y.encodeStateVector(doc);
-          
         }
       } else {
-        
       }
-    } catch (e) {
-      
-    }
+    } catch (e) {}
   }, [persistId]);
 
   // Initialize Yjs doc/provider once on mount (only if enabled)
@@ -228,9 +229,7 @@ export const useYjsMultiplayer = ({
                 Y.applyUpdate(doc, buf);
                 if (yNodes.size > 0 || yEdges.size > 0) hadContent = true;
               }
-            } catch (error) {
-              
-            }
+            } catch (error) {}
           } else {
             const json: any = await res.json().catch(() => ({}));
             if (json?.snapshot) {
@@ -255,13 +254,10 @@ export const useYjsMultiplayer = ({
                   );
                   Y.applyUpdate(doc, bytes);
                   appliedUpdates++;
-                } catch (updateError) {
-                
-                }
+                } catch (updateError) {}
               }
               if (appliedUpdates > 0) {
                 if (yNodes.size > 0 || yEdges.size > 0) hadContent = true;
-                
               }
             }
           }
@@ -292,7 +288,6 @@ export const useYjsMultiplayer = ({
             yEdges.size === 0 &&
             !hadContent
           ) {
-            
             doc.transact(() => {
               for (const n of initialNodes) yNodes.set(n.id, n);
               for (const e of initialEdges) yEdges.set(e.id, e);
@@ -314,21 +309,19 @@ export const useYjsMultiplayer = ({
             yEdges.size === 0 &&
             hadContent
           ) {
-            
             setConnectionError(
               "Document data appears corrupted. Some content may be missing."
             );
           }
         }
       } catch (e) {
-        
         setConnectionError(
           `Failed to load document: ${e instanceof Error ? e.message : "Unknown error"}`
         );
 
         // Never initialize default content on load failures
         // Existing documents that fail to load should remain empty to prevent data loss
-        
+
         setConnectionError(
           "Document failed to load. Try refreshing the page or check your connection."
         );
@@ -336,24 +329,26 @@ export const useYjsMultiplayer = ({
     })();
 
     // Autosave: throttle Y updates to API
-    const { scheduleSave, forceSave, syncFromMeta, interruptSave } = createScheduleSave(
-      ydocRef,
-      serverVectorRef,
-      setIsSaving,
-      savingRef,
-      saveTimerRef,
-      persistId,
-      setNextSaveTime,
-      yMetaMapRef,
-      localOriginRef
-    );
+    const { scheduleSave, forceSave, syncFromMeta, interruptSave } =
+      createScheduleSave(
+        ydocRef,
+        serverVectorRef,
+        setIsSaving,
+        savingRef,
+        saveTimerRef,
+        persistId,
+        setNextSaveTime,
+        yMetaMapRef,
+        localOriginRef
+      );
 
     forceSaveRef.current = forceSave;
     interruptSaveRef.current = interruptSave;
+    scheduleSaveRef.current = scheduleSave;
 
     const onDocUpdate = (_update: Uint8Array, origin: any) => {
       const isLocal = origin === localOriginRef.current;
-      
+
       // Only schedule on local-origin transactions to avoid multiple clients saving
       if (isLocal) scheduleSave();
       // Update local SV cache opportunistically
@@ -378,7 +373,6 @@ export const useYjsMultiplayer = ({
     doc.on("update", onDocUpdate);
 
     const wsUrl = process.env.NEXT_PUBLIC_YJS_WS_URL;
-    
 
     if (!wsUrl) {
       console.error("[mp] NEXT_PUBLIC_YJS_WS_URL is required");
@@ -402,22 +396,24 @@ export const useYjsMultiplayer = ({
           `/api/experimental/rationales/${encodeURIComponent(persistId)}/state?sv=${encodeURIComponent(b64)}`
         );
         if (res.status === 204) return;
-        if (res.ok && (res.headers.get("content-type") || "").includes("application/octet-stream")) {
+        if (
+          res.ok &&
+          (res.headers.get("content-type") || "").includes(
+            "application/octet-stream"
+          )
+        ) {
           const buf = new Uint8Array(await res.arrayBuffer());
           if (buf.byteLength > 0) {
             Y.applyUpdate(doc, buf);
             serverVectorRef.current = Y.encodeStateVector(doc);
           }
         }
-      } catch (e) {
-        
-      }
+      } catch (e) {}
     };
 
     const attachProviderListeners = (p: WebsocketProvider) => {
       // @ts-ignore minimal event API cross-provider
       p.on("synced", () => {
-        
         if (!didResyncOnConnectRef.current) {
           didResyncOnConnectRef.current = true;
           void applyServerDiffIfAny();
@@ -425,19 +421,18 @@ export const useYjsMultiplayer = ({
       });
       // @ts-ignore minimal event API
       p.on("status", (status: any) => {
-        
         const isUp = status?.status === "connected";
         setIsConnected(Boolean(isUp));
         if (isUp) setConnectionError(null);
         if (isUp && !didResyncOnConnectRef.current) {
           didResyncOnConnectRef.current = true;
           void applyServerDiffIfAny();
-        }
-        else setConnectionError("WebSocket connection lost");
+        } else setConnectionError("WebSocket connection lost");
       });
       p.on("connection-error", async (error: any) => {
-        
-        setConnectionError(`Connection error: ${error?.message || "Unknown error"}`);
+        setConnectionError(
+          `Connection error: ${error?.message || "Unknown error"}`
+        );
         setIsConnected(false);
         if (!isRefreshingTokenRef.current) {
           isRefreshingTokenRef.current = true;
@@ -473,16 +468,14 @@ export const useYjsMultiplayer = ({
       tokenRefreshTimerRef.current = window.setTimeout(async () => {
         try {
           await restartProviderWithNewToken();
-        } catch (e) {
-          
-        }
+        } catch (e) {}
       }, delay) as unknown as number;
     };
 
     const restartProviderWithNewToken = async () => {
       try {
         const { token, expiresAt } = await fetchYjsAuthToken();
-        
+
         const wsProvider = new WebsocketProvider(wsUrl, roomName, doc, {
           WebSocketPolyfill: class extends WebSocket {
             constructor(url: string, protocols?: string | string[]) {
@@ -496,11 +489,12 @@ export const useYjsMultiplayer = ({
         attachProviderListeners(wsProvider);
         didResyncOnConnectRef.current = false;
         if (prev) {
-          try { prev.destroy?.(); } catch {}
+          try {
+            prev.destroy?.();
+          } catch {}
         }
         scheduleRefresh(expiresAt);
       } catch (error) {
-        
         setConnectionError("Failed to authenticate WebSocket connection");
       }
     };
@@ -508,7 +502,7 @@ export const useYjsMultiplayer = ({
     (async () => {
       try {
         const { token, expiresAt } = await fetchYjsAuthToken();
-        
+
         const provider = new WebsocketProvider(wsUrl, roomName, doc, {
           WebSocketPolyfill: class extends WebSocket {
             constructor(url: string, protocols?: string | string[]) {
@@ -522,7 +516,6 @@ export const useYjsMultiplayer = ({
         didResyncOnConnectRef.current = false;
         scheduleRefresh(expiresAt);
       } catch (error) {
-        
         setConnectionError("Failed to authenticate WebSocket connection");
         return;
       }
@@ -584,7 +577,6 @@ export const useYjsMultiplayer = ({
     // initial alignment
     onMetaChange();
     yMetaMap.observe(onMetaChange as any);
-    
 
     // Wire undo manager events to reflect canUndo/canRedo state
     const recalcStacks = () => {
@@ -702,7 +694,6 @@ export const useYjsMultiplayer = ({
         undo: undoManagerRef.current.undoStack.length,
         redo: undoManagerRef.current.redoStack.length,
       } as any;
-      
 
       isUndoRedoRef.current = true;
       undoManagerRef.current.undo();
@@ -715,11 +706,14 @@ export const useYjsMultiplayer = ({
         setCanUndo(undoManagerRef.current.undoStack.length > 0);
         setCanRedo(undoManagerRef.current.redoStack.length > 0);
       } catch {}
+      // Ensure undone state is persisted even if no further local edits happen
+      try {
+        scheduleSaveRef.current?.();
+      } catch {}
       const after = {
         undo: undoManagerRef.current.undoStack.length,
         redo: undoManagerRef.current.redoStack.length,
       } as any;
-      
     },
     redo: () => {
       if (!undoManagerRef.current) return;
@@ -727,7 +721,6 @@ export const useYjsMultiplayer = ({
         undo: undoManagerRef.current.undoStack.length,
         redo: undoManagerRef.current.redoStack.length,
       } as any;
-      
 
       isUndoRedoRef.current = true;
       undoManagerRef.current.redo();
@@ -739,11 +732,13 @@ export const useYjsMultiplayer = ({
         setCanUndo(undoManagerRef.current.undoStack.length > 0);
         setCanRedo(undoManagerRef.current.redoStack.length > 0);
       } catch {}
+      try {
+        scheduleSaveRef.current?.();
+      } catch {}
       const after = {
         undo: undoManagerRef.current.undoStack.length,
         redo: undoManagerRef.current.redoStack.length,
       } as any;
-      
     },
     canUndo,
     canRedo,
@@ -759,5 +754,6 @@ export const useYjsMultiplayer = ({
         console.warn("[undo] Failed to manually register Y.Text:", error);
       }
     },
+    isUndoRedoRef,
   };
 };

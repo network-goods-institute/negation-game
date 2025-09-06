@@ -188,7 +188,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             panOnScroll={panOnScroll as any}
             zoomOnScroll={zoomOnScroll}
             zoomOnDoubleClick={false}
-            nodesDraggable={!connectMode}
+            nodesDraggable={!connectMode && !(graph as any)?.isAnyNodeEditing}
           >
             <Background />
             <Controls />

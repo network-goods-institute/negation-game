@@ -208,7 +208,6 @@ export const createDeleteNode = (
   getLockOwner?: (nodeId: string) => { name?: string } | null
 ) => {
   return (nodeId: string) => {
-    
     if (!isLeader) {
       toast.warning("Read-only mode: Changes won't be saved");
       return;
@@ -247,21 +246,17 @@ export const createDeleteNode = (
         }
       }
 
-      
       // First sync to Yjs, then update local state
       if (yEdgesMap && yNodesMap && ydoc) {
         ydoc.transact(() => {
           for (const e of edgesToDelete) {
-            
             // eslint-disable-next-line drizzle/enforce-delete-with-where
             yEdgesMap.delete(e.id as any);
           }
           for (const nodeId of nodesToDelete) {
-            
             // eslint-disable-next-line drizzle/enforce-delete-with-where
             yNodesMap.delete(nodeId as any);
             try {
-              
               // eslint-disable-next-line drizzle/enforce-delete-with-where
               yTextMap?.delete(nodeId as any);
             } catch {}
@@ -293,14 +288,13 @@ export const createDeleteNode = (
     }
 
     // Prevent deletion of title nodes
-    if (node.type === 'title') {
+    if (node.type === "title") {
       toast?.warning?.("Cannot delete the title node");
       return;
     }
 
     // Handle container deletion - convert children back to standalone nodes
     if (node.type === "group") {
-      
       const children = nodes.filter((n: any) => n.parentId === nodeId);
       const childrenToStandalone = children.map((child: any) => {
         const parent = nodes.find((n: any) => n.id === nodeId);
@@ -339,7 +333,7 @@ export const createDeleteNode = (
       if (yNodesMap && ydoc) {
         ydoc.transact(() => {
           // Delete the container
-          
+
           // eslint-disable-next-line drizzle/enforce-delete-with-where
           yNodesMap.delete(nodeId as any);
           try {
@@ -349,7 +343,6 @@ export const createDeleteNode = (
 
           // Update children to standalone
           for (const child of childrenToStandalone) {
-            
             yNodesMap.set(child.id, child);
           }
         }, localOrigin);
@@ -393,14 +386,12 @@ export const createDeleteNode = (
 
     // First sync to Yjs, then update local state to ensure consistency
     if (yNodesMap && yEdgesMap && ydoc) {
-      
       ydoc.transact(() => {
         for (const e of allEdgesToDelete) {
-          
           // eslint-disable-next-line drizzle/enforce-delete-with-where
           yEdgesMap.delete(e.id as any);
         }
-        
+
         // eslint-disable-next-line drizzle/enforce-delete-with-where
         yNodesMap.delete(nodeId as any);
         try {
@@ -409,7 +400,6 @@ export const createDeleteNode = (
         } catch {}
         // Delete objection nodes
         for (const objectionNodeId of allNodesToDelete) {
-          
           // eslint-disable-next-line drizzle/enforce-delete-with-where
           yNodesMap.delete(objectionNodeId as any);
           try {
@@ -692,7 +682,9 @@ export const createUpdateEdgeAnchorPosition = (
   yNodesMap?: any,
   ydoc?: any,
   isLeader?: boolean,
-  localOrigin?: object
+  localOrigin?: object,
+  isUndoRedoRef?: { current: boolean },
+  layoutOrigin?: any
 ) => {
   // Cache last positions to avoid redundant state updates from repeated effects
   const lastPos = new Map<string, { x: number; y: number }>();
@@ -838,8 +830,6 @@ export const createInversePair = (
           .concat([groupNode, updatedOriginalNode, inverseNode]) // Add all new nodes
     );
 
-    
-
     // Sync to Yjs in correct order
     if (yNodesMap && ydoc && isLeader) {
       ydoc.transact(() => {
@@ -973,7 +963,6 @@ export const createDeleteInversePair = (
   getLockOwner?: (nodeId: string) => { name?: string } | null
 ) => {
   return (inverseNodeId: string) => {
-    
     if (!isLeader) {
       toast.warning("Read-only mode: Changes won't be saved");
       return;
@@ -982,13 +971,11 @@ export const createDeleteInversePair = (
     const inverse = nodes.find((n: any) => n.id === inverseNodeId);
     const groupId = inverse?.parentId;
     if (!inverse || !groupId) {
-      
       return;
     }
     const children = nodes.filter((n: any) => n.parentId === groupId);
     const original = children.find((n: any) => n.id !== inverseNodeId) || null;
     if (!original) {
-      
       return;
     }
     if (isLockedForMe?.(original.id)) {
@@ -1008,7 +995,6 @@ export const createDeleteInversePair = (
       ydoc.transact(() => {
         // Update original node to stand-alone
         if (yNodesMap.has(original.id)) {
-          
           const base = yNodesMap.get(original.id);
           const updated = {
             ...base,
@@ -1031,29 +1017,25 @@ export const createDeleteInversePair = (
 
         // Remove inverse node and its Y.Text (if any)
         if (yNodesMap.has(inverseNodeId)) {
-          
           // eslint-disable-next-line drizzle/enforce-delete-with-where
           yNodesMap.delete(inverseNodeId);
         }
         if (yTextMap && yTextMap.get(inverseNodeId)) {
-          
           // eslint-disable-next-line drizzle/enforce-delete-with-where
           yTextMap.delete(inverseNodeId);
         }
 
         // Remove group node
         if (yNodesMap.has(groupId)) {
-          
           // eslint-disable-next-line drizzle/enforce-delete-with-where
           yNodesMap.delete(groupId);
         }
 
         // Remove edges connected to inverse
-        if (typeof yEdgesMap?.forEach === 'function') {
+        if (typeof yEdgesMap?.forEach === "function") {
           yEdgesMap.forEach((e: any, eid: string) => {
             if (!e) return;
             if (e.source === inverseNodeId || e.target === inverseNodeId) {
-              
               // eslint-disable-next-line drizzle/enforce-delete-with-where
               yEdgesMap.delete(eid as any);
             }
@@ -1062,7 +1044,6 @@ export const createDeleteInversePair = (
           for (const [eid, e] of yEdgesMap as any) {
             if (!e) continue;
             if (e.source === inverseNodeId || e.target === inverseNodeId) {
-              
               // eslint-disable-next-line drizzle/enforce-delete-with-where
               (yEdgesMap as any).delete(eid);
             }
@@ -1071,7 +1052,7 @@ export const createDeleteInversePair = (
       }, localOrigin);
 
       // Update local state after Yjs sync
-      
+
       setEdges((eds: any[]) =>
         eds.filter(
           (e: any) => e.source !== inverseNodeId && e.target !== inverseNodeId
