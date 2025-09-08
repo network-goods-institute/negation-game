@@ -177,6 +177,35 @@ export const useEditableNode = ({
   const onClick = (e: React.MouseEvent) => {
     const now = Date.now();
 
+    if (e.detail === 1) {
+      const sel = window.getSelection();
+      const hasRange = Boolean(
+        sel &&
+          sel.rangeCount > 0 &&
+          !sel.isCollapsed &&
+          contentRef.current &&
+          contentRef.current.contains(sel.getRangeAt(0).commonAncestorContainer)
+      );
+      if (hasRange) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!isEditing) {
+          originalBeforeEditRef.current = value;
+          setIsEditing(true);
+          startEditingNode?.(id);
+          // Don't focus or manipulate selection - preserve the user's text selection
+        }
+        lastClickRef.current = now;
+        return;
+      }
+    }
+
+    if (graph?.connectMode) {
+      // In connect mode, do not enter editing; let wrapper handle connection.
+      lastClickRef.current = now;
+      return;
+    }
+
     // Triple-click: select all (explicit only)
     if (e.detail >= 3) {
       e.preventDefault();
@@ -322,12 +351,12 @@ export const useEditableNode = ({
     onFocus,
     commit,
     startEditingProgrammatically,
-    // Prevent node drag/connect while interacting with the content
+    // Prevent node drag while editing; allow bubbling in connect mode
     onContentMouseDown: (e: React.MouseEvent<HTMLDivElement>) => {
-      e.stopPropagation();
+      if (!graph?.connectMode) e.stopPropagation();
     },
     onContentMouseMove: (e: React.MouseEvent<HTMLDivElement>) => {
-      e.stopPropagation();
+      if (!graph?.connectMode) e.stopPropagation();
     },
   };
 };

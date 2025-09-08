@@ -11,7 +11,9 @@ type GraphActions = {
     createInversePair: (pointNodeId: string) => void;
     deleteNode: (nodeId: string) => void;
     beginConnectFromNode: (nodeId: string) => void;
+    beginConnectFromEdge?: (edgeId: string) => void;
     completeConnectToNode?: (nodeId: string) => void;
+    completeConnectToEdge?: (edgeId: string, midX?: number, midY?: number) => void;
     cancelConnect: () => void;
     isConnectingFromNodeId: string | null;
     connectMode?: boolean;
@@ -57,6 +59,7 @@ export const useGraphActions = () => {
             createInversePair: () => { },
             deleteNode: () => { },
             beginConnectFromNode: () => { },
+            beginConnectFromEdge: () => { },
             completeConnectToNode: () => { },
             cancelConnect: () => { },
             isConnectingFromNodeId: null,

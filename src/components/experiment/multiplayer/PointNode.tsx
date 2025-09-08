@@ -74,7 +74,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
 
   const connect = useConnectableNode({ id, locked });
   const hidden = (data as any)?.hidden === true;
-  const favor = Math.max(1, Math.min(5, (data as any)?.favor ?? 3));
+  const favor = Math.max(1, Math.min(5, (data as any)?.favor ?? 5));
   const isDirectInverse = Boolean((data as any)?.directInverse);
   const favorOpacity = selected || hovered || sliverHovered || sliverAnimating ? 1 : Math.max(0.3, Math.min(1, favor / 5));
 
@@ -173,6 +173,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
                 onKeyDown={onKeyDown}
                 data-role="content"
                 className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-gray-900'} ${isInContainer ? 'overflow-auto' : ''}`}
+                style={{ userSelect: hidden ? 'none' : 'text' }}
                 title={typeof value === 'string' ? value : undefined}
               >
                 {value}

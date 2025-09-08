@@ -151,19 +151,15 @@ export const createAddNodeAtPosition = (
             ? "t"
             : "p";
     const id = `${idBase}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-    const data: any =
-      type === "statement"
-        ? { statement: "New Question" }
-        : type === "objection"
-          ? { content: "New Objection" }
-          : type === "title"
-            ? { content: "New Title" }
-            : { content: "New Point" };
+    const initial = getDefaultContentForType(type);
+    const data: any = type === "statement" ? { statement: initial } : { content: initial };
+    const baseData: any = type === "statement" ? { statement: initial } : { content: initial };
+    const withFavor = (t: typeof type) => (t === "point" || t === "objection") ? { favor: 5 } : {};
     const node: any = {
       id,
       type,
       position: { x, y },
-      data: { ...data, createdAt: Date.now() },
+      data: { ...baseData, ...withFavor(type), createdAt: Date.now() },
       selected: true,
     };
 
@@ -173,13 +169,9 @@ export const createAddNodeAtPosition = (
     if (yNodesMap && ydoc && isLeader) {
       ydoc.transact(() => {
         yNodesMap.set(id, node);
-        if (
-          yTextMap &&
-          (type === "point" || type === "objection" || type === "statement")
-        ) {
+        if (yTextMap && (type === "point" || type === "objection" || type === "statement")) {
           const t = new Y.Text();
-          const initialContent =
-            type === "statement" ? data.statement : data.content;
+          const initialContent = type === "statement" ? data.statement : data.content;
           if (initialContent) t.insert(0, initialContent);
           yTextMap.set(id, t);
           try {
@@ -472,7 +464,7 @@ export const createAddNegationBelow = (
       id: newId,
       type: "point",
       position: newPos,
-      data: { content: "New point", favor: 3, createdAt: Date.now() },
+      data: { content: "New point", favor: 5, createdAt: Date.now() },
       selected: true, // Auto-select newly created negation nodes
     };
     const edgeType = chooseEdgeType(newNode.type, parent.type);
@@ -546,7 +538,7 @@ export const createAddPointBelow = (
       id: newId,
       type: "point",
       position: newPos,
-      data: { content: "New Option", favor: 3, createdAt: Date.now() },
+      data: { content: "New option", favor: 5, createdAt: Date.now() },
       selected: true, // Auto-select newly created negation nodes
     };
     const edgeType = chooseEdgeType(newNode.type, parent.type);
@@ -568,7 +560,7 @@ export const createAddPointBelow = (
         yEdgesMap.set(newEdge.id, newEdge);
         if (yTextMap && !yTextMap.get(newId)) {
           const t = new Y.Text();
-          t.insert(0, "New point");
+          t.insert(0, "New option");
           yTextMap.set(newId, t);
           try {
             registerTextInUndoScope?.(t);
@@ -629,9 +621,10 @@ export const createAddObjectionForEdge = (
       type: "objection",
       position: { x: midX, y: midY + 60 },
       data: {
-        content: "New negation",
+        content: "New mitigation",
         parentEdgeId: edgeId,
         createdAt: Date.now(),
+        favor: 5,
       },
       selected: true, // Auto-select newly created objection nodes
     };
@@ -666,7 +659,7 @@ export const createAddObjectionForEdge = (
         // Create and register Y.Text for the new objection node immediately
         if (yTextMap && !yTextMap.get(objectionId)) {
           const t = new Y.Text();
-          t.insert(0, "New negation");
+          t.insert(0, "New mitigation");
           yTextMap.set(objectionId, t);
           try {
             registerTextInUndoScope?.(t);
@@ -809,7 +802,7 @@ export const createInversePair = (
       draggable: false,
       data: {
         content: inverseContent,
-        favor: 3,
+        favor: 5,
         createdAt: now,
         directInverse: true,
         groupId,
@@ -1123,15 +1116,16 @@ export const createUpdateNodeType = (
 
         const currentContent =
           n.type === "statement" ? n.data?.statement : n.data?.content;
+        const defaultContent = getDefaultContentForType(newType);
         const newData =
           newType === "statement"
             ? {
-                statement: currentContent || "",
+                statement: currentContent || defaultContent,
                 content: undefined,
                 nodeType: undefined,
               }
             : {
-                content: currentContent || "",
+                content: currentContent || defaultContent,
                 statement: undefined,
                 nodeType: undefined,
               };
@@ -1152,15 +1146,16 @@ export const createUpdateNodeType = (
             base.type === "statement"
               ? base.data?.statement
               : base.data?.content;
+          const defaultContent = getDefaultContentForType(newType);
           const newData =
             newType === "statement"
               ? {
-                  statement: currentContent || "",
+                  statement: currentContent || defaultContent,
                   content: undefined,
                   nodeType: undefined,
                 }
               : {
-                  content: currentContent || "",
+                  content: currentContent || defaultContent,
                   statement: undefined,
                   nodeType: undefined,
                 };
@@ -1196,9 +1191,9 @@ export const createUpdateNodeType = (
   };
 };
 
-const getDefaultContentForType = (
+function getDefaultContentForType(
   type: "point" | "statement" | "title" | "objection"
-): string => {
+): string {
   switch (type) {
     case "point":
       return "New point";
@@ -1207,8 +1202,8 @@ const getDefaultContentForType = (
     case "title":
       return "New Title";
     case "objection":
-      return "New negation";
+      return "New mitigation";
     default:
       return "New point";
   }
-};
+}

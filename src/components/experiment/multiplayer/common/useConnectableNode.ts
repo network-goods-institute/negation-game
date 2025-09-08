@@ -33,10 +33,15 @@ export const useConnectableNode = ({ id, locked = false }: UseConnectableNodePar
   }, [completeConnectToNode, connectMode, id, isConnectingFromNodeId, locked]);
 
   const onClick = useCallback((e: MouseEvent) => {
-    if (connectMode) {
-      e.stopPropagation();
+    if (!connectMode || locked) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isConnectingFromNodeId) {
+      beginConnectFromNode(id);
+    } else if (isConnectingFromNodeId && isConnectingFromNodeId !== id) {
+      completeConnectToNode?.(id);
     }
-  }, [connectMode]);
+  }, [beginConnectFromNode, completeConnectToNode, connectMode, id, isConnectingFromNodeId, locked]);
 
   return { onMouseDown, onMouseUp, onClick };
 };
