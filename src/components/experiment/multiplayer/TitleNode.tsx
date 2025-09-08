@@ -7,6 +7,7 @@ import { useAutoFocusNode } from './common/useAutoFocusNode';
 import { NodeActionPill } from './common/NodeActionPill';
 import { Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
+import { useConnectableNode } from './common/useConnectableNode';
 
 interface TitleNodeProps {
     data: {
@@ -18,7 +19,7 @@ interface TitleNodeProps {
 }
 
 export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
-    const { updateNodeContent, updateNodeHidden, updateNodeFavor, addPointBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode } = useGraphActions() as any;
+    const { updateNodeContent, updateNodeHidden, updateNodeFavor, addPointBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, connectMode } = useGraphActions() as any;
 
     const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus, startEditingProgrammatically, onContentMouseDown, onContentMouseMove } = useEditableNode({
         id,
@@ -46,6 +47,7 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
     const { pillVisible, handleMouseEnter, handleMouseLeave, hideNow } = usePillVisibility();
 
     const locked = isLockedForMe?.(id) || false;
+    const connect = useConnectableNode({ id, locked });
     const lockOwner = getLockOwner?.(id) || null;
     const shouldShowPill = pillVisible && !locked;
     const hidden = (data as any)?.hidden === true;
@@ -64,9 +66,10 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
             >
                 <div className="relative inline-block">
                     <div
-                        onMouseDown={(e) => { if (!locked && !isEditing) beginConnectFromNode?.(id); }}
-                        onMouseUp={(e) => { if (!locked && !isEditing) completeConnectToNode?.(id); }}
+                        onMouseDown={(e) => { if (isEditing) return; connect.onMouseDown(e as any); }}
+                        onMouseUp={(e) => { if (isEditing) return; connect.onMouseUp(e as any); }}
                         onClick={(e) => {
+                            connect.onClick(e as any);
                             if (locked) {
                                 e.stopPropagation();
                                 toast.warning(`Locked by ${lockOwner?.name || 'another user'}`);
@@ -115,6 +118,7 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
                                 onBlur={onBlur}
                                 onKeyDown={onKeyDown}
                                 className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-blue-900'}`}
+                                style={{ userSelect: hidden ? 'none' : 'text' }}
                             >
                                 {value}
                             </div>

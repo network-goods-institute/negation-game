@@ -26,6 +26,7 @@ import { GraphUpdater } from '@/components/experiment/multiplayer/GraphUpdater';
 import { TypeSelectorDropdown } from '@/components/experiment/multiplayer/TypeSelectorDropdown';
 import { toast } from 'sonner';
 import { buildConnectionEdge } from '@/utils/experiment/multiplayer/connectUtils';
+import { generateEdgeId } from '@/utils/experiment/multiplayer/graphSync';
 import {
     createUpdateNodeContent,
     createUpdateNodeHidden,
@@ -440,7 +441,7 @@ export default function MultiplayerRationaleDetailPage() {
                     updateNodeFavor,
                     addNegationBelow,
                     addPointBelow,
-                    createInversePair: inversePairEnabled ? inversePair : (() => { }),
+                    createInversePair: inversePair,
                     deleteNode,
                     startEditingNode: startEditingNodeCtx,
                     stopEditingNode: stopEditingNodeCtx,
@@ -449,6 +450,23 @@ export default function MultiplayerRationaleDetailPage() {
                     getLockOwner,
                     isAnyNodeEditing,
                     beginConnectFromNode: (id: string) => { connectAnchorRef.current = id; setConnectAnchorId(id); },
+                    beginConnectFromEdge: (edgeId: string) => {
+                        const anchorId = `anchor:${edgeId}`;
+                        connectAnchorRef.current = anchorId;
+                        setConnectAnchorId(anchorId);
+                        // Ensure a local anchor node exists for preview
+                        const edge = (edges as any[]).find(e => e.id === edgeId);
+                        if (edge) {
+                            const src = (nodes as any[]).find(n => n.id === edge.source);
+                            const tgt = (nodes as any[]).find(n => n.id === edge.target);
+                            if (src && tgt) {
+                                const ax = (src.position.x + tgt.position.x) / 2;
+                                const ay = (src.position.y + tgt.position.y) / 2;
+                                const anchorNode: any = { id: anchorId, type: 'edge_anchor', position: { x: ax, y: ay }, data: { parentEdgeId: edgeId } };
+                                setNodes((nds: any[]) => nds.some(n => n.id === anchorId) ? nds : [...nds, anchorNode]);
+                            }
+                        }
+                    },
                     completeConnectToNode: (nodeId: string) => {
                         if (!connectMode) return;
                         if (!isLeader) {
@@ -461,6 +479,35 @@ export default function MultiplayerRationaleDetailPage() {
                             setConnectAnchorId(null);
                             connectAnchorRef.current = null;
                             setConnectCursor(null);
+                            return;
+                        }
+                        // Edge->Node: if anchor is an edge anchor, create an objection for that edge
+                        if (anchorId.startsWith('anchor:')) {
+                            const edgeId = anchorId.slice('anchor:'.length);
+                            const baseEdge = (edges as any[]).find(e => e.id === edgeId);
+                            const src = (nodes as any[]).find(n => n.id === baseEdge?.source);
+                            const tgt = (nodes as any[]).find(n => n.id === baseEdge?.target);
+                            const midX = src && tgt ? (src.position.x + tgt.position.x) / 2 : 0;
+                            const midY = src && tgt ? (src.position.y + tgt.position.y) / 2 : 0;
+                            const anchorIdForEdge = `anchor:${edgeId}`;
+                            const anchorNodeExists = (nodes as any[]).some(n => n.id === anchorIdForEdge);
+                            if (!anchorNodeExists) {
+                                const anchorNode: any = { id: anchorIdForEdge, type: 'edge_anchor', position: { x: midX, y: midY }, data: { parentEdgeId: edgeId } };
+                                setNodes((nds: any[]) => nds.some(n => n.id === anchorIdForEdge) ? nds : [...nds, anchorNode]);
+                                if (yNodesMap && ydoc && isLeader) {
+                                    ydoc.transact(() => { if (!(yNodesMap as any).has(anchorIdForEdge)) (yNodesMap as any).set(anchorIdForEdge, anchorNode); }, localOriginRef.current);
+                                }
+                            }
+                            // Always create an objection edge from the node to this edge's anchor without spawning a new node
+                            const newObjEdge = { id: generateEdgeId(), type: 'objection', source: nodeId, target: anchorIdForEdge } as any;
+                            setEdges((eds: any[]) => eds.some(e => e.id === newObjEdge.id) ? eds : [...eds, newObjEdge]);
+                            if (yEdgesMap && ydoc && isLeader) {
+                                ydoc.transact(() => { if (!(yEdgesMap as any).has(newObjEdge.id)) (yEdgesMap as any).set(newObjEdge.id, newObjEdge); }, localOriginRef.current);
+                            }
+                            setConnectAnchorId(null);
+                            connectAnchorRef.current = null;
+                            setConnectCursor(null);
+                            setConnectMode(false);
                             return;
                         }
                         const parentId = anchorId;
@@ -489,7 +536,45 @@ export default function MultiplayerRationaleDetailPage() {
                         setConnectCursor(null);
                         setConnectMode(false);
                     },
-                    cancelConnect: () => { setConnectAnchorId(null); connectAnchorRef.current = null; },
+                    cancelConnect: () => { setConnectAnchorId(null); connectAnchorRef.current = null; setConnectCursor(null); setConnectMode(false); },
+                    completeConnectToEdge: (edgeId: string, midX?: number, midY?: number) => {
+                        if (!connectMode) return;
+                        const origin = connectAnchorRef.current;
+                        if (!origin) return;
+                        if (origin.startsWith('anchor:')) {
+                            // Edge->Edge not supported
+                            return;
+                        }
+                        const originNode = (nodes as any[]).find(n => n.id === origin);
+                        if (originNode && originNode.type === 'objection') {
+                            // Attach existing objection node
+                            const anchorId = `anchor:${edgeId}`;
+                            const anchorExists = (nodes as any[]).some(n => n.id === anchorId);
+                            if (!anchorExists) {
+                                const base = (edges as any[]).find(e => e.id === edgeId);
+                                const src = (nodes as any[]).find(n => n.id === base?.source);
+                                const tgt = (nodes as any[]).find(n => n.id === base?.target);
+                                const ax = (midX != null ? midX : (src && tgt ? (src.position.x + tgt.position.x) / 2 : 0));
+                                const ay = (midY != null ? midY : (src && tgt ? (src.position.y + tgt.position.y) / 2 : 0));
+                                const anchorNode: any = { id: anchorId, type: 'edge_anchor', position: { x: ax, y: ay }, data: { parentEdgeId: edgeId } };
+                                setNodes((nds: any[]) => nds.some(n => n.id === anchorId) ? nds : [...nds, anchorNode]);
+                                if (yNodesMap && ydoc && isLeader) {
+                                    ydoc.transact(() => { if (!(yNodesMap as any).has(anchorId)) (yNodesMap as any).set(anchorId, anchorNode); }, localOriginRef.current);
+                                }
+                            }
+                            const newEdge = { id: generateEdgeId(), type: 'objection', source: originNode.id, target: `anchor:${edgeId}` } as any;
+                            setEdges((eds: any[]) => eds.some(e => e.id === newEdge.id) ? eds : [...eds, newEdge]);
+                            if (yEdgesMap && ydoc && isLeader) {
+                                ydoc.transact(() => { if (!(yEdgesMap as any).has(newEdge.id)) (yEdgesMap as any).set(newEdge.id, newEdge); }, localOriginRef.current);
+                            }
+                        } else {
+                            addObjectionForEdge(edgeId, midX, midY);
+                        }
+                        setConnectAnchorId(null);
+                        connectAnchorRef.current = null;
+                        setConnectCursor(null);
+                        setConnectMode(false);
+                    },
                     isConnectingFromNodeId: connectAnchorId,
                     connectMode,
                     addObjectionForEdge,
@@ -523,7 +608,7 @@ export default function MultiplayerRationaleDetailPage() {
                         setNodes as any,
                         registerTextInUndoScope,
                     ),
-                    deleteInversePair: inversePairEnabled ? deleteInversePair : undefined,
+                    deleteInversePair,
                     setPairNodeHeight,
                     pairHeights,
                 }}>

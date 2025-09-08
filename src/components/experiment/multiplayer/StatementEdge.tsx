@@ -7,7 +7,7 @@ import { useEdgePerformanceOptimization } from './common/useEdgePerformanceOptim
 import { useAbsoluteNodePosition } from './common/useAbsoluteNodePosition';
 
 export const StatementEdge: React.FC<EdgeProps> = (props) => {
-    const { hoveredEdgeId, selectedEdgeId, setSelectedEdge, addObjectionForEdge, setHoveredEdge, updateEdgeAnchorPosition, deleteNode, updateEdgeRelevance } = useGraphActions() as any;
+    const { hoveredEdgeId, selectedEdgeId, setSelectedEdge, addObjectionForEdge, setHoveredEdge, updateEdgeAnchorPosition, deleteNode, updateEdgeRelevance, connectMode, beginConnectFromEdge, isConnectingFromNodeId, cancelConnect, completeConnectToEdge } = useGraphActions() as any;
     const isHovered = hoveredEdgeId === props.id;
     const [menuOpen, setMenuOpen] = React.useState(false);
     const [menuPos, setMenuPos] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -60,8 +60,8 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
     // Check connected nodes for masking
     const srcHasFavor = (sourceNode as any)?.type === 'point' || (sourceNode as any)?.type === 'objection';
     const tgtHasFavor = (targetNode as any)?.type === 'point' || (targetNode as any)?.type === 'objection';
-    const srcFavor = Math.max(1, Math.min(5, (sourceNode as any)?.data?.favor ?? 3));
-    const tgtFavor = Math.max(1, Math.min(5, (targetNode as any)?.data?.favor ?? 3));
+    const srcFavor = Math.max(1, Math.min(5, (sourceNode as any)?.data?.favor ?? 5));
+    const tgtFavor = Math.max(1, Math.min(5, (targetNode as any)?.data?.favor ?? 5));
     const srcLowOpacity = srcHasFavor && srcFavor <= 3;
     const tgtLowOpacity = tgtHasFavor && tgtFavor <= 3;
 
@@ -162,7 +162,7 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
                     <StraightEdge
                         {...props}
                         style={{ strokeWidth: Math.max(1, Math.min(8, relevance * 1.6)), stroke: '#6b7280' }}
-                        interactionWidth={8}
+                        interactionWidth={24}
                     />
                 </g>
             </g>
@@ -174,9 +174,12 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
                     x2={targetX}
                     y2={targetY}
                     stroke="rgba(0,0,0,0)"
-                    strokeWidth={16}
+                    strokeWidth={36}
+                    strokeLinecap="round"
                     style={{ pointerEvents: 'stroke' }}
                     onClick={(e) => { e.stopPropagation(); setSelectedEdge?.(props.id as string); }}
+                    onMouseDown={(e) => { if (connectMode) { e.preventDefault(); e.stopPropagation(); beginConnectFromEdge?.(props.id as string); } }}
+                    onMouseUp={(e) => { if (connectMode) { e.preventDefault(); e.stopPropagation(); completeConnectToEdge?.(props.id as string, cx, cy); } }}
                     onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedEdge?.(props.id as string); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
                 />
             )}
@@ -184,8 +187,8 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
                 <>
                     {/* Midpoint dot to hint objection affordance */}
                     <foreignObject x={cx - 8} y={cy - 8} width={16} height={16} style={{ pointerEvents: 'all' }}>
-                        <div onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedEdge?.(props.id as string); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }} title="Edge controls" className="w-4 h-4 rounded-full bg-white border flex items-center justify-center" style={{ borderColor: '#6b7280', cursor: 'pointer' }}>
-                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#6b7280' }} />
+                        <div onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedEdge?.(props.id as string); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }} title="Edge controls" className="w-4 h-4 rounded-full bg-white border flex items-center justify-center select-none" style={{ borderColor: '#6b7280', cursor: 'pointer', userSelect: 'none' as any }} draggable={false}>
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#6b7280', userSelect: 'none' as any }} />
                         </div>
                     </foreignObject>
                     {null}
@@ -222,9 +225,9 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
                                 onMouseDown={(e) => e.preventDefault()}
                                 onClick={(e) => { e.stopPropagation(); addObjectionForEdge(props.id as string, cx, cy); setHoveredEdge(null); setSelectedEdge?.(null); }}
                                 className="rounded-full min-h-8 min-w-8 px-3 py-1 text-[11px] font-medium bg-stone-800 text-white relative z-0 ml-2"
-                                title="Add negation to this relation"
+                                title="Add mitigation to this relation"
                             >
-                                Negate
+                                Mitigate
                             </button>
                         </div>
                     </div>
@@ -247,4 +250,3 @@ export const StatementEdge: React.FC<EdgeProps> = (props) => {
         </>
     );
 };
-

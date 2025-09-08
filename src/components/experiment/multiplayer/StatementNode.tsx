@@ -16,7 +16,7 @@ interface StatementNodeProps {
 }
 
 export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected }) => {
-  const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode } = useGraphActions() as any;
+  const { updateNodeContent, updateNodeHidden, updateNodeFavor, addPointBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode } = useGraphActions() as any;
   const content = data?.statement || '';
 
   const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus, onContentMouseDown, onContentMouseMove } = useEditableNode({
@@ -110,8 +110,9 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
                 onBlur={onBlur}
                 onKeyDown={onKeyDown}
                 className={`text-sm font-semibold whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}`}
+                style={{ userSelect: hidden ? 'none' : 'text' }}
               >
-                {value || 'Question'}
+                {value || 'New Question'}
               </div>
               {hidden && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
@@ -120,19 +121,14 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
               )}
 
               {!hidden && (
-                <>
-                  <div className="mt-1 mb-1 flex items-center gap-2 select-none" style={{ position: 'relative', zIndex: 20 }}>
-                    <span className="text-[10px] uppercase tracking-wide text-stone-500">Favor</span>
-                  </div>
-                  <NodeActionPill
-                    label="Make point"
-                    visible={shouldShowPill}
-                    onClick={() => { addNegationBelow(id); hideNow(); setHovered(false); }}
-                    colorClass="bg-blue-700"
-                    onMouseEnter={handleMouseEnter}
-                    onMouseLeave={handleMouseLeave}
-                  />
-                </>
+                <NodeActionPill
+                  label="Make option"
+                  visible={shouldShowPill}
+                  onClick={() => { addPointBelow(id); hideNow(); setHovered(false); }}
+                  colorClass="bg-blue-700"
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
+                />
               )}
             </div>
           </div>

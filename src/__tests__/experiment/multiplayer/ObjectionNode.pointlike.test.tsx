@@ -25,8 +25,7 @@ describe("ObjectionNode point-like rendering", () => {
                 <ObjectionNode {...baseProps} />
             </Harness>
         );
-        // Without edges, placeholder defaults to 'New negation'
-        expect(getByText(/New negation/i)).toBeInTheDocument();
+        expect(getByText(/New mitigation/i)).toBeInTheDocument();
     });
 });
 

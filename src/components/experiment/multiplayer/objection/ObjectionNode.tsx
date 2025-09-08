@@ -51,7 +51,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
     const connect = useConnectableNode({ id, locked });
     const hidden = (data as any)?.hidden === true;
-    const favor = Math.max(1, Math.min(5, (data as any)?.favor ?? 3));
+    const favor = Math.max(1, Math.min(5, (data as any)?.favor ?? 5));
     const favorOpacity = selected || hovered ? 1 : Math.max(0.3, Math.min(1, favor / 5));
 
 
@@ -138,8 +138,9 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                                 onBlur={onBlur}
                                 onKeyDown={onKeyDown}
                                 className={`${pointLike ? 'text-sm text-gray-900' : 'text-xs text-amber-900'} leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}`}
+                                style={{ userSelect: hidden ? 'none' : 'text' }}
                             >
-                                {value || (pointLike ? 'New point' : 'New negation')}
+                                {value || (pointLike ? 'New point' : 'New mitigation')}
                             </div>
                             {hidden && (
                                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">

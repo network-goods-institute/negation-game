@@ -28,7 +28,7 @@ export const useInitialGraph = () => {
           id: optionId,
           type: "point",
           position: { x: 250, y: 320 },
-          data: { content: "First point" },
+          data: { content: "First point", favor: 5 },
         },
       ],
       edges: [
