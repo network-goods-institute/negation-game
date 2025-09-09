@@ -44,7 +44,12 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [sliverHovered, setSliverHovered] = useState(false);
   const [sliverAnimating, setSliverAnimating] = useState(false);
+  const [sliverFading, setSliverFading] = useState(false);
+  const [animationDistance, setAnimationDistance] = useState(640);
   const [isClosingAnimation, setIsClosingAnimation] = useState(false);
+  const [closingSliver, setClosingSliver] = useState(false);
+  const [closingSliverAnimating, setClosingSliverAnimating] = useState(false);
+  const [closingSliverDistance, setClosingSliverDistance] = useState(640);
   const [closingWidth, setClosingWidth] = useState<number | undefined>(undefined);
   const [closingHeight, setClosingHeight] = useState<number | undefined>(undefined);
 
@@ -76,20 +81,43 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
 
   useEffect(() => {
     if ((data as any)?.closingAnimation && !isClosingAnimation) {
+      // Calculate the distance the sliver needs to travel (same as opening)
+      let calculatedDistance = 640; // fallback
       try {
-        const el = (wrapperRef as any)?.current as HTMLElement | null;
+        const el = wrapperRef.current;
         if (el) {
           const rect = el.getBoundingClientRect();
-          if (Number.isFinite(rect.width)) setClosingWidth(Math.ceil(rect.width));
-          if (Number.isFinite(rect.height)) setClosingHeight(Math.ceil(rect.height));
+          const nodeWidth = Math.ceil(rect.width);
+          const maxPointWidth = 320; // match PointNode max-w-[320px]
+          const gapWidth = maxPointWidth; // full gap equals max point width
+          const padding = 12; // from createInversePair
+          // Exact distance from inverse node position back to original
+          calculatedDistance = padding + nodeWidth + gapWidth;
+          setClosingWidth(nodeWidth);
+          setClosingHeight(Math.ceil(rect.height));
         }
       } catch { }
+      
+      setClosingSliverDistance(calculatedDistance);
       setIsClosingAnimation(true);
+      setClosingSliver(true);
+      
+      // Duration matches the opening animation
+      const animationDuration = Math.min(1400, Math.max(800, calculatedDistance * 1.5));
+      
+      // Start the sliver animation immediately
+      setTimeout(() => {
+        setClosingSliverAnimating(true);
+      }, 50);
+      
+      // End animations
       const t = window.setTimeout(() => {
         setIsClosingAnimation(false);
+        setClosingSliver(false);
+        setClosingSliverAnimating(false);
         setClosingWidth(undefined);
         setClosingHeight(undefined);
-      }, 600);
+      }, animationDuration);
       return () => window.clearTimeout(t);
     }
   }, [(data as any)?.closingAnimation, isClosingAnimation, wrapperRef]);
@@ -107,18 +135,53 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
         <div className="relative inline-block group">
           {!selected && !isInContainer && inversePairEnabled && (
             <div
-              className={`group/sliver absolute left-full top-1/2 translate-y-[calc(-50%+2px)] h-full z-0 pointer-events-auto nodrag nopan transition-all duration-700 ease-out ${sliverAnimating ? 'w-[640px] -ml-[320px] opacity-0' : sliverHovered ? 'w-[128px] -ml-[64px]' : (hovered ? 'w-[96px] -ml-[48px]' : 'w-[40px] -ml-[20px]')}`}
+              className={`group/sliver absolute left-full top-1/2 translate-y-[calc(-50%+2px)] h-full z-0 pointer-events-auto nodrag nopan ${sliverAnimating ? '' : 'transition-all ease-out'} ${!sliverAnimating ? (sliverHovered ? 'w-[128px] -ml-[64px] duration-700' : (hovered ? 'w-[96px] -ml-[48px] duration-700' : 'w-[40px] -ml-[20px] duration-700')) : ''}`}
+              style={sliverAnimating ? {
+                width: `${animationDistance}px`,
+                marginLeft: '0px', // Keep it anchored to the left, only expand right
+                opacity: sliverFading ? 0 : 1,
+                transition: `width 1100ms ease-out, opacity ${sliverFading ? '300ms' : '0ms'} ease-out`
+              } : {}}
               role="button"
               aria-label={'More'}
               tabIndex={0}
               onMouseDown={(e) => { e.stopPropagation(); }}
               onClick={(e) => {
                 e.stopPropagation();
+                
+                // Calculate exact distance to where inverse node will spawn
+                let calculatedDistance = 640; // fallback
+                try {
+                  const currentEl = wrapperRef.current;
+                  if (currentEl) {
+                    const rect = currentEl.getBoundingClientRect();
+                    const nodeWidth = Math.ceil(rect.width);
+                    const maxPointWidth = 320; // match PointNode max-w-[320px]
+                    const gapWidth = maxPointWidth; // full gap equals max point width
+                    const padding = 12; // from createInversePair
+                    // Exact position where inverse node spawns: padding + nodeWidth + gapWidth
+                    calculatedDistance = padding + nodeWidth + gapWidth;
+                  }
+                } catch {}
+                
+                setAnimationDistance(calculatedDistance);
                 setSliverAnimating(true);
+                setSliverFading(false);
+                
+                // Duration based on exact distance (min 800ms, max 1400ms)
+                const animationDuration = Math.min(1400, Math.max(800, calculatedDistance * 1.5));
+                
+                // Create the inverse pair first, then start fade immediately
                 window.setTimeout(() => {
                   createInversePair(id);
+                  setSliverFading(true); // Start fade right when node spawns
+                }, animationDuration - 300);
+                
+                // End animation after fade completes
+                window.setTimeout(() => {
                   setSliverAnimating(false);
-                }, 520);
+                  setSliverFading(false);
+                }, animationDuration);
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); }
@@ -128,7 +191,29 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
               onMouseLeave={() => { setSliverHovered(false); scheduleHoldRelease(); }}
             >
               <div
-                className={`w-full h-full bg-white border-2 border-stone-200 rounded-lg shadow-lg overflow-hidden origin-left transition-opacity duration-700 ease-out ${(hovered && !sliverAnimating) ? 'opacity-100' : 'opacity-0'}`}
+                className={`w-full h-full bg-white border-2 border-stone-200 rounded-lg shadow-lg overflow-hidden origin-left transition-opacity ease-out ${(hovered && !sliverAnimating) ? 'opacity-100 duration-700' : sliverAnimating ? 'opacity-0 duration-1000' : 'opacity-0 duration-700'}`}
+                style={{ willChange: 'transform, opacity' }}
+              />
+            </div>
+          )}
+          {closingSliver && (
+            <div
+              className={`group/closing-sliver absolute left-full top-1/2 translate-y-[calc(-50%+2px)] h-full z-0 pointer-events-none nodrag nopan transition-all ease-out ${closingSliverAnimating ? 'w-[40px] -ml-[20px] opacity-0' : ''}`}
+              style={closingSliverAnimating ? {
+                width: `${closingSliverDistance}px`,
+                marginLeft: `-${closingSliverDistance}px`, // slide LEFT - opposite of opening
+                opacity: 0,
+                transition: `width 1100ms ease-out, margin-left 1100ms ease-out, opacity 300ms ease-out 800ms`
+              } : {
+                width: '40px',
+                marginLeft: '0px',
+                opacity: 0.3
+              }}
+              role="button"
+              aria-label={'Closing'}
+            >
+              <div
+                className={`w-full h-full bg-white border-2 border-stone-200 rounded-lg shadow-sm overflow-hidden origin-left transition-opacity ease-out opacity-100`}
                 style={{ willChange: 'transform, opacity' }}
               />
             </div>
@@ -145,17 +230,16 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
             }}
             onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
             data-selected={selected && !isClosingAnimation}
-            className={`px-4 py-3 rounded-lg ${hidden ? 'bg-gray-200 text-gray-600' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 shadow-md' : 'bg-white text-gray-900')} border-2 min-w-[200px] max-w-[320px] relative ${(isDirectInverse || isClosingAnimation) ? 'z-0' : 'z-10'} ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} ring-0 transition-transform duration-300 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
+            className={`px-4 py-3 rounded-lg ${hidden ? 'bg-gray-200 text-gray-600' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 shadow-md' : 'bg-white text-gray-900')} border-2 min-w-[200px] max-w-[320px] relative ${isDirectInverse ? 'z-0' : 'z-10'} ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} ring-0 transition-transform duration-300 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
             ${hidden ? 'border-gray-300' : ((selected && !isClosingAnimation) ? 'border-black' : 'border-stone-200')}
             `}
             style={{
-              opacity: hidden ? undefined : favorOpacity,
+              opacity: hidden ? undefined : (isClosingAnimation ? 0 : favorOpacity),
               minHeight: isClosingAnimation ? 'auto' : ((data as any)?.pairHeight ? (data as any)?.pairHeight : undefined),
               ...innerScaleStyle,
               ...(isClosingAnimation ? {
-                transform: 'translateX(-160%)',
-                transition: 'transform 700ms ease-out',
-                zIndex: 1,
+                transition: 'opacity 200ms ease-out',
+                zIndex: 0,
               } : {})
             }}
           >

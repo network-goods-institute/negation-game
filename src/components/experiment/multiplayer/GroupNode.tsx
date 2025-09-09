@@ -41,6 +41,72 @@ export const GroupNode: React.FC<GroupNodeProps> = ({ id, data, selected }) => {
     }
   }, [data?.isNew]);
 
+  // Dynamic height adjustment based on child node heights
+  useEffect(() => {
+    const adjustGroupHeight = () => {
+      const nodes = rf.getNodes();
+      const children = nodes.filter((n: any) => n.parentId === id);
+      
+      if (children.length === 0) return;
+      
+      // Find the tallest child node
+      let maxChildHeight = 0;
+      children.forEach((child: any) => {
+        const childEl = document.querySelector(`.react-flow__node[data-id="${child.id}"]`) as HTMLElement;
+        if (childEl) {
+          const height = childEl.getBoundingClientRect().height;
+          if (height > maxChildHeight) {
+            maxChildHeight = height;
+          }
+        }
+      });
+      
+      if (maxChildHeight > 0) {
+        const padding = 36; // padding * 6 from creation (12 * 3 = 36 top/bottom for more generous spacing)
+        const newHeight = maxChildHeight + padding;
+        
+        // Update group node height and ensure it expands downward
+        rf.setNodes((nds: any[]) => 
+          nds.map((n: any) => 
+            n.id === id 
+              ? { 
+                  ...n, 
+                  height: newHeight, 
+                  style: { ...(n.style || {}), height: newHeight },
+                  // Keep position stable so expansion happens downward
+                  position: n.position // maintain original position
+                }
+              : n
+          )
+        );
+        updateNodeInternals(id);
+      }
+    };
+
+    // Initial adjustment
+    const timer = setTimeout(adjustGroupHeight, 100);
+
+    // Set up ResizeObserver to monitor child height changes
+    const observer = new ResizeObserver(() => {
+      adjustGroupHeight();
+    });
+
+    const nodes = rf.getNodes();
+    const children = nodes.filter((n: any) => n.parentId === id);
+    
+    children.forEach((child: any) => {
+      const childEl = document.querySelector(`.react-flow__node[data-id="${child.id}"]`);
+      if (childEl) {
+        observer.observe(childEl);
+      }
+    });
+
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
+  }, [id, rf, updateNodeInternals]);
+
 
   return (
     <>
@@ -76,17 +142,17 @@ export const GroupNode: React.FC<GroupNodeProps> = ({ id, data, selected }) => {
         .container-close {
           transform-origin: right center;
           transform: scaleX(0);
-          transition: transform 500ms ease-in-out;
+          transition: transform 600ms ease-in-out;
         }
       `}</style>
       <div
         ref={containerRef}
         className="w-full h-full rounded bg-transparent relative"
         style={{
-          border: data?.closing ? '2px solid red' : undefined,
+          border: data?.closing ? '2px solid black' : undefined,
           transform: data?.closing ? 'scaleX(0)' : 'scaleX(1)',
           transformOrigin: 'left top',
-          transition: 'transform 500ms ease-in-out',
+          transition: 'transform 600ms ease-in-out',
         }}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -99,32 +165,6 @@ export const GroupNode: React.FC<GroupNodeProps> = ({ id, data, selected }) => {
         <div className="drag-handle sticky top-0 left-0 w-full bg-transparent px-2 py-1.5 text-xs font-semibold tracking-wide rounded-t opacity-90 z-10">
           {data?.label ?? ""}
         </div>
-        {/* Bottom-only resize affordance (height increase only) */}
-        <div
-          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-3 cursor-ns-resize opacity-40"
-          style={{ borderBottom: '2px solid #d1d5db' }}
-          onMouseDown={(e) => {
-            e.stopPropagation();
-            const startY = e.clientY;
-            const node = rf.getNode(id);
-            const startH = (node as any)?.height ?? 0;
-            const startW = (node as any)?.width ?? 0;
-            const move = (ev: MouseEvent) => {
-              const dhRaw = Math.floor(ev.clientY - startY);
-              const dh = Math.max(0, dhRaw); // forbid shrinking/upwards
-              try {
-                rf.setNodes((nds: any[]) => nds.map((n: any) => n.id === id ? { ...n, width: startW, height: startH + dh, style: { ...(n.style || {}), width: startW, height: startH + dh } } : n));
-                updateNodeInternals(id);
-              } catch { }
-            };
-            const up = () => {
-              window.removeEventListener('mousemove', move);
-              window.removeEventListener('mouseup', up);
-            };
-            window.addEventListener('mousemove', move);
-            window.addEventListener('mouseup', up);
-          }}
-        />
       </div>
       <ContextMenu
         open={menuOpen}

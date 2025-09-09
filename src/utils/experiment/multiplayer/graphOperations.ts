@@ -783,7 +783,7 @@ export const createInversePair = (
     const maxPointWidth = 320; // match PointNode max-w-[320px]
     const gapWidth = maxPointWidth; // full gap should equal max point width
     const containerWidth = padding + nodeWidth + gapWidth + nodeWidth + padding; // left + leftNode + gap + rightNode + right
-    const containerHeight = nodeHeight + padding * 2;
+    const containerHeight = nodeHeight + padding * 8;
 
     const groupPosition = {
       x: pointNode.position.x - padding,
