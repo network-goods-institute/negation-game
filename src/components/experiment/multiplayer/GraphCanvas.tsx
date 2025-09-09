@@ -6,6 +6,7 @@ import { CursorReporter } from './CursorReporter';
 import { nodeTypes, edgeTypes } from '@/data/experiment/multiplayer/sampleData';
 import { WebsocketProvider } from 'y-websocket';
 import { useGraphActions } from './GraphContext';
+import OffscreenNeighborPreviews from './OffscreenNeighborPreviews';
 
 type YProvider = WebsocketProvider | null;
 
@@ -229,6 +230,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         );
       })(), edgesLayer)}
       {authenticated && <CursorOverlay cursors={cursors} />}
+      <OffscreenNeighborPreviews />
       {authenticated && (
         <CursorReporter provider={provider} username={username} userColor={userColor} />
       )}
