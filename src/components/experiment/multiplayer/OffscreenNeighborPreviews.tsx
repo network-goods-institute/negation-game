@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { useGraphActions } from './GraphContext';
 import { useReactFlow } from '@xyflow/react';
 import { clamp, getOffscreenSide, OffscreenSide } from '@/utils/experiment/multiplayer/viewport';
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
 
 type Preview = {
   id: string;
@@ -16,6 +15,8 @@ type Preview = {
   height?: number;
   maxHeight?: number;
 };
+
+type DirectionZone = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
 const getNodeText = (n: any): string => {
   const t = n?.type;
@@ -31,25 +32,30 @@ const previewStyleByType = (t?: string) => {
   return 'bg-gray-100/90 border-gray-300/60 text-gray-800';
 };
 
-const DirectionIcon = ({ side }: { side: OffscreenSide }) => {
-  const cls = 'text-gray-500';
-  if (side === 'left') return <ChevronRight size={10} className={cls} />;
-  if (side === 'right') return <ChevronLeft size={10} className={cls} />;
-  if (side === 'top') return <ChevronDown size={10} className={cls} />;
-  if (side === 'bottom') return <ChevronUp size={10} className={cls} />;
-  return null;
+// Determine which direction zone a preview belongs to based on its intersection point
+const getDirectionZone = (rect: DOMRect, vw: number, vh: number): DirectionZone => {
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const isLeft = centerX < vw / 2;
+  const isTop = centerY < vh / 2;
+  
+  if (isTop && isLeft) return 'top-left';
+  if (isTop && !isLeft) return 'top-right';
+  if (!isTop && isLeft) return 'bottom-left';
+  return 'bottom-right';
 };
 
 export const OffscreenNeighborPreviews: React.FC = () => {
   const rf = useReactFlow();
   const { hoveredNodeId } = useGraphActions() as any;
-  const [previews, setPreviews] = React.useState<Preview[]>([]);
-  const [indices, setIndices] = React.useState<Record<'left' | 'right' | 'top' | 'bottom', number>>({ left: 0, right: 0, top: 0, bottom: 0 });
-  const [hoveredPreview, setHoveredPreview] = React.useState<string | null>(null);
-  const clearTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
-  const [allItemsBySide, setAllItemsBySide] = React.useState<Record<string, Preview[]>>({});
+  const [previewsByZone, setPreviewsByZone] = React.useState<Record<DirectionZone, Preview[]>>({
+    'top-left': [],
+    'top-right': [],
+    'bottom-left': [],
+    'bottom-right': []
+  });
+  // Removed expandedZone state - no longer needed
 
-  // Remove all console.log and console.error statements for production/clean code
   const compute = React.useCallback(() => {
     try {
       const nodes = rf.getNodes();
@@ -58,26 +64,18 @@ export const OffscreenNeighborPreviews: React.FC = () => {
       const selectedPoint = nodes.find((n) => (n as any).type === 'point' && (n as any).selected);
       const center = hovered || selectedPoint || null;
 
-      // Clear any pending clear timeout
-      if (clearTimeoutRef.current) {
-        clearTimeout(clearTimeoutRef.current);
-        clearTimeoutRef.current = null;
+      // If we have no center node, clear previews immediately
+      if (!center) {
+        setPreviewsByZone({
+          'top-left': [],
+          'top-right': [],
+          'bottom-left': [],
+          'bottom-right': []
+        });
+        setExpandedZone(null); // Also clear any expanded state
+        return;
       }
 
-      // If we have no center node but we're hovering a preview, keep the current previews
-      if (!center) {
-        if (hoveredPreview) {
-          return; // Don't clear or recompute
-        } else {
-          // Add a delay before clearing to allow moving from node to preview
-          clearTimeoutRef.current = setTimeout(() => {
-            if (!hoveredPreview) {
-              setPreviews([]);
-            }
-          }, 5000); // 5 second delay
-          return;
-        }
-      }
       // Build fast lookup maps
       const nodeById: Record<string, any> = Object.create(null);
       for (const n of nodes) nodeById[n.id] = n;
@@ -121,101 +119,82 @@ export const OffscreenNeighborPreviews: React.FC = () => {
       }
 
       const allRelevantIds = relevantIds;
-      const out: Preview[] = [];
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      const centerEl = document.querySelector(`.react-flow__node[data-id="${center.id}"]`) as HTMLElement | null;
-      const centerRect = centerEl?.getBoundingClientRect();
-      const baseWidth = 240;
-      const minHeight = 88;
+      const headerHeight = 64;
+      
+      // Group previews by direction zone
+      const zoneGroups: Record<DirectionZone, Preview[]> = {
+        'top-left': [],
+        'top-right': [],
+        'bottom-left': [],
+        'bottom-right': []
+      };
+
       for (const id of allRelevantIds) {
         const n = nodes.find((x) => x.id === id);
-        if (!n) { continue; }
+        if (!n) continue;
         const el = document.querySelector(`.react-flow__node[data-id="${id}"]`) as HTMLElement | null;
-        if (!el) { continue; }
+        if (!el) continue;
         const rect = el.getBoundingClientRect();
         const side = getOffscreenSide(rect, vw, vh);
         const text = getNodeText(n);
-        const offLeft = rect.right <= 0;
-        const offRight = rect.left >= vw;
-        const offTop = rect.bottom <= 0;
-        const offBottom = rect.top >= vh;
 
-        if (!side) {
-          continue;
-        }
-        if (!text) {
-          continue;
-        }
-        const cx = rect.left + (rect.right - rect.left) / 2;
-        const cy = rect.top + (rect.bottom - rect.top) / 2;
-        let x = 0, y = 0;
-        const margin = 8;
-        // Calculate dynamic size based on text length (approximate lines)
-        const width = Math.max(baseWidth, Math.min(360, baseWidth + Math.floor(text.length / 6)));
-        const charsPerLine = Math.max(24, Math.floor((width - 32) / 7));
+        if (!side || !text) continue;
+
+        // Determine direction zone
+        const zone = getDirectionZone(rect, vw, vh);
+        
+        // Calculate preview properties
+        const baseWidth = 200;
+        const minHeight = 60;
+        const width = Math.max(baseWidth, Math.min(300, baseWidth + Math.floor(text.length / 10)));
+        const charsPerLine = Math.max(20, Math.floor((width - 24) / 7));
         const lines = Math.max(1, Math.ceil(text.length / charsPerLine));
-        const estimatedHeight = 20 /* top row */ + lines * 18 + 16 /* content padding */ + 16 /* bottom buffer */;
+        const estimatedHeight = 20 + lines * 16 + 12;
         const height = Math.max(minHeight, estimatedHeight);
-        const maxHeight = Math.max(minHeight, vh - margin * 2);
+        const maxHeight = Math.max(minHeight, vh - headerHeight - 8);
 
-        if (side === 'left') { x = margin; y = clamp(cy - height / 2, margin, vh - height - margin); }
-        if (side === 'right') { x = vw - width - margin; y = clamp(cy - height / 2, margin, vh - height - margin); }
-        if (side === 'top') { x = clamp(cx - width / 2, margin, vw - width - margin); y = margin; }
-        if (side === 'bottom') { x = clamp(cx - width / 2, margin, vw - width - margin); y = vh - height - margin; }
-        out.push({ id, text, side, x, y, type: (n as any).type, width, height, maxHeight });
-      }
-
-      // Group by side and use midpoint positioning for multiple items
-      const bySide: Record<string, Preview[]> = { left: [], right: [], top: [], bottom: [] };
-      for (const p of out) {
-        if (p.side) bySide[p.side].push(p);
-      }
-
-      const finalPreviews: Preview[] = [];
-      for (const [side, items] of Object.entries(bySide)) {
-        if (items.length === 0) continue;
-
-        if (items.length === 1) {
-          // Single item - use as is
-          finalPreviews.push(items[0]);
-        } else {
-          // Multiple items - find midpoint and use largest dimensions
-          let midX = 0, midY = 0;
-          let maxWidth = baseWidth, maxHeight = minHeight;
-
-          for (const item of items) {
-            midX += item.x;
-            midY += item.y;
-            maxWidth = Math.max(maxWidth, item.width || baseWidth);
-            maxHeight = Math.max(maxHeight, item.height || minHeight);
-          }
-
-          midX = Math.floor(midX / items.length);
-          midY = Math.floor(midY / items.length);
-
-          // Create a single preview at midpoint with all items available for cycling
-          finalPreviews.push({
-            id: items[0].id, // Start with first item
-            text: items[0].text,
-            type: items[0].type,
-            side: side as OffscreenSide,
-            x: midX,
-            y: midY,
-            width: maxWidth,
-            height: maxHeight
-          });
+        // Calculate exact intersection coordinates based on zone, accounting for UI elements
+        let x = 0, y = 0;
+        const margin = 12;
+        const savingIndicatorHeight = 48; // Height of saving indicator in top-right
+        const minimapHeight = 160; // Approximate height of minimap in bottom-right
+        const controlsHeight = 120; // Approximate height of controls in bottom-left
+        const multiplayerHeaderHeight = 180; // Actual height of multiplayer header component (title input + user info + connected users)
+        
+        if (zone === 'top-left') {
+          x = margin;
+          y = headerHeight + multiplayerHeaderHeight + margin; // Below multiplayer header component
+        } else if (zone === 'top-right') {
+          x = vw - width - margin;
+          y = headerHeight + savingIndicatorHeight + margin; // Below saving indicator
+        } else if (zone === 'bottom-left') {
+          x = margin;
+          y = vh - height - controlsHeight - margin; // Above controls
+        } else { // bottom-right
+          x = vw - width - margin;
+          y = vh - height - minimapHeight - margin; // Above minimap
         }
+
+        zoneGroups[zone].push({ 
+          id, 
+          text, 
+          side, 
+          x, 
+          y, 
+          type: (n as any).type, 
+          width, 
+          height, 
+          maxHeight 
+        });
       }
 
-      // Store the original items grouped by side for cycling
-      setAllItemsBySide(bySide);
-
-      setPreviews([...finalPreviews]);
+      setPreviewsByZone(zoneGroups);
     } catch (err) {
       // No logs
     }
-  }, [rf, hoveredNodeId, hoveredPreview]);
+  }, [rf, hoveredNodeId]);
 
   React.useEffect(() => {
     compute();
@@ -228,157 +207,102 @@ export const OffscreenNeighborPreviews: React.FC = () => {
     return () => {
       window.removeEventListener('resize', handler);
       window.removeEventListener('scroll', handler, true);
-      if (clearTimeoutRef.current) {
-        clearTimeout(clearTimeoutRef.current);
-      }
     };
   }, [compute]);
 
-  React.useEffect(() => {
-    const grouped: Record<'left' | 'right' | 'top' | 'bottom', Preview[]> = { left: [], right: [], top: [], bottom: [] };
-    for (const p of previews) { if (p.side) (grouped as any)[p.side].push(p); }
-    setIndices((prev) => {
-      const next = { ...prev };
-      (['left', 'right', 'top', 'bottom'] as const).forEach((s) => {
-        const len = grouped[s].length;
-        if (len === 0) { next[s] = 0; } else { next[s] = ((next[s] % len) + len) % len; }
-      });
-      return next;
-    });
-  }, [previews]);
+  const totalPreviews = Object.values(previewsByZone).reduce((sum, previews) => sum + previews.length, 0);
+  if (totalPreviews === 0) return null;
 
-  if (previews.length === 0) return null;
+  const renderZoneStack = (zone: DirectionZone, previews: Preview[]) => {
+    if (previews.length === 0) return null;
 
-  const grouped: Record<'left' | 'right' | 'top' | 'bottom', Preview[]> = { left: [], right: [], top: [], bottom: [] };
-  for (const p of previews) { if (p.side) (grouped as any)[p.side].push(p); }
+    // Calculate base position for the zone
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const headerHeight = 64;
+    const margin = 12;
+    const baseWidth = 200;
+    const stackSpacing = 8;
+    const itemHeight = 80; // Approximate height per preview item
+    
+    const savingIndicatorHeight = 48;
+    const minimapHeight = 160;
+    const controlsHeight = 120;
+    const multiplayerHeaderHeight = 180;
+    
+    let baseX = 0, baseY = 0;
+    if (zone === 'top-left') {
+      baseX = margin;
+      baseY = headerHeight + multiplayerHeaderHeight + margin;
+    } else if (zone === 'top-right') {
+      baseX = vw - baseWidth - margin;
+      baseY = headerHeight + savingIndicatorHeight + margin;
+    } else if (zone === 'bottom-left') {
+      baseX = margin;
+      baseY = vh - controlsHeight - margin;
+    } else { // bottom-right
+      baseX = vw - baseWidth - margin;
+      baseY = vh - minimapHeight - margin;
+    }
 
-  const getCurrentPreviewForSide = (side: 'left' | 'right' | 'top' | 'bottom') => {
-    // Get the base preview (for position/size)
-    const basePreview = previews.find(p => p.side === side);
-    if (!basePreview) return null;
+    // Calculate how many items we can fit before hitting the bottom
+    const bottomReserved = zone === 'bottom-left' ? controlsHeight : zone === 'bottom-right' ? minimapHeight : 0;
+    const availableHeight = (zone === 'bottom-left' || zone === 'bottom-right') 
+      ? vh - baseY - margin - bottomReserved
+      : vh - baseY - margin;
+    
+    const maxItems = Math.floor(availableHeight / (itemHeight + stackSpacing));
+    const showTruncation = previews.length > maxItems && maxItems > 0;
+    const visiblePreviews = showTruncation ? previews.slice(0, maxItems - 1) : previews;
+    const omittedCount = showTruncation ? previews.length - visiblePreviews.length : 0;
 
-    // Get the items to cycle through
-    const items = allItemsBySide[side] || [];
-    if (items.length === 0) return basePreview;
-
-    // Get the current item based on index
-    const currentItem = items[indices[side] % items.length];
-
-    // Return base preview with current item's content
-    return {
-      ...basePreview,
-      id: currentItem.id,
-      text: currentItem.text,
-      type: currentItem.type
-    };
-  };
-
-  const cycle = (side: 'left' | 'right' | 'top' | 'bottom', delta: number) => {
-    const items = allItemsBySide[side] || [];
-    const len = items.length;
-    if (len <= 1) return;
-
-    // Just update the index - don't trigger recompute
-    setIndices((prev) => ({ ...prev, [side]: (prev[side] + delta + len) % len }));
+    return (
+      <div key={zone} style={{ position: 'fixed', left: baseX, top: baseY, pointerEvents: 'auto' }}>
+        {visiblePreviews.map((preview, index) => (
+          <div
+            key={preview.id}
+            className={`bg-white/95 backdrop-blur-sm border rounded-md shadow-md px-3 py-2 text-[13px] text-stone-800 ${previewStyleByType(preview.type)}`}
+            style={{ 
+              width: preview.width || baseWidth,
+              maxHeight: preview.maxHeight || 150,
+              marginBottom: stackSpacing
+            }}
+            onMouseDown={(e) => { e.stopPropagation(); }} 
+            onDoubleClick={(e)=>{e.stopPropagation(); e.preventDefault();}}
+          >
+            <div className="text-[10px] font-semibold mb-1 uppercase opacity-75">
+              {preview.type === 'objection' ? 'mitigation' : preview.type}
+            </div>
+            <div 
+              className="whitespace-pre-wrap break-words leading-tight" 
+              style={{ 
+                maxHeight: (preview.maxHeight || 150) - 28, 
+                overflowY: 'auto' 
+              }}
+            >
+              {preview.text}
+            </div>
+          </div>
+        ))}
+        
+        {/* Truncation indicator */}
+        {showTruncation && (
+          <div
+            className="bg-gray-100/95 backdrop-blur-sm border rounded-md shadow-md px-3 py-2 text-[13px] text-gray-600 italic"
+            style={{ width: baseWidth }}
+          >
+            (rest omitted due to amount)
+          </div>
+        )}
+      </div>
+    );
   };
 
   return createPortal(
     <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 50 }}>
-      {(['left', 'right', 'top', 'bottom'] as const).map((side) => {
-        const p = getCurrentPreviewForSide(side);
-        if (!p) return null;
-        const items = allItemsBySide[side] || [];
-        const many = items.length > 1;
-        return (
-          <div
-            key={`preview-${side}`}
-            style={{
-              position: 'fixed',
-              left: p.x,
-              top: p.y,
-              width: p.width || 240,
-              maxHeight: p.maxHeight || undefined,
-              pointerEvents: 'auto'
-            }}
-            className={`relative rounded-lg border shadow-lg transition-all duration-200 ${previewStyleByType(p.type)}`}
-            onDoubleClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
-            onPointerDown={(e) => { e.stopPropagation(); }}
-            onMouseDown={(e) => { e.stopPropagation(); }}
-            onMouseUp={(e) => { e.stopPropagation(); }}
-            onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
-            onMouseEnter={() => setHoveredPreview(p.id)}
-            onMouseLeave={() => setHoveredPreview(null)}
-          >
-            {/* Navigation arrows in top left as requested */}
-            {many && (
-              <div className="absolute top-2 left-2 flex items-center gap-1 pointer-events-auto">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setHoveredPreview(p.id); // Keep preview visible when clicking navigation
-                    cycle(side, -1);
-                  }}
-                  onMouseEnter={() => setHoveredPreview(p.id)}
-                  className="w-7 h-7 rounded bg-white/90 hover:bg-white shadow-md border flex items-center justify-center transition-colors"
-                >
-                  <ChevronLeft size={16} className="text-gray-700" />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setHoveredPreview(p.id); // Keep preview visible when clicking navigation
-                    cycle(side, +1);
-                  }}
-                  onMouseEnter={() => setHoveredPreview(p.id)}
-                  className="w-7 h-7 rounded bg-white/90 hover:bg-white shadow-md border flex items-center justify-center transition-colors"
-                >
-                  <ChevronRight size={16} className="text-gray-700" />
-                </button>
-                <div className="text-[12px] font-bold text-gray-700 bg-white/90 rounded px-2 py-1 shadow-md border ml-1">
-                  {indices[side] + 1}/{items.length}
-                </div>
-              </div>
-            )}
-
-            {/* Type badge in top right */}
-            <div className="absolute top-2 right-2 text-[12px] font-semibold opacity-90 uppercase tracking-wide bg-white/90 rounded px-2.5 py-1 shadow-md border pointer-events-none">
-              {p.type === 'objection' ? 'mitigation' : p.type === 'statement' ? 'statement' : p.type === 'title' ? 'title' : 'point'}
-            </div>
-
-            {/* Mini card content - not clickable */}
-            {(() => {
-              const topPad = many ? 48 : 36; // px
-              const sidePad = 20; // px
-              const bottomPad = 16; // px buffer
-              const contentMax = (p.maxHeight || 9999) - topPad - bottomPad;
-              return (
-                <div className="p-3 pointer-events-none" style={{ paddingTop: many ? '3rem' : '2.2rem', paddingRight: '5rem', paddingBottom: '1rem' }}>
-                  <div
-                    className="text-[13px] leading-relaxed whitespace-pre-wrap break-words"
-                    style={{ maxHeight: Math.max(60, contentMax), overflowY: 'auto' }}
-                    title={p.text}
-                  >
-                    {p.text}
-                  </div>
-                </div>
-              );
-            })()}
-            {/* Direction pointer indicating where the offscreen content is */}
-            {side === 'left' && (
-              <div className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rotate-45 bg-inherit border-2 border-gray-400 shadow-sm" />
-            )}
-            {side === 'right' && (
-              <div className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 w-4 h-4 rotate-45 bg-inherit border-2 border-gray-400 shadow-sm" />
-            )}
-            {side === 'top' && (
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rotate-45 bg-inherit border-2 border-gray-400 shadow-sm" />
-            )}
-            {side === 'bottom' && (
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-4 h-4 rotate-45 bg-inherit border-2 border-gray-400 shadow-sm" />
-            )}
-          </div>
-        );
-      })}
+      {(Object.keys(previewsByZone) as DirectionZone[]).map(zone => 
+        renderZoneStack(zone, previewsByZone[zone])
+      )}
     </div>,
     document.body
   );

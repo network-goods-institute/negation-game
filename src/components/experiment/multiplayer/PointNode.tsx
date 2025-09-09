@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -19,6 +19,8 @@ interface PointNodeProps {
     content: string;
     editedBy?: string;
     createdAt?: number;
+    closingAnimation?: boolean;
+    slideOffsetPx?: number;
   };
   id: string;
   selected?: boolean;
@@ -42,6 +44,9 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [sliverHovered, setSliverHovered] = useState(false);
   const [sliverAnimating, setSliverAnimating] = useState(false);
+  const [isClosingAnimation, setIsClosingAnimation] = useState(false);
+  const [closingWidth, setClosingWidth] = useState<number | undefined>(undefined);
+  const [closingHeight, setClosingHeight] = useState<number | undefined>(undefined);
 
   // Use the reusable hooks
   useAutoFocusNode({
@@ -53,7 +58,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     isQuestionNode: false, // Not a question node
   });
 
-  const { pillVisible, handleMouseEnter, handleMouseLeave, hideNow } = usePillVisibility();
+  const { pillVisible, handleMouseEnter, handleMouseLeave } = usePillVisibility();
 
   const locked = isLockedForMe?.(id) || false;
   const lockOwner = getLockOwner?.(id) || null;
@@ -66,15 +71,30 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const favorOpacity = selected || hovered || sliverHovered || sliverAnimating ? 1 : Math.max(0.3, Math.min(1, favor / 5));
 
   const isInContainer = !!parentId;
-  const isActive = Boolean(selected || hovered);
+  const isActive = Boolean((selected && !isClosingAnimation) || hovered);
+  const slideOffsetPx = (data as any)?.slideOffsetPx as number | undefined;
 
+  useEffect(() => {
+    if ((data as any)?.closingAnimation && !isClosingAnimation) {
+      try {
+        const el = (wrapperRef as any)?.current as HTMLElement | null;
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          if (Number.isFinite(rect.width)) setClosingWidth(Math.ceil(rect.width));
+          if (Number.isFinite(rect.height)) setClosingHeight(Math.ceil(rect.height));
+        }
+      } catch { }
+      setIsClosingAnimation(true);
+      const t = window.setTimeout(() => {
+        setIsClosingAnimation(false);
+        setClosingWidth(undefined);
+        setClosingHeight(undefined);
+      }, 600);
+      return () => window.clearTimeout(t);
+    }
+  }, [(data as any)?.closingAnimation, isClosingAnimation, wrapperRef]);
 
-  // Neighbor emphasis handled via hook
-
-
-
-
-
+  // No custom slide-in; rely on existing behaviors only
 
   // Apply styling for direct connections only
   const innerScaleStyle = useNeighborEmphasis({ id, wrapperRef: wrapperRef as any, isActive, scale: 1.06 });
@@ -85,15 +105,21 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
       <Handle id={`${id}-incoming-handle`} type="target" position={Position.Bottom} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
       <div className="relative inline-block">
         <div className="relative inline-block group">
-          {/* Hover sliver: empty card edge appearing from behind (hidden when selected or in container) */}
           {!selected && !isInContainer && inversePairEnabled && (
             <div
-              className={`group/sliver absolute left-full top-1/2 translate-y-[calc(-50%+2px)] h-full z-0 pointer-events-auto nodrag nopan transition-all duration-700 ease-out ${sliverHovered ? 'w-[64px] -ml-[32px]' : (hovered ? 'w-[48px] -ml-[24px]' : 'w-[36px] -ml-[18px]')}`}
+              className={`group/sliver absolute left-full top-1/2 translate-y-[calc(-50%+2px)] h-full z-0 pointer-events-auto nodrag nopan transition-all duration-700 ease-out ${sliverAnimating ? 'w-[640px] -ml-[320px] opacity-0' : sliverHovered ? 'w-[128px] -ml-[64px]' : (hovered ? 'w-[96px] -ml-[48px]' : 'w-[40px] -ml-[20px]')}`}
               role="button"
               aria-label={'More'}
               tabIndex={0}
               onMouseDown={(e) => { e.stopPropagation(); }}
-              onClick={(e) => { e.stopPropagation(); createInversePair(id); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSliverAnimating(true);
+                window.setTimeout(() => {
+                  createInversePair(id);
+                  setSliverAnimating(false);
+                }, 520);
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); }
               }}
@@ -102,7 +128,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
               onMouseLeave={() => { setSliverHovered(false); scheduleHoldRelease(); }}
             >
               <div
-                className={`w-full h-full bg-white border-2 border-stone-200 rounded-lg shadow-lg overflow-hidden origin-left transition-opacity duration-700 ease-out ${hovered ? 'opacity-100' : 'opacity-0'}`}
+                className={`w-full h-full bg-white border-2 border-stone-200 rounded-lg shadow-lg overflow-hidden origin-left transition-opacity duration-700 ease-out ${(hovered && !sliverAnimating) ? 'opacity-100' : 'opacity-0'}`}
                 style={{ willChange: 'transform, opacity' }}
               />
             </div>
@@ -118,19 +144,26 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
               if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
             }}
             onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
-            data-selected={selected}
-
-            className={`px-4 py-3 rounded-lg ${hidden ? 'bg-gray-200 text-gray-600' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 shadow-md' : 'bg-white text-gray-900')} border-2 min-w-[200px] max-w-[320px] relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} ring-0 transition-transform duration-300 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
-            ${hidden ? 'border-gray-300' : (selected ? 'border-black' : 'border-stone-200')}
+            data-selected={selected && !isClosingAnimation}
+            className={`px-4 py-3 rounded-lg ${hidden ? 'bg-gray-200 text-gray-600' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 shadow-md' : 'bg-white text-gray-900')} border-2 min-w-[200px] max-w-[320px] relative ${(isDirectInverse || isClosingAnimation) ? 'z-0' : 'z-10'} ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} ring-0 transition-transform duration-300 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
+            ${hidden ? 'border-gray-300' : ((selected && !isClosingAnimation) ? 'border-black' : 'border-stone-200')}
             `}
-            style={{ opacity: hidden ? undefined : favorOpacity, ...innerScaleStyle }}
+            style={{
+              opacity: hidden ? undefined : favorOpacity,
+              minHeight: isClosingAnimation ? 'auto' : ((data as any)?.pairHeight ? (data as any)?.pairHeight : undefined),
+              ...innerScaleStyle,
+              ...(isClosingAnimation ? {
+                transform: 'translateX(-160%)',
+                transition: 'transform 700ms ease-out',
+                zIndex: 1,
+              } : {})
+            }}
           >
             <span
               aria-hidden
               className={`pointer-events-none absolute -inset-1 rounded-lg border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
             />
             <div className="relative z-10">
-              {/* Eye toggle top-right */}
               {selected && !isDirectInverse && (
                 <button
                   onMouseDown={(e) => e.preventDefault()}
@@ -143,10 +176,13 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
                   <EyeOff className={`absolute transition-opacity duration-150 ${hidden ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} size={14} />
                 </button>
               )}
-              {selected && isDirectInverse && inversePairEnabled && (
+              {selected && isDirectInverse && inversePairEnabled && !isClosingAnimation && (
                 <button
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={(e) => { e.stopPropagation(); deleteInversePair?.(id); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteInversePair?.(id);
+                  }}
                   className="absolute -top-2 -right-2 bg-white border rounded-full shadow hover:bg-stone-50 transition h-6 w-6 flex items-center justify-center"
                   title="Remove inverse pair"
                   aria-label="Remove inverse pair"
@@ -158,7 +194,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
               {isConnectingFromNodeId === id && (
                 <div className="absolute -top-3 right-0 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
               )}
-              {/* Keep content element for stable height; overlay Hidden label */}
               <div
                 ref={contentRef}
                 contentEditable={isEditing && !locked && !hidden}
@@ -182,7 +217,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
                 </div>
               )}
 
-              {selected && !hidden && (
+              {selected && !hidden && !isClosingAnimation && (
                 <div className="mt-1 mb-1 flex items-center gap-2 select-none" style={{ position: 'relative', zIndex: 20 }}>
                   <span className="text-[10px] uppercase tracking-wide text-stone-500">Favor</span>
                   <TooltipProvider>
@@ -210,7 +245,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
                 <NodeActionPill
                   label="Negate"
                   visible={shouldShowPill}
-                  onClick={() => { addNegationBelow(id); hideNow(); setHovered(false); setSliverHovered(false); }}
+                  onClick={() => { addNegationBelow(id); setHovered(false); setSliverHovered(false); }}
                   colorClass="bg-stone-800"
                   onMouseEnter={handleMouseEnter}
                   onMouseLeave={handleMouseLeave}

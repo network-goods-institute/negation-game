@@ -152,9 +152,12 @@ export const createAddNodeAtPosition = (
             : "p";
     const id = `${idBase}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const initial = getDefaultContentForType(type);
-    const data: any = type === "statement" ? { statement: initial } : { content: initial };
-    const baseData: any = type === "statement" ? { statement: initial } : { content: initial };
-    const withFavor = (t: typeof type) => (t === "point" || t === "objection") ? { favor: 5 } : {};
+    const data: any =
+      type === "statement" ? { statement: initial } : { content: initial };
+    const baseData: any =
+      type === "statement" ? { statement: initial } : { content: initial };
+    const withFavor = (t: typeof type) =>
+      t === "point" || t === "objection" ? { favor: 5 } : {};
     const node: any = {
       id,
       type,
@@ -169,9 +172,13 @@ export const createAddNodeAtPosition = (
     if (yNodesMap && ydoc && isLeader) {
       ydoc.transact(() => {
         yNodesMap.set(id, node);
-        if (yTextMap && (type === "point" || type === "objection" || type === "statement")) {
+        if (
+          yTextMap &&
+          (type === "point" || type === "objection" || type === "statement")
+        ) {
           const t = new Y.Text();
-          const initialContent = type === "statement" ? data.statement : data.content;
+          const initialContent =
+            type === "statement" ? data.statement : data.content;
           if (initialContent) t.insert(0, initialContent);
           yTextMap.set(id, t);
           try {
@@ -773,7 +780,9 @@ export const createInversePair = (
     } catch {}
 
     const padding = 12;
-    const containerWidth = nodeWidth * 2 + padding * 3;
+    const maxPointWidth = 320; // match PointNode max-w-[320px]
+    const gapWidth = maxPointWidth; // full gap should equal max point width
+    const containerWidth = padding + nodeWidth + gapWidth + nodeWidth + padding; // left + leftNode + gap + rightNode + right
     const containerHeight = nodeHeight + padding * 2;
 
     const groupPosition = {
@@ -790,15 +799,17 @@ export const createInversePair = (
       height: containerHeight,
       style: { width: containerWidth, height: containerHeight, padding: 8 },
       draggable: false,
+      selectable: true,
+      resizable: false,
     };
 
     const inverseNode: any = {
       id: inverseId,
       type: "point",
       parentId: groupId,
-      position: { x: nodeWidth + padding, y: padding },
+      position: { x: padding + nodeWidth + gapWidth, y: padding },
       extent: "parent",
-      expandParent: true,
+      expandParent: false,
       draggable: false,
       data: {
         content: inverseContent,
@@ -806,6 +817,7 @@ export const createInversePair = (
         createdAt: now,
         directInverse: true,
         groupId,
+        slideOffsetPx: nodeWidth + gapWidth,
       },
       selected: false,
     };
@@ -817,7 +829,7 @@ export const createInversePair = (
       parentId: groupId,
       position: { x: padding, y: padding },
       extent: "parent",
-      expandParent: true,
+      expandParent: false,
       draggable: false,
       selected: false,
       measured: undefined,
@@ -856,26 +868,7 @@ export const createInversePair = (
       }, localOrigin);
     }
 
-    // Create negation edge between original and inverse
-    const negEdge = {
-      id: `edge:negation:${pointNodeId}->${inverseId}`,
-      source: pointNodeId,
-      target: inverseId,
-      sourceHandle: null,
-      targetHandle: null,
-      type: "negation",
-      data: {},
-    } as any;
-
-    setEdges((eds: any[]) =>
-      eds.some((e: any) => e.id === negEdge.id) ? eds : [...eds, negEdge]
-    );
-
-    if (yEdgesMap && ydoc && isLeader) {
-      ydoc.transact(() => {
-        if (!yEdgesMap.has(negEdge.id)) yEdgesMap.set(negEdge.id, negEdge);
-      }, localOrigin);
-    }
+    // No internal negation edge between original and inverse
 
     // Generate AI content and update text
     generateInversePoint(originalContent)
@@ -935,6 +928,7 @@ export const createInversePair = (
           ydoc.transact(() => {
             const oBase = yNodesMap.get(pointNodeId);
             const iBase = yNodesMap.get(inverseId);
+            const gBase = yNodesMap.get(groupId);
             if (oBase)
               yNodesMap.set(pointNodeId, {
                 ...oBase,
@@ -945,6 +939,14 @@ export const createInversePair = (
                 ...iBase,
                 data: { ...(iBase.data || {}), pairHeight: maxH },
               });
+            if (gBase) {
+              const newH = padding * 2 + maxH;
+              yNodesMap.set(groupId, {
+                ...gBase,
+                height: newH,
+                style: { ...((gBase as any).style || {}), height: newH },
+              } as any);
+            }
           }, localOrigin);
         }
       }, 0);
@@ -996,96 +998,117 @@ export const createDeleteInversePair = (
     };
 
     if (yNodesMap && yEdgesMap && ydoc) {
-      ydoc.transact(() => {
-        // Update original node to stand-alone
-        if (yNodesMap.has(original.id)) {
-          const base = yNodesMap.get(original.id);
-          const updated = {
-            ...base,
-            parentId: undefined,
-            position: abs,
-            extent: undefined,
-            expandParent: undefined,
-            draggable: true,
-            data: {
-              ...(base?.data || {}),
-              originalInPair: undefined,
-              directInverse: undefined,
-              groupId: undefined,
-              originalDetached: undefined,
-              pairHeight: undefined,
-            },
-          } as any;
-          yNodesMap.set(original.id, updated);
-        }
-
-        // Remove inverse node and its Y.Text (if any)
-        if (yNodesMap.has(inverseNodeId)) {
-          // eslint-disable-next-line drizzle/enforce-delete-with-where
-          yNodesMap.delete(inverseNodeId);
-        }
-        if (yTextMap && yTextMap.get(inverseNodeId)) {
-          // eslint-disable-next-line drizzle/enforce-delete-with-where
-          yTextMap.delete(inverseNodeId);
-        }
-
-        // Remove group node
-        if (yNodesMap.has(groupId)) {
-          // eslint-disable-next-line drizzle/enforce-delete-with-where
-          yNodesMap.delete(groupId);
-        }
-
-        // Remove edges connected to inverse
-        if (typeof yEdgesMap?.forEach === "function") {
-          yEdgesMap.forEach((e: any, eid: string) => {
-            if (!e) return;
-            if (e.source === inverseNodeId || e.target === inverseNodeId) {
-              // eslint-disable-next-line drizzle/enforce-delete-with-where
-              yEdgesMap.delete(eid as any);
+      try {
+        const gBase = yNodesMap.get(groupId);
+        if (gBase) {
+          ydoc.transact(() => {
+            // First, animate the inverse node sliding back to the original position
+            const inverseBase = yNodesMap.get(inverseNodeId);
+            if (inverseBase) {
+              yNodesMap.set(inverseNodeId, {
+                ...inverseBase,
+                data: { ...(inverseBase.data || {}), closingAnimation: true },
+              });
             }
-          });
-        } else {
-          for (const [eid, e] of yEdgesMap as any) {
-            if (!e) continue;
-            if (e.source === inverseNodeId || e.target === inverseNodeId) {
-              // eslint-disable-next-line drizzle/enforce-delete-with-where
-              (yEdgesMap as any).delete(eid);
+
+            const updatedGroup = {
+              ...gBase,
+              data: { ...(gBase.data || {}), closing: true },
+            };
+            yNodesMap.set(groupId, updatedGroup);
+          }); // Remove localOrigin so the observer processes this change
+        }
+      } catch (error) {}
+      const finalize = () => {
+        ydoc.transact(() => {
+          // Update original node to stand-alone
+          if (yNodesMap.has(original.id)) {
+            const base = yNodesMap.get(original.id);
+            const updated = {
+              ...base,
+              parentId: undefined,
+              position: abs,
+              extent: undefined,
+              expandParent: undefined,
+              draggable: true,
+              data: {
+                ...(base?.data || {}),
+                originalInPair: undefined,
+                directInverse: undefined,
+                groupId: undefined,
+                originalDetached: undefined,
+                pairHeight: undefined,
+              },
+            } as any;
+            yNodesMap.set(original.id, updated);
+          }
+
+          // Remove inverse node and its Y.Text (if any)
+          if (yNodesMap.has(inverseNodeId)) {
+            yNodesMap.delete(inverseNodeId as any);
+          }
+          if (yTextMap && yTextMap.get(inverseNodeId)) {
+            yTextMap.delete(inverseNodeId as any);
+          }
+
+          // Remove group node
+          if (yNodesMap.has(groupId)) {
+            yNodesMap.delete(groupId as any);
+          }
+
+          // Remove edges connected to inverse
+          if (typeof yEdgesMap?.forEach === "function") {
+            yEdgesMap.forEach((e: any, eid: string) => {
+              if (!e) return;
+              if (e.source === inverseNodeId || e.target === inverseNodeId) {
+                yEdgesMap.delete(eid as any);
+              }
+            });
+          } else {
+            for (const [eid, e] of yEdgesMap as any) {
+              if (!e) continue;
+              if (e.source === inverseNodeId || e.target === inverseNodeId) {
+                (yEdgesMap as any).delete(eid);
+              }
             }
           }
-        }
-      }, localOrigin);
+        }, localOrigin);
 
-      // Update local state after Yjs sync
-
-      setEdges((eds: any[]) =>
-        eds.filter(
-          (e: any) => e.source !== inverseNodeId && e.target !== inverseNodeId
-        )
-      );
-      setNodes((nds: any[]) =>
-        nds
-          .filter((n: any) => n.id !== groupId && n.id !== inverseNodeId)
-          .map((n: any) =>
-            n.id === original.id
-              ? {
-                  ...n,
-                  parentId: undefined,
-                  position: abs,
-                  extent: undefined,
-                  expandParent: undefined,
-                  draggable: true,
-                  data: {
-                    ...(n?.data || {}),
-                    originalInPair: undefined,
-                    directInverse: undefined,
-                    groupId: undefined,
-                    originalDetached: undefined,
-                    pairHeight: undefined,
-                  },
-                }
-              : n
-          )
-      );
+        // Update local state after Yjs sync (defer slightly to allow CSS to animate)
+        window.setTimeout(() => {
+          setEdges((eds: any[]) =>
+            eds.filter(
+              (e: any) =>
+                e.source !== inverseNodeId && e.target !== inverseNodeId
+            )
+          );
+          setNodes((nds: any[]) =>
+            nds
+              .filter((n: any) => n.id !== groupId && n.id !== inverseNodeId)
+              .map((n: any) =>
+                n.id === original.id
+                  ? {
+                      ...n,
+                      parentId: undefined,
+                      position: abs,
+                      extent: undefined,
+                      expandParent: undefined,
+                      draggable: true,
+                      data: {
+                        ...(n?.data || {}),
+                        originalInPair: undefined,
+                        directInverse: undefined,
+                        groupId: undefined,
+                        originalDetached: undefined,
+                        pairHeight: undefined,
+                      },
+                    }
+                  : n
+              )
+          );
+        }, 120);
+      };
+      window.setTimeout(finalize, 600);
     }
   };
 };

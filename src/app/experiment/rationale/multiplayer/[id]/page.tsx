@@ -301,8 +301,8 @@ export default function MultiplayerRationaleDetailPage() {
     );
 
     const updateNodeContent = createUpdateNodeContent(
-        yTextMap,
-        ydoc,
+        yTextMap as any,
+        ydoc as any,
         isLeader,
         localOriginRef.current,
         setNodes,

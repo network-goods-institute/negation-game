@@ -281,7 +281,11 @@ export const createUpdateNodesFromY = (
         return { id: n.id, t: n.type, p: n.position, w, h, d: rest } as any;
       })
     );
-    if (sig === lastNodesSigRef.current) return;
+    if (sig === lastNodesSigRef.current) {
+      console.log("UPDATE NODES FROM Y - No signature change, skipping setNodes");
+      return;
+    }
+    console.log("UPDATE NODES FROM Y - Signature changed, updating nodes");
     lastNodesSigRef.current = sig;
     setNodes((prev) =>
       mergeNodesWithText(
