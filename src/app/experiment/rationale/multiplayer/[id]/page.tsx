@@ -63,6 +63,7 @@ export default function MultiplayerRationaleDetailPage() {
     const lastAddRef = useRef<Record<string, number>>({});
     const [pairNodeHeights, setPairNodeHeights] = useState<Record<string, Record<string, number>>>({});
     const [pairHeights, setPairHeights] = useState<Record<string, number>>({});
+    const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
     const userColor = useUserColor(user?.id);
     const initialGraph = useInitialGraph();
@@ -425,10 +426,6 @@ export default function MultiplayerRationaleDetailPage() {
             />
 
             <ReactFlowProvider>
-                {/** Track local editing set to disable dragging across the canvas */}
-                {(() => {
-                    return null as any;
-                })()}
                 <GraphProvider value={{
                     updateNodeContent,
                     updateNodeHidden: createUpdateNodeHidden(
@@ -611,6 +608,10 @@ export default function MultiplayerRationaleDetailPage() {
                     deleteInversePair,
                     setPairNodeHeight,
                     pairHeights,
+                    hoveredNodeId: hoveredNodeId,
+                    setHoveredNodeId: (nid: string | null) => {
+                        setHoveredNodeId(nid);
+                    },
                 }}>
                     <div className="w-full h-full relative">
                         {(!nodes || nodes.length === 0) && (

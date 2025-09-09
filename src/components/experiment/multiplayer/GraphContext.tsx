@@ -41,6 +41,8 @@ type GraphActions = {
     setPairNodeHeight?: (groupId: string, nodeId: string, height: number) => void;
     pairHeights?: Record<string, number>;
     isAnyNodeEditing?: boolean;
+    hoveredNodeId?: string | null;
+    setHoveredNodeId?: (nodeId: string | null) => void;
 };
 
 const GraphContext = createContext<GraphActions | null>(null);
@@ -82,6 +84,8 @@ export const useGraphActions = () => {
             proxyMode: false,
             undo: () => { },
             redo: () => { },
+            hoveredNodeId: null,
+            setHoveredNodeId: () => { },
         } as GraphActions;
     }
     return ctx;

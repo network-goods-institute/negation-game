@@ -131,9 +131,12 @@
 }
 
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.5;
   }
@@ -144,10 +147,12 @@
     transform: scale(1);
     opacity: 1;
   }
+
   50% {
     transform: scale(1.1);
     opacity: 0.8;
   }
+
   100% {
     transform: scale(1);
     opacity: 1;
@@ -158,30 +163,26 @@
   .animate-node-expand {
     animation: nodeExpand 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
   }
-  
+
   .animate-pulse {
     animation: topicPulse 0.5s ease-in-out;
   }
-  
+
   .node-level-stripe {
     background-color: hsl(var(--background));
-    background-image: repeating-linear-gradient(
-      45deg,
-      transparent 0px,
-      transparent 8px,
-      hsl(var(--primary) / 0.04) 8px,
-      hsl(var(--primary) / 0.04) 12px
-    );
+    background-image: repeating-linear-gradient(45deg,
+        transparent 0px,
+        transparent 8px,
+        hsl(var(--primary) / 0.04) 8px,
+        hsl(var(--primary) / 0.04) 12px);
   }
-  
+
   .dark .node-level-stripe {
-    background-image: repeating-linear-gradient(
-      45deg,
-      transparent 0px,
-      transparent 8px,
-      hsl(var(--primary) / 0.15) 8px,
-      hsl(var(--primary) / 0.15) 12px
-    );
+    background-image: repeating-linear-gradient(45deg,
+        transparent 0px,
+        transparent 8px,
+        hsl(var(--primary) / 0.15) 8px,
+        hsl(var(--primary) / 0.15) 12px);
   }
 }
 
@@ -195,14 +196,13 @@
   }
 }
 
-/* Ensure edge labels and controls are always above nodes for interaction */
+/* Ensure nodes are above edge labels and overlays for interaction priority */
 .react-flow__edge-labels {
   position: relative !important;
-  z-index: 9999 !important;
+  z-index: 10 !important;
 }
 
-/* Ensure node layer stays below edge labels */
 .react-flow__nodes {
   position: relative !important;
-  z-index: 100 !important;
+  z-index: 1000 !important;
 }

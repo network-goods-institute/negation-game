@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Handle, Position, useReactFlow } from '@xyflow/react';
+import { Handle, Position } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEditableNode } from './common/useEditableNode';
@@ -11,6 +11,8 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, X as XIcon } from 'lucide-react';
 import { NodeActionPill } from './common/NodeActionPill';
 import { inversePairEnabled } from '@/config/experiments';
+import { useNeighborEmphasis } from './common/useNeighborEmphasis';
+import { useHoverTracking } from './common/useHoverTracking';
 
 interface PointNodeProps {
   data: {
@@ -24,7 +26,7 @@ interface PointNodeProps {
 }
 
 export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parentId }) => {
-  const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, createInversePair, deleteInversePair, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, selectedEdgeId } = useGraphActions() as any;
+  const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, createInversePair, deleteInversePair, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, selectedEdgeId, hoveredNodeId, setHoveredNodeId } = useGraphActions() as any;
 
   const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus, startEditingProgrammatically, onContentMouseDown, onContentMouseMove } = useEditableNode({
     id,
@@ -35,25 +37,10 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     isSelected: selected,
   });
 
-  const [hovered, setHovered] = useState(false);
+  const { hovered, setHovered, onEnter: onHoverEnter, onLeave: onHoverLeave, scheduleHoldRelease, clearHoldTimer } = useHoverTracking(id);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [sliverHovered, setSliverHovered] = useState(false);
-  const holdTimerRef = React.useRef<number | null>(null);
-  const clearHoldTimer = React.useCallback(() => {
-    if (holdTimerRef.current) {
-      window.clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = null;
-    }
-  }, []);
-  const scheduleOpacityHoldRelease = React.useCallback(() => {
-    clearHoldTimer();
-    holdTimerRef.current = window.setTimeout(() => {
-      setHovered(false);
-      setSliverHovered(false);
-      holdTimerRef.current = null;
-    }, 100);
-  }, [clearHoldTimer]);
   const [sliverAnimating, setSliverAnimating] = useState(false);
 
   // Use the reusable hooks
@@ -81,6 +68,17 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const isInContainer = !!parentId;
   const isActive = Boolean(selected || hovered);
 
+
+  // Neighbor emphasis handled via hook
+
+
+
+
+
+
+  // Apply styling for direct connections only
+  const innerScaleStyle = useNeighborEmphasis({ id, wrapperRef: wrapperRef as any, isActive, scale: 1.06 });
+
   return (
     <>
       <Handle id={`${id}-source-handle`} type="source" position={Position.Top} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
@@ -101,7 +99,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
               }}
               onDragStart={(e) => { e.preventDefault(); }}
               onMouseEnter={() => { clearHoldTimer(); setSliverHovered(true); setHovered(true); }}
-              onMouseLeave={() => { setSliverHovered(false); scheduleOpacityHoldRelease(); }}
+              onMouseLeave={() => { setSliverHovered(false); scheduleHoldRelease(); }}
             >
               <div
                 className={`w-full h-full bg-white border-2 border-stone-200 rounded-lg shadow-lg overflow-hidden origin-left transition-opacity duration-700 ease-out ${hovered ? 'opacity-100' : 'opacity-0'}`}
@@ -111,8 +109,8 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           )}
           <div
             ref={wrapperRef}
-            onMouseEnter={() => { clearHoldTimer(); setHovered(true); handleMouseEnter(); }}
-            onMouseLeave={() => { scheduleOpacityHoldRelease(); handleMouseLeave(); }}
+            onMouseEnter={() => { clearHoldTimer(); setHovered(true); onHoverEnter(); handleMouseEnter(); }}
+            onMouseLeave={() => { scheduleHoldRelease(); handleMouseLeave(); onHoverLeave(); setSliverHovered(false); }}
             onMouseDown={(e) => { if (isEditing) return; connect.onMouseDown(e); }}
             onMouseUp={(e) => { if (isEditing) return; connect.onMouseUp(e); }}
             onClick={(e) => {
@@ -125,7 +123,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
             className={`px-4 py-3 rounded-lg ${hidden ? 'bg-gray-200 text-gray-600' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 shadow-md' : 'bg-white text-gray-900')} border-2 min-w-[200px] max-w-[320px] relative z-10 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} ring-0 transition-transform duration-300 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
             ${hidden ? 'border-gray-300' : (selected ? 'border-black' : 'border-stone-200')}
             `}
-            style={{ opacity: hidden ? undefined : favorOpacity }}
+            style={{ opacity: hidden ? undefined : favorOpacity, ...innerScaleStyle }}
           >
             <span
               aria-hidden

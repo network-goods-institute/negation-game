@@ -8,6 +8,8 @@ import { NodeActionPill } from './common/NodeActionPill';
 import { Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { useConnectableNode } from './common/useConnectableNode';
+import { useNeighborEmphasis } from './common/useNeighborEmphasis';
+import { useHoverTracking } from './common/useHoverTracking';
 
 interface TitleNodeProps {
     data: {
@@ -30,8 +32,9 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
         isSelected: selected,
     });
 
-    const [hovered, setHovered] = useState(false);
+    const { hovered, setHovered, onEnter, onLeave } = useHoverTracking(id);
     const isActive = Boolean(selected || hovered);
+    const innerScaleStyle = useNeighborEmphasis({ id, wrapperRef: wrapperRef as any, isActive, scale: 1.06 });
     const [menuOpen, setMenuOpen] = useState(false);
     const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
@@ -61,8 +64,8 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
             <div
                 ref={wrapperRef}
                 className="relative inline-block"
-                onMouseEnter={() => { setHovered(true); handleMouseEnter(); }}
-                onMouseLeave={() => { setHovered(false); handleMouseLeave(); }}
+                onMouseEnter={() => { setHovered(true); onEnter(); handleMouseEnter(); }}
+                onMouseLeave={() => { setHovered(false); handleMouseLeave(); onLeave(); }}
             >
                 <div className="relative inline-block">
                     <div
@@ -85,7 +88,7 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
             ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
             data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white
             `}
-                        style={{ opacity: hidden ? undefined : 1 }}
+                        style={{ opacity: hidden ? undefined : 1, ...(innerScaleStyle as any) }}
                     >
                         <span
                             aria-hidden

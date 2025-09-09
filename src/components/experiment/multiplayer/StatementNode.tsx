@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Handle, Position, useReactFlow } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 import { useEditableNode } from './common/useEditableNode';
@@ -8,6 +8,8 @@ import { ContextMenu } from './common/ContextMenu';
 import { toast } from 'sonner';
 import { Eye, EyeOff } from 'lucide-react';
 import { NodeActionPill } from './common/NodeActionPill';
+import { useNeighborEmphasis } from './common/useNeighborEmphasis';
+import { useHoverTracking } from './common/useHoverTracking';
 
 interface StatementNodeProps {
   id: string;
@@ -28,10 +30,11 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
     isSelected: selected,
   });
 
-  const [hovered, setHovered] = useState(false);
-  const rootRef = React.useRef<HTMLDivElement | null>(null);
+  const { hovered, setHovered, onEnter, onLeave } = useHoverTracking(id);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const { pillVisible, handleMouseEnter, handleMouseLeave, hideNow } = usePillVisibility();
   const isActive = Boolean(selected || hovered);
+  const innerScaleStyle = useNeighborEmphasis({ id, wrapperRef: wrapperRef as any, isActive, scale: 1.06 });
 
   const locked = isLockedForMe?.(id) || false;
   const lockOwner = getLockOwner?.(id) || null;
@@ -49,13 +52,14 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
       <div
         ref={rootRef}
         className="relative inline-block"
-        onMouseEnter={() => { setHovered(true); handleMouseEnter(); }}
+        onMouseEnter={() => { setHovered(true); onEnter(); handleMouseEnter(); }}
         onMouseLeave={(e) => {
           const next = e.relatedTarget as EventTarget | null;
           const root = rootRef.current;
           if (root && next && next instanceof Node && root.contains(next)) return;
           setHovered(false);
           handleMouseLeave();
+          onLeave();
         }}
       >
         <div className="relative inline-block">
@@ -76,6 +80,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
             ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
             data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white
             `}
+            style={innerScaleStyle}
           >
             <span
               aria-hidden
