@@ -7,9 +7,11 @@ import { useYjsMultiplayer } from '../../useYjsMultiplayer';
 
 describe('useYjsMultiplayer seeding behavior', () => {
   const originalEnv = process.env.NEXT_PUBLIC_YJS_WS_URL;
+  const originalExperimentEnabled = process.env.NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED;
 
   beforeEach(() => {
     delete (process.env as any).NEXT_PUBLIC_YJS_WS_URL;
+    (process.env as any).NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED = "true";
   });
 
   afterEach(() => {
@@ -17,6 +19,12 @@ describe('useYjsMultiplayer seeding behavior', () => {
       delete (process.env as any).NEXT_PUBLIC_YJS_WS_URL;
     } else {
       (process.env as any).NEXT_PUBLIC_YJS_WS_URL = originalEnv;
+    }
+
+    if (originalExperimentEnabled == null) {
+      delete (process.env as any).NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED;
+    } else {
+      (process.env as any).NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED = originalExperimentEnabled;
     }
   });
 

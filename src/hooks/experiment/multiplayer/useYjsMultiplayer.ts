@@ -367,12 +367,6 @@ export const useYjsMultiplayer = ({
 
     const wsUrl = process.env.NEXT_PUBLIC_YJS_WS_URL;
 
-    if (!wsUrl) {
-      console.error("[mp] NEXT_PUBLIC_YJS_WS_URL is required");
-      setConnectionError("WebSocket URL not configured");
-      return;
-    }
-
     const applyServerDiffIfAny = async () => {
       try {
         const doc = ydocRef.current;
@@ -511,6 +505,13 @@ export const useYjsMultiplayer = ({
     };
 
     const restartProviderWithNewToken = async () => {
+      if (!wsUrl) {
+        console.error("[mp] NEXT_PUBLIC_YJS_WS_URL is required");
+        setConnectionError("WebSocket URL not configured");
+        setConnectionState("failed");
+        return;
+      }
+
       try {
         const { token, expiresAt } = await fetchYjsAuthToken();
 
@@ -538,6 +539,13 @@ export const useYjsMultiplayer = ({
     };
 
     (async () => {
+      if (!wsUrl) {
+        console.error("[mp] NEXT_PUBLIC_YJS_WS_URL is required");
+        setConnectionError("WebSocket URL not configured");
+        setConnectionState("failed");
+        return;
+      }
+
       try {
         const { token, expiresAt } = await fetchYjsAuthToken();
 
@@ -666,7 +674,7 @@ export const useYjsMultiplayer = ({
           if (update && update.byteLength)
             fetch(
               `/api/experimental/rationales/${encodeURIComponent(persistId)}/updates`,
-              { method: "POST", body: update }
+              { method: "POST", body: update as any }
             ).catch(() => {});
         } catch {}
       }
