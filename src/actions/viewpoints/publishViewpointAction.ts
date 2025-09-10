@@ -41,18 +41,6 @@ export const publishViewpoint = async ({
 
   let enforcedTopicId = topicId;
 
-  if (copiedFromId) {
-    const originalViewpoint = await db
-      .select({ topicId: viewpointsTable.topicId })
-      .from(viewpointsTable)
-      .where(eq(viewpointsTable.id, copiedFromId))
-      .limit(1);
-
-    if (originalViewpoint[0]?.topicId) {
-      enforcedTopicId = originalViewpoint[0].topicId;
-    }
-  }
-
   const tasks: Promise<any>[] = [];
 
   if (enforcedTopicId) {

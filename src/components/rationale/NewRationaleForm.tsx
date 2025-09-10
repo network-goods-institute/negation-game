@@ -49,11 +49,11 @@ export default function NewRationaleForm({
                 currentSpace={currentSpace}
                 isNew
                 canEdit
-                allowTopicEditInHeader={!isCopiedRationale}
+                allowTopicEditInHeader={true}
                 hideTitle
                 showTopicHeader
                 hideTopicSelector
-                showTopicLockedHint={isCopiedRationale}
+                showTopicLockedHint={false}
                 spaceSlug={currentSpace}
                 enableTopicNavigation
                 isDescriptionEditing={isDescriptionEditing}

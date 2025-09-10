@@ -57,7 +57,7 @@ export default function useSaveViewpoint({
           const description = getCurrentDescription();
           const topic = getCurrentTopic();
           const topicId = getCurrentTopicId();
-          
+
           const copyData = {
             isCopyOperation: true,
             copiedFromId: viewpointId,
@@ -67,15 +67,26 @@ export default function useSaveViewpoint({
             topicId,
             graph: currentGraph,
           };
-          
+
           console.log("[useSaveViewpoint] Storing copy data:", copyData);
           console.log("[useSaveViewpoint] Topic info:", { topic, topicId });
-          
-          sessionStorage.setItem(
-            `copyingViewpoint:${basePath}`,
-            JSON.stringify(copyData)
+
+          const spaceFromBasePath = basePath?.startsWith("/s/")
+            ? basePath.split("/")[2]
+            : basePath;
+          const storageKey = spaceFromBasePath
+            ? `copyingViewpoint:${spaceFromBasePath}`
+            : "copyingViewpoint";
+          sessionStorage.setItem(storageKey, JSON.stringify(copyData));
+
+          // Use window.location for immediate full page reload (consistent with other copy flows)
+          const url = `${basePath}/rationale/new`;
+          console.log(
+            "[useSaveViewpoint] Navigating to new rationale page:",
+            url
           );
-          router.push(`${basePath}/rationale/new`);
+          window.location.href = url;
+
           return true;
         }
         // Update details
@@ -83,7 +94,7 @@ export default function useSaveViewpoint({
         const description = getCurrentDescription();
         const topic = getCurrentTopic();
         const topicId = getCurrentTopicId();
-        
+
         await updateDetails.mutateAsync({
           id: viewpointId,
           title,

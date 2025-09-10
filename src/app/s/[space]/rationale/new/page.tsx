@@ -171,6 +171,24 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
 
   const [isEditingDescription, setIsEditingDescription] = useState(false);
 
+  // Align copied topic/topicId with loaded topics to ensure correct selection
+  useEffect(() => {
+    if (!isCopiedFromSessionStorage) return;
+    if (!topicsData || topicsData.length === 0) return;
+    if (topicId) {
+      const match = topicsData.find((t) => t.id === topicId);
+      if (match && match.name && match.name !== topic) {
+        setTopic(match.name);
+        setStatement(match.name);
+      }
+    } else if (topic) {
+      const match = topicsData.find((t) => t.name === topic);
+      if (match && match.id !== topicId) {
+        setTopicId(match.id);
+      }
+    }
+  }, [isCopiedFromSessionStorage, topicsData, topicId, topic, setTopic, setTopicId, setStatement]);
+
   useEffect(() => {
     // Setup event listener for when the user is about to leave the page
     const handleBeforeUnload = () => {

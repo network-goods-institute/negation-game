@@ -311,8 +311,8 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
         basePath,
         getCurrentTitle: () => editableTitle,
         getCurrentDescription: () => editableDescription,
-        getCurrentTopic: () => editableTopic,
-        getCurrentTopicId: () => editableTopicId,
+        getCurrentTopic: () => editableTopic || viewpoint?.topic || "",
+        getCurrentTopicId: () => editableTopicId ?? viewpoint?.topicId,
         originalGraph: originalGraph!,
     } as UseSaveViewpointParams);
 

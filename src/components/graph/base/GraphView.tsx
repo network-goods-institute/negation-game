@@ -324,7 +324,12 @@ export const GraphView = ({
   });
 
   // Copy and node-drop handlers
-  const handleActualCopy = useGraphCopyHandler(statement || "", description || "");
+  const handleActualCopy = useGraphCopyHandler(
+    statement || "",
+    description || "",
+    viewpoint?.topic || undefined,
+    viewpoint?.topicId || undefined
+  );
   const handleNodeDragStop = useGraphNodeDropHandler(flowInstance);
 
   // Context menu handlers

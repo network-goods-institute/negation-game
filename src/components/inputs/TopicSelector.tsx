@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useTopics } from "@/queries/topics/useTopics";
 import { createTopic } from "@/actions/topics/createTopic";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -30,7 +31,7 @@ export const TopicSelector: React.FC<TopicSelectorProps> = ({
     triggerClassName = "",
     showLabel = true,
 }) => {
-    const { data: topics, refetch } = useTopics(currentSpace);
+    const { data: topics, isLoading: isTopicsLoading, refetch } = useTopics(currentSpace);
     const { isAdmin: isSpaceAdmin } = useIsSpaceAdmin(currentSpace);
     const { data: allowPublicTopicCreation, isLoading: isPermissionLoading } = useSpaceTopicCreationPermission(currentSpace);
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -89,67 +90,71 @@ export const TopicSelector: React.FC<TopicSelectorProps> = ({
         <div className={`${wrapperClassName} relative`}> {/* Add relative for absolute positioning of link icon */}
             {showLabel && <Label className="text-sm font-medium">Topic</Label>}
             <div className="flex items-center"> {/* Flex container for select and link icon */}
-                <Select
-                    value={value}
-                    onValueChange={(v) => {
-                        if (v === "__new__" && canCreateTopic) {
-                            setDialogOpen(true);
-                        } else {
-                            onChange(v);
-                        }
-                    }}
-                >
-                    <SelectTrigger className={triggerClassName}>
-                        <SelectValue placeholder="Select topic" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {canCreateTopic && <SelectItem value="__new__">+ Add new topic...</SelectItem>}
-                        {!canCreateTopic && !isPermissionLoading && <SelectItem value="__disabled__" disabled>Only an Admin can create topics</SelectItem>}
-                        <TooltipProvider>
-                            {topics
-                                ?.filter(t => t.name && t.name.trim() !== "")
-                                .map((t) => {
-                                    const validUrl = t.discourseUrl ? validateAndFormatUrl(t.discourseUrl) : null;
-                                    return (
-                                        <Tooltip key={t.id}>
-                                            <TooltipTrigger asChild>
-                                                <SelectItem
-                                                    value={t.name}
-                                                    className={validUrl ? "underline decoration-dotted" : ""}
-                                                    onClick={(e) => {
-                                                        if (validUrl && (e.target as HTMLElement).tagName !== 'A') {
-                                                            window.open(validUrl, '_blank');
-                                                        }
-                                                    }}
-                                                >
-                                                    {t.name}
-                                                </SelectItem>
-                                            </TooltipTrigger>
-                                            {validUrl && (
-                                                <TooltipContent side="right">
-                                                    Related: <a
-                                                        href={validUrl}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-primary hover:underline"
+                {isTopicsLoading ? (
+                    <Skeleton className="h-10 w-full" />
+                ) : (
+                    <Select
+                        value={value}
+                        onValueChange={(v) => {
+                            if (v === "__new__" && canCreateTopic) {
+                                setDialogOpen(true);
+                            } else {
+                                onChange(v);
+                            }
+                        }}
+                    >
+                        <SelectTrigger className={triggerClassName}>
+                            <SelectValue placeholder="Select topic" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {canCreateTopic && <SelectItem value="__new__">+ Add new topic...</SelectItem>}
+                            {!canCreateTopic && !isPermissionLoading && <SelectItem value="__disabled__" disabled>Only an Admin can create topics</SelectItem>}
+                            <TooltipProvider>
+                                {topics
+                                    ?.filter(t => t.name && t.name.trim() !== "")
+                                    .map((t) => {
+                                        const validUrl = t.discourseUrl ? validateAndFormatUrl(t.discourseUrl) : null;
+                                        return (
+                                            <Tooltip key={t.id}>
+                                                <TooltipTrigger asChild>
+                                                    <SelectItem
+                                                        value={t.name}
+                                                        className={validUrl ? "underline decoration-dotted" : ""}
                                                         onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            e.preventDefault();
-                                                            window.open(validUrl, '_blank');
+                                                            if (validUrl && (e.target as HTMLElement).tagName !== 'A') {
+                                                                window.open(validUrl, '_blank');
+                                                            }
                                                         }}
                                                     >
-                                                        {validUrl}
-                                                    </a>
-                                                </TooltipContent>
-                                            )}
-                                        </Tooltip>
-                                    );
-                                })}
-                        </TooltipProvider>
-                    </SelectContent>
-                </Select>
-                {/* Link icon for the selected topic, shown when a valid URL exists */}
-                {selectedUrl && (
+                                                        {t.name}
+                                                    </SelectItem>
+                                                </TooltipTrigger>
+                                                {validUrl && (
+                                                    <TooltipContent side="right">
+                                                        Related: <a
+                                                            href={validUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-primary hover:underline"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                e.preventDefault();
+                                                                window.open(validUrl, '_blank');
+                                                            }}
+                                                        >
+                                                            {validUrl}
+                                                        </a>
+                                                    </TooltipContent>
+                                                )}
+                                            </Tooltip>
+                                        );
+                                    })}
+                            </TooltipProvider>
+                        </SelectContent>
+                    </Select>
+                )}
+                {/* Link icon for the selected topic, shown when a valid URL exists and not loading */}
+                {!isTopicsLoading && selectedUrl && (
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>

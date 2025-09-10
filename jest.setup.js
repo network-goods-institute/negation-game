@@ -191,6 +191,16 @@ jest.mock('sonner', () => ({
   Toaster: () => <div data-testid="toaster" />,
 }))
 
+// Stub react-markdown globally in tests that don't override it
+jest.mock('react-markdown', () => ({
+  __esModule: true,
+  default: ({ children }) => <div>{children}</div>,
+}))
+jest.mock('remark-gfm', () => ({
+  __esModule: true,
+  default: () => null,
+}))
+
 // Mock @privy-io/server-auth to stub PrivyClient
 jest.mock('@privy-io/server-auth', () => ({
   PrivyClient: class {
@@ -201,6 +211,9 @@ jest.mock('@privy-io/server-auth', () => ({
 // Mock AI SDK functions
 jest.mock('@/actions/ai/generateNotificationSummary', () => ({
   generateNotificationSummary: jest.fn().mockResolvedValue('AI generated summary'),
+}))
+jest.mock('@/actions/ai/generateRationaleSummary', () => ({
+  generateRationaleSummary: jest.fn().mockResolvedValue('AI generated summary'),
 }))
 
 // Mock notification queue
