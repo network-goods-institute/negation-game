@@ -1023,6 +1023,31 @@ export const createDeleteInversePair = (
             };
             yNodesMap.set(groupId, updatedGroup);
           }, localOrigin);
+          setNodes((nds: any[]) =>
+            nds.map((n: any) => {
+              if (n.id === inverseNodeId) {
+                return {
+                  ...n,
+                  data: {
+                    ...(n.data || {}),
+                    closingAnimation: true,
+                    closingSince: closeTs || Date.now(),
+                  },
+                };
+              }
+              if (n.id === groupId) {
+                return {
+                  ...n,
+                  data: {
+                    ...(n.data || {}),
+                    closing: true,
+                    closingSince: closeTs || Date.now(),
+                  },
+                } as any;
+              }
+              return n;
+            })
+          );
         }
       } catch (error) {}
       const finalize = () => {
