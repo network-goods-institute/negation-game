@@ -20,7 +20,7 @@ interface PointNodeProps {
     editedBy?: string;
     createdAt?: number;
     closingAnimation?: boolean;
-    slideOffsetPx?: number;
+    
   };
   id: string;
   selected?: boolean;
@@ -28,7 +28,7 @@ interface PointNodeProps {
 }
 
 export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parentId }) => {
-  const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, createInversePair, deleteInversePair, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, selectedEdgeId, hoveredNodeId, setHoveredNodeId } = useGraphActions() as any;
+  const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, createInversePair, deleteInversePair, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, selectedEdgeId, hoveredNodeId, setHoveredNodeId, setPairNodeHeight } = useGraphActions() as any;
 
   const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus, startEditingProgrammatically, onContentMouseDown, onContentMouseMove } = useEditableNode({
     id,
@@ -72,10 +72,10 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
 
   const isInContainer = !!parentId;
   const isActive = Boolean((selected && !isClosingAnimation) || hovered);
-  const slideOffsetPx = (data as any)?.slideOffsetPx as number | undefined;
+  const closingAnimation = Boolean((data as any)?.closingAnimation);
 
   useEffect(() => {
-    if ((data as any)?.closingAnimation && !isClosingAnimation) {
+    if (closingAnimation && !isClosingAnimation) {
       setIsClosingAnimation(true);
       
       // Simple fade-out duration
@@ -87,12 +87,32 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
       }, animationDuration);
       return () => window.clearTimeout(t);
     }
-  }, [(data as any)?.closingAnimation, isClosingAnimation]);
+  }, [closingAnimation, isClosingAnimation]);
 
   // No custom slide-in; rely on existing behaviors only
 
   // Apply styling for direct connections only
   const innerScaleStyle = useNeighborEmphasis({ id, wrapperRef: wrapperRef as any, isActive, scale: 1.06 });
+
+  // Report measured height to parent group via context (ref-based, no DOM queries elsewhere)
+  useEffect(() => {
+    if (!parentId || !wrapperRef?.current || !setPairNodeHeight) return;
+    const el = wrapperRef.current as HTMLElement;
+    let prev = -1;
+    const measure = () => {
+      try {
+        const h = Math.ceil(el.getBoundingClientRect().height);
+        if (Number.isFinite(h) && h > 0 && h !== prev) {
+          prev = h;
+          setPairNodeHeight(parentId as string, id, h);
+        }
+      } catch {}
+    };
+    measure();
+    const ro = new ResizeObserver(() => measure());
+    try { ro.observe(el); } catch {}
+    return () => { try { ro.disconnect(); } catch {} };
+  }, [parentId, id, setPairNodeHeight, wrapperRef]);
 
   return (
     <>

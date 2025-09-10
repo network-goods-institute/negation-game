@@ -26,6 +26,7 @@ class YMapMock<V> {
 
 describe("createDeleteInversePair", () => {
   it("restores original, removes inverse/group, removes edges, and uses correct origin", () => {
+    jest.useFakeTimers();
     const groupId = "group-1";
     const originalId = "p1";
     const inverseId = "inverse-1";
@@ -96,6 +97,7 @@ describe("createDeleteInversePair", () => {
     );
 
     del(inverseId);
+    jest.runAllTimers();
 
     // origin used in transact must equal the provided localOrigin
     expect(origins[0]).toBe(localOrigin);

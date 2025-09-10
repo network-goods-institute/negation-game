@@ -799,7 +799,7 @@ export const createInversePair = (
       height: containerHeight,
       style: { width: containerWidth, height: containerHeight, padding: 8 },
       draggable: false,
-      selectable: true,
+      selectable: false,
       resizable: false,
     };
 
@@ -817,7 +817,6 @@ export const createInversePair = (
         createdAt: now,
         directInverse: true,
         groupId,
-        slideOffsetPx: nodeWidth + gapWidth,
       },
       selected: false,
     };
@@ -838,15 +837,7 @@ export const createInversePair = (
       positionAbsolute: undefined,
     };
 
-    // Delete and recreate approach: remove original node, add group + both children
-    setNodes(
-      (nds) =>
-        nds
-          .filter((n: any) => n.id !== pointNodeId) // Delete original
-          .concat([groupNode, updatedOriginalNode, inverseNode]) // Add all new nodes
-    );
-
-    // Sync to Yjs in correct order
+    // Sync to Yjs in correct order (commit shared state first)
     if (yNodesMap && ydoc && isLeader) {
       ydoc.transact(() => {
         // Add group first
@@ -868,9 +859,13 @@ export const createInversePair = (
       }, localOrigin);
     }
 
-    // No internal negation edge between original and inverse
+    // Update local state after shared state has been committed
+    setNodes((nds) =>
+      nds
+        .filter((n: any) => n.id !== pointNodeId)
+        .concat([groupNode, updatedOriginalNode, inverseNode])
+    );
 
-    // Generate AI content and update text
     generateInversePoint(originalContent)
       .then((aiContent) => {
         if (yTextMap && ydoc && isLeader) {
@@ -998,25 +993,36 @@ export const createDeleteInversePair = (
     };
 
     if (yNodesMap && yEdgesMap && ydoc) {
+      let closeTs: number | null = null;
       try {
         const gBase = yNodesMap.get(groupId);
         if (gBase) {
+          const ts = Date.now();
+          closeTs = ts;
           ydoc.transact(() => {
             // First, animate the inverse node sliding back to the original position
             const inverseBase = yNodesMap.get(inverseNodeId);
             if (inverseBase) {
               yNodesMap.set(inverseNodeId, {
                 ...inverseBase,
-                data: { ...(inverseBase.data || {}), closingAnimation: true },
+                data: {
+                  ...(inverseBase.data || {}),
+                  closingAnimation: true,
+                  closingSince: ts,
+                },
               });
             }
 
             const updatedGroup = {
               ...gBase,
-              data: { ...(gBase.data || {}), closing: true },
+              data: {
+                ...(gBase.data || {}),
+                closing: true,
+                closingSince: ts,
+              },
             };
             yNodesMap.set(groupId, updatedGroup);
-          }); // Remove localOrigin so the observer processes this change
+          }, localOrigin);
         }
       } catch (error) {}
       const finalize = () => {
@@ -1045,14 +1051,17 @@ export const createDeleteInversePair = (
 
           // Remove inverse node and its Y.Text (if any)
           if (yNodesMap.has(inverseNodeId)) {
+            // eslint-disable-next-line drizzle/enforce-delete-with-where
             yNodesMap.delete(inverseNodeId as any);
           }
           if (yTextMap && yTextMap.get(inverseNodeId)) {
+            // eslint-disable-next-line drizzle/enforce-delete-with-where
             yTextMap.delete(inverseNodeId as any);
           }
 
           // Remove group node
           if (yNodesMap.has(groupId)) {
+            // eslint-disable-next-line drizzle/enforce-delete-with-where
             yNodesMap.delete(groupId as any);
           }
 
@@ -1061,6 +1070,7 @@ export const createDeleteInversePair = (
             yEdgesMap.forEach((e: any, eid: string) => {
               if (!e) return;
               if (e.source === inverseNodeId || e.target === inverseNodeId) {
+                // eslint-disable-next-line drizzle/enforce-delete-with-where
                 yEdgesMap.delete(eid as any);
               }
             });
@@ -1068,6 +1078,7 @@ export const createDeleteInversePair = (
             for (const [eid, e] of yEdgesMap as any) {
               if (!e) continue;
               if (e.source === inverseNodeId || e.target === inverseNodeId) {
+                // eslint-disable-next-line drizzle/enforce-delete-with-where
                 (yEdgesMap as any).delete(eid);
               }
             }
@@ -1108,7 +1119,11 @@ export const createDeleteInversePair = (
           );
         }, 120);
       };
-      window.setTimeout(finalize, 600);
+      const remaining = Math.max(
+        0,
+        600 - (Date.now() - (closeTs ?? Date.now()))
+      );
+      window.setTimeout(finalize, remaining);
     }
   };
 };

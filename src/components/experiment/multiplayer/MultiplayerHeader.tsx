@@ -10,6 +10,7 @@ interface MultiplayerHeaderProps {
   provider: YProvider;
   isConnected: boolean;
   connectionError: string | null;
+  connectionState?: 'initializing' | 'connecting' | 'connected' | 'failed';
   isSaving: boolean;
   forceSave?: () => Promise<void>;
   interruptSave?: () => void;
@@ -38,6 +39,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   onTitleCommit,
   onTitleInput,
   onResyncNow,
+  connectionState,
 }) => {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [titleDraft, setTitleDraft] = useState('');
@@ -115,8 +117,10 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
           currentUserId={userId}
           isLeader={!proxyMode}
         />
-        {connectionError && (
-          <p className="text-xs text-orange-600 mt-1 bg-orange-50 p-2 rounded">{connectionError}</p>
+        {(connectionError || connectionState === 'connecting' || connectionState === 'failed') && (
+          <p className="text-xs text-orange-600 mt-1 bg-orange-50 p-2 rounded">
+            {connectionError || (connectionState === 'connecting' ? 'Connecting to server...' : connectionState === 'failed' ? 'Connection failed' : null)}
+          </p>
         )}
       </div>
       <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2">

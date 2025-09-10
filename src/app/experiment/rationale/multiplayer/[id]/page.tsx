@@ -110,6 +110,7 @@ export default function MultiplayerRationaleDetailPage() {
         syncYMapFromArray,
         connectionError,
         isConnected,
+        connectionState,
         isSaving,
         forceSave,
         interruptSave,
@@ -396,6 +397,7 @@ export default function MultiplayerRationaleDetailPage() {
                 provider={provider}
                 isConnected={isConnected}
                 connectionError={connectionError}
+                connectionState={connectionState as any}
                 isSaving={isSaving}
                 forceSave={forceSave}
                 interruptSave={interruptSave || undefined}

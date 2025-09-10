@@ -44,68 +44,46 @@ export const GroupNode: React.FC<GroupNodeProps> = ({ id, data, selected }) => {
   // Dynamic height adjustment based on child node heights
   useEffect(() => {
     const adjustGroupHeight = () => {
+      if (data?.closing) return;
       const nodes = rf.getNodes();
       const children = nodes.filter((n: any) => n.parentId === id);
-      
       if (children.length === 0) return;
-      
-      // Find the tallest child node
       let maxChildHeight = 0;
       children.forEach((child: any) => {
         const childEl = document.querySelector(`.react-flow__node[data-id="${child.id}"]`) as HTMLElement;
         if (childEl) {
           const height = childEl.getBoundingClientRect().height;
-          if (height > maxChildHeight) {
-            maxChildHeight = height;
-          }
+          if (height > maxChildHeight) maxChildHeight = height;
         }
       });
-      
-      if (maxChildHeight > 0) {
-        const padding = 36; // padding * 6 from creation (12 * 3 = 36 top/bottom for more generous spacing)
-        const newHeight = maxChildHeight + padding;
-        
-        // Update group node height and ensure it expands downward
-        rf.setNodes((nds: any[]) => 
-          nds.map((n: any) => 
-            n.id === id 
-              ? { 
-                  ...n, 
-                  height: newHeight, 
-                  style: { ...(n.style || {}), height: newHeight },
-                  // Keep position stable so expansion happens downward
-                  position: n.position // maintain original position
-                }
-              : n
-          )
-        );
-        updateNodeInternals(id);
-      }
+      if (maxChildHeight <= 0) return;
+      const padding = 36;
+      const newHeight = maxChildHeight + padding;
+      rf.setNodes((nds: any[]) =>
+        nds.map((n: any) =>
+          n.id === id
+            ? {
+                ...n,
+                height: newHeight,
+                style: { ...(n.style || {}), height: newHeight },
+                position: n.position,
+              }
+            : n
+        )
+      );
+      updateNodeInternals(id);
     };
 
-    // Initial adjustment
-    const timer = setTimeout(adjustGroupHeight, 100);
-
-    // Set up ResizeObserver to monitor child height changes
-    const observer = new ResizeObserver(() => {
-      adjustGroupHeight();
-    });
-
+    const timer = setTimeout(adjustGroupHeight, 150);
+    const observer = new ResizeObserver(() => { adjustGroupHeight(); });
     const nodes = rf.getNodes();
     const children = nodes.filter((n: any) => n.parentId === id);
-    
     children.forEach((child: any) => {
       const childEl = document.querySelector(`.react-flow__node[data-id="${child.id}"]`);
-      if (childEl) {
-        observer.observe(childEl);
-      }
+      if (childEl) observer.observe(childEl);
     });
-
-    return () => {
-      clearTimeout(timer);
-      observer.disconnect();
-    };
-  }, [id, rf, updateNodeInternals]);
+    return () => { clearTimeout(timer); observer.disconnect(); };
+  }, [id, rf, updateNodeInternals, data?.closing]);
 
 
   return (

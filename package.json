@@ -10,6 +10,7 @@
     "lint": "next lint",
     "rebuild": "node-gyp rebuild",
     "test": "jest",
+    "test:mp-e2e": "jest src/__tests__/experiment/multiplayer/sync.e2e.test.ts --detectOpenHandles -i --runInBand",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "update-spaces": "tsx scripts/update-spaces-list.ts",
