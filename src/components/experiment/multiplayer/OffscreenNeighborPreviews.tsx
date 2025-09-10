@@ -72,7 +72,6 @@ export const OffscreenNeighborPreviews: React.FC = () => {
           'bottom-left': [],
           'bottom-right': []
         });
-        setExpandedZone(null); // Also clear any expanded state
         return;
       }
 
