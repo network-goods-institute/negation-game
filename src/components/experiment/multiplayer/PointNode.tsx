@@ -47,11 +47,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const [sliverFading, setSliverFading] = useState(false);
   const [animationDistance, setAnimationDistance] = useState(640);
   const [isClosingAnimation, setIsClosingAnimation] = useState(false);
-  const [closingSliver, setClosingSliver] = useState(false);
-  const [closingSliverAnimating, setClosingSliverAnimating] = useState(false);
-  const [closingSliverDistance, setClosingSliverDistance] = useState(640);
-  const [closingWidth, setClosingWidth] = useState<number | undefined>(undefined);
-  const [closingHeight, setClosingHeight] = useState<number | undefined>(undefined);
 
   // Use the reusable hooks
   useAutoFocusNode({
@@ -81,46 +76,18 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
 
   useEffect(() => {
     if ((data as any)?.closingAnimation && !isClosingAnimation) {
-      // Calculate the distance the sliver needs to travel (same as opening)
-      let calculatedDistance = 640; // fallback
-      try {
-        const el = wrapperRef.current;
-        if (el) {
-          const rect = el.getBoundingClientRect();
-          const nodeWidth = Math.ceil(rect.width);
-          const maxPointWidth = 320; // match PointNode max-w-[320px]
-          const gapWidth = maxPointWidth; // full gap equals max point width
-          const padding = 12; // from createInversePair
-          // Exact distance from inverse node position back to original
-          calculatedDistance = padding + nodeWidth + gapWidth;
-          setClosingWidth(nodeWidth);
-          setClosingHeight(Math.ceil(rect.height));
-        }
-      } catch { }
-      
-      setClosingSliverDistance(calculatedDistance);
       setIsClosingAnimation(true);
-      setClosingSliver(true);
       
-      // Duration matches the opening animation
-      const animationDuration = Math.min(1400, Math.max(800, calculatedDistance * 1.5));
+      // Simple fade-out duration
+      const animationDuration = 600;
       
-      // Start the sliver animation immediately
-      setTimeout(() => {
-        setClosingSliverAnimating(true);
-      }, 50);
-      
-      // End animations
+      // End animation
       const t = window.setTimeout(() => {
         setIsClosingAnimation(false);
-        setClosingSliver(false);
-        setClosingSliverAnimating(false);
-        setClosingWidth(undefined);
-        setClosingHeight(undefined);
       }, animationDuration);
       return () => window.clearTimeout(t);
     }
-  }, [(data as any)?.closingAnimation, isClosingAnimation, wrapperRef]);
+  }, [(data as any)?.closingAnimation, isClosingAnimation]);
 
   // No custom slide-in; rely on existing behaviors only
 
@@ -196,28 +163,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
               />
             </div>
           )}
-          {closingSliver && (
-            <div
-              className={`group/closing-sliver absolute left-full top-1/2 translate-y-[calc(-50%+2px)] h-full z-0 pointer-events-none nodrag nopan transition-all ease-out ${closingSliverAnimating ? 'w-[40px] -ml-[20px] opacity-0' : ''}`}
-              style={closingSliverAnimating ? {
-                width: `${closingSliverDistance}px`,
-                marginLeft: `-${closingSliverDistance}px`, // slide LEFT - opposite of opening
-                opacity: 0,
-                transition: `width 1100ms ease-out, margin-left 1100ms ease-out, opacity 300ms ease-out 800ms`
-              } : {
-                width: '40px',
-                marginLeft: '0px',
-                opacity: 0.3
-              }}
-              role="button"
-              aria-label={'Closing'}
-            >
-              <div
-                className={`w-full h-full bg-white border-2 border-stone-200 rounded-lg shadow-sm overflow-hidden origin-left transition-opacity ease-out opacity-100`}
-                style={{ willChange: 'transform, opacity' }}
-              />
-            </div>
-          )}
           <div
             ref={wrapperRef}
             onMouseEnter={() => { clearHoldTimer(); setHovered(true); onHoverEnter(); handleMouseEnter(); }}
@@ -235,10 +180,10 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
             `}
             style={{
               opacity: hidden ? undefined : (isClosingAnimation ? 0 : favorOpacity),
-              minHeight: isClosingAnimation ? 'auto' : ((data as any)?.pairHeight ? (data as any)?.pairHeight : undefined),
+              minHeight: (data as any)?.pairHeight ? (data as any)?.pairHeight : undefined,
               ...innerScaleStyle,
               ...(isClosingAnimation ? {
-                transition: 'opacity 200ms ease-out',
+                transition: 'opacity 600ms ease-out',
                 zIndex: 0,
               } : {})
             }}

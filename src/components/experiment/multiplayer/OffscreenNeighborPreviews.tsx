@@ -158,7 +158,7 @@ export const OffscreenNeighborPreviews: React.FC = () => {
         let x = 0, y = 0;
         const margin = 12;
         const savingIndicatorHeight = 48; // Height of saving indicator in top-right
-        const minimapHeight = 160; // Approximate height of minimap in bottom-right
+        const minimapHeight = 220; // Approximate height of minimap in bottom-right with extra margin
         const controlsHeight = 120; // Approximate height of controls in bottom-left
         const multiplayerHeaderHeight = 180; // Actual height of multiplayer header component (title input + user info + connected users)
         
@@ -225,7 +225,7 @@ export const OffscreenNeighborPreviews: React.FC = () => {
     const itemHeight = 80; // Approximate height per preview item
     
     const savingIndicatorHeight = 48;
-    const minimapHeight = 160;
+    const minimapHeight = 220;
     const controlsHeight = 120;
     const multiplayerHeaderHeight = 180;
     
