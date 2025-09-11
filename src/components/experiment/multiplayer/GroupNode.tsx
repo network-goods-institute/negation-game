@@ -63,11 +63,11 @@ export const GroupNode: React.FC<GroupNodeProps> = ({ id, data, selected }) => {
         nds.map((n: any) =>
           n.id === id
             ? {
-                ...n,
-                height: newHeight,
-                style: { ...(n.style || {}), height: newHeight },
-                position: n.position,
-              }
+              ...n,
+              height: newHeight,
+              style: { ...(n.style || {}), height: newHeight },
+              position: n.position,
+            }
             : n
         )
       );
@@ -138,8 +138,8 @@ export const GroupNode: React.FC<GroupNodeProps> = ({ id, data, selected }) => {
           setMenuOpen(true);
         }}
       >
-        {/* Animated outline overlay */}
-        <div className={`absolute inset-0 rounded border border-neutral-300 pointer-events-none ${data?.isNew && !isAnimating ? 'bg-grow-start' : (data?.closing ? 'bg-close' : 'bg-grow-end')}`} />
+        {/* Animated white fill overlay */}
+        <div className={`absolute inset-0 rounded pointer-events-none ${data?.isNew && !isAnimating ? 'bg-grow-start' : (data?.closing ? 'bg-close' : 'bg-grow-end')}`} style={{ backgroundColor: 'white', opacity: 0.8, border: '2px solid black' }} />
         <div className="drag-handle sticky top-0 left-0 w-full bg-transparent px-2 py-1.5 text-xs font-semibold tracking-wide rounded-t opacity-90 z-10">
           {data?.label ?? ""}
         </div>
