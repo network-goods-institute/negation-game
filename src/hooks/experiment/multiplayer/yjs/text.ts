@@ -13,8 +13,7 @@ export const mergeNodesWithText = (
     // Start from a sanitized base: never take 'selected' from incoming Yjs node or bad shit happens
     const base = (() => {
       const { selected: _sel, dragging: _drag, ...rest } = n as any;
-      const lockedDrag =
-        rest?.type === "group" || Boolean((rest as any)?.parentId);
+      const lockedDrag = Boolean((rest as any)?.parentId);
       return {
         ...(rest as any),
         draggable: lockedDrag ? false : (rest as any)?.draggable,

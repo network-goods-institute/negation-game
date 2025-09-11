@@ -44,7 +44,8 @@ export const GroupNode: React.FC<GroupNodeProps> = ({ id, data, selected }) => {
       const gap = 25;
       const leftPadding = 8;
       const rightPadding = 8;
-      const topPadding = 8;
+      const headerPadding = 28;
+      const topPadding = headerPadding;
       const bottomPadding = 8;
 
       const sorted = [...children].sort((a: any, b: any) => (a.position?.x ?? 0) - (b.position?.x ?? 0));
@@ -180,9 +181,9 @@ export const GroupNode: React.FC<GroupNodeProps> = ({ id, data, selected }) => {
         }}
       >
         {/* Animated white fill overlay */}
-        <div className={`absolute top-0 left-0 right-0 bottom-0 rounded pointer-events-none px-2 py-2 ${data?.isNew && !isAnimating ? 'bg-grow-start' : (data?.closing ? 'bg-close' : 'bg-grow-end')}`} style={{ backgroundColor: 'white', opacity: 0.8, border: '2px solid black' }} />
-        <div className="sticky top-0 left-0 w-full bg-transparent px-1 py-0.5 text-xs font-semibold tracking-wide rounded-t opacity-90 z-10">
-          {data?.label ?? ""}
+        <div className={`absolute top-0 left-0 right-0 bottom-0 rounded pointer-events-none px-2 py-2 ${data?.isNew && !isAnimating ? 'bg-grow-start' : (data?.closing ? 'bg-close' : 'bg-grow-end')}`} style={{ backgroundColor: 'white', opacity: 0.8, border: '2px solid black', zIndex: 0 }} />
+        <div className="group-drag-handle absolute top-0 left-0 right-0 h-7 cursor-move px-1 py-0.5 text-xs font-semibold tracking-wide rounded-t opacity-90 z-20 select-none">
+          {data?.label ?? ''}
         </div>
       </div>
       <ContextMenu

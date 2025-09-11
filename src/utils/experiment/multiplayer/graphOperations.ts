@@ -873,6 +873,7 @@ export const createInversePair = (
         height: containerHeight,
         style: { width: containerWidth, height: containerHeight, padding: 8 },
         draggable: true,
+        dragHandle: ".group-drag-handle",
         selectable: true,
         resizable: false,
       };
@@ -1034,6 +1035,7 @@ export const createInversePair = (
       height: containerHeight,
       style: { width: containerWidth, height: containerHeight, padding: 8 },
       draggable: true,
+      dragHandle: ".group-drag-handle",
       selectable: true,
       resizable: false,
     };
