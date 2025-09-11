@@ -798,8 +798,8 @@ export const createInversePair = (
       width: containerWidth,
       height: containerHeight,
       style: { width: containerWidth, height: containerHeight, padding: 8 },
-      draggable: false,
-      selectable: false,
+      draggable: true,
+      selectable: true,
       resizable: false,
     };
 
