@@ -47,7 +47,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const [sliverAnimating, setSliverAnimating] = useState(false);
   const [sliverFading, setSliverFading] = useState(false);
   const [animationDistance, setAnimationDistance] = useState(640);
-  const [isClosingAnimation, setIsClosingAnimation] = useState(false);
 
   // Use the reusable hooks
   useAutoFocusNode({
@@ -73,23 +72,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const favorOpacity = selected || hovered || sliverHovered || sliverAnimating ? 1 : Math.max(0.3, Math.min(1, favor / 5));
 
   const isInContainer = !!parentId;
-  const isActive = Boolean((selected && !isClosingAnimation) || hovered);
-  const closingAnimation = Boolean((data as any)?.closingAnimation);
-
-  useEffect(() => {
-    if (closingAnimation && !isClosingAnimation) {
-      setIsClosingAnimation(true);
-
-      // Simple fade-out duration
-      const animationDuration = 600;
-
-      // End animation
-      const t = window.setTimeout(() => {
-        setIsClosingAnimation(false);
-      }, animationDuration);
-      return () => window.clearTimeout(t);
-    }
-  }, [closingAnimation, isClosingAnimation]);
+  const isActive = Boolean(selected || hovered);
 
   // No custom slide-in; rely on existing behaviors only
 
@@ -219,19 +202,15 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
               if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
             }}
             onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
-            data-selected={selected && !isClosingAnimation}
+            data-selected={selected}
             className={`px-4 py-3 rounded-lg ${hidden ? 'bg-gray-200 text-gray-600' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 shadow-md' : 'bg-white text-gray-900')} border-2 min-w-[200px] max-w-[320px] inline-flex flex-col justify-start align-top relative ${isDirectInverse ? 'z-0' : 'z-10'} ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} ring-0 transition-transform duration-300 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
-            ${hidden ? 'border-gray-300' : ((selected && !isClosingAnimation) ? 'border-black' : 'border-stone-200')}
+            ${hidden ? 'border-gray-300' : (selected ? 'border-black' : 'border-stone-200')}
             `}
             style={{
-              opacity: hidden ? undefined : (isClosingAnimation ? 0 : favorOpacity),
+              opacity: hidden ? undefined : favorOpacity,
               // remove pairHeight-driven minHeight; allow natural height
               // removed fixed height to allow growth when content expands inside containers
               ...innerScaleStyle,
-              ...(isClosingAnimation ? {
-                transition: 'opacity 600ms ease-out',
-                zIndex: 0,
-              } : {})
             }}
           >
             <span
@@ -251,7 +230,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
                   <EyeOff className={`absolute transition-opacity duration-150 ${hidden ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} size={14} />
                 </button>
               )}
-              {selected && isDirectInverse && inversePairEnabled && !isClosingAnimation && (
+              {selected && isDirectInverse && inversePairEnabled && (
                 <button
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={(e) => {
@@ -292,7 +271,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
                 </div>
               )}
 
-              {selected && !hidden && !isClosingAnimation && (
+              {selected && !hidden && (
                 <div className="mt-1 mb-1 flex items-center gap-2 select-none" style={{ position: 'relative', zIndex: 20 }}>
                   <span className="text-[10px] uppercase tracking-wide text-stone-500">Favor</span>
                   <TooltipProvider>
