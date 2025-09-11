@@ -43,7 +43,17 @@ export const TopicsSidebar = memo(({
     const newTopicInputRef = useRef<HTMLInputElement>(null);
 
     const availableTopics = useMemo(() => {
-        return topics ? topics.map((t: any) => t.name).filter((n: string) => n.trim()).sort() : [];
+        if (!topics) return [];
+        const list = (topics as any[])
+            .filter((t: any) => t && typeof t.name === "string" && t.name.trim())
+            .map((t: any) => ({
+                id: t.id,
+                name: String(t.name).trim(),
+                discourseUrl: t.discourseUrl,
+                pointsCount: t.pointsCount,
+            }))
+            .sort((a: any, b: any) => a.name.localeCompare(b.name));
+        return list;
     }, [topics]);
 
     useEffect(() => {
@@ -155,14 +165,14 @@ export const TopicsSidebar = memo(({
                 <div className="pl-2 -ml-2 space-y-2 overflow-hidden">
                     <div className="space-y-0.5 w-full max-w-full">
                         <TooltipProvider>
-                            {availableTopics.map((topicName: string) => {
-                                const topic = topics?.find(t => t.name === topicName);
-                                const validUrl = topic?.discourseUrl ? validateAndFormatUrl(topic.discourseUrl) : null;
+                            {availableTopics.map((topic: any) => {
+                                const topicName = topic.name as string;
+                                const validUrl = topic.discourseUrl ? validateAndFormatUrl(topic.discourseUrl) : null;
                                 const isSelected = topicFilters.includes(topicName);
-                                const hasNoPoints = topic?.pointsCount === 0;
+                                const hasNoPoints = topic.pointsCount === 0;
 
                                 return (
-                                    <div key={topicName} className="flex items-center gap-1 w-full min-w-0">
+                                    <div key={topic.id ?? topicName} className="flex items-center gap-1 w-full min-w-0">
                                         <Tooltip>
                                             <TooltipTrigger asChild className="flex-1 min-w-0">
                                                 <Button
