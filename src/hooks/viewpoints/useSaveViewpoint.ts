@@ -134,7 +134,6 @@ export default function useSaveViewpoint({
       getCurrentTopicId,
       originalGraph,
       reactFlow,
-      router,
       updateDetails,
       queryClient,
       setGraph,

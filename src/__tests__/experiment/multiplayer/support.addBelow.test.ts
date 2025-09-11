@@ -12,6 +12,7 @@ class YMapMock<V> {
     return this.map.has(k as any);
   }
   delete(k: string) {
+    // eslint-disable-next-line drizzle/enforce-delete-with-where
     this.map.delete(k as any);
   }
   forEach(cb: (v: V, k: string) => void) {
