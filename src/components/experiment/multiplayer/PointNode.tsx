@@ -20,7 +20,7 @@ interface PointNodeProps {
     editedBy?: string;
     createdAt?: number;
     closingAnimation?: boolean;
-    
+
   };
   id: string;
   selected?: boolean;
@@ -77,10 +77,10 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   useEffect(() => {
     if (closingAnimation && !isClosingAnimation) {
       setIsClosingAnimation(true);
-      
+
       // Simple fade-out duration
       const animationDuration = 600;
-      
+
       // End animation
       const t = window.setTimeout(() => {
         setIsClosingAnimation(false);
@@ -106,12 +106,12 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           prev = h;
           setPairNodeHeight(parentId as string, id, h);
         }
-      } catch {}
+      } catch { }
     };
     measure();
     const ro = new ResizeObserver(() => measure());
-    try { ro.observe(el); } catch {}
-    return () => { try { ro.disconnect(); } catch {} };
+    try { ro.observe(el); } catch { }
+    return () => { try { ro.disconnect(); } catch { } };
   }, [parentId, id, setPairNodeHeight, wrapperRef]);
 
   return (
@@ -122,7 +122,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
         <div className="relative inline-block group">
           {!selected && !isInContainer && inversePairEnabled && (
             <div
-              className={`group/sliver absolute left-full top-1/2 translate-y-[calc(-50%+2px)] h-full z-0 pointer-events-auto nodrag nopan ${sliverAnimating ? '' : 'transition-all ease-out'} ${!sliverAnimating ? (sliverHovered ? 'w-[128px] -ml-[64px] duration-700' : (hovered ? 'w-[96px] -ml-[48px] duration-700' : 'w-[40px] -ml-[20px] duration-700')) : ''}`}
+              className={`group/sliver absolute left-full top-1/2 translate-y-[calc(-50%+2px)] h-full z-0 pointer-events-auto nodrag nopan ${sliverAnimating ? '' : 'transition-all ease-out'} ${!sliverAnimating ? (sliverHovered ? 'w-[96px] -ml-[48px] duration-700' : (hovered ? 'w-[72px] -ml-[36px] duration-700' : 'w-[30px] -ml-[15px] duration-700')) : ''}`}
               style={sliverAnimating ? {
                 width: `${animationDistance}px`,
                 marginLeft: '0px', // Keep it anchored to the left, only expand right
@@ -135,35 +135,34 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
               onMouseDown={(e) => { e.stopPropagation(); }}
               onClick={(e) => {
                 e.stopPropagation();
-                
+
                 // Calculate exact distance to where inverse node will spawn
-                let calculatedDistance = 640; // fallback
+                let calculatedDistance = 400; // fallback (reduced since sliver is smaller)
                 try {
                   const currentEl = wrapperRef.current;
                   if (currentEl) {
                     const rect = currentEl.getBoundingClientRect();
                     const nodeWidth = Math.ceil(rect.width);
-                    const maxPointWidth = 320; // match PointNode max-w-[320px]
-                    const gapWidth = maxPointWidth; // full gap equals max point width
-                    const padding = 12; // from createInversePair
+                    const gapWidth = 25; // Match GroupNode gap between children
+                    const padding = 8; // Match GroupNode leftPadding
                     // Exact position where inverse node spawns: padding + nodeWidth + gapWidth
                     calculatedDistance = padding + nodeWidth + gapWidth;
                   }
-                } catch {}
-                
+                } catch { }
+
                 setAnimationDistance(calculatedDistance);
                 setSliverAnimating(true);
                 setSliverFading(false);
-                
-                // Duration based on exact distance (min 800ms, max 1400ms)
-                const animationDuration = Math.min(1400, Math.max(800, calculatedDistance * 1.5));
-                
+
+                // Duration based on exact distance (min 600ms, max 1000ms, adjusted for smaller sliver)
+                const animationDuration = Math.min(1000, Math.max(600, calculatedDistance * 1.2));
+
                 // Create the inverse pair first, then start fade immediately
                 window.setTimeout(() => {
                   createInversePair(id);
                   setSliverFading(true); // Start fade right when node spawns
                 }, animationDuration - 300);
-                
+
                 // End animation after fade completes
                 window.setTimeout(() => {
                   setSliverAnimating(false);
@@ -178,7 +177,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
               onMouseLeave={() => { setSliverHovered(false); scheduleHoldRelease(); }}
             >
               <div
-                className={`w-full h-full bg-white border-2 border-stone-200 rounded-lg shadow-lg overflow-hidden origin-left transition-opacity ease-out ${(hovered && !sliverAnimating) ? 'opacity-100 duration-700' : sliverAnimating ? 'opacity-0 duration-1000' : 'opacity-0 duration-700'}`}
+                className={`w-full h-full bg-white border-black border-4 rounded-lg shadow-lg overflow-hidden origin-left transition-all ease-out ${(hovered && !sliverAnimating) ? 'opacity-100 duration-700' : sliverAnimating ? 'opacity-0 duration-1000' : 'opacity-0 duration-700'}`}
                 style={{ willChange: 'transform, opacity' }}
               />
             </div>
@@ -187,20 +186,35 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
             ref={wrapperRef}
             onMouseEnter={() => { clearHoldTimer(); setHovered(true); onHoverEnter(); handleMouseEnter(); }}
             onMouseLeave={() => { scheduleHoldRelease(); handleMouseLeave(); onHoverLeave(); setSliverHovered(false); }}
-            onMouseDown={(e) => { if (isEditing) return; connect.onMouseDown(e); }}
-            onMouseUp={(e) => { if (isEditing) return; connect.onMouseUp(e); }}
+            onMouseDown={(e) => { 
+              if (isEditing) return; 
+              // Don't interfere if the mouse is over the content area
+              if (contentRef.current && contentRef.current.contains(e.target as Node)) {
+                return;
+              }
+              connect.onMouseDown(e); 
+            }}
+            onMouseUp={(e) => { 
+              if (isEditing) return; 
+              // Don't interfere if the mouse is over the content area
+              if (contentRef.current && contentRef.current.contains(e.target as Node)) {
+                return;
+              }
+              connect.onMouseUp(e); 
+            }}
             onClick={(e) => {
               connect.onClick(e as any);
               if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
             }}
             onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); }}
             data-selected={selected && !isClosingAnimation}
-            className={`px-4 py-3 rounded-lg ${hidden ? 'bg-gray-200 text-gray-600' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 shadow-md' : 'bg-white text-gray-900')} border-2 min-w-[200px] max-w-[320px] relative ${isDirectInverse ? 'z-0' : 'z-10'} ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} ring-0 transition-transform duration-300 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
+            className={`px-4 py-3 rounded-lg ${hidden ? 'bg-gray-200 text-gray-600' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 shadow-md' : 'bg-white text-gray-900')} border-2 min-w-[200px] max-w-[320px] inline-flex flex-col justify-start align-top relative ${isDirectInverse ? 'z-0' : 'z-10'} ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} ring-0 transition-transform duration-300 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
             ${hidden ? 'border-gray-300' : ((selected && !isClosingAnimation) ? 'border-black' : 'border-stone-200')}
             `}
             style={{
               opacity: hidden ? undefined : (isClosingAnimation ? 0 : favorOpacity),
-              minHeight: (data as any)?.pairHeight ? (data as any)?.pairHeight : undefined,
+              // remove pairHeight-driven minHeight; allow natural height
+              // removed fixed height to allow growth when content expands inside containers
               ...innerScaleStyle,
               ...(isClosingAnimation ? {
                 transition: 'opacity 600ms ease-out',
@@ -254,7 +268,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
                 onBlur={onBlur}
                 onKeyDown={onKeyDown}
                 data-role="content"
-                className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-gray-900'} ${isInContainer ? 'overflow-auto' : ''}`}
+                className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${isEditing ? 'nodrag' : ''} ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-gray-900'} ${isInContainer ? 'overflow-visible' : ''}`}
                 style={{ userSelect: hidden ? 'none' : 'text' }}
                 title={typeof value === 'string' ? value : undefined}
               >

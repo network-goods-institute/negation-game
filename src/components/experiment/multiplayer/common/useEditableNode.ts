@@ -351,12 +351,20 @@ export const useEditableNode = ({
     onFocus,
     commit,
     startEditingProgrammatically,
-    // Prevent node drag while editing; allow bubbling in connect mode
+    // Handle mouse events to allow text selection while preventing unwanted node dragging
     onContentMouseDown: (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!graph?.connectMode) e.stopPropagation();
+      // Stop propagation to prevent the wrapper's mouse handlers from interfering with text selection
+      e.stopPropagation();
+
+      if (graph?.connectMode) {
+        return;
+      }
+
+      // Allow normal text selection behavior by not preventing default
     },
     onContentMouseMove: (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!graph?.connectMode) e.stopPropagation();
+      // Always prevent propagation to avoid interfering with text selection drag
+      e.stopPropagation();
     },
   };
 };

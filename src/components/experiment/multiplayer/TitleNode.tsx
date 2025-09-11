@@ -120,7 +120,7 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
                                 onFocus={onFocus}
                                 onBlur={onBlur}
                                 onKeyDown={onKeyDown}
-                                className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-blue-900'}`}
+                                className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${isEditing ? 'nodrag' : ''} ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-blue-900'}`}
                                 style={{ userSelect: hidden ? 'none' : 'text' }}
                             >
                                 {value}

@@ -114,7 +114,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
                 onFocus={onFocus}
                 onBlur={onBlur}
                 onKeyDown={onKeyDown}
-                className={`text-sm font-semibold whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}`}
+                className={`text-sm font-semibold whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${isEditing ? 'nodrag' : ''} ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}`}
                 style={{ userSelect: hidden ? 'none' : 'text' }}
               >
                 {value || 'New Question'}

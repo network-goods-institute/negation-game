@@ -156,6 +156,21 @@ const RawPointNode = ({
     }
   }, [hoveredPoint, pointId, prefetchObjection]);
 
+
+  const getPositioningReferenceNode = useCallback(() => {
+    const currentNode = getNode(id)!;
+
+
+    if (currentNode.parentId) {
+      const parentNode = getNode(currentNode.parentId);
+      if (parentNode && parentNode.type === 'group') {
+        return parentNode;
+      }
+    }
+
+    return currentNode;
+  }, [getNode, id]);
+
   useEffect(() => {
     // Only run once per node mount
     if (hasInitializedCollapsedState.current || !isViewpointContext || !pointData || !originalViewpoint) {
@@ -226,11 +241,11 @@ const RawPointNode = ({
 
   const handleSelectPoint = useCallback((point: { pointId: number, parentId?: string | number }) => {
     const uniqueId = `${nanoid()}-${Date.now()}`;
-    const targetNode = getNode(id)!;
+    const referenceNode = getPositioningReferenceNode();
     const layouts = calculateInitialLayout(
-      targetNode.position.x,
-      targetNode.position.y,
-      targetNode?.measured?.height ?? 200,
+      referenceNode.position.x,
+      referenceNode.position.y,
+      referenceNode?.measured?.height ?? 200,
       1
     );
 
@@ -269,7 +284,7 @@ const RawPointNode = ({
     setCollapsedNodePositions(prev =>
       prev.filter(pos => !(pos.pointId === point.pointId && pos.parentId === pointId))
     );
-  }, [id, pointId, parentId, addNodes, addEdges, setCollapsedPointIds, setCollapsedNodePositions, getNode, pointNegations]);
+  }, [id, pointId, parentId, addNodes, addEdges, setCollapsedPointIds, setCollapsedNodePositions, pointNegations, getPositioningReferenceNode]);
 
   const { hasDuplicates } = useMergeDetection(pointId);
 
@@ -385,7 +400,6 @@ const RawPointNode = ({
       return () => clearTimeout(timer);
     }
   }, [isExpanding, dataIsExpanding, hasAnimationPlayed]);
-
   // Helper function to expand only a specific negation
   const expandSpecificNegation = useCallback((negationIdToExpand: number) => {
     if (!pointData || !negationIdToExpand) return;
@@ -407,11 +421,11 @@ const RawPointNode = ({
     // Get a unique ID for the new node
     const uniqueId = `${nanoid()}-${Date.now()}`;
 
-    // Calculate position (similar to expandNegations)
-    const targetNode = getNode(id)!;
+    // Use group node for positioning if this point is inside a group, otherwise use the point node
+    const referenceNode = getPositioningReferenceNode();
     const position = {
-      x: targetNode.position.x,
-      y: targetNode.position.y + (targetNode?.measured?.height ?? 200) + 200, // Place below
+      x: referenceNode.position.x,
+      y: referenceNode.position.y + (referenceNode?.measured?.height ?? 200) + 200, // Place below
     };
 
     const negationData = pointNegations?.find(n => n.pointId === negationIdToExpand);
@@ -466,7 +480,6 @@ const RawPointNode = ({
   }, [
     pointData,
     expandedNegationIds,
-    getNode,
     id,
     addNodes,
     addEdges,
@@ -476,7 +489,8 @@ const RawPointNode = ({
     parentId,
     setRecentlyCreatedNegation,
     setUndoStack,
-    pointNegations
+    pointNegations,
+    getPositioningReferenceNode
   ]);
 
   useEffect(() => {

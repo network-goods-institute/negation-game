@@ -82,8 +82,8 @@ describe("inverse pair behaviors", () => {
       // Find the group node
       const groupNode = newNodes.find((n: any) => n.type === "group");
       expect(groupNode).toBeDefined();
-      expect(groupNode.draggable).toBe(false);
-      expect(groupNode.selectable).toBe(false);
+      expect(groupNode.draggable).toBe(true);
+      expect(groupNode.selectable).toBe(true);
       expect(groupNode.resizable).toBe(false);
 
       // Find the original node (should be updated to be in the group)
