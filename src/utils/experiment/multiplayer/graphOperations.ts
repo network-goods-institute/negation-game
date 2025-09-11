@@ -4,15 +4,69 @@ import * as Y from "yjs";
 import { toast } from "sonner";
 import { generateInversePoint } from "@/actions/ai/generateInversePoint";
 
+const getParentNodeHeight = (parentNode: any, allNodes: any[]): number => {
+  // If parent is in a group, use the group node's height instead
+  if (parentNode?.parentId) {
+    const groupNode = allNodes.find((n: any) => n.id === parentNode.parentId);
+    if (groupNode?.type === "group") {
+      // First try group measured dimensions
+      if (
+        groupNode?.measured?.height &&
+        typeof groupNode.measured.height === "number"
+      ) {
+        return groupNode.measured.height;
+      }
+      // Fallback to group DOM measurement
+      try {
+        const el = document.querySelector(
+          `.react-flow__node[data-id="${groupNode?.id}"]`
+        ) as HTMLElement | null;
+        if (el) {
+          return Math.ceil(el.getBoundingClientRect().height);
+        }
+      } catch {}
+    }
+  }
+
+  // Use parent node height directly if not in a group
+  // First try measured dimensions
+  if (
+    parentNode?.measured?.height &&
+    typeof parentNode.measured.height === "number"
+  ) {
+    return parentNode.measured.height;
+  }
+
+  // Fallback to DOM measurement
+  try {
+    const el = document.querySelector(
+      `.react-flow__node[data-id="${parentNode?.id}"]`
+    ) as HTMLElement | null;
+    if (el) {
+      return Math.ceil(el.getBoundingClientRect().height);
+    }
+  } catch {}
+
+  // Final fallback to estimated height
+  return 80; // Default node height
+};
+
 const calculateNodePositionBelow = (
-  parentPosition: { x: number; y: number },
+  parentNode: any,
+  allNodes: any[],
   getViewportOffset?: () => { x: number; y: number }
 ) => {
+  const parentPosition = getAbsolutePosition(parentNode, allNodes);
   const viewportOffset = getViewportOffset?.() || { x: 0, y: 0 };
-  const baseOffset = 30; // Base vertical offset in flow coordinates
+
+  // Get actual parent height with padding (uses group height if parent is in a group)
+  const parentHeight = getParentNodeHeight(parentNode, allNodes);
+  const padding = 12; // Consistent with other spacing in the system
+
+  // Position new node below parent with proper spacing
   return {
     x: parentPosition.x + viewportOffset.x,
-    y: parentPosition.y + baseOffset + viewportOffset.y,
+    y: parentPosition.y + parentHeight + padding + viewportOffset.y,
   };
 };
 
@@ -152,9 +206,12 @@ export const createAddNodeAtPosition = (
             : "p";
     const id = `${idBase}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const initial = getDefaultContentForType(type);
-    const data: any = type === "statement" ? { statement: initial } : { content: initial };
-    const baseData: any = type === "statement" ? { statement: initial } : { content: initial };
-    const withFavor = (t: typeof type) => (t === "point" || t === "objection") ? { favor: 5 } : {};
+    const data: any =
+      type === "statement" ? { statement: initial } : { content: initial };
+    const baseData: any =
+      type === "statement" ? { statement: initial } : { content: initial };
+    const withFavor = (t: typeof type) =>
+      t === "point" || t === "objection" ? { favor: 5 } : {};
     const node: any = {
       id,
       type,
@@ -169,9 +226,13 @@ export const createAddNodeAtPosition = (
     if (yNodesMap && ydoc && isLeader) {
       ydoc.transact(() => {
         yNodesMap.set(id, node);
-        if (yTextMap && (type === "point" || type === "objection" || type === "statement")) {
+        if (
+          yTextMap &&
+          (type === "point" || type === "objection" || type === "statement")
+        ) {
           const t = new Y.Text();
-          const initialContent = type === "statement" ? data.statement : data.content;
+          const initialContent =
+            type === "statement" ? data.statement : data.content;
           if (initialContent) t.insert(0, initialContent);
           yTextMap.set(id, t);
           try {
@@ -458,8 +519,7 @@ export const createAddNegationBelow = (
     if (!parent) return;
     const newId = `p-${now}-${Math.floor(Math.random() * 1e6)}`;
 
-    const parentAbs = getAbsolutePosition(parent, nodes);
-    const newPos = calculateNodePositionBelow(parentAbs, getViewportOffset);
+    const newPos = calculateNodePositionBelow(parent, nodes, getViewportOffset);
     const newNode: any = {
       id: newId,
       type: "point",
@@ -532,8 +592,7 @@ export const createAddPointBelow = (
     if (!parent) return;
     const newId = `p-${now}-${Math.floor(Math.random() * 1e6)}`;
 
-    const parentAbs = getAbsolutePosition(parent, nodes);
-    const newPos = calculateNodePositionBelow(parentAbs, getViewportOffset);
+    const newPos = calculateNodePositionBelow(parent, nodes, getViewportOffset);
     const newNode: any = {
       id: newId,
       type: "point",
@@ -752,6 +811,176 @@ export const createInversePair = (
       return;
     }
 
+    // Prevent creating another inverse if one was already generated (persistent flag)
+    if (pointNode?.data?.inverseGenerated) {
+      // Reopen previously generated inverse: rebuild group with stored content
+      const now = Date.now();
+      const groupId = `group-${now}-${Math.floor(Math.random() * 1e6)}`;
+      const inverseId = `inverse-${now}-${Math.floor(Math.random() * 1e6)}`;
+
+      const originalContent = pointNode.data?.content || "";
+      let storedInverse = "";
+      try {
+        const base = yNodesMap?.get(pointNodeId);
+        storedInverse = (base?.data?.inverseContent as string) || "";
+      } catch {}
+      if (!storedInverse) {
+        storedInverse = (pointNode.data?.inverseContent as string) || "";
+      }
+      if (!storedInverse) {
+        storedInverse = `Not ${originalContent}`;
+      }
+
+      // Use measured dimensions from React Flow if available, otherwise use component constraints
+      let nodeWidth = 220;
+      let nodeHeight = 80;
+      if (
+        pointNode?.measured?.width &&
+        typeof pointNode.measured.width === "number"
+      ) {
+        nodeWidth = Math.ceil(pointNode.measured.width);
+      }
+      if (
+        pointNode?.measured?.height &&
+        typeof pointNode.measured.height === "number"
+      ) {
+        nodeHeight = Math.ceil(pointNode.measured.height);
+      }
+      if (nodeWidth === 220) {
+        nodeWidth = Math.min(
+          280,
+          Math.max(200, pointNode?.data?.content?.length * 8 || 200)
+        );
+      }
+
+      const padding = 8; // Match GroupNode leftPadding
+      const gapWidth = 25; // Match GroupNode gap between children
+      const containerWidth =
+        padding + nodeWidth + gapWidth + nodeWidth + padding;
+      const containerHeight = nodeHeight + padding * 8;
+
+      const groupPosition = {
+        x: pointNode.position.x - padding,
+        y: pointNode.position.y - padding,
+      };
+
+      const groupNode: any = {
+        id: groupId,
+        type: "group",
+        position: groupPosition,
+        data: { label: "", isNew: true, openingSince: now },
+        width: containerWidth,
+        height: containerHeight,
+        style: { width: containerWidth, height: containerHeight, padding: 8 },
+        draggable: true,
+        dragHandle: ".group-drag-handle",
+        selectable: true,
+        resizable: false,
+      };
+
+      const inverseNode: any = {
+        id: inverseId,
+        type: "point",
+        parentId: groupId,
+        position: { x: padding + nodeWidth + gapWidth, y: padding },
+        extent: "parent",
+        expandParent: false,
+        draggable: false,
+        data: {
+          content: storedInverse,
+          favor: 5,
+          createdAt: now,
+          directInverse: true,
+          groupId,
+        },
+        selected: false,
+      };
+
+      const updatedOriginalNode = {
+        id: pointNode.id,
+        type: pointNode.type,
+        data: {
+          ...pointNode.data,
+          originalInPair: true,
+          groupId,
+          inverseGenerated: true,
+          inverseContent: storedInverse,
+        },
+        parentId: groupId,
+        position: { x: padding, y: padding },
+        extent: "parent",
+        expandParent: false,
+        draggable: false,
+        selected: false,
+        measured: undefined,
+        width: undefined,
+        height: undefined,
+        positionAbsolute: undefined,
+      };
+
+      if (yNodesMap && ydoc && isLeader) {
+        ydoc.transact(() => {
+          yNodesMap.set(groupId, groupNode);
+          yNodesMap.set(pointNodeId, updatedOriginalNode);
+          yNodesMap.set(inverseId, inverseNode);
+          if (yTextMap && !yTextMap.get(inverseId)) {
+            const t = new (Y as any).Text();
+            if (storedInverse) t.insert(0, storedInverse);
+            yTextMap.set(inverseId, t);
+            try {
+              registerTextInUndoScope?.(t);
+            } catch {}
+          }
+        }, localOrigin);
+      }
+
+      setNodes((nds) =>
+        nds
+          .filter((n: any) => n.id !== pointNodeId)
+          .concat([groupNode, updatedOriginalNode, inverseNode])
+      );
+
+      // equalize heights pass is kept as before
+      try {
+        setTimeout(() => {
+          const origEl = document.querySelector(
+            `[data-id="${pointNodeId}"]`
+          ) as HTMLElement | null;
+          const invEl = document.querySelector(
+            `[data-id="${inverseId}"]`
+          ) as HTMLElement | null;
+          if (!origEl || !invEl) return;
+          const h1 = origEl.getBoundingClientRect().height;
+          const h2 = invEl.getBoundingClientRect().height;
+          const maxH = Math.max(Math.floor(h1), Math.floor(h2));
+          if (
+            yNodesMap &&
+            ydoc &&
+            isLeader &&
+            Number.isFinite(maxH) &&
+            maxH > 0
+          ) {
+            ydoc.transact(() => {
+              const oBase = yNodesMap.get(pointNodeId);
+              const iBase = yNodesMap.get(inverseId);
+              const gBase = yNodesMap.get(groupId);
+              // removed pairHeight writebacks to avoid force-resizing child nodes; group height remains
+              if (gBase) {
+                const newH = padding * 2 + maxH;
+                yNodesMap.set(groupId, {
+                  ...gBase,
+                  height: newH,
+                  style: { ...((gBase as any).style || {}), height: newH },
+                } as any);
+              }
+            }, localOrigin);
+          }
+        }, 0);
+      } catch {}
+
+      return;
+    }
+
     const now = Date.now();
     const groupId = `group-${now}-${Math.floor(Math.random() * 1e6)}`;
     const inverseId = `inverse-${now}-${Math.floor(Math.random() * 1e6)}`;
@@ -759,22 +988,38 @@ export const createInversePair = (
     const originalContent = pointNode.data?.content || "";
     const inverseContent = "Generating...";
 
+    // Use measured dimensions from React Flow if available, otherwise use component constraints
     let nodeWidth = 220; // fallback
     let nodeHeight = 80; // fallback
-    try {
-      const el = document.querySelector(
-        `.react-flow__node[data-id="${pointNodeId}"]`
-      ) as HTMLElement | null;
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        nodeWidth = Math.ceil(rect.width);
-        nodeHeight = Math.ceil(rect.height);
-      }
-    } catch {}
 
-    const padding = 12;
-    const containerWidth = nodeWidth * 2 + padding * 3;
-    const containerHeight = nodeHeight + padding * 2;
+    // First try React Flow's measured dimensions (more reliable than DOM queries)
+    if (
+      pointNode?.measured?.width &&
+      typeof pointNode.measured.width === "number"
+    ) {
+      nodeWidth = Math.ceil(pointNode.measured.width);
+    }
+    if (
+      pointNode?.measured?.height &&
+      typeof pointNode.measured.height === "number"
+    ) {
+      nodeHeight = Math.ceil(pointNode.measured.height);
+    }
+
+    // If no measured dimensions, use component constraints to avoid DOM timing issues
+    if (nodeWidth === 220) {
+      // PointNode has max-w-[320px], so use a reasonable estimate
+      nodeWidth = Math.min(
+        280,
+        Math.max(200, pointNode?.data?.content?.length * 8 || 200)
+      );
+    }
+
+    const padding = 8; // Match GroupNode leftPadding
+    const maxPointWidth = 320; // match PointNode max-w-[320px]
+    const gapWidth = 25; // Match GroupNode gap between children
+    const containerWidth = padding + nodeWidth + gapWidth + nodeWidth + padding; // left + leftNode + gap + rightNode + right
+    const containerHeight = nodeHeight + padding * 8;
 
     const groupPosition = {
       x: pointNode.position.x - padding,
@@ -785,20 +1030,23 @@ export const createInversePair = (
       id: groupId,
       type: "group",
       position: groupPosition,
-      data: { label: "", isNew: true },
+      data: { label: "", isNew: true, openingSince: now },
       width: containerWidth,
       height: containerHeight,
       style: { width: containerWidth, height: containerHeight, padding: 8 },
-      draggable: false,
+      draggable: true,
+      dragHandle: ".group-drag-handle",
+      selectable: true,
+      resizable: false,
     };
 
     const inverseNode: any = {
       id: inverseId,
       type: "point",
       parentId: groupId,
-      position: { x: nodeWidth + padding, y: padding },
+      position: { x: padding + nodeWidth + gapWidth, y: padding }, // Right node positioned with gap
       extent: "parent",
-      expandParent: true,
+      expandParent: false,
       draggable: false,
       data: {
         content: inverseContent,
@@ -813,11 +1061,16 @@ export const createInversePair = (
     const updatedOriginalNode = {
       id: pointNode.id,
       type: pointNode.type,
-      data: { ...pointNode.data, originalInPair: true, groupId },
+      data: {
+        ...pointNode.data,
+        originalInPair: true,
+        groupId,
+        inverseGenerated: true,
+      },
       parentId: groupId,
-      position: { x: padding, y: padding },
+      position: { x: padding, y: padding }, // Left node at padding
       extent: "parent",
-      expandParent: true,
+      expandParent: false,
       draggable: false,
       selected: false,
       measured: undefined,
@@ -826,15 +1079,7 @@ export const createInversePair = (
       positionAbsolute: undefined,
     };
 
-    // Delete and recreate approach: remove original node, add group + both children
-    setNodes(
-      (nds) =>
-        nds
-          .filter((n: any) => n.id !== pointNodeId) // Delete original
-          .concat([groupNode, updatedOriginalNode, inverseNode]) // Add all new nodes
-    );
-
-    // Sync to Yjs in correct order
+    // Sync to Yjs in correct order (commit shared state first)
     if (yNodesMap && ydoc && isLeader) {
       ydoc.transact(() => {
         // Add group first
@@ -856,28 +1101,13 @@ export const createInversePair = (
       }, localOrigin);
     }
 
-    // Create negation edge between original and inverse
-    const negEdge = {
-      id: `edge:negation:${pointNodeId}->${inverseId}`,
-      source: pointNodeId,
-      target: inverseId,
-      sourceHandle: null,
-      targetHandle: null,
-      type: "negation",
-      data: {},
-    } as any;
-
-    setEdges((eds: any[]) =>
-      eds.some((e: any) => e.id === negEdge.id) ? eds : [...eds, negEdge]
+    // Update local state after shared state has been committed
+    setNodes((nds) =>
+      nds
+        .filter((n: any) => n.id !== pointNodeId)
+        .concat([groupNode, updatedOriginalNode, inverseNode])
     );
 
-    if (yEdgesMap && ydoc && isLeader) {
-      ydoc.transact(() => {
-        if (!yEdgesMap.has(negEdge.id)) yEdgesMap.set(negEdge.id, negEdge);
-      }, localOrigin);
-    }
-
-    // Generate AI content and update text
     generateInversePoint(originalContent)
       .then((aiContent) => {
         if (yTextMap && ydoc && isLeader) {
@@ -890,6 +1120,18 @@ export const createInversePair = (
                 if (curr && curr.length) t.delete(0, curr.length);
                 if (aiContent) t.insert(0, aiContent);
               }
+            }
+            // Persist inverse content on the original node
+            const oBase = yNodesMap.get(pointNodeId);
+            if (oBase) {
+              yNodesMap.set(pointNodeId, {
+                ...oBase,
+                data: {
+                  ...(oBase.data || {}),
+                  inverseContent: aiContent,
+                  inverseGenerated: true,
+                },
+              });
             }
           }, localOrigin);
         }
@@ -907,6 +1149,18 @@ export const createInversePair = (
                 if (curr && curr.length) t.delete(0, curr.length);
                 if (fallback) t.insert(0, fallback);
               }
+            }
+            const oBase = yNodesMap.get(pointNodeId);
+            if (oBase) {
+              const fallback = `Not ${originalContent}`;
+              yNodesMap.set(pointNodeId, {
+                ...oBase,
+                data: {
+                  ...(oBase.data || {}),
+                  inverseContent: fallback,
+                  inverseGenerated: true,
+                },
+              });
             }
           }, localOrigin);
         }
@@ -933,18 +1187,15 @@ export const createInversePair = (
           maxH > 0
         ) {
           ydoc.transact(() => {
-            const oBase = yNodesMap.get(pointNodeId);
-            const iBase = yNodesMap.get(inverseId);
-            if (oBase)
-              yNodesMap.set(pointNodeId, {
-                ...oBase,
-                data: { ...(oBase.data || {}), pairHeight: maxH },
-              });
-            if (iBase)
-              yNodesMap.set(inverseId, {
-                ...iBase,
-                data: { ...(iBase.data || {}), pairHeight: maxH },
-              });
+            const gBase = yNodesMap.get(groupId);
+            if (gBase) {
+              const newH = padding * 2 + maxH;
+              yNodesMap.set(groupId, {
+                ...gBase,
+                height: newH,
+                style: { ...((gBase as any).style || {}), height: newH },
+              } as any);
+            }
           }, localOrigin);
         }
       }, 0);
@@ -996,96 +1247,178 @@ export const createDeleteInversePair = (
     };
 
     if (yNodesMap && yEdgesMap && ydoc) {
-      ydoc.transact(() => {
-        // Update original node to stand-alone
-        if (yNodesMap.has(original.id)) {
-          const base = yNodesMap.get(original.id);
-          const updated = {
-            ...base,
-            parentId: undefined,
-            position: abs,
-            extent: undefined,
-            expandParent: undefined,
-            draggable: true,
-            data: {
-              ...(base?.data || {}),
-              originalInPair: undefined,
-              directInverse: undefined,
-              groupId: undefined,
-              originalDetached: undefined,
-              pairHeight: undefined,
-            },
-          } as any;
-          yNodesMap.set(original.id, updated);
-        }
-
-        // Remove inverse node and its Y.Text (if any)
-        if (yNodesMap.has(inverseNodeId)) {
-          // eslint-disable-next-line drizzle/enforce-delete-with-where
-          yNodesMap.delete(inverseNodeId);
-        }
-        if (yTextMap && yTextMap.get(inverseNodeId)) {
-          // eslint-disable-next-line drizzle/enforce-delete-with-where
-          yTextMap.delete(inverseNodeId);
-        }
-
-        // Remove group node
-        if (yNodesMap.has(groupId)) {
-          // eslint-disable-next-line drizzle/enforce-delete-with-where
-          yNodesMap.delete(groupId);
-        }
-
-        // Remove edges connected to inverse
-        if (typeof yEdgesMap?.forEach === "function") {
-          yEdgesMap.forEach((e: any, eid: string) => {
-            if (!e) return;
-            if (e.source === inverseNodeId || e.target === inverseNodeId) {
-              // eslint-disable-next-line drizzle/enforce-delete-with-where
-              yEdgesMap.delete(eid as any);
+      let closeTs: number | null = null;
+      try {
+        const gBase = yNodesMap.get(groupId);
+        if (gBase) {
+          const ts = Date.now();
+          closeTs = ts;
+          ydoc.transact(() => {
+            // First, animate the inverse node sliding back to the original position
+            const inverseBase = yNodesMap.get(inverseNodeId);
+            if (inverseBase) {
+              yNodesMap.set(inverseNodeId, {
+                ...inverseBase,
+                data: {
+                  ...(inverseBase.data || {}),
+                  closingAnimation: true,
+                  closingSince: ts,
+                },
+              });
             }
-          });
-        } else {
-          for (const [eid, e] of yEdgesMap as any) {
-            if (!e) continue;
-            if (e.source === inverseNodeId || e.target === inverseNodeId) {
-              // eslint-disable-next-line drizzle/enforce-delete-with-where
-              (yEdgesMap as any).delete(eid);
+
+            const updatedGroup = {
+              ...gBase,
+              data: {
+                ...(gBase.data || {}),
+                closing: true,
+                closingSince: ts,
+              },
+            };
+            yNodesMap.set(groupId, updatedGroup);
+          }, localOrigin);
+          setNodes((nds: any[]) =>
+            nds.map((n: any) => {
+              if (n.id === inverseNodeId) {
+                return {
+                  ...n,
+                  data: {
+                    ...(n.data || {}),
+                    closingAnimation: true,
+                    closingSince: closeTs || Date.now(),
+                  },
+                };
+              }
+              if (n.id === groupId) {
+                return {
+                  ...n,
+                  data: {
+                    ...(n.data || {}),
+                    closing: true,
+                    closingSince: closeTs || Date.now(),
+                  },
+                } as any;
+              }
+              return n;
+            })
+          );
+        }
+      } catch (error) {}
+      const finalize = () => {
+        ydoc.transact(() => {
+          // Update original node to stand-alone
+          if (yNodesMap.has(original.id)) {
+            const base = yNodesMap.get(original.id);
+            let inverseTextStr = "";
+            try {
+              const t = yTextMap?.get(inverseNodeId);
+              if (t && typeof (t as any).toString === "function") {
+                inverseTextStr = (t as any).toString();
+              }
+            } catch {}
+            if (!inverseTextStr) {
+              try {
+                const invBase = yNodesMap.get(inverseNodeId);
+                inverseTextStr = (invBase?.data?.content as string) || "";
+              } catch {}
+            }
+            const updated = {
+              ...base,
+              parentId: undefined,
+              position: abs,
+              extent: undefined,
+              expandParent: undefined,
+              draggable: true,
+              data: {
+                ...(base?.data || {}),
+                originalInPair: undefined,
+                directInverse: undefined,
+                groupId: undefined,
+                originalDetached: undefined,
+                pairHeight: undefined,
+                inverseGenerated: true,
+                inverseContent:
+                  inverseTextStr || base?.data?.inverseContent || "",
+              },
+            } as any;
+            yNodesMap.set(original.id, updated);
+          }
+
+          // Remove inverse node and its Y.Text (if any)
+          if (yNodesMap.has(inverseNodeId)) {
+            // eslint-disable-next-line drizzle/enforce-delete-with-where
+            yNodesMap.delete(inverseNodeId as any);
+          }
+          if (yTextMap && yTextMap.get(inverseNodeId)) {
+            // eslint-disable-next-line drizzle/enforce-delete-with-where
+            yTextMap.delete(inverseNodeId as any);
+          }
+
+          // Remove group node
+          if (yNodesMap.has(groupId)) {
+            // eslint-disable-next-line drizzle/enforce-delete-with-where
+            yNodesMap.delete(groupId as any);
+          }
+
+          // Remove edges connected to inverse
+          if (typeof yEdgesMap?.forEach === "function") {
+            yEdgesMap.forEach((e: any, eid: string) => {
+              if (!e) return;
+              if (e.source === inverseNodeId || e.target === inverseNodeId) {
+                // eslint-disable-next-line drizzle/enforce-delete-with-where
+                yEdgesMap.delete(eid as any);
+              }
+            });
+          } else {
+            for (const [eid, e] of yEdgesMap as any) {
+              if (!e) continue;
+              if (e.source === inverseNodeId || e.target === inverseNodeId) {
+                // eslint-disable-next-line drizzle/enforce-delete-with-where
+                (yEdgesMap as any).delete(eid);
+              }
             }
           }
-        }
-      }, localOrigin);
+        }, localOrigin);
 
-      // Update local state after Yjs sync
-
-      setEdges((eds: any[]) =>
-        eds.filter(
-          (e: any) => e.source !== inverseNodeId && e.target !== inverseNodeId
-        )
+        // Update local state after Yjs sync (defer slightly to allow CSS to animate)
+        window.setTimeout(() => {
+          setEdges((eds: any[]) =>
+            eds.filter(
+              (e: any) =>
+                e.source !== inverseNodeId && e.target !== inverseNodeId
+            )
+          );
+          setNodes((nds: any[]) =>
+            nds
+              .filter((n: any) => n.id !== groupId && n.id !== inverseNodeId)
+              .map((n: any) =>
+                n.id === original.id
+                  ? {
+                      ...n,
+                      parentId: undefined,
+                      position: abs,
+                      extent: undefined,
+                      expandParent: undefined,
+                      draggable: true,
+                      data: {
+                        ...(n?.data || {}),
+                        originalInPair: undefined,
+                        directInverse: undefined,
+                        groupId: undefined,
+                        originalDetached: undefined,
+                        pairHeight: undefined,
+                      },
+                    }
+                  : n
+              )
+          );
+        }, 120);
+      };
+      const remaining = Math.max(
+        0,
+        600 - (Date.now() - (closeTs ?? Date.now()))
       );
-      setNodes((nds: any[]) =>
-        nds
-          .filter((n: any) => n.id !== groupId && n.id !== inverseNodeId)
-          .map((n: any) =>
-            n.id === original.id
-              ? {
-                  ...n,
-                  parentId: undefined,
-                  position: abs,
-                  extent: undefined,
-                  expandParent: undefined,
-                  draggable: true,
-                  data: {
-                    ...(n?.data || {}),
-                    originalInPair: undefined,
-                    directInverse: undefined,
-                    groupId: undefined,
-                    originalDetached: undefined,
-                    pairHeight: undefined,
-                  },
-                }
-              : n
-          )
-      );
+      window.setTimeout(finalize, remaining);
     }
   };
 };

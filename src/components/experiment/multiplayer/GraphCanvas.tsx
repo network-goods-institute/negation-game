@@ -6,6 +6,7 @@ import { CursorReporter } from './CursorReporter';
 import { nodeTypes, edgeTypes } from '@/data/experiment/multiplayer/sampleData';
 import { WebsocketProvider } from 'y-websocket';
 import { useGraphActions } from './GraphContext';
+import OffscreenNeighborPreviews from './OffscreenNeighborPreviews';
 
 type YProvider = WebsocketProvider | null;
 
@@ -93,7 +94,24 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         }
         if (sel.length > 0) {
           e.preventDefault();
-          sel.forEach((n) => graph.deleteNode?.(n.id));
+          const ids = new Set<string>();
+          sel.forEach((n) => {
+            const node: any = n as any;
+            if (node.type === 'group') {
+              ids.add(node.id);
+              return;
+            }
+            const pid = node.parentId;
+            if (pid) {
+              const p = rf.getNode(pid) as any;
+              if (p && p.type === 'group') {
+                ids.add(p.id);
+                return;
+              }
+            }
+            ids.add(node.id);
+          });
+          ids.forEach((id) => graph.deleteNode?.(id));
         }
       }
     };
@@ -188,7 +206,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             panOnScroll={panOnScroll as any}
             zoomOnScroll={zoomOnScroll}
             zoomOnDoubleClick={false}
-            nodesDraggable={!connectMode && !(graph as any)?.isAnyNodeEditing}
+            nodesDraggable={!connectMode}
           >
             <Background />
             <Controls />
@@ -229,6 +247,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         );
       })(), edgesLayer)}
       {authenticated && <CursorOverlay cursors={cursors} />}
+      <OffscreenNeighborPreviews />
       {authenticated && (
         <CursorReporter provider={provider} username={username} userColor={userColor} />
       )}

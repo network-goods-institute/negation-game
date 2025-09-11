@@ -32,6 +32,9 @@ export const useYjsMultiplayer = ({
   const [edges, setEdges, rawOnEdgesChange] = useEdgesState(initialEdges);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [connectionState, setConnectionState] = useState<
+    "initializing" | "connecting" | "connected" | "failed"
+  >("initializing");
   const [nextSaveTime, setNextSaveTime] = useState<number | null>(null);
 
   const ydocRef = useRef<Y.Doc | null>(null);
@@ -54,6 +57,7 @@ export const useYjsMultiplayer = ({
   const tokenRefreshTimerRef = useRef<number | null>(null);
   const isRefreshingTokenRef = useRef(false);
   const didResyncOnConnectRef = useRef(false);
+  const shouldSeedOnConnectRef = useRef(false);
   useEffect(() => {
     localOriginRef.current = localOrigin;
   }, [localOrigin]);
@@ -120,7 +124,8 @@ export const useYjsMultiplayer = ({
     ydocRef.current = doc;
 
     setIsConnected(false);
-    setConnectionError("Waiting for other users to join...");
+    setConnectionState("connecting");
+    setConnectionError("Connecting to server...");
 
     const yNodes = doc.getMap<Node>("nodes");
     const yEdges = doc.getMap<Edge>("edges");
@@ -288,21 +293,8 @@ export const useYjsMultiplayer = ({
             yEdges.size === 0 &&
             !hadContent
           ) {
-            doc.transact(() => {
-              for (const n of initialNodes) yNodes.set(n.id, n);
-              for (const e of initialEdges) yEdges.set(e.id, e);
-              for (const n of initialNodes) {
-                if (!yTextMap.get(n.id)) {
-                  const t = new Y.Text();
-                  const initial =
-                    (n as any).type === "statement"
-                      ? (n as any).data?.statement || ""
-                      : (n as any).data?.content || "";
-                  if (initial) t.insert(0, initial);
-                  yTextMap.set(n.id, t);
-                }
-              }
-            }, "seed");
+            // Defer seeding until a successful WebSocket connection
+            shouldSeedOnConnectRef.current = true;
           } else if (
             !authError &&
             yNodes.size === 0 &&
@@ -325,6 +317,7 @@ export const useYjsMultiplayer = ({
         setConnectionError(
           "Document failed to load. Try refreshing the page or check your connection."
         );
+        setConnectionState("failed");
       }
     })();
 
@@ -374,12 +367,6 @@ export const useYjsMultiplayer = ({
 
     const wsUrl = process.env.NEXT_PUBLIC_YJS_WS_URL;
 
-    if (!wsUrl) {
-      console.error("[mp] NEXT_PUBLIC_YJS_WS_URL is required");
-      setConnectionError("WebSocket URL not configured");
-      return;
-    }
-
     const applyServerDiffIfAny = async () => {
       try {
         const doc = ydocRef.current;
@@ -418,22 +405,65 @@ export const useYjsMultiplayer = ({
           didResyncOnConnectRef.current = true;
           void applyServerDiffIfAny();
         }
+        // Seed initial content only once we are synced/connected and doc is empty
+        try {
+          const doc = ydocRef.current;
+          const yNodes = yNodesMapRef.current;
+          const yEdges = yEdgesMapRef.current;
+          const yText = yTextMapRef.current;
+          if (
+            shouldSeedOnConnectRef.current &&
+            doc &&
+            yNodes &&
+            yEdges &&
+            yText &&
+            (yNodes as any).size === 0 &&
+            (yEdges as any).size === 0
+          ) {
+            doc.transact(() => {
+              for (const n of initialNodes)
+                (yNodes as any).set((n as any).id, n as any);
+              for (const e of initialEdges)
+                (yEdges as any).set((e as any).id, e as any);
+              for (const n of initialNodes) {
+                const id = (n as any).id;
+                if (!(yText as any).get(id)) {
+                  const t = new (Y as any).Text();
+                  const initial =
+                    (n as any).type === "statement"
+                      ? (n as any).data?.statement || ""
+                      : (n as any).data?.content || "";
+                  if (initial) t.insert(0, initial);
+                  (yText as any).set(id, t);
+                }
+              }
+            }, "seed");
+          }
+          shouldSeedOnConnectRef.current = false;
+        } catch {}
       });
       // @ts-ignore minimal event API
       p.on("status", (status: any) => {
         const isUp = status?.status === "connected";
         setIsConnected(Boolean(isUp));
-        if (isUp) setConnectionError(null);
+        if (isUp) {
+          setConnectionError(null);
+          setConnectionState("connected");
+        } else {
+          setConnectionState("connecting");
+          setConnectionError("Reconnecting to server...");
+        }
         if (isUp && !didResyncOnConnectRef.current) {
           didResyncOnConnectRef.current = true;
           void applyServerDiffIfAny();
-        } else setConnectionError("WebSocket connection lost");
+        }
       });
       p.on("connection-error", async (error: any) => {
         setConnectionError(
           `Connection error: ${error?.message || "Unknown error"}`
         );
         setIsConnected(false);
+        setConnectionState("failed");
         if (!isRefreshingTokenRef.current) {
           isRefreshingTokenRef.current = true;
           try {
@@ -444,6 +474,8 @@ export const useYjsMultiplayer = ({
         }
       });
       p.on("connection-close", async (_event: any) => {
+        setConnectionState("connecting");
+        setConnectionError("Reconnecting to server...");
         if (!isRefreshingTokenRef.current) {
           isRefreshingTokenRef.current = true;
           try {
@@ -473,6 +505,13 @@ export const useYjsMultiplayer = ({
     };
 
     const restartProviderWithNewToken = async () => {
+      if (!wsUrl) {
+        console.error("[mp] NEXT_PUBLIC_YJS_WS_URL is required");
+        setConnectionError("WebSocket URL not configured");
+        setConnectionState("failed");
+        return;
+      }
+
       try {
         const { token, expiresAt } = await fetchYjsAuthToken();
 
@@ -500,6 +539,13 @@ export const useYjsMultiplayer = ({
     };
 
     (async () => {
+      if (!wsUrl) {
+        console.error("[mp] NEXT_PUBLIC_YJS_WS_URL is required");
+        setConnectionError("WebSocket URL not configured");
+        setConnectionState("failed");
+        return;
+      }
+
       try {
         const { token, expiresAt } = await fetchYjsAuthToken();
 
@@ -628,7 +674,7 @@ export const useYjsMultiplayer = ({
           if (update && update.byteLength)
             fetch(
               `/api/experimental/rationales/${encodeURIComponent(persistId)}/updates`,
-              { method: "POST", body: update }
+              { method: "POST", body: update as any }
             ).catch(() => {});
         } catch {}
       }
@@ -686,6 +732,7 @@ export const useYjsMultiplayer = ({
     syncYMapFromArray,
     connectionError,
     isConnected,
+    connectionState,
     isSaving,
     resyncNow,
     undo: () => {

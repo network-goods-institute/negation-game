@@ -36,14 +36,14 @@ export const createScheduleSave = (
       } else {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 20000);
-        
+
         try {
           const res = await fetch(
             `/api/experimental/rationales/${encodeURIComponent(persistId)}/updates`,
-            { 
-              method: "POST", 
-              body: update,
-              signal: controller.signal
+            {
+              method: "POST",
+              body: update as any,
+              signal: controller.signal,
             }
           );
         } finally {
@@ -136,7 +136,7 @@ export const createScheduleSave = (
     try {
       const saving = m.get("saving") === true;
       const since = m.get("savingSince");
-      if (saving && typeof since === 'number' && Date.now() - since > 120000) {
+      if (saving && typeof since === "number" && Date.now() - since > 120000) {
         // Recover from a stuck saving flag (e.g., saver disconnected)
         try {
           if (ydocRef.current) {
@@ -182,13 +182,13 @@ export const createScheduleSave = (
       savingRef.current = false;
       setIsSaving(false);
       setNextSaveTime?.(null);
-      
+
       // Clear any timers
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
         saveTimerRef.current = null;
       }
-      
+
       // Clear meta state
       const m = yMetaMapRef?.current;
       if (m && ydocRef.current) {
@@ -228,7 +228,8 @@ export const createUpdateNodesFromY = (
         return;
       }
     } catch {}
-    try {} catch {}
+    try {
+    } catch {}
     const arr: Node[] = [];
     const toMigrate: Node[] = [];
     for (const [, raw] of yNodes as any) {
@@ -259,11 +260,19 @@ export const createUpdateNodesFromY = (
       const currIds = new Set(visibleArr.map((n: any) => n.id));
       const added: string[] = [];
       const removed: string[] = [];
-      currIds.forEach((id) => { if (!lastIds.has(id)) added.push(id); });
-      lastIds.forEach((id) => { if (!currIds.has(id)) removed.push(id); });
-      if (added.length || removed.length) {}
+      currIds.forEach((id) => {
+        if (!lastIds.has(id)) added.push(id);
+      });
+      lastIds.forEach((id) => {
+        if (!currIds.has(id)) removed.push(id);
+      });
+      if (added.length || removed.length) {
+      }
       // Update lastIds snapshot
-      (function syncIds(){ lastIds.clear(); currIds.forEach((id) => lastIds.add(id)); })();
+      (function syncIds() {
+        lastIds.clear();
+        currIds.forEach((id) => lastIds.add(id));
+      })();
     } catch {}
 
     const sorted = visibleArr
@@ -281,7 +290,13 @@ export const createUpdateNodesFromY = (
         return { id: n.id, t: n.type, p: n.position, w, h, d: rest } as any;
       })
     );
-    if (sig === lastNodesSigRef.current) return;
+    if (sig === lastNodesSigRef.current) {
+      console.log(
+        "UPDATE NODES FROM Y - No signature change, skipping setNodes"
+      );
+      return;
+    }
+    console.log("UPDATE NODES FROM Y - Signature changed, updating nodes");
     lastNodesSigRef.current = sig;
     setNodes((prev) =>
       mergeNodesWithText(
@@ -290,7 +305,8 @@ export const createUpdateNodesFromY = (
         new Map((prev as any[]).map((p: any) => [p.id, p]))
       )
     );
-    try {} catch {}
+    try {
+    } catch {}
   };
 };
 
@@ -301,7 +317,8 @@ export const createUpdateEdgesFromY = (
   localOriginRef?: React.MutableRefObject<any>
 ) => {
   return () => {
-    try {} catch {}
+    try {
+    } catch {}
     const arr: Edge[] = [];
     const toMigrate: Edge[] = [];
     for (const [, raw] of yEdges as any) {
@@ -346,7 +363,8 @@ export const createUpdateEdgesFromY = (
     if (sig === lastEdgesSigRef.current) return;
     lastEdgesSigRef.current = sig;
     setEdges(() => sorted);
-    try {} catch {}
+    try {
+    } catch {}
   };
 };
 

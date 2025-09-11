@@ -110,6 +110,7 @@ export default function MultiplayerRationaleDetailPage() {
         syncYMapFromArray,
         connectionError,
         isConnected,
+        connectionState,
         isSaving,
         forceSave,
         interruptSave,
@@ -168,7 +169,7 @@ export default function MultiplayerRationaleDetailPage() {
     );
 
     const getViewportOffset = React.useCallback(() => {
-        const nodeSpacing = 80;
+        const nodeSpacing = 16;
         return { x: Math.random() * 40 - 20, y: nodeSpacing };
     }, []);
 
@@ -301,8 +302,8 @@ export default function MultiplayerRationaleDetailPage() {
     );
 
     const updateNodeContent = createUpdateNodeContent(
-        yTextMap,
-        ydoc,
+        yTextMap as any,
+        ydoc as any,
         isLeader,
         localOriginRef.current,
         setNodes,
@@ -396,6 +397,7 @@ export default function MultiplayerRationaleDetailPage() {
                 provider={provider}
                 isConnected={isConnected}
                 connectionError={connectionError}
+                connectionState={connectionState as any}
                 isSaving={isSaving}
                 forceSave={forceSave}
                 interruptSave={interruptSave || undefined}
@@ -611,6 +613,38 @@ export default function MultiplayerRationaleDetailPage() {
                     hoveredNodeId: hoveredNodeId,
                     setHoveredNodeId: (nid: string | null) => {
                         setHoveredNodeId(nid);
+                    },
+                    commitGroupLayout: (groupId: string, positions: Record<string, { x: number; y: number }>, width: number, height: number) => {
+                        if (!isLeader) return;
+                        try {
+                            (ydoc as any)?.transact?.(() => {
+                                const gBase = (yNodesMap as any)?.get(groupId);
+                                const curGroup = (nodes as any[])?.find?.((n: any) => n.id === groupId);
+                                const pos = curGroup?.position || gBase?.position || { x: 0, y: 0 };
+                                if (gBase) {
+                                    (yNodesMap as any).set(groupId, {
+                                        ...gBase,
+                                        position: pos,
+                                        width,
+                                        height,
+                                        style: { ...((gBase as any).style || {}), width, height },
+                                    });
+                                }
+                                Object.entries(positions || {}).forEach(([nid, pos]) => {
+                                    const base = (yNodesMap as any)?.get(nid);
+                                    if (base) {
+                                        (yNodesMap as any).set(nid, { ...base, position: { x: pos.x, y: pos.y } });
+                                    }
+                                });
+                            }, localOriginRef.current);
+                        } catch { }
+                        // Update local state immediately as well
+                        setNodes((nds: any[]) => nds.map((n: any) => {
+                            if (n.id === groupId) return { ...n, width, height, style: { ...(n.style || {}), width, height } };
+                            const p = (positions as any)[n.id];
+                            if (p) return { ...n, position: { ...(n.position || { x: 0, y: 0 }), x: p.x, y: p.y } };
+                            return n;
+                        }));
                     },
                 }}>
                     <div className="w-full h-full relative">

@@ -43,6 +43,12 @@ type GraphActions = {
     isAnyNodeEditing?: boolean;
     hoveredNodeId?: string | null;
     setHoveredNodeId?: (nodeId: string | null) => void;
+    commitGroupLayout?: (
+        groupId: string,
+        positions: Record<string, { x: number; y: number }>,
+        width: number,
+        height: number
+    ) => void;
 };
 
 const GraphContext = createContext<GraphActions | null>(null);
