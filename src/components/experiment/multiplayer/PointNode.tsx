@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -10,6 +10,7 @@ import { ContextMenu } from './common/ContextMenu';
 import { toast } from 'sonner';
 import { Eye, EyeOff, X as XIcon } from 'lucide-react';
 import { NodeActionPill } from './common/NodeActionPill';
+import { SideActionPill } from './common/SideActionPill';
 import { inversePairEnabled } from '@/config/experiments';
 import { useNeighborEmphasis } from './common/useNeighborEmphasis';
 import { useHoverTracking } from './common/useHoverTracking';
@@ -28,7 +29,7 @@ interface PointNodeProps {
 }
 
 export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parentId }) => {
-  const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, createInversePair, deleteInversePair, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, selectedEdgeId, hoveredNodeId, setHoveredNodeId, setPairNodeHeight } = useGraphActions() as any;
+  const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, createSupportBelow, createInversePair, deleteInversePair, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode, beginConnectFromNode, completeConnectToNode, connectMode, selectedEdgeId, hoveredNodeId, setHoveredNodeId, setPairNodeHeight } = useGraphActions() as any;
 
   const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus, startEditingProgrammatically, onContentMouseDown, onContentMouseMove } = useEditableNode({
     id,
@@ -58,7 +59,8 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     isQuestionNode: false, // Not a question node
   });
 
-  const { pillVisible, handleMouseEnter, handleMouseLeave } = usePillVisibility();
+  const { pillVisible, handleMouseEnter, handleMouseLeave } = usePillVisibility(200);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const locked = isLockedForMe?.(id) || false;
   const lockOwner = getLockOwner?.(id) || null;
@@ -119,7 +121,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
       <Handle id={`${id}-source-handle`} type="source" position={Position.Top} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
       <Handle id={`${id}-incoming-handle`} type="target" position={Position.Bottom} className="opacity-0 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
       <div className="relative inline-block">
-        <div className="relative inline-block group">
+        <div ref={containerRef} className="relative inline-block group">
           {!selected && !isInContainer && inversePairEnabled && (
             <div
               className={`group/sliver absolute left-full top-1/2 translate-y-[calc(-50%+2px)] h-full z-0 pointer-events-auto nodrag nopan ${sliverAnimating ? '' : 'transition-all ease-out'} ${!sliverAnimating ? (sliverHovered ? 'w-[96px] -ml-[48px] duration-700' : (hovered ? 'w-[72px] -ml-[36px] duration-700' : 'w-[30px] -ml-[15px] duration-700')) : ''}`}
@@ -185,22 +187,32 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           <div
             ref={wrapperRef}
             onMouseEnter={() => { clearHoldTimer(); setHovered(true); onHoverEnter(); handleMouseEnter(); }}
-            onMouseLeave={() => { scheduleHoldRelease(); handleMouseLeave(); onHoverLeave(); setSliverHovered(false); }}
-            onMouseDown={(e) => { 
-              if (isEditing) return; 
-              // Don't interfere if the mouse is over the content area
-              if (contentRef.current && contentRef.current.contains(e.target as Node)) {
+            onMouseLeave={(e) => {
+              const next = e.relatedTarget as Node | null;
+              const root = (containerRef.current || wrapperRef.current) as any;
+              if (root && next && root.contains && root.contains(next)) {
                 return;
               }
-              connect.onMouseDown(e); 
+              scheduleHoldRelease();
+              handleMouseLeave();
+              onHoverLeave();
+              setSliverHovered(false);
             }}
-            onMouseUp={(e) => { 
-              if (isEditing) return; 
+            onMouseDown={(e) => {
+              if (isEditing) return;
               // Don't interfere if the mouse is over the content area
               if (contentRef.current && contentRef.current.contains(e.target as Node)) {
                 return;
               }
-              connect.onMouseUp(e); 
+              connect.onMouseDown(e);
+            }}
+            onMouseUp={(e) => {
+              if (isEditing) return;
+              // Don't interfere if the mouse is over the content area
+              if (contentRef.current && contentRef.current.contains(e.target as Node)) {
+                return;
+              }
+              connect.onMouseUp(e);
             }}
             onClick={(e) => {
               connect.onClick(e as any);
@@ -314,6 +326,18 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
                   onMouseLeave={handleMouseLeave}
                 />
               )}
+              {!hidden && ((data as any)?.type !== 'statement' && (data as any)?.type !== 'title') && (
+                <SideActionPill
+                  label="Support"
+                  visible={shouldShowPill}
+                  onClick={() => { createSupportBelow?.(id); setHovered(false); setSliverHovered(false); }}
+                  colorClass="bg-stone-700"
+                  side="left"
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
+                />
+              )}
+              {null}
             </div>
           </div>
         </div>

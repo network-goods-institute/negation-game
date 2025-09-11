@@ -8,6 +8,7 @@ import { useConnectableNode } from '../common/useConnectableNode';
 import { ContextMenu } from '../common/ContextMenu';
 import { toast } from 'sonner';
 import { NodeActionPill } from '../common/NodeActionPill';
+import { SideActionPill } from '../common/SideActionPill';
 import { Eye, EyeOff } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNeighborEmphasis } from '../common/useNeighborEmphasis';
@@ -23,7 +24,7 @@ interface ObjectionNodeProps {
 }
 
 const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => {
-    const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode } = useGraphActions() as any;
+    const { updateNodeContent, updateNodeHidden, updateNodeFavor, addNegationBelow, createSupportBelow, isConnectingFromNodeId, deleteNode, startEditingNode, stopEditingNode, getEditorsForNode, isLockedForMe, getLockOwner, proxyMode } = useGraphActions() as any;
     const { isEditing, value, contentRef, wrapperRef, onClick, onInput, onKeyDown, onBlur, onFocus, onContentMouseDown, onContentMouseMove } = useEditableNode({
         id,
         content: data.content,
@@ -35,7 +36,8 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     // Subscribe to global edge changes so this node re-renders when connections change
     const pointLike = useStore((s: any) => (s.edges || []).some((e: any) => (e.type || '') === 'negation' && (e.source === id || e.target === id)));
     const { hovered, setHovered, onEnter, onLeave } = useHoverTracking(id);
-    const { pillVisible, handleMouseEnter, handleMouseLeave, hideNow } = usePillVisibility();
+    const { pillVisible, handleMouseEnter, handleMouseLeave, hideNow } = usePillVisibility(200);
+    const containerRef = useRef<HTMLDivElement | null>(null);
     const rootRef = useRef<HTMLDivElement | null>(null);
     const isActive = Boolean(selected || hovered);
     const innerScaleStyle = useNeighborEmphasis({ id, wrapperRef: wrapperRef as any, isActive, scale: 1.06 });
@@ -81,14 +83,14 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                 onMouseEnter={() => { setHovered(true); onEnter(); handleMouseEnter(); }}
                 onMouseLeave={(e) => {
                     const next = e.relatedTarget as EventTarget | null;
-                    const root = rootRef.current;
+                    const root = (containerRef.current || rootRef.current) as any;
                     if (root && next && next instanceof Node && root.contains(next)) return;
                     setHovered(false);
                     handleMouseLeave();
                     onLeave();
                 }}
             >
-                <div className="relative inline-block">
+                <div ref={containerRef} className="relative inline-block">
                     <div
                         ref={wrapperRef}
                         // hover handled on root container to avoid flicker when approaching from bottom
@@ -182,6 +184,17 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                                     visible={shouldShowPill}
                                     onClick={() => { addNegationBelow(id); hideNow(); setHovered(false); }}
                                     colorClass="bg-stone-800"
+                                    onMouseEnter={handleMouseEnter}
+                                    onMouseLeave={handleMouseLeave}
+                                />
+                            )}
+                            {!hidden && (
+                                <SideActionPill
+                                    label="Support"
+                                    visible={shouldShowPill}
+                                    onClick={() => { createSupportBelow?.(id); hideNow(); setHovered(false); }}
+                                    colorClass="bg-stone-700"
+                                    side="left"
                                     onMouseEnter={handleMouseEnter}
                                     onMouseLeave={handleMouseLeave}
                                 />

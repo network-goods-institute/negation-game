@@ -7,6 +7,7 @@ type GraphActions = {
     updateNodeHidden?: (nodeId: string, hidden: boolean) => void;
     updateNodeFavor?: (nodeId: string, favor: 1 | 2 | 3 | 4 | 5) => void;
     addNegationBelow: (parentNodeId: string) => void;
+    createSupportBelow?: (parentNodeId: string) => void;
     addPointBelow?: (parentNodeId: string) => void;
     createInversePair: (pointNodeId: string) => void;
     deleteNode: (nodeId: string) => void;

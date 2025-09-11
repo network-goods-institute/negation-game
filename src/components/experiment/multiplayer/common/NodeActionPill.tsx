@@ -40,7 +40,7 @@ export const NodeActionPill: React.FC<NodeActionPillProps> = ({
   return (
     <div
       className={`absolute left-1/2 -translate-x-1/2 bottom-[-56px] transition-transform duration-300 ease-out ${visible ? 'translate-y-0' : '-translate-y-2'}`}
-      style={{ zIndex: visible ? 5 : 0 }}
+      style={{ zIndex: visible ? 30 : 0 }}
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
     >

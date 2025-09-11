@@ -559,6 +559,76 @@ export const createAddNegationBelow = (
   };
 };
 
+export const createAddSupportBelow = (
+  nodes: any[],
+  yNodesMap: any,
+  yEdgesMap: any,
+  yTextMap: any,
+  ydoc: any,
+  isLeader: boolean,
+  localOrigin: object,
+  lastAddRef: React.MutableRefObject<Record<string, number>>,
+  setNodes: (updater: (nodes: any[]) => any[]) => void,
+  setEdges: (updater: (edges: any[]) => any[]) => void,
+  registerTextInUndoScope?: (t: any) => void,
+  isLockedForMe?: (nodeId: string) => boolean,
+  getLockOwner?: (nodeId: string) => { name?: string } | null,
+  getViewportOffset?: () => { x: number; y: number }
+) => {
+  return (parentNodeId: string) => {
+    if (isLockedForMe?.(parentNodeId)) {
+      const owner = getLockOwner?.(parentNodeId);
+      toast.warning(`Locked by ${owner?.name || "another user"}`);
+      return;
+    }
+    if (!isLeader) {
+      toast.warning("Read-only mode: Changes won't be saved");
+    }
+    const now = Date.now();
+    const last = lastAddRef.current[parentNodeId] || 0;
+    if (now - last < 500) return;
+    lastAddRef.current[parentNodeId] = now;
+    const parent = nodes.find((n: any) => n.id === parentNodeId);
+    if (!parent) return;
+    const newId = `p-${now}-${Math.floor(Math.random() * 1e6)}`;
+
+    const newPos = calculateNodePositionBelow(parent, nodes, getViewportOffset);
+    const newNode: any = {
+      id: newId,
+      type: "point",
+      position: newPos,
+      data: { content: "New support", favor: 5, createdAt: Date.now() },
+      selected: true,
+    };
+    const newEdge: any = {
+      id: generateEdgeId(),
+      type: "support",
+      source: newId,
+      target: parentNodeId,
+      sourceHandle: `${newId}-source-handle`,
+      targetHandle: `${parentNodeId}-incoming-handle`,
+      data: { relevance: 3 },
+    };
+    setNodes((curr) => [...curr, newNode]);
+    setEdges((eds) => [...eds, newEdge]);
+
+    if (yNodesMap && yEdgesMap && ydoc && isLeader) {
+      ydoc.transact(() => {
+        yNodesMap.set(newId, newNode);
+        yEdgesMap.set(newEdge.id, newEdge);
+        if (yTextMap && !yTextMap.get(newId)) {
+          const t = new Y.Text();
+          t.insert(0, "New support");
+          yTextMap.set(newId, t);
+          try {
+            registerTextInUndoScope?.(t);
+          } catch {}
+        }
+      }, localOrigin);
+    }
+  };
+};
+
 export const createAddPointBelow = (
   nodes: any[],
   yNodesMap: any,

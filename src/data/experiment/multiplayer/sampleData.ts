@@ -1,6 +1,7 @@
 import { Node, Edge, NodeTypes } from "@xyflow/react";
 import { PointNode } from "@/components/experiment/multiplayer/PointNode";
 import { NegationEdge } from "@/components/experiment/multiplayer/NegationEdge";
+import { SupportEdge } from "@/components/experiment/multiplayer/SupportEdge";
 import { ObjectionEdge } from "@/components/experiment/multiplayer/ObjectionEdge";
 import { StatementEdge } from "@/components/experiment/multiplayer/StatementEdge";
 import { OptionEdge } from "@/components/experiment/multiplayer/OptionEdge";
@@ -108,6 +109,7 @@ export const nodeTypes: NodeTypes = {
 
 export const edgeTypes = {
   negation: NegationEdge,
+  support: SupportEdge,
   objection: ObjectionEdge,
   statement: StatementEdge,
   option: OptionEdge,

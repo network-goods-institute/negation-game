@@ -32,6 +32,7 @@ import {
     createUpdateNodeHidden,
     createDeleteNode,
     createAddNegationBelow,
+    createAddSupportBelow,
     createAddPointBelow,
     createAddObjectionForEdge,
     createUpdateEdgeAnchorPosition,
@@ -41,7 +42,6 @@ import {
     createDeleteInversePair
 } from '@/utils/experiment/multiplayer/graphOperations';
 import { Roboto_Slab } from 'next/font/google';
-import { inversePairEnabled } from '@/config/experiments';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
@@ -174,6 +174,22 @@ export default function MultiplayerRationaleDetailPage() {
     }, []);
 
     const addNegationBelow = createAddNegationBelow(
+        nodes,
+        yNodesMap,
+        yEdgesMap,
+        yTextMap,
+        ydoc,
+        isLeader,
+        localOriginRef.current,
+        lastAddRef,
+        setNodes,
+        setEdges,
+        registerTextInUndoScope,
+        isLockedForMe,
+        getLockOwner,
+        getViewportOffset
+    );
+    const createSupportBelow = createAddSupportBelow(
         nodes,
         yNodesMap,
         yEdgesMap,
@@ -439,6 +455,7 @@ export default function MultiplayerRationaleDetailPage() {
                     ),
                     updateNodeFavor,
                     addNegationBelow,
+                    createSupportBelow,
                     addPointBelow,
                     createInversePair: inversePair,
                     deleteNode,
