@@ -2,7 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { useGraphActions } from './GraphContext';
 import { useReactFlow } from '@xyflow/react';
-import { clamp, getOffscreenSide, OffscreenSide } from '@/utils/experiment/multiplayer/viewport';
+import { getOffscreenSide, OffscreenSide } from '@/utils/experiment/multiplayer/viewport';
 
 type Preview = {
   id: string;
@@ -38,7 +38,7 @@ const getDirectionZone = (rect: DOMRect, vw: number, vh: number): DirectionZone 
   const centerY = rect.top + rect.height / 2;
   const isLeft = centerX < vw / 2;
   const isTop = centerY < vh / 2;
-  
+
   if (isTop && isLeft) return 'top-left';
   if (isTop && !isLeft) return 'top-right';
   if (!isTop && isLeft) return 'bottom-left';
@@ -121,7 +121,7 @@ export const OffscreenNeighborPreviews: React.FC = () => {
       const vw = window.innerWidth;
       const vh = window.innerHeight;
       const headerHeight = 64;
-      
+
       // Group previews by direction zone
       const zoneGroups: Record<DirectionZone, Preview[]> = {
         'top-left': [],
@@ -143,7 +143,7 @@ export const OffscreenNeighborPreviews: React.FC = () => {
 
         // Determine direction zone
         const zone = getDirectionZone(rect, vw, vh);
-        
+
         // Calculate preview properties
         const baseWidth = 200;
         const minHeight = 60;
@@ -161,7 +161,7 @@ export const OffscreenNeighborPreviews: React.FC = () => {
         const minimapHeight = 220; // Approximate height of minimap in bottom-right with extra margin
         const controlsHeight = 120; // Approximate height of controls in bottom-left
         const multiplayerHeaderHeight = 180; // Actual height of multiplayer header component (title input + user info + connected users)
-        
+
         if (zone === 'top-left') {
           x = margin;
           y = headerHeight + multiplayerHeaderHeight + margin; // Below multiplayer header component
@@ -176,16 +176,16 @@ export const OffscreenNeighborPreviews: React.FC = () => {
           y = vh - height - minimapHeight - margin; // Above minimap
         }
 
-        zoneGroups[zone].push({ 
-          id, 
-          text, 
-          side, 
-          x, 
-          y, 
-          type: (n as any).type, 
-          width, 
-          height, 
-          maxHeight 
+        zoneGroups[zone].push({
+          id,
+          text,
+          side,
+          x,
+          y,
+          type: (n as any).type,
+          width,
+          height,
+          maxHeight
         });
       }
 
@@ -223,12 +223,31 @@ export const OffscreenNeighborPreviews: React.FC = () => {
     const baseWidth = 200;
     const stackSpacing = 8;
     const itemHeight = 80; // Approximate height per preview item
-    
+
     const savingIndicatorHeight = 48;
     const minimapHeight = 220;
     const controlsHeight = 120;
     const multiplayerHeaderHeight = 180;
-    
+
+    let availableHeight: number;
+    let maxItems: number;
+
+    if (zone === 'top-left') {
+      availableHeight = vh - (headerHeight + multiplayerHeaderHeight + margin * 2);
+    } else if (zone === 'top-right') {
+      availableHeight = vh - (headerHeight + savingIndicatorHeight + margin * 2);
+    } else if (zone === 'bottom-left') {
+      availableHeight = vh - controlsHeight - margin * 2 - headerHeight;
+    } else { // bottom-right
+      availableHeight = vh - minimapHeight - margin * 2 - headerHeight;
+    }
+
+    availableHeight = Math.max(0, availableHeight);
+    maxItems = Math.max(0, Math.floor(availableHeight / (itemHeight + stackSpacing)));
+    const showTruncation = previews.length > maxItems;
+    const visibleCount = Math.max(0, showTruncation ? maxItems - 1 : maxItems);
+    const visiblePreviews = previews.slice(0, visibleCount);
+
     let baseX = 0, baseY = 0;
     if (zone === 'top-left') {
       baseX = margin;
@@ -238,59 +257,56 @@ export const OffscreenNeighborPreviews: React.FC = () => {
       baseY = headerHeight + savingIndicatorHeight + margin;
     } else if (zone === 'bottom-left') {
       baseX = margin;
-      baseY = vh - controlsHeight - margin;
+      const totalStackHeight = (visiblePreviews.length * (itemHeight + stackSpacing)) + (showTruncation ? (itemHeight + stackSpacing) : 0);
+      baseY = vh - controlsHeight - margin - totalStackHeight;
     } else { // bottom-right
       baseX = vw - baseWidth - margin;
-      baseY = vh - minimapHeight - margin;
+      const totalStackHeight = (visiblePreviews.length * (itemHeight + stackSpacing)) + (showTruncation ? (itemHeight + stackSpacing) : 0);
+      baseY = vh - minimapHeight - margin - totalStackHeight;
     }
-
-    // Calculate how many items we can fit before hitting the bottom
-    const bottomReserved = zone === 'bottom-left' ? controlsHeight : zone === 'bottom-right' ? minimapHeight : 0;
-    const availableHeight = (zone === 'bottom-left' || zone === 'bottom-right') 
-      ? vh - baseY - margin - bottomReserved
-      : vh - baseY - margin;
-    
-    const maxItems = Math.floor(availableHeight / (itemHeight + stackSpacing));
-    const showTruncation = previews.length > maxItems && maxItems > 0;
-    const visiblePreviews = showTruncation ? previews.slice(0, maxItems - 1) : previews;
-    const omittedCount = showTruncation ? previews.length - visiblePreviews.length : 0;
+    const truncateText = (text: string, maxLength: number = 120): { text: string; isTruncated: boolean } => {
+      if (text.length <= maxLength) return { text, isTruncated: false };
+      const truncated = text.substring(0, maxLength).trim();
+      const lastSpace = truncated.lastIndexOf(' ');
+      const smartTruncate = lastSpace > maxLength * 0.8 ? truncated.substring(0, lastSpace) : truncated;
+      return { text: smartTruncate + '...', isTruncated: true };
+    };
 
     return (
       <div key={zone} style={{ position: 'fixed', left: baseX, top: baseY, pointerEvents: 'auto' }}>
-        {visiblePreviews.map((preview, index) => (
-          <div
-            key={preview.id}
-            className={`bg-white/95 backdrop-blur-sm border rounded-md shadow-md px-3 py-2 text-[13px] text-stone-800 ${previewStyleByType(preview.type)}`}
-            style={{ 
-              width: preview.width || baseWidth,
-              maxHeight: preview.maxHeight || 150,
-              marginBottom: stackSpacing
-            }}
-            onMouseDown={(e) => { e.stopPropagation(); }} 
-            onDoubleClick={(e)=>{e.stopPropagation(); e.preventDefault();}}
-          >
-            <div className="text-[10px] font-semibold mb-1 uppercase opacity-75">
-              {preview.type === 'objection' ? 'mitigation' : preview.type}
-            </div>
-            <div 
-              className="whitespace-pre-wrap break-words leading-tight" 
-              style={{ 
-                maxHeight: (preview.maxHeight || 150) - 28, 
-                overflowY: 'auto' 
+        {visiblePreviews.map((preview, index) => {
+          const { text: displayText, isTruncated } = truncateText(preview.text);
+
+          return (
+            <div
+              key={preview.id}
+              className={`bg-white/95 backdrop-blur-sm border rounded-md shadow-md px-3 py-2 text-[13px] text-stone-800 ${previewStyleByType(preview.type)}`}
+              style={{
+                width: preview.width || baseWidth,
+                minHeight: itemHeight,
+                marginBottom: stackSpacing
               }}
+              onMouseDown={(e) => { e.stopPropagation(); }}
+              onDoubleClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+              title={isTruncated ? preview.text : undefined}
             >
-              {preview.text}
+              <div className="text-[10px] font-semibold mb-1 uppercase opacity-75">
+                {preview.type === 'objection' ? 'mitigation' : preview.type}
+              </div>
+              <div className="whitespace-pre-wrap break-words leading-tight">
+                {displayText}
+              </div>
             </div>
-          </div>
-        ))}
-        
+          );
+        })}
+
         {/* Truncation indicator */}
         {showTruncation && (
           <div
             className="bg-gray-100/95 backdrop-blur-sm border rounded-md shadow-md px-3 py-2 text-[13px] text-gray-600 italic"
-            style={{ width: baseWidth }}
+            style={{ width: baseWidth, minHeight: 40 }}
           >
-            (rest omitted due to amount)
+            +{previews.length - visiblePreviews.length} more
           </div>
         )}
       </div>
@@ -299,7 +315,7 @@ export const OffscreenNeighborPreviews: React.FC = () => {
 
   return createPortal(
     <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 50 }}>
-      {(Object.keys(previewsByZone) as DirectionZone[]).map(zone => 
+      {(Object.keys(previewsByZone) as DirectionZone[]).map(zone =>
         renderZoneStack(zone, previewsByZone[zone])
       )}
     </div>,
