@@ -27,6 +27,7 @@ import { SpaceSearchInput } from "@/components/search/SpaceSearchInput";
 import { useSpaceSearch } from "@/components/contexts/SpaceSearchContext";
 import { createPortal } from "react-dom";
 import { useTheme } from "next-themes";
+import Link from "next/link";
 
 export const HeaderActions = () => {
     const { openDialog: openOnboardingDialog } = useOnboarding();
@@ -163,6 +164,19 @@ export const HeaderActions = () => {
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem asChild>
+                                <Link href="/privacy">
+                                    <FileText className="mr-2 h-4 w-4" />
+                                    <span>Privacy Policy</span>
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                                <Link href="/tos">
+                                    <FileText className="mr-2 h-4 w-4" />
+                                    <span>Terms of Service</span>
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem asChild>
                                 <a href="https://github.com/network-goods-institute/negation-game" target="_blank" rel="noopener noreferrer">
                                     <Github className="mr-2 h-4 w-4" />
                                     <span>GitHub</span>
@@ -227,6 +241,19 @@ export const HeaderActions = () => {
                             <DropdownMenuItem onSelect={() => setShowKeybinds(true)}>
                                 <Keyboard className="mr-2 h-4 w-4" />
                                 <span>Keybinds</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem asChild>
+                                <Link href="/privacy">
+                                    <FileText className="mr-2 h-4 w-4" />
+                                    <span>Privacy Policy</span>
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                                <Link href="/tos">
+                                    <FileText className="mr-2 h-4 w-4" />
+                                    <span>Terms of Service</span>
+                                </Link>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem asChild>

@@ -90,47 +90,41 @@ describe("Middleware", () => {
   });
 
   describe("Subdomain routing", () => {
-    test("redirects valid space subdomain to play.negationgame.com/s/[space]", async () => {
+    test("rewrites valid space subdomain to /s/[space] on same host", async () => {
       await mockMiddleware(
         "https://scroll.negationgame.com",
         "scroll.negationgame.com"
       );
 
-      expect(NextResponse.redirect).toHaveBeenCalledWith(
+      expect(NextResponse.rewrite).toHaveBeenCalledWith(
         expect.objectContaining({
-          href: expect.stringContaining(
-            "https://play.negationgame.com/s/scroll"
-          ),
+          href: expect.stringContaining("/s/scroll"),
         })
       );
     });
 
-    test("redirects arbitrum subdomain to play.negationgame.com/s/arbitrum", async () => {
+    test("rewrites arbitrum subdomain to /s/arbitrum on same host", async () => {
       await mockMiddleware(
         "https://arbitrum.negationgame.com",
         "arbitrum.negationgame.com"
       );
 
-      expect(NextResponse.redirect).toHaveBeenCalledWith(
+      expect(NextResponse.rewrite).toHaveBeenCalledWith(
         expect.objectContaining({
-          href: expect.stringContaining(
-            "https://play.negationgame.com/s/arbitrum"
-          ),
+          href: expect.stringContaining("/s/arbitrum"),
         })
       );
     });
 
-    test("redirects valid space subdomain with path to play.negationgame.com/s/[space]/[path]", async () => {
+    test("rewrites valid space subdomain with path to /s/[space]/[path]", async () => {
       await mockMiddleware(
         "https://scroll.negationgame.com/some/path",
         "scroll.negationgame.com"
       );
 
-      expect(NextResponse.redirect).toHaveBeenCalledWith(
+      expect(NextResponse.rewrite).toHaveBeenCalledWith(
         expect.objectContaining({
-          href: expect.stringContaining(
-            "https://play.negationgame.com/s/scroll/some/path"
-          ),
+          href: expect.stringContaining("/s/scroll/some/path"),
         })
       );
     });
@@ -141,11 +135,9 @@ describe("Middleware", () => {
         "scroll.negationgame.com"
       );
 
-      expect(NextResponse.redirect).toHaveBeenCalledWith(
+      expect(NextResponse.rewrite).toHaveBeenCalledWith(
         expect.objectContaining({
-          href: expect.stringContaining(
-            "https://play.negationgame.com/s/scroll/point/123"
-          ),
+          href: expect.stringContaining("/s/scroll/point/123"),
         })
       );
     });
@@ -156,11 +148,9 @@ describe("Middleware", () => {
         "scroll.negationgame.com"
       );
 
-      expect(NextResponse.redirect).toHaveBeenCalledWith(
+      expect(NextResponse.rewrite).toHaveBeenCalledWith(
         expect.objectContaining({
-          href: expect.stringContaining(
-            "https://play.negationgame.com/s/scroll"
-          ),
+          href: expect.stringContaining("/s/scroll"),
         })
       );
     });
@@ -171,56 +161,47 @@ describe("Middleware", () => {
         "scroll.negationgame.com"
       );
 
-      expect(NextResponse.redirect).toHaveBeenCalledWith(
+      expect(NextResponse.rewrite).toHaveBeenCalledWith(
         expect.objectContaining({
           href: expect.stringMatching(
-            /https:\/\/play\.negationgame\.com\/s\/scroll\/point\/123\/?(?:\?|&)(?:.*foo=bar.*&.*test=123|.*test=123.*&.*foo=bar)/
+            /\/s\/scroll\/point\/123\/?(?:\?|&)(?:.*foo=bar.*&.*test=123|.*test=123.*&.*foo=bar)/
           ),
         })
       );
     });
 
-    test("preserves query parameters when redirecting", async () => {
+    test("preserves query parameters when rewriting space subdomain root", async () => {
       await mockMiddleware(
         "https://scroll.negationgame.com?foo=bar&test=123",
         "scroll.negationgame.com"
       );
 
-      expect(NextResponse.redirect).toHaveBeenCalledWith(
+      expect(NextResponse.rewrite).toHaveBeenCalledWith(
         expect.objectContaining({
           href: expect.stringMatching(
-            /https:\/\/play\.negationgame\.com\/s\/scroll\/?(?:\?|&)(?:.*foo=bar.*&.*test=123|.*test=123.*&.*foo=bar)/
+            /\/s\/scroll\/?(?:\?|&)(?:.*foo=bar.*&.*test=123|.*test=123.*&.*foo=bar)/
           ),
         })
       );
     });
 
-    test("redirects invalid space subdomain to negationgame.com", async () => {
-      await mockMiddleware(
-        "https://invalid.negationgame.com",
+    test("allows unknown non-blacklisted subdomains to pass through", async () => {
+      const result = await mockMiddleware(
+        "https://invalid.negationgame.com/some/path",
         "invalid.negationgame.com"
       );
-
-      expect(NextResponse.redirect).toHaveBeenCalledWith(
-        expect.objectContaining({
-          href: "https://negationgame.com/",
-        })
-      );
+      expect(NextResponse.redirect).not.toHaveBeenCalled();
+      expect(result?.type).toBe("next");
     });
 
-    test("allows play subdomain to continue serving root without rewrite", async () => {
-      const result = await mockMiddleware(
+    test("play subdomain redirects to apex", async () => {
+      await mockMiddleware(
         "https://play.negationgame.com",
         "play.negationgame.com"
       );
-
-      // For play subdomain at root, we should serve the homepage (next)
-      expect(NextResponse.next).toHaveBeenCalled();
-      expect(NextResponse.redirect).not.toHaveBeenCalled();
-
-      expect(result).toBeDefined();
-      // Check this is a next() response
-      expect(result?.type).toBe("next");
+      expect(NextResponse.redirect).toHaveBeenCalledWith(
+        expect.objectContaining({ href: "https://negationgame.com/" })
+      );
     });
 
     test("redirects to negationgame.com for blacklisted subdomains", async () => {

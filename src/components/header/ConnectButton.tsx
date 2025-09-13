@@ -12,7 +12,7 @@ import {
   DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { useUser } from "@/queries/users/useUser";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy, Captcha } from "@privy-io/react-auth";
 import { clearPrivyCookie } from '@/actions/users/auth';
 import { LoaderCircleIcon, CoinsIcon, UserIcon, LogOutIcon, TrophyIcon, BellIcon, SettingsIcon, MessageSquareIcon, BarChart3Icon, ChevronDownIcon, ShieldIcon, ShieldCheckIcon } from "lucide-react";
 import { useAdminStatus } from "@/hooks/admin/useAdminStatus";
@@ -123,17 +123,20 @@ export const ConnectButton = () => {
 
   if (!privyUser)
     return (
-      <Button
-        key="connect"
-        className="w-28 sm:w-36 rounded-full text-sm"
-        size={"sm"}
-        onClick={handleLogin}
-        disabled={isLoggingIn}
-      >
-        <p className="overflow-clip max-w-full">
-          {isLoggingIn ? <LoaderCircleIcon className="animate-spin" /> : "Connect"}
-        </p>
-      </Button>
+      <>
+        <Captcha />
+        <Button
+          key="connect"
+          className="w-28 sm:w-36 rounded-full text-sm"
+          size={"sm"}
+          onClick={handleLogin}
+          disabled={isLoggingIn}
+        >
+          <p className="overflow-clip max-w-full">
+            {isLoggingIn ? <LoaderCircleIcon className="animate-spin" /> : "Connect"}
+          </p>
+        </Button>
+      </>
     );
 
   if (privyUser && !user && isLoading) {

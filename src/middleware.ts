@@ -81,10 +81,7 @@ function handleSubdomain(
   if (subdomain === "sync") {
     const path = url.pathname;
     if (path === "/" || path === "") {
-      const dest = new URL(
-        "/experiment/rationale/multiplayer",
-        req.url
-      );
+      const dest = new URL("/experiment/rationale/multiplayer", req.url);
       url.searchParams.forEach((value, key) => {
         dest.searchParams.set(key, value);
       });
@@ -105,10 +102,7 @@ function handleSubdomain(
     return NextResponse.next();
   }
 
-  if (BLACKLISTED_SUBDOMAINS.has(subdomain) || !isValidSpaceId(subdomain)) {
-    if (subdomain === "play") {
-      return undefined;
-    }
+  if (BLACKLISTED_SUBDOMAINS.has(subdomain)) {
     return NextResponse.redirect(new URL("https://negationgame.com"));
   }
 
@@ -122,20 +116,17 @@ function handleSubdomain(
       }
     }
 
-    const spaceUrl = new URL(
-      `/s/${subdomain}${targetPath}`,
-      "https://play.negationgame.com"
-    );
+    const dest = new URL(`/s/${subdomain}${targetPath}`, req.url);
     url.searchParams.forEach((value, key) => {
-      spaceUrl.searchParams.set(key, value);
+      dest.searchParams.set(key, value);
     });
 
-    const response = NextResponse.redirect(spaceUrl);
+    const response = NextResponse.rewrite(dest);
     response.headers.set(SPACE_HEADER, subdomain);
     return response;
   }
 
-  return NextResponse.redirect(new URL("https://negationgame.com"));
+  return NextResponse.next();
 }
 
 export default async function middleware(req: NextRequest) {
@@ -282,7 +273,7 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Handle settings, notifications, messages, admin, delta, experiment, and embed paths without rewriting
+  // Handle settings, notifications, messages, admin, delta, experiment, privacy, tos, and embed paths without rewriting
   if (
     url.pathname.startsWith("/settings") ||
     url.pathname.startsWith("/notifications") ||
@@ -290,6 +281,8 @@ export default async function middleware(req: NextRequest) {
     url.pathname.startsWith("/admin") ||
     url.pathname.startsWith("/delta") ||
     url.pathname.startsWith("/experiment") ||
+    url.pathname.startsWith("/privacy") ||
+    url.pathname.startsWith("/tos") ||
     url.pathname.startsWith("/embed")
   ) {
     if (!pathname.startsWith("/s/")) {

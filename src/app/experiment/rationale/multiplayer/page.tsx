@@ -233,30 +233,6 @@ export default function MultiplayerRationaleIndexPage() {
             </div>
           ) : (
             <>
-              {/* New Rationale Section */}
-              <div className="mb-6">
-                <Card
-                  className={`p-6 hover:shadow-lg transition-all duration-200 cursor-pointer relative border-2 border-dashed border-stone-300 hover:border-stone-400 hover:bg-stone-50/50 ${creating ? 'opacity-60 pointer-events-none' : ''}`}
-                  onClick={handleCreate}
-                  role="button"
-                >
-                  {creating && (
-                    <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-lg">
-                      <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  )}
-                  <div className="flex flex-col items-center justify-center text-center">
-                    <div className="w-12 h-12 rounded-full bg-stone-100 flex items-center justify-center mb-3">
-                      <svg className="w-6 h-6 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                    </div>
-                    <div className="text-lg font-semibold text-stone-700 mb-1">Create New Rationale</div>
-                    <div className="text-sm text-stone-500">Start building your perspective</div>
-                  </div>
-                </Card>
-              </div>
-
               {/* Owned Rationales Section */}
               <div className="bg-white/60 backdrop-blur-sm rounded-xl border border-stone-200/30 p-6 mb-8">
                 <div className="mb-6">
@@ -271,6 +247,28 @@ export default function MultiplayerRationaleIndexPage() {
                   <p className="text-sm text-stone-600 ml-11">Your personal rationale projects</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6">
+                  {/* Create New Rationale Card */}
+                  <Card
+                    className={`p-4 hover:shadow-md transition w-full cursor-pointer relative border-2 border-dashed border-stone-300 hover:border-stone-400 hover:bg-stone-50/50 ${creating ? 'opacity-60 pointer-events-none' : ''}`}
+                    onClick={handleCreate}
+                    role="button"
+                  >
+                    {creating && (
+                      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-lg">
+                        <div className="size-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    )}
+                    <div className="flex flex-col items-center justify-center text-center">
+                      <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center mb-2">
+                        <svg className="w-4 h-4 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                      </div>
+                      <div className="text-sm font-semibold text-stone-700 mb-1">Create New</div>
+                      <div className="text-xs text-stone-500">Start a rationale</div>
+                    </div>
+                  </Card>
+
                   {owned
                     .filter((d) => {
                       const t = (d.title || "").toLowerCase();
@@ -491,14 +489,6 @@ export default function MultiplayerRationaleIndexPage() {
                     </div>
                   </div>
                 </>
-              )}
-              {!loading && owned.length === 0 && visited.length === 0 && (
-                <div className="mt-10 flex flex-col items-center justify-center text-center">
-                  <div className="h-16 w-16 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-2xl mb-4">💡</div>
-                  <h2 className="text-lg font-semibold mb-2">No rationales yet</h2>
-                  <p className="text-sm text-stone-600 mb-4">Create your first rationale to start collaborating.</p>
-                  <Button onClick={handleCreate}>Create Rationale</Button>
-                </div>
               )}
             </>
           )}
