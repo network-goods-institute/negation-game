@@ -20,7 +20,6 @@ interface MultiplayerHeaderProps {
   title?: string;
   onTitleCommit?: (title: string) => void;
   onTitleInput?: (title: string) => void;
-  onResyncNow?: () => Promise<void> | void;
 }
 
 export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
@@ -38,7 +37,6 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   title,
   onTitleCommit,
   onTitleInput,
-  onResyncNow,
   connectionState,
 }) => {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -147,15 +145,6 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
                   title="Force save now"
                 >
                   Save now
-                </button>
-              )}
-              {onResyncNow && (
-                <button
-                  onClick={() => onResyncNow()}
-                  className="text-xs text-purple-600 hover:text-purple-800 border-l border-stone-200 pl-2 ml-1"
-                  title="Fetch and apply any missing updates"
-                >
-                  Resync now
                 </button>
               )}
               {isSaving && interruptSave && (
