@@ -408,7 +408,6 @@ export default function MultiplayerRationaleDetailPage() {
                 forceSave={forceSave}
                 interruptSave={interruptSave || undefined}
                 nextSaveTime={nextSaveTime}
-                onResyncNow={resyncNow}
                 proxyMode={!isLeader}
                 userId={userId}
                 title={(() => { const t = (((nodes as any[]).find(n => n.type === 'title')?.data?.content) as string) || ''; return (t || '').trim() || (typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '')); })()}
