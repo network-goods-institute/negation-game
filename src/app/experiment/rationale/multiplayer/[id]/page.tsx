@@ -46,7 +46,7 @@ import { recordOpen } from '@/actions/experimental/rationales';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
-export default function MultiplayerRationaleDetailPage() {
+export default function MultiplayerBoardDetailPage() {
     const routeParams = useParams<{ id: string }>();
     const { authenticated, ready, login } = usePrivy();
     const { data: user, isLoading: isUserLoading, isFetching: isUserFetching } = useUser();
@@ -658,7 +658,7 @@ export default function MultiplayerRationaleDetailPage() {
                             <div className="absolute inset-0 bg-gray-50/80 z-10 flex items-center justify-center">
                                 <div className="text-center bg-white/80 px-6 py-4 rounded-lg border shadow-sm">
                                     <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                                    <div className="text-sm text-gray-600">Loading graph…</div>
+                                    <div className="text-sm text-gray-600">Loading board…</div>
                                 </div>
                             </div>
                         )}

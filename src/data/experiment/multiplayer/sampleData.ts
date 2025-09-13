@@ -11,10 +11,10 @@ import { GroupNode } from "@/components/experiment/multiplayer/GroupNode";
 import ObjectionNode from "@/components/experiment/multiplayer/objection/ObjectionNode";
 import EdgeAnchorNode from "@/components/experiment/multiplayer/objection/EdgeAnchorNode";
 
-export const sampleRationale = {
+export const sampleBoard = {
   id: "sample",
   title: "Universal Basic Income – debate map",
-  description: "A small rationale exploring UBI claims and counterclaims.",
+  description: "A small board exploring UBI claims and counterclaims.",
 };
 
 export const initialNodes: Node[] = [

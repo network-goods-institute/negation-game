@@ -98,7 +98,7 @@ export default function MultiplayerRationaleIndexPage() {
       setOwned((d) => d.filter((x) => x.id !== docId));
       setVisited((d) => d.filter((x) => x.id !== docId));
       setDeletingId(null);
-      toast.success('Rationale deleted successfully');
+      toast.success('Board deleted successfully');
     } catch (e: any) {
       const msg = (e?.message || '').toLowerCase();
       if (msg.includes('forbidden')) toast.error('Only the owner can delete');
@@ -125,7 +125,7 @@ export default function MultiplayerRationaleIndexPage() {
       setVisited((prev) => prev.map((d) => d.id === renamingId ? { ...d, title } : d));
       setRenamingId(null);
       setRenamingDraft('');
-      toast.success('Rationale renamed successfully');
+      toast.success('Board renamed successfully');
     } catch (e: any) {
       const msg = (e?.message || '').toLowerCase();
       if (msg.includes('forbidden')) toast.error('Only the owner can rename');
@@ -154,7 +154,7 @@ export default function MultiplayerRationaleIndexPage() {
       <div className="fixed inset-0 top-16 bg-gray-50 flex items-center justify-center">
         <div className="bg-white p-8 rounded-lg shadow-lg border text-center max-w-md">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Login Required</h1>
-          <p className="text-gray-600 mb-6">You need to be logged in to access the multiplayer rationale system.</p>
+          <p className="text-gray-600 mb-6">You need to be logged in to access the multiplayer board system.</p>
           <Button onClick={login as any}>Login</Button>
         </div>
       </div>
@@ -168,14 +168,14 @@ export default function MultiplayerRationaleIndexPage() {
         <div className="relative max-w-7xl mx-auto p-6 pb-12">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-stone-800">My Rationales</h1>
-              <p className="text-sm text-stone-600 mt-1">Create, organize, and collaborate on rationale graphs.</p>
+              <h1 className="text-3xl font-bold text-stone-800">My Boards</h1>
+              <p className="text-sm text-stone-600 mt-1">Create, organize, and collaborate on argument boards.</p>
             </div>
             <Button onClick={handleCreate} disabled={creating} aria-busy={creating} className="h-9 px-4">
               {creating ? (
                 <span className="h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
               ) : (
-                "New Rationale"
+                "New Board"
               )}
             </Button>
           </div>
@@ -187,7 +187,7 @@ export default function MultiplayerRationaleIndexPage() {
                   <Input
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search rationales..."
+                    placeholder="Search boards..."
                     className="max-w-sm pl-10 bg-stone-50/50 border-stone-200/50 focus:bg-white"
                   />
                   <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -244,7 +244,7 @@ export default function MultiplayerRationaleIndexPage() {
                     </div>
                     <h2 className="text-xl font-semibold text-stone-800">Owned by you</h2>
                   </div>
-                  <p className="text-sm text-stone-600 ml-11">Your personal rationale projects</p>
+                  <p className="text-sm text-stone-600 ml-11">Your personal boards</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6">
                   {/* Create New Rationale Card */}
@@ -265,7 +265,7 @@ export default function MultiplayerRationaleIndexPage() {
                         </svg>
                       </div>
                       <div className="text-sm font-semibold text-stone-700 mb-1">Create New</div>
-                      <div className="text-xs text-stone-500">Start a rationale</div>
+                      <div className="text-xs text-stone-500">Start a board</div>
                     </div>
                   </Card>
 
@@ -277,7 +277,7 @@ export default function MultiplayerRationaleIndexPage() {
                       return !q || t.includes(q) || id.includes(q);
                     })
                     .map((d) => {
-                      const title = (d.title || 'New Rationale').trim() || 'New Rationale';
+                      const title = (d.title || 'New Board').trim() || 'New Board';
                       const ownerId = (d as any).ownerId || '';
                       const lastOpenAt = d.lastOpenAt ? new Date(d.lastOpenAt as any) : null;
                       const updatedAt = d.updatedAt ? new Date(d.updatedAt as any) : null;
@@ -384,7 +384,7 @@ export default function MultiplayerRationaleIndexPage() {
                         </div>
                         <h2 className="text-xl font-semibold text-stone-800">Shared with you</h2>
                       </div>
-                      <p className="text-sm text-stone-600 ml-11">Collaborative projects from others</p>
+                      <p className="text-sm text-stone-600 ml-11">Collaborative boards from others</p>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6">
                       {visited
@@ -395,7 +395,7 @@ export default function MultiplayerRationaleIndexPage() {
                           return !q || t.includes(q) || id.includes(q);
                         })
                         .map((d) => {
-                          const title = (d.title || 'New Rationale').trim() || 'New Rationale';
+                          const title = (d.title || 'New Board').trim() || 'New Board';
                           const ownerId = (d as any).ownerId || '';
                           const lastOpenAt = d.lastOpenAt ? new Date(d.lastOpenAt as any) : null;
                           const updatedAt = d.updatedAt ? new Date(d.updatedAt as any) : null;
@@ -505,7 +505,7 @@ export default function MultiplayerRationaleIndexPage() {
       }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Rename rationale</DialogTitle>
+            <DialogTitle>Rename board</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <Input
@@ -552,9 +552,9 @@ export default function MultiplayerRationaleIndexPage() {
       }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete rationale</AlertDialogTitle>
+            <AlertDialogTitle>Delete board</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the rationale.
+              This action cannot be undone. This will permanently delete the board.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

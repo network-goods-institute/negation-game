@@ -141,7 +141,7 @@ describe("rationales actions", () => {
     );
     const res = await createRationale({});
     expect(res.id).toMatch(/^m-/);
-    expect(res.title).toBe("New Rationale");
+    expect(res.title).toBe("New Board");
   });
 
   it("recordOpen backfills owner if missing and upserts access", async () => {
@@ -159,7 +159,7 @@ describe("rationales actions", () => {
             return [
               {
                 id: "doc-record",
-                title: "New Rationale",
+                title: "New Board",
                 ownerId: "connormcmk",
               },
             ];

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { ConnectedUsers } from './ConnectedUsers';
 import { WebsocketProvider } from 'y-websocket';
+import { buildRationaleIndexPath } from '@/utils/hosts/syncPaths';
 
 type YProvider = WebsocketProvider | null;
 
@@ -84,6 +86,20 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   return (
     <>
       <div className="absolute top-4 left-4 z-10 bg-white p-4 rounded-lg shadow-lg border">
+        <Link
+          href={buildRationaleIndexPath(typeof window !== 'undefined' ? window.location.host : null)}
+          className="flex items-center gap-2 text-sm text-stone-600 hover:text-stone-800 transition-colors mb-3 group"
+        >
+          <svg
+            className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          <span>Back to Boards</span>
+        </Link>
         <div className="mb-2">
           <label className="block text-xs text-stone-600 mb-1">Title</label>
           <input

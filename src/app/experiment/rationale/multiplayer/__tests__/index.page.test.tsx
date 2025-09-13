@@ -30,9 +30,9 @@ jest.mock('@/actions/experimental/rationales', () => ({
 }));
 
 describe('Multiplayer index page', () => {
-  it('renders My Rationales and lists docs', async () => {
+  it('renders My Boards and lists docs', async () => {
     render(<Page />);
-    expect(await screen.findByText(/My Rationales/i)).toBeInTheDocument();
+    expect(await screen.findByText(/My Boards/i)).toBeInTheDocument();
     expect(await screen.findByText('Mine')).toBeInTheDocument();
     expect(await screen.findByText('Theirs')).toBeInTheDocument();
   });

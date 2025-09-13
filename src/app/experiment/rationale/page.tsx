@@ -198,7 +198,7 @@ const initialEdges: Edge[] = [
   },
 ];
 
-export default function ExperimentalRationalePage() {
+export default function ExperimentalBoardPage() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 

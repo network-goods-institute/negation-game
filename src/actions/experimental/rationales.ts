@@ -8,7 +8,7 @@ import { mpDocAccessTable } from "@/db/tables/mpDocAccessTable";
 import { and, eq, sql } from "drizzle-orm";
 
 const DEFAULT_OWNER = "connormcmk";
-const DEFAULT_TITLE = "New Rationale";
+const DEFAULT_TITLE = "New Board";
 
 export async function listMyRationales() {
   const userId = await getUserId();

@@ -22,7 +22,7 @@ export const useInitialGraph = () => {
           id: questionId,
           type: "title",
           position: { x: 250, y: 160 },
-          data: { content: requestedTitle || "New Rationale" },
+          data: { content: requestedTitle || "New Board" },
         },
         {
           id: optionId,
