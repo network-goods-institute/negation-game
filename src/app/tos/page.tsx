@@ -19,7 +19,7 @@ export default function TermsOfService() {
                         <section>
                             <h2 className="text-2xl font-semibold mb-4">1. Acceptance of Terms</h2>
                             <p className="text-muted-foreground leading-relaxed">
-                                By accessing and using Negation Game ("the Service"), you accept and agree to be bound by the terms and provision of this agreement. By visiting our site, you also accept and consent to our use of cookies and similar tracking technologies as described in our Privacy Policy. If you do not agree to abide by the above, please do not use this service.
+                                By accessing and using Negation Game (&quot;the Service&quot;), you accept and agree to be bound by the terms and provision of this agreement. By visiting our site, you also accept and consent to our use of cookies and similar tracking technologies as described in our Privacy Policy. If you do not agree to abide by the above, please do not use this service.
                             </p>
                         </section>
 
@@ -92,7 +92,7 @@ export default function TermsOfService() {
                         <section>
                             <h2 className="text-2xl font-semibold mb-4">9. Disclaimer of Warranties</h2>
                             <p className="text-muted-foreground">
-                                The Service is provided on an "AS IS" and "AS AVAILABLE" basis. We make no warranties, expressed or implied, and hereby disclaim all warranties including but not limited to merchantability and fitness for a particular purpose.
+                                The Service is provided on an &quot;AS IS&quot; and &quot;AS AVAILABLE&quot; basis. We make no warranties, expressed or implied, and hereby disclaim all warranties including but not limited to merchantability and fitness for a particular purpose.
                             </p>
                         </section>
 
