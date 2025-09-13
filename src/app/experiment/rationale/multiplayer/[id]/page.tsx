@@ -42,6 +42,7 @@ import {
     createDeleteInversePair
 } from '@/utils/experiment/multiplayer/graphOperations';
 import { Roboto_Slab } from 'next/font/google';
+import { recordOpen } from '@/actions/experimental/rationales';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
@@ -68,17 +69,20 @@ export default function MultiplayerRationaleDetailPage() {
     const userColor = useUserColor(user?.id);
     const initialGraph = useInitialGraph();
     const [dbTitle, setDbTitle] = useState<string | null>(null);
+    const [ownerId, setOwnerId] = useState<string | null>(null);
 
-    // Load title from database on mount
+
     useEffect(() => {
         if (!routeParams?.id) return;
         const loadDbTitle = async () => {
             try {
                 const rid = typeof routeParams.id === 'string' ? routeParams.id : String(routeParams.id);
+                try { await recordOpen(rid); } catch { }
                 const res = await fetch(`/api/experimental/rationales/${encodeURIComponent(rid)}`);
                 if (res.ok) {
                     const data = await res.json();
                     setDbTitle(data.title || null);
+                    setOwnerId(data.ownerId || null);
                 }
             } catch (e) {
                 console.error('[title] Failed to load DB title:', e);
@@ -325,20 +329,6 @@ export default function MultiplayerRationaleDetailPage() {
         setNodes,
         registerTextInUndoScope
     );
-
-    // Sync DB title to Yjs title node when both are available
-    useEffect(() => {
-        if (!dbTitle || !isLeader || !yTextMap || !ydoc || !nodes.length) return;
-
-        const titleNode = nodes.find(n => n.type === 'title');
-        if (!titleNode) return;
-
-        const currentContent = (titleNode.data?.content as string) || '';
-        if (currentContent.trim() !== dbTitle.trim()) {
-            console.log('[title] Syncing DB title to Yjs:', dbTitle);
-            updateNodeContent(titleNode.id, dbTitle);
-        }
-    }, [dbTitle, isLeader, yTextMap, ydoc, nodes, updateNodeContent]);
 
     const inversePair = createInversePair(
         nodes,

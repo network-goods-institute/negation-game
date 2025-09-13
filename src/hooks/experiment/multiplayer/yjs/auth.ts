@@ -5,7 +5,14 @@ export type YjsAuth = {
 
 export const fetchYjsAuthToken = async (): Promise<YjsAuth> => {
   const res = await fetch("/api/yjs/token", { method: "POST" });
-  if (!res.ok) throw new Error(`Token fetch failed: ${res.status}`);
+  if (!res.ok) {
+    if (res.status === 401) {
+      const err: any = new Error("AUTH_EXPIRED");
+      err.code = "AUTH_EXPIRED";
+      throw err;
+    }
+    throw new Error(`Token fetch failed: ${res.status}`);
+  }
   const body = (await res.json()) as YjsAuth;
   if (!body?.token || !body?.expiresAt) throw new Error("Invalid token payload");
   return body;

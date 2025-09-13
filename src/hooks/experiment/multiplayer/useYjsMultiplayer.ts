@@ -58,6 +58,7 @@ export const useYjsMultiplayer = ({
   const isRefreshingTokenRef = useRef(false);
   const didResyncOnConnectRef = useRef(false);
   const shouldSeedOnConnectRef = useRef(false);
+  const seededOnceRef = useRef(false);
   useEffect(() => {
     localOriginRef.current = localOrigin;
   }, [localOrigin]);
@@ -438,6 +439,8 @@ export const useYjsMultiplayer = ({
                 }
               }
             }, "seed");
+            try { forceSaveRef.current?.(); } catch {}
+            seededOnceRef.current = true;
           }
           shouldSeedOnConnectRef.current = false;
         } catch {}
@@ -533,8 +536,12 @@ export const useYjsMultiplayer = ({
           } catch {}
         }
         scheduleRefresh(expiresAt);
-      } catch (error) {
-        setConnectionError("Failed to authenticate WebSocket connection");
+      } catch (error: any) {
+        if (error?.code === "AUTH_EXPIRED" || error?.message === "AUTH_EXPIRED") {
+          setConnectionError("Session expired. Please log in again.");
+        } else {
+          setConnectionError("Failed to authenticate WebSocket connection");
+        }
       }
     };
 
@@ -561,8 +568,40 @@ export const useYjsMultiplayer = ({
         attachProviderListeners(provider);
         didResyncOnConnectRef.current = false;
         scheduleRefresh(expiresAt);
-      } catch (error) {
-        setConnectionError("Failed to authenticate WebSocket connection");
+        // Fallback seed if synced event is delayed or missed by provider
+        window.setTimeout(() => {
+          try {
+            if (seededOnceRef.current) return;
+            if (!shouldSeedOnConnectRef.current) return;
+            const yNodes = yNodesMapRef.current as any;
+            const yEdges = yEdgesMapRef.current as any;
+            const yText = yTextMapRef.current as any;
+            if (!yNodes || !yEdges || !yText) return;
+            if (yNodes.size === 0 && yEdges.size === 0) {
+              (doc as any).transact(() => {
+                for (const n of initialNodes) yNodes.set((n as any).id, n as any);
+                for (const e of initialEdges) yEdges.set((e as any).id, e as any);
+                for (const n of initialNodes) {
+                  const id = (n as any).id;
+                  if (!yText.get(id)) {
+                    const t = new (Y as any).Text();
+                    const initial = (n as any).type === 'statement' ? (n as any).data?.statement || '' : (n as any).data?.content || '';
+                    if (initial) t.insert(0, initial);
+                    yText.set(id, t);
+                  }
+                }
+              }, 'seed');
+              try { forceSaveRef.current?.(); } catch {}
+              seededOnceRef.current = true;
+            }
+          } catch {}
+        }, 1200);
+      } catch (error: any) {
+        if (error?.code === "AUTH_EXPIRED" || error?.message === "AUTH_EXPIRED") {
+          setConnectionError("Session expired. Please log in again.");
+        } else {
+          setConnectionError("Failed to authenticate WebSocket connection");
+        }
         return;
       }
     })();

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 
 export default function NewMultiplayerRationalePage() {
     const router = useRouter();
-    const [title, setTitle] = React.useState('');
+    const [title, setTitle] = React.useState('New Rationale');
     const [error, setError] = React.useState<string | null>(null);
 
     const handleCreate = (e: React.FormEvent) => {
@@ -30,7 +30,7 @@ export default function NewMultiplayerRationalePage() {
                     type="text"
                     value={title}
                     onChange={(e) => { setTitle(e.target.value); if (error) setError(null); }}
-                    placeholder="Enter rationale title"
+                    placeholder="New Rationale"
                     className="w-full border rounded px-3 py-2 mb-2"
                     autoFocus
                 />
