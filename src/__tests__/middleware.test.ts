@@ -235,6 +235,54 @@ describe("Middleware", () => {
         })
       );
     });
+
+    test("sync subdomain root rewrites to multiplayer index", async () => {
+      const result = await mockMiddleware(
+        "https://sync.negationgame.com/",
+        "sync.negationgame.com"
+      );
+
+      expect(NextResponse.rewrite).toHaveBeenCalledWith(
+        expect.objectContaining({
+          href: expect.stringContaining(
+            "/experiment/rationale/multiplayer"
+          ),
+        })
+      );
+      expect(result?.type).toBe("rewrite");
+    });
+
+    test("sync subdomain /board/:id rewrites to rationale detail", async () => {
+      const result = await mockMiddleware(
+        "https://sync.negationgame.com/board/abc123",
+        "sync.negationgame.com"
+      );
+
+      expect(NextResponse.rewrite).toHaveBeenCalledWith(
+        expect.objectContaining({
+          href: expect.stringContaining(
+            "/experiment/rationale/multiplayer/abc123"
+          ),
+        })
+      );
+      expect(result?.type).toBe("rewrite");
+    });
+
+    test("sync subdomain preserves query parameters", async () => {
+      const result = await mockMiddleware(
+        "https://sync.negationgame.com/board/xyz?foo=bar&x=1",
+        "sync.negationgame.com"
+      );
+
+      expect(NextResponse.rewrite).toHaveBeenCalledWith(
+        expect.objectContaining({
+          href: expect.stringMatching(
+            /\/experiment\/rationale\/multiplayer\/xyz\?(?:.*foo=bar.*&.*x=1|.*x=1.*&.*foo=bar)/
+          ),
+        })
+      );
+      expect(result?.type).toBe("rewrite");
+    });
   });
 
   describe("Path handling", () => {

@@ -78,6 +78,33 @@ function handleSubdomain(
 ): NextResponse | undefined {
   const url = req.nextUrl;
 
+  if (subdomain === "sync") {
+    const path = url.pathname;
+    if (path === "/" || path === "") {
+      const dest = new URL(
+        "/experiment/rationale/multiplayer",
+        req.url
+      );
+      url.searchParams.forEach((value, key) => {
+        dest.searchParams.set(key, value);
+      });
+      return NextResponse.rewrite(dest);
+    }
+    const boardMatch = path.match(/^\/board\/([^/]+)\/?$/);
+    if (boardMatch) {
+      const id = boardMatch[1];
+      const dest = new URL(
+        `/experiment/rationale/multiplayer/${encodeURIComponent(id)}`,
+        req.url
+      );
+      url.searchParams.forEach((value, key) => {
+        dest.searchParams.set(key, value);
+      });
+      return NextResponse.rewrite(dest);
+    }
+    return NextResponse.next();
+  }
+
   if (BLACKLISTED_SUBDOMAINS.has(subdomain) || !isValidSpaceId(subdomain)) {
     if (subdomain === "play") {
       return undefined;

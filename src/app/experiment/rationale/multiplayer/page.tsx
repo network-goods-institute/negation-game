@@ -31,6 +31,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { buildRationaleDetailPath } from "@/utils/hosts/syncPaths";
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
@@ -76,7 +77,8 @@ export default function MultiplayerRationaleIndexPage() {
     setCreating(true);
     try {
       const { id } = await createRationale({});
-      window.location.href = `/experiment/rationale/multiplayer/${encodeURIComponent(id)}`;
+      const host = typeof window !== 'undefined' ? window.location.host : '';
+      window.location.href = buildRationaleDetailPath(id, host);
     } catch (e: any) {
       const msg = (e?.message || "").toLowerCase();
       if (msg.includes("unauthorized")) {
@@ -292,7 +294,8 @@ export default function MultiplayerRationaleIndexPage() {
                             setOpeningId(d.id);
                             try {
                               try { await recordOpen(d.id); } catch { }
-                              router.push(`/experiment/rationale/multiplayer/${encodeURIComponent(d.id)}`);
+                              const host = typeof window !== 'undefined' ? window.location.host : '';
+                              router.push(buildRationaleDetailPath(d.id, host));
                             } catch (e: any) {
                               const msg = (e?.message || '').toLowerCase();
                               if (msg.includes('unauthorized')) { toast.error('Session expired. Please log in again.'); try { (login as any)?.(); } catch { } }
@@ -306,7 +309,7 @@ export default function MultiplayerRationaleIndexPage() {
                           )}
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <Link href={`/experiment/rationale/multiplayer/${encodeURIComponent(d.id)}`} className="text-base font-medium text-blue-600 hover:underline">
+                              <Link href={(() => { const host = typeof window !== 'undefined' ? window.location.host : ''; return buildRationaleDetailPath(d.id, host); })()} className="text-base font-medium text-blue-600 hover:underline">
                                 {title}
                               </Link>
                               <div className="mt-2 flex items-center gap-2 text-xs text-stone-600">
@@ -409,7 +412,8 @@ export default function MultiplayerRationaleIndexPage() {
                                 setOpeningId(d.id);
                                 try {
                                   try { await recordOpen(d.id); } catch { }
-                                  router.push(`/experiment/rationale/multiplayer/${encodeURIComponent(d.id)}`);
+                                  const host = typeof window !== 'undefined' ? window.location.host : '';
+                                  router.push(buildRationaleDetailPath(d.id, host));
                                 } catch (e: any) {
                                   const msg = (e?.message || '').toLowerCase();
                                   if (msg.includes('unauthorized')) { toast.error('Session expired. Please log in again.'); try { (login as any)?.(); } catch { } }
@@ -423,7 +427,7 @@ export default function MultiplayerRationaleIndexPage() {
                               )}
                               <div className="flex items-start justify-between gap-2">
                                 <div>
-                                  <Link href={`/experiment/rationale/multiplayer/${encodeURIComponent(d.id)}`} className="text-base font-medium text-blue-600 hover:underline">
+                                  <Link href={(() => { const host = typeof window !== 'undefined' ? window.location.host : ''; return buildRationaleDetailPath(d.id, host); })()} className="text-base font-medium text-blue-600 hover:underline">
                                     {title}
                                   </Link>
                                   <div className="mt-2 flex items-center gap-2 text-xs text-stone-600">
