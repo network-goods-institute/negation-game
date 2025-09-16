@@ -25,6 +25,7 @@ import { Library, FileText, Keyboard } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { usePrivy } from "@privy-io/react-auth";
 import { useUser } from "@/queries/users/useUser";
+import { isSyncHost } from "@/utils/hosts/syncPaths";
 
 const LOCAL_STORAGE_KEY = 'onboardingDismissed';
 const LAST_SHOWN_KEY = 'onboardingLastShown';
@@ -158,7 +159,12 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     const suppressOnboarding = !!privyUser && !appUser; // new-user init state
 
     useEffect(() => {
-        const suppressed = pathname === '/' || pathname.startsWith('/embed') || pathname.startsWith('/experiment/rationale/multiplayer');
+        const host = typeof window !== 'undefined' ? window.location.host : '';
+        const isOnSyncSubdomain = isSyncHost(host);
+        const suppressed = pathname === '/' ||
+            pathname.startsWith('/embed') ||
+            pathname.startsWith('/experiment/rationale/multiplayer') ||
+            isOnSyncSubdomain;
         if (suppressed) {
             setIsInitialized(true);
             return;
@@ -203,7 +209,12 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
         isPermanentlyDismissed,
     };
 
-    const suppressed = pathname === '/' || pathname.startsWith('/embed') || pathname.startsWith('/experiment/rationale/multiplayer');
+    const host = typeof window !== 'undefined' ? window.location.host : '';
+    const isOnSyncSubdomain = isSyncHost(host);
+    const suppressed = pathname === '/' ||
+        pathname.startsWith('/embed') ||
+        pathname.startsWith('/experiment/rationale/multiplayer') ||
+        isOnSyncSubdomain;
 
     return (
         <OnboardingContext.Provider value={value}>
