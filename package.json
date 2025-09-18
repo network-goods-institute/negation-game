@@ -19,6 +19,7 @@
     "clone-db": "./scripts/clone-db.sh",
     "dump-db": "bash scripts/dump-db.sh",
     "restore-db": "./scripts/restore-db.sh",
+    "smoke-test": "pnpm lint && pnpm compile && pnpm test",
     "validate": "pnpm lint && pnpm compile && pnpm test && pnpm build",
     "compile": "npx tsc --noEmit"
   },
