@@ -28,7 +28,7 @@ describe("createDeleteNode", () => {
       null, // yEdgesMap
       null, // yTextMap
       null, // ydoc
-      true, // isLeader
+      true, // canWrite
       {}, // localOrigin
       mockSetNodes,
       mockSetEdges,
@@ -86,7 +86,7 @@ describe("createDeleteNode", () => {
         null, // yEdgesMap
         null, // yTextMap
         null, // ydoc
-        true, // isLeader
+        true, // canWrite
         {}, // localOrigin
         mockSetNodes,
         mockSetEdges,
@@ -143,7 +143,7 @@ describe("createDeleteNode", () => {
         null, // yEdgesMap
         null, // yTextMap
         null, // ydoc
-        true, // isLeader
+        true, // canWrite
         {}, // localOrigin
         mockSetNodes,
         mockSetEdges,
@@ -232,7 +232,7 @@ describe("createDeleteNode", () => {
         null, // yEdgesMap
         null, // yTextMap
         null, // ydoc
-        true, // isLeader
+        true, // canWrite
         {}, // localOrigin
         mockSetNodes,
         mockSetEdges,
@@ -313,7 +313,7 @@ describe("createDeleteNode", () => {
         null, // yEdgesMap
         null, // yTextMap
         null, // ydoc
-        true, // isLeader
+        true, // canWrite
         {}, // localOrigin
         mockSetNodes,
         mockSetEdges,
@@ -346,3 +346,4 @@ describe("createDeleteNode", () => {
     });
   });
 });
+

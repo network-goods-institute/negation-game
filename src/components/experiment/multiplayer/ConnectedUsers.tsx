@@ -8,10 +8,10 @@ interface ConnectedUsersProps {
     provider: YProvider;
     isConnected: boolean;
     currentUserId?: string;
-    isLeader?: boolean;
+    canWrite?: boolean;
 }
 
-export const ConnectedUsers: React.FC<ConnectedUsersProps> = ({ provider, isConnected, currentUserId, isLeader = true }) => {
+export const ConnectedUsers: React.FC<ConnectedUsersProps> = ({ provider, isConnected, currentUserId, canWrite = true }) => {
     const [count, setCount] = useState<number>(0);
 
     const [names, setNames] = useState<string[]>([]);
@@ -53,13 +53,13 @@ export const ConnectedUsers: React.FC<ConnectedUsersProps> = ({ provider, isConn
                 if (myName) setSelfName(myName);
                 setNames(otherNames);
 
-                // Count: others + self if leader
-                const totalCount = otherNames.length + (isLeader ? 1 : 0);
+                // Count: others + self if write-enabled
+                const totalCount = otherNames.length + (canWrite ? 1 : 0);
                 setCount(totalCount);
 
             } catch (error) {
                 console.warn('ConnectedUsers update error:', error);
-                setCount(isLeader ? 1 : 0);
+                setCount(canWrite ? 1 : 0);
                 setNames([]);
             }
         };
@@ -72,16 +72,16 @@ export const ConnectedUsers: React.FC<ConnectedUsersProps> = ({ provider, isConn
             awareness.off?.("update", update);
             awareness.off?.("change", update);
         };
-    }, [provider, isLeader, currentUserId]);
+    }, [provider, canWrite, currentUserId]);
 
     const others = names.length;
-    const statusText = isLeader ? 'Connected' : 'Connected (Read-only)';
+    const statusText = canWrite ? 'Connected' : 'Connected (Read-only)';
     const text = isConnected ? (others > 0 ? `${statusText} • ${others} others` : statusText) : 'Offline';
 
     const tooltip = isConnected
         ? (others > 0
             ? `${statusText} as ${selfName}. Others editing: ${names.join(', ')}`
-            : `${statusText} as ${selfName}. ${isLeader ? 'No other users currently here.' : 'You\'re viewing in read-only mode.'}`)
+            : `${statusText} as ${selfName}. ${canWrite ? 'No other users currently here.' : 'You\'re viewing in read-only mode.'}`)
         : 'Offline';
 
     return (

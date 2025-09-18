@@ -84,18 +84,18 @@ const getAbsolutePosition = (node: any, allNodes: any[]) => {
 export const createUpdateNodeContent = (
   yTextMap: any,
   ydoc: any,
-  isLeader: boolean,
+  canWrite: boolean,
   localOrigin: object,
   setNodes: (updater: (nodes: any[]) => any[]) => void,
   registerTextInUndoScope?: (t: any) => void
 ) => {
   return (nodeId: string, content: string) => {
-    if (!isLeader) {
+    if (!canWrite) {
       toast.warning("Read-only mode: Changes won't be saved");
       return;
     }
 
-    if (yTextMap && ydoc && isLeader) {
+    if (yTextMap && ydoc && canWrite) {
       ydoc.transact(() => {
         let t = yTextMap.get(nodeId);
         if (!t) {
@@ -156,7 +156,7 @@ export const createUpdateNodeContent = (
 export const createUpdateNodeHidden = (
   yNodesMap: any,
   ydoc: any,
-  isLeader: boolean,
+  canWrite: boolean,
   localOrigin: object,
   setNodes: (updater: (nodes: any[]) => any[]) => void
 ) => {
@@ -171,7 +171,7 @@ export const createUpdateNodeHidden = (
       });
       return updated;
     });
-    if (yNodesMap && ydoc && isLeader) {
+    if (yNodesMap && ydoc && canWrite) {
       const base = nextFromState || yNodesMap.get(nodeId);
       if (base) {
         ydoc.transact(() => {
@@ -186,7 +186,7 @@ export const createAddNodeAtPosition = (
   yNodesMap: any,
   yTextMap: any,
   ydoc: any,
-  isLeader: boolean,
+  canWrite: boolean,
   localOrigin: object,
   setNodes: (updater: (nodes: any[]) => any[]) => void,
   registerTextInUndoScope?: (t: any) => void
@@ -223,7 +223,7 @@ export const createAddNodeAtPosition = (
     // local UI responsiveness
     setNodes((nds) => [...nds, node]);
 
-    if (yNodesMap && ydoc && isLeader) {
+    if (yNodesMap && ydoc && canWrite) {
       ydoc.transact(() => {
         yNodesMap.set(id, node);
         if (
@@ -253,7 +253,7 @@ export const createDeleteNode = (
   yEdgesMap: any,
   yTextMap: any,
   ydoc: any,
-  isLeader: boolean,
+  canWrite: boolean,
   localOrigin: object,
   setNodes: (updater: (nodes: any[]) => any[]) => void,
   setEdges: (updater: (edges: any[]) => any[]) => void,
@@ -261,7 +261,7 @@ export const createDeleteNode = (
   getLockOwner?: (nodeId: string) => { name?: string } | null
 ) => {
   return (nodeId: string) => {
-    if (!isLeader) {
+    if (!canWrite) {
       toast.warning("Read-only mode: Changes won't be saved");
       return;
     }
@@ -491,7 +491,7 @@ export const createAddNegationBelow = (
   yEdgesMap: any,
   yTextMap: any,
   ydoc: any,
-  isLeader: boolean,
+  canWrite: boolean,
   localOrigin: object,
   lastAddRef: React.MutableRefObject<Record<string, number>>,
   setNodes: (updater: (nodes: any[]) => any[]) => void,
@@ -507,7 +507,7 @@ export const createAddNegationBelow = (
       toast.warning(`Locked by ${owner?.name || "another user"}`);
       return;
     }
-    if (!isLeader) {
+    if (!canWrite) {
       // Allow local-only preview; will not sync to Yjs
       toast.warning("Read-only mode: Changes won't be saved");
     }
@@ -541,7 +541,7 @@ export const createAddNegationBelow = (
     setNodes((curr) => [...curr, newNode]);
     setEdges((eds) => [...eds, newEdge]);
 
-    if (yNodesMap && yEdgesMap && ydoc && isLeader) {
+    if (yNodesMap && yEdgesMap && ydoc && canWrite) {
       ydoc.transact(() => {
         yNodesMap.set(newId, newNode);
         yEdgesMap.set(newEdge.id, newEdge);
@@ -565,7 +565,7 @@ export const createAddSupportBelow = (
   yEdgesMap: any,
   yTextMap: any,
   ydoc: any,
-  isLeader: boolean,
+  canWrite: boolean,
   localOrigin: object,
   lastAddRef: React.MutableRefObject<Record<string, number>>,
   setNodes: (updater: (nodes: any[]) => any[]) => void,
@@ -581,7 +581,7 @@ export const createAddSupportBelow = (
       toast.warning(`Locked by ${owner?.name || "another user"}`);
       return;
     }
-    if (!isLeader) {
+    if (!canWrite) {
       toast.warning("Read-only mode: Changes won't be saved");
     }
     const now = Date.now();
@@ -612,7 +612,7 @@ export const createAddSupportBelow = (
     setNodes((curr) => [...curr, newNode]);
     setEdges((eds) => [...eds, newEdge]);
 
-    if (yNodesMap && yEdgesMap && ydoc && isLeader) {
+    if (yNodesMap && yEdgesMap && ydoc && canWrite) {
       ydoc.transact(() => {
         yNodesMap.set(newId, newNode);
         yEdgesMap.set(newEdge.id, newEdge);
@@ -635,7 +635,7 @@ export const createAddPointBelow = (
   yEdgesMap: any,
   yTextMap: any,
   ydoc: any,
-  isLeader: boolean,
+  canWrite: boolean,
   localOrigin: object,
   lastAddRef: React.MutableRefObject<Record<string, number>>,
   setNodes: (updater: (nodes: any[]) => any[]) => void,
@@ -651,7 +651,7 @@ export const createAddPointBelow = (
       toast.warning(`Locked by ${owner?.name || "another user"}`);
       return;
     }
-    if (!isLeader) {
+    if (!canWrite) {
       toast.warning("Read-only mode: Changes won't be saved");
     }
     const now = Date.now();
@@ -683,7 +683,7 @@ export const createAddPointBelow = (
     setNodes((curr) => [...curr, newNode]);
     setEdges((eds) => [...eds, newEdge]);
 
-    if (yNodesMap && yEdgesMap && ydoc && isLeader) {
+    if (yNodesMap && yEdgesMap && ydoc && canWrite) {
       ydoc.transact(() => {
         yNodesMap.set(newId, newNode);
         yEdgesMap.set(newEdge.id, newEdge);
@@ -707,7 +707,7 @@ export const createAddObjectionForEdge = (
   yEdgesMap: any,
   yTextMap: any,
   ydoc: any,
-  isLeader: boolean,
+  canWrite: boolean,
   localOrigin: object,
   setNodes: (updater: (nodes: any[]) => any[]) => void,
   setEdges: (updater: (edges: any[]) => any[]) => void,
@@ -716,7 +716,7 @@ export const createAddObjectionForEdge = (
   getLockOwner?: (nodeId: string) => { name?: string } | null
 ) => {
   return (edgeId: string, overrideMidX?: number, overrideMidY?: number) => {
-    if (!isLeader) {
+    if (!canWrite) {
       toast.warning("Read-only mode: Changes won't be saved");
       return;
     }
@@ -779,7 +779,7 @@ export const createAddObjectionForEdge = (
     });
 
     // Also sync to Yjs if available
-    if (yNodesMap && yEdgesMap && ydoc && isLeader) {
+    if (yNodesMap && yEdgesMap && ydoc && canWrite) {
       ydoc.transact(() => {
         if (!yNodesMap.has(anchorId)) yNodesMap.set(anchorId, anchorNode);
         yNodesMap.set(objectionId, objectionNode);
@@ -803,7 +803,7 @@ export const createUpdateEdgeAnchorPosition = (
   setNodes: (updater: (nodes: any[]) => any[]) => void,
   yNodesMap?: any,
   ydoc?: any,
-  isLeader?: boolean,
+  canWrite?: boolean,
   localOrigin?: object,
   isUndoRedoRef?: { current: boolean },
   layoutOrigin?: any
@@ -834,7 +834,7 @@ export const createUpdateEdgeAnchorPosition = (
     });
     // Sync to Yjs so peers get the anchor update without requiring local recompute
     try {
-      if (changedAnchorId && yNodesMap && ydoc && isLeader) {
+      if (changedAnchorId && yNodesMap && ydoc && canWrite) {
         (ydoc as any).transact(() => {
           const base = (yNodesMap as any).get(changedAnchorId as any);
           if (base)
@@ -854,7 +854,7 @@ export const createInversePair = (
   yTextMap: any,
   yEdgesMap: any,
   ydoc: any,
-  isLeader: boolean,
+  canWrite: boolean,
   localOrigin: object,
   setNodes: (updater: (nodes: any[]) => any[]) => void,
   setEdges: (updater: (edges: any[]) => any[]) => void,
@@ -868,7 +868,7 @@ export const createInversePair = (
       toast.warning(`Locked by ${owner?.name || "another user"}`);
       return;
     }
-    if (!isLeader) {
+    if (!canWrite) {
       toast.warning("Read-only mode: Changes won't be saved");
       return;
     }
@@ -988,7 +988,7 @@ export const createInversePair = (
         positionAbsolute: undefined,
       };
 
-      if (yNodesMap && ydoc && isLeader) {
+      if (yNodesMap && ydoc && canWrite) {
         ydoc.transact(() => {
           yNodesMap.set(groupId, groupNode);
           yNodesMap.set(pointNodeId, updatedOriginalNode);
@@ -1026,7 +1026,7 @@ export const createInversePair = (
           if (
             yNodesMap &&
             ydoc &&
-            isLeader &&
+            canWrite &&
             Number.isFinite(maxH) &&
             maxH > 0
           ) {
@@ -1150,7 +1150,7 @@ export const createInversePair = (
     };
 
     // Sync to Yjs in correct order (commit shared state first)
-    if (yNodesMap && ydoc && isLeader) {
+    if (yNodesMap && ydoc && canWrite) {
       ydoc.transact(() => {
         // Add group first
         yNodesMap.set(groupId, groupNode);
@@ -1180,7 +1180,7 @@ export const createInversePair = (
 
     generateInversePoint(originalContent)
       .then((aiContent) => {
-        if (yTextMap && ydoc && isLeader) {
+        if (yTextMap && ydoc && canWrite) {
           ydoc.transact(() => {
             const t = yTextMap.get(inverseId);
             if (t) {
@@ -1208,7 +1208,7 @@ export const createInversePair = (
       })
       .catch(() => {
         // Fallback to "Not X"
-        if (yTextMap && ydoc && isLeader) {
+        if (yTextMap && ydoc && canWrite) {
           ydoc.transact(() => {
             const t = yTextMap.get(inverseId);
             if (t) {
@@ -1252,7 +1252,7 @@ export const createInversePair = (
         if (
           yNodesMap &&
           ydoc &&
-          isLeader &&
+          canWrite &&
           Number.isFinite(maxH) &&
           maxH > 0
         ) {
@@ -1280,7 +1280,7 @@ export const createDeleteInversePair = (
   yEdgesMap: any,
   yTextMap: any,
   ydoc: any,
-  isLeader: boolean,
+  canWrite: boolean,
   localOrigin: object,
   setNodes: (updater: (nodes: any[]) => any[]) => void,
   setEdges: (updater: (edges: any[]) => any[]) => void,
@@ -1288,7 +1288,7 @@ export const createDeleteInversePair = (
   getLockOwner?: (nodeId: string) => { name?: string } | null
 ) => {
   return (inverseNodeId: string) => {
-    if (!isLeader) {
+    if (!canWrite) {
       toast.warning("Read-only mode: Changes won't be saved");
       return;
     }
@@ -1499,7 +1499,7 @@ export const createUpdateNodeType = (
   yNodesMap: any,
   yTextMap: any,
   ydoc: any,
-  isLeader: boolean,
+  canWrite: boolean,
   localOrigin: object,
   setNodes: (updater: (nodes: any[]) => any[]) => void,
   registerTextInUndoScope?: (t: any) => void
@@ -1508,7 +1508,7 @@ export const createUpdateNodeType = (
     nodeId: string,
     newType: "point" | "statement" | "title" | "objection"
   ) => {
-    if (!isLeader) {
+    if (!canWrite) {
       toast.warning("Read-only mode: Changes won't be saved");
       return;
     }
@@ -1541,7 +1541,7 @@ export const createUpdateNodeType = (
       })
     );
 
-    if (yNodesMap && ydoc && isLeader) {
+    if (yNodesMap && ydoc && canWrite) {
       ydoc.transact(() => {
         const base = yNodesMap.get(nodeId);
         if (base) {
@@ -1610,3 +1610,5 @@ function getDefaultContentForType(
       return "New point";
   }
 }
+
+

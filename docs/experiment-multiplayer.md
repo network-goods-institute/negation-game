@@ -18,6 +18,8 @@ Real-time collaborative graph editing experiment using Yjs CRDTs and WebSocket s
 
 ### Hooks
 - `src/hooks/experiment/multiplayer/useYjsMultiplayer.ts` - Core Yjs integration and sync
+- `src/hooks/experiment/multiplayer/useWriteAccess.ts` - Chooses which client has write capability
+- `src/hooks/experiment/multiplayer/useWritableSync.ts` - Resyncs when write access is regained
 - `src/hooks/experiment/multiplayer/useMultiplayerCursors.ts` - Cursor tracking
 
 ### Components
@@ -30,6 +32,13 @@ Real-time collaborative graph editing experiment using Yjs CRDTs and WebSocket s
 ### Utilities
 - `src/utils/experiment/multiplayer/graphSync.ts` - ReactFlow change handlers
 - `src/data/experiment/multiplayer/sampleData.ts` - Node/edge types
+
+## Write Access Model
+- Exactly one session per user is marked `canWrite`; other tabs for that user stay read-only until they win arbitration.
+- `useWriteAccess` runs a Yjs-awareness scan and raises `canWrite` for the lowest client id per user.
+- `useWritableSync` blocks all mutators until the write-enabled client replays the authoritative Yjs state locally.
+- UI, cursor awareness, editing locks, and every graph operation branches on `canWrite` so read-only sessions never enqueue writes or leak intent.
+- When `canWrite` flips false we treat the client as a passive replica; when it flips true and `writeSynced` resolves we enable the full toolchain.
 
 ### Database
 - `src/db/tables/mpDocsTable.ts` - Document metadata

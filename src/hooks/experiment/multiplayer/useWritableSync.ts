@@ -3,8 +3,8 @@ import type * as Y from "yjs";
 import type { Node, Edge } from "@xyflow/react";
 import { mergeNodesWithText } from "@/hooks/experiment/multiplayer/yjs/text";
 
-interface UseLeaderPromotionSyncParams {
-  isLeader: boolean;
+interface UseWritableSyncParams {
+  canWrite: boolean;
   yNodesMap: Y.Map<Node> | null;
   yEdgesMap: Y.Map<Edge> | null;
   yTextMap: Y.Map<Y.Text> | null;
@@ -14,24 +14,24 @@ interface UseLeaderPromotionSyncParams {
 }
 
 /**
- * Ensures that when a read-only client is promoted to leader, it first overwrites
- * its local state from Yjs before enabling further Yjs writes. Returns leaderSynced
- * which should be used to gate write-capable handlers.
+ * Ensures that when a read-only client regains write access it first overwrites
+ * its local state from Yjs before enabling further writes. Returns writeSynced
+ * which should gate any write-capable handlers.
  */
-export const useLeaderPromotionSync = ({
-  isLeader,
+export const useWritableSync = ({
+  canWrite,
   yNodesMap,
   yEdgesMap,
   yTextMap,
   setNodes,
   setEdges,
   clearConnect,
-}: UseLeaderPromotionSyncParams) => {
-  const [leaderSynced, setLeaderSynced] = useState(false);
+}: UseWritableSyncParams) => {
+  const [writeSynced, setWriteSynced] = useState(false);
 
   useEffect(() => {
-    if (!isLeader) {
-      setLeaderSynced(false);
+    if (!canWrite) {
+      setWriteSynced(false);
       return;
     }
 
@@ -73,9 +73,9 @@ export const useLeaderPromotionSync = ({
       clearConnect?.();
     } catch {}
 
-    setLeaderSynced(true);
+    setWriteSynced(true);
   }, [
-    isLeader,
+    canWrite,
     yNodesMap,
     yEdgesMap,
     yTextMap,
@@ -84,7 +84,7 @@ export const useLeaderPromotionSync = ({
     clearConnect,
   ]);
 
-  return leaderSynced;
+  return writeSynced;
 };
 
-export default useLeaderPromotionSync;
+export default useWritableSync;

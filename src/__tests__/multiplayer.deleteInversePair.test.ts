@@ -82,7 +82,7 @@ describe("createDeleteInversePair", () => {
       latestEdges = updater(latestEdges);
     };
 
-    const isLeader = true;
+    const canWrite = true;
     const del = createDeleteInversePair(
       nodes,
       edges,
@@ -90,7 +90,7 @@ describe("createDeleteInversePair", () => {
       yEdges as any,
       yText as any,
       ydoc as any,
-      isLeader,
+      canWrite,
       localOrigin,
       setNodes,
       setEdges
@@ -120,3 +120,4 @@ describe("createDeleteInversePair", () => {
     expect(latestEdges.find((e) => e.id === negEdgeId)).toBeUndefined();
   });
 });
+

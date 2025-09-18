@@ -33,7 +33,7 @@ describe("graph operations: delete cascade", () => {
     const yEdgesMap = makeYMap();
     const yTextMap = makeYMap();
     const ydoc = { transact: (cb: () => void) => cb() } as any;
-    const isLeader = true;
+    const canWrite = true;
     const localOrigin = {};
     let stateNodes = nodes.slice();
     let stateEdges = edges.slice();
@@ -51,7 +51,7 @@ describe("graph operations: delete cascade", () => {
       yEdgesMap,
       yTextMap,
       ydoc,
-      isLeader,
+      canWrite,
       localOrigin,
       setNodes,
       setEdges
@@ -64,3 +64,4 @@ describe("graph operations: delete cascade", () => {
     expect(stateNodes.find((n) => n.id === "o1")).toBeFalsy();
   });
 });
+

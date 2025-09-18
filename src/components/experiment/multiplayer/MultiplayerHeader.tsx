@@ -129,7 +129,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
           provider={provider}
           isConnected={isConnected}
           currentUserId={userId}
-          isLeader={!proxyMode}
+          canWrite={!proxyMode}
         />
         {(connectionError || connectionState === 'connecting' || connectionState === 'failed') && (
           <p className="text-xs text-orange-600 mt-1 bg-orange-50 p-2 rounded">

@@ -17,7 +17,7 @@ describe("graph operations: update node content", () => {
   it("writes content to Y.Text with minimal transaction", () => {
     const yTextMap = makeYMap();
     const ydoc = { transact: (cb: () => void) => cb() } as any;
-    const isLeader = true;
+    const canWrite = true;
     const localOrigin = {};
     let stateNodes: any[] = [
       {
@@ -35,7 +35,7 @@ describe("graph operations: update node content", () => {
     const fn = createUpdateNodeContent(
       yTextMap,
       ydoc,
-      isLeader,
+      canWrite,
       localOrigin,
       setNodes,
       register
@@ -48,3 +48,4 @@ describe("graph operations: update node content", () => {
     expect(t2).toBeTruthy();
   });
 });
+

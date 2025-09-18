@@ -2,12 +2,12 @@ import { useEffect, useState, useCallback } from "react";
 import { WebsocketProvider } from "y-websocket";
 type YProvider = WebsocketProvider | null;
 
-export const useLeaderElection = (provider: YProvider, userId: string) => {
-  const [isLeader, setIsLeader] = useState(true);
+export const useWriteAccess = (provider: YProvider, userId: string) => {
+  const [canWrite, setCanWrite] = useState(true);
 
   const calculate = useCallback(() => {
     if (!provider || !userId) {
-      setIsLeader(true);
+      setCanWrite(true);
       return;
     }
 
@@ -31,13 +31,13 @@ export const useLeaderElection = (provider: YProvider, userId: string) => {
         }
       });
 
-      // If no matching entries for this user are present, prefer local as leader
-      const shouldBeLeader = matches === 0 ? true : lowestClientId === myClientId;
+      // If no matching entries for this user are present, prefer local client for writes
+      const shouldWrite = matches === 0 ? true : lowestClientId === myClientId;
 
-      setIsLeader(shouldBeLeader);
+      setCanWrite(shouldWrite);
     } catch (error) {
-      console.warn("[leader-election] Error:", error);
-      setIsLeader(true);
+      console.warn("[write-access] Error:", error);
+      setCanWrite(true);
     }
   }, [provider, userId]);
 
@@ -56,5 +56,5 @@ export const useLeaderElection = (provider: YProvider, userId: string) => {
     };
   }, [provider, userId, calculate]);
 
-  return { isLeader };
+  return { canWrite };
 };

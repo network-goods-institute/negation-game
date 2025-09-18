@@ -62,7 +62,7 @@ describe("inverse pair behaviors", () => {
         mockYTextMap,
         mockYEdgesMap,
         mockYdoc,
-        true, // isLeader
+        true, // canWrite
         mockLocalOrigin,
         mockSetNodes,
         mockSetEdges,
@@ -229,7 +229,7 @@ describe("inverse pair behaviors", () => {
         mockYEdgesMap,
         mockYTextMap,
         mockYdoc,
-        true, // isLeader
+        true, // canWrite
         mockLocalOrigin,
         mockSetNodes,
         mockSetEdges
@@ -285,3 +285,4 @@ describe("inverse pair behaviors", () => {
     });
   });
 });
+

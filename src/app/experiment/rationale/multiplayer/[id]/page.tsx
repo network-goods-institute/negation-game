@@ -18,8 +18,8 @@ import { GraphCanvas } from '@/components/experiment/multiplayer/GraphCanvas';
 import { useYjsMultiplayer } from '@/hooks/experiment/multiplayer/useYjsMultiplayer';
 import { useMultiplayerCursors } from '@/hooks/experiment/multiplayer/useMultiplayerCursors';
 import { useMultiplayerEditing } from '@/hooks/experiment/multiplayer/useMultiplayerEditing';
-import { useLeaderElection } from '@/hooks/experiment/multiplayer/useLeaderElection';
-import { useLeaderPromotionSync } from '@/hooks/experiment/multiplayer/useLeaderPromotionSync';
+import { useWriteAccess } from '@/hooks/experiment/multiplayer/useWriteAccess';
+import { useWritableSync } from '@/hooks/experiment/multiplayer/useWritableSync';
 import { createGraphChangeHandlers } from '@/utils/experiment/multiplayer/graphSync';
 import { GraphProvider } from '@/components/experiment/multiplayer/GraphContext';
 import { GraphUpdater } from '@/components/experiment/multiplayer/GraphUpdater';
@@ -134,10 +134,10 @@ export default function MultiplayerBoardDetailPage() {
         localOrigin: localOriginRef.current,
     });
 
-    const { isLeader } = useLeaderElection(provider, userId);
+    const { canWrite } = useWriteAccess(provider, userId);
 
-    const cursors = useMultiplayerCursors({ provider, userId, username, userColor, isLeader });
-    const { startEditing, stopEditing, getEditorsForNode, lockNode, unlockNode, isLockedForMe, getLockOwner } = useMultiplayerEditing({ provider, userId, username, userColor, isLeader });
+    const cursors = useMultiplayerCursors({ provider, userId, username, userColor, canWrite });
+    const { startEditing, stopEditing, getEditorsForNode, lockNode, unlockNode, isLockedForMe, getLockOwner } = useMultiplayerEditing({ provider, userId, username, userColor, canWrite });
     const [editingSet, setEditingSet] = useState<Set<string>>(new Set());
     const startEditingNodeCtx = React.useCallback((nodeId: string) => {
         setEditingSet((prev) => { const ns = new Set(prev); ns.add(nodeId); return ns; });
@@ -164,7 +164,7 @@ export default function MultiplayerBoardDetailPage() {
         yEdgesMap,
         yTextMap,
         ydoc,
-        isLeader,
+        canWrite,
         localOriginRef.current,
         setNodes,
         setEdges,
@@ -183,7 +183,7 @@ export default function MultiplayerBoardDetailPage() {
         yEdgesMap,
         yTextMap,
         ydoc,
-        isLeader,
+        canWrite,
         localOriginRef.current,
         lastAddRef,
         setNodes,
@@ -199,7 +199,7 @@ export default function MultiplayerBoardDetailPage() {
         yEdgesMap,
         yTextMap,
         ydoc,
-        isLeader,
+        canWrite,
         localOriginRef.current,
         lastAddRef,
         setNodes,
@@ -216,7 +216,7 @@ export default function MultiplayerBoardDetailPage() {
         yEdgesMap,
         yTextMap,
         ydoc,
-        isLeader,
+        canWrite,
         localOriginRef.current,
         lastAddRef,
         setNodes,
@@ -234,7 +234,7 @@ export default function MultiplayerBoardDetailPage() {
         yEdgesMap,
         yTextMap,
         ydoc,
-        isLeader,
+        canWrite,
         localOriginRef.current,
         setNodes,
         setEdges,
@@ -251,19 +251,19 @@ export default function MultiplayerBoardDetailPage() {
             yEdgesMap as any,
             yTextMap as any,
             ydoc as any,
-            isLeader,
+            canWrite,
             localOriginRef.current,
             setNodes as any,
             setEdges as any,
             isLockedForMe,
             getLockOwner,
         )
-    ), [nodes, edges, yNodesMap, yEdgesMap, yTextMap, ydoc, isLeader, setNodes, setEdges, isLockedForMe, getLockOwner]);
+    ), [nodes, edges, yNodesMap, yEdgesMap, yTextMap, ydoc, canWrite, setNodes, setEdges, isLockedForMe, getLockOwner]);
 
 
     const updateNodeFavor = (nodeId: string, favor: 1 | 2 | 3 | 4 | 5) => {
         setNodes((nds: any[]) => nds.map(n => n.id === nodeId ? { ...n, data: { ...(n.data || {}), favor } } : n));
-        if (yNodesMap && ydoc && isLeader) {
+        if (yNodesMap && ydoc && canWrite) {
             ydoc.transact(() => {
                 const base = (yNodesMap as any).get(nodeId);
                 if (base) (yNodesMap as any).set(nodeId, { ...base, data: { ...(base.data || {}), favor } });
@@ -272,7 +272,7 @@ export default function MultiplayerBoardDetailPage() {
     };
     const updateEdgeRelevance = (edgeId: string, relevance: 1 | 2 | 3 | 4 | 5) => {
         setEdges((eds: any[]) => eds.map(e => e.id === edgeId ? { ...e, data: { ...(e.data || {}), relevance } } : e));
-        if (yEdgesMap && ydoc && isLeader) {
+        if (yEdgesMap && ydoc && canWrite) {
             ydoc.transact(() => {
                 const base = (yEdgesMap as any).get(edgeId);
                 if (base) (yEdgesMap as any).set(edgeId, { ...base, data: { ...(base.data || {}), relevance } });
@@ -287,8 +287,8 @@ export default function MultiplayerBoardDetailPage() {
         setConnectCursor(null);
     }, []);
 
-    const leaderSynced = useLeaderPromotionSync({
-        isLeader,
+    const writeSynced = useWritableSync({
+        canWrite,
         yNodesMap: yNodesMap as any,
         yEdgesMap: yEdgesMap as any,
         yTextMap: yTextMap as any,
@@ -300,22 +300,22 @@ export default function MultiplayerBoardDetailPage() {
     const updateEdgeAnchorPosition = React.useMemo(
         () => createUpdateEdgeAnchorPosition(
             setNodes as any,
-            isLeader && leaderSynced ? (yNodesMap as any) : null,
-            isLeader && leaderSynced ? (ydoc as any) : null,
-            isLeader && leaderSynced,
+            canWrite && writeSynced ? (yNodesMap as any) : null,
+            canWrite && writeSynced ? (ydoc as any) : null,
+            canWrite && writeSynced,
             localOriginRef.current,
             undefined,
             undefined
         ),
-        [setNodes, yNodesMap, ydoc, isLeader, leaderSynced]
+        [setNodes, yNodesMap, ydoc, canWrite, writeSynced]
     );
 
     const { onNodesChange, onEdgesChange, onConnect, commitNodePositions } = createGraphChangeHandlers(
         setNodes,
         setEdges,
-        isLeader && leaderSynced ? yNodesMap : null,
-        isLeader && leaderSynced ? yEdgesMap : null,
-        isLeader && leaderSynced ? ydoc : null,
+        canWrite && writeSynced ? yNodesMap : null,
+        canWrite && writeSynced ? yEdgesMap : null,
+        canWrite && writeSynced ? ydoc : null,
         syncYMapFromArray,
         localOriginRef.current,
         () => nodes as any[]
@@ -324,7 +324,7 @@ export default function MultiplayerBoardDetailPage() {
     const updateNodeContent = createUpdateNodeContent(
         yTextMap as any,
         ydoc as any,
-        isLeader,
+        canWrite,
         localOriginRef.current,
         setNodes,
         registerTextInUndoScope
@@ -336,7 +336,7 @@ export default function MultiplayerBoardDetailPage() {
         yTextMap,
         yEdgesMap,
         ydoc,
-        isLeader,
+        canWrite,
         localOriginRef.current,
         setNodes,
         setEdges,
@@ -362,7 +362,7 @@ export default function MultiplayerBoardDetailPage() {
 
     useKeyboardShortcuts(undo, redo, {
         onToggleConnect: () => {
-            if (!isLeader) return;
+            if (!canWrite) return;
             setConnectMode((v) => !v);
             setConnectAnchorId(null);
         },
@@ -408,7 +408,7 @@ export default function MultiplayerBoardDetailPage() {
                 forceSave={forceSave}
                 interruptSave={interruptSave || undefined}
                 nextSaveTime={nextSaveTime}
-                proxyMode={!isLeader}
+                proxyMode={!canWrite}
                 userId={userId}
                 title={(() => { const t = (((nodes as any[]).find(n => n.type === 'title')?.data?.content) as string) || ''; return (t || '').trim() || (typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '')); })()}
                 onTitleInput={(newTitle: string) => {
@@ -438,7 +438,7 @@ export default function MultiplayerBoardDetailPage() {
                     updateNodeHidden: createUpdateNodeHidden(
                         yNodesMap as any,
                         ydoc as any,
-                        isLeader,
+                        canWrite,
                         localOriginRef.current,
                         setNodes as any,
                     ),
@@ -474,7 +474,7 @@ export default function MultiplayerBoardDetailPage() {
                     },
                     completeConnectToNode: (nodeId: string) => {
                         if (!connectMode) return;
-                        if (!isLeader) {
+                        if (!canWrite) {
                             toast.warning('Read-only mode: Changes won\'t be saved');
                             return;
                         }
@@ -499,14 +499,14 @@ export default function MultiplayerBoardDetailPage() {
                             if (!anchorNodeExists) {
                                 const anchorNode: any = { id: anchorIdForEdge, type: 'edge_anchor', position: { x: midX, y: midY }, data: { parentEdgeId: edgeId } };
                                 setNodes((nds: any[]) => nds.some(n => n.id === anchorIdForEdge) ? nds : [...nds, anchorNode]);
-                                if (yNodesMap && ydoc && isLeader) {
+                                if (yNodesMap && ydoc && canWrite) {
                                     ydoc.transact(() => { if (!(yNodesMap as any).has(anchorIdForEdge)) (yNodesMap as any).set(anchorIdForEdge, anchorNode); }, localOriginRef.current);
                                 }
                             }
                             // Always create an objection edge from the node to this edge's anchor without spawning a new node
                             const newObjEdge = { id: generateEdgeId(), type: 'objection', source: nodeId, target: anchorIdForEdge } as any;
                             setEdges((eds: any[]) => eds.some(e => e.id === newObjEdge.id) ? eds : [...eds, newObjEdge]);
-                            if (yEdgesMap && ydoc && isLeader) {
+                            if (yEdgesMap && ydoc && canWrite) {
                                 ydoc.transact(() => { if (!(yEdgesMap as any).has(newObjEdge.id)) (yEdgesMap as any).set(newObjEdge.id, newObjEdge); }, localOriginRef.current);
                             }
                             setConnectAnchorId(null);
@@ -529,7 +529,7 @@ export default function MultiplayerBoardDetailPage() {
                         const { id, edge } = buildConnectionEdge(nodes as any, parentId, childId) as any;
                         const exists = edges.some((e: any) => e.id === id);
                         if (!exists) {
-                            if (yEdgesMap && ydoc && isLeader) {
+                            if (yEdgesMap && ydoc && canWrite) {
                                 ydoc.transact(() => { if (!yEdgesMap.has(id)) yEdgesMap.set(id, edge as any); }, localOriginRef.current);
                             } else {
                                 setEdges((eds) => (eds.some(e => e.id === id) ? eds : [...eds, edge as any]));
@@ -563,13 +563,13 @@ export default function MultiplayerBoardDetailPage() {
                                 const ay = (midY != null ? midY : (src && tgt ? (src.position.y + tgt.position.y) / 2 : 0));
                                 const anchorNode: any = { id: anchorId, type: 'edge_anchor', position: { x: ax, y: ay }, data: { parentEdgeId: edgeId } };
                                 setNodes((nds: any[]) => nds.some(n => n.id === anchorId) ? nds : [...nds, anchorNode]);
-                                if (yNodesMap && ydoc && isLeader) {
+                                if (yNodesMap && ydoc && canWrite) {
                                     ydoc.transact(() => { if (!(yNodesMap as any).has(anchorId)) (yNodesMap as any).set(anchorId, anchorNode); }, localOriginRef.current);
                                 }
                             }
                             const newEdge = { id: generateEdgeId(), type: 'objection', source: originNode.id, target: `anchor:${edgeId}` } as any;
                             setEdges((eds: any[]) => eds.some(e => e.id === newEdge.id) ? eds : [...eds, newEdge]);
-                            if (yEdgesMap && ydoc && isLeader) {
+                            if (yEdgesMap && ydoc && canWrite) {
                                 ydoc.transact(() => { if (!(yEdgesMap as any).has(newEdge.id)) (yEdgesMap as any).set(newEdge.id, newEdge); }, localOriginRef.current);
                             }
                         } else {
@@ -591,7 +591,7 @@ export default function MultiplayerBoardDetailPage() {
                     updateEdgeAnchorPosition,
                     lockNode,
                     unlockNode,
-                    proxyMode: !isLeader,
+                    proxyMode: !canWrite,
 
                     undo,
                     redo,
@@ -599,7 +599,7 @@ export default function MultiplayerBoardDetailPage() {
                         yNodesMap as any,
                         yTextMap as any,
                         ydoc as any,
-                        isLeader,
+                        canWrite,
                         localOriginRef.current,
                         setNodes as any,
                         registerTextInUndoScope,
@@ -608,7 +608,7 @@ export default function MultiplayerBoardDetailPage() {
                         yNodesMap as any,
                         yTextMap as any,
                         ydoc as any,
-                        isLeader,
+                        canWrite,
                         localOriginRef.current,
                         setNodes as any,
                         registerTextInUndoScope,
@@ -621,7 +621,7 @@ export default function MultiplayerBoardDetailPage() {
                         setHoveredNodeId(nid);
                     },
                     commitGroupLayout: (groupId: string, positions: Record<string, { x: number; y: number }>, width: number, height: number) => {
-                        if (!isLeader) return;
+                        if (!canWrite) return;
                         try {
                             (ydoc as any)?.transact?.(() => {
                                 const gBase = (yNodesMap as any)?.get(groupId);
@@ -689,7 +689,7 @@ export default function MultiplayerBoardDetailPage() {
                                 // No-op: edge connections by drag are disabled
                             }}
                             onBackgroundDoubleClick={(flowX, flowY) => {
-                                if (!isLeader) {
+                                if (!canWrite) {
                                     toast.warning("Read-only mode: Changes won't be saved");
                                     return;
                                 }
@@ -697,7 +697,7 @@ export default function MultiplayerBoardDetailPage() {
                                     yNodesMap as any,
                                     yTextMap as any,
                                     ydoc as any,
-                                    isLeader,
+                                    canWrite,
                                     localOriginRef.current,
                                     setNodes as any,
                                     registerTextInUndoScope,
@@ -732,7 +732,7 @@ export default function MultiplayerBoardDetailPage() {
                             undo={undo}
                             redo={redo}
                             connectAnchorId={connectAnchorId}
-                            readOnly={!isLeader}
+                            readOnly={!canWrite}
                             grabMode={grabMode}
                             setGrabMode={setGrabMode}
 
@@ -753,7 +753,7 @@ export default function MultiplayerBoardDetailPage() {
                                 yNodesMap as any,
                                 yTextMap as any,
                                 ydoc as any,
-                                isLeader,
+                                canWrite,
                                 localOriginRef.current,
                                 setNodes as any,
                                 registerTextInUndoScope,

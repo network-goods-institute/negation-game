@@ -25,7 +25,7 @@ describe("graph operations: objection", () => {
     const yEdgesMap = makeYMap();
     const yTextMap = makeYMap();
     const ydoc = { transact: (cb: () => void) => cb() } as any;
-    const isLeader = true;
+    const canWrite = true;
     const localOrigin = {};
     let stateNodes = nodes.slice();
     let stateEdges = edges.slice();
@@ -43,7 +43,7 @@ describe("graph operations: objection", () => {
       yEdgesMap,
       yTextMap,
       ydoc,
-      isLeader,
+      canWrite,
       localOrigin,
       setNodes,
       setEdges
@@ -62,3 +62,4 @@ describe("graph operations: objection", () => {
     expect(t).toBeTruthy();
   });
 });
+

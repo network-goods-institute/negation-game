@@ -21,7 +21,7 @@ interface UseMultiplayerEditingProps {
   userId: string;
   username: string;
   userColor: string;
-  isLeader?: boolean;
+  canWrite?: boolean;
 }
 
 export const useMultiplayerEditing = ({
@@ -29,7 +29,7 @@ export const useMultiplayerEditing = ({
   userId,
   username,
   userColor,
-  isLeader = true,
+  canWrite = true,
 }: UseMultiplayerEditingProps) => {
   const [editors, setEditors] = useState<EditorsMap>(new Map());
   const [locks, setLocks] = useState<LockMap>(new Map());
@@ -40,7 +40,7 @@ export const useMultiplayerEditing = ({
     const awareness = provider.awareness;
     const prev = awareness.getLocalState() || {};
     
-    if (!isLeader) {
+    if (!canWrite) {
       // In proxy mode, don't set user awareness to hide from others
       return;
     }
@@ -49,7 +49,7 @@ export const useMultiplayerEditing = ({
       ...prev,
       user: { id: userId, name: username, color: userColor },
     });
-  }, [provider, userId, username, userColor, isLeader]);
+  }, [provider, userId, username, userColor, canWrite]);
 
   useEffect(() => {
     if (!provider) return;
@@ -113,7 +113,7 @@ export const useMultiplayerEditing = ({
   }, [provider]);
 
   const startEditing = (nodeId: string) => {
-    if (!provider || !isLeader) return;
+    if (!provider || !canWrite) return;
     localEditingRef.current.add(nodeId);
     const awareness = provider.awareness;
     const prev = awareness.getLocalState() || {};
@@ -125,7 +125,7 @@ export const useMultiplayerEditing = ({
   };
 
   const stopEditing = (nodeId: string) => {
-    if (!provider || !isLeader) return;
+    if (!provider || !canWrite) return;
     // eslint-disable-next-line drizzle/enforce-delete-with-where
     localEditingRef.current.delete(nodeId);
     const awareness = provider.awareness;
@@ -141,7 +141,7 @@ export const useMultiplayerEditing = ({
   };
 
   const lockNode = (nodeId: string, kind: "edit" | "drag") => {
-    if (!provider || !isLeader) return;
+    if (!provider || !canWrite) return;
     const awareness = provider.awareness;
     const prev = awareness.getLocalState() || {};
     awareness.setLocalState({
@@ -151,7 +151,7 @@ export const useMultiplayerEditing = ({
   };
 
   const unlockNode = (nodeId: string) => {
-    if (!provider || !isLeader) return;
+    if (!provider || !canWrite) return;
     const awareness = provider.awareness;
     const prev = awareness.getLocalState() || {};
     if (prev?.lock?.nodeId === nodeId) {
@@ -183,3 +183,4 @@ export const useMultiplayerEditing = ({
     getLockOwner,
   };
 };
+
