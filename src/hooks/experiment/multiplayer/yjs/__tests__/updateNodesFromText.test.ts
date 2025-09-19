@@ -1,5 +1,5 @@
 import * as Y from "yjs";
-import { createUpdateNodesFromText } from "@/hooks/experiment/multiplayer/yjs/handlers";
+import { createUpdateNodesFromText } from "@/hooks/experiment/multiplayer/yjs/textSync";
 
 describe("createUpdateNodesFromText", () => {
   it("updates statement and point content from Y.Text", () => {

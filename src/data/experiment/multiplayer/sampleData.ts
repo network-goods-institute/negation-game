@@ -1,22 +1,19 @@
-import { Node, Edge, NodeTypes } from "@xyflow/react";
-import { PointNode } from "@/components/experiment/multiplayer/PointNode";
-import { NegationEdge } from "@/components/experiment/multiplayer/NegationEdge";
-import { SupportEdge } from "@/components/experiment/multiplayer/SupportEdge";
-import { ObjectionEdge } from "@/components/experiment/multiplayer/ObjectionEdge";
-import { StatementEdge } from "@/components/experiment/multiplayer/StatementEdge";
-import { OptionEdge } from "@/components/experiment/multiplayer/OptionEdge";
-import { StatementNode } from "@/components/experiment/multiplayer/StatementNode";
-import { TitleNode } from "@/components/experiment/multiplayer/TitleNode";
-import { GroupNode } from "@/components/experiment/multiplayer/GroupNode";
-import ObjectionNode from "@/components/experiment/multiplayer/objection/ObjectionNode";
-import EdgeAnchorNode from "@/components/experiment/multiplayer/objection/EdgeAnchorNode";
+import { Node, Edge } from "@xyflow/react";
 
+/**
+ * Sample board metadata for demo/testing purposes.
+ * This is used for showcasing the multiplayer experiment functionality.
+ */
 export const sampleBoard = {
   id: "sample",
   title: "Universal Basic Income – debate map",
   description: "A small board exploring UBI claims and counterclaims.",
 };
 
+/**
+ * Sample nodes for demo/testing purposes.
+ * These demonstrate the argument structure for UBI debate.
+ */
 export const initialNodes: Node[] = [
   {
     id: "1",
@@ -65,6 +62,10 @@ export const initialNodes: Node[] = [
   },
 ];
 
+/**
+ * Sample edges for demo/testing purposes.
+ * These connect the UBI debate nodes with negation and objection relationships.
+ */
 export const initialEdges: Edge[] = [
   {
     id: "e1-2",
@@ -98,23 +99,10 @@ export const initialEdges: Edge[] = [
   },
 ];
 
-export const nodeTypes: NodeTypes = {
-  statement: StatementNode,
-  point: PointNode,
-  title: TitleNode,
-  objection: ObjectionNode,
-  edge_anchor: EdgeAnchorNode,
-  group: GroupNode,
-};
-
-export const edgeTypes = {
-  negation: NegationEdge,
-  support: SupportEdge,
-  objection: ObjectionEdge,
-  statement: StatementEdge,
-  option: OptionEdge,
-};
-
+/**
+ * Generates a random user for demo/testing purposes.
+ * Creates random usernames and assigns colors for UI display.
+ */
 export const generateRandomUser = () => {
   const colors = [
     "#ef4444",

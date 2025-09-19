@@ -60,6 +60,7 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
         onFocus,
         onContentMouseDown,
         onContentMouseMove,
+        isConnectMode,
     } = editable;
 
     const { hovered, setHovered, onEnter, onLeave } = hover;
@@ -90,16 +91,26 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
             wrapperProps={{
                 onMouseEnter: () => { setHovered(true); onEnter(); handleMouseEnter(); },
                 onMouseLeave: () => { setHovered(false); handleMouseLeave(); onLeave(); },
-                onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => { if (isEditing) return; connect.onMouseDown(e as any); },
-                onMouseUp: (e: React.MouseEvent<HTMLDivElement>) => { if (isEditing) return; connect.onMouseUp(e as any); },
+                onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => {
+                    if (isConnectMode) {
+                        e.stopPropagation();
+                        return;
+                    }
+                    if (isEditing) return;
+                },
                 onClick: (e: React.MouseEvent<HTMLDivElement>) => {
-                    connect.onClick(e as any);
+                    if (isConnectMode) {
+                        const handled = connect.onClick(e);
+                        if (handled) {
+                            return;
+                        }
+                    }
                     if (locked) {
                         e.stopPropagation();
                         toast.warning(`Locked by ${lockOwner?.name || 'another user'}`);
-                    } else {
-                        onClick(e);
+                        return;
                     }
+                    onClick(e);
                 },
                 'data-selected': selected,
             } as any}

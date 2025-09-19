@@ -40,7 +40,7 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
             <span className="text-sm font-medium">Connecting</span>
           </div>
           <span className="text-sm text-stone-700">
-            {connectAnchorId ? 'Drag to a child node' : 'Hold-drag from a parent node'}
+            {connectAnchorId ? 'Click a target node or edge to finish' : 'Click a parent node to start linking'}
           </span>
           <div className="h-5 w-px bg-stone-200 mx-2" />
           <button

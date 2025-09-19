@@ -1,72 +1,80 @@
 import * as Y from "yjs";
 import { Node } from "@xyflow/react";
 
+type NodeMap = Map<string, Node>;
+
+type MutableNode = Node & { dragging?: boolean };
+
+const applySelection = (node: Node, shouldSelect: boolean): Node => ({
+  ...node,
+  selected: shouldSelect,
+});
+
+const sanitizeNode = (node: Node): MutableNode => {
+  const lockedDrag = Boolean(node.parentId);
+  const sanitized: MutableNode = {
+    ...node,
+    draggable: lockedDrag ? false : node.draggable,
+    selected: false,
+  };
+  if (sanitized.dragging !== undefined) {
+    sanitized.dragging = undefined;
+  }
+  return sanitized;
+};
+
+const mergeContent = (node: MutableNode, content: string | undefined, key: "content" | "statement") => {
+  if (content == null) return node;
+  const data =
+    typeof node.data === "object" && node.data !== null
+      ? (node.data as Record<string, unknown>)
+      : {};
+  if (data[key] === content) return node;
+  return {
+    ...node,
+    data: {
+      ...data,
+      [key]: content,
+    },
+  } as Node;
+};
+
 export const mergeNodesWithText = (
   nodes: Node[],
   yTextMap: Y.Map<Y.Text> | null,
-  prevById?: Map<string, any>
+  prevById?: NodeMap
 ): Node[] => {
   if (!yTextMap) return nodes;
-  return nodes.map((n: any) => {
-    const t = yTextMap.get(n.id) as Y.Text | undefined;
-    const prev = prevById?.get(n.id);
-    // Start from a sanitized base: never take 'selected' from incoming Yjs node or bad shit happens
-    const base = (() => {
-      const { selected: _sel, dragging: _drag, ...rest } = n as any;
-      const lockedDrag = Boolean((rest as any)?.parentId);
-      return {
-        ...(rest as any),
-        draggable: lockedDrag ? false : (rest as any)?.draggable,
-      } as any;
-    })();
-    if (t) {
-      const textVal = t.toString();
-      if (base.type === "statement") {
-        const curr = base.data?.statement ?? "";
-        const nn =
-          curr === textVal
-            ? (base as Node)
-            : ({ ...base, data: { ...base.data, statement: textVal } } as Node);
-        return prev && prev.selected
-          ? ({ ...(nn as any), selected: true } as Node)
-          : ({ ...(nn as any), selected: false } as Node);
-      }
-      const curr = base.data?.content ?? "";
-      const nn =
-        curr === textVal
-          ? (base as Node)
-          : ({ ...base, data: { ...base.data, content: textVal } } as Node);
-      return prev && prev.selected
-        ? ({ ...(nn as any), selected: true } as Node)
-        : ({ ...(nn as any), selected: false } as Node);
+  return nodes.map((node) => {
+    const text = yTextMap.get(node.id);
+    const previous = prevById?.get(node.id);
+    const base = sanitizeNode(node);
+    const selected = previous?.selected === true;
+
+    if (text) {
+      const value = text.toString();
+      const updated =
+        base.type === "statement"
+          ? mergeContent(base, value, "statement")
+          : mergeContent(base, value, "content");
+      return applySelection(updated, selected);
     }
-    if (prevById) {
-      if (prev && prev.data) {
-        if (base.type === "statement") {
-          const prevText = prev.data?.statement;
-          const nn =
-            prevText == null
-              ? (base as Node)
-              : ({
-                  ...base,
-                  data: { ...base.data, statement: prevText },
-                } as Node);
-          return prev && prev.selected
-            ? ({ ...(nn as any), selected: true } as Node)
-            : ({ ...(nn as any), selected: false } as Node);
-        }
-        const prevText = prev.data?.content;
-        const nn =
-          prevText == null
-            ? (base as Node)
-            : ({ ...base, data: { ...base.data, content: prevText } } as Node);
-        return prev && prev.selected
-          ? ({ ...(nn as any), selected: true } as Node)
-          : ({ ...(nn as any), selected: false } as Node);
+
+    if (previous && previous.data) {
+      const previousData = previous.data as Record<string, unknown>;
+      const fallbackValue =
+        base.type === "statement"
+          ? previousData["statement"]
+          : previousData["content"];
+      if (typeof fallbackValue === "string") {
+        const updated =
+          base.type === "statement"
+            ? mergeContent(base, fallbackValue, "statement")
+            : mergeContent(base, fallbackValue, "content");
+        return applySelection(updated, selected);
       }
     }
-    return prev && prev.selected
-      ? ({ ...(base as any), selected: true } as Node)
-      : ({ ...(base as any), selected: false } as Node);
+
+    return applySelection(base, selected);
   });
 };

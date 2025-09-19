@@ -9,6 +9,7 @@ import { SideActionPill } from '../common/SideActionPill';
 import { Eye, EyeOff } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNodeChrome } from '../common/useNodeChrome';
+import { useFavorOpacity } from '../common/useFavorOpacity';
 import { NodeShell } from '../common/NodeShell';
 
 interface ObjectionNodeProps {
@@ -64,6 +65,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
         onFocus,
         onContentMouseDown,
         onContentMouseMove,
+        isConnectMode,
     } = editable;
 
     const pointLike = useStore((s: any) => (s.edges || []).some((edge: any) => (edge.type || '') === 'negation' && (edge.source === id || edge.target === id)));
@@ -83,6 +85,12 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
     const favor = Math.max(1, Math.min(5, (data as any)?.favor ?? 5));
 
+    const favorOpacity = useFavorOpacity({
+        favor,
+        selected: !!selected,
+        hovered,
+    });
+
     const sourceHandlePosition = useStore((s: any) => {
         const edges: any[] = s.edges || [];
         const obj = edges.find((edge: any) => edge.type === 'objection' && edge.source === id);
@@ -96,11 +104,26 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     });
 
     const wrapperProps = {
-        onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => { if (isEditing) return; connect.onMouseDown(e); },
-        onMouseUp: (e: React.MouseEvent<HTMLDivElement>) => { if (isEditing) return; connect.onMouseUp(e); },
+        onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => {
+            if (isConnectMode) {
+                e.stopPropagation();
+                return;
+            }
+            if (isEditing) return;
+        },
         onClick: (e: React.MouseEvent<HTMLDivElement>) => {
-            connect.onClick(e as any);
-            if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
+            if (isConnectMode) {
+                const handled = connect.onClick(e);
+                if (handled) {
+                    return;
+                }
+            }
+            if (locked) {
+                e.stopPropagation();
+                toast.warning(`Locked by ${lockOwner?.name || 'another user'}`);
+                return;
+            }
+            onClick(e);
         },
         onContextMenu: (e: React.MouseEvent<HTMLDivElement>) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); },
         'data-selected': selected,
@@ -140,7 +163,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                 wrapperClassName={`px-4 py-3 rounded-xl ${hidden ? 'bg-amber-50 text-amber-900' : 'bg-amber-100 text-amber-900'} border-2 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} min-w-[220px] max-w-[340px] relative z-10 transition-transform duration-300 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
             ${hidden ? 'border-amber-200' : 'border-amber-300'}
             data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white`}
-                wrapperStyle={innerScaleStyle as any}
+                wrapperStyle={{ ...innerScaleStyle, opacity: hidden ? undefined : favorOpacity } as any}
                 wrapperProps={wrapperProps as any}
                 highlightClassName={`pointer-events-none absolute -inset-1 rounded-xl border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
             >

@@ -7,10 +7,7 @@ export interface EdgeInteractionOverlayProps {
   sourceY?: number;
   targetX?: number;
   targetY?: number;
-  connectMode: boolean;
   onEdgeClick: (e: React.MouseEvent) => void;
-  onMouseDown: (e: React.MouseEvent) => void;
-  onMouseUp: (e: React.MouseEvent) => void;
   onContextMenu: (e: React.MouseEvent) => void;
 }
 
@@ -21,10 +18,7 @@ export const EdgeInteractionOverlay: React.FC<EdgeInteractionOverlayProps> = ({
   sourceY,
   targetX,
   targetY,
-  connectMode,
   onEdgeClick,
-  onMouseDown,
-  onMouseUp,
   onContextMenu,
 }) => {
   if (!shouldRender) return null;
@@ -32,7 +26,6 @@ export const EdgeInteractionOverlay: React.FC<EdgeInteractionOverlayProps> = ({
   const overlayStyle = { pointerEvents: 'stroke' as const };
 
   if (pathD) {
-    // Curved edge overlay
     return (
       <path
         d={pathD}
@@ -43,18 +36,17 @@ export const EdgeInteractionOverlay: React.FC<EdgeInteractionOverlayProps> = ({
         fill="none"
         style={overlayStyle}
         onClick={onEdgeClick}
-        onMouseDown={onMouseDown}
-        onMouseUp={onMouseUp}
         onContextMenu={onContextMenu}
       />
     );
-  } else if (
+  }
+
+  if (
     Number.isFinite(sourceX) &&
     Number.isFinite(sourceY) &&
     Number.isFinite(targetX) &&
     Number.isFinite(targetY)
   ) {
-    // Straight edge overlay
     return (
       <line
         x1={sourceX}
@@ -66,12 +58,10 @@ export const EdgeInteractionOverlay: React.FC<EdgeInteractionOverlayProps> = ({
         strokeLinecap="round"
         style={overlayStyle}
         onClick={onEdgeClick}
-        onMouseDown={onMouseDown}
-        onMouseUp={onMouseUp}
         onContextMenu={onContextMenu}
       />
     );
   }
 
   return null;
-};
+}

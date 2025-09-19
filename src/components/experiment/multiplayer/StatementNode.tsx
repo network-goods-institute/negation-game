@@ -56,6 +56,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
     onFocus,
     onContentMouseDown,
     onContentMouseMove,
+    isConnectMode,
   } = editable;
 
   const { hovered, setHovered, onEnter, onLeave } = hover;
@@ -101,11 +102,25 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
             data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white`}
         wrapperStyle={innerScaleStyle}
         wrapperProps={{
-          onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => { if (isEditing) return; connect.onMouseDown(e); },
-          onMouseUp: (e: React.MouseEvent<HTMLDivElement>) => { if (isEditing) return; connect.onMouseUp(e); },
+          onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => {
+            if (isConnectMode) {
+              e.stopPropagation();
+              return;
+            }
+          },
           onClick: (e: React.MouseEvent<HTMLDivElement>) => {
-            connect.onClick(e as any);
-            if (!locked) { onClick(e); } else { e.stopPropagation(); toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); }
+            if (isConnectMode) {
+              const handled = connect.onClick(e);
+              if (handled) {
+                return;
+              }
+            }
+            if (locked) {
+              e.stopPropagation();
+              toast.warning(`Locked by ${lockOwner?.name || 'another user'}`);
+              return;
+            }
+            onClick(e);
           },
           onContextMenu: (e: React.MouseEvent<HTMLDivElement>) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); },
           'data-selected': selected,

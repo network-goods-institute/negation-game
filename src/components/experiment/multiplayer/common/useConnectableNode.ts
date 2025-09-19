@@ -1,4 +1,5 @@
 import { MouseEvent, useCallback } from 'react';
+import { useReactFlow } from '@xyflow/react';
 import { useGraphActions } from '../GraphContext';
 
 interface UseConnectableNodeParams {
@@ -7,44 +8,47 @@ interface UseConnectableNodeParams {
 }
 
 export const useConnectableNode = ({ id, locked = false }: UseConnectableNodeParams) => {
-  const { beginConnectFromNode, completeConnectToNode, connectMode, isConnectingFromNodeId } = useGraphActions();
+  const flow = useReactFlow();
+  const {
+    beginConnectFromNode,
+    completeConnectToNode,
+    connectMode,
+    isConnectingFromNodeId,
+  } = useGraphActions();
 
-  const onMouseDown = useCallback((e: MouseEvent) => {
-    if (e.button === 2) {
-      e.preventDefault();
-      e.stopPropagation();
-      return;
-    }
-    if (e.button === 0 && connectMode && !locked) {
-      e.preventDefault();
-      e.stopPropagation();
-      beginConnectFromNode(id);
-    }
-  }, [beginConnectFromNode, connectMode, id, locked]);
-
-  const onMouseUp = useCallback((e: MouseEvent) => {
-    if (connectMode && !locked) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (isConnectingFromNodeId && isConnectingFromNodeId !== id) {
-        completeConnectToNode?.(id);
+  const onClick = useCallback(
+    (e: MouseEvent) => {
+      if (!connectMode || locked) {
+        return false;
       }
-    }
-  }, [completeConnectToNode, connectMode, id, isConnectingFromNodeId, locked]);
 
-  const onClick = useCallback((e: MouseEvent) => {
-    if (!connectMode || locked) return;
-    e.preventDefault();
-    e.stopPropagation();
-    if (!isConnectingFromNodeId) {
-      beginConnectFromNode(id);
-    } else if (isConnectingFromNodeId && isConnectingFromNodeId !== id) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const position = flow.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+
+      if (!isConnectingFromNodeId) {
+        beginConnectFromNode(id, position);
+        return true;
+      }
+
       completeConnectToNode?.(id);
-    }
-  }, [beginConnectFromNode, completeConnectToNode, connectMode, id, isConnectingFromNodeId, locked]);
+      return true;
+    },
+    [
+      beginConnectFromNode,
+      completeConnectToNode,
+      connectMode,
+      flow,
+      id,
+      isConnectingFromNodeId,
+      locked,
+    ]
+  );
 
-  return { onMouseDown, onMouseUp, onClick };
+  return {
+    onClick,
+  };
 };
 
 export default useConnectableNode;
-

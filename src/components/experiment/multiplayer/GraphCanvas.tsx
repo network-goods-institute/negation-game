@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { ReactFlow, Background, Controls, MiniMap, Edge, Node, useReactFlow, useViewport } from '@xyflow/react';
 import { CursorOverlay } from './CursorOverlay';
 import { CursorReporter } from './CursorReporter';
-import { nodeTypes, edgeTypes } from '@/data/experiment/multiplayer/sampleData';
+import { nodeTypes, edgeTypes } from '@/components/experiment/multiplayer/componentRegistry';
 import { WebsocketProvider } from 'y-websocket';
 import { useGraphActions } from './GraphContext';
 import OffscreenNeighborPreviews from './OffscreenNeighborPreviews';
@@ -83,6 +83,14 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       };
       if (isEditable(target) || isEditable(active)) return;
 
+      if (key === 'escape') {
+        if (connectMode) {
+          e.preventDefault();
+          graph.cancelConnect?.();
+        }
+        return;
+      }
+
       if (key === 'delete' || key === 'backspace') {
         const sel = rf.getNodes().filter((n) => (n as any).selected);
         const selectedEdgeId = (graph as any)?.selectedEdgeId as string | null;
@@ -117,23 +125,32 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [rf, graph]);
+  }, [rf, graph, connectMode]);
   React.useEffect(() => {
-    if (!connectMode || !onFlowMouseMove) return;
+    if (!connectMode || !connectAnchorId || !onFlowMouseMove) return;
     const handler = (e: MouseEvent) => {
       const p = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
       onFlowMouseMove(p.x, p.y);
     };
     window.addEventListener('mousemove', handler);
     return () => window.removeEventListener('mousemove', handler);
-  }, [connectMode, onFlowMouseMove, rf]);
+  }, [connectMode, connectAnchorId, onFlowMouseMove, rf]);
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!onFlowMouseMove) return;
+    if (!connectMode || !connectAnchorId || !onFlowMouseMove) return;
     const p = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
     onFlowMouseMove(p.x, p.y);
   };
-  const handleMouseUp = () => {
-    if (connectMode) {
+  const handleMouseUp = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!connectMode || !connectAnchorId) return;
+
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+
+    if (target.closest('.react-flow__node') || target.closest('.react-flow__edge')) {
+      return;
+    }
+
+    if (target.closest('.react-flow__pane')) {
       onBackgroundMouseUp?.();
     }
   };
@@ -192,7 +209,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             onEdgesChange={handleEdgesChange}
             onConnect={authenticated ? onConnect : undefined}
             onNodeClick={onNodeClick}
-            onPaneClick={() => { try { graph.setSelectedEdge?.(null); } catch { } }}
+            onPaneClick={() => { try { graph.setSelectedEdge?.(null); } catch { } if (connectMode) onBackgroundMouseUp?.(); }}
             onEdgeClick={(e, edge) => { e.stopPropagation(); graph.setSelectedEdge?.(edge.id); onEdgeClick?.(e, edge); }}
             onNodeDragStart={authenticated ? onNodeDragStart : undefined}
             onNodeDragStop={authenticated ? onNodeDragStop : undefined}
@@ -233,8 +250,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           return { cx: n.position.x, cy: n.position.y };
         };
         const { cx: sx, cy: sy } = computeCenter();
-        const tx = connectCursor.x;
-        const ty = connectCursor.y;
+        const tx = connectCursor?.x ?? sx;
+        const ty = connectCursor?.y ?? sy;
         return (
           <g className="react-flow__connection-preview" style={{ pointerEvents: 'none' }}>
             <defs>

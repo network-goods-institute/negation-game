@@ -53,7 +53,7 @@ export const useNodeChrome = ({
   const isActive = Boolean(selected || hover.hovered);
   const innerScaleStyle = useNeighborEmphasis({
     id,
-    wrapperRef: editable.wrapperRef as any,
+    wrapperRef: editable.wrapperRef,
     isActive,
     scale: neighborScale,
   });

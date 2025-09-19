@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useRef, useState, useEffect } from 'react';
+import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { ReactFlowProvider, } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -55,8 +55,20 @@ export default function MultiplayerBoardDetailPage() {
     const [grabMode, setGrabMode] = useState<boolean>(false);
     const [connectAnchorId, setConnectAnchorId] = useState<string | null>(null);
     const connectAnchorRef = useRef<string | null>(null);
-    useEffect(() => { if (!connectAnchorId) connectAnchorRef.current = null; }, [connectAnchorId]);
+    useEffect(() => {
+        if (!connectAnchorId) {
+            connectAnchorRef.current = null;
+            setConnectCursor(null);
+        }
+    }, [connectAnchorId]);
     const [connectCursor, setConnectCursor] = useState<{ x: number; y: number } | null>(null);
+    useEffect(() => {
+        if (!connectMode) {
+            setConnectAnchorId(null);
+            connectAnchorRef.current = null;
+            setConnectCursor(null);
+        }
+    }, [connectMode]);
     const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
     const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
     const [newNodeWithDropdown, setNewNodeWithDropdown] = useState<{ id: string, x: number, y: number } | null>(null);
@@ -133,6 +145,42 @@ export default function MultiplayerBoardDetailPage() {
         enabled: ready && authenticated && !isUserLoading && !isUserFetching && Boolean(initialGraph),
         localOrigin: localOriginRef.current,
     });
+    const getNodeCenter = useCallback((nodeId: string) => {
+        const node = (nodes as any[])?.find?.((n: any) => n.id === nodeId);
+        if (!node) return null;
+        const abs = node.positionAbsolute || node.position || { x: 0, y: 0 };
+        const point = abs as { x?: number; y?: number };
+        const baseX = typeof point.x === 'number' ? point.x : 0;
+        const baseY = typeof point.y === 'number' ? point.y : 0;
+        const measured = (node as any).measured as { width?: number; height?: number } | undefined;
+        const style = node.style as { width?: number; height?: number } | undefined;
+        const width = typeof node.width === 'number'
+            ? node.width
+            : (typeof measured?.width === 'number'
+                ? measured.width
+                : (typeof style?.width === 'number' ? style.width : 0));
+        const height = typeof node.height === 'number'
+            ? node.height
+            : (typeof measured?.height === 'number'
+                ? measured.height
+                : (typeof style?.height === 'number' ? style.height : 0));
+        return { x: baseX + (width || 0) / 2, y: baseY + (height || 0) / 2 };
+    }, [nodes]);
+
+    const getEdgeMidpoint = useCallback((edgeId: string) => {
+        const edge = (edges as any[])?.find?.((e: any) => e.id === edgeId);
+        if (!edge) return null;
+        const sourceCenter = getNodeCenter(edge.source);
+        const targetCenter = getNodeCenter(edge.target);
+        if (sourceCenter && targetCenter) {
+            return {
+                x: (sourceCenter.x + targetCenter.x) / 2,
+                y: (sourceCenter.y + targetCenter.y) / 2,
+            };
+        }
+        return null;
+    }, [edges, getNodeCenter]);
+
 
     const { canWrite } = useWriteAccess(provider, userId);
 
@@ -297,17 +345,14 @@ export default function MultiplayerBoardDetailPage() {
         clearConnect,
     });
 
-    const updateEdgeAnchorPosition = React.useMemo(
-        () => createUpdateEdgeAnchorPosition(
-            setNodes as any,
-            canWrite && writeSynced ? (yNodesMap as any) : null,
-            canWrite && writeSynced ? (ydoc as any) : null,
-            canWrite && writeSynced,
-            localOriginRef.current,
-            undefined,
-            undefined
-        ),
-        [setNodes, yNodesMap, ydoc, canWrite, writeSynced]
+    const updateEdgeAnchorPosition = createUpdateEdgeAnchorPosition(
+        setNodes as any,
+        canWrite && writeSynced ? (yNodesMap as any) : null,
+        canWrite && writeSynced ? (ydoc as any) : null,
+        canWrite && writeSynced,
+        localOriginRef.current,
+        undefined,
+        undefined
     );
 
     const { onNodesChange, onEdgesChange, onConnect, commitNodePositions } = createGraphChangeHandlers(
@@ -454,28 +499,33 @@ export default function MultiplayerBoardDetailPage() {
                     isLockedForMe,
                     getLockOwner,
                     isAnyNodeEditing,
-                    beginConnectFromNode: (id: string) => { connectAnchorRef.current = id; setConnectAnchorId(id); },
-                    beginConnectFromEdge: (edgeId: string) => {
+                    beginConnectFromNode: (id: string, cursor?: { x: number; y: number }) => {
+                        connectAnchorRef.current = id;
+                        setConnectAnchorId(id);
+                        const fallback = cursor || getNodeCenter(id);
+                        if (fallback) {
+                            setConnectCursor(fallback);
+                        }
+                    },
+                    beginConnectFromEdge: (edgeId: string, cursor?: { x: number; y: number }) => {
                         const anchorId = `anchor:${edgeId}`;
                         connectAnchorRef.current = anchorId;
                         setConnectAnchorId(anchorId);
-                        // Ensure a local anchor node exists for preview
+                        const midpoint = cursor || getEdgeMidpoint(edgeId);
+                        if (midpoint) {
+                            setConnectCursor(midpoint);
+                        }
                         const edge = (edges as any[]).find(e => e.id === edgeId);
                         if (edge) {
-                            const src = (nodes as any[]).find(n => n.id === edge.source);
-                            const tgt = (nodes as any[]).find(n => n.id === edge.target);
-                            if (src && tgt) {
-                                const ax = (src.position.x + tgt.position.x) / 2;
-                                const ay = (src.position.y + tgt.position.y) / 2;
-                                const anchorNode: any = { id: anchorId, type: 'edge_anchor', position: { x: ax, y: ay }, data: { parentEdgeId: edgeId } };
-                                setNodes((nds: any[]) => nds.some(n => n.id === anchorId) ? nds : [...nds, anchorNode]);
-                            }
+                            const position = midpoint || getEdgeMidpoint(edgeId) || { x: 0, y: 0 };
+                            const anchorNode: any = { id: anchorId, type: 'edge_anchor', position, data: { parentEdgeId: edgeId } };
+                            setNodes((nds: any[]) => nds.some(n => n.id === anchorId) ? nds : [...nds, anchorNode]);
                         }
                     },
                     completeConnectToNode: (nodeId: string) => {
                         if (!connectMode) return;
                         if (!canWrite) {
-                            toast.warning('Read-only mode: Changes won\'t be saved');
+                            toast.warning("Read-only mode: Changes won't be saved");
                             return;
                         }
                         const anchorId = connectAnchorId || connectAnchorRef.current;
@@ -486,24 +536,18 @@ export default function MultiplayerBoardDetailPage() {
                             setConnectCursor(null);
                             return;
                         }
-                        // Edge->Node: if anchor is an edge anchor, create an objection for that edge
                         if (anchorId.startsWith('anchor:')) {
                             const edgeId = anchorId.slice('anchor:'.length);
-                            const baseEdge = (edges as any[]).find(e => e.id === edgeId);
-                            const src = (nodes as any[]).find(n => n.id === baseEdge?.source);
-                            const tgt = (nodes as any[]).find(n => n.id === baseEdge?.target);
-                            const midX = src && tgt ? (src.position.x + tgt.position.x) / 2 : 0;
-                            const midY = src && tgt ? (src.position.y + tgt.position.y) / 2 : 0;
                             const anchorIdForEdge = `anchor:${edgeId}`;
                             const anchorNodeExists = (nodes as any[]).some(n => n.id === anchorIdForEdge);
                             if (!anchorNodeExists) {
-                                const anchorNode: any = { id: anchorIdForEdge, type: 'edge_anchor', position: { x: midX, y: midY }, data: { parentEdgeId: edgeId } };
+                                const midpoint = getEdgeMidpoint(edgeId) || { x: 0, y: 0 };
+                                const anchorNode: any = { id: anchorIdForEdge, type: 'edge_anchor', position: midpoint, data: { parentEdgeId: edgeId } };
                                 setNodes((nds: any[]) => nds.some(n => n.id === anchorIdForEdge) ? nds : [...nds, anchorNode]);
                                 if (yNodesMap && ydoc && canWrite) {
                                     ydoc.transact(() => { if (!(yNodesMap as any).has(anchorIdForEdge)) (yNodesMap as any).set(anchorIdForEdge, anchorNode); }, localOriginRef.current);
                                 }
                             }
-                            // Always create an objection edge from the node to this edge's anchor without spawning a new node
                             const newObjEdge = { id: generateEdgeId(), type: 'objection', source: nodeId, target: anchorIdForEdge } as any;
                             setEdges((eds: any[]) => eds.some(e => e.id === newObjEdge.id) ? eds : [...eds, newObjEdge]);
                             if (yEdgesMap && ydoc && canWrite) {
@@ -529,13 +573,11 @@ export default function MultiplayerBoardDetailPage() {
                         const { id, edge } = buildConnectionEdge(nodes as any, parentId, childId) as any;
                         const exists = edges.some((e: any) => e.id === id);
                         if (!exists) {
-                            if (yEdgesMap && ydoc && canWrite) {
-                                ydoc.transact(() => { if (!yEdgesMap.has(id)) yEdgesMap.set(id, edge as any); }, localOriginRef.current);
-                            } else {
-                                setEdges((eds) => (eds.some(e => e.id === id) ? eds : [...eds, edge as any]));
-                            }
+                            setEdges((eds) => (eds.some(e => e.id === id) ? eds : [...eds, edge as any]));
                         }
-                        // Objection nodes render as point-like dynamically based on negation edges; do not flip types
+                        if (yEdgesMap && ydoc && canWrite) {
+                            ydoc.transact(() => { if (!yEdgesMap.has(id)) yEdgesMap.set(id, edge as any); }, localOriginRef.current);
+                        }
                         setConnectAnchorId(null);
                         connectAnchorRef.current = null;
                         setConnectCursor(null);
@@ -547,21 +589,15 @@ export default function MultiplayerBoardDetailPage() {
                         const origin = connectAnchorRef.current;
                         if (!origin) return;
                         if (origin.startsWith('anchor:')) {
-                            // Edge->Edge not supported
                             return;
                         }
                         const originNode = (nodes as any[]).find(n => n.id === origin);
                         if (originNode && originNode.type === 'objection') {
-                            // Attach existing objection node
                             const anchorId = `anchor:${edgeId}`;
                             const anchorExists = (nodes as any[]).some(n => n.id === anchorId);
                             if (!anchorExists) {
-                                const base = (edges as any[]).find(e => e.id === edgeId);
-                                const src = (nodes as any[]).find(n => n.id === base?.source);
-                                const tgt = (nodes as any[]).find(n => n.id === base?.target);
-                                const ax = (midX != null ? midX : (src && tgt ? (src.position.x + tgt.position.x) / 2 : 0));
-                                const ay = (midY != null ? midY : (src && tgt ? (src.position.y + tgt.position.y) / 2 : 0));
-                                const anchorNode: any = { id: anchorId, type: 'edge_anchor', position: { x: ax, y: ay }, data: { parentEdgeId: edgeId } };
+                                const midpoint = getEdgeMidpoint(edgeId) || { x: midX ?? 0, y: midY ?? 0 };
+                                const anchorNode: any = { id: anchorId, type: 'edge_anchor', position: midpoint, data: { parentEdgeId: edgeId } };
                                 setNodes((nds: any[]) => nds.some(n => n.id === anchorId) ? nds : [...nds, anchorNode]);
                                 if (yNodesMap && ydoc && canWrite) {
                                     ydoc.transact(() => { if (!(yNodesMap as any).has(anchorId)) (yNodesMap as any).set(anchorId, anchorNode); }, localOriginRef.current);
@@ -683,10 +719,15 @@ export default function MultiplayerBoardDetailPage() {
                             zoomOnScroll={false}
                             connectMode={connectMode}
                             connectAnchorId={connectAnchorId}
-                            onFlowMouseMove={(x, y) => setConnectCursor({ x, y })}
+                            onFlowMouseMove={(x, y) => {
+                                if (!connectAnchorRef.current) return;
+                                setConnectCursor({ x, y });
+                            }}
                             connectCursor={connectCursor}
                             onBackgroundMouseUp={() => {
-                                // No-op: edge connections by drag are disabled
+                                setConnectAnchorId(null);
+                                connectAnchorRef.current = null;
+                                setConnectCursor(null);
                             }}
                             onBackgroundDoubleClick={(flowX, flowY) => {
                                 if (!canWrite) {

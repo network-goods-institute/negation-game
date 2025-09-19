@@ -1,23 +1,28 @@
 import * as Y from "yjs";
 
+interface SanitizableData extends Record<string, unknown> {
+  editedBy?: unknown;
+}
+
 export const syncYMapFromArray = <T extends { id: string }>(
   ymap: Y.Map<T>,
   arr: T[]
 ) => {
-  const sanitize = (item: any) => {
-    if (item && typeof item === "object") {
-      // strip local-only runtime flags
-      const { selected: _selected, dragging: _dragging, ...restNode } = item as any;
-      if ("data" in restNode) {
-        const d = (restNode as any).data || {};
-        if (d && typeof d === "object" && "editedBy" in d) {
-          const { editedBy, ...rest } = d as any;
-          return { ...(restNode as any), data: rest } as T;
-        }
-      }
-      return restNode as T;
+  type Candidate = T & { selected?: unknown; dragging?: unknown; data?: SanitizableData };
+  const sanitize = (item: T): T => {
+    if (!item || typeof item !== "object") {
+      return item;
     }
-    return item as T;
+    const { selected: _selected, dragging: _dragging, ...rest } = item as Candidate;
+    const data = rest.data && typeof rest.data === "object" ? (rest.data as SanitizableData) : undefined;
+    if (data && "editedBy" in data) {
+      const { editedBy: _editedBy, ...dataRest } = data;
+      return {
+        ...(rest as T),
+        data: dataRest as Candidate["data"],
+      } as T;
+    }
+    return rest as T;
   };
   const nextIds = new Set(arr.map((i) => i.id));
   for (const key of Array.from(ymap.keys())) {

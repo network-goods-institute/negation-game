@@ -149,25 +149,17 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
 
   const handleEdgeClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (connectMode) {
+      const midpoint = visual.useBezier ? { x: labelX, y: labelY } : { x: cx, y: cy };
+      const anchorId = graphActions.isConnectingFromNodeId as string | null;
+      if (!anchorId) {
+        beginConnectFromEdge?.(props.id as string, midpoint);
+      } else {
+        completeConnectToEdge?.(props.id as string, midpoint.x, midpoint.y);
+      }
+      return;
+    }
     setSelectedEdge?.(props.id as string);
-  };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (connectMode) {
-      e.preventDefault();
-      e.stopPropagation();
-      beginConnectFromEdge?.(props.id as string);
-    }
-  };
-
-  const handleMouseUp = (e: React.MouseEvent) => {
-    if (connectMode) {
-      e.preventDefault();
-      e.stopPropagation();
-      const x = visual.useBezier ? labelX : cx;
-      const y = visual.useBezier ? labelY : cy;
-      completeConnectToEdge?.(props.id as string, x, y);
-    }
   };
 
   const handleUpdateRelevance = (newRelevance: number) => {
@@ -260,10 +252,7 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
         sourceY={visual.useBezier ? undefined : sourceY}
         targetX={visual.useBezier ? undefined : targetX}
         targetY={visual.useBezier ? undefined : targetY}
-        connectMode={connectMode}
         onEdgeClick={handleEdgeClick}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
         onContextMenu={handleContextMenu}
       />
 

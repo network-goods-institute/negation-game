@@ -9,6 +9,7 @@ import { NodeActionPill } from './common/NodeActionPill';
 import { SideActionPill } from './common/SideActionPill';
 import { inversePairEnabled } from '@/config/experiments';
 import { useNodeChrome } from './common/useNodeChrome';
+import { useFavorOpacity } from './common/useFavorOpacity';
 import { NodeShell } from './common/NodeShell';
 
 interface PointNodeProps {
@@ -46,7 +47,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
 
   const locked = isLockedForMe?.(id) || false;
   const lockOwner = getLockOwner?.(id) || null;
-  const hidden = (data as any)?.hidden === true;
+  const hidden = data.hidden === true;
 
   const { editable, hover, pill, connect, innerScaleStyle, isActive } = useNodeChrome({
     id,
@@ -76,6 +77,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     onFocus,
     onContentMouseDown,
     onContentMouseMove,
+    isConnectMode,
   } = editable;
 
   const {
@@ -98,14 +100,17 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
 
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const favorValue = (data as any)?.favor;
-  const favor = useMemo(() => Math.max(1, Math.min(5, favorValue ?? 5)), [favorValue]);
-  const isDirectInverse = Boolean((data as any)?.directInverse);
+  const favorValue = data.favor;
+  const favor = Math.max(1, Math.min(5, favorValue ?? 5));
+  const isDirectInverse = Boolean(data.directInverse);
   const isInContainer = Boolean(parentId);
-  const favorOpacity = useMemo(() => {
-    if (selected || hovered || sliverHovered || sliverAnimating) return 1;
-    return Math.max(0.3, Math.min(1, favor / 5));
-  }, [favor, hovered, selected, sliverAnimating, sliverHovered]);
+
+  const favorOpacity = useFavorOpacity({
+    favor,
+    selected: !!selected,
+    hovered,
+    additionalFullOpacityConditions: [sliverHovered, sliverAnimating],
+  });
 
   useEffect(() => {
     if (!parentId || !wrapperRef?.current || !setPairNodeHeight) return;
@@ -208,25 +213,26 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
       setSliverHovered(false);
     },
     onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => {
+      if (isConnectMode) {
+        e.stopPropagation();
+        return;
+      }
       if (isEditing) return;
       if (contentRef.current && contentRef.current.contains(e.target as Node)) {
         return;
       }
-      connect.onMouseDown(e);
-    },
-    onMouseUp: (e: React.MouseEvent<HTMLDivElement>) => {
-      if (isEditing) return;
-      if (contentRef.current && contentRef.current.contains(e.target as Node)) {
-        return;
-      }
-      connect.onMouseUp(e);
     },
     onClick: (e: React.MouseEvent<HTMLDivElement>) => {
+      if (isConnectMode) {
+        const handled = connect.onClick(e);
+        if (handled) {
+          return;
+        }
+      }
       if (contentRef.current && contentRef.current.contains(e.target as Node)) {
         onClick(e);
         return;
       }
-      connect.onClick(e as any);
       if (isEditing) return;
       if (locked) {
         e.stopPropagation();
@@ -294,7 +300,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
         )}
         <div
           ref={contentRef}
-          contentEditable={isEditing && !locked && !hidden}
+          contentEditable={isEditing && !locked && !hidden && !isConnectMode}
           suppressContentEditableWarning
           onInput={onInput}
           onMouseDown={onContentMouseDown}
@@ -303,7 +309,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           onBlur={onBlur}
           onKeyDown={onKeyDown}
           className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${isEditing ? 'nodrag' : ''} ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-gray-900'} ${isInContainer ? 'overflow-visible' : ''}`}
-          style={{ userSelect: hidden ? 'none' : 'text' }}
+          style={{ userSelect: hidden || isConnectMode ? 'none' : 'text' }}
           title={typeof value === 'string' ? value : undefined}
         >
           {value || 'New point'}

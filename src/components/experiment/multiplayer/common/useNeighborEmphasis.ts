@@ -5,7 +5,7 @@ import { isDirectNeighbor } from '@/utils/experiment/multiplayer/negation';
 
 type Params = {
   id: string;
-  wrapperRef: React.RefObject<HTMLElement>;
+  wrapperRef: React.RefObject<HTMLElement | null>;
   isActive: boolean;
   scale?: number;
 };

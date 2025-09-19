@@ -20,6 +20,7 @@ export const useEditableNode = ({
   isSelected,
 }: UseEditableNodeArgs) => {
   const graph = useGraphActions();
+  const isConnectMode = Boolean((graph as any)?.connectMode);
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(content);
   const draftRef = useRef<string>("");
@@ -201,7 +202,9 @@ export const useEditableNode = ({
     }
 
     if (graph?.connectMode) {
-      // In connect mode, do not enter editing; let wrapper handle connection.
+      e.preventDefault();
+      e.stopPropagation();
+      window.getSelection()?.removeAllRanges();
       lastClickRef.current = now;
       return;
     }
@@ -251,7 +254,7 @@ export const useEditableNode = ({
     }
   };
 
-  const commit = () => {
+  const commit = useCallback(() => {
     setIsEditing(false);
     stopEditingNode?.(id);
     if (draftRef.current !== value) {
@@ -274,7 +277,15 @@ export const useEditableNode = ({
         justCommittedRef.current = 0;
       }
     }, 1500);
-  };
+  }, [id, stopEditingNode, updateNodeContent, value]);
+
+  useEffect(() => {
+    if (!isConnectMode) return;
+    window.getSelection()?.removeAllRanges();
+    if (isEditing) {
+      commit();
+    }
+  }, [commit, isConnectMode, isEditing]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     // Intercept global undo/redo while editing to avoid native contentEditable undo
@@ -344,6 +355,7 @@ export const useEditableNode = ({
     setIsEditing,
     contentRef,
     wrapperRef,
+    isConnectMode,
     onClick,
     onInput,
     onKeyDown,
@@ -357,6 +369,8 @@ export const useEditableNode = ({
       e.stopPropagation();
 
       if (graph?.connectMode) {
+        e.preventDefault();
+        window.getSelection()?.removeAllRanges();
         return;
       }
 

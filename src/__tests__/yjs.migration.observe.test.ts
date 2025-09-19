@@ -1,7 +1,11 @@
-import { createUpdateNodesFromY, createUpdateEdgesFromY } from "@/hooks/experiment/multiplayer/yjs/handlers";
+import { createUpdateNodesFromY } from "@/hooks/experiment/multiplayer/yjs/nodeSync";
+import { createUpdateEdgesFromY } from "@/hooks/experiment/multiplayer/yjs/edgeSync";
 
 class YMapMock<V> implements Iterable<[string, V]> {
   map = new Map<string, V>();
+  values() {
+    return this.map.values();
+  }
   doc: { transact: (cb: () => void, origin?: any) => void };
   origins: any[] = [];
   constructor() {
@@ -55,7 +59,7 @@ describe("yjs observer migrations", () => {
       lastNodesSigRef as any,
       setNodes as any
     );
-    handler();
+    handler(undefined as any, {} as any);
 
     const migrated = yNodes.get("n1");
     expect(migrated.type).toBe("statement");
@@ -78,7 +82,7 @@ describe("yjs observer migrations", () => {
       lastEdgesSigRef as any,
       setEdges as any
     );
-    handler();
+    handler(undefined as any, {} as any);
 
     const migrated = yEdges.get("e1");
     expect(migrated.type).toBe("option");
@@ -101,7 +105,7 @@ describe("yjs observer migrations", () => {
       setNodes as any,
       localOriginRef as any
     );
-    handler(undefined, { origin: localOriginRef.current });
+    handler(undefined as any, { origin: localOriginRef.current } as any);
     expect(setNodes).not.toHaveBeenCalled();
   });
 });
