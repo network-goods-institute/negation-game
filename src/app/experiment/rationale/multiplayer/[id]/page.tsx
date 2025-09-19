@@ -592,7 +592,7 @@ export default function MultiplayerBoardDetailPage() {
                             return;
                         }
                         const originNode = (nodes as any[]).find(n => n.id === origin);
-                        if (originNode && originNode.type === 'objection') {
+                        if (originNode) {
                             const anchorId = `anchor:${edgeId}`;
                             const anchorExists = (nodes as any[]).some(n => n.id === anchorId);
                             if (!anchorExists) {
@@ -608,8 +608,6 @@ export default function MultiplayerBoardDetailPage() {
                             if (yEdgesMap && ydoc && canWrite) {
                                 ydoc.transact(() => { if (!(yEdgesMap as any).has(newEdge.id)) (yEdgesMap as any).set(newEdge.id, newEdge); }, localOriginRef.current);
                             }
-                        } else {
-                            addObjectionForEdge(edgeId, midX, midY);
                         }
                         setConnectAnchorId(null);
                         connectAnchorRef.current = null;

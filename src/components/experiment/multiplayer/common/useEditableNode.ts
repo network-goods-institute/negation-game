@@ -165,16 +165,6 @@ export const useEditableNode = ({
     enterEditWithCaret();
   };
 
-  const debouncedUpdateNodeContent = useCallback(
-    (nodeId: string, content: string) => {
-      if (updateTimerRef.current) clearTimeout(updateTimerRef.current);
-      updateTimerRef.current = window.setTimeout(() => {
-        updateNodeContent(nodeId, content);
-      }, 50);
-    },
-    [updateNodeContent]
-  );
-
   const onClick = (e: React.MouseEvent) => {
     const now = Date.now();
 
@@ -220,16 +210,23 @@ export const useEditableNode = ({
       return;
     }
 
-    // Double-click: enter edit with caret at click (do NOT select-all)
+    // Double-click: if not editing, enter edit with caret at click; if editing, allow native word selection
     if (e.detail === 2) {
-      e.preventDefault();
-      if (!isEditing) originalBeforeEditRef.current = value;
-      setIsEditing(true);
-      const { clientX, clientY } = e;
-      setTimeout(() => enterEditWithCaretAtPoint(clientX, clientY), 0);
-      startEditingNode?.(id);
-      lastClickRef.current = now;
-      return;
+      if (!isEditing) {
+        // Not editing: enter edit mode with caret at click position
+        e.preventDefault();
+        originalBeforeEditRef.current = value;
+        setIsEditing(true);
+        const { clientX, clientY } = e;
+        setTimeout(() => enterEditWithCaretAtPoint(clientX, clientY), 0);
+        startEditingNode?.(id);
+        lastClickRef.current = now;
+        return;
+      } else {
+        // Already editing: allow native browser word selection (don't preventDefault)
+        lastClickRef.current = now;
+        return;
+      }
     }
 
     // Single click: enter edit mode if node is selected, or if it's a quick second click
