@@ -21,6 +21,10 @@ export const ThemedPrivyProvider = ({ children }: PropsWithChildren) => {
     },
     defaultChain: mainnet,
     supportedChains: [mainnet],
+    session: {
+      autoRefresh: true,
+      refreshInterval: 300000, // 5 minutes
+    },
   }), [resolvedTheme]);
 
   if (!mounted) return null;

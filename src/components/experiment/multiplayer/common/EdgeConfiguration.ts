@@ -1,6 +1,11 @@
-import React from 'react';
+import React from "react";
 
-export type EdgeType = 'negation' | 'objection' | 'option' | 'support' | 'statement';
+export type EdgeType =
+  | "negation"
+  | "objection"
+  | "option"
+  | "support"
+  | "statement";
 
 export interface EdgeVisualConfig {
   // Colors
@@ -31,7 +36,6 @@ export interface EdgeVisualConfig {
   // Geometry
   useStrap?: boolean;
   useBezier?: boolean;
-  useEllipseMasking?: boolean;
 }
 
 export interface EdgeBehaviorConfig {
@@ -53,36 +57,33 @@ export interface EdgeConfig {
 
 export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
   negation: {
-    type: 'negation',
+    type: "negation",
     visual: {
-      stroke: '#9CA3AF',
-      borderColor: '#9CA3AF',
-      starColor: 'text-stone-600',
+      stroke: "#9CA3AF",
+      borderColor: "#9CA3AF",
+      starColor: "text-stone-600",
       strokeWidth: (relevance) => Math.max(1, Math.min(8, relevance * 1.6)),
-      gradientId: 'neg-strap-gradient',
+      strokeDasharray: "6,6",
+      gradientId: "neg-strap-gradient",
       gradientStops: [
-        { offset: '0%', stopColor: '#9CA3AF', stopOpacity: 0.15 },
-        { offset: '100%', stopColor: '#6B7280', stopOpacity: 0.15 }
+        { offset: "0%", stopColor: "#9CA3AF", stopOpacity: 0.15 },
+        { offset: "100%", stopColor: "#6B7280", stopOpacity: 0.15 },
       ],
-      midpointContent: React.createElement('div', {
-        className: 'w-2 h-[2px] rounded-sm',
-        style: { backgroundColor: '#9CA3AF' }
-      }),
-      label: '-',
-      labelStyle: {
-        padding: 0,
-        width: 20,
-        height: 20,
-        stroke: 'white',
-        strokeWidth: 2,
-        fontSize: 36,
-        fontWeight: 600,
-        fill: '#6B7280',
-        userSelect: 'none',
-      },
+      midpointContent: React.createElement(
+        "div",
+        {
+          className: "font-bold flex items-center justify-center",
+          style: {
+            color: "#9CA3AF",
+            fontSize: "28px",
+            lineHeight: "1",
+            transform: "translateY(-1px)",
+          },
+        },
+        "-"
+      ),
       useStrap: true,
       useBezier: false,
-      useEllipseMasking: false,
     },
     behavior: {
       showRelevanceInContextMenu: true,
@@ -92,20 +93,19 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
   },
 
   objection: {
-    type: 'objection',
+    type: "objection",
     visual: {
-      stroke: '#f97316',
-      borderColor: '#f97316',
-      starColor: 'text-orange-600',
+      stroke: "#f97316",
+      borderColor: "#f97316",
+      starColor: "text-orange-600",
       strokeWidth: (relevance) => Math.max(1, Math.min(8, relevance * 1.6)),
-      strokeDasharray: '8,4', // Optional, determined by edgeIsObjectionStyle
-      midpointContent: React.createElement('div', {
-        className: 'w-2 h-[2px] rounded-sm',
-        style: { backgroundColor: '#f97316', transform: 'rotate(45deg)' }
+      strokeDasharray: "8,4", // Optional, determined by edgeIsObjectionStyle
+      midpointContent: React.createElement("div", {
+        className: "w-2 h-[2px] rounded-sm",
+        style: { backgroundColor: "#f97316", transform: "rotate(45deg)" },
       }),
       useBezier: true,
       curvature: 0.35,
-      useEllipseMasking: false,
     },
     behavior: {
       showRelevanceInContextMenu: false,
@@ -115,24 +115,27 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
   },
 
   option: {
-    type: 'option',
+    type: "option",
     visual: {
-      stroke: '#2563eb',
-      borderColor: '#2563eb',
-      starColor: 'text-blue-600',
+      stroke: "#2563eb",
+      borderColor: "#2563eb",
+      starColor: "text-blue-600",
       strokeWidth: (relevance) => Math.max(1, Math.min(8, relevance * 1.6)),
-      gradientId: 'quest-strap-gradient',
+      gradientId: "quest-strap-gradient",
       gradientStops: [
-        { offset: '0%', stopColor: '#1e40af', stopOpacity: 0.22 },
-        { offset: '100%', stopColor: '#3b82f6', stopOpacity: 0.22 }
+        { offset: "0%", stopColor: "#1e40af", stopOpacity: 0.22 },
+        { offset: "100%", stopColor: "#3b82f6", stopOpacity: 0.22 },
       ],
-      midpointContent: React.createElement('div', {
-        className: 'text-[8px] font-bold',
-        style: { color: '#2563eb' }
-      }, '?'),
+      midpointContent: React.createElement(
+        "div",
+        {
+          className: "text-[8px] font-bold",
+          style: { color: "#2563eb" },
+        },
+        "?"
+      ),
       useStrap: true,
       useBezier: false,
-      useEllipseMasking: true,
     },
     behavior: {
       showRelevanceInContextMenu: true,
@@ -142,31 +145,26 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
   },
 
   support: {
-    type: 'support',
+    type: "support",
     visual: {
-      stroke: '#9CA3AF',
-      borderColor: '#9CA3AF',
-      starColor: 'text-gray-600',
+      stroke: "#9CA3AF",
+      borderColor: "#9CA3AF",
+      starColor: "text-gray-600",
       strokeWidth: (relevance) => Math.max(1, Math.min(8, relevance * 1.4)),
-      strokeDasharray: '6,6',
-      midpointContent: React.createElement('div', {
-        className: 'w-1 h-1 rounded-full',
-        style: { backgroundColor: '#9CA3AF' }
-      }),
-      label: '+',
-      labelStyle: {
-        padding: 0,
-        width: 20,
-        height: 20,
-        stroke: 'white',
-        strokeWidth: 2,
-        fontSize: 28,
-        fontWeight: 700,
-        fill: '#4B5563',
-        userSelect: 'none',
-      },
+      midpointContent: React.createElement(
+        "div",
+        {
+          className: "font-bold flex items-center justify-center",
+          style: {
+            color: "#9CA3AF",
+            fontSize: "19px",
+            lineHeight: "1",
+            transform: "translateY(-1px)",
+          },
+        },
+        "+"
+      ),
       useBezier: false,
-      useEllipseMasking: false,
     },
     behavior: {
       showRelevanceInContextMenu: false,
@@ -176,24 +174,23 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
   },
 
   statement: {
-    type: 'statement',
+    type: "statement",
     visual: {
-      stroke: '#6b7280',
-      borderColor: '#6b7280',
-      starColor: 'text-blue-600',
+      stroke: "#6b7280",
+      borderColor: "#6b7280",
+      starColor: "text-blue-600",
       strokeWidth: (relevance) => Math.max(1, Math.min(8, relevance * 1.6)),
-      gradientId: 'stmt-strap-gradient',
+      gradientId: "stmt-strap-gradient",
       gradientStops: [
-        { offset: '0%', stopColor: '#111827', stopOpacity: 0.22 },
-        { offset: '100%', stopColor: '#374151', stopOpacity: 0.22 }
+        { offset: "0%", stopColor: "#111827", stopOpacity: 0.22 },
+        { offset: "100%", stopColor: "#374151", stopOpacity: 0.22 },
       ],
-      midpointContent: React.createElement('div', {
-        className: 'w-2 h-2 rounded-full',
-        style: { backgroundColor: '#6b7280' }
+      midpointContent: React.createElement("div", {
+        className: "w-2 h-2 rounded-full",
+        style: { backgroundColor: "#6b7280" },
       }),
       useStrap: true,
       useBezier: false,
-      useEllipseMasking: true,
     },
     behavior: {
       showRelevanceInContextMenu: true,

@@ -165,7 +165,7 @@ export default function MultiplayerRationaleIndexPage() {
     <div className={`fixed inset-0 top-16 ${robotoSlab.className} overflow-y-auto bg-white`}>
 
       <TooltipProvider>
-        <div className="relative max-w-7xl mx-auto p-6 pb-12">
+        <div className="relative max-w-7xl mx-auto p-8 pb-16 pt-12">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-3xl font-bold text-stone-800">My Boards</h1>

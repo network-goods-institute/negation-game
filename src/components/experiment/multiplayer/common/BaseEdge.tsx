@@ -204,7 +204,6 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
             id: visual.gradientId!,
             stops: visual.gradientStops,
           } : undefined}
-          useEllipses={visual.useEllipseMasking}
         />
         <g mask={`url(#edge-mask-${props.id})`}>
           {/* Strap background for strap-based edges */}
@@ -236,9 +235,11 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
               {...props}
               style={edgeStyles}
               interactionWidth={behavior.interactionWidth}
-              label={visual.label}
-              labelShowBg={false}
-              labelStyle={visual.labelStyle}
+              {...(visual.label && {
+                label: visual.label,
+                labelShowBg: false,
+                labelStyle: visual.labelStyle,
+              })}
             />
           )}
         </g>

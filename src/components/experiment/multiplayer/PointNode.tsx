@@ -204,7 +204,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     onMouseLeave: (e: React.MouseEvent<HTMLDivElement>) => {
       const next = e.relatedTarget as Node | null;
       const root = (containerRef.current || wrapperRef.current) as any;
-      if (root && next && typeof root.contains === 'function' && root.contains(next)) {
+      if (root && next && typeof root.contains === 'function' && next instanceof Node && root.contains(next)) {
         return;
       }
       scheduleHoldRelease();

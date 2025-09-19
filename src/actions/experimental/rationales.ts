@@ -6,6 +6,7 @@ import { mpDocsTable } from "@/db/tables/mpDocsTable";
 import { mpDocUpdatesTable } from "@/db/tables/mpDocUpdatesTable";
 import { mpDocAccessTable } from "@/db/tables/mpDocAccessTable";
 import { and, eq, sql } from "drizzle-orm";
+import { nanoid } from "nanoid";
 
 const DEFAULT_OWNER = "connormcmk";
 const DEFAULT_TITLE = "New Board";
@@ -176,10 +177,7 @@ export async function createRationale(params?: {
 }) {
   const userId = await getUserId();
   if (!userId) throw new Error("Unauthorized");
-  const id =
-    params?.id && /^[a-zA-Z0-9:_-]{1,128}$/.test(params.id)
-      ? params.id
-      : `m-${Date.now()}`;
+  const id = params?.id || nanoid();
   const title = (params?.title || DEFAULT_TITLE).trim() || DEFAULT_TITLE;
 
   await db.transaction(async (tx) => {
