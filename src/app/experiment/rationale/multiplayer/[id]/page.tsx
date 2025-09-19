@@ -455,7 +455,7 @@ export default function MultiplayerBoardDetailPage() {
                 nextSaveTime={nextSaveTime}
                 proxyMode={!canWrite}
                 userId={userId}
-                title={(() => { const t = (((nodes as any[]).find(n => n.type === 'title')?.data?.content) as string) || ''; return (t || '').trim() || (typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '')); })()}
+                title={(() => { const t = (((nodes as any[]).find(n => n.type === 'title')?.data?.content) as string) || ''; return (t || '').trim(); })()}
                 onTitleInput={(newTitle: string) => {
                     const t = nodes.find(n => n.type === 'title');
                     if (t) updateNodeContent(t.id, newTitle);

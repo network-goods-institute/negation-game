@@ -14,30 +14,45 @@ export const useInitialGraph = () => {
     if (initialGraph) return;
 
     const questionId = "title";
-    const optionId = `p-${Date.now()}`;
+    const optionId1 = `p-${Date.now()}`;
+    const optionId2 = `p-${Date.now() + 1}`;
 
     setInitialGraph({
       nodes: [
         {
           id: questionId,
           type: "title",
-          position: { x: 250, y: 160 },
+          position: { x: 250, y: 120 },
           data: { content: requestedTitle || "New Board" },
         },
         {
-          id: optionId,
+          id: optionId1,
           type: "point",
-          position: { x: 250, y: 320 },
-          data: { content: "First point", favor: 5 },
+          position: { x: 150, y: 280 },
+          data: { content: "First option", favor: 5 },
+        },
+        {
+          id: optionId2,
+          type: "point",
+          position: { x: 350, y: 280 },
+          data: { content: "Second option", favor: 5 },
         },
       ],
       edges: [
         {
           id: generateEdgeId(),
           type: "option",
-          source: optionId,
+          source: optionId1,
           target: questionId,
-          sourceHandle: `${optionId}-source-handle`,
+          sourceHandle: `${optionId1}-source-handle`,
+          targetHandle: `${questionId}-incoming-handle`,
+        },
+        {
+          id: generateEdgeId(),
+          type: "option",
+          source: optionId2,
+          target: questionId,
+          sourceHandle: `${optionId2}-source-handle`,
           targetHandle: `${questionId}-incoming-handle`,
         },
       ],
