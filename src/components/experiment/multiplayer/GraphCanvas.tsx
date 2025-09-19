@@ -226,6 +226,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             zoomOnScroll={zoomOnScroll}
             zoomOnDoubleClick={false}
             nodesDraggable={!connectMode}
+            multiSelectionKeyCode="Shift"
+            proOptions={{ hideAttribution: true }}
           >
             <Background />
             <Controls />

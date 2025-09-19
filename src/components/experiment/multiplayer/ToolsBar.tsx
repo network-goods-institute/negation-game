@@ -1,6 +1,6 @@
 import React from 'react';
-import { Pointer as PointerIcon, Link as LinkIcon, Hand as HandIcon, Undo2, Redo2 } from 'lucide-react';
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { Pointer as PointerIcon, Link as LinkIcon, Hand as HandIcon, Undo2, Redo2, HelpCircle } from 'lucide-react';
+import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ToolbarButton } from "./ToolbarButton";
 
 interface ToolsBarProps {
@@ -120,7 +120,131 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
             <Redo2 className="h-5 w-5" />
           </ToolbarButton>
 
-          {null}
+          <div className="h-6 w-px bg-stone-200 mx-2" />
+
+          {/* Help */}
+          <Tooltip delayDuration={150}>
+            <TooltipTrigger asChild>
+              <div className="h-10 w-10 inline-flex items-center justify-center rounded-full text-blue-400 hover:text-blue-600 cursor-help transition-colors">
+                <HelpCircle className="h-5 w-5" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-sm">
+              <div className="space-y-3">
+                <div className="font-semibold text-sm">Keyboard Shortcuts</div>
+
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-stone-600">Tools</div>
+                  <div className="grid grid-cols-1 gap-1 text-xs">
+                    <div className="flex justify-between">
+                      <span>Select mode</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">V</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Connect mode</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">L</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Hand/Pan mode</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">H</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Exit connect mode</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">Esc</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-stone-600">Editing</div>
+                  <div className="grid grid-cols-1 gap-1 text-xs">
+                    <div className="flex justify-between">
+                      <span>Delete selected</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">Del / ⌫</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Undo</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">⌘Z / Ctrl+Z</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Redo</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">⇧⌘Z / Ctrl+Y</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-stone-600">Node Editing</div>
+                  <div className="grid grid-cols-1 gap-1 text-xs">
+                    <div className="flex justify-between">
+                      <span>Finish editing</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">Enter</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Cancel editing</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">Esc</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Undo in editor</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">⌘Z / Ctrl+Z</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Redo in editor</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">⇧⌘Z / Ctrl+Y</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-stone-600">Canvas Navigation</div>
+                  <div className="grid grid-cols-1 gap-1 text-xs">
+                    <div className="flex justify-between">
+                      <span>Pan canvas</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">Middle Click + Drag</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Pan canvas (H mode)</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">Left Click + Drag</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Pan with scroll</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">Scroll Wheel</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-stone-600">Node Interaction</div>
+                  <div className="grid grid-cols-1 gap-1 text-xs">
+                    <div className="flex justify-between">
+                      <span>Create node</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">Double-click</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Select node</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">Click</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Multi-select nodes</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">⇧ + Click</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Move node</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">Click + Drag</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Edit node text</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">Double-click</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Context menu</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">Right-click</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </TooltipProvider>
     </div>
