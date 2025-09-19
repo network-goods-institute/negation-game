@@ -25,6 +25,7 @@ interface GraphCanvasProps {
   onEdgeClick?: any;
   provider: YProvider;
   cursors: Map<number, { fx?: number; fy?: number; name: string; color: string }>;
+  grabMode?: boolean;
   username: string;
   userColor: string;
   panOnDrag?: boolean | number[];
@@ -55,6 +56,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   cursors,
   username,
   userColor,
+  grabMode,
   panOnDrag,
   panOnScroll,
   zoomOnScroll,
@@ -266,7 +268,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       {authenticated && <CursorOverlay cursors={cursors} />}
       <OffscreenNeighborPreviews />
       {authenticated && (
-        <CursorReporter provider={provider} username={username} userColor={userColor} />
+        <CursorReporter provider={provider} username={username} userColor={userColor} grabMode={Boolean(grabMode)} />
       )}
     </div>
   );

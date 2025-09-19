@@ -3,7 +3,7 @@
 ## Overview
 Real-time collaborative rationale editor powered by Yjs CRDT documents, WebSocket transport, and React Flow for graph visualisation. The experiment lives alongside the core product but is completely isolated in routing, actions, and persistence.
 
-**Scale**: 134 TypeScript files (~14,900 lines) including core UI, hooks, utilities, dedicated tests, and the Yjs WebSocket bridge.
+**Scale**: 135 TypeScript files (~15,000 lines) including core UI, hooks, utilities, dedicated tests, and the Yjs WebSocket bridge.
 
 ## Files
 
@@ -31,7 +31,7 @@ Real-time collaborative rationale editor powered by Yjs CRDT documents, WebSocke
 - `src/actions/experimental/fetchMpDocs.ts` (18) – Fetch helper for multiplayer docs.
 - `src/actions/experimental/__tests__/rationales.actions.test.ts` (178) – Action contract tests.
 
-### Components (52 files, 5,306 lines)
+### Components (53 files, 5,415 lines)
 #### Core surfaces
 - `src/components/experiment/multiplayer/GraphCanvas.tsx` (273) – React Flow surface, connect-mode interactions, cursor telemetry.
 - `src/components/experiment/multiplayer/GraphContext.tsx` (99) – Action context wiring graph mutators into nodes.
@@ -87,13 +87,14 @@ Real-time collaborative rationale editor powered by Yjs CRDT documents, WebSocke
 - `src/components/experiment/multiplayer/common/useNeighborEmphasis.ts` (56) – Applies scale transforms to neighbours during focus.
 - `src/components/experiment/multiplayer/common/useNodeChrome.ts` (97) – Bundles editing, connecting, and hover chrome for nodes.
 - `src/components/experiment/multiplayer/common/usePillVisibility.ts` (56) – Timed visibility controller for action pills.
+- `src/components/experiment/multiplayer/common/usePanDetection.ts` (94) - Detects left/middle button drags on the graph canvas to mute cursor broadcasts while panning.
 
 #### Component tests
 - `src/components/experiment/multiplayer/__tests__/MultiplayerHeader.status.test.tsx` (62) – Header state matrix coverage.
 - `src/components/experiment/multiplayer/common/__tests__/useAbsoluteNodePosition.test.tsx` (51) – Hook geometry tests.
 - `src/components/experiment/multiplayer/common/__tests__/useHoverTracking.test.tsx` (45) – Hover timing tests.
 
-### Hooks (24 files, 2,466 lines)
+### Hooks (24 files, 2,474 lines)
 #### Graph and session hooks
 - `src/hooks/experiment/multiplayer/useInitialGraph.ts` (48) – Seeds graph state from Yjs snapshots.
 - `src/hooks/experiment/multiplayer/useKeyboardShortcuts.ts` (81) – Global hotkey handlers.
@@ -194,8 +195,8 @@ Real-time collaborative rationale editor powered by Yjs CRDT documents, WebSocke
 ## Summary Statistics
 - **App Router Pages**: 6 files / 1,730 lines
 - **API Routes**: 9 files / 666 lines
-- **Components**: 52 files / 5,306 lines
-- **Hooks**: 24 files / 2,466 lines
+- **Components**: 53 files / 5,415 lines
+- **Hooks**: 24 files / 2,474 lines
 - **Utils**: 20 files / 2,412 lines
 - **Actions**: 3 files / 444 lines
 - **Database**: 3 files / 70 lines

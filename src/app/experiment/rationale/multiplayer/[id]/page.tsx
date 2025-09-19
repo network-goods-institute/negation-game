@@ -714,6 +714,7 @@ export default function MultiplayerBoardDetailPage() {
                             cursors={cursors as any}
                             username={username}
                             userColor={userColor}
+                            grabMode={grabMode}
                             panOnDrag={grabMode ? [0, 1, 2] : [1, 2]}
                             panOnScroll={true}
                             zoomOnScroll={false}
