@@ -128,6 +128,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           onDoubleClick: (e: React.MouseEvent<HTMLDivElement>) => {
             // Prevent double-click from bubbling up to canvas (which would spawn new nodes)
             e.stopPropagation();
+            e.preventDefault();
           },
           'data-selected': selected,
         } as any}

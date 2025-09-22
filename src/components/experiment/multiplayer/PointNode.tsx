@@ -226,6 +226,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     onDoubleClick: (e: React.MouseEvent<HTMLDivElement>) => {
       // Prevent double-click from bubbling up to canvas (which would spawn new nodes)
       e.stopPropagation();
+      e.preventDefault();
     },
     onClick: (e: React.MouseEvent<HTMLDivElement>) => {
       if (isConnectMode) {
